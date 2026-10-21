@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-values/calc-size/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+<div style="display: flex; width: 100px; height: 100px; background: red;">
+  <!-- The auto min-size will be min(80px, 50px) == 50px.
+       Then passed through the calc-size, it'll be 100px. -->
+  <div style="min-width: calc-size(auto, size * 2); width: 80px; background: green;">
+    <div style="width: 50px;"></div>
+  </div>
+</div>

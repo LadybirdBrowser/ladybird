@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	shrink-to-fit parent of a table with width: calc-size(max-content, size)
+Pass	shrink-to-fit parent of a table with width: calc-size(max-content, size * 2)
+Pass	shrink-to-fit parent of a table with width: calc-size(max-content, size + 25px)
+Pass	shrink-to-fit parent of a table with width: calc-size(min-content, size)
+Pass	shrink-to-fit parent of a table with width: calc-size(min-content, size + 25px)
+Pass	shrink-to-fit parent of a table with width: calc-size(max-content, 90px) — calculation never mentions size

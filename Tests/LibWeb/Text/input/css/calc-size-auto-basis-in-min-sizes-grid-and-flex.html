@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<!-- A minimum given as a calc-size() with an auto basis resolves against the automatic minimum size, which is zero for
+     these boxes. -->
+<div style="width: 300px"><div id="min-width" style="width: 0; min-width: calc-size(auto, size + 50px); height: 5px; float: left"></div></div>
+<div id="min-height" style="height: 0; min-height: calc-size(auto, size + 30px)"><div style="height: 10px"></div></div>
+<!-- A preferred size given as a calc-size() with an auto basis resolves against the stretched size of a grid item, and
+     of a flex item in the cross axis. -->
+<div style="display: grid; height: 200px"><div id="grid-item" style="height: calc-size(auto, size * 0.5)"><div style="height: 40px"></div></div></div>
+<div style="display: flex; height: 200px"><div id="flex-cross" style="height: calc-size(auto, size * 0.5)"><div style="height: 40px"></div></div></div>
+<!-- The percentages of a flex item's calc-size() minimum resolve against the flex container's main size. -->
+<div style="display: flex; width: 400px"><div id="flex-min-percentage" style="min-width: calc-size(auto, size + 10%); width: 0"><div style="width: 20px"></div></div><div style="width: 400px; flex-shrink: 0"></div></div>
+<script>
+    test(() => {
+        for (const id of ["min-width", "min-height", "grid-item", "flex-cross", "flex-min-percentage"]) {
+            const element = document.getElementById(id);
+            println(`${id}: ${element.offsetWidth}x${element.offsetHeight}`);
+        }
+    });
+</script>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-values/calc-size/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+<style>
+#flex {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+
+  width: 100px;
+  height: calc-size(auto, min(size, 100px));
+  background: red;
+}
+
+#flex > div {
+  width: 100px;
+  height: 60px;
+  background: green;
+}
+</style>
+<!-- There should only be one flex-line as at the time of determining the
+     available main-size it is indefinite, and calc-size() shouldn't resolve.
+     See: https://drafts.csswg.org/css-flexbox-1/#algo-available -->
+<div id="flex">
+  <div></div>
+  <div></div>
+</div>

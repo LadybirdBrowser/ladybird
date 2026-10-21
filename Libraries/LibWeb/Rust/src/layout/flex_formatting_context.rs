@@ -1145,6 +1145,38 @@ impl<'pass> FlexFormattingContext<'pass> {
             UsedFlexBasis::Size { .. } => self.calculate_fit_content_main_size(index),
         };
 
+        // https://drafts.csswg.org/css-values-5/#calc-size
+        // A calc-size() with a sizing keyword basis resolves against the size that keyword gave the item. The main
+        // size property acts as the flex basis where the flex basis is auto, and the flex basis then applies to that.
+        if self.flex_items[index].main_size_was_resolved_from_aspect_ratio {
+            // NB: The main size of this item came through its aspect ratio, not from its keyword size.
+        } else {
+            let style = self.style(node);
+            let main_axis = if self.main_axis_is_horizontal() {
+                SizingAxis::Inline
+            } else {
+                SizingAxis::Block
+            };
+            let percentage_basis = self
+                .has_definite_main_size_used(self.container_used())
+                .then(|| self.inner_main_size_used(self.container_used()));
+            let has_keyword_basis =
+                |size: &ComputedSize| size.calc_size().is_some() && size.kind != ComputedSizeKind::Calculated;
+            let flex_basis = style.flex_basis();
+            let basis_retrieves_main_size = !style.flex_basis_is_content() && flex_basis.is_auto();
+            let (main_size, _) = self.computed_main_size(node);
+            if basis_retrieves_main_size && has_keyword_basis(main_size) {
+                flex_base_size =
+                    self.sizing()
+                        .resolve_calc_size(node, main_axis, main_size, flex_base_size, percentage_basis);
+            }
+            if has_keyword_basis(flex_basis) {
+                flex_base_size =
+                    self.sizing()
+                        .resolve_calc_size(node, main_axis, flex_basis, flex_base_size, percentage_basis);
+            }
+        }
+
         // AD-HOC: This is not mentioned in the spec, but if the item has an aspect ratio, we may need
         //         to adjust the main size in these ways:
         //         - using stretch-fit main size if the flex basis is indefinite, there is no
@@ -1181,11 +1213,31 @@ impl<'pass> FlexFormattingContext<'pass> {
         // To provide a more reasonable default minimum size for flex items,
         // the used value of a main axis automatic minimum size on a flex item that is not a scroll container is its content-based minimum size;
         // for scroll containers the automatic minimum size is zero, as usual.
-        if !self.facts(self.flex_items[index].box_).is_scroll_container() {
+        let node = self.flex_items[index].box_;
+        let size = if !self.facts(node).is_scroll_container() {
             self.content_based_minimum_size(index)
         } else {
             CssPixels::default()
+        };
+        // https://drafts.csswg.org/css-values-5/#calc-size
+        // NB: A calc-size() with an auto basis resolves against the automatic minimum size, and its percentages against
+        //     the flex container's inner main size, where that is definite.
+        let style = self.style(node);
+        let min_size = self.select_main(style.min_width(), style.min_height());
+        if min_size.calc_size().is_none() {
+            return size;
         }
+        let axis = if self.main_axis_is_horizontal() {
+            SizingAxis::Inline
+        } else {
+            SizingAxis::Block
+        };
+        let container = self.container_used();
+        let percentage_basis = self
+            .has_definite_main_size_used(container)
+            .then(|| self.inner_main_size_used(container));
+        self.sizing()
+            .resolve_calc_size(node, axis, min_size, size, percentage_basis)
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#specified-size-suggestion
@@ -1946,6 +1998,34 @@ impl<'pass> FlexFormattingContext<'pass> {
                     }
                 }
             }
+        }
+
+        // https://drafts.csswg.org/css-values-5/#resolving-calc-size
+        // NB: A calc-size() with an auto basis resolves against the cross size auto gives the item, stretched or not.
+        for index in 0..self.flex_items.len() {
+            let node = self.flex_items[index].box_;
+            let cross_size = self.computed_cross_size(node).0;
+            if !cross_size.is_auto() || cross_size.calc_size().is_none() {
+                continue;
+            }
+            let Some(auto_size) = self.flex_items[index].cross_size else {
+                continue;
+            };
+            let container = self.container_used();
+            let percentage_basis = self
+                .has_definite_cross_size_used(container)
+                .then(|| self.inner_cross_size_used(container));
+            let axis = if self.cross_axis_is_horizontal() {
+                SizingAxis::Inline
+            } else {
+                SizingAxis::Block
+            };
+            let size = self
+                .sizing()
+                .resolve_calc_size(node, axis, cross_size, auto_size, percentage_basis);
+            self.flex_items[index].cross_size = Some(size);
+            self.set_cross_size(index, size);
+            self.set_has_definite_cross_size(index);
         }
     }
 
@@ -3294,9 +3374,15 @@ impl<'pass> FlexFormattingContext<'pass> {
                 && !facts.has_preferred_aspect_ratio()
                 && self.flex_items[index].used_flex_basis_is_definite
                 && self.specified_size_suggestion(index) == Some(self.flex_items[index].flex_base_size);
+            // NB: A calc-size() minimum can resolve to more than the automatic minimum size.
+            let style = self.style(node);
+            let min_is_calc_size = self
+                .select_main(style.min_width(), style.min_height())
+                .calc_size()
+                .is_some();
             let clamp_min = if self.has_main_min_size(node) {
                 self.specified_main_min_size(index)
-            } else if should_skip_automatic_minimum_size_clamp || can_skip_for_item {
+            } else if !min_is_calc_size && (should_skip_automatic_minimum_size_clamp || can_skip_for_item) {
                 CssPixels::default()
             } else {
                 self.automatic_minimum_size(index)

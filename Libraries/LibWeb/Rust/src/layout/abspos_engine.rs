@@ -1344,7 +1344,7 @@ impl AbsposEngine<'_> {
                 );
             }
         }
-        if !style.min_width().is_auto() {
+        if !crate::layout::sizing_context::is_plain_auto(style.min_width()) {
             let min_inline_size =
                 sizing.calculate_inner_inline_size(node, available_space.inline_size, style.min_width(), constraints);
             if auto_px_value(used_inline_size) < min_inline_size {
@@ -1464,7 +1464,7 @@ impl AbsposEngine<'_> {
                 constrained = Some(maximum);
             }
         }
-        if !style.min_height().is_auto() {
+        if !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
             let minimum = sizing.calculate_inner_block_size(node, available_space, style.min_height(), constraints);
             if minimum > auto_px_value(constrained) {
                 constrained = Some(minimum);
@@ -1652,7 +1652,7 @@ impl AbsposEngine<'_> {
                 );
             }
         }
-        if solution.block_size.is_some() && !style.min_height().is_auto() {
+        if solution.block_size.is_some() && !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
             let min_block_size = self.sizing().calculate_inner_block_size(
                 node,
                 intrinsic_available_space,

@@ -2728,10 +2728,17 @@ impl ComputedFlexBasis {
             data.optional_data(),
             Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::CONTENT
         );
+        // A calc-size() with a content basis acts as content, and keeps the function for resolving the size.
+        let is_calc_size_of_content = data
+            .optional_data()
+            .and_then(crate::css::calc_size::calc_size_basis_keyword)
+            == Some(keyword::CONTENT);
         Self {
-            is_content,
+            is_content: is_content || is_calc_size_of_content,
             size: if is_content {
                 ComputedSize::keyword(ComputedSizeKind::Auto)
+            } else if is_calc_size_of_content {
+                ComputedSize::retained(ComputedSizeKind::Auto, data)
             } else {
                 ComputedSize::from_data(data)
             },

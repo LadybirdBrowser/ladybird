@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>calc-size() expressions</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+
+<div id="test"></div>
+
+<script>
+
+let e = document.getElementById("test");
+
+function test_typed_om_string(property, value, expected) {
+  test((t) => {
+    if (!expected) {
+      expected = value;
+    }
+    e.style.setProperty(property, value);
+    let actual = e.computedStyleMap().get(property).toString();
+    assert_equals(actual, expected);
+    e.style.setProperty(property, "");
+  }, `computedStyleMap serialization of ${property}: ${value}`);
+}
+
+test_typed_om_string("width", "calc-size(auto, size)");
+test_typed_om_string("width", "calc-size(fit-content, size)");
+test_typed_om_string("height", "calc-size(min-content, size * 2)", "calc-size(min-content, 2 * size)");
+test_typed_om_string("max-width", "calc-size(max-content, size / 2)", "calc-size(max-content, (0.5 * size))");
+test_typed_om_string("max-height", "calc-size(fit-content, 30px + size / 2)", "calc-size(fit-content, 30px + (0.5 * size))");
+test_typed_om_string("width", "calc-size(fit-content, 50% + size / 2)", "calc-size(fit-content, 50% + (0.5 * size))");
+test_typed_om_string("width", "calc-size(any, 30px)");
+test_typed_om_string("width", "calc-size(any, 25em)", "calc-size(any, 400px)");
+test_typed_om_string("width", "calc-size(any, 40%)");
+test_typed_om_string("width", "calc-size(any, 50px + 30%)", "calc-size(any, 30% + 50px)");
+test_typed_om_string("width", "calc-size(any, min(30px, 2em))", "calc-size(any, 30px)");
+test_typed_om_string("width", "calc-size(10px, sign(size) * size)");
+test_typed_om_string("width", "calc-size(30px, 25em)", "calc-size(30px, 400px)");
+test_typed_om_string("width", "calc-size(calc-size(any, 30px), size)");
+test_typed_om_string("width", "calc-size(calc-size(any, 30px), 25em)", "calc-size(calc-size(any, 30px), 400px)");
+test_typed_om_string("width", "calc-size(calc-size(2in, 30px), 25em)", "calc-size(calc-size(192px, 30px), 400px)");
+test_typed_om_string("width", "calc-size(calc-size(min-content, 30px), 25em)", "calc-size(calc-size(min-content, 30px), 400px)");
+test_typed_om_string("width", "calc-size(calc-size(min-content, size), size)");
+test_typed_om_string("width", "calc-size(calc-size(fit-content, size * 2), size)", "calc-size(calc-size(fit-content, 2 * size), size)");
+
+</script>

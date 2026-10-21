@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>calc-size() with an intrinsic basis on a select</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+  .shrink { display: inline-block; }
+</style>
+
+<div id="log"></div>
+<div id="container"></div>
+
+<script>
+// A select sizes itself from its options and its own chrome, which differs between UAs, so every
+// expectation is derived from what this UA reports for the basis keyword on an identical control.
+const cases = [
+  { basis: "max-content", width: "calc-size(max-content, size)",        expected: ref => ref },
+  { basis: "max-content", width: "calc-size(max-content, size * 2)",    expected: ref => ref * 2 },
+  { basis: "max-content", width: "calc-size(max-content, size + 25px)", expected: ref => ref + 25 },
+  { basis: "min-content", width: "calc-size(min-content, size)",        expected: ref => ref },
+  { basis: "min-content", width: "calc-size(min-content, size + 25px)", expected: ref => ref + 25 },
+];
+
+// A list box and a drop-down box are laid out by different code, and a UA is free to render either
+// one as the other.
+const controls = [
+  { name: "list box", markup: "<select size='2'><option>aaaaaaaaaa</option><option>bb</option></select>" },
+  { name: "drop-down box", markup: "<select><option>aaaaaaaaaa</option><option>bb</option></select>" },
+];
+
+const container = document.getElementById("container");
+
+function addSelect(markup, width) {
+  const shrink = document.createElement("div");
+  shrink.className = "shrink";
+  shrink.innerHTML = markup;
+  shrink.firstChild.style.width = width;
+  container.appendChild(shrink);
+  return shrink;
+}
+
+for (const control of controls) {
+  control.references = {
+    "max-content": addSelect(control.markup, "max-content"),
+    "min-content": addSelect(control.markup, "min-content"),
+  };
+  control.cases = cases.map(testCase => ({ ...testCase, shrink: addSelect(control.markup, testCase.width) }));
+}
+
+for (const control of controls) {
+  for (const testCase of control.cases) {
+    test(() => {
+      const reference = control.references[testCase.basis].getBoundingClientRect().width;
+      assert_greater_than(reference, 0, "the " + testCase.basis + " reference should be measurable");
+      assert_equals(testCase.shrink.getBoundingClientRect().width, testCase.expected(reference),
+                    "against a " + testCase.basis + " reference of " + reference + "px");
+    }, "shrink-to-fit parent of a " + control.name + " with width: " + testCase.width);
+  }
+}
+</script>

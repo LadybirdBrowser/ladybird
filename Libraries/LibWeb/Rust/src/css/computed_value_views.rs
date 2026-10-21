@@ -1081,7 +1081,8 @@ impl<'a> ComputedValuesView<'a> {
 
     pub(crate) fn flex_basis(self) -> &'a ComputedSize {
         let flex_basis = &self.alignment().flex_basis;
-        if flex_basis.is_content {
+        // NB: A calc-size() based on content keeps its function for resolving the size.
+        if flex_basis.is_content && flex_basis.size.calc_size().is_none() {
             auto_computed_size()
         } else {
             &flex_basis.size

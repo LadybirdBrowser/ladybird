@@ -1,0 +1,5 @@
+min-width: 50x5
+min-height: 800x30
+grid-item: 800x100
+flex-cross: 0x100
+flex-min-percentage: 40x0

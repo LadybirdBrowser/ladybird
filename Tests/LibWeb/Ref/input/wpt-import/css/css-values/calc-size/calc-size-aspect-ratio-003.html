@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-values/calc-size/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<!-- The auto height is 50px, the auto min-size is 150px, which passing through the calc-size() yields 100px. -->
+<div style="aspect-ratio: 2/1; width: 100px; min-height: calc-size(auto, size - 50px); background: green;">
+  <div style="height: 150px;"></div>
+</div>

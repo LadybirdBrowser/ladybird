@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<title>calc-size() on flex-basis</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-basis-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+  #container {
+    display: flex;
+    flex-direction: column;
+    font-family: 'Ahem';
+    font-size: 20px;
+    height: 200px;
+  }
+  #target {
+    height: 50px;
+    flex-grow: 0;
+    flex-shrink: 0;
+  }
+</style>
+
+<div id="container">
+  <!--
+    Given the contents of #target (and the Ahem font), intrinsic height is 1ch or 20px
+  -->
+  <div id="target">hello</div>
+</div>
+
+<script>
+
+setup({explicit_done: true});
+document.fonts.ready.then(()=> {
+  let basic_tests = [
+    /* I think flex layout rules require expectations be >= 20px */
+    { value: "274px", expected: "274px" },
+    { value: "min-content", expected: "20px" },
+    { value: "fit-content", expected: "20px" },
+    { value: "max-content", expected: "20px" },
+    { value: "content", expected: "20px" },
+    { value: "auto", expected: "50px" },
+    { value: "calc-size(any, 357px)", expected: "357px" },
+    { value: "calc-size(any, 220%)", expected: "440px" },
+    { value: "calc-size(max-content, 350%)", expected: "700px" },
+    { value: "calc-size(fit-content, 172px)", expected: "172px" },
+    { value: "calc-size(37px, 193px)", expected: "193px" },
+    { value: "calc-size(83px, size * 3)", expected: "249px" },
+    { value: "calc-size(min-content, size / 0.25)", expected: "80px" },
+    { value: "calc-size(max-content, size * 5.2)", expected: "104px" },
+    { value: "calc-size(fit-content, size / 4 + 60px)", expected: "65px" },
+    { value: "calc-size(stretch, size * 2 - 10%)", expected: "380px" },
+    { value: "calc-size(30px, 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(any, 30px), 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(2in, 30px), 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(min-content, 30px), 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(min-content, size), size * 3)", expected: "60px" },
+    { value: "calc-size(auto, size)", expected: "50px" },
+    { value: "calc-size(auto, size * 1.6 + 23px)", expected: "103px" },
+    { value: "calc-size(content, size)", expected: "20px" },
+    { value: "calc-size(content, size * 1.6 + 23px)", expected: "55px" },
+    { value: "auto", height_value: "auto", expected: "20px" },
+    { value: "calc-size(auto, size * 3)", height_value: "auto", expected: "60px" },
+    { value: "auto", height_value: "calc-size(auto, size * 7)", expected: "140px" },
+    { value: "calc-size(auto, size * 7)", height_value: "calc-size(auto, size * 3)", expected: "420px" },
+    { value: "auto", height_value: "calc-size(max-content, size + 12px)", expected: "32px" },
+    { value: "calc-size(auto, size + 4px)", height_value: "calc-size(fit-content, size + 12px)", expected: "36px" },
+    { value: "372px", height_value: "calc-size(fit-content, size + 12px)", expected: "372px" },
+    { value: "calc-size(content, size * 7)", height_value: "321px", expected: "140px" },
+  ];
+  const container = document.getElementById("container");
+  const target = document.getElementById("target");
+  const target_cs = getComputedStyle(target);
+  for (const obj of basic_tests) {
+    test((t) => {
+      target.style.removeProperty("flex-basis");
+      target.style.flexBasis = obj.value;
+      assert_not_equals(target.style.flexBasis, "", "flex-basis value is accepted");
+
+      target.style.removeProperty("height");
+      if ("height_value" in obj) {
+        target.style.height = obj.height_value;
+        assert_not_equals(target.style.height, "", "height value is accepted");
+      }
+
+      assert_equals(target_cs.height, obj.expected, "resulting height is correct");
+    }, `resolved value for height resulting from flex-basis: ${obj.value}${obj.height_value ? ` and height: ${obj.height_value}` : ""}`);
+  }
+
+  done();
+});
+
+</script>

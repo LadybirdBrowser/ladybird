@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-values/calc-size/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+<div style="display: flex; flex-wrap: wrap-reverse; width: 100px; height: 100px; position: relative;">
+  <div style="background: red; max-height: 80px; height: calc-size(auto, size / 2); flex: 1;"></div>
+  <div style="background: green; position: absolute; inset: 0;"></div>
+</div>

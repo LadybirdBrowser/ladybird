@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 33 tests
+
+32 Pass
+1 Fail
+Pass	resolved value for width resulting from flex-basis: 274px
+Pass	resolved value for width resulting from flex-basis: min-content
+Pass	resolved value for width resulting from flex-basis: fit-content
+Pass	resolved value for width resulting from flex-basis: max-content
+Pass	resolved value for width resulting from flex-basis: content
+Pass	resolved value for width resulting from flex-basis: auto
+Pass	resolved value for width resulting from flex-basis: calc-size(any, 357px)
+Pass	resolved value for width resulting from flex-basis: calc-size(any, 31%)
+Pass	resolved value for width resulting from flex-basis: calc-size(max-content, 31%)
+Pass	resolved value for width resulting from flex-basis: calc-size(fit-content, 172px)
+Pass	resolved value for width resulting from flex-basis: calc-size(37px, 193px)
+Pass	resolved value for width resulting from flex-basis: calc-size(83px, size * 3)
+Pass	resolved value for width resulting from flex-basis: calc-size(min-content, size / 2)
+Pass	resolved value for width resulting from flex-basis: calc-size(max-content, size * 1.2)
+Pass	resolved value for width resulting from flex-basis: calc-size(fit-content, size / 4 + 30px)
+Fail	resolved value for width resulting from flex-basis: calc-size(stretch, size / 2 - 10%)
+Pass	resolved value for width resulting from flex-basis: calc-size(30px, 15em)
+Pass	resolved value for width resulting from flex-basis: calc-size(calc-size(any, 30px), 15em)
+Pass	resolved value for width resulting from flex-basis: calc-size(calc-size(2in, 30px), 15em)
+Pass	resolved value for width resulting from flex-basis: calc-size(calc-size(min-content, 30px), 15em)
+Pass	resolved value for width resulting from flex-basis: calc-size(calc-size(min-content, size), size)
+Pass	resolved value for width resulting from flex-basis: calc-size(auto, size)
+Pass	resolved value for width resulting from flex-basis: calc-size(auto, size * 1.6 + 23px)
+Pass	resolved value for width resulting from flex-basis: calc-size(content, size)
+Pass	resolved value for width resulting from flex-basis: calc-size(content, size / 2)
+Pass	resolved value for width resulting from flex-basis: auto and width: auto
+Pass	resolved value for width resulting from flex-basis: calc-size(auto, size * 2) and width: auto
+Pass	resolved value for width resulting from flex-basis: auto and width: calc-size(auto, size * 1.5 + 5px)
+Pass	resolved value for width resulting from flex-basis: calc-size(auto, size + 14px) and width: calc-size(auto, size * 1.5)
+Pass	resolved value for width resulting from flex-basis: auto and width: calc-size(max-content, size + 12px)
+Pass	resolved value for width resulting from flex-basis: calc-size(auto, size + 4px) and width: calc-size(fit-content, size + 12px)
+Pass	resolved value for width resulting from flex-basis: 472px and width: calc-size(fit-content, size + 12px)
+Pass	resolved value for width resulting from flex-basis: calc-size(content, size * 1.5 + 4px) and width: 321px

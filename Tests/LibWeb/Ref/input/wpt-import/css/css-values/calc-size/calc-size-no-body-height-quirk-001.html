@@ -1,0 +1,15 @@
+<!-- This test is intentionally in quirks mode. -->
+<title>calc-size() and the body fills html quirk</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="help" href="https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-values/calc-size/calc-size-no-body-height-quirk-001-ref.html">
+<style>
+
+body {
+  height: calc-size(auto, size);
+  border: medium solid;
+}
+
+</style>
+
+<body>The bottom border of this box should be close to the text, not at the bottom of the viewport.</body>
