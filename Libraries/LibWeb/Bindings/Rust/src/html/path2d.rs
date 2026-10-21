@@ -9,7 +9,6 @@
 use core::cell::RefCell;
 
 use ak::Utf16String;
-use libgfx_rust::AffineTransform;
 use libgfx_rust::path::{OwnedPath, PathBuilder, PathMut};
 use libjs_rust::api::Trace;
 
@@ -195,7 +194,7 @@ impl Path2D {
         radius: f64,
     ) -> WebIdlResult<()> {
         // NB: A Path2D has no transformation matrix, so its points are in the coordinates that it was given.
-        self.build(|path| canvas_path::arc_to(path, AffineTransform::identity(), x1, y1, x2, y2, radius))?;
+        self.build(|path| canvas_path::arc_to(path, x1, y1, x2, y2, radius))?;
         Ok(())
     }
 

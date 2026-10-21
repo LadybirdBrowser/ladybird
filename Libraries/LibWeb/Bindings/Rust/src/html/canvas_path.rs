@@ -11,7 +11,7 @@
 //! quadraticCurveTo(), arc() and ellipse() are floats, and those of the rest are doubles that become floats where
 //! they become points.
 
-use libgfx_rust::{AffineTransform, FloatPoint, FloatSize};
+use libgfx_rust::{FloatPoint, FloatSize};
 
 use crate::ak_format::ak_formatted;
 
@@ -427,11 +427,8 @@ pub(crate) fn ellipse(
 }
 
 /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-arcto
-///
-/// The transform is the current transformation matrix of a context, and the identity for a Path2D.
 pub(crate) fn arc_to(
     path: &mut impl PathSink,
-    transform: AffineTransform,
     x1: f64,
     y1: f64,
     x2: f64,
@@ -458,8 +455,10 @@ pub(crate) fn arc_to(
 
     // 4. Let the point (x0, y0) be the last point in the subpath, transformed by the inverse of the current
     //    transformation matrix (so that it is in the same coordinate system as the points passed to the method).
+    // NB: A Path2D has no transformation matrix, and a context keeps its current default path in the coordinates of
+    //     its current transformation matrix, so the last point is in that coordinate system already.
     // Point (x0, y0)
-    let p0 = transform.inverse().unwrap_or_default().map_point(path.last_point());
+    let p0 = path.last_point();
 
     // 5. If the point (x0, y0) is equal to the point (x1, y1), or if the point (x1, y1) is equal to the point
     //    (x2, y2), or if radius is zero, then add the point (x1, y1) to the subpath, and connect that point to the
@@ -721,7 +720,7 @@ mod tests {
         CanvasPathError, PathSink, RoundRectRadius, arc, arc_to, close_path, ellipse, line_to, move_to, rect,
         round_rect,
     };
-    use libgfx_rust::{AffineTransform, FloatPoint, FloatSize};
+    use libgfx_rust::{FloatPoint, FloatSize};
 
     #[derive(Debug, PartialEq)]
     enum Op {
@@ -864,7 +863,7 @@ mod tests {
             Err(CanvasPathError::NegativeMinorAxisRadius(-2.0))
         );
         assert_eq!(
-            arc_to(&mut path, AffineTransform::identity(), 1.0, 1.0, 2.0, 2.0, -0.5),
+            arc_to(&mut path, 1.0, 1.0, 2.0, 2.0, -0.5),
             Err(CanvasPathError::NegativeArcToRadius(-0.5))
         );
         // NB: arcTo() ensures there is a subpath before it checks the radius.
@@ -911,14 +910,8 @@ mod tests {
     fn arc_to_with_collinear_points_is_a_line() {
         let mut path = RecordingPath::default();
         move_to(&mut path, 0.0, 0.0);
-        assert_eq!(
-            arc_to(&mut path, AffineTransform::identity(), 1.0, 0.0, 2.0, 0.0, 1.0),
-            Ok(())
-        );
-        assert_eq!(
-            arc_to(&mut path, AffineTransform::identity(), 3.0, 3.0, 4.0, 3.0, 0.0),
-            Ok(())
-        );
+        assert_eq!(arc_to(&mut path, 1.0, 0.0, 2.0, 0.0, 1.0), Ok(()));
+        assert_eq!(arc_to(&mut path, 3.0, 3.0, 4.0, 3.0, 0.0), Ok(()));
         assert_eq!(
             path.ops,
             [Op::MoveTo(0.0, 0.0), Op::LineTo(1.0, 0.0), Op::LineTo(3.0, 3.0)]
@@ -929,10 +922,7 @@ mod tests {
     fn arc_to_a_corner_is_a_line_and_an_arc_between_the_tangent_points() {
         let mut path = RecordingPath::default();
         move_to(&mut path, 0.0, 0.0);
-        assert_eq!(
-            arc_to(&mut path, AffineTransform::identity(), 10.0, 0.0, 10.0, 10.0, 5.0),
-            Ok(())
-        );
+        assert_eq!(arc_to(&mut path, 10.0, 0.0, 10.0, 10.0, 5.0), Ok(()));
         let [_, Op::LineTo(x3, y3), Op::ArcTo { x, y, radius, sweep }] = path.ops.as_slice() else {
             panic!("the corner is a line and an arc: {:?}", path.ops);
         };

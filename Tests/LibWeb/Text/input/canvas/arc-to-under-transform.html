@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // arcTo() takes the last point of the current default path in the coordinates of the current transformation
+    // matrix, which the path is kept in. The shape is a square from (10, 10) to (50, 50) whose top right corner is
+    // rounded with a radius of 20, drawn under a translation of (0, 20).
+    test(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 100;
+        canvas.height = 100;
+        const context = canvas.getContext("2d");
+        context.translate(0, 20);
+        context.moveTo(10, 10);
+        context.arcTo(50, 10, 50, 50, 20);
+        context.lineTo(50, 50);
+        context.lineTo(10, 50);
+        context.closePath();
+        context.fill();
+
+        const alphaAt = (x, y) => context.getImageData(x, y + 20, 1, 1).data[3];
+        println(`Inside the square: ${alphaAt(20, 30)}`);
+        println(`Above the top edge: ${alphaAt(30, 7)}`);
+        println(`Outside the rounded corner: ${alphaAt(45, 13)}`);
+        println(`Inside the rounded corner: ${alphaAt(40, 20)}`);
+    });
+</script>
