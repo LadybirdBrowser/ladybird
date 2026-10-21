@@ -2718,6 +2718,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .after_includes
         .get_or_insert_with(String::new)
         .push_str("\nnamespace Web::CSS::Parser::ValueParserFFI { struct DeclarationBlockData; }");
+    // The computations C++ hands a style value take the value as the style value header declares it.
+    computed_values_config.export.rename.insert(
+        "StyleValueData".to_string(),
+        "Web::CSS::StyleValueFFI::StyleValueData".to_string(),
+    );
+    computed_values_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::CSS::StyleValueFFI { union StyleValueData; }");
     // An animation sample and plan read the document's style engine, which the document host reaches.
     declare_document_host_of_layout_header(&mut computed_values_config);
 

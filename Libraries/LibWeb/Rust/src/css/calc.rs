@@ -2667,18 +2667,21 @@ pub(crate) fn collect_unfixed_random_sharings(node: &CalcNode, sharings: &mut Ve
     node.for_each_child(&mut |child| collect_unfixed_random_sharings(child, sharings));
 }
 
+/// Returns the borrowed calculation-tree root stored in calculated style value data.
+pub(crate) fn calc_root(calculated: &crate::css::style_value::StyleValueData) -> &CalcNode {
+    let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } = calculated else {
+        unreachable!("calc_root requires calculated value data");
+    };
+    rust_calculation.node()
+}
+
 /// Returns the borrowed calculation-tree root stored in calculated style value
 /// data.
 ///
 /// # Safety
 /// `calculated` must point at live Calculated style value data.
 pub(crate) unsafe fn calc_root_from_calculated(calculated: *const std::ffi::c_void) -> *const CalcNode {
-    let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } =
-        (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
-    else {
-        unreachable!("calc_root_from_calculated requires calculated value data");
-    };
-    rust_calculation.node()
+    calc_root(unsafe { &*calculated.cast::<crate::css::style_value::StyleValueData>() })
 }
 
 /// The resolve-as target from a calculated value's creation-time fields.
@@ -3363,15 +3366,11 @@ pub(crate) fn resolve_calculated_line_height_without_context(
 /// valid resolution context.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_resolve(
-    calculated: *const std::ffi::c_void,
+    calculated: &crate::css::style_value::StyleValueData,
     context: &FfiCalcResolutionContext,
     apply_censoring_and_clamping: bool,
 ) -> FfiResolvedCalc {
-    let calculated = unsafe { &*calculated.cast::<crate::css::style_value::StyleValueData>() };
-    let externals = prepare_external_resolutions(
-        unsafe { &*calc_root_from_calculated(std::ptr::from_ref(calculated).cast()) },
-        context,
-    );
+    let externals = prepare_external_resolutions(calc_root(calculated), context);
     resolve_calculated(
         calculated,
         context,
@@ -4420,14 +4419,14 @@ impl CalcNode {
 }
 
 /// Structural equality of two calculated style values' trees.
-///
-/// # Safety
-/// Both pointers must reference Calculated style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second: *const std::ffi::c_void) -> bool {
+pub extern "C" fn rust_calc_equals(
+    first: &crate::css::style_value::StyleValueData,
+    second: &crate::css::style_value::StyleValueData,
+) -> bool {
     use crate::css::style_value::StyleValueData;
-    let tree_of = |data: *const std::ffi::c_void| {
-        let StyleValueData::Calculated { rust_calculation, .. } = (unsafe { &*(data as *const StyleValueData) }) else {
+    let tree_of = |data: &StyleValueData| {
+        let StyleValueData::Calculated { rust_calculation, .. } = data else {
             unreachable!("rust_calc_equals requires calculated value data");
         };
         rust_calculation.node_arc()
@@ -4552,18 +4551,17 @@ fn append_reification_node(
 /// https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
 /// Describe a calculation tree in postorder so C++ can create its GC-owned Typed OM objects.
 /// Unsupported math functions return an empty description.
-///
-/// # Safety
-/// `calculated` must point at Calculated style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_describe_for_typed_om(calculated: *const std::ffi::c_void) -> FfiCalcReification {
+pub extern "C" fn rust_calc_describe_for_typed_om(
+    calculated: &crate::css::style_value::StyleValueData,
+) -> FfiCalcReification {
     let crate::css::style_value::StyleValueData::Calculated {
         rust_calculation,
         has_percentages_resolve_as,
         resolve_as_is_number,
         resolve_as_base,
         ..
-    } = (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
+    } = calculated
     else {
         unreachable!("rust_calc_describe_for_typed_om requires calculated value data");
     };

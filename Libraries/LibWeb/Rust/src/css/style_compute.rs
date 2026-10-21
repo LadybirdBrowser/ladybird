@@ -584,13 +584,9 @@ fn compute_font_width(value: &StyleValueData) -> FfiComputedNumber {
 }
 
 /// Computes the font-width property from its absolutized value.
-///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_font_width(absolutized_value: *const c_void) -> FfiComputedNumber {
-    let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-    compute_font_width(value)
+pub extern "C" fn rust_compute_font_width(absolutized_value: &StyleValueData) -> FfiComputedNumber {
+    compute_font_width(absolutized_value)
 }
 
 /// An <absolute-size> keyword refers to an entry in a table of font sizes computed and kept by
@@ -727,20 +723,16 @@ fn compute_font_size(
 
 /// Computes the font-size property from its absolutized value. The font size
 /// inputs are raw CSSPixels values.
-///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_font_size(
-    absolutized_value: *const c_void,
+pub extern "C" fn rust_compute_font_size(
+    absolutized_value: &StyleValueData,
     computed_math_depth: i32,
     inherited_font_size_raw: i32,
     inherited_math_depth: i32,
     default_font_size_raw: i32,
 ) -> FfiComputedNumber {
-    let value = unsafe { &*(absolutized_value as *const StyleValueData) };
     compute_font_size(
-        value,
+        absolutized_value,
         computed_math_depth,
         CssPixels::from_raw(inherited_font_size_raw),
         inherited_math_depth,
@@ -969,11 +961,9 @@ pub(crate) fn content_reads_counter_style_environment(value: &StyleValueData) ->
     }
 }
 
-/// # Safety
-/// `value` must point to a live style value.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_content_reads_counter_style_environment(value: *const c_void) -> bool {
-    content_reads_counter_style_environment(unsafe { &*value.cast::<StyleValueData>() })
+pub extern "C" fn rust_content_reads_counter_style_environment(value: &StyleValueData) -> bool {
+    content_reads_counter_style_environment(value)
 }
 
 /// The counter-style names no @counter-style rule overrides: decimal, disc, square, circle,
@@ -1016,22 +1006,13 @@ pub(crate) fn style_reads_counter_style_environment(
         }
 }
 
-/// # Safety
-/// `content` and `list_style_type` must point to live style values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_reads_counter_style_environment(
-    content: *const c_void,
-    list_style_type: *const c_void,
+pub extern "C" fn rust_style_reads_counter_style_environment(
+    content: Option<&StyleValueData>,
+    list_style_type: Option<&StyleValueData>,
     is_pseudo: bool,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        style_reads_counter_style_environment(
-            content.cast::<StyleValueData>().as_ref(),
-            list_style_type.cast::<StyleValueData>().as_ref(),
-            is_pseudo,
-        )
-    }
+    style_reads_counter_style_environment(content, list_style_type, is_pseudo)
 }
 
 /// https://drafts.css-houdini.org/css-properties-values-api/#computationally-independent
@@ -1988,12 +1969,9 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
     }
 }
 
-/// # Safety
-/// `data` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_is_computationally_independent(data: *const c_void) -> bool {
-    value_is_computationally_independent(unsafe { &*(data as *const StyleValueData) })
-        .expect("computational independence requested for an unsupported value")
+pub extern "C" fn rust_style_value_is_computationally_independent(data: &StyleValueData) -> bool {
+    value_is_computationally_independent(data).expect("computational independence requested for an unsupported value")
 }
 
 // The computed value of the math-depth value is determined as follows:
@@ -2308,11 +2286,9 @@ pub struct FfiFontStyleComputation {
 /// this keyword arm is reached when StylePropertyMap sets a keyword directly.
 /// https://drafts.csswg.org/css-fonts-4/#font-style-prop
 ///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_font_style(absolutized_value: *const c_void) -> FfiFontStyleComputation {
-    if let StyleValueData::Keyword { keyword } = (unsafe { &*(absolutized_value as *const StyleValueData) })
+pub extern "C" fn rust_compute_font_style(absolutized_value: &StyleValueData) -> FfiFontStyleComputation {
+    if let StyleValueData::Keyword { keyword } = absolutized_value
         && let Some(font_style_keyword) = keyword_to_font_style_keyword(*keyword)
     {
         return FfiFontStyleComputation {
@@ -6940,14 +6916,13 @@ fn resolve_effective_color_scheme(
 /// Resolves the used color scheme for a value that required C++ computation.
 ///
 /// # Safety
-/// `value` must point at valid ColorScheme StyleValueData and `input` at valid
-/// document inputs for the duration of the call.
+/// `input` must point at valid document inputs for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_resolve_effective_color_scheme(
-    value: *const c_void,
+    value: &StyleValueData,
     input: &FfiEffectiveColorSchemeInput,
 ) -> u8 {
-    let StyleValueData::ColorScheme { scheme_codes, .. } = (unsafe { &*(value as *const StyleValueData) }) else {
+    let StyleValueData::ColorScheme { scheme_codes, .. } = value else {
         unreachable!("computed color-scheme must have color-scheme data");
     };
     resolve_effective_color_scheme(scheme_codes.as_slice(), input.preferred_color_scheme, unsafe {
@@ -7118,16 +7093,12 @@ pub extern "C" fn rust_finalize_animated_box_type(
 }
 
 /// Computes the font-weight property from its absolutized value.
-///
-/// # Safety
-/// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_font_weight(
-    absolutized_value: *const c_void,
+pub extern "C" fn rust_compute_font_weight(
+    absolutized_value: &StyleValueData,
     inherited_font_weight: f64,
 ) -> FfiComputedNumber {
-    let value = unsafe { &*(absolutized_value as *const StyleValueData) };
-    compute_font_weight(value, inherited_font_weight)
+    compute_font_weight(absolutized_value, inherited_font_weight)
 }
 
 // The standalone cargo test binary has no C++ side, so release callbacks are

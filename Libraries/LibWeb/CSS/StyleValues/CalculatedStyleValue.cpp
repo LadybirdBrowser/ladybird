@@ -289,7 +289,7 @@ bool CalculatedStyleValue::contains_percentage() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
-static GC::Ptr<CSSNumericValue> reify_rust_calculation(void const* calculated_data)
+static GC::Ptr<CSSNumericValue> reify_rust_calculation(StyleValueFFI::StyleValueData const* calculated_data)
 {
     struct Reification {
         StyleValueFFI::FfiCalcReification description;
