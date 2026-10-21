@@ -66,7 +66,6 @@ set(SOURCES
     WebView/BrowsingBehavior.cpp
     WebView/ConsoleOutput.cpp
     WebView/Debugger.cpp
-    WebView/DictionaryLookup.cpp
     WebView/DOMNodeProperties.cpp
     WebView/Geolocation.cpp
     WebView/Mutation.cpp
@@ -104,6 +103,7 @@ compile_ipc(Page/InputEvent.ipc Page/InputEventCodecs.h)
 compile_ipc(Page/TextEditingCommand.ipc Page/TextEditingCommandCodecs.h)
 compile_ipc(PixelUnits.ipc PixelUnitsCodecs.h)
 compile_ipc(WebView/AccessibilityNodeData.ipc WebView/AccessibilityNodeDataCodecs.h)
+compile_ipc(WebView/DictionaryLookup.ipc WebView/DictionaryLookupCodecs.h)
 
 # NB: The protocols between the UI process and the processes it hosts web content in only use LibWebCommon types, so
 #     both sides generate their endpoints from here.

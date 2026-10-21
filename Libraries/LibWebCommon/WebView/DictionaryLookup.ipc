@@ -1,0 +1,22 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+// NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
+//     here does not cross IPC.
+
+#include <LibWebCommon/WebView/DictionaryLookup.h>
+
+[ExistingCpp]
+struct WebView::DictionaryLookupTextStyle {
+    String font_family;
+    float ui_point_size;
+    Optional<float> optical_size;
+    u16 weight;
+    u8 slope;
+}
+
+[ExistingCpp]
+struct WebView::DictionaryLookup {
+    String text;
+    Optional<WebView::DictionaryLookupTextStyle> style;
+    Optional<Gfx::IntPoint> baseline_origin;
+}
