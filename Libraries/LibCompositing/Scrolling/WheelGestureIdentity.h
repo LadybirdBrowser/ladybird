@@ -28,6 +28,7 @@ public:
     // Positions and the slop are in whatever unit the caller routes in.
     bool is_continued_by(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now, float position_slop) const;
     void advance_to(Web::ScrollGesturePhase, MonotonicTime now);
+    void did_handle_event(MonotonicTime now);
 
 private:
     enum class Kind : u8 {
