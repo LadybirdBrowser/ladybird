@@ -1572,7 +1572,10 @@ public:
 
             // 19. Otherwise, if value is a platform object that is a serializable object:
             else if (auto serializable = Bindings::serializable_from_object(*object); serializable.has_value()) {
-                // FIXME: 1. If value has a [[Detached]] internal slot whose value is true, then throw a "DataCloneError" DOMException.
+                // 1. If value has a [[Detached]] internal slot whose value is true, then throw a "DataCloneError" DOMException.
+                // NB: The platform objects that have a [[Detached]] internal slot are the transferable objects.
+                if (auto transferable = Bindings::transferable_from_object(*object); transferable.has_value() && transferable->is_detached())
+                    return data_clone_error("Cannot serialize a detached platform object"_utf16);
 
                 // 2. Let typeString be the identifier of the primary interface of value.
                 // 3. Set serialized to { [[Type]]: typeString }.

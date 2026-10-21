@@ -1,8 +1,10 @@
 ImageBitmap: [object ImageBitmap], 2x1
 cloned ImageBitmap: 2x1, 255,0,0,255,0,255,0,128
 closed ImageBitmap: 0x0
-clone of a closed ImageBitmap: 0x0
+clone of a closed ImageBitmap: DataCloneError
 transfer of a closed ImageBitmap: DataCloneError
+clone of an object with a closed ImageBitmap: DataCloneError
+clone of a transferred ImageBitmap: DataCloneError
 drawImage of a closed ImageBitmap: InvalidStateError
 ImageBitmap without bitmap data: 0x0
 createImageBitmap from it: InvalidStateError
