@@ -485,7 +485,15 @@ impl ContextState {
     /// Clears the bitmap of an OffscreenCanvas when transferToImageBitmap() takes it.
     pub(crate) fn replace_bitmap_with_cleared_bitmap(&self) {
         self.cached_readback.replace(None);
-        self.origin_clean.set(true);
+        // NB: The new bitmap is origin-clean, but the fill and stroke styles only taint the context when they are set.
+        //     A pattern that is not origin-clean and is still a style of the context, or of a state on the stack,
+        //     could then draw onto a clean bitmap, so the flag stays unset while one is.
+        let holds_a_tainted_style = self
+            .states
+            .borrow()
+            .iter()
+            .any(|state| state.fill_style.is_not_origin_clean() || state.stroke_style.is_not_origin_clean());
+        self.origin_clean.set(!holds_a_tainted_style);
         if !self.has_backing_storage() {
             return;
         }

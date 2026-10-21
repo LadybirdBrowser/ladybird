@@ -29,4 +29,7 @@ enum class CanvasImageSourceUsability {
 // https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument
 WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasImageSource const&);
 
+// https://html.spec.whatwg.org/multipage/canvas.html#the-image-argument-is-not-origin-clean
+bool image_is_not_origin_clean(CanvasImageSource const&);
+
 }

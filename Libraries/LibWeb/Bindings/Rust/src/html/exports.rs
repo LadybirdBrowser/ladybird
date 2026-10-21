@@ -154,6 +154,26 @@ pub unsafe extern "C" fn web_image_bitmap_close(image_bitmap: *mut c_void) {
     unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.close_bitmap();
 }
 
+/// https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
+///
+/// # Safety
+///
+/// `image_bitmap` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_origin_clean(image_bitmap: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.origin_clean()
+}
+
+/// # Safety
+///
+/// `image_bitmap` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_set_origin_clean(image_bitmap: *mut c_void, origin_clean: bool) {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.set_origin_clean(origin_clean);
+}
+
 /// The Gfx::DecodedImageFrame of the bitmap data of the ImageBitmap, or null if it has none.
 ///
 /// # Safety

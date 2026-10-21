@@ -9,6 +9,7 @@
 use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 
+use ak::Utf16String;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{RawNativeFunctionResult, Trace, Vm};
 
@@ -16,7 +17,7 @@ use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::structured_data::{
     Serializable, SerializationReader, SerializationWriter, TransferDataReader, TransferDataWriter, Transferable,
 };
-use crate::bindings::{CallContext, WebIdlResult};
+use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 unsafe extern "C" {
     // Defined in Libraries/LibWeb/HTML/ImageBitmap.cpp, which encodes and decodes the Gfx::Bitmap of a frame. A frame
@@ -73,9 +74,11 @@ pub(crate) struct ImageBitmap {
     height: u32,
     #[gc(untraced)]
     detached: Cell<bool>,
-    // FIXME: An ImageBitmap object's bitmap has an origin-clean flag, which indicates whether the bitmap is tainted by
-    //        content from a different origin. The flag is initially set to true and may be changed to false by the
-    //        steps of createImageBitmap().
+    /// An ImageBitmap object's bitmap has an origin-clean flag, which indicates whether the bitmap is tainted by
+    /// content from a different origin. The flag is initially set to true and may be changed to false by the steps of
+    /// createImageBitmap().
+    #[gc(untraced)]
+    origin_clean: Cell<bool>,
 }
 
 impl Wrappable for ImageBitmap {
@@ -104,6 +107,7 @@ impl ImageBitmap {
             width,
             height,
             detached: Cell::new(false),
+            origin_clean: Cell::new(true),
         }
     }
 
@@ -127,6 +131,15 @@ impl ImageBitmap {
 
     pub(crate) fn is_detached(&self) -> bool {
         self.detached.get()
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
+    pub(crate) fn origin_clean(&self) -> bool {
+        self.origin_clean.get()
+    }
+
+    pub(crate) fn set_origin_clean(&self, origin_clean: bool) {
+        self.origin_clean.set(origin_clean);
     }
 
     /// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagebitmap-width
@@ -180,7 +193,13 @@ impl Serializable for ImageBitmap {
         serialized: &mut SerializationWriter,
         _for_storage: bool,
     ) -> WebIdlResult<()> {
-        // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
+        // 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
+        if !self.origin_clean.get() {
+            return Err(Exception::Dom(
+                "DataCloneError",
+                Utf16String::from_ascii(b"Cannot serialize an ImageBitmap that is not origin-clean"),
+            ));
+        }
 
         // 2. Set serialized.[[BitmapData]] to a copy of value's bitmap data.
         // SAFETY: The writer is lent for the steps, and the frame lives while the bitmap data is set.
@@ -207,7 +226,13 @@ impl Transferable for ImageBitmap {
 
     /// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-steps
     fn transfer_steps(&self, _: &mut CallContext, data_holder: &mut TransferDataWriter) -> WebIdlResult<()> {
-        // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
+        // 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
+        if !self.origin_clean.get() {
+            return Err(Exception::Dom(
+                "DataCloneError",
+                Utf16String::from_ascii(b"Cannot transfer an ImageBitmap that is not origin-clean"),
+            ));
+        }
 
         // 2. Set dataHolder.[[BitmapData]] to value's bitmap data.
         // NB: The pixels go to the shared memory of the transfer if there is room for them there, and inline otherwise.

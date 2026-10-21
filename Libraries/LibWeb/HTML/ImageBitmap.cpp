@@ -213,6 +213,8 @@ u32 web_image_bitmap_width(void const* image_bitmap);
 u32 web_image_bitmap_height(void const* image_bitmap);
 bool web_image_bitmap_is_detached(void const* image_bitmap);
 void web_image_bitmap_close(void* image_bitmap);
+bool web_image_bitmap_origin_clean(void const* image_bitmap);
+void web_image_bitmap_set_origin_clean(void* image_bitmap, bool origin_clean);
 Gfx::DecodedImageFrame const* web_image_bitmap_frame(void const* image_bitmap);
 
 // What Bindings/Rust/src/html/image_bitmap.rs asks of C++, which owns the encoding of a Gfx::Bitmap: a bitmap that it
@@ -287,6 +289,16 @@ bool ImageBitmap::is_detached() const
 void ImageBitmap::close()
 {
     web_image_bitmap_close(this);
+}
+
+bool ImageBitmap::is_origin_clean() const
+{
+    return web_image_bitmap_origin_clean(this);
+}
+
+void ImageBitmap::set_origin_clean(bool origin_clean)
+{
+    web_image_bitmap_set_origin_clean(this, origin_clean);
 }
 
 Gfx::Bitmap const* ImageBitmap::bitmap() const

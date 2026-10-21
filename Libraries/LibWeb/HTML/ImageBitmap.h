@@ -57,6 +57,10 @@ public:
     // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagebitmap-close
     void close();
 
+    // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
+    bool is_origin_clean() const;
+    void set_origin_clean(bool);
+
     // The bitmap of the bitmap data, which the ImageBitmap keeps until it is closed or transferred.
     Gfx::Bitmap const* bitmap() const;
 

@@ -1,0 +1,208 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // A cross-origin image loaded without CORS taints what it reaches: a pattern made from it taints the canvas whose
+    // fill or stroke style it becomes, and an ImageBitmap made from it taints the canvas it is drawn onto and cannot be
+    // cloned or transferred.
+
+    // 1x1 opaque red PNG.
+    const redPng =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+
+    function readback(label, canvas) {
+        try {
+            canvas.getContext("2d").getImageData(0, 0, 1, 1);
+            println(`${label}: readable`);
+        } catch (error) {
+            println(`${label}: ${error.name}`);
+        }
+    }
+
+    function report(label, fn) {
+        try {
+            fn();
+            println(`${label}: no throw`);
+        } catch (error) {
+            println(`${label}: ${error.name}`);
+        }
+    }
+
+    function newCanvas() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        return canvas;
+    }
+
+    promiseTest(async () => {
+        const imageURL = await httpTestServer().createEcho("GET", "/tainted-pattern-and-image-bitmap.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body_encoding: "base64",
+            body: redPng,
+        });
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+            image.src = imageURL;
+        });
+
+        // createPattern() and fillStyle.
+        {
+            const canvas = newCanvas();
+            const context = canvas.getContext("2d");
+            const pattern = context.createPattern(image, "repeat");
+            readback("Pattern created", canvas);
+            context.fillStyle = pattern;
+            readback("Pattern set as fillStyle", canvas);
+            context.fillRect(0, 0, 1, 1);
+            readback("Pattern filled", canvas);
+        }
+
+        // strokeStyle.
+        {
+            const canvas = newCanvas();
+            const context = canvas.getContext("2d");
+            context.strokeStyle = context.createPattern(image, "no-repeat");
+            readback("Pattern set as strokeStyle", canvas);
+        }
+
+        // A pattern made by another context taints the context whose style it becomes.
+        {
+            const pattern = newCanvas().getContext("2d").createPattern(image, "repeat");
+            const canvas = newCanvas();
+            canvas.getContext("2d").fillStyle = pattern;
+            readback("Pattern of another context", canvas);
+        }
+
+        // A pattern of a clean image does not taint.
+        {
+            const source = newCanvas();
+            const canvas = newCanvas();
+            const context = canvas.getContext("2d");
+            context.fillStyle = context.createPattern(source, "repeat");
+            context.fillRect(0, 0, 1, 1);
+            readback("Clean pattern", canvas);
+        }
+
+        // createImageBitmap() of the image, then drawImage().
+        const bitmap = await createImageBitmap(image);
+        {
+            const canvas = newCanvas();
+            canvas.getContext("2d").drawImage(bitmap, 0, 0);
+            readback("ImageBitmap of image drawn", canvas);
+        }
+
+        // createPattern() of the ImageBitmap.
+        {
+            const canvas = newCanvas();
+            const context = canvas.getContext("2d");
+            context.fillStyle = context.createPattern(bitmap, "repeat");
+            readback("Pattern of ImageBitmap", canvas);
+        }
+
+        // createImageBitmap() of the ImageBitmap.
+        {
+            const copy = await createImageBitmap(bitmap);
+            const canvas = newCanvas();
+            canvas.getContext("2d").drawImage(copy, 0, 0);
+            readback("ImageBitmap of ImageBitmap drawn", canvas);
+        }
+
+        // createImageBitmap() of a tainted canvas and of a tainted OffscreenCanvas.
+        {
+            const tainted = newCanvas();
+            tainted.getContext("2d").drawImage(image, 0, 0);
+            const fromCanvas = await createImageBitmap(tainted);
+            const canvas = newCanvas();
+            canvas.getContext("2d").drawImage(fromCanvas, 0, 0);
+            readback("ImageBitmap of canvas drawn", canvas);
+
+            const offscreen = new OffscreenCanvas(1, 1);
+            offscreen.getContext("2d").drawImage(image, 0, 0);
+            const fromOffscreen = await createImageBitmap(offscreen);
+            const other = newCanvas();
+            other.getContext("2d").drawImage(fromOffscreen, 0, 0);
+            readback("ImageBitmap of OffscreenCanvas drawn", other);
+        }
+
+        // transferToImageBitmap() of a tainted OffscreenCanvas.
+        {
+            const offscreen = new OffscreenCanvas(1, 1);
+            offscreen.getContext("2d").drawImage(image, 0, 0);
+            const transferred = offscreen.transferToImageBitmap();
+            const canvas = newCanvas();
+            canvas.getContext("2d").drawImage(transferred, 0, 0);
+            readback("transferToImageBitmap drawn", canvas);
+        }
+
+        // The fillStyle setter of an OffscreenCanvas context.
+        {
+            const offscreen = new OffscreenCanvas(1, 1);
+            offscreen.getContext("2d").fillStyle = offscreen.getContext("2d").createPattern(image, "repeat");
+            readback("Pattern set as fillStyle of OffscreenCanvas", offscreen);
+        }
+
+        // transferToImageBitmap() gives the OffscreenCanvas a new, clean bitmap, but a pattern that is not
+        // origin-clean and is still a style of the context, or of a saved state, keeps the context tainted.
+        {
+            const offscreen = new OffscreenCanvas(1, 1);
+            const context = offscreen.getContext("2d");
+            context.fillStyle = context.createPattern(image, "repeat");
+            offscreen.transferToImageBitmap();
+            context.fillRect(0, 0, 1, 1);
+            readback("Pattern fillStyle after transferToImageBitmap", offscreen);
+        }
+        {
+            const offscreen = new OffscreenCanvas(1, 1);
+            const context = offscreen.getContext("2d");
+            context.strokeStyle = context.createPattern(image, "repeat");
+            context.save();
+            context.strokeStyle = "green";
+            offscreen.transferToImageBitmap();
+            context.restore();
+            context.strokeRect(0, 0, 1, 1);
+            readback("Pattern strokeStyle of saved state after transferToImageBitmap", offscreen);
+        }
+        {
+            const offscreen = new OffscreenCanvas(1, 1);
+            const context = offscreen.getContext("2d");
+            context.drawImage(image, 0, 0);
+            offscreen.transferToImageBitmap();
+            readback("Image drawn before transferToImageBitmap", offscreen);
+        }
+
+        // An ImageBitmap that is not origin-clean can be neither serialized nor transferred.
+        report("structuredClone", () => structuredClone(bitmap));
+        report("structuredClone with transfer", () => structuredClone(bitmap, { transfer: [bitmap] }));
+        println(`Not detached after the failed transfer: ${bitmap.width === 1 && bitmap.height === 1}`);
+
+        // The bitmap data stays after the failed transfer: drawImage() of a bitmap without bitmap data draws nothing
+        // and does not taint, so a taint shows that the bitmap is drawn.
+        {
+            const canvas = newCanvas();
+            report("drawImage after the failed transfer", () => canvas.getContext("2d").drawImage(bitmap, 0, 0));
+            readback("Drawn after the failed transfer", canvas);
+        }
+
+        // A clean ImageBitmap later in the transfer list of the failed transfer keeps its pixels.
+        {
+            const red = await createImageBitmap(new ImageData(new Uint8ClampedArray([255, 0, 0, 255]), 1, 1));
+            report("structuredClone with transfer of a clean ImageBitmap after it", () =>
+                structuredClone([bitmap, red], { transfer: [bitmap, red] })
+            );
+            const canvas = newCanvas();
+            const context = canvas.getContext("2d");
+            context.drawImage(red, 0, 0);
+            println(`Clean ImageBitmap after the failed transfer: ${context.getImageData(0, 0, 1, 1).data.join(",")}`);
+        }
+
+        // A clean ImageBitmap still can.
+        const clean = await createImageBitmap(new ImageData(1, 1));
+        report("structuredClone of clean ImageBitmap", () => structuredClone(clean));
+        report("structuredClone of clean ImageBitmap with transfer", () =>
+            structuredClone(clean, { transfer: [clean] })
+        );
+    });
+</script>

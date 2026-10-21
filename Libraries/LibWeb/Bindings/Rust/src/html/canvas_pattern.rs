@@ -87,6 +87,9 @@ pub(crate) struct CanvasPattern {
     repetition: Canvas2DPatternRepetition,
     #[gc(untraced)]
     transform: Cell<Option<AffineTransform>>,
+    /// Whether the pattern is marked as not origin-clean, as its image was.
+    #[gc(untraced)]
+    not_origin_clean: Cell<bool>,
 }
 
 impl Wrappable for CanvasPattern {}
@@ -101,6 +104,7 @@ impl CanvasPattern {
                 image,
                 repetition,
                 transform: Cell::new(None),
+                not_origin_clean: Cell::new(false),
             },
         )
     }
@@ -140,7 +144,10 @@ impl CanvasPattern {
         };
         let pattern = Self::create(vm, frame, repetition);
 
-        // FIXME: 7. If image is not origin-clean, then mark pattern as not origin-clean.
+        // 7. If image is not origin-clean, then mark pattern as not origin-clean.
+        if image.is_not_origin_clean() {
+            pattern.not_origin_clean.set(true);
+        }
 
         // 8. Return pattern.
         Ok(Some(pattern))
@@ -148,6 +155,11 @@ impl CanvasPattern {
 
     pub(crate) fn image(&self) -> Option<&ImageFrameHandle> {
         self.image.as_ref()
+    }
+
+    /// Whether the pattern is marked as not origin-clean.
+    pub(crate) fn is_not_origin_clean(&self) -> bool {
+        self.not_origin_clean.get()
     }
 
     pub(crate) fn repetition(&self) -> Canvas2DPatternRepetition {

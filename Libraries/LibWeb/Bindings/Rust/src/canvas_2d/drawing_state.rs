@@ -38,6 +38,11 @@ impl FillOrStrokeStyle {
         }
     }
 
+    /// Whether the style is a pattern that is marked as not origin-clean.
+    pub(crate) fn is_not_origin_clean(self) -> bool {
+        matches!(self, Self::Pattern(pattern) if pattern.is_not_origin_clean())
+    }
+
     pub(crate) fn as_color(self) -> Option<Color> {
         match self {
             Self::Color(color) => Some(color),

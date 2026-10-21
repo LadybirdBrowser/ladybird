@@ -1,0 +1,25 @@
+Pattern created: readable
+Pattern set as fillStyle: SecurityError
+Pattern filled: SecurityError
+Pattern set as strokeStyle: SecurityError
+Pattern of another context: SecurityError
+Clean pattern: readable
+ImageBitmap of image drawn: SecurityError
+Pattern of ImageBitmap: SecurityError
+ImageBitmap of ImageBitmap drawn: SecurityError
+ImageBitmap of canvas drawn: SecurityError
+ImageBitmap of OffscreenCanvas drawn: SecurityError
+transferToImageBitmap drawn: SecurityError
+Pattern set as fillStyle of OffscreenCanvas: SecurityError
+Pattern fillStyle after transferToImageBitmap: SecurityError
+Pattern strokeStyle of saved state after transferToImageBitmap: SecurityError
+Image drawn before transferToImageBitmap: readable
+structuredClone: DataCloneError
+structuredClone with transfer: DataCloneError
+Not detached after the failed transfer: true
+drawImage after the failed transfer: no throw
+Drawn after the failed transfer: SecurityError
+structuredClone with transfer of a clean ImageBitmap after it: DataCloneError
+Clean ImageBitmap after the failed transfer: 255,0,0,255
+structuredClone of clean ImageBitmap: no throw
+structuredClone of clean ImageBitmap with transfer: no throw
