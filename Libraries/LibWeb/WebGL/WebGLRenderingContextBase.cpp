@@ -24,7 +24,6 @@
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
-#include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -74,7 +73,6 @@ struct ContextCreationArguments {
 // `TexImageSourceKind` and `TexImageSourceResult` of Bindings/Rust/src/web_gl/canvas.rs. The kinds are the sources
 // that are implemented in C++.
 enum class TexImageSourceKind : u8 {
-    ImageBitmap,
     HTMLImageElement,
     HTMLCanvasElement,
     HTMLVideoElement,
@@ -130,6 +128,7 @@ bool web_webgl_expose_experimental_interfaces();
 bool web_webgl_is_valid_2d_pixel_unpack_state(i32 width, PixelUnpackState const* unpack_state);
 bool web_webgl_required_2d_texture_data_size(i32 width, i32 height, u32 format, u32 type, PixelUnpackState const* unpack_state, size_t* out_size);
 TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexImageSourceKind, u32 format, u32 type, void** out_frame);
+TexImageSourceResult web_webgl_read_tex_image_frame(Gfx::DecodedImageFrame const* image_frame, u32 format, u32 type, void** out_frame);
 TexImageSourceResult web_webgl_read_tex_image_pixels(u8 const* pixels, u32 width, u32 height, u32 format, u32 type, void** out_frame);
 void* web_webgl_make_xr_compatible(void* context);
 }
@@ -499,8 +498,6 @@ static TexImageSourceResult tex_image_source_frame(Optional<Compositing::WebGL::
 
 TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexImageSourceKind source_kind, u32 format, u32 type, void** out_frame)
 {
-    // FIXME: If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE
-    //        error is generated.
     // FIXME: If source is null then an INVALID_VALUE error is generated.
     auto& wrapper = *static_cast<JS::Object*>(source_wrapper);
     Optional<Compositing::WebGL::ImageSourceFrame> frame;
@@ -521,11 +518,14 @@ TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexIm
         if (auto captured_frame = Bindings::impl_from<HTML::HTMLVideoElement>(wrapper).capture_current_video_frame(); captured_frame.has_value())
             frame = captured_frame.release_value();
         break;
-    case TexImageSourceKind::ImageBitmap:
-        frame = Gfx::DecodedImageFrame { *Bindings::impl_from<HTML::ImageBitmap>(wrapper).bitmap() };
-        break;
     }
     return tex_image_source_frame(move(frame), format, type, out_frame);
+}
+
+// The bitmap data of an ImageBitmap.
+TexImageSourceResult web_webgl_read_tex_image_frame(Gfx::DecodedImageFrame const* image_frame, u32 format, u32 type, void** out_frame)
+{
+    return tex_image_source_frame(Compositing::WebGL::ImageSourceFrame { *image_frame }, format, type, out_frame);
 }
 
 // The pixels of an ImageData, which are copied: script can change them, and detach or free their buffer, before the

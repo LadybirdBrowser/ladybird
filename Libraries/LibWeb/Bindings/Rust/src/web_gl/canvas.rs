@@ -11,6 +11,7 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
+use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{Gc, Object, Realm};
 
 use super::host::Frame;
@@ -21,7 +22,6 @@ use crate::bindings::conversions::CppInterface;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum TexImageSourceKind {
-    ImageBitmap,
     HTMLImageElement,
     HTMLCanvasElement,
     HTMLVideoElement,
@@ -51,6 +51,12 @@ unsafe extern "C" {
     fn web_webgl_read_tex_image_source(
         source_wrapper: *mut c_void,
         source_kind: TexImageSourceKind,
+        format: u32,
+        r#type: u32,
+        out_frame: *mut *mut c_void,
+    ) -> u8;
+    fn web_webgl_read_tex_image_frame(
+        image_frame: *const c_void,
         format: u32,
         r#type: u32,
         out_frame: *mut *mut c_void,
@@ -146,6 +152,15 @@ pub(crate) fn read_tex_image_source(
             &raw mut frame,
         )
     };
+    tex_image_source_frame(result, frame)
+}
+
+/// The frame of an image, a frame of an ImageBitmap, for the format and the type.
+pub(crate) fn read_tex_image_frame(image_frame: &ImageFrameHandle, format: u32, r#type: u32) -> TexImageSourceFrame {
+    let mut frame = core::ptr::null_mut();
+    // SAFETY: The handle keeps the image frame alive, and the frame is stored when the function returns that there is
+    //         one.
+    let result = unsafe { web_webgl_read_tex_image_frame(image_frame.as_raw(), format, r#type, &raw mut frame) };
     tex_image_source_frame(result, frame)
 }
 

@@ -6,9 +6,11 @@
 
 #include <AK/Checked.h>
 #include <AK/NonnullOwnPtr.h>
-#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
-#include <LibJS/Runtime/ExternalMemory.h>
+#include <LibGfx/DecodedImageFrame.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -19,8 +21,6 @@
 #endif
 
 namespace Web::HTML {
-
-GC_DEFINE_ALLOCATOR(ImageBitmap);
 
 static constexpr size_t shared_pixels_alignment = 64;
 
@@ -34,7 +34,7 @@ static constexpr size_t shared_pixels_alignment = 64;
     return {};
 }
 
-[[nodiscard]] static WebIDL::ExceptionOr<NonnullRefPtr<Gfx::Bitmap>> create_bitmap_from_bitmap_data(JS::Realm& realm, Gfx::BitmapFormat const format, Gfx::AlphaType const alpha_type, int const width, int const height, size_t const pitch, ByteBuffer data)
+[[nodiscard]] static WebIDL::ExceptionOr<NonnullRefPtr<Gfx::Bitmap>> create_bitmap_from_bitmap_data(JS::VM& vm, Gfx::BitmapFormat const format, Gfx::AlphaType const alpha_type, int const width, int const height, size_t const pitch, ByteBuffer data)
 {
     TRY(validate_bitmap_layout(format, alpha_type, width, height));
     auto required_size = Checked<size_t> { pitch };
@@ -42,9 +42,9 @@ static constexpr size_t shared_pixels_alignment = 64;
     if (pitch < Gfx::Bitmap::minimum_pitch(width, format) || required_size.has_overflow() || required_size.value() > data.size())
         return WebIDL::DataCloneError::create("Invalid ImageBitmap pixel buffer"_utf16);
 
-    auto bitmap_data = TRY_OR_THROW_OOM(realm.vm(), try_make<ByteBuffer>(move(data)));
+    auto bitmap_data = TRY_OR_THROW_OOM(vm, try_make<ByteBuffer>(move(data)));
     auto* pixels = bitmap_data->data();
-    return TRY_OR_THROW_OOM(realm.vm(), Gfx::Bitmap::create_wrapper(format, alpha_type, Gfx::IntSize(width, height), pitch, pixels, [bitmap_data = move(bitmap_data)] { }));
+    return TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_wrapper(format, alpha_type, Gfx::IntSize(width, height), pitch, pixels, [bitmap_data = move(bitmap_data)] { }));
 }
 
 template<typename T, typename Encoder>
@@ -60,7 +60,7 @@ static WebIDL::ExceptionOr<void> encode_bitmap_value(Encoder& encoder, T const& 
 }
 
 template<typename Encoder>
-static WebIDL::ExceptionOr<void> serialize_bitmap(Encoder& encoder, RefPtr<Gfx::Bitmap> const& bitmap)
+static WebIDL::ExceptionOr<void> serialize_bitmap(Encoder& encoder, Gfx::Bitmap const* bitmap)
 {
     TRY(encode_bitmap_value(encoder, bitmap != nullptr));
     if (!bitmap)
@@ -87,7 +87,7 @@ template<typename Decoder>
     auto const format = TRY(decode_or_throw_data_clone_error<Gfx::BitmapFormat>(realm, decoder));
     auto const alpha_type = TRY(decode_or_throw_data_clone_error<Gfx::AlphaType>(realm, decoder));
     auto data = TRY(decode_or_throw_data_clone_error<ByteBuffer>(realm, decoder));
-    return TRY(create_bitmap_from_bitmap_data(realm, format, alpha_type, width, height, pitch, move(data)));
+    return TRY(create_bitmap_from_bitmap_data(realm.vm(), format, alpha_type, width, height, pitch, move(data)));
 }
 
 template<typename T>
@@ -155,144 +155,152 @@ template<typename T>
     return TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_wrapper(format, alpha_type, size, pitch, pixels, [buffer = move(buffer)] { }));
 }
 
+// 2. Set dataHolder.[[BitmapData]] to value's bitmap data, of
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-steps
+static WebIDL::ExceptionOr<void> transfer_bitmap(HTML::TransferDataEncoder& data_holder, ImageBitmapSharedPixels* shared_pixels, Gfx::Bitmap const* bitmap)
+{
+    // NB: The pixels go to the shared memory if there is room for them there, and inline otherwise.
+    if (shared_pixels && bitmap && ImageBitmap::shared_pixels_size(*bitmap) <= shared_pixels->buffer.size() - shared_pixels->used_size) {
+        auto const pitch = Gfx::Bitmap::minimum_pitch(bitmap->width(), bitmap->format());
+        auto* pixels = shared_pixels->buffer.data<u8>() + shared_pixels->used_size;
+        for (int y = 0; y < bitmap->height(); ++y)
+            memcpy(pixels + y * pitch, bitmap->scanline_u8(y), pitch);
+
+        TRY(encode_bitmap_value(data_holder, true));
+        TRY(encode_bitmap_value(data_holder, shared_pixels->buffer_index));
+        TRY(encode_bitmap_value(data_holder, static_cast<u64>(shared_pixels->used_size)));
+        TRY(encode_bitmap_value(data_holder, bitmap->width()));
+        TRY(encode_bitmap_value(data_holder, bitmap->height()));
+        TRY(encode_bitmap_value(data_holder, bitmap->format()));
+        TRY(encode_bitmap_value(data_holder, bitmap->alpha_type()));
+        shared_pixels->used_size += ImageBitmap::shared_pixels_size(*bitmap);
+    } else {
+        TRY(encode_bitmap_value(data_holder, false));
+        TRY(serialize_bitmap(data_holder, bitmap));
+    }
+    return {};
+}
+
+// 1. Set value's bitmap data to dataHolder.[[BitmapData]], of
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-receiving-steps
+static WebIDL::ExceptionOr<RefPtr<Gfx::Bitmap>> receive_bitmap(JS::Realm& realm, HTML::TransferDataDecoder& data_holder)
+{
+    auto const has_shared_pixels = TRY(decode_or_throw_data_clone_error<bool>(realm, data_holder));
+    if (has_shared_pixels)
+        return TRY(bitmap_from_shared_pixels(realm.vm(), data_holder));
+    return TRY(deserialize_bitmap(realm, data_holder));
+}
+
 size_t ImageBitmap::shared_pixels_size(Gfx::Bitmap const& bitmap)
 {
     auto size = Gfx::Bitmap::size_in_bytes(Gfx::Bitmap::minimum_pitch(bitmap.width(), bitmap.format()), bitmap.height());
     return round_up_to_power_of_two(size, shared_pixels_alignment);
 }
 
-GC::Ref<ImageBitmap> ImageBitmap::create()
+// Hands a decoded bitmap over to the Rust implementation as a frame that it takes over, or null for none.
+static Gfx::DecodedImageFrame* frame_to_hand_over(RefPtr<Gfx::Bitmap> bitmap)
 {
-    return GC::Heap::the().allocate<ImageBitmap>();
+    if (!bitmap)
+        return nullptr;
+    return new Gfx::DecodedImageFrame(*bitmap);
 }
 
-ImageBitmap::ImageBitmap() = default;
+extern "C" {
 
-ImageBitmap::~ImageBitmap() = default;
+// Defined in Bindings/Rust/src/html/exports.rs.
+void* web_image_bitmap_create(JSVM*, Gfx::DecodedImageFrame const* frame);
+u32 web_image_bitmap_width(void const* image_bitmap);
+u32 web_image_bitmap_height(void const* image_bitmap);
+bool web_image_bitmap_is_detached(void const* image_bitmap);
+void web_image_bitmap_close(void* image_bitmap);
+Gfx::DecodedImageFrame const* web_image_bitmap_frame(void const* image_bitmap);
 
-size_t ImageBitmap::external_memory_size() const
+// What Bindings/Rust/src/html/image_bitmap.rs asks of C++, which owns the encoding of a Gfx::Bitmap: a bitmap that it
+// is handed over is a Gfx::DecodedImageFrame allocated with new, or null for none.
+size_t web_image_bitmap_frame_size_in_bytes(Gfx::DecodedImageFrame const*);
+void web_image_bitmap_serialize_bitmap(Bindings::RustSerializationWriter*, Gfx::DecodedImageFrame const*);
+JSCompletion web_image_bitmap_deserialize_bitmap(Bindings::RustSerializationReader*, Gfx::DecodedImageFrame** out_frame);
+JSCompletion web_image_bitmap_transfer_bitmap(Bindings::RustTransferDataWriter*, Gfx::DecodedImageFrame const*);
+JSCompletion web_image_bitmap_receive_bitmap(Bindings::RustTransferDataReader*, Gfx::DecodedImageFrame** out_frame);
+
+size_t web_image_bitmap_frame_size_in_bytes(Gfx::DecodedImageFrame const* frame)
 {
-    auto size = Base::external_memory_size();
-    if (m_bitmap)
-        size = JS::saturating_add_external_memory_size(size, m_bitmap->data_size());
-    return size;
+    return frame->bitmap().data_size();
 }
 
-// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:serialization-steps
-WebIDL::ExceptionOr<void> ImageBitmap::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
+void web_image_bitmap_serialize_bitmap(Bindings::RustSerializationWriter* writer, Gfx::DecodedImageFrame const* frame)
 {
-    // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
-
-    // 2. Set serialized.[[BitmapData]] to a copy of value's bitmap data.
-    TRY(serialize_bitmap(serialized, m_bitmap));
-
-    return {};
+    MUST(serialize_bitmap(writer->serialized, frame ? &frame->bitmap() : nullptr));
 }
 
-// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:deserialization-steps
-WebIDL::ExceptionOr<void> ImageBitmap::deserialization_steps(JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
+JSCompletion web_image_bitmap_deserialize_bitmap(Bindings::RustSerializationReader* reader, Gfx::DecodedImageFrame** out_frame)
 {
-    // 1. Set value's bitmap data to serialized.[[BitmapData]].
-    set_bitmap(TRY(deserialize_bitmap(realm, serialized)));
-
-    return {};
+    auto bitmap = deserialize_bitmap(reader->realm, reader->serialized);
+    if (bitmap.is_exception())
+        return Bindings::completion_to_abi(reader->realm, bitmap.release_error());
+    *out_frame = frame_to_hand_over(bitmap.release_value());
+    return Bindings::completion_to_abi(reader->realm, JS::js_undefined());
 }
 
-// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-steps
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(JS::Realm&, HTML::TransferDataEncoder& data_holder)
+JSCompletion web_image_bitmap_transfer_bitmap(Bindings::RustTransferDataWriter* writer, Gfx::DecodedImageFrame const* frame)
 {
-    return transfer_steps(data_holder, nullptr);
+    auto result = transfer_bitmap(writer->data_holder, writer->image_bitmap_pixels, frame ? &frame->bitmap() : nullptr);
+    if (result.is_exception())
+        return Bindings::completion_to_abi(writer->realm, result.release_error());
+    return Bindings::completion_to_abi(writer->realm, JS::js_undefined());
 }
 
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataEncoder& data_holder, ImageBitmapSharedPixels* shared_pixels)
+JSCompletion web_image_bitmap_receive_bitmap(Bindings::RustTransferDataReader* reader, Gfx::DecodedImageFrame** out_frame)
 {
-    // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
-
-    // 2. Set dataHolder.[[BitmapData]] to value's bitmap data.
-    // NB: The pixels go to the shared memory if there is room for them there, and inline otherwise.
-    if (shared_pixels && m_bitmap && shared_pixels_size(*m_bitmap) <= shared_pixels->buffer.size() - shared_pixels->used_size) {
-        auto const pitch = Gfx::Bitmap::minimum_pitch(m_bitmap->width(), m_bitmap->format());
-        auto* pixels = shared_pixels->buffer.data<u8>() + shared_pixels->used_size;
-        for (int y = 0; y < m_bitmap->height(); ++y)
-            memcpy(pixels + y * pitch, m_bitmap->scanline_u8(y), pitch);
-
-        TRY(encode_bitmap_value(data_holder, true));
-        TRY(encode_bitmap_value(data_holder, shared_pixels->buffer_index));
-        TRY(encode_bitmap_value(data_holder, static_cast<u64>(shared_pixels->used_size)));
-        TRY(encode_bitmap_value(data_holder, m_bitmap->width()));
-        TRY(encode_bitmap_value(data_holder, m_bitmap->height()));
-        TRY(encode_bitmap_value(data_holder, m_bitmap->format()));
-        TRY(encode_bitmap_value(data_holder, m_bitmap->alpha_type()));
-        shared_pixels->used_size += shared_pixels_size(*m_bitmap);
-    } else {
-        TRY(encode_bitmap_value(data_holder, false));
-        TRY(serialize_bitmap(data_holder, m_bitmap));
-    }
-
-    // 3. Unset value's bitmap data.
-    m_bitmap = nullptr;
-
-    return {};
+    auto bitmap = receive_bitmap(reader->realm, reader->data_holder);
+    if (bitmap.is_exception())
+        return Bindings::completion_to_abi(reader->realm, bitmap.release_error());
+    *out_frame = frame_to_hand_over(bitmap.release_value());
+    return Bindings::completion_to_abi(reader->realm, JS::js_undefined());
+}
 }
 
-// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-receiving-steps
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_receiving_steps(JS::Realm& realm, HTML::TransferDataDecoder& data_holder)
+GC::Ref<ImageBitmap> ImageBitmap::create(RefPtr<Gfx::Bitmap const> bitmap)
 {
-    // 1. Set value's bitmap data to dataHolder.[[BitmapData]].
-    auto const has_shared_pixels = TRY(decode_or_throw_data_clone_error<bool>(realm, data_holder));
-    if (has_shared_pixels)
-        set_bitmap(TRY(bitmap_from_shared_pixels(realm.vm(), data_holder)));
-    else
-        set_bitmap(TRY(deserialize_bitmap(realm, data_holder)));
-
-    return {};
+    Optional<Gfx::DecodedImageFrame> frame;
+    if (bitmap)
+        frame = Gfx::DecodedImageFrame { bitmap.release_nonnull() };
+    auto* image_bitmap = web_image_bitmap_create(JS::HostABI::vm_to_abi(JS::VM::the()), frame.has_value() ? &frame.value() : nullptr);
+    return GC::Ref { *static_cast<ImageBitmap*>(image_bitmap) };
 }
 
-HTML::TransferType ImageBitmap::primary_interface() const
-{
-    return TransferType::ImageBitmap;
-}
-
-// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagebitmap-width
 WebIDL::UnsignedLong ImageBitmap::width() const
 {
-    // 1. If this's [[Detached]] internal slot's value is true, then return 0.
-    if (is_detached())
-        return 0;
-    // 2. Return this's width, in CSS pixels.
-    return m_width;
+    return web_image_bitmap_width(this);
 }
 
-// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagebitmap-height
 WebIDL::UnsignedLong ImageBitmap::height() const
 {
-    // 1. If this's [[Detached]] internal slot's value is true, then return 0.
-    if (is_detached())
-        return 0;
-    // 2. Return this's height, in CSS pixels.
-    return m_height;
+    return web_image_bitmap_height(this);
 }
 
-// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-imagebitmap-close
+bool ImageBitmap::is_detached() const
+{
+    return web_image_bitmap_is_detached(this);
+}
+
 void ImageBitmap::close()
 {
-    // 1. Set this's [[Detached]] internal slot value to true.
-    set_detached(true);
-
-    // 2. Unset this's bitmap data.
-    m_bitmap = nullptr;
+    web_image_bitmap_close(this);
 }
 
-void ImageBitmap::set_bitmap(RefPtr<Gfx::Bitmap> bitmap)
+Optional<Gfx::DecodedImageFrame> ImageBitmap::frame() const
 {
-    m_bitmap = move(bitmap);
-    m_width = m_bitmap ? m_bitmap->width() : 0;
-    m_height = m_bitmap ? m_bitmap->height() : 0;
+    if (auto const* frame = web_image_bitmap_frame(this))
+        return *frame;
+    return {};
 }
 
-Gfx::Bitmap* ImageBitmap::bitmap() const
+Gfx::Bitmap const* ImageBitmap::bitmap() const
 {
-    return m_bitmap.ptr();
+    if (auto const* frame = web_image_bitmap_frame(this))
+        return &frame->bitmap();
+    return nullptr;
 }
 
 }

@@ -71,8 +71,7 @@ void draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_cont
     browsing_context.active_document()->navigable()->render_screenshot(bitmap, paint_config, [bitmap, element = GC::make_root(element), canvas = GC::make_root(canvas), callback = move(callback)] mutable {
         HTML::TemporaryExecutionContext execution_context { element->document().relevant_settings_object() };
 
-        auto image_bitmap = HTML::ImageBitmap::create();
-        image_bitmap->set_bitmap(bitmap);
+        auto image_bitmap = HTML::ImageBitmap::create(bitmap);
         if (canvas->canvas_rendering_context_2d()->draw_image(image_bitmap, 0, 0).is_exception()) {
             callback(Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to draw the screenshot to the canvas"sv));
             return;
