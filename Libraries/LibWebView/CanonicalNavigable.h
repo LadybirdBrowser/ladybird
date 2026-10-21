@@ -257,6 +257,7 @@ private:
     RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;
     RefPtr<CanonicalSessionHistoryEntry> m_active_session_history_entry;
     void set_the_ongoing_navigation(OngoingNavigation);
+    void notify_view_of_ongoing_navigation() const;
     void end_navigation(CanonicalNavigation&);
     OngoingNavigation m_ongoing_navigation;
     Vector<NonnullRefPtr<CanonicalNavigation>> m_navigations;

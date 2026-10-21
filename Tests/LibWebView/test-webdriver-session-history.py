@@ -984,10 +984,12 @@ def refresh(webdriver_port, session_id):
     request(webdriver_port, "POST", f"/session/{session_id}/refresh", {})
 
 
-def create_session(webdriver_port, enable_test_hooks=True, beforeunload_prompt_handler=None):
+def create_session(
+    webdriver_port, enable_test_hooks=True, beforeunload_prompt_handler=None, page_load_strategy="normal"
+):
     always_match = {
         "ladybird:headless": True,
-        "pageLoadStrategy": "normal",
+        "pageLoadStrategy": page_load_strategy,
     }
     if enable_test_hooks:
         always_match["ladybird:enableTestHooks"] = True
@@ -2282,10 +2284,7 @@ return null;
                 )
 
             pending_history = session_history(webdriver_port, session_id)
-            if pending_history["ui"]["currentURL"] not in (
-                url_navigation_blocked,
-                url_redirect_to_navigation_blocked,
-            ) or history_entry_urls(pending_history["ui"]) != [url_a]:
+            if pending_history["ui"]["currentURL"] != url_a or history_entry_urls(pending_history["ui"]) != [url_a]:
                 raise AssertionError(
                     f"Expected {label} to leave canonical history at /a, got "
                     f"{summarize_history_snapshot(pending_history)}\n" + "\n".join(log)
@@ -2462,7 +2461,6 @@ def run_cross_process_pending_navigation_browser_ui_back_test(
     webdriver_port,
     page_server,
     url_a,
-    url_cross_site_navigation_blocked,
 ):
     session_id = create_session(webdriver_port)
     log = [f"cross-process pending navigation browser UI back initial: {current_url(webdriver_port, session_id)}"]
@@ -2495,7 +2493,7 @@ def run_cross_process_pending_navigation_browser_ui_back_test(
         # The endpoint has not sent response headers yet. Keep the current host until the response URL is known and
         # process placement can be selected from it.
         if (
-            pending_history["ui"]["currentURL"] != url_cross_site_navigation_blocked
+            pending_history["ui"]["currentURL"] != url_a
             or history_entry_urls(pending_history["ui"]) != [url_a]
             or pending_history["ui"]["webContentProcessID"] != initial_process_id
         ):
@@ -2550,7 +2548,6 @@ def run_cross_process_no_content_navigation_restore_test(
     webdriver_port,
     page_server,
     url_a,
-    url_cross_site_no_content,
 ):
     session_id = create_session(webdriver_port)
     log = [f"cross-process no-content navigation restore initial: {current_url(webdriver_port, session_id)}"]
@@ -2580,7 +2577,7 @@ def run_cross_process_no_content_navigation_restore_test(
 
         pending_history = session_history(webdriver_port, session_id)
         if (
-            pending_history["ui"]["currentURL"] != url_cross_site_no_content
+            pending_history["ui"]["currentURL"] != url_a
             or history_entry_urls(pending_history["ui"]) != [url_a]
             or pending_history["ui"]["webContentProcessID"] != initial_process_id
         ):
@@ -2618,6 +2615,84 @@ def run_cross_process_no_content_navigation_restore_test(
         request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
+def run_pending_ui_load_test(webdriver_port, page_server, url_a, url_navigation_blocked):
+    # A load from the browser's UI returns as soon as it starts, so the document it replaces can run script meanwhile.
+    session_id = create_session(webdriver_port, page_load_strategy="none")
+    log = [f"pending UI load initial: {current_url(webdriver_port, session_id)}"]
+    try:
+        page_server.a_document_ran.clear()
+        load_url_from_ui(webdriver_port, session_id, url_a)
+        wait_for_event(page_server.a_document_ran, "A document before pending UI load")
+
+        page_server.blocked_navigation_requested.clear()
+        page_server.release_blocked_navigation.clear()
+        load_url_from_ui(webdriver_port, session_id, url_navigation_blocked)
+        wait_for_event(page_server.blocked_navigation_requested, "pending UI load request")
+
+        pending_history = session_history(webdriver_port, session_id)["ui"]
+        if pending_history["currentURL"] != url_a or pending_history["displayedURL"] != url_navigation_blocked:
+            raise AssertionError(
+                f"Expected the pending UI load to show only in the address bar, got {pending_history}\n"
+                + "\n".join(log)
+            )
+
+        # A cookie only the pending URL matches, then one the current document's URL matches.
+        changes = execute_async_script(
+            webdriver_port,
+            session_id,
+            """
+const done = arguments[arguments.length - 1];
+const changes = [];
+cookieStore.addEventListener("change", event => {
+    for (const cookie of event.changed) {
+        changes.push(cookie.name);
+        if (cookie.name === "control")
+            done(changes.join(", "));
+    }
+});
+document.cookie = "pending=1; path=/navigation-blocked";
+document.cookie = "control=1; path=/";
+""",
+        )
+        if changes != "control":
+            raise AssertionError(
+                f"Expected the document being navigated away from to see only its own cookie change, got {changes}\n"
+                + "\n".join(log)
+            )
+
+        # A navigation the page starts takes over from the pending UI load, whose URL the address bar stops showing.
+        page_server.blocked_no_content_navigation_requested.clear()
+        page_server.release_blocked_no_content_navigation.clear()
+        execute_script(
+            webdriver_port,
+            session_id,
+            'location.href = "/navigation-no-content-blocked"; return null;',
+        )
+        wait_for_event(page_server.blocked_no_content_navigation_requested, "page-initiated navigation request")
+
+        superseded_history = session_history(webdriver_port, session_id)["ui"]
+        if superseded_history["currentURL"] != url_a or superseded_history["displayedURL"] != url_a:
+            raise AssertionError(
+                f"Expected the address bar to stop showing the superseded UI load, got {superseded_history}\n"
+                + "\n".join(log)
+            )
+
+        page_server.release_blocked_no_content_navigation.set()
+        execute_script(
+            webdriver_port,
+            session_id,
+            """
+document.cookie = "pending=; path=/navigation-blocked; max-age=0";
+document.cookie = "control=; path=/; max-age=0";
+return null;
+""",
+        )
+    finally:
+        page_server.release_blocked_navigation.set()
+        page_server.release_blocked_no_content_navigation.set()
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
 def run_uncommitted_navigation_browser_ui_back_tests(
     webdriver_port,
     page_server,
@@ -2625,7 +2700,6 @@ def run_uncommitted_navigation_browser_ui_back_tests(
     url_d,
     url_navigation_blocked,
     url_redirect_to_navigation_blocked,
-    url_cross_site_navigation_blocked,
 ):
     run_pending_navigation_browser_ui_back_test(
         webdriver_port,
@@ -2644,13 +2718,11 @@ def run_uncommitted_navigation_browser_ui_back_tests(
         webdriver_port,
         page_server,
         url_a,
-        url_cross_site_navigation_blocked,
     )
     run_cross_process_no_content_navigation_restore_test(
         webdriver_port,
         page_server,
         url_a,
-        f"http://127.0.0.1:{page_server.server_port}/navigation-no-content-blocked",
     )
 
 
@@ -2848,7 +2920,6 @@ def run_test(webdriver_binary):
         url_d = f"http://localhost:{page_port}/d"
         url_redirect_to_b = f"http://localhost:{page_port}/redirect-to-b"
         url_navigation_blocked = f"http://localhost:{page_port}/navigation-blocked"
-        url_cross_site_navigation_blocked = f"http://127.0.0.1:{page_port}/navigation-blocked"
         url_redirect_to_navigation_blocked = f"http://localhost:{page_port}/redirect-to-navigation-blocked"
         url_nested = f"http://localhost:{page_port}/nested"
         url_state = f"http://localhost:{page_port}/state"
@@ -2897,8 +2968,8 @@ def run_test(webdriver_binary):
             url_d,
             url_navigation_blocked,
             url_redirect_to_navigation_blocked,
-            url_cross_site_navigation_blocked,
         )
+        run_pending_ui_load_test(webdriver_port, page_server, url_a, url_navigation_blocked)
 
         session_id = create_session(webdriver_port)
         expect_second_ui_forward_supersedes_pending_forward(

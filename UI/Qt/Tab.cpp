@@ -1428,7 +1428,7 @@ void Tab::location_edit_return_pressed(String input, Optional<URL::URL> fallback
     auto is_external_url = destination_kind == WebView::OmniboxDestinationKind::URL
         && WebView::classify_user_input(input).classification == WebView::UserInputClassification::ExternalURL;
     if (is_external_url)
-        m_location_edit->set_url(view().url());
+        m_location_edit->set_url(view().displayed_url());
 
     view().setFocus();
 }
