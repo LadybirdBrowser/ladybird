@@ -1126,7 +1126,8 @@ impl<'pass> FlexFormattingContext<'pass> {
             UsedFlexBasis::Size { value, .. } if value.is_max_content() => self.calculate_max_content_main_size(index),
             UsedFlexBasis::Size { value, .. } if value.is_min_content() => self.calculate_min_content_main_size(index),
             // NOTE: If the flex item has a definite main size, just use that as the flex base size.
-            _ if self.has_definite_main_size(index) => self.inner_main_size(index),
+            // NB: A used flex basis of content sizes the item by its content, whatever its main size.
+            UsedFlexBasis::Size { .. } if self.has_definite_main_size(index) => self.inner_main_size(index),
             // NOTE: There's a fundamental problem with many CSS specifications in that they neglect to mention
             //       which inline size to provide when calculating the intrinsic block size of a box in various situations.
             //       Spec bug: https://github.com/w3c/csswg-drafts/issues/2890
