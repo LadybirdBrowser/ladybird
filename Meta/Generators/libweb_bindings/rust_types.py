@@ -41,7 +41,7 @@ TYPED_ARRAY_NAMES = {
 }
 
 # The extended attributes of a type or a parameter that the Rust bindings handle.
-SUPPORTED_TYPE_EXTENDED_ATTRIBUTES = {"AllowShared", "AllowResizable", "EnforceRange"}
+SUPPORTED_TYPE_EXTENDED_ATTRIBUTES = {"AllowShared", "AllowResizable", "EnforceRange", "LegacyNullToEmptyString"}
 
 # The integer types, with the Rust type of their values.
 INTEGER_TYPES = {"long": "i32", "unsigned long": "u32", "long long": "i64", "unsigned long long": "u64"}

@@ -103,6 +103,16 @@ pub(crate) fn to_dom_string(vm: &Vm, value: Value) -> ThrowCompletionOr<Utf16Str
     value.to_utf16_string(vm)
 }
 
+/// A JS value converted to a DOMString with [LegacyNullToEmptyString], https://webidl.spec.whatwg.org/#es-DOMString
+pub(crate) fn to_dom_string_treating_null_as_empty(vm: &Vm, value: Value) -> ThrowCompletionOr<Utf16String> {
+    // 1. If V is null and the conversion is to an IDL type associated with the [LegacyNullToEmptyString] extended
+    //    attribute, then return the DOMString value that represents the empty string.
+    if value.is_null() {
+        return Ok(Utf16String::default());
+    }
+    to_dom_string(vm, value)
+}
+
 /// A JS value converted to a USVString, https://webidl.spec.whatwg.org/#es-USVString
 pub(crate) fn to_usv_string(vm: &Vm, value: Value) -> ThrowCompletionOr<UsvString> {
     // 1. Let string be the result of converting V to a DOMString.
