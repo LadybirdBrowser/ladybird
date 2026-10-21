@@ -806,6 +806,7 @@ pub(crate) mod definitions {
     use ak::Utf16String;
     use libjs_rust::api::{
         ErrorKind, ErrorType, Gc, Object, PropertyKey, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm,
+        is_host_instance_of,
     };
 
     use crate::bindings::CallContext;
@@ -817,7 +818,9 @@ pub(crate) mod definitions {
         to_dom_string, to_double, to_enumeration_value, to_float, to_long, to_long_long, to_typed_array,
         to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
     };
-    use crate::bindings::interface::{Ref, create_dictionary_object, set_dictionary_member, to_interface};
+    use crate::bindings::interface::{
+        Interface, Ref, create_dictionary_object, implementation_of, set_dictionary_member, to_interface,
+    };
 """
     )
     for name, directions in usage.rust_dictionaries.items():
