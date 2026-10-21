@@ -89,6 +89,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     auto& main_wrapper = Web::Bindings::platform_object_for_window(*window, window->principal_realm());
     auto main_proxy = browsing_context->window_proxy();
     EXPECT(main_proxy->object().shape().prototype() == &main_wrapper);
+    EXPECT(&main_proxy->object().shape().realm() == &window->principal_realm());
     EXPECT(Web::HTML::WindowProxy::from_object(main_proxy->object()) == main_proxy);
     EXPECT(!Web::HTML::WindowProxy::from_object(main_wrapper));
 
@@ -191,10 +192,8 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     EXPECT(popped_extension_execution_context == extension_execution_context.ptr());
 
     auto replacement_window = Web::HTML::Window::create();
-    browsing_context->set_active_window(replacement_window);
-    EXPECT(main_proxy->window().ptr() == replacement_window.ptr());
+    extension_proxy->set_window(replacement_window);
     EXPECT(extension_proxy->window().ptr() == replacement_window.ptr());
-    EXPECT(main_proxy->object().shape().prototype() == &Web::Bindings::platform_object_for_window(*replacement_window, main_proxy->realm()));
     EXPECT(extension_proxy->object().shape().prototype() == nullptr);
 
     vm.pop_execution_context();

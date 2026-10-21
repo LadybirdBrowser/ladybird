@@ -217,19 +217,6 @@ JS::Realm& this_value_realm(JS::Realm& fallback_realm, JS::Value this_value)
         auto& proxy_realm = object.shape().realm();
         if (!proxy_realm.host_defined())
             return fallback_realm;
-
-        // A main-world WindowProxy is created once, in the initial about:blank
-        // realm, then reused as globalThis across later navigations. Do not use
-        // that stale shape realm for receiver-realm decisions: HTML defines a
-        // WindowProxy's relevant realm as the realm of its current [[Window]].
-        //
-        // Isolated-world WindowProxy objects are created in their own world
-        // realm; keep those on the proxy's realm so cross-world wrapping stays
-        // isolated instead of leaking through the principal Window realm.
-        if (host_defined_wrapper_world(proxy_realm).is_main_world()) {
-            if (auto window = window_proxy->window())
-                return window->principal_realm();
-        }
     }
 
     return object.shape().realm();
