@@ -246,10 +246,11 @@ impl VisualContextTreeDump for VisualContextTree {
                 };
                 let _ = write!(
                     text,
-                    "mask=[{}] kind={} origin={}",
+                    "mask=[{}] kind={} origin={}{}",
                     format_int_rect_components(mask.rect),
                     kind,
-                    origin
+                    origin,
+                    if mask.masks_backdrop { " masks-backdrop" } else { "" }
                 );
             }
             EffectNodeData::BackgroundColorAnimation => text.push_str("background-color-animation"),
@@ -600,6 +601,7 @@ mod node_dump_tests {
                 rect: IntRect::new(1, 2, 30, 40),
                 kind: MaskKind::Luminance,
                 origin: MaskLayerOrigin::SvgMask,
+                masks_backdrop: false,
             }),
             EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,

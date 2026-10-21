@@ -501,15 +501,17 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
         append_clip_to_own_and_positioned_descendant_contexts!(ClipNodeData::Path(facts.clip_path_data().unwrap()));
     }
 
-    // A backdrop filter is limited to the box's rounded border box in the box's own space, and a clip
-    // path clips the filtered backdrop along with the content, so its layer sits under the transform
-    // and clip nodes rather than above them.
-    if effects_layer_is_inside_transform_and_clips {
-        append_shared_effect!(EffectNodeData::Effects(facts.effects_data().unwrap()));
-    }
-
     for mask_layer in &facts.mask_layers {
         append_shared_effect!(EffectNodeData::Mask(*mask_layer));
+    }
+
+    // https://drafts.fxtf.org/filter-effects-2/#backdrop-filter-operation
+    // A backdrop filter is limited to the box's rounded border box in the box's own space, and a clip
+    // path clips the filtered backdrop along with the content, so its layer sits under the transform
+    // and clip nodes rather than above them. Masks apply to the filtered backdrop too, so the layer
+    // also sits under the box's masks, and replay draws the backdrop into the outermost mask's layer.
+    if effects_layer_is_inside_transform_and_clips {
+        append_shared_effect!(EffectNodeData::Effects(facts.effects_data().unwrap()));
     }
 
     if facts.needs_compositor_background_color_effect {

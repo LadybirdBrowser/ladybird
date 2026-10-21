@@ -33,7 +33,8 @@ pub trait ReplayPainter {
     fn push_clip(&mut self, clip: &ReplayClip);
     fn push_clip_path(&mut self, path: &OwnedPath, winding_rule: WindingRule);
     fn push_layer(&mut self, layer: &ReplayLayer);
-    fn push_mask(&mut self, mask: &ReplayMask);
+    // `backdrop`, when given, carries the backdrop filter the mask's layer starts with.
+    fn push_mask(&mut self, mask: &ReplayMask, backdrop: Option<&ReplayLayer>);
     fn pop_mask(&mut self, mask: &ReplayMask, effect: EffectNodeIndex);
     fn pop(&mut self);
     fn push_device_space_plane_clip(&mut self, vertices: &[FloatVector3]);
@@ -250,6 +251,14 @@ fn replay_layer_of(
     }
 }
 
+// Whether the backdrop of a backdrop-filter effect is drawn by its box's masks rather than by the effect's own layer.
+fn backdrop_is_drawn_by_masks(tree: &VisualContextTree, effect: EffectNodeIndex) -> bool {
+    let node = &tree.effect_nodes[effect.0 as usize];
+    matches!(&node.data, EffectNodeData::Effects(effects) if effects.backdrop_filter.is_some())
+        && !node.parent.is_none()
+        && matches!(&tree.effect_nodes[node.parent.0 as usize].data, EffectNodeData::Mask(mask) if mask.masks_backdrop)
+}
+
 fn replay_mask_of(mask: &crate::visual_context::MaskData) -> ReplayMask {
     ReplayMask {
         rect: mask.rect,
@@ -429,6 +438,42 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
             .then_some(bounds)
     }
 
+    // https://drafts.fxtf.org/filter-effects-2/#backdrop-filter-operation
+    // The masks of a box with a backdrop filter apply to the filtered backdrop too. Skia reads a layer's
+    // backdrop from the layer's parent, so the outermost of the box's mask layers starts with the
+    // filtered backdrop, and the box's effects layer below the masks draws none. Opacity and blending
+    // come after masking, so the outermost mask layer applies them too.
+    fn backdrop_layer_of_outermost_mask(
+        &self,
+        target_index: usize,
+        mask: &crate::visual_context::MaskData,
+    ) -> Option<ReplayLayer> {
+        if !mask.masks_backdrop {
+            return None;
+        }
+        let tree = self.tree;
+        let Applied::Effect(mask_effect) = self.target[target_index] else {
+            unreachable!("a mask is an effect");
+        };
+        let parent = tree.effect_nodes[mask_effect.0 as usize].parent;
+        if !parent.is_none()
+            && matches!(&tree.effect_nodes[parent.0 as usize].data, EffectNodeData::Mask(parent) if parent.masks_backdrop)
+        {
+            return None;
+        }
+        self.target[target_index + 1..].iter().find_map(|entry| {
+            let Applied::Effect(effect) = *entry else {
+                return None;
+            };
+            match &tree.effect_nodes[effect.0 as usize].data {
+                EffectNodeData::Effects(effects) if backdrop_is_drawn_by_masks(tree, effect) => {
+                    Some(replay_layer_of(effects, effect, None))
+                }
+                _ => None,
+            }
+        })
+    }
+
     // Merge the clip and effect chains from leaf to root. Each effect goes immediately
     // inside its output clip; reversing once produces the canvas stack in linear time.
     fn build_target(&mut self, context: ContextRef) {
@@ -584,13 +629,22 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                             if tree.effect_pushes_layer_at_replay(effect) {
                                 self.ensure_ctm_space(node.spatial);
                                 let content_bounds = self.layer_content_bounds(effect, node.spatial);
-                                self.painter
-                                    .push_layer(&replay_layer_of(effects, effect, content_bounds));
+                                let mut layer = replay_layer_of(effects, effect, content_bounds);
+                                if backdrop_is_drawn_by_masks(tree, effect) {
+                                    // NB: The outermost mask layer draws the backdrop, and applies the opacity and
+                                    //     blend mode to it and the masked content together.
+                                    layer.backdrop_filter_bytes = std::ptr::null();
+                                    layer.backdrop_filter_bytes_size = 0;
+                                    layer.opacity = 1.0;
+                                    layer.blend_mode = libgfx_rust::CompositingAndBlendingOperator::Normal;
+                                }
+                                self.painter.push_layer(&layer);
                             }
                         }
                         EffectNodeData::Mask(mask) => {
                             self.ensure_ctm_space(node.spatial);
-                            self.painter.push_mask(&replay_mask_of(mask));
+                            let backdrop = self.backdrop_layer_of_outermost_mask(i, mask);
+                            self.painter.push_mask(&replay_mask_of(mask), backdrop.as_ref());
                         }
                         EffectNodeData::BackgroundColorAnimation => {}
                         EffectNodeData::Dead => unreachable!("a run never records under a tombstoned effect"),
@@ -907,7 +961,7 @@ mod tests {
             self.events.push(PainterEvent::PushLayer(layer.opacity));
             self.layer_content_bounds.push(layer.content_bounds.get());
         }
-        fn push_mask(&mut self, mask: &ReplayMask) {
+        fn push_mask(&mut self, mask: &ReplayMask, _backdrop: Option<&ReplayLayer>) {
             self.events.push(PainterEvent::PushMask(mask.rect));
         }
         fn pop_mask(&mut self, _mask: &ReplayMask, effect: EffectNodeIndex) {
@@ -972,6 +1026,7 @@ mod tests {
             rect,
             kind: MaskKind::Alpha,
             origin: MaskLayerOrigin::CssMaskLayers,
+            masks_backdrop: false,
         })
     }
 

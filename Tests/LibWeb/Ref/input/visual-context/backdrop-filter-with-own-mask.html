@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/backdrop-filter-with-own-mask-ref.html">
+<style>
+body {
+    margin: 0;
+    background: white;
+}
+.backdrop {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 400px;
+    height: 300px;
+    background: rgb(0, 255, 0);
+}
+.filtered {
+    position: absolute;
+    top: 50px;
+    width: 100px;
+    height: 200px;
+    backdrop-filter: invert(1);
+    mask-image: linear-gradient(to bottom, black 0, black 100px, transparent 100px);
+}
+#a { left: 0; }
+#b {
+    left: 150px;
+    background: rgba(0, 0, 255, 0.5);
+}
+#c {
+    left: 270px;
+    opacity: 0.5;
+}
+</style>
+<!-- A box's own mask applies to its filtered backdrop along with its content, so only the top half
+     of each box inverts the green behind it. The box's opacity applies to the masked backdrop too. -->
+<div class="backdrop"></div>
+<div id="a" class="filtered"></div>
+<div id="b" class="filtered"></div>
+<div id="c" class="filtered"></div>

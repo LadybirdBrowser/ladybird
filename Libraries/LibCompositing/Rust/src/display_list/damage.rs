@@ -1825,6 +1825,7 @@ mod tests {
             rect,
             kind: MaskKind::Alpha,
             origin: MaskLayerOrigin::CssMaskLayers,
+            masks_backdrop: false,
         })
     }
 

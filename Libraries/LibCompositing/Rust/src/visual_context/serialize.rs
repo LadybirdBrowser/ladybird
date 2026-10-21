@@ -28,7 +28,7 @@ use libgfx_rust::{
 };
 
 const SERIALIZED_TREE_MAGIC: u32 = 0x5443_5641;
-const SERIALIZED_TREE_FORMAT: u32 = 7;
+const SERIALIZED_TREE_FORMAT: u32 = 8;
 
 const SPATIAL_KIND_SCROLL: u8 = 0;
 const SPATIAL_KIND_STICKY: u8 = 1;
@@ -472,6 +472,7 @@ fn write_effect_data(writer: &mut TreeByteWriter, data: &EffectNodeData) {
             writer.int_rect(mask.rect);
             writer.i32(mask.kind as i32);
             writer.u8(mask.origin as u8);
+            writer.bool(mask.masks_backdrop);
         }
         EffectNodeData::BackgroundColorAnimation => writer.u8(EFFECT_KIND_BACKGROUND_COLOR_ANIMATION),
         EffectNodeData::Dead => writer.u8(EFFECT_KIND_DEAD),
@@ -506,6 +507,7 @@ fn read_effect_data(reader: &mut TreeByteReader<'_>) -> Option<EffectNodeData> {
             rect: reader.int_rect()?,
             kind: reader.mask_kind()?,
             origin: reader.mask_layer_origin()?,
+            masks_backdrop: reader.bool()?,
         }),
         EFFECT_KIND_BACKGROUND_COLOR_ANIMATION => EffectNodeData::BackgroundColorAnimation,
         EFFECT_KIND_DEAD => EffectNodeData::Dead,
@@ -1122,6 +1124,7 @@ mod tests {
                 rect: IntRect::new(1, 2, 3, 4),
                 kind: MaskKind::Luminance,
                 origin: MaskLayerOrigin::SvgClip,
+                masks_backdrop: true,
             }),
             effects,
             sorting_root,
@@ -1878,6 +1881,7 @@ mod tests {
             rect: IntRect::new(0, 0, 1, 1),
             kind: MaskKind::Alpha,
             origin: MaskLayerOrigin::CssMaskLayers,
+            masks_backdrop: false,
         });
         isolation_effect_is_a_mask.root_isolation_effect = Some(EffectNodeIndex(0));
         rejected(&isolation_effect_is_a_mask);
