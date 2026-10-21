@@ -158,6 +158,12 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
             .timeline_kind = to_underlying(animation_properties.timeline.kind),
             .scroll_scroller = to_underlying(animation_properties.timeline.scroller),
             .scroll_axis = to_underlying(animation_properties.timeline.axis),
+            .range_start_name = to_underlying(animation_properties.range.start.name),
+            .range_start_px = animation_properties.range.start.offset_px,
+            .range_start_percentage = animation_properties.range.start.offset_percentage,
+            .range_end_name = to_underlying(animation_properties.range.end.name),
+            .range_end_px = animation_properties.range.end.offset_px,
+            .range_end_percentage = animation_properties.range.end.offset_percentage,
         },
         .keyframe_set = m_applied_keyframe_set.ptr(),
         .timing_function = m_applied_timing_function_value.data(),
@@ -174,6 +180,7 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
         .delay = animation_properties.delay,
         .fill_mode = animation_properties.fill_mode,
         .composition = animation_properties.composition,
+        .range = animation_properties.range,
     };
     // NB: Style feedback can recompute an animation's owning element. Reapplying unchanged
     //     properties would invalidate the effect and turn that feedback into an endless cycle.
@@ -185,6 +192,7 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
         HTML::TemporaryExecutionContext context(relevant_settings_object());
         set_timeline(materialize_timeline(animation_properties.timeline, timeline_target));
     }
+    set_range(animation_properties.range);
 
     effect.set_specified_iteration_duration(animation_properties.duration);
     effect.set_specified_start_delay(animation_properties.delay);

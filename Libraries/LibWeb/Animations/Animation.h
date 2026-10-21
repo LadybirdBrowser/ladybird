@@ -9,6 +9,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Animations/TimeValue.h>
+#include <LibWeb/Animations/TimelineRange.h>
 #include <LibWeb/Bindings/Animation.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -66,6 +67,13 @@ public:
     virtual WebIDL::ExceptionOr<void> set_start_time_for_bindings(NullableCSSNumberish const&);
 
     void calculate_auto_aligned_start_time();
+    void normalize_timing_against_attachment_interval();
+
+    // https://drafts.csswg.org/scroll-animations-1/#animation-attachment-range
+    AnimationAttachmentRange const& range() const { return m_range; }
+    void set_range(AnimationAttachmentRange const&);
+    // The start and the end of the attachment range on a progress-based timeline, as timeline times.
+    Optional<AttachmentInterval> attachment_interval() const;
 
     // https://drafts.csswg.org/web-animations-2/#dom-animation-currenttime
     NullableCSSNumberish current_time_for_bindings() const;
@@ -235,6 +243,11 @@ private:
     Optional<TimeValue> m_start_time {};
 
     bool m_auto_align_start_time { false };
+
+    AnimationAttachmentRange m_range;
+
+    // The attachment interval the effect's timing was last normalized against.
+    Optional<AttachmentInterval> m_normalized_attachment_interval;
 
     // https://www.w3.org/TR/web-animations-1/#animation-hold-time
     Optional<TimeValue> m_hold_time {};

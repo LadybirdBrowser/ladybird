@@ -1194,6 +1194,12 @@ pub struct FfiAppliedAnimationValues {
     pub timeline_kind: u8,
     pub scroll_scroller: u8,
     pub scroll_axis: u8,
+    pub range_start_name: u8,
+    pub range_start_px: f64,
+    pub range_start_percentage: f64,
+    pub range_end_name: u8,
+    pub range_end_px: f64,
+    pub range_end_percentage: f64,
 }
 
 // SAFETY: the keyframe set is only compared by address, and the timing function is immutable style

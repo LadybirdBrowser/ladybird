@@ -50,6 +50,13 @@ public:
     bool is_monotonically_increasing() const { return m_is_monotonically_increasing; }
     virtual bool is_progress_based() const { return false; }
 
+    // The timeline times of the start and the end of an attachment range on a progress-based timeline.
+    // https://drafts.csswg.org/scroll-animations-1/#animation-attachment-range
+    virtual AttachmentInterval interval_for_attachment_range(AnimationAttachmentRange const&) const
+    {
+        return { { TimeValue::Type::Percentage, 0 }, { TimeValue::Type::Percentage, 100 } };
+    }
+
     // https://www.w3.org/TR/web-animations-1/#timeline-time-to-origin-relative-time
     virtual Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<TimeValue>) { VERIFY_NOT_REACHED(); }
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const { return false; }
