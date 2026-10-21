@@ -1527,7 +1527,6 @@ HostedNavigableState LocalNavigable::hosted_state() const
 {
     VERIFY(m_active_document);
     return {
-        .active_document_url = m_active_document->url(),
         .active_document_is_fully_active = m_active_document->is_fully_active(),
         .is_closing = m_closing,
         .container = container_state(),

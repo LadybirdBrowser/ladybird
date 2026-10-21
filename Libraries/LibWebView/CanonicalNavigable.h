@@ -85,6 +85,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
     CanonicalDocument& active_document() const;
+    URL::URL const& active_document_url() const;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-target-name
     Utf16String const& target_name() const;

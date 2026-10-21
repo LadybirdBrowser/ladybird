@@ -146,7 +146,6 @@ TEST_CASE(target_snapshot_params_take_the_popup_or_container_sandboxing_flags)
     auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }));
     frame.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, frame_document)));
     frame.set_hosted_state({
-        .active_document_url = URL::about_blank(),
         .active_document_is_fully_active = true,
         .is_closing = false,
         .container = embedder,
@@ -200,7 +199,6 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
     traversable.set_ongoing_navigation(navigation_for_testing(navigation_id, 0, committed_entry));
     traversable.populate_document(traversable.uncommitted_navigation()->history_entry->document_state, destination_document);
     Web::HTML::HostedNavigableState committed_state {
-        .active_document_url = destination_url,
         .active_document_is_fully_active = true,
         .is_closing = false,
         .container = {},
@@ -244,7 +242,6 @@ TEST_CASE(child_navigation_under_a_document_that_switched_groups_uses_its_group)
     traversable.set_ongoing_navigation(navigation_for_testing(navigation_id, 0, WebView::CanonicalSessionHistoryEntry::create(destination_document_state)));
     traversable.populate_document(traversable.uncommitted_navigation()->history_entry->document_state, destination_document);
     Web::HTML::HostedNavigableState committed_state {
-        .active_document_url = destination_url,
         .active_document_is_fully_active = true,
         .is_closing = false,
         .container = {},
@@ -324,7 +321,6 @@ TEST_CASE(document_claimed_by_a_history_job_outlives_a_newer_navigation)
     EXPECT_EQ(claimed_document_state->populated_document->document.ptr(), claimed_document.ptr());
 
     Web::HTML::HostedNavigableState committed_state {
-        .active_document_url = URL::about_blank(),
         .active_document_is_fully_active = true,
         .is_closing = false,
         .container = {},
@@ -350,7 +346,6 @@ TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused
     auto destination_url = URL::Parser::basic_parse("https://ladybird.org/redirected"sv).release_value();
 
     Web::HTML::HostedNavigableState committed_state {
-        .active_document_url = destination_url,
         .active_document_is_fully_active = true,
         .is_closing = false,
         .container = {},
@@ -369,7 +364,6 @@ TEST_CASE(same_document_traversal_commits_only_navigations_admitted_before_it)
     traversable.set_active_session_history_entry(entry);
     auto committed_state = [] {
         return Web::HTML::HostedNavigableState {
-            .active_document_url = URL::about_blank(),
             .active_document_is_fully_active = true,
             .is_closing = false,
             .container = {},
