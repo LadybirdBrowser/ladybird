@@ -39,6 +39,13 @@ WEB_API void register_layout_host(NodeArena&, DOM::Document&);
 void publish_svg_attribute_facts(DOM::Element&);
 void publish_svg_style_references(DOM::Element&);
 
+// Which shape an SVG geometry element draws, and the endpoints a <line> parses. The other fields keep their defaults.
+// Layout reads these from the published facts, and the DOM's geometry queries pass them to the same shape builders.
+RustFFI::FfiSvgAttributeFacts svg_geometry_facts(DOM::Element const&);
+
+// The points a <polygon> or <polyline> parses. Every other element has none.
+ReadonlySpan<Gfx::FloatPoint> svg_shape_points(DOM::Element const&);
+
 // Publishes whether a row built for the node sits in the user agent shadow tree of the focused text control, which is
 // what a caret is painted inside. The overflow pass reserves a pixel for the caret, so it reads the published answer
 // rather than asking the document who has focus.

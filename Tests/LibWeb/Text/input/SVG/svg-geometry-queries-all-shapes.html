@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="viewport" width="200" height="100">
+    <rect id="rect" x="10" y="10" width="80" height="40"/>
+    <rect id="rect with rx and ry" x="10" y="10" width="80" height="40" rx="10" ry="5"/>
+    <rect id="rect with percentage rx and auto ry" x="10%" y="10" width="50%" height="40" rx="10%"/>
+    <rect id="rect with oversized ry and auto rx" x="10" y="10" width="80" height="40" ry="30"/>
+    <rect id="rect with zero width" width="0" height="40"/>
+    <circle id="circle" cx="100" cy="50" r="20"/>
+    <circle id="circle with percentages" cx="50%" cy="50%" r="10%"/>
+    <circle id="circle with zero r" cx="20" cy="20" r="0"/>
+    <ellipse id="ellipse" cx="100" cy="50" rx="40" ry="20"/>
+    <ellipse id="ellipse with percentages" cx="50%" cy="50%" rx="20%" ry="20%"/>
+    <ellipse id="ellipse with auto rx" cx="100" cy="50" ry="20"/>
+    <ellipse id="ellipse with auto radii" cx="100" cy="50"/>
+    <ellipse id="ellipse with negative ry" cx="100" cy="50" rx="30" style="ry: -5px"/>
+    <line id="line" x1="10" y1="20" x2="90" y2="80"/>
+    <line id="line with percentages" x1="10%" y1="20%" x2="90%" y2="80%"/>
+    <polyline id="polyline" points="10,10 90,10 90,60"/>
+    <polygon id="polygon" points="10,10 90,10 90,60"/>
+    <polygon id="polygon without points"/>
+    <path id="path" d="M 10 10 h 80 v 40 z"/>
+    <path id="path with evenodd fill" d="M 0 0 h 100 v 100 h -100 z M 25 25 h 50 v 50 h -50 z" fill-rule="evenodd"/>
+    <path id="path with nonzero fill" d="M 0 0 h 100 v 100 h -100 z M 25 25 h 50 v 50 h -50 z"/>
+    <path id="path with d property" style="d: path('M 10 10 L 70 90')"/>
+    <path id="path without d"/>
+</svg>
+<svg id="viewbox" width="400" height="400" viewBox="0 0 100 50">
+    <circle id="circle in viewBox" cx="50%" cy="50%" r="10%"/>
+    <line id="line in viewBox" x1="0" y1="0" x2="100%" y2="100%"/>
+</svg>
+<script>
+    test(() => {
+        const round = value => Math.round(value * 100) / 100;
+        const probes = [
+            [50, 30],
+            [100, 50],
+            [50, 50],
+            [15, 12],
+        ];
+        const describe = element => {
+            const length = element.getTotalLength();
+            let line = `${element.id}: length=${round(length)}`;
+            if (length > 0) {
+                const point = element.getPointAtLength(length / 3);
+                line += ` point=(${round(point.x)}, ${round(point.y)})`;
+            }
+            const fill = probes.map(([x, y]) => (element.isPointInFill({ x, y }) ? "1" : "0")).join("");
+            println(`${line} fill=${fill}`);
+        };
+
+        for (const element of document.querySelectorAll("svg > *"))
+            describe(element);
+
+        const ns = "http://www.w3.org/2000/svg";
+        const create = (name, attributes) => {
+            const element = document.createElementNS(ns, name);
+            element.id = `detached ${name}`;
+            for (const [attribute, value] of Object.entries(attributes))
+                element.setAttribute(attribute, value);
+            return element;
+        };
+        describe(create("rect", { width: 30, height: 20, rx: 5 }));
+        describe(create("circle", { cx: 50, cy: 30, r: 10 }));
+        describe(create("ellipse", { cx: 50, cy: 30, rx: 20, ry: 10 }));
+        describe(create("line", { x1: 0, y1: 0, x2: 30, y2: 40 }));
+        describe(create("polygon", { points: "10,10 90,10 90,60" }));
+        describe(create("path", { d: "M 10 10 h 80 v 40 z" }));
+    });
+</script>

@@ -20,7 +20,6 @@ public:
 
     virtual CSS::ElementBoxKind box_kind() const override;
 
-    virtual Gfx::Path get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&) = 0;
     Gfx::Path computed_path();
 
     WebIDL::ExceptionOr<bool> is_point_in_fill(Bindings::DOMPointInit const&);

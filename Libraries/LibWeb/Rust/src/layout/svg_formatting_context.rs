@@ -688,7 +688,17 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn node_kind(&self, node: Node) -> NodeKind {
         self.run.callbacks.node_data(node).kind.get()
     }
+}
 
+/// The viewport a shape's geometry resolves its lengths against. Layout and the DOM's geometry
+/// queries both build a shape's path through it, so the two cannot disagree on a shape.
+#[derive(Clone, Copy)]
+struct SvgShapeGeometry {
+    viewport_width: CssPixels,
+    viewport_height: CssPixels,
+}
+
+impl SvgShapeGeometry {
     // https://svgwg.org/svg2-draft/shapes.html#RectElement
     // The used values for rx and ry are determined from the computed values by following these
     // steps in order.
@@ -972,18 +982,9 @@ impl<'pass> SvgFormattingContext<'pass> {
         path
     }
 
-    /// The geometry a shape element draws, in the user units of the viewport it sits in.
-    fn svg_geometry_path(&self, node: Node) -> libgfx_rust::path::OwnedPath {
-        let points = self.run.callbacks.arena().svg_points(node);
-        self.svg_geometry_path_of(self.svg_attributes(node), self.style(node), points.as_deref())
-    }
-
-    /// As above, from an element's published attributes and computed style rather than from its
-    /// box.
-    // FIXME: The DOM's getTotalLength() still builds the same geometry from the C++
-    //        SVG*Element::get_path() implementations. Route it through this, so a fix to one copy
-    //        cannot miss the other.
-    fn svg_geometry_path_of(
+    /// The geometry a shape element draws, in the user units of this viewport, from the shape its
+    /// attributes name and its computed style.
+    fn path(
         &self,
         attributes: FfiSvgAttributeFacts,
         style: StyleValues<'_>,
@@ -1019,6 +1020,57 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut path = shape.path.to_gfx_path();
         path.set_fill_type(i32::from(shape.fill_rule));
         path
+    }
+}
+
+/// The geometry a shape element draws, in the user units of a viewport of `viewport_size`, from
+/// the shape `geometry` names and the computed style in `payloads`. The DOM's geometry queries
+/// measure this path. Only the `geometry_kind` and `line_*` fields of `geometry` are read.
+/// Returns a heap-allocated `Gfx::Path` that the caller owns.
+///
+/// # Safety
+///
+/// `payloads` must point at `payload_count` live style group payloads, and `points` at
+/// `point_count` points.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn svg_geometry_element_path(
+    geometry: FfiSvgAttributeFacts,
+    payloads: *const *const c_void,
+    payload_count: usize,
+    points: *const FfiFloatPoint,
+    point_count: usize,
+    viewport_size: FfiCssPixelSize,
+) -> *mut c_void {
+    assert!(!payloads.is_null(), "style group payload array is null");
+    let mut style_payloads = FfiStylePayloads::default();
+    // SAFETY: Guaranteed by the caller.
+    style_payloads
+        .groups
+        .copy_from_slice(unsafe { ak::slice_from_raw_parts(payloads, payload_count) });
+    // SAFETY: Guaranteed by the caller.
+    let points = unsafe { ak::slice_from_raw_parts(points, point_count) };
+    let shape_geometry = SvgShapeGeometry {
+        viewport_width: viewport_size.width,
+        viewport_height: viewport_size.height,
+    };
+    shape_geometry
+        .path(geometry, StyleValues::new(&style_payloads), Some(points))
+        .into_raw()
+}
+
+impl<'pass> SvgFormattingContext<'pass> {
+    fn shape_geometry(&self) -> SvgShapeGeometry {
+        SvgShapeGeometry {
+            viewport_width: self.viewport_width,
+            viewport_height: self.viewport_height,
+        }
+    }
+
+    /// The geometry a shape element draws, in the user units of the viewport it sits in.
+    fn svg_geometry_path(&self, node: Node) -> libgfx_rust::path::OwnedPath {
+        let points = self.run.callbacks.arena().svg_points(node);
+        self.shape_geometry()
+            .path(self.svg_attributes(node), self.style(node), points.as_deref())
     }
 
     /// The pixel value one of the text positioning attributes resolves to. A relative length is
@@ -1449,7 +1501,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
         let payloads = arena.style_node_style_payloads(shape)?;
         let points = arena.style_node_svg_points(shape);
-        Some(self.svg_geometry_path_of(attributes, StyleValues::new(&payloads), points.as_deref()))
+        Some(
+            self.shape_geometry()
+                .path(attributes, StyleValues::new(&payloads), points.as_deref()),
+        )
     }
 
     fn svg_attributes(&self, node: Node) -> FfiSvgAttributeFacts {

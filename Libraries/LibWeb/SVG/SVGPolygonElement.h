@@ -19,8 +19,6 @@ public:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    virtual Gfx::Path get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&) override;
-
     // The parsed `points` list, as the element publishes it to layout.
     ReadonlySpan<Gfx::FloatPoint> points() const { return m_points; }
 

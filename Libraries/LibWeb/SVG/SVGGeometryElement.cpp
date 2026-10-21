@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -77,9 +78,6 @@ bool SVGGeometryElement::with_computed_values(Function<void(CSSPixelSize viewpor
     //     separately from the layout update above since it may have been skipped if the element was display: none.
     document().update_style_for_element(*this);
 
-    // FIXME: Layout builds each shape's geometry in Rust (svg_geometry_path_of() in svg_formatting_context.rs), while
-    //        this reads the get_path() implementations, which duplicate it. Answer from the Rust builders instead, so
-    //        a fix to one copy cannot miss the other.
     if (auto computed_values = computed_style()) {
         callback({ viewport_size.width(), viewport_size.height() }, *computed_values);
         return true;
@@ -108,11 +106,32 @@ bool SVGGeometryElement::with_computed_values(Function<void(CSSPixelSize viewpor
     return true;
 }
 
+// The geometry the element draws, built by the same shape builders layout uses, from what the element parses and from
+// the given computed values.
+static Gfx::Path geometry_path(SVGGeometryElement const& element, CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values)
+{
+    Array<void const*, to_underlying(CSS::StyleGroupIndex::Count)> payloads;
+    for (size_t index = 0; index < payloads.size(); ++index)
+        payloads[index] = computed_values.style_group_payload(static_cast<CSS::StyleGroupIndex>(index));
+    auto points = Layout::svg_shape_points(element);
+    static_assert(sizeof(Gfx::FloatPoint) == sizeof(Layout::RustFFI::FfiFloatPoint));
+    auto* native_path = static_cast<Gfx::Path*>(Layout::RustFFI::svg_geometry_element_path(
+        Layout::svg_geometry_facts(element),
+        payloads.data(),
+        payloads.size(),
+        reinterpret_cast<Layout::RustFFI::FfiFloatPoint const*>(points.data()),
+        points.size(),
+        viewport_size));
+    auto path = move(*native_path);
+    delete native_path;
+    return path;
+}
+
 Gfx::Path SVGGeometryElement::computed_path()
 {
     Gfx::Path path;
     with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
-        path = get_path(viewport_size, computed_values);
+        path = geometry_path(*this, viewport_size, computed_values);
     });
     return path;
 }
@@ -137,7 +156,7 @@ WebIDL::ExceptionOr<bool> SVGGeometryElement::is_point_in_fill(Bindings::DOMPoin
     bool is_point_in_fill = false;
     auto has_geometry = with_computed_values([&](CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values) {
         auto winding_rule = computed_values.fill_rule() == CSS::FillRule::Evenodd ? Gfx::WindingRule::EvenOdd : Gfx::WindingRule::Nonzero;
-        is_point_in_fill = get_path(viewport_size, computed_values).contains({ point.x, point.y }, winding_rule);
+        is_point_in_fill = geometry_path(*this, viewport_size, computed_values).contains({ point.x, point.y }, winding_rule);
     });
     if (!has_geometry)
         return WebIDL::InvalidStateError::create(HTML::relevant_realm(*this), "The element's geometry cannot be computed"_utf16);
