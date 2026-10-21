@@ -997,29 +997,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 StyleValueData::Number { value } => Some(*value),
                 _ => None,
             };
-            if mode.is_resolved()
-                && let Some(number) = number
-            {
-                let keyword = if number == 1.0 {
-                    Some("round")
-                } else if number == 2.0 {
-                    Some("squircle")
-                } else if number == f64::INFINITY {
-                    Some("square")
-                } else if number == 0.0 {
-                    Some("bevel")
-                } else if number == -1.0 {
-                    Some("scoop")
-                } else if number == f64::NEG_INFINITY {
-                    Some("notch")
-                } else {
-                    None
-                };
-                if let Some(keyword) = keyword {
-                    sink.push_ascii(keyword);
-                    return;
-                }
-            }
+            // https://drafts.csswg.org/css-borders-4/#corner-shape-props
+            // Computed value: the corresponding superellipse() value
             sink.push_ascii("superellipse(");
             match number {
                 Some(number) if number == f64::INFINITY => sink.push_ascii("infinity"),
