@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #target {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100px;
+        height: 100px;
+        background: gray;
+    }
+    #other {
+        position: absolute;
+        left: 200px;
+        top: 200px;
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+    }
+</style>
+<div id="target"></div>
+<div id="other"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const log = [];
+        for (const type of ["gotpointercapture", "lostpointercapture", "pointermove"])
+            document.addEventListener(type, e => log.push(`${e.type}@${e.target.id}`));
+        const flush = label => {
+            println(`${label}: ${log.join(", ") || "(no events)"}`);
+            log.length = 0;
+        };
+        const tryCall = (label, call) => {
+            try {
+                call();
+                println(`${label}: no exception`);
+            } catch (e) {
+                println(`${label}: ${e.name}`);
+            }
+        };
+
+        tryCall("setPointerCapture with an unknown pointerId", () => target.setPointerCapture(123));
+        tryCall("releasePointerCapture with an unknown pointerId", () => target.releasePointerCapture(123));
+        println(`hasPointerCapture with an unknown pointerId: ${target.hasPointerCapture(123)}`);
+        tryCall("setPointerCapture on an element that is not connected", () => document.createElement("div").setPointerCapture(0));
+
+        // Neither call does anything while no button is held, so the pointer stays uncaptured.
+        tryCall("setPointerCapture while no button is held", () => target.setPointerCapture(0));
+        println(`hasPointerCapture while no button is held: ${target.hasPointerCapture(0)}`);
+        tryCall("releasePointerCapture while not captured", () => target.releasePointerCapture(0));
+        internals.mouseMove(250, 250);
+        flush("move after setPointerCapture while no button was held");
+
+        // A capture released by the pointerdown listener that set it never takes effect.
+        target.addEventListener("pointerdown", e => {
+            target.setPointerCapture(e.pointerId);
+            println(`hasPointerCapture after setPointerCapture in pointerdown: ${target.hasPointerCapture(e.pointerId)}`);
+            target.releasePointerCapture(e.pointerId);
+            println(`hasPointerCapture after releasePointerCapture in pointerdown: ${target.hasPointerCapture(e.pointerId)}`);
+        }, { once: true });
+        internals.mouseMove(50, 50);
+        log.length = 0;
+        internals.mouseDown(50, 50);
+        internals.mouseMove(250, 250);
+        internals.mouseUp(250, 250);
+        flush("press, move and release after a capture set and released in pointerdown");
+
+        // The pointer is no longer in its active buttons state as pointerup fires, so a capture set then is dropped.
+        target.addEventListener("pointerup", e => {
+            target.setPointerCapture(e.pointerId);
+            println(`hasPointerCapture after setPointerCapture in pointerup: ${target.hasPointerCapture(e.pointerId)}`);
+        }, { once: true });
+        internals.mouseMove(50, 50);
+        internals.mouseDown(50, 50);
+        internals.mouseUp(50, 50);
+        log.length = 0;
+        internals.mouseMove(250, 250);
+        flush("move after a capture set in pointerup");
+    });
+</script>

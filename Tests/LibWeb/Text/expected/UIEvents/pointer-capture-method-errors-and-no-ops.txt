@@ -1,0 +1,13 @@
+setPointerCapture with an unknown pointerId: NotFoundError
+releasePointerCapture with an unknown pointerId: NotFoundError
+hasPointerCapture with an unknown pointerId: false
+setPointerCapture on an element that is not connected: InvalidStateError
+setPointerCapture while no button is held: no exception
+hasPointerCapture while no button is held: false
+releasePointerCapture while not captured: no exception
+move after setPointerCapture while no button was held: pointermove@other
+hasPointerCapture after setPointerCapture in pointerdown: true
+hasPointerCapture after releasePointerCapture in pointerdown: false
+press, move and release after a capture set and released in pointerdown: pointermove@other
+hasPointerCapture after setPointerCapture in pointerup: false
+move after a capture set in pointerup: pointermove@other

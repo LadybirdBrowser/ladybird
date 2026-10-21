@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #target {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100px;
+        height: 100px;
+        background: gray;
+    }
+    #other {
+        position: absolute;
+        left: 200px;
+        top: 200px;
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+    }
+</style>
+<div id="target"></div>
+<div id="other"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const log = [];
+        const describe = e => `${e.type}@${e.target === document ? "document" : e.target.id || e.target.nodeName}`;
+        for (const type of ["gotpointercapture", "lostpointercapture", "pointermove", "pointerup"])
+            document.addEventListener(type, e => log.push(describe(e)));
+        for (const type of ["lostpointercapture", "pointermove", "pointerup"])
+            target.addEventListener(type, e => log.push(`${describe(e)} (own listener)`));
+        const flush = label => {
+            println(`${label}: ${log.join(", ") || "(no events)"}`);
+            log.length = 0;
+        };
+
+        // Removing the capturing element hands its capture to the document, which loses it before the next pointer
+        // event. That event goes to the element under the pointer, not to the removed one.
+        target.addEventListener("pointerdown", e => target.setPointerCapture(e.pointerId), { once: true });
+        target.addEventListener("gotpointercapture", () => target.remove(), { once: true });
+        internals.mouseDown(50, 50);
+        flush("press");
+        internals.mouseMove(250, 250);
+        flush("first move after the press");
+        internals.mouseMove(260, 260);
+        flush("second move");
+        internals.mouseUp(260, 260);
+        flush("release");
+
+        // The same, with the capturing element removed while it holds the capture: the document loses it at the next
+        // pointer event, which goes to the element under the pointer.
+        const replacement = document.createElement("div");
+        replacement.id = "replacement";
+        replacement.style.cssText = "position: absolute; left: 0; top: 0; width: 100px; height: 100px; background: gray";
+        document.body.appendChild(replacement);
+        for (const type of ["gotpointercapture", "lostpointercapture", "pointermove", "pointerup"])
+            replacement.addEventListener(type, e => log.push(`${describe(e)} (own listener)`), { capture: false });
+        replacement.addEventListener("pointerdown", e => replacement.setPointerCapture(e.pointerId), { once: true });
+        internals.mouseDown(50, 50);
+        internals.mouseMove(60, 60);
+        flush("press and move with a capture");
+        replacement.remove();
+        internals.mouseMove(250, 250);
+        flush("move after the capturing element was removed");
+        internals.mouseUp(250, 250);
+        flush("release");
+    });
+</script>

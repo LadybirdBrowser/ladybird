@@ -1,0 +1,69 @@
+move onto the thumb:
+  pointerover@thumb
+  mouseover@thumb
+  pointerenter@track
+  mouseenter@track
+  pointerenter@thumb
+  mouseenter@thumb
+  pointermove@thumb client=160,110 offset=10,10
+  mousemove@thumb
+hasPointerCapture right after setPointerCapture: true
+press the thumb:
+  pointerdown@thumb
+  mousedown@thumb
+drag along the track:
+  gotpointercapture@thumb
+  pointermove@thumb client=250,110 offset=100,10
+  mousemove@thumb
+drag over the other element:
+  pointermove@thumb client=200,325 offset=50,225
+  mousemove@thumb
+hasPointerCapture during pointerup: true
+release over the other element:
+  pointerup@thumb
+  lostpointercapture@thumb
+  pointerout@thumb
+  mouseout@thumb
+  pointerleave@thumb
+  pointerleave@track
+  mouseleave@thumb
+  mouseleave@track
+  pointerover@other
+  mouseover@other
+  pointerenter@other
+  mouseenter@other
+  mouseup@thumb
+  click@thumb client=200,325 offset=50,225
+hasPointerCapture after the release: false
+press the other element, which hands the pointer to the thumb:
+  pointerdown@other
+  mousedown@other
+move as the thumb takes the capture:
+  gotpointercapture@thumb
+  pointerout@other
+  mouseout@other
+  pointerleave@other
+  mouseleave@other
+  pointerover@thumb
+  mouseover@thumb
+  pointerenter@track
+  mouseenter@track
+  pointerenter@thumb
+  mouseenter@thumb
+  pointermove@thumb client=210,330 offset=60,230
+  mousemove@thumb
+release:
+  pointerup@thumb
+  lostpointercapture@thumb
+  pointerout@thumb
+  mouseout@thumb
+  pointerleave@thumb
+  pointerleave@track
+  mouseleave@thumb
+  mouseleave@track
+  pointerover@other
+  mouseover@other
+  pointerenter@other
+  mouseenter@other
+  mouseup@thumb
+  click@thumb client=210,330 offset=60,230

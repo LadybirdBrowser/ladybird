@@ -53,6 +53,7 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     event_options.client_x = client.x().to_double();
     event_options.client_y = client.y().to_double();
     event_options.view = window_proxy;
+    event_options.pointer_id = mouse_pointer_id;
     event_options.is_primary = true;
     event_options.pointer_type = PointerTypes::Mouse;
     if (movement.has_value()) {
@@ -81,6 +82,7 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_ev
     event_options.client_x = client.x().to_double();
     event_options.client_y = client.y().to_double();
     event_options.view = window_proxy;
+    event_options.pointer_id = mouse_pointer_id;
     event_options.is_primary = true;
     event_options.pointer_type = PointerTypes::Mouse;
     if (movement.has_value()) {

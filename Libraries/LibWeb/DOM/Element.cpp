@@ -156,6 +156,7 @@
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -6788,23 +6789,74 @@ Optional<Gfx::DecodedImageFrame> Element::capture_the_image()
     return Gfx::DecodedImageFrame { *bitmap };
 }
 
-void Element::set_pointer_capture(WebIDL::Long pointer_id)
+// https://w3c.github.io/pointerevents/#dfn-active-pointer
+// A mouse connected to the device is always active, and it is the one pointer there is.
+static bool pointer_id_names_an_active_pointer(WebIDL::Long pointer_id)
 {
-    (void)pointer_id;
-    dbgln("FIXME: Implement Element::setPointerCapture()");
+    return pointer_id == UIEvents::mouse_pointer_id;
 }
 
-void Element::release_pointer_capture(WebIDL::Long pointer_id)
+// https://w3c.github.io/pointerevents/#setting-pointer-capture
+WebIDL::ExceptionOr<void> Element::set_pointer_capture(WebIDL::Long pointer_id)
 {
-    (void)pointer_id;
-    dbgln("FIXME: Implement Element::releasePointerCapture()");
+    // 1. If the pointerId provided as the method's argument does not match any of the active pointers, then throw a
+    //    "NotFoundError" DOMException.
+    if (!pointer_id_names_an_active_pointer(pointer_id))
+        return WebIDL::NotFoundError::create("No active pointer has the given pointerId"_utf16);
+
+    // 2. Let the pointer be the active pointer specified by the given pointerId.
+    // 3. If the element is not connected, throw an "InvalidStateError" DOMException.
+    if (!is_connected())
+        return WebIDL::InvalidStateError::create("Cannot set pointer capture on an element that is not connected"_utf16);
+
+    // FIXME: 4. If this method is invoked while the element's node document has a locked element, throw an
+    //           "InvalidStateError" DOMException.
+
+    // 5. If the pointer is not in the active buttons state or the element's node document is not the active document
+    //    of the pointer, then terminate these steps.
+    auto navigable = document().navigable();
+    if (!navigable)
+        return {};
+    auto& event_handler = navigable->event_handler();
+    if (!event_handler.is_mouse_pointer_in_active_buttons_state())
+        return {};
+
+    // 6. For the specified pointerId, set the pending pointer capture target override to the Element on which this
+    //    method was invoked.
+    event_handler.set_pending_pointer_capture_target_override({}, *this);
+    return {};
 }
 
-bool Element::has_pointer_capture(WebIDL::Long pointer_id)
+// https://w3c.github.io/pointerevents/#releasing-pointer-capture
+WebIDL::ExceptionOr<void> Element::release_pointer_capture(WebIDL::Long pointer_id)
 {
-    (void)pointer_id;
-    dbgln("FIXME: Implement Element::hasPointerCapture()");
-    return false;
+    // 1. If the pointerId provided as the method's argument does not match any of the active pointers and these steps
+    //    are not being invoked as a result of the implicit release of pointer capture, then throw a "NotFoundError"
+    //    DOMException.
+    if (!pointer_id_names_an_active_pointer(pointer_id))
+        return WebIDL::NotFoundError::create("No active pointer has the given pointerId"_utf16);
+
+    // 2. If hasPointerCapture is false for the Element with the specified pointerId, then terminate these steps.
+    if (!has_pointer_capture(pointer_id))
+        return {};
+
+    // 3. For the specified pointerId, clear the pending pointer capture target override, if set.
+    document().navigable()->event_handler().clear_pending_pointer_capture_target_override({});
+    return {};
+}
+
+// https://w3c.github.io/pointerevents/#dom-element-haspointercapture
+bool Element::has_pointer_capture(WebIDL::Long pointer_id) const
+{
+    // Indicates whether the element on which this method is invoked has pointer capture for the pointer identified by
+    // the argument pointerId. In particular, returns true if the pending pointer capture target override for pointerId
+    // is set to the element on which this method is invoked, and false otherwise.
+    if (!pointer_id_names_an_active_pointer(pointer_id))
+        return false;
+    auto navigable = document().navigable();
+    if (!navigable)
+        return false;
+    return navigable->event_handler().pending_pointer_capture_target_override().ptr() == this;
 }
 
 GC::Ptr<NamedNodeMap> Element::attributes()
