@@ -235,12 +235,14 @@ static void paint_load_sheen(QPainter& painter, QPalette const& palette, QPainte
     painter.restore();
 }
 
-// NB: The macOS style gives tab bars a small font when it polishes them, so tab titles are drawn a point larger than
-//     the tab bar's font rather than by setting the tab bar's font.
 static QFont tab_title_font(QFont font)
 {
+#if defined(AK_OS_MACOS)
+    // The macOS style gives tab bars a small font when it polishes them, so tab titles are drawn a point larger than
+    // the tab bar's font rather than by setting the tab bar's font.
     if (font.pointSizeF() > 0)
         font.setPointSizeF(font.pointSizeF() + 1);
+#endif
     return font;
 }
 
