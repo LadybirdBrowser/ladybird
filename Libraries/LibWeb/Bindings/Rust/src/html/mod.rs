@@ -14,3 +14,5 @@ pub(crate) mod color_stops;
 pub(crate) mod canvas_gradient;
 #[cfg(not(test))]
 pub(crate) mod exports;
+#[cfg(not(test))]
+pub(crate) mod text_metrics;
