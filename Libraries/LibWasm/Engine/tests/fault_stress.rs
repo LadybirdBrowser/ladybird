@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#![cfg(all(target_arch = "x86_64", not(windows)))]
+#![cfg(any(target_arch = "x86_64", all(target_arch = "aarch64", not(windows))))]
 
 //! Out-of-bounds accesses trap while another thread reserves, grows, and releases memories, which changes the set of
 //! reservations the fault handler looks addresses up in.

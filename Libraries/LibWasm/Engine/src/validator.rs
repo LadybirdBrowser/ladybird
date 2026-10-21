@@ -20,6 +20,9 @@
 //! - `br_table` owns one entry per label, the default last.
 //! - `if` owns one entry, for jumping to its `else` arm, or past its `end` if it has none.
 //! - `else` owns one entry, for jumping past the `end` of the `if` when its first arm completes.
+//! - The legacy `catch` and `catch_all` own one entry each, for jumping past the `end` of their `try` when the body or
+//!   handler before them completes, as `else` does.
+//! - The legacy `rethrow` owns one entry, whose `keep` is the index of the local that holds the exception to rethrow.
 //!
 //! An entry holds the distance from the branching instruction to its target, the distance from the entry itself to
 //! the entry the target continues with, and how to reshape the operand stack: keep the `keep` slots at its top and
@@ -28,6 +31,15 @@
 //! final `end`, which returns.
 //!
 //! Exceptions are not linear, so `try_table` handlers live in a separate table of the regions they protect.
+//!
+//! # Legacy exception handling
+//!
+//! The body of a legacy `try` is a region whose clauses are its `catch` and `catch_all` handlers, in order. A handler
+//! starts after its instruction, with the operand stack at the height of the `try`, and the runtime also stores the
+//! exception it caught in a local of its own past the function's declared ones, for `rethrow`. A handler nested in
+//! the handlers of `n` other tries gets the `n`th such local. The body of a `try` that ends with `delegate` is a region
+//! without clauses that names where the search for a handler goes on: only regions that start at or before its
+//! `delegate_bound`, which leaves out those inside the block the `delegate` names.
 
 use crate::error::{Error, Result};
 use crate::instruction_tables::{AtomicKind, SimdKind, atomic_kind, simd_kind};
@@ -64,7 +76,7 @@ pub enum CatchKind {
     CatchAllRef,
 }
 
-/// One catch clause of a `try_table`: which exceptions it catches and where the handler continues.
+/// One catch clause of a `try_table` or a legacy `try`: which exceptions it catches and where the handler continues.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CatchClause {
     pub kind: CatchKind,
@@ -76,16 +88,26 @@ pub struct CatchClause {
     pub target_stp: u32,
     /// The height of the operand stack, in slots, below the values the handler pushes.
     pub height: u32,
+    /// The local a legacy handler keeps the exception in, for `rethrow`, or NO_EXCEPTION_LOCAL.
+    pub exception_local: u32,
 }
 
-/// The instructions of one `try_table`, by module offset, and the range of its clauses in the catch table.
+pub const NO_EXCEPTION_LOCAL: u32 = u32::MAX;
+
+/// The instructions of one `try_table` or legacy `try` body, by module offset, and the range of its clauses in the
+/// catch table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TryRegion {
     pub start: u32,
     pub end: u32,
     pub first_clause: u32,
     pub clause_count: u32,
+    /// For the body of a legacy `try` that ends with `delegate`, the latest start of the regions the search for a
+    /// handler goes on with, or NOT_DELEGATED.
+    pub delegate_bound: u32,
 }
+
+pub const NOT_DELEGATED: u32 = u32::MAX;
 
 /// What validation learned about a defined function that running it needs.
 #[derive(Debug, Clone, Default)]
@@ -94,8 +116,11 @@ pub struct FunctionInfo {
     /// `try_table` regions in the order their instructions appear, so that inner regions come after outer ones.
     pub try_regions: Box<[TryRegion]>,
     pub catch_clauses: Box<[CatchClause]>,
-    /// The number of locals, parameters included. Their types are in the function's body.
+    /// The number of locals, parameters and the locals of legacy handlers included. The types of the others are in
+    /// the function's body.
     pub local_count: u32,
+    /// The number of locals legacy handlers keep their exceptions in, which come after the declared ones.
+    pub exception_local_count: u32,
     /// The most slots the operand stack ever holds.
     pub max_stack_slots: u32,
 }
@@ -251,6 +276,12 @@ enum FrameKind {
     If,
     Else,
     TryTable,
+    /// The body of a legacy `try`.
+    Try,
+    /// A legacy `catch` handler.
+    Catch,
+    /// A legacy `catch_all` handler.
+    CatchAll,
     Function,
 }
 
@@ -278,6 +309,12 @@ struct Frame {
     if_entry: Option<(usize, u32)>,
     /// The index of the `try_table` region this frame protects.
     try_region: Option<usize>,
+    /// The index of the region of a legacy `try`'s body, for the try and its handlers.
+    legacy_region: Option<usize>,
+    /// The clauses of a legacy `try`'s handlers so far, which go into the catch table together at its `end`.
+    legacy_clauses: Vec<CatchClause>,
+    /// The local in which a legacy handler keeps its exception.
+    exception_local: Option<u32>,
 }
 
 impl Frame {
@@ -304,6 +341,7 @@ struct FunctionValidator<'a> {
     side_table: Vec<SideTableEntry>,
     try_regions: Vec<TryRegion>,
     catch_clauses: Vec<CatchClause>,
+    exception_local_count: u32,
     results: Vec<ValType>,
     /// Where the instruction being validated starts.
     instruction_start: u32,
@@ -408,6 +446,9 @@ impl FunctionValidator<'_> {
             fixups: Vec::new(),
             if_entry: None,
             try_region: None,
+            legacy_region: None,
+            legacy_clauses: Vec::new(),
+            exception_local: None,
         });
         self.push_values(&params);
     }
@@ -806,6 +847,14 @@ impl FunctionValidator<'_> {
                 if let Some(region) = frame.try_region {
                     self.try_regions[region].end = pc;
                 }
+                if let Some(region) = frame.legacy_region {
+                    if frame.kind == FrameKind::Try {
+                        self.try_regions[region].end = pc;
+                    }
+                    self.try_regions[region].first_clause = self.catch_clauses.len() as u32;
+                    self.try_regions[region].clause_count = frame.legacy_clauses.len() as u32;
+                    self.catch_clauses.extend(frame.legacy_clauses);
+                }
                 self.resolve_fixups(&frame.fixups, target_pc);
                 if frame.kind != FrameKind::Function {
                     self.push_values(&frame.results);
@@ -917,6 +966,106 @@ impl FunctionValidator<'_> {
                 self.pop_expecting(ValType::Ref(RefType::EXNREF))?;
                 self.set_unreachable();
             }
+            opcode::TRY => {
+                let (params, results) = self.read_block_type(reader)?;
+                self.pop_values(&params)?;
+                let region = self.try_regions.len();
+                self.try_regions.push(TryRegion {
+                    start: reader.position() as u32,
+                    end: 0,
+                    first_clause: 0,
+                    clause_count: 0,
+                    delegate_bound: NOT_DELEGATED,
+                });
+                self.push_frame(FrameKind::Try, params, results, pc);
+                self.frames.last_mut().expect("the frame was just pushed").legacy_region = Some(region);
+            }
+            opcode::CATCH | opcode::CATCH_ALL => {
+                match self.frames.last().map(|frame| frame.kind) {
+                    Some(FrameKind::Try | FrameKind::Catch) => {}
+                    Some(FrameKind::CatchAll) => return invalid("catch after catch_all"),
+                    _ => return invalid("catch without try"),
+                }
+                let (kind, tag, pushed) = if opcode == opcode::CATCH {
+                    let tag = reader.read_u32()?;
+                    (CatchKind::Catch, tag, self.tag_params(tag)?)
+                } else {
+                    (CatchKind::CatchAll, 0, Vec::new())
+                };
+                let frame = self.pop_frame()?;
+                let region = frame.legacy_region.expect("a legacy try frame has a region");
+                if frame.kind == FrameKind::Try {
+                    self.try_regions[region].end = pc;
+                }
+                // The body or the handler before this one jumps past the `end`.
+                let entry = self.side_table.len();
+                self.side_table.push(SideTableEntry {
+                    keep: slots_of(&frame.results),
+                    ..SideTableEntry::default()
+                });
+                let mut fixups = frame.fixups;
+                fixups.push(Fixup::Entry { entry, branch_pc: pc });
+                let nesting = self
+                    .frames
+                    .iter()
+                    .filter(|frame| matches!(frame.kind, FrameKind::Catch | FrameKind::CatchAll))
+                    .count() as u32;
+                self.exception_local_count = self.exception_local_count.max(nesting + 1);
+                let exception_local = self.locals.len() as u32 + nesting;
+                let mut clauses = frame.legacy_clauses;
+                clauses.push(CatchClause {
+                    kind,
+                    tag,
+                    target_pc: reader.position() as u32,
+                    target_stp: self.side_table.len() as u32,
+                    height: frame.slot_height,
+                    exception_local,
+                });
+                let handler_kind = if opcode == opcode::CATCH {
+                    FrameKind::Catch
+                } else {
+                    FrameKind::CatchAll
+                };
+                self.push_frame(handler_kind, pushed, frame.results, frame.start_pc);
+                let handler = self.frames.last_mut().expect("the frame was just pushed");
+                handler.fixups = fixups;
+                handler.legacy_region = Some(region);
+                handler.legacy_clauses = clauses;
+                handler.exception_local = Some(exception_local);
+            }
+            opcode::DELEGATE => {
+                if self.frames.last().is_none_or(|frame| frame.kind != FrameKind::Try) {
+                    return invalid("delegate without try");
+                }
+                let depth = reader.read_u32()?;
+                let frame = self.pop_frame()?;
+                let target = self.label(depth)?;
+                // Regions inside the block the label names start after its body does.
+                let bound = match target.kind {
+                    FrameKind::Try => {
+                        self.try_regions[target.legacy_region.expect("a legacy try frame has a region")].start
+                    }
+                    FrameKind::Function => 0,
+                    _ => target.start_pc,
+                };
+                let region = frame.legacy_region.expect("a legacy try frame has a region");
+                self.try_regions[region].end = pc;
+                self.try_regions[region].delegate_bound = bound;
+                self.try_regions[region].first_clause = self.catch_clauses.len() as u32;
+                self.resolve_fixups(&frame.fixups, reader.position() as u32);
+                self.push_values(&frame.results);
+            }
+            opcode::RETHROW => {
+                let depth = reader.read_u32()?;
+                let Some(local) = self.label(depth)?.exception_local else {
+                    return invalid("invalid rethrow label");
+                };
+                self.side_table.push(SideTableEntry {
+                    keep: local,
+                    ..SideTableEntry::default()
+                });
+                self.set_unreachable();
+            }
             opcode::TRY_TABLE => {
                 let (params, results) = self.read_block_type(reader)?;
                 let count = reader.read_vector_length()?;
@@ -961,6 +1110,7 @@ impl FunctionValidator<'_> {
                         target_pc: 0,
                         target_stp: 0,
                         height: frame.slot_height,
+                        exception_local: NO_EXCEPTION_LOCAL,
                     };
                     if frame.kind == FrameKind::Loop {
                         clause.target_pc = frame.start_pc;
@@ -976,6 +1126,7 @@ impl FunctionValidator<'_> {
                     end: 0,
                     first_clause: first_clause as u32,
                     clause_count: count,
+                    delegate_bound: NOT_DELEGATED,
                 });
                 self.push_frame(FrameKind::TryTable, params, results, pc);
                 self.frames.last_mut().expect("the frame was just pushed").try_region = Some(region);
@@ -2244,6 +2395,7 @@ pub fn validate(module: &mut Module) -> Result<()> {
             side_table: Vec::new(),
             try_regions: Vec::new(),
             catch_clauses: Vec::new(),
+            exception_local_count: 0,
             results: function.results.clone(),
             instruction_start: body.code.start,
             rewrites: Vec::new(),
@@ -2262,7 +2414,8 @@ pub fn validate(module: &mut Module) -> Result<()> {
             side_table: validator.side_table.into_boxed_slice(),
             try_regions: validator.try_regions.into_boxed_slice(),
             catch_clauses: validator.catch_clauses.into_boxed_slice(),
-            local_count: validator.locals.len() as u32,
+            local_count: validator.locals.len() as u32 + validator.exception_local_count,
+            exception_local_count: validator.exception_local_count,
             max_stack_slots: validator.max_slot_height,
         });
     }

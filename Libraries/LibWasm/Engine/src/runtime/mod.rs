@@ -21,7 +21,7 @@ use crate::abi::{
     FUNCTION_KIND_WASM_VECTOR, FunctionHeader, InstanceData, MemoryData, SPILL_AREA_SIZE, Segment, TableData,
 };
 use crate::module::{DataMode, ElementItems, ElementMode, ExternalKind, ImportDescription, Module};
-use crate::types::{FuncType, GlobalType, HeapType, TableType, TypeCanonicalizer, ValType};
+use crate::types::{FuncType, GlobalType, HeapType, RefType, TableType, TypeCanonicalizer, ValType};
 use memory::MemoryInstance;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -442,9 +442,10 @@ impl Store {
             supertypes: Vec::new(),
             composite: crate::types::CompositeType::Func(ty.clone()),
         };
+        // The type refers to other types by their identities, and to none in its group.
         let identities = self
             .canonicalizer
-            .canonicalize_group(std::slice::from_ref(&sub_type), 0, |_| 0);
+            .canonicalize_group(std::slice::from_ref(&sub_type), u32::MAX, |identity| identity);
         self.register_types(&[sub_type], &identities);
         identities[0]
     }
@@ -469,6 +470,60 @@ impl Store {
             self.rtt_pointers.push(rtt);
         }
         self.context.rtts = self.rtt_pointers.as_ptr();
+    }
+
+    /// Give the types of `module` store-wide identities, and return the identity of each.
+    pub fn module_type_identities(&mut self, module: &Module) -> Vec<u32> {
+        let mut type_identities: Vec<u32> = Vec::with_capacity(module.types.len());
+        for group in &module.recursion_groups {
+            let types = &module.types[group.start as usize..(group.start + group.count) as usize];
+            let identities = self
+                .canonicalizer
+                .canonicalize_group(types, group.start, |index| type_identities[index as usize]);
+            let map = |index: u32| {
+                if index >= group.start {
+                    identities[(index - group.start) as usize]
+                } else {
+                    type_identities[index as usize]
+                }
+            };
+            let store_types: Vec<_> = types.iter().map(|ty| ty.map_type_indices(&map)).collect();
+            self.register_types(&store_types, &identities);
+            type_identities.extend(identities);
+        }
+        type_identities
+    }
+
+    /// Whether a non-null reference matches `heap`, whose concrete types are identities. References of the any
+    /// hierarchy must be in their internal form: i31 references, GC objects, or host references.
+    pub fn reference_matches(&self, reference: u64, heap: HeapType) -> bool {
+        let tag = reference & 3;
+        let object_rtt = || unsafe { &**(reference as *const *const crate::abi::Rtt) };
+        let is_subtype = |actual: &crate::abi::Rtt, identity: u32| {
+            let target = self.rtt(identity);
+            actual.depth >= target.depth && unsafe { *actual.display.add(target.depth as usize) } == identity
+        };
+        match heap {
+            HeapType::Any | HeapType::Extern | HeapType::Func | HeapType::Exn => true,
+            HeapType::Eq => reference & 1 != 0 || tag == 0,
+            HeapType::I31 => reference & 1 != 0,
+            HeapType::Struct => tag == 0 && object_rtt().kind == crate::abi::RTT_KIND_STRUCT,
+            HeapType::Array => tag == 0 && object_rtt().kind == crate::abi::RTT_KIND_ARRAY,
+            HeapType::Concrete(identity) => {
+                if self.rtt(identity).kind == crate::abi::RTT_KIND_FUNCTION {
+                    let function = unsafe { &*(reference as *const FunctionHeader) };
+                    is_subtype(self.rtt(function.type_identity), identity)
+                } else {
+                    tag == 0 && is_subtype(object_rtt(), identity)
+                }
+            }
+            HeapType::None | HeapType::NoFunc | HeapType::NoExtern | HeapType::NoExn | HeapType::Bottom => false,
+        }
+    }
+
+    /// Whether the type `identity` is a function type, as opposed to a struct or array type.
+    pub fn is_function_type(&self, identity: u32) -> bool {
+        self.rtt(identity).kind == crate::abi::RTT_KIND_FUNCTION
     }
 
     /// The types of the store, where concrete heap types are identities.
@@ -560,28 +615,15 @@ impl Store {
             return link_error("wrong number of imports");
         }
 
-        // Give the module's types store-wide identities.
-        let mut type_identities: Vec<u32> = Vec::with_capacity(module.types.len());
-        for group in &module.recursion_groups {
-            let types = &module.types[group.start as usize..(group.start + group.count) as usize];
-            let identities = self
-                .canonicalizer
-                .canonicalize_group(types, group.start, |index| type_identities[index as usize]);
-            let map = |index: u32| {
-                if index >= group.start {
-                    identities[(index - group.start) as usize]
-                } else {
-                    type_identities[index as usize]
-                }
-            };
-            let store_types: Vec<_> = types.iter().map(|ty| ty.map_type_indices(&map)).collect();
-            self.register_types(&store_types, &identities);
-            type_identities.extend(identities);
-        }
+        let type_identities = self.module_type_identities(&module);
 
         // Types of the store have identities where the module's types have indices.
         let module_identities = type_identities.clone();
         let canonical = |value: ValType| value.map_type_indices(&|index| module_identities[index as usize]);
+        let canonical_function_type = |ty: &FuncType| FuncType {
+            params: ty.params.iter().map(|&param| canonical(param)).collect(),
+            results: ty.results.iter().map(|&result| canonical(result)).collect(),
+        };
         let mut functions = Vec::new();
         let mut tables = Vec::new();
         let mut memories = Vec::new();
@@ -692,19 +734,29 @@ impl Store {
         for (offset, &type_index) in module.functions.iter().enumerate() {
             let info = &module.function_infos[offset];
             let body = &module.code[offset];
-            let ty = module.types[type_index as usize]
-                .as_func()
-                .expect("validation checks function types")
-                .clone();
+            let ty = canonical_function_type(
+                module.types[type_index as usize]
+                    .as_func()
+                    .expect("validation checks function types"),
+            );
             let local_count = info.local_count;
             // Each local has an 8-byte slot. A v128 local's slot holds the address of its 16-byte storage, which
             // follows the slots, 16-byte aligned like fp.
             let scalar_size = (local_count * 8).next_multiple_of(16);
-            let local_types = ty.params.iter().copied().chain(
-                body.locals
-                    .iter()
-                    .flat_map(|&(count, local)| std::iter::repeat_n(local, count as usize)),
-            );
+            // The locals of legacy exception handlers hold exception references.
+            let local_types = ty
+                .params
+                .iter()
+                .copied()
+                .chain(
+                    body.locals
+                        .iter()
+                        .flat_map(|&(count, local)| std::iter::repeat_n(local, count as usize)),
+                )
+                .chain(std::iter::repeat_n(
+                    ValType::Ref(RefType::EXNREF),
+                    info.exception_local_count as usize,
+                ));
             let mut vector_storage = Vec::new();
             let mut locals_size = scalar_size;
             for local in local_types {
@@ -820,10 +872,11 @@ impl Store {
         }
         instance.tables = tables;
         for tag in &module.tags {
-            let ty = module.types[tag.type_index as usize]
-                .as_func()
-                .expect("validation checks tag types")
-                .clone();
+            let ty = canonical_function_type(
+                module.types[tag.type_index as usize]
+                    .as_func()
+                    .expect("validation checks tag types"),
+            );
             let type_identity = instance.type_identities[tag.type_index as usize];
             tags.push(self.allocate_tag_with_identity(ty, type_identity));
         }

@@ -335,6 +335,21 @@ Optional<u32> Store::function_index(Entity function)
     return index;
 }
 
+ValueType Store::canonical_value_type(Module const& module, ValueType type)
+{
+    return from_ffi(FFI::wasm_store_canonical_value_type(m_store, module.handle(), to_ffi(type)));
+}
+
+bool Store::reference_matches(u64 reference, ValueType type)
+{
+    return FFI::wasm_store_reference_matches(m_store, reference, to_ffi(type));
+}
+
+bool Store::is_function_type(u32 identity)
+{
+    return FFI::wasm_store_is_function_type(m_store, identity);
+}
+
 Entity Store::allocate_tag(ReadonlySpan<ValueType> parameters)
 {
     Vector<FFI::WasmValueType> types;

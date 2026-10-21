@@ -296,19 +296,171 @@ def escape(s: str) -> str:
     return s.replace('"', '\\"')
 
 
+# The legacy exception handling tests write `try` in a folded form, (try bt (do ...) (catch x ...) (delegate l)), that
+# wasm-tools does not parse. It does parse the flat form, try bt ... catch x ... end, which is what these turn it into.
+# The folded `try`s of the tests are all instructions of their own, never operands, where the flat form is allowed.
+# Every token keeps its line, so that the tests keep the line numbers they are named by.
+@dataclass
+class WastToken:
+    text: str
+    line: int
+
+
+@dataclass
+class WastList:
+    items: list
+    open_line: int
+    close_line: int
+
+
+def tokenize_wast(text: str) -> list[WastToken]:
+    tokens = []
+    position = 0
+    line = 1
+    while position < len(text):
+        character = text[position]
+        if character == "\n":
+            line += 1
+            position += 1
+        elif character.isspace():
+            position += 1
+        elif text.startswith(";;", position):
+            end = text.find("\n", position)
+            position = len(text) if end == -1 else end
+        elif text.startswith("(;", position):
+            depth = 0
+            while position < len(text):
+                if text.startswith("(;", position):
+                    depth += 1
+                    position += 2
+                elif text.startswith(";)", position):
+                    depth -= 1
+                    position += 2
+                    if depth == 0:
+                        break
+                else:
+                    line += text[position] == "\n"
+                    position += 1
+        elif character in "()":
+            tokens.append(WastToken(character, line))
+            position += 1
+        elif character == '"':
+            end = position + 1
+            while text[end] != '"':
+                end += 2 if text[end] == "\\" else 1
+            tokens.append(WastToken(text[position : end + 1], line))
+            line += text.count("\n", position, end + 1)
+            position = end + 1
+        else:
+            end = position
+            while end < len(text) and not text[end].isspace() and text[end] not in '()";':
+                end += 1
+            tokens.append(WastToken(text[position:end], line))
+            position = end
+    return tokens
+
+
+def parse_wast_tokens(tokens: list[WastToken], position: int = 0) -> tuple[list, int]:
+    items: list = []
+    while position < len(tokens):
+        token = tokens[position]
+        if token.text == "(":
+            child, position = parse_wast_tokens(tokens, position + 1)
+            close_line = tokens[position - 1].line if position - 1 < len(tokens) else token.line
+            items.append(WastList(child, token.line, close_line))
+        elif token.text == ")":
+            return items, position + 1
+        else:
+            items.append(token)
+            position += 1
+    return items, position
+
+
+def head_of(item) -> Optional[str]:
+    if isinstance(item, WastList) and item.items and isinstance(item.items[0], WastToken):
+        return item.items[0].text
+    return None
+
+
+def is_folded_try(item) -> bool:
+    return head_of(item) == "try" and any(head_of(child) == "do" for child in item.items)
+
+
+def unfold_legacy_try(items: list) -> list:
+    unfolded: list = []
+    for item in items:
+        if isinstance(item, WastToken):
+            unfolded.append(item)
+            continue
+        if not is_folded_try(item):
+            unfolded.append(WastList(unfold_legacy_try(item.items), item.open_line, item.close_line))
+            continue
+        ends_with_delegate = False
+        for child in item.items:
+            head = head_of(child)
+            if head not in ("do", "catch", "catch_all", "delegate"):
+                unfolded.extend(unfold_legacy_try([child]))
+            elif head == "do":
+                unfolded.extend(unfold_legacy_try(child.items[1:]))
+            elif head == "catch":
+                unfolded.extend(child.items[:2])
+                unfolded.extend(unfold_legacy_try(child.items[2:]))
+            elif head == "catch_all":
+                unfolded.append(child.items[0])
+                unfolded.extend(unfold_legacy_try(child.items[1:]))
+            else:
+                unfolded.extend(child.items)
+                ends_with_delegate = True
+        if not ends_with_delegate:
+            unfolded.append(WastToken("end", item.close_line))
+    return unfolded
+
+
+def serialize_wast(items: list) -> str:
+    output: list[str] = []
+    line = 1
+
+    def emit(text: str, at_line: int):
+        nonlocal line
+        if at_line > line:
+            output.append("\n" * (at_line - line))
+            line = at_line
+        output.append(text + " ")
+
+    def walk(items: list):
+        for item in items:
+            if isinstance(item, WastToken):
+                emit(item.text, item.line)
+            else:
+                emit("(", item.open_line)
+                walk(item.items)
+                emit(")", item.close_line)
+
+    walk(items)
+    return "".join(output)
+
+
 def make_description(input_path: Path, name: str, out_path: Path) -> WastDescription:
     out_json_path = out_path / f"{name}.json"
+    text = input_path.read_text()
+    unfolded_path = None
+    if "(do" in text:
+        items, _ = parse_wast_tokens(tokenize_wast(text))
+        unfolded_path = out_path / f"{name}.wast"
+        unfolded_path.write_text(serialize_wast(unfold_legacy_try(items)))
     result = subprocess.run(
         [
             "wasm-tools",
             "json-from-wast",
-            input_path,
+            unfolded_path or input_path,
             "-o",
             out_json_path,
             "--wasm-dir",
             str(out_path),
         ],
     )
+    if unfolded_path:
+        unfolded_path.unlink()
     result.check_returncode()
     with open(out_json_path, "r") as f:
         description = json.load(f)

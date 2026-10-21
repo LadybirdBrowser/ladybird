@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	property access
+Pass	property assignment (strict mode)
+Pass	property assignment (non-strict mode)
+Pass	ownPropertyNames
+Pass	defineProperty
+Pass	delete (strict mode)
+Pass	delete (non-strict mode)
+Pass	getPrototypeOf
+Pass	setPrototypeOf
+Pass	isExtensible
+Pass	preventExtensions
+Pass	sealing
+Pass	typeof
+Pass	toString
+Pass	valueOf
+Pass	GC objects as map keys
+Pass	GC objects as set element
+Pass	GC objects as weak map keys
+Pass	GC objects as weak set element

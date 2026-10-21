@@ -1218,6 +1218,56 @@ pub unsafe extern "C" fn wasm_store_allocate_tag(
         .cast()
 }
 
+/// `ty` with its concrete heap type, which `module` defines, replaced by the type's store-wide identity. The types the
+/// store reports for functions, tables, globals, and tags have identities in place of type indices too.
+///
+/// # Safety
+///
+/// `store` must be a live store and `module` a live module.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_canonical_value_type(
+    store: *mut WasmStore,
+    module: *const WasmModule,
+    ty: WasmValueType,
+) -> WasmValueType {
+    if ty.kind != WasmValueKind::Reference || ty.heap != WasmHeapKind::Concrete {
+        return ty;
+    }
+    let identities = store_of(store).module_type_identities(module_of(module));
+    WasmValueType {
+        type_index: identities[ty.type_index as usize],
+        ..ty
+    }
+}
+
+/// Whether a non-null reference matches the reference type `ty`, whose concrete heap type is an identity. A
+/// reference of the any hierarchy must be in its internal form: an i31 reference, a GC object, or a host reference.
+///
+/// # Safety
+///
+/// `store` must be a live store, and `reference` a live reference of the hierarchy of `ty`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_reference_matches(
+    store: *mut WasmStore,
+    reference: u64,
+    ty: WasmValueType,
+) -> bool {
+    let ValType::Ref(reference_type) = ty.to_value_type() else {
+        return false;
+    };
+    store_of(store).reference_matches(reference, reference_type.heap)
+}
+
+/// Whether the type `identity` is a function type, as opposed to a struct or array type.
+///
+/// # Safety
+///
+/// `store` must be a live store with a type `identity`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_is_function_type(store: *mut WasmStore, identity: u32) -> bool {
+    store_of(store).is_function_type(identity)
+}
+
 /// The number of values an exception with the tag carries.
 ///
 /// # Safety

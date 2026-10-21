@@ -108,7 +108,7 @@ WebIDL::ExceptionOr<void> Global::set_value(Wasm::Runtime::Value value)
 namespace Web::Bindings {
 
 // https://webassembly.github.io/spec/js-api/#tovaluetype
-static Wasm::Runtime::ValueType to_value_type(ValueType type)
+Wasm::Runtime::ValueType to_value_type(ValueType type)
 {
     using Wasm::Runtime::HeapKind;
     using Wasm::Runtime::ValueKind;

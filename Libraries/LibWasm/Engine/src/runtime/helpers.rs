@@ -12,7 +12,43 @@ use crate::abi::{
     ExecutionContext, FRAME_FUNCTION, FRAME_HEADER_SIZE, FRAME_INSTANCE, FRAME_RETURN_IP, FRAME_SAVED_FP, MemoryData,
     TableData,
 };
-use crate::validator::CatchKind;
+use crate::validator::{CatchKind, NO_EXCEPTION_LOCAL, NOT_DELEGATED};
+
+/// Export the runtime functions under the names the interpreter calls them by. The interpreter calls them with the
+/// System V calling convention on every x86-64 target, Windows included.
+macro_rules! export_to_interpreter {
+    ($($symbol:ident => $function:ident),* $(,)?) => {
+        $(
+            /// # Safety
+            ///
+            /// Only the interpreter calls this, with the context of the store it runs in.
+            #[cfg(all(target_arch = "x86_64", windows))]
+            #[unsafe(no_mangle)]
+            pub unsafe extern "sysv64" fn $symbol(context: *mut ExecutionContext) -> u64 {
+                unsafe { $function(context) }
+            }
+
+            /// # Safety
+            ///
+            /// Only the interpreter calls this, with the context of the store it runs in.
+            #[cfg(not(all(target_arch = "x86_64", windows)))]
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn $symbol(context: *mut ExecutionContext) -> u64 {
+                unsafe { $function(context) }
+            }
+        )*
+    };
+}
+
+export_to_interpreter! {
+    wasm_runtime_memory_grow => memory_grow,
+    wasm_runtime_table_grow => table_grow,
+    wasm_runtime_call_host => call_host,
+    wasm_runtime_allocate => allocate,
+    wasm_runtime_throw => throw,
+    wasm_runtime_wait => wait,
+    wasm_runtime_notify => notify,
+}
 
 unsafe fn store_of(context: *mut ExecutionContext) -> &'static mut Store {
     unsafe { &mut *(*context).store.cast::<Store>() }
@@ -24,8 +60,7 @@ unsafe fn store_of(context: *mut ExecutionContext) -> &'static mut Store {
 /// # Safety
 ///
 /// Only the interpreter calls this, with the context of the store it runs in.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_runtime_memory_grow(context: *mut ExecutionContext) -> u64 {
+unsafe fn memory_grow(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let data = (*context).arguments[0] as *const MemoryData;
         let delta = (*context).arguments[1];
@@ -48,8 +83,7 @@ pub unsafe extern "C" fn wasm_runtime_memory_grow(context: *mut ExecutionContext
 /// # Safety
 ///
 /// Only the interpreter calls this, with the context of the store it runs in.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_runtime_table_grow(context: *mut ExecutionContext) -> u64 {
+unsafe fn table_grow(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let data = (*context).arguments[0] as *const TableData;
         let delta = (*context).arguments[1];
@@ -71,8 +105,7 @@ pub unsafe extern "C" fn wasm_runtime_table_grow(context: *mut ExecutionContext)
 /// # Safety
 ///
 /// Only the interpreter calls this, with the context of the store it runs in.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_runtime_call_host(context: *mut ExecutionContext) -> u64 {
+unsafe fn call_host(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let function = &*((*context).arguments[0] as *const FunctionInstance);
         let top = (*context).arguments[1] as *mut u64;
@@ -125,8 +158,7 @@ pub unsafe extern "C" fn wasm_runtime_call_host(context: *mut ExecutionContext) 
 /// # Safety
 ///
 /// Only the interpreter calls this, with the context of the store it runs in.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_runtime_allocate(context: *mut ExecutionContext) -> u64 {
+unsafe fn allocate(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let store = store_of(context);
         let rtt = (*context).arguments[0] as *const crate::abi::Rtt;
@@ -149,8 +181,7 @@ pub unsafe extern "C" fn wasm_runtime_allocate(context: *mut ExecutionContext) -
 /// # Safety
 ///
 /// Only the interpreter calls this, with the context of the store it runs in.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_runtime_throw(context: *mut ExecutionContext) -> u64 {
+unsafe fn throw(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let store = store_of(context);
         let pc = (*context).arguments[2];
@@ -191,9 +222,15 @@ unsafe fn unwind(context: *mut ExecutionContext, store: &Store, exception: u64, 
         {
             let info = &module.function_infos[(*index - module.imported_function_count) as usize];
             let offset = pc.wrapping_sub(module.bytes.as_ptr() as u64);
-            // Regions are in instruction order, inner ones after the regions they are in.
+            // Regions are in instruction order, inner ones after the regions they are in. A legacy `delegate` leaves
+            // out the regions that start after its bound.
+            let mut bound = u32::MAX;
             for region in info.try_regions.iter().rev() {
-                if offset < u64::from(region.start) || offset >= u64::from(region.end) {
+                if offset < u64::from(region.start) || offset >= u64::from(region.end) || region.start > bound {
+                    continue;
+                }
+                if region.delegate_bound != NOT_DELEGATED {
+                    bound = region.delegate_bound;
                     continue;
                 }
                 let clauses = &info.catch_clauses
@@ -218,6 +255,9 @@ unsafe fn unwind(context: *mut ExecutionContext, store: &Store, exception: u64, 
                     let top = empty_stack - (u64::from(clause.height) + pushed) * 8;
                     let mut slot = top as *mut u64;
                     unsafe {
+                        if clause.exception_local != NO_EXCEPTION_LOCAL {
+                            *((frame + u64::from(clause.exception_local) * 8) as *mut u64) = exception;
+                        }
                         if pushes_reference {
                             *slot = exception;
                             slot = slot.add(1);
@@ -256,8 +296,7 @@ struct Waiter {
 /// # Safety
 ///
 /// Only the interpreter calls this, with an address it checked.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_runtime_wait(context: *mut ExecutionContext) -> u64 {
+unsafe fn wait(context: *mut ExecutionContext) -> u64 {
     let (address, expected, timeout, size) = unsafe {
         (
             (*context).arguments[0],
@@ -325,8 +364,7 @@ pub unsafe extern "C" fn wasm_runtime_wait(context: *mut ExecutionContext) -> u6
 /// # Safety
 ///
 /// Only the interpreter calls this.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_runtime_notify(context: *mut ExecutionContext) -> u64 {
+unsafe fn notify(context: *mut ExecutionContext) -> u64 {
     let (address, count) = unsafe { ((*context).arguments[0], (*context).arguments[1]) };
     let mut waiters = WAITERS.lock().expect("the waiter list is never poisoned");
     let mut woken = 0;

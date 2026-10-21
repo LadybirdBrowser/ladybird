@@ -267,6 +267,24 @@ inline fn align_down_16(address: u64) -> u64 {
     shifted << 4
 }
 
+# Touch the stack from `current` down to `bottom`, below which a new frame is about to end, if the frame reaches into a
+# page below that of `current`. Windows commits a thread's stack as code touches the guard page below its committed
+# part, and code that skips past the guard page faults. Every page down to that of the stack pointer is committed, so
+# probing the pages in between from the top down keeps that so; a frame within the stack pointer's page needs none.
+# An atomic load is never removed, so it serves as the probe.
+inline fn probe_stack(current: u64, bottom: u64) {
+    let current_page = current >> 12;
+    let bottom_page = bottom >> 12;
+    if bottom_page != current_page @cold {
+        let mut address = current;
+        while address > bottom {
+            let _ = atomic_load8([address, 0]);
+            address = address - 4096;
+        }
+        let _ = atomic_load8([bottom, 0]);
+    }
+}
+
 # Call a host function through the runtime, with its arguments on top of the operand stack.
 inline fn call_host_function(function: u64, return_ip: u64, context_pointer: u64) {
     store64([context_pointer, CONTEXT_ARGUMENTS], function);
@@ -391,6 +409,7 @@ inline fn call_vector_function(function: u64, return_ip: u64, context_pointer: u
     guard bottom >= limit else @cold {
         trap_with(TRAP_STACK_EXHAUSTED, context_pointer);
     };
+    probe_stack(current_sp, bottom);
     sp = bottom;
     store64([new_fp, FRAME_SAVED_FP], fp);
     store64([new_fp, FRAME_RETURN_IP], return_ip);
@@ -494,6 +513,7 @@ inline fn call_function(function: u64, return_ip: u64, context_pointer: u64) {
     guard bottom >= limit else @cold {
         trap_with(TRAP_STACK_EXHAUSTED, context_pointer);
     };
+    probe_stack(current_sp, bottom);
     sp = bottom;
     store64([new_fp, FRAME_SAVED_FP], fp);
     store64([new_fp, FRAME_RETURN_IP], return_ip);
@@ -679,6 +699,10 @@ handler Enter() @opcode(0xf0) {
     let runtime_fp = align_down_16(entry_sp - FRAME_HEADER_SIZE - SPILL_AREA_SIZE);
     let arguments_top = runtime_fp - FRAME_HEADER_SIZE - (param_slots << 3);
     let new_sp = align_down_16(arguments_top - SPILL_AREA_SIZE);
+    # The native code that entered the interpreter touched the stack above its frame, but maybe not the page of the
+    # entry frame's stack pointer.
+    let _ = atomic_load8([entry_sp, 0]);
+    probe_stack(entry_sp, new_sp);
     sp = new_sp;
     fp = runtime_fp;
     store64([runtime_fp, FRAME_INSTANCE], 0);
@@ -769,6 +793,39 @@ handler If() @opcode(0x04) {
 # Reached at the end of an if's first arm: skip the second one.
 handler Else() @opcode(0x05) {
     branch();
+}
+
+# Legacy exception handling. A try runs like a block, and the runtime finds its catch handlers when something throws
+# inside it. Its handlers start after their catch or catch_all instruction, which runs only when the try's body or the
+# handler before it completes, and skips the remaining handlers like else skips an if's second arm.
+handler Try() @opcode(0x06) {
+    let length = block_type_length(immediates());
+    advance(length + 1);
+}
+
+handler Catch() @opcode(0x07) {
+    branch();
+}
+
+handler CatchAll() @opcode(0x19) {
+    branch();
+}
+
+# Reached at the end of a try's body, which delegate ends like end does.
+handler Delegate() @opcode(0x18) {
+    let [_, length] = read_leb(immediates());
+    advance(length + 1);
+}
+
+# Rethrow the exception a catch or catch_all handler caught. The runtime kept it in a local of the frame for the
+# handler, which the side-table entry of the rethrow names as its `keep` count.
+handler Rethrow() @opcode(0x09) {
+    let entry: u64 = stp;
+    let mut local_index: u64;
+    load32(local_index, [entry, 8]);
+    let locals: Sequence<u64> = alias(fp);
+    let exception = locals[local_index];
+    throw_exception(0, exception);
 }
 
 handler End() @opcode(0x0b) {
@@ -7828,14 +7885,14 @@ handler AtomicWait64() @opcode(0xfe, 0x2) {
 # Locked instructions order everything around them, so a fence needs nothing more.
 handler AtomicFence() @opcode(0xfe, 0x3) {
     let [_, offset] = prefixed_immediates();
+    atomic_fence();
     advance(offset + 1);
 }
 
 handler I32AtomicLoad() @opcode(0xfe, 0x10) {
     let address_operand = unary_operand();
     let [_, address, length] = atomic_access(address_operand, 4);
-    let mut value: u64;
-    load32(value, [address, 0]);
+    let value = atomic_load32([address, 0]);
     set_top(value);
     advance(length);
 }
@@ -7843,8 +7900,7 @@ handler I32AtomicLoad() @opcode(0xfe, 0x10) {
 handler I64AtomicLoad() @opcode(0xfe, 0x11) {
     let address_operand = unary_operand();
     let [_, address, length] = atomic_access(address_operand, 8);
-    let mut value: u64;
-    load64(value, [address, 0]);
+    let value = atomic_load64([address, 0]);
     set_top(value);
     advance(length);
 }
@@ -7852,8 +7908,7 @@ handler I64AtomicLoad() @opcode(0xfe, 0x11) {
 handler I32AtomicLoad8U() @opcode(0xfe, 0x12) {
     let address_operand = unary_operand();
     let [_, address, length] = atomic_access(address_operand, 1);
-    let mut value: u64;
-    load8(value, [address, 0]);
+    let value = atomic_load8([address, 0]);
     set_top(value);
     advance(length);
 }
@@ -7861,8 +7916,7 @@ handler I32AtomicLoad8U() @opcode(0xfe, 0x12) {
 handler I32AtomicLoad16U() @opcode(0xfe, 0x13) {
     let address_operand = unary_operand();
     let [_, address, length] = atomic_access(address_operand, 2);
-    let mut value: u64;
-    load16(value, [address, 0]);
+    let value = atomic_load16([address, 0]);
     set_top(value);
     advance(length);
 }
@@ -7870,8 +7924,7 @@ handler I32AtomicLoad16U() @opcode(0xfe, 0x13) {
 handler I64AtomicLoad8U() @opcode(0xfe, 0x14) {
     let address_operand = unary_operand();
     let [_, address, length] = atomic_access(address_operand, 1);
-    let mut value: u64;
-    load8(value, [address, 0]);
+    let value = atomic_load8([address, 0]);
     set_top(value);
     advance(length);
 }
@@ -7879,8 +7932,7 @@ handler I64AtomicLoad8U() @opcode(0xfe, 0x14) {
 handler I64AtomicLoad16U() @opcode(0xfe, 0x15) {
     let address_operand = unary_operand();
     let [_, address, length] = atomic_access(address_operand, 2);
-    let mut value: u64;
-    load16(value, [address, 0]);
+    let value = atomic_load16([address, 0]);
     set_top(value);
     advance(length);
 }
@@ -7888,8 +7940,7 @@ handler I64AtomicLoad16U() @opcode(0xfe, 0x15) {
 handler I64AtomicLoad32U() @opcode(0xfe, 0x16) {
     let address_operand = unary_operand();
     let [_, address, length] = atomic_access(address_operand, 4);
-    let mut value: u64;
-    load32(value, [address, 0]);
+    let value = atomic_load32([address, 0]);
     set_top(value);
     advance(length);
 }
