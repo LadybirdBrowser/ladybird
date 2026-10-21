@@ -126,6 +126,23 @@ pub(crate) fn content_start_offset(
     }
 }
 
+/// Whether each gutter between consecutive tracks collapses.
+// https://www.w3.org/TR/css-grid-2/#collapsed-track
+fn collapsed_gutters(tracks: &[Track<'_>]) -> Vec<bool> {
+    // When a collapsed track's gutters collapse, they coincide exactly--the two gutters overlap so that their start and
+    // end edges coincide. If one side of a collapsed track does not have a gutter (e.g. if it is the first or last track
+    // of the implicit grid), then collapsing its gutters results in no gutter on either "side" of the collapsed track.
+    // NB: We model this by keeping the gutter that directly precedes each non-collapsed track (except the first such
+    //     track) and collapsing all other gutters.
+    let mut seen_non_collapsed = false;
+    (0..tracks.len().saturating_sub(1))
+        .map(|index| {
+            seen_non_collapsed |= !tracks[index].is_collapsed;
+            tracks[index + 1].is_collapsed || !seen_non_collapsed
+        })
+        .collect()
+}
+
 pub(crate) fn distributed_gap_size(
     alignment: Alignment,
     container_size: CssPixels,
@@ -1787,19 +1804,10 @@ impl<'pass> GridFormattingContext<'pass> {
         // size, which is spanned by any grid items that span across its corresponding grid line.
         let gap_size = self.resolved_gap(axis, available);
         let tracks = if axis.is_column() { &self.columns } else { &self.rows };
-        let mut gaps = Vec::with_capacity(tracks.len().saturating_sub(1));
-        let mut seen_non_collapsed = false;
-        // When a collapsed track's gutters collapse, they coincide exactly--the two gutters overlap so that their start
-        // and end edges coincide. If one side of a collapsed track does not have a gutter (e.g. if it is the first or
-        // last track of the implicit grid), then collapsing its gutters results in no gutter on either "side" of the
-        // collapsed track.
-        // NB: We model this by keeping the gutter that directly precedes each non-collapsed track (except the first such
-        //     track) and giving all other gutters a zero size.
-        for index in 0..tracks.len().saturating_sub(1) {
-            seen_non_collapsed |= !tracks[index].is_collapsed;
-            let collapse = tracks[index + 1].is_collapsed || !seen_non_collapsed;
-            gaps.push(Track::gap(if collapse { CssPixels::default() } else { gap_size }));
-        }
+        let gaps = collapsed_gutters(tracks)
+            .into_iter()
+            .map(|collapse| Track::gap(if collapse { CssPixels::default() } else { gap_size }))
+            .collect();
         if axis.is_column() {
             self.column_gaps = gaps;
         } else {
@@ -3370,10 +3378,12 @@ impl<'pass> GridFormattingContext<'pass> {
             .fold(CssPixels::default(), |sum, track| sum + track.base_size);
         let alignment = self.content_alignment(axis);
         let minimum = self.resolved_gap(axis, AvailableSize::definite(container));
-        let size = distributed_gap_size(alignment, container, track_sum, self.axis_gaps(axis).len(), minimum);
+        let collapsed = collapsed_gutters(self.axis_tracks(axis));
+        let gap_count = collapsed.iter().filter(|&&collapse| !collapse).count();
+        let size = distributed_gap_size(alignment, container, track_sum, gap_count, minimum);
         let gaps = axis.select(&mut self.column_gaps, &mut self.row_gaps);
-        for gap in gaps {
-            gap.base_size = size;
+        for (gap, collapse) in gaps.iter_mut().zip(collapsed) {
+            gap.base_size = if collapse { CssPixels::default() } else { size };
         }
     }
 

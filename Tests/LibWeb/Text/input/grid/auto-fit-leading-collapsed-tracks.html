@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    .grid {
+        display: grid;
+        width: 100px;
+        height: 260px;
+        row-gap: 10px;
+        grid-template-rows: repeat(auto-fit, 20px);
+    }
+    .columns {
+        width: 260px;
+        height: auto;
+        column-gap: 10px;
+        grid-template-rows: none;
+        grid-template-columns: repeat(auto-fit, 20px);
+    }
+</style>
+<div class="grid" id="rows">
+    <div style="grid-row: 5"></div>
+    <div style="grid-row: 6"></div>
+</div>
+<div class="grid columns" id="columns">
+    <div style="grid-column: 5"></div>
+    <div style="grid-column: 6"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["rows", "columns"]) {
+            const grid = document.getElementById(id).getBoundingClientRect();
+            const offsets = [...document.getElementById(id).children].map(child => {
+                const rect = child.getBoundingClientRect();
+                return id === "rows" ? rect.top - grid.top : rect.left - grid.left;
+            });
+            println(`${id}: ${offsets.join(", ")}`);
+        }
+    });
+</script>
