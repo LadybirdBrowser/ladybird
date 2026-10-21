@@ -20,19 +20,17 @@ crate::stage::main_thread_ffi_entries!();
 /// # Safety
 ///
 /// `host` must be a live document host with registered layout and layout update hosts, on its document's thread
-/// between `document_host_begin_update_layout` and its end, and `inputs` must remain valid for the call.
+/// between `document_host_begin_update_layout` and its end.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_update_layout(
     host: &DocumentHost,
     read: &BegunRead,
-    inputs: *const FfiLayoutUpdateInputs,
+    inputs: &FfiLayoutUpdateInputs,
 ) {
-    assert!(!inputs.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     abort_on_panic(|| {
-        // SAFETY: Guaranteed by the entry point's contract.
-        unsafe { update_layout(&main_thread, host, read, &*inputs) };
+        update_layout(&main_thread, host, read, inputs);
         attach_owed_image_resources(&main_thread, host, read);
     });
 }
@@ -59,8 +57,7 @@ pub unsafe extern "C" fn render_state_pay_flown_round(host: &DocumentHost, read:
     abort_on_panic(|| {
         host.take_frame_in_with(read);
         if let Some(round) = host.take_flown_round() {
-            // SAFETY: Guaranteed by the entry point's contract.
-            unsafe { round.pay(&main_thread, host, read) };
+            round.pay(&main_thread, host, read);
         }
     });
 }
@@ -139,13 +136,11 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
 pub unsafe extern "C" fn render_state_seal_first_layout_round(
     host: &DocumentHost,
     read: &BegunRead,
-    inputs: *const FfiLayoutUpdateInputs,
+    inputs: &FfiLayoutUpdateInputs,
 ) {
-    assert!(!inputs.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
-    // SAFETY: Guaranteed by the entry point's contract.
-    abort_on_panic(|| unsafe { seal_first_round(&main_thread, host, read, &*inputs) });
+    abort_on_panic(|| seal_first_round(&main_thread, host, read, inputs));
 }
 
 /// Lets the first round of the layout of a rendering update whose style is up to date fly beside the host, in `read`,
@@ -157,22 +152,17 @@ pub unsafe extern "C" fn render_state_seal_first_layout_round(
 /// As for [`render_state_update_layout`], with no layout update running and no frame of the document in flight.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_let_first_layout_round_fly(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
-    inputs: *const FfiLayoutUpdateInputs,
+    inputs: &FfiLayoutUpdateInputs,
     blocker: crate::painting::ffi::FfiFlightBlocker,
 ) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    assert!(!inputs.is_null());
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     let Some(license) = FlightLicense::for_blocker(blocker) else {
         return false;
     };
-    // SAFETY: Guaranteed by the entry point's contract.
-    abort_on_panic(|| unsafe { fly_first_round(&main_thread, host, read, &*inputs, &license) })
+    abort_on_panic(|| fly_first_round(&main_thread, host, read, inputs, &license))
 }
 
 /// Takes in the layout round that flew in the frame of `host`'s document, in `read`, and pays it, where it left the
@@ -183,15 +173,11 @@ pub unsafe extern "C" fn render_state_let_first_layout_round_fly(
 ///
 /// As for [`render_state_update_layout`].
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_take_flown_layout_in(host: *const DocumentHost, read: &BegunRead) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+pub unsafe extern "C" fn render_state_take_flown_layout_in(host: &DocumentHost, read: &BegunRead) -> bool {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     abort_on_panic(|| {
-        // SAFETY: Guaranteed by the entry point's contract.
-        let laid_out = unsafe { take_flown_layout_in(&main_thread, host, read) };
+        let laid_out = take_flown_layout_in(&main_thread, host, read);
         attach_owed_image_resources(&main_thread, host, read);
         laid_out
     })

@@ -644,13 +644,8 @@ pub(crate) struct FlownRound {
 
 impl FlownRound {
     /// Pays what the round owes `host` in `read`, where no layout update goes on from it.
-    ///
-    /// # Safety
-    ///
-    /// The host's layout update callbacks must answer synchronously from its live document.
-    pub(crate) unsafe fn pay(mut self, main_thread: &MainThread, host: &DocumentHost, read: &BegunRead) {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { self.answer.pay(main_thread, host, read) };
+    pub(crate) fn pay(mut self, main_thread: &MainThread, host: &DocumentHost, read: &BegunRead) {
+        self.answer.pay(main_thread, host, read);
     }
 }
 
@@ -971,11 +966,7 @@ impl LayoutRoundAnswer {
     /// gained and lost and the host calls the round owes come first, then a build's commit messages
     /// and styled scroll containers, after which the document retires the tree the build replaced;
     /// then what the layout stages owe, and the scroll offsets the round's preparation clamped.
-    ///
-    /// # Safety
-    ///
-    /// The host's callbacks must answer synchronously from its live document.
-    pub(crate) unsafe fn pay(&mut self, main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) {
+    pub(crate) fn pay(&mut self, main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) {
         let host = layout_update_host(document_host);
         let layout_host = FfiLayoutHostCallbacks::of(main_thread);
         document_host
@@ -983,7 +974,6 @@ impl LayoutRoundAnswer {
             .owed_images
             .borrow_mut()
             .append(&mut self.owed_images);
-        // SAFETY (for every call below): Guaranteed by the caller.
         std::mem::take(&mut self.work).pay(main_thread);
         if let Some((replaced_viewport, built)) = self.build.take() {
             layout_host.deliver_commit_messages(main_thread, read, &built.reports);
@@ -994,7 +984,7 @@ impl LayoutRoundAnswer {
             return;
         }
         for commit in self.commits.drain(..) {
-            unsafe { commit.notify_host(main_thread, read, &layout_host) };
+            commit.notify_host(main_thread, read, &layout_host);
         }
         super::trace::name_layout_trace_owners(main_thread, read);
         if let Some(geometry_host) = document_host.host_tables().geometry_host.get() {
@@ -1125,11 +1115,7 @@ fn fly_first_round(
 /// Takes in the layout round that flew in the frame of `document_host`'s document, waiting for it to land, and pays it as
 /// a layout update pays its last round, where the round left the document laid out as of the frame. Answers whether it
 /// did: no other round runs, so what the host wrote since the frame flew stays the next layout update's.
-///
-/// # Safety
-///
-/// As for [`update_layout`].
-unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) -> bool {
+fn take_flown_layout_in(main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) -> bool {
     let host = layout_update_host(document_host);
     document_host.take_frame_in_with(read);
     let Some(FlownRound {
@@ -1139,8 +1125,7 @@ unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &Documen
     else {
         return false;
     };
-    // SAFETY (for every pay below): Guaranteed by the caller.
-    unsafe { answer.pay(main_thread, document_host, read) };
+    answer.pay(main_thread, document_host, read);
     if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, &answer.rebuilt_roots) {
         return false;
     }
@@ -1158,10 +1143,7 @@ unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &Documen
     !host.container_query_evaluation_is_pending(main_thread, read)
 }
 
-/// # Safety
-///
-/// The layout update host's callbacks must answer synchronously from the live document.
-unsafe fn update_layout(
+fn update_layout(
     main_thread: &MainThread,
     document_host: &DocumentHost,
     read: &BegunRead,
@@ -1231,7 +1213,7 @@ unsafe fn update_layout(
                 NextRound::Job(job) => run_layout_round_job(document_host, read, job),
             };
             trace.note_build_reports(&answer);
-            unsafe { answer.pay(main_thread, document_host, read) };
+            answer.pay(main_thread, document_host, read);
             if matches!(answer.end, LayoutRoundEnd::NeedsDocumentStyle) {
                 let facts = host.document_facts(main_thread, read);
                 next = NextRound::Job(next_round(main_thread, document_host, read, &host, facts, true).job);
