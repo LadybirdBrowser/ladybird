@@ -244,6 +244,24 @@ static CTFontRef create_core_text_named_instance(CTFontRef font, hb_face_t* face
     return create_core_text_font_with_variations(font, 0, variation);
 }
 
+// Font data for CoreText that keeps its backing for as long as CoreText uses the data.
+static CFDataRef create_core_text_data(NonnullRefPtr<Typeface::FontDataBacking> backing, ReadonlyBytes bytes)
+{
+    CFAllocatorContext allocator_context {};
+    allocator_context.info = backing.ptr();
+    allocator_context.retain = [](void const* info) -> void const* {
+        static_cast<Typeface::FontDataBacking const*>(info)->ref();
+        return info;
+    };
+    allocator_context.release = [](void const* info) { static_cast<Typeface::FontDataBacking const*>(info)->unref(); };
+    allocator_context.deallocate = [](void*, void*) { };
+    auto allocator = CFAllocatorCreate(kCFAllocatorDefault, &allocator_context);
+    if (!allocator)
+        return nullptr;
+    ScopeGuard release_allocator = [&] { CFRelease(allocator); };
+    return CFDataCreateWithBytesNoCopy(kCFAllocatorDefault, bytes.data(), static_cast<CFIndex>(bytes.size()), allocator);
+}
+
 CTFontRef create_core_text_font_from_data(NonnullRefPtr<Typeface::FontDataBacking> backing, ReadonlyBytes bytes, u32 ttc_index)
 {
     if (bytes.size() > static_cast<size_t>(NumericLimits<CFIndex>::max()) || bytes.size() > NumericLimits<unsigned>::max())
@@ -262,19 +280,7 @@ CTFontRef create_core_text_font_from_data(NonnullRefPtr<Typeface::FontDataBackin
         return nullptr;
     ScopeGuard release_name = [&] { CFRelease(postscript_name); };
 
-    CFAllocatorContext allocator_context {};
-    allocator_context.info = backing.ptr();
-    allocator_context.retain = [](void const* info) -> void const* {
-        static_cast<Typeface::FontDataBacking const*>(info)->ref();
-        return info;
-    };
-    allocator_context.release = [](void const* info) { static_cast<Typeface::FontDataBacking const*>(info)->unref(); };
-    allocator_context.deallocate = [](void*, void*) { };
-    auto allocator = CFAllocatorCreate(kCFAllocatorDefault, &allocator_context);
-    if (!allocator)
-        return nullptr;
-    ScopeGuard release_allocator = [&] { CFRelease(allocator); };
-    auto data = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault, bytes.data(), static_cast<CFIndex>(bytes.size()), allocator);
+    auto data = create_core_text_data(move(backing), bytes);
     if (!data)
         return nullptr;
     ScopeGuard release_data = [&] { CFRelease(data); };
@@ -311,6 +317,35 @@ CTFontRef create_core_text_font_from_data(NonnullRefPtr<Typeface::FontDataBackin
         }
     }
     return font;
+}
+
+bool core_text_accepts_font_data(NonnullRefPtr<Typeface::FontDataBacking> backing, u32 ttc_index)
+{
+    auto bytes = backing->bytes();
+    if (ttc_index != 0) {
+        auto font = create_core_text_font_from_data(move(backing), bytes, ttc_index);
+        if (!font)
+            return false;
+        CFRelease(font);
+        return true;
+    }
+
+    // The compositor makes the CoreText font of the first face from a font descriptor of all of the data.
+    if (bytes.size() > static_cast<size_t>(NumericLimits<CFIndex>::max()))
+        return false;
+    auto data = create_core_text_data(move(backing), bytes);
+    if (!data)
+        return false;
+    ScopeGuard release_data = [&] { CFRelease(data); };
+    auto descriptor = CTFontManagerCreateFontDescriptorFromData(data);
+    if (!descriptor)
+        return false;
+    ScopeGuard release_descriptor = [&] { CFRelease(descriptor); };
+    auto font = CTFontCreateWithFontDescriptor(descriptor, 0, nullptr);
+    if (!font)
+        return false;
+    CFRelease(font);
+    return true;
 }
 
 TypefaceCoreText::TypefaceCoreText(CTFontRef core_text_font, CGFontRef graphics_font, Identity identity)

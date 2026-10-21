@@ -20,7 +20,6 @@
 #include <LibCore/TimeZone.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/OpenSSLForward.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/SystemFallbackFonts.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
@@ -182,7 +181,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
     bool enable_http_memory_cache = false;
-    bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
     bool is_headless = false;
     bool disable_scrollbar_painting = false;
@@ -203,7 +201,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(enable_http_memory_cache, "Enable HTTP cache", "enable-http-memory-cache");
-    args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
@@ -251,9 +248,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (file_origins_are_tuple_origins)
         URL::set_file_scheme_urls_have_tuple_origins();
-
-    if (force_fontconfig)
-        Gfx::FontDatabase::the().set_force_freetype_rasterization(true);
 
     WebContent::PageClient::set_is_headless(is_headless);
 

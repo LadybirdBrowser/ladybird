@@ -40,8 +40,6 @@ private:
 
     TypefaceCoreText(CTFontRef, CGFontRef, Identity);
 
-    virtual ReadonlyBytes buffer() const override { return {}; }
-    virtual u32 ttc_index() const override { return 0; }
     virtual hb_face_t* create_harfbuzz_face() const override;
     virtual void encode_font_data_for_ipc(IPC::Encoder&) const override;
     virtual Optional<FaceStyle> fixed_style() const override;
@@ -61,6 +59,9 @@ inline bool Typeface::fast_is<TypefaceCoreText>() const { return is_core_text();
 // coordinates the font gets as a variation. CoreText keeps the backing while it uses the data. Null if CoreText does
 // not load the face.
 CTFontRef create_core_text_font_from_data(NonnullRefPtr<Typeface::FontDataBacking>, ReadonlyBytes, u32 ttc_index);
+
+// Whether CoreText loads a face of font data the way the compositor does to draw it.
+bool core_text_accepts_font_data(NonnullRefPtr<Typeface::FontDataBacking>, u32 ttc_index);
 
 // A copy of a CoreText font at a size, with these coordinates on top of the variation of the font. Without
 // coordinates, the copy keeps the variation of the font. Null if CoreText does not make the copy.

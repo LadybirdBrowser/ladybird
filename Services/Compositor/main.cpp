@@ -16,7 +16,6 @@
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibCore/StatsLog.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/GpuDeviceIdentity.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibIPC/SingleServer.h>
@@ -73,7 +72,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(TRY(String::from_utf8(resource_root))));
     if (force_fontconfig)
-        Gfx::FontDatabase::the().set_force_freetype_rasterization(true);
+        Compositor::set_font_rasterizer(Compositor::FontRasterizer::FreeType);
 
 #if defined(AK_OS_LINUX)
     // NB: The GPU driver starts threads, and Landlock does not confine a thread that already runs. Seccomp covers every

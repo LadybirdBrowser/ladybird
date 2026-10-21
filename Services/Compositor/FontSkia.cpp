@@ -10,7 +10,6 @@
 #include <AK/TypeCasts.h>
 #include <Compositor/FontSkia.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/RasterizerData.h>
 
 #include <core/SkData.h>
@@ -37,6 +36,8 @@
 #endif
 
 namespace Compositor {
+
+static FontRasterizer s_font_rasterizer { FontRasterizer::Platform };
 
 #if defined(USE_FONTCONFIG)
 static bool s_force_hinting_for_testing { false };
@@ -85,7 +86,7 @@ struct TypefaceData final : public Gfx::RasterizerData {
 // The typeface loaders are called directly, because a font manager also finds the system fonts when it is made.
 sk_sp<SkTypeface> make_platform_skia_typeface([[maybe_unused]] sk_sp<SkData> const& data, [[maybe_unused]] Gfx::Typeface const& typeface)
 {
-    if (Gfx::FontDatabase::the().force_freetype_rasterization())
+    if (s_font_rasterizer == FontRasterizer::FreeType)
         return nullptr;
 #if defined(AK_OS_MACOS)
     // The CoreText typeface loader of Skia loads only the first face of font data.
@@ -196,6 +197,11 @@ Gfx::FontHintingOptions hinting_options(Gfx::Font const& font, float scale)
 }
 #endif
 
+}
+
+void set_font_rasterizer(FontRasterizer rasterizer)
+{
+    s_font_rasterizer = rasterizer;
 }
 
 void force_font_hinting_for_testing()

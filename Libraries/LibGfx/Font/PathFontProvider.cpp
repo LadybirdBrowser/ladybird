@@ -13,7 +13,6 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/PathFontProvider.h>
-#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 
 namespace Gfx {
@@ -85,9 +84,8 @@ void PathFontProvider::for_each_typeface_in_uri(StringView uri, HashTable<String
         if (is_truetype) {
             auto font_count = number_of_fonts_in_ttc(resource.data());
             auto backing = make_ref_counted<Typeface::FontDataBacking>(resource.release_mapped_file());
-            auto bytes = backing->storage.get<NonnullOwnPtr<Core::MappedFile>>()->bytes();
             for (u32 ttc_index = 0; ttc_index < font_count; ++ttc_index) {
-                if (auto font_or_error = TypefaceSkia::load_from_buffer(bytes, ttc_index, backing); !font_or_error.is_error()) {
+                if (auto font_or_error = Typeface::try_load_from_font_data(backing, ttc_index); !font_or_error.is_error()) {
                     auto font = font_or_error.release_value();
                     font->set_file_path(filesystem_path);
                     callback(filesystem_path, ttc_index, FontFileFormat::OpenType, move(font));
