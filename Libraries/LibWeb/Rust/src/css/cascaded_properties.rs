@@ -19,7 +19,7 @@ use std::hash::BuildHasherDefault;
 use std::hash::Hasher;
 use std::sync::Arc;
 
-use crate::css::custom_properties::{CustomPropertyStore, finalize_element_custom_property};
+use crate::css::custom_properties::CustomPropertyStore;
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, parse_css_value_from_source,
 };
@@ -404,34 +404,6 @@ impl FfiStyleQueryInputs {
     }
 }
 
-/// One unresolved value submitted to the bulk substitution resolver.
-struct UnresolvedStyleValue<'a> {
-    property_id: u16,
-    /// The custom property the value is declared for, or empty for another property.
-    root_custom_property_name: &'a [u16],
-    value: &'a RetainedStyleValueData,
-    resolve_substitutions: bool,
-}
-
-fn custom_property_needs_resolution(value: &StyleValueData) -> bool {
-    matches!(
-        value,
-        StyleValueData::Unresolved {
-            presence_attr: true,
-            ..
-        } | StyleValueData::Unresolved {
-            presence_dashed_function: true,
-            ..
-        } | StyleValueData::Unresolved { presence_env: true, .. }
-            | StyleValueData::Unresolved { presence_if: true, .. }
-            | StyleValueData::Unresolved {
-                presence_inherit: true,
-                ..
-            }
-            | StyleValueData::Unresolved { presence_var: true, .. }
-    )
-}
-
 /// Resolves the custom properties `store` declares, finalizing each registered value against
 /// `finalization`. Answers the store holding them over the parent's, or none where the element
 /// declares nothing that differs from the parent and may reuse its store; and what the registered
@@ -447,26 +419,18 @@ pub(crate) fn resolve_declared_custom_properties(
     crate::css::custom_properties::RegisteredValueReads,
 ) {
     let names = &store.declared_names;
-    let own_entry = |name_raw: &usize| {
-        store
-            .own_values
-            .get(name_raw)
-            .expect("declared custom property must be an own value")
-    };
-    let inputs: Vec<_> = names
-        .iter()
-        .map(|name_raw| {
-            let entry = own_entry(name_raw);
-            UnresolvedStyleValue {
-                property_id: crate::css::property_metadata::property_id::CUSTOM,
-                root_custom_property_name: &entry.name,
-                value: &entry.value,
-                resolve_substitutions: custom_property_needs_resolution(entry.value.data()),
-            }
-        })
-        .collect();
-    let mut reads = crate::css::custom_properties::RegisteredValueReads::default();
-    let outputs = resolve_unresolved_style_values(resolution_context, &inputs, &finalization, &mut reads);
+    let mut environment = crate::css::custom_properties::prepare_var_resolution_environment(
+        resolution_context.attributes,
+        resolution_context.custom_functions,
+        resolution_context.custom_function_scope_identity,
+        resolution_context.custom_function_visibilities,
+    );
+    let (outputs, reads) = crate::css::custom_properties::resolve_element_custom_properties(
+        &resolution_context.inputs,
+        &mut environment,
+        resolution_context.style_query_dependencies.as_deref_mut(),
+        finalization,
+    );
     let resolved_parent = resolved_parent_store;
     let resolved_values: Vec<_> = names
         .iter()
@@ -486,203 +450,3 @@ pub(crate) fn resolve_declared_custom_properties(
 
 /// Sentinel passed when cascading for an element rather than a pseudo-element.
 pub(crate) const NO_PSEUDO_ELEMENT: u8 = u8::MAX;
-
-#[allow(clippy::too_many_arguments)]
-fn resolve_cascade_value(
-    resolution_context: &mut CascadeResolutionContext,
-    resolution_environment: &mut crate::css::custom_properties::VarResolutionEnvironment,
-    property_id: u16,
-    root_custom_property_name: &[u16],
-    unresolved: &StyleValueData,
-    final_custom_properties: Option<&HashMap<Vec<u16>, RetainedStyleValueData>>,
-    finalization: &crate::css::custom_properties::CustomPropertyFinalization,
-    reads: &mut crate::css::custom_properties::RegisteredValueReads,
-) -> RetainedStyleValueData {
-    let native_resolution = crate::css::custom_properties::resolve_vars(
-        &resolution_context.inputs,
-        property_id,
-        root_custom_property_name,
-        unresolved,
-        resolution_environment,
-        resolution_context.style_query_dependencies.as_deref_mut(),
-        final_custom_properties,
-        *finalization,
-        Some(reads),
-    );
-
-    match native_resolution {
-        crate::css::custom_properties::NativeVarResolution::Resolved {
-            source,
-            contains_attr_tainted_values,
-        } => {
-            let Some(base_context) = resolution_context.inputs.parse_context else {
-                return RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
-            };
-            let contains_attr_tainted_values = contains_attr_tainted_values
-                || matches!(
-                    unresolved,
-                    StyleValueData::Unresolved {
-                        contains_attr_tainted_values: true,
-                        ..
-                    }
-                );
-            parse_substituted_value(base_context, property_id, &source, contains_attr_tainted_values)
-        }
-        crate::css::custom_properties::NativeVarResolution::Invalid
-        | crate::css::custom_properties::NativeVarResolution::NotHandled => {
-            RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid)
-        }
-    }
-}
-
-fn custom_property_components(inputs: &[UnresolvedStyleValue]) -> (Vec<Vec<u32>>, bool) {
-    let mut indices = HashMap::new();
-    for (index, input) in inputs.iter().enumerate() {
-        indices.insert(input.root_custom_property_name.to_vec(), index as u32);
-    }
-
-    let mut edges = vec![Vec::new(); inputs.len()];
-    let mut has_own_reference = false;
-    for (index, input) in inputs.iter().enumerate() {
-        let value = input.value.data();
-        let Some((references, mut all_references_visible)) = crate::css::style_value::custom_property_references(value)
-        else {
-            continue;
-        };
-        if let StyleValueData::Unresolved {
-            presence_attr,
-            presence_dashed_function,
-            presence_if,
-            ..
-        } = value
-        {
-            all_references_visible &= !presence_attr && !presence_dashed_function && !presence_if;
-        }
-        if all_references_visible {
-            for reference in references {
-                if let Some(target) = indices.get(reference) {
-                    edges[index].push(*target);
-                    has_own_reference |= inputs[*target as usize].resolve_substitutions;
-                }
-            }
-        } else {
-            edges[index].extend(0..inputs.len() as u32);
-        }
-    }
-
-    let unvisited = u32::MAX;
-    let mut discovery_index = vec![unvisited; inputs.len()];
-    let mut lowlink = vec![0; inputs.len()];
-    let mut on_stack = vec![false; inputs.len()];
-    let mut component_stack = Vec::new();
-    let mut components = Vec::new();
-    let mut next_discovery_index = 0;
-    let mut walk_stack: Vec<(u32, usize)> = Vec::new();
-
-    for root in 0..inputs.len() as u32 {
-        if discovery_index[root as usize] != unvisited {
-            continue;
-        }
-        walk_stack.push((root, 0));
-        while let Some(&(node, next_edge)) = walk_stack.last() {
-            let node_index = node as usize;
-            if next_edge == 0 {
-                discovery_index[node_index] = next_discovery_index;
-                lowlink[node_index] = next_discovery_index;
-                next_discovery_index += 1;
-                component_stack.push(node);
-                on_stack[node_index] = true;
-            }
-            if next_edge < edges[node_index].len() {
-                let target = edges[node_index][next_edge];
-                walk_stack.last_mut().unwrap().1 += 1;
-                if discovery_index[target as usize] == unvisited {
-                    walk_stack.push((target, 0));
-                } else if on_stack[target as usize] {
-                    lowlink[node_index] = lowlink[node_index].min(discovery_index[target as usize]);
-                }
-                continue;
-            }
-            if lowlink[node_index] == discovery_index[node_index] {
-                let mut component = Vec::new();
-                loop {
-                    let popped = component_stack.pop().expect("active custom-property component");
-                    on_stack[popped as usize] = false;
-                    component.push(popped);
-                    if popped == node {
-                        break;
-                    }
-                }
-                components.push(component);
-            }
-            walk_stack.pop();
-            if let Some(&(parent, _)) = walk_stack.last() {
-                lowlink[parent as usize] = lowlink[parent as usize].min(lowlink[node_index]);
-            }
-        }
-    }
-    (components, has_own_reference)
-}
-
-/// Resolves and parses custom properties in dependency order, finalizing each component before
-/// later components can read it.
-fn resolve_unresolved_style_values(
-    resolution_context: &mut CascadeResolutionContext,
-    inputs: &[UnresolvedStyleValue],
-    finalization: &crate::css::custom_properties::CustomPropertyFinalization,
-    reads: &mut crate::css::custom_properties::RegisteredValueReads,
-) -> Vec<RetainedStyleValueData> {
-    let mut outputs: Vec<_> = inputs.iter().map(|_| RetainedStyleValueData::none()).collect();
-    let mut resolution_environment = crate::css::custom_properties::prepare_var_resolution_environment(
-        resolution_context.attributes,
-        resolution_context.custom_functions,
-        resolution_context.custom_function_scope_identity,
-        resolution_context.custom_function_visibilities,
-    );
-    let (components, use_final_custom_properties) = custom_property_components(inputs);
-    let registry = resolution_context
-        .inputs
-        .registry
-        .unwrap_or_else(|| crate::css::custom_properties::CustomPropertyRegistry::shared_empty());
-    let store = resolution_context
-        .inputs
-        .store
-        .expect("declared custom properties have an element store");
-    let mut final_custom_properties = HashMap::new();
-    for mut component in components {
-        component.sort_unstable();
-        for &member in &component {
-            let input = &inputs[member as usize];
-            if !input.resolve_substitutions {
-                outputs[member as usize] = input.value.clone();
-                continue;
-            }
-            outputs[member as usize] = resolve_cascade_value(
-                resolution_context,
-                &mut resolution_environment,
-                input.property_id,
-                input.root_custom_property_name,
-                input.value.data(),
-                use_final_custom_properties.then_some(&final_custom_properties),
-                finalization,
-                reads,
-            );
-        }
-        for &member in &component {
-            let index = member as usize;
-            let name = inputs[index].root_custom_property_name;
-            let substituted = std::mem::replace(&mut outputs[index], RetainedStyleValueData::none());
-            outputs[index] = finalize_element_custom_property(
-                registry,
-                resolution_context.inputs.inheritance_store,
-                finalization,
-                reads,
-                store.declared_names[index],
-                name,
-                substituted,
-            );
-            final_custom_properties.insert(name.to_vec(), outputs[index].clone());
-        }
-    }
-    outputs
-}

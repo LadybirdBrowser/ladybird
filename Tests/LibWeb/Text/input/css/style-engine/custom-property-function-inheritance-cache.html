@@ -1,0 +1,38 @@
+<!doctype html>
+<style>
+    @function --read-element-value(--direct) {
+        result: if(style(--direct: yes): var(--value); else: var(--cached));
+    }
+    @function --read-cyclic-value() {
+        result: var(--cyclic, 1px);
+    }
+    #target {
+        --value: 2px;
+        --cached: --read-element-value(yes);
+        --consumer: var(--cached) --read-element-value(no);
+    }
+    #cycle {
+        --cyclic: --read-cyclic-value();
+        --consumer: var(--cyclic, fallback) --read-cyclic-value();
+    }
+</style>
+<div id="target"></div>
+<div id="cycle"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        // The function inherits the completed --cached value. Repeated reads should reuse
+        // that value, including after the source property changes.
+        println(`direct and inherited reads: ${getComputedStyle(target).getPropertyValue("--consumer").trim()}`);
+        target.style.setProperty("--value", "3px");
+        println(`after source changes: ${getComputedStyle(target).getPropertyValue("--consumer").trim()}`);
+
+        // --cyclic is guaranteed-invalid. Reading that completed value must allow the
+        // independent function call to use its fallback without making the consumer cyclic.
+        const cycle = document.getElementById("cycle");
+        println(
+            `cyclic property and independent call: ${getComputedStyle(cycle).getPropertyValue("--consumer").trim()}`
+        );
+    });
+</script>

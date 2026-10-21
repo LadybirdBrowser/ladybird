@@ -175,6 +175,7 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         TEST_ONLY,
         [
+            "css/custom_properties.rs:CUSTOM_PROPERTY_COMPUTATIONS",
             "css/declaration_block.rs:DECLARATION_OWNER_ALLOCATIONS",
             "css/descriptor_block.rs:DESCRIPTOR_OWNER_ALLOCATIONS",
             "css/rule.rs:RULE_OWNER_ALLOCATIONS",
