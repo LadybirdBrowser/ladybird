@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>The interpolate-size property: parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+
+<script>
+test_valid_value('interpolate-size', 'numeric-only');
+test_valid_value('interpolate-size', 'allow-keywords');
+
+test_invalid_value('interpolate-size', 'auto');
+test_invalid_value('interpolate-size', 'none');
+test_invalid_value('interpolate-size', '100%');
+</script>
