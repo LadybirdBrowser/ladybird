@@ -1,6 +1,6 @@
 narrow child: 20px
-wide child: 20px
-later wide child: 20px
+wide child: 40px
+later wide child: 40px
 shallow ::before width with margin: 30
 deep ::before width with margin: 50
 later deep ::before width with margin: 50
