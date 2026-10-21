@@ -23,12 +23,13 @@ use super::web_gl_uniform_location::WebGLUniformLocation;
 use crate::bindings::conversions::{ArrayBufferView, BufferSource, CppInterface};
 use crate::bindings::interface::Ref;
 use crate::bindings::{CallContext, WebIdlResult};
+use crate::html::image_data::ImageData;
 
 /// https://registry.khronos.org/webgl/specs/latest/1.0/#5.14.8
 // FIXME: VideoFrame
 pub(crate) enum TexImageSource {
     ImageBitmap(CppInterface),
-    ImageData(CppInterface),
+    ImageData(Ref<ImageData>),
     HTMLImageElement(CppInterface),
     HTMLCanvasElement(CppInterface),
     HTMLVideoElement(CppInterface),

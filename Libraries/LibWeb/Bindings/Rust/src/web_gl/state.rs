@@ -14,7 +14,7 @@ use core::ops::Deref;
 
 use libjs_rust::api::{ForeignCellSlot, Gc, Realm, Trace, Visitor, Vm};
 
-use super::canvas::{Canvas, TexImageSourceFrame, TexImageSourceKind, read_tex_image_source};
+use super::canvas::{Canvas, TexImageSourceFrame, TexImageSourceKind, read_tex_image_pixels, read_tex_image_source};
 use super::constants::{
     GL_BROWSER_DEFAULT_WEBGL, GL_CONTEXT_LOST_WEBGL, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_NO_ERROR,
 };
@@ -353,15 +353,38 @@ impl ContextState {
         format: u32,
         r#type: u32,
     ) -> Option<(Frame, FrameUpload)> {
-        let (source_kind, source_object) = match *source {
-            TexImageSource::ImageBitmap(object) => (TexImageSourceKind::ImageBitmap, object),
-            TexImageSource::ImageData(object) => (TexImageSourceKind::ImageData, object),
-            TexImageSource::HTMLImageElement(object) => (TexImageSourceKind::HTMLImageElement, object),
-            TexImageSource::HTMLCanvasElement(object) => (TexImageSourceKind::HTMLCanvasElement, object),
-            TexImageSource::HTMLVideoElement(object) => (TexImageSourceKind::HTMLVideoElement, object),
-            TexImageSource::OffscreenCanvas(object) => (TexImageSourceKind::OffscreenCanvas, object),
+        // FIXME: If this function is called with an HTMLImageElement or HTMLVideoElement whose origin differs from the
+        //        origin of the containing Document, or with an HTMLCanvasElement, ImageBitmap or OffscreenCanvas whose
+        //        bitmap's origin-clean flag is set to false, a SECURITY_ERR exception must be thrown. See Origin
+        //        Restrictions.
+        let source_frame = match *source {
+            TexImageSource::ImageBitmap(object) => {
+                read_tex_image_source(object, TexImageSourceKind::ImageBitmap, format, r#type)
+            }
+            TexImageSource::ImageData(image_data) => match image_data.pixels() {
+                Some(pixels) => {
+                    let (width, height) = image_data.size();
+                    // SAFETY: Nothing runs script while the pixels are copied.
+                    unsafe { read_tex_image_pixels(pixels, width, height, format, r#type) }
+                }
+                // If this function is called with an ImageData whose data attribute has been neutered, an
+                // INVALID_VALUE error is generated.
+                None => TexImageSourceFrame::InvalidValue,
+            },
+            TexImageSource::HTMLImageElement(object) => {
+                read_tex_image_source(object, TexImageSourceKind::HTMLImageElement, format, r#type)
+            }
+            TexImageSource::HTMLCanvasElement(object) => {
+                read_tex_image_source(object, TexImageSourceKind::HTMLCanvasElement, format, r#type)
+            }
+            TexImageSource::HTMLVideoElement(object) => {
+                read_tex_image_source(object, TexImageSourceKind::HTMLVideoElement, format, r#type)
+            }
+            TexImageSource::OffscreenCanvas(object) => {
+                read_tex_image_source(object, TexImageSourceKind::OffscreenCanvas, format, r#type)
+            }
         };
-        let frame = match read_tex_image_source(source_object, source_kind, format, r#type) {
+        let frame = match source_frame {
             TexImageSourceFrame::Frame(frame) => frame,
             TexImageSourceFrame::NoFrame => return None,
             TexImageSourceFrame::InvalidValue => {
@@ -372,7 +395,7 @@ impl ContextState {
         // The first pixel transferred from the source to the WebGL implementation corresponds to the upper left
         // corner of the source. This behavior is modified by the UNPACK_FLIP_Y_WEBGL pixel storage parameter,
         // except for ImageBitmap arguments, as described in the abovementioned section.
-        let flip_y = self.unpack_flip_y.get() && source_kind != TexImageSourceKind::ImageBitmap;
+        let flip_y = self.unpack_flip_y.get() && !matches!(source, TexImageSource::ImageBitmap(_));
         let upload = FrameUpload {
             destination_size: None,
             flip_y,

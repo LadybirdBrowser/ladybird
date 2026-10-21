@@ -9,10 +9,10 @@ dictionary ImageDataSettings {
 };
 
 // https://html.spec.whatwg.org/multipage/canvas.html#imagedata
-[Exposed=(Window,Worker), Serializable]
+[Exposed=(Window,Worker), Serializable, ImplementedIn=Rust]
 interface ImageData {
-    constructor(unsigned long sw, unsigned long sh, optional ImageDataSettings settings = {});
-    constructor(ImageDataArray data, unsigned long sw, optional unsigned long sh, optional ImageDataSettings settings = {});
+    [ImplementedAs=construct_with_size] constructor(unsigned long sw, unsigned long sh, optional ImageDataSettings settings = {});
+    [ImplementedAs=construct_with_data] constructor(ImageDataArray data, unsigned long sw, optional unsigned long sh, optional ImageDataSettings settings = {});
 
     readonly attribute unsigned long width;
     readonly attribute unsigned long height;

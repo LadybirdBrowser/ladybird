@@ -529,17 +529,21 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
         // -> ImageData
         [&](GC::Ref<ImageData> image_data) -> void {
             // 1. Let buffer be image's data attribute value's [[ViewedArrayBuffer]] internal slot.
-            auto const buffer = image_data->data()->viewed_array_buffer();
-
             // 2. If IsDetachedBuffer(buffer) is true, then return a promise rejected with an "InvalidStateError" DOMException.
-            if (buffer->is_detached()) {
+            if (image_data->is_detached()) {
                 WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image data is detached"_utf16));
                 return;
             }
 
+            if (!image_data->pixels()) {
+                WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image data is detached or out-of-bounds"_utf16));
+                return;
+            }
+
+            // AD-HOC: Reject promise with an "InvalidStateError" DOMException if the image data is too large for a bitmap
             auto bitmap_or_error = image_data->bitmap();
             if (bitmap_or_error.is_error()) {
-                WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image data is detached or out-of-bounds"_utf16));
+                WebIDL::reject_promise(*p, WebIDL::InvalidStateError::create("Image size is too large"_utf16));
                 return;
             }
 

@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The objects that the 2D canvas contexts draw with, and the operations of a path that Path2D and the contexts
-//! share. The contexts are still LibWeb's C++, which creates and reads these objects and builds its paths through the
-//! C ABI of `exports`.
+//! The objects that the 2D canvas contexts draw with, the image data that they and WebGL read and write the pixels of,
+//! and the operations of a path that Path2D and the contexts share. The contexts are still LibWeb's C++, which creates and
+//! reads these objects and builds its paths through the C ABI of `exports`.
 
 pub(crate) mod canvas_path;
 pub(crate) mod color_stops;
+pub(crate) mod predefined_color_space;
 
 // What follows runs on the JS runtime, which the tests of the crate do not link.
 #[cfg(not(test))]
@@ -18,6 +19,8 @@ pub(crate) mod canvas_gradient;
 pub(crate) mod canvas_pattern;
 #[cfg(not(test))]
 pub(crate) mod exports;
+#[cfg(not(test))]
+pub(crate) mod image_data;
 #[cfg(not(test))]
 pub(crate) mod path2d;
 #[cfg(not(test))]

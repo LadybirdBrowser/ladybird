@@ -15,7 +15,6 @@
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/WebGLContextEvent.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Compositor/CompositorHost.h>
@@ -26,7 +25,6 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
-#include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -73,10 +71,10 @@ struct ContextCreationArguments {
     ReadonlySpan<ReadonlyBytes> supported_extensions;
 };
 
-// `TexImageSourceKind` and `TexImageSourceResult` of Bindings/Rust/src/web_gl/canvas.rs.
+// `TexImageSourceKind` and `TexImageSourceResult` of Bindings/Rust/src/web_gl/canvas.rs. The kinds are the sources
+// that are implemented in C++.
 enum class TexImageSourceKind : u8 {
     ImageBitmap,
-    ImageData,
     HTMLImageElement,
     HTMLCanvasElement,
     HTMLVideoElement,
@@ -132,6 +130,7 @@ bool web_webgl_expose_experimental_interfaces();
 bool web_webgl_is_valid_2d_pixel_unpack_state(i32 width, PixelUnpackState const* unpack_state);
 bool web_webgl_required_2d_texture_data_size(i32 width, i32 height, u32 format, u32 type, PixelUnpackState const* unpack_state, size_t* out_size);
 TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexImageSourceKind, u32 format, u32 type, void** out_frame);
+TexImageSourceResult web_webgl_read_tex_image_pixels(u8 const* pixels, u32 width, u32 height, u32 format, u32 type, void** out_frame);
 void* web_webgl_make_xr_compatible(void* context);
 }
 
@@ -482,16 +481,26 @@ bool web_webgl_required_2d_texture_data_size(i32 width, i32 height, u32 format, 
     return true;
 }
 
+// The frame that a texture image source uploads, which the recorder takes over, if this format and type upload one.
+static TexImageSourceResult tex_image_source_frame(Optional<Compositing::WebGL::ImageSourceFrame> frame, u32 format, u32 type, void** out_frame)
+{
+    if (!frame.has_value())
+        return TexImageSourceResult::NoFrame;
+
+    // Validate the combination before recording; the pixels travel to the host as shared
+    // memory and the host performs the conversion next to GL.
+    if (!texture_export_format(format, type).has_value())
+        return TexImageSourceResult::NoFrame;
+
+    // FIXME: Respect unpackColorSpace
+    *out_frame = new ImageSourceFrameOwnedByRecorder { frame.release_value() };
+    return TexImageSourceResult::Frame;
+}
+
 TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexImageSourceKind source_kind, u32 format, u32 type, void** out_frame)
 {
-    // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
-    //        an INVALID_VALUE error is generated.
     // FIXME: If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE
     //        error is generated.
-    // FIXME: If this function is called with an HTMLImageElement or HTMLVideoElement whose origin
-    //        differs from the origin of the containing Document, or with an HTMLCanvasElement,
-    //        ImageBitmap or OffscreenCanvas whose bitmap's origin-clean flag is set to false,
-    //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
     // FIXME: If source is null then an INVALID_VALUE error is generated.
     auto& wrapper = *static_cast<JS::Object*>(source_wrapper);
     Optional<Compositing::WebGL::ImageSourceFrame> frame;
@@ -515,36 +524,27 @@ TexImageSourceResult web_webgl_read_tex_image_source(void* source_wrapper, TexIm
     case TexImageSourceKind::ImageBitmap:
         frame = Gfx::DecodedImageFrame { *Bindings::impl_from<HTML::ImageBitmap>(wrapper).bitmap() };
         break;
-    case TexImageSourceKind::ImageData: {
-        // ImageData keeps a cached bitmap for ordinary use, but its data
-        // attribute can be detached independently. WebGL must reject that
-        // source instead of uploading the stale cached pixels.
-        auto& source = Bindings::impl_from<HTML::ImageData>(wrapper);
-        auto data = source.data();
-        if (!data)
-            return TexImageSourceResult::NoFrame;
-        auto data_record = JS::make_typed_array_with_buffer_witness_record(*data, JS::ArrayBuffer::Order::SeqCst);
-        if (JS::is_typed_array_out_of_bounds(data_record))
-            return TexImageSourceResult::InvalidValue;
-        auto bitmap = source.bitmap();
-        if (bitmap.is_error())
-            return TexImageSourceResult::InvalidValue;
-        NonnullRefPtr<Gfx::Bitmap const> bitmap_ref = bitmap.release_value();
-        frame = Gfx::DecodedImageFrame { move(bitmap_ref) };
-        break;
     }
-    }
-    if (!frame.has_value())
-        return TexImageSourceResult::NoFrame;
+    return tex_image_source_frame(move(frame), format, type, out_frame);
+}
 
-    // Validate the combination before recording; the pixels travel to the host as shared
-    // memory and the host performs the conversion next to GL.
+// The pixels of an ImageData, which are copied: script can change them, and detach or free their buffer, before the
+// recorder sends the frame.
+TexImageSourceResult web_webgl_read_tex_image_pixels(u8 const* pixels, u32 width, u32 height, u32 format, u32 type, void** out_frame)
+{
+    // NB: Check the format first, so that pixels that are not uploaded are not copied.
     if (!texture_export_format(format, type).has_value())
         return TexImageSourceResult::NoFrame;
 
-    // FIXME: Respect unpackColorSpace
-    *out_frame = new ImageSourceFrameOwnedByRecorder { frame.release_value() };
-    return TexImageSourceResult::Frame;
+    // NB: The bitmap is shareable, so that the recorder sends it to the host without copying the pixels again.
+    auto bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, { static_cast<int>(width), static_cast<int>(height) });
+    if (bitmap.is_error())
+        return TexImageSourceResult::InvalidValue;
+    auto row_size = static_cast<size_t>(width) * sizeof(u32);
+    for (u32 y = 0; y < height; ++y)
+        memcpy(bitmap.value()->scanline_u8(static_cast<int>(y)), pixels + y * row_size, row_size);
+    NonnullRefPtr<Gfx::Bitmap const> pixels_bitmap = bitmap.release_value();
+    return tex_image_source_frame(Compositing::WebGL::ImageSourceFrame { Gfx::DecodedImageFrame { move(pixels_bitmap) } }, format, type, out_frame);
 }
 
 void* web_webgl_make_xr_compatible(void* context)

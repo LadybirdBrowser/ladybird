@@ -12,53 +12,37 @@
 #include <LibGfx/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/ImageData.h>
-#include <LibWeb/Bindings/PredefinedColorSpace.h>
-#include <LibWeb/Bindings/Serializable.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWebCommon/WebIDL/Types.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Export.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
-class WEB_API ImageData final
-    : public Bindings::GCAllocatedWrappable
-    , public Bindings::Serializable {
-    WEB_WRAPPABLE(ImageData, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(ImageData);
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagedata
+// The C++ side of an ImageData, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/html): what the 2D
+// contexts create, read and write the pixels of, and createImageBitmap() reads.
+class WEB_API ImageData final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(ImageData, image_data)
 
 public:
     using Settings = Bindings::ImageDataSettings;
 
-    [[nodiscard]] static GC::Ref<ImageData> create();
-    [[nodiscard]] static GC::Ref<ImageData> create(NonnullRefPtr<Gfx::Bitmap>, GC::Ref<JS::Uint8ClampedArray>, PredefinedColorSpace);
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, u32 sw, u32 sh, Optional<Settings> const& settings = {});
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, GC::Ref<JS::Uint8ClampedArray> data, u32 sw, Optional<u32> sh = {}, Optional<Settings> const& settings = {});
+    // A new ImageData of the size, with transparent black pixels, https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#initialize-an-imagedata-object
+    static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, u32 width, u32 height, Optional<Settings> const& = {});
 
-    virtual ~ImageData() override;
+    u32 width() const;
+    u32 height() const;
 
-    WebIDL::UnsignedLong width() const;
-    WebIDL::UnsignedLong height() const;
+    // Whether the buffer of the data attribute is detached.
+    bool is_detached() const;
 
-    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> bitmap();
+    // The pixels, RGBA8888 and unpremultiplied, width() × 4 bytes per row, in the buffer of the data attribute; null if
+    // the buffer is detached or the data has no room for them. Script can detach the buffer, so they are valid until
+    // script runs.
+    u8* pixels() const;
 
-    JS::Uint8ClampedArray* data();
-    JS::Uint8ClampedArray const* data() const;
-
-    PredefinedColorSpace color_space() const { return m_color_space; }
-
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
-
-private:
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> initialize(JS::Realm&, u32 rows, u32 pixels_per_row, Optional<Settings> const&, GC::Ptr<JS::Uint8ClampedArray> = {}, Optional<PredefinedColorSpace> = {});
-
-    ImageData();
-    ImageData(NonnullRefPtr<Gfx::Bitmap>, GC::Ref<JS::Uint8ClampedArray>, PredefinedColorSpace);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    RefPtr<Gfx::Bitmap> m_bitmap;
-    PredefinedColorSpace m_color_space { PredefinedColorSpace::Srgb };
-    GC::Ptr<JS::Uint8ClampedArray> m_data;
+    // A bitmap that views the pixels, valid until script runs.
+    ErrorOr<NonnullRefPtr<Gfx::Bitmap>> bitmap() const;
 };
 
 }

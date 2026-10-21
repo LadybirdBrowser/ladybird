@@ -9,6 +9,7 @@
 #include <AK/FlyString.h>
 #include <AK/NumericLimits.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/BigIntObject.h>
@@ -534,7 +535,7 @@ TEST_CASE(image_serializables_round_trip)
         auto& image = unwrap_wrappable<Web::HTML::ImageData>(MUST(storage_deserialize(frozen_image_data_record({ pixels.data(), pixels.size() }, 1, 1, "srgb"sv))));
         EXPECT_EQ(image.width(), 1u);
         EXPECT_EQ(image.height(), 1u);
-        EXPECT(image.data() != nullptr);
+        EXPECT(image.pixels() != nullptr);
     }
 
     {
@@ -543,6 +544,35 @@ TEST_CASE(image_serializables_round_trip)
         EXPECT_EQ(bitmap.width(), 2u);
         EXPECT_EQ(bitmap.height(), 2u);
     }
+}
+
+TEST_CASE(image_data_over_a_shrunk_resizable_buffer_has_no_pixels)
+{
+    auto& realm = test_realm();
+    auto& vm = realm.vm();
+
+    // An ImageData whose data views all of a resizable buffer, which script can shrink after it arrives.
+    Array<u8, 8> pixels { 1, 2, 3, 4, 5, 6, 7, 8 };
+    Vector<u8> body;
+    append_array_buffer_view_value(body, "Uint8ClampedArray"sv, BackingBuffer::Resizable, { pixels.data(), pixels.size() }, static_cast<u32>(pixels.size()), 0, static_cast<u32>(pixels.size()));
+    append_storage_signed_leb128(body, 2);
+    append_storage_signed_leb128(body, 1);
+    append_storage_string(body, "srgb"sv);
+    auto value = MUST(storage_deserialize(serializable_storage_record("ImageData"sv, 1, body)));
+    auto& image = unwrap_wrappable<Web::HTML::ImageData>(value);
+    EXPECT(image.pixels() != nullptr);
+    EXPECT(!image.bitmap().is_error());
+
+    auto data = MUST(value.as_object().get("data"_utf16_fly_string));
+    auto& buffer = *as<JS::TypedArrayBase>(data.as_object()).viewed_array_buffer();
+    EXPECT(!buffer.is_fixed_length());
+    MUST(JS::call(vm, MUST(buffer.get(vm.names.resize)), JS::Value { &buffer }, JS::Value(4)));
+
+    // The data no longer has room for the pixels, so they are not read: putImageData() and createImageBitmap() see
+    // no pixels, and WebGL uploads none.
+    EXPECT(!image.is_detached());
+    EXPECT_EQ(image.pixels(), nullptr);
+    EXPECT(image.bitmap().is_error());
 }
 
 TEST_CASE(webassembly_module_decodes_from_frozen_bytes)
