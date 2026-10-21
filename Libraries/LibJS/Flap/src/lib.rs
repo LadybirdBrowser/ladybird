@@ -30,6 +30,7 @@ pub(crate) mod identity;
 pub(crate) mod intrinsic;
 pub(crate) mod low_ir;
 pub mod metadata;
+pub(crate) mod profile;
 pub mod runtime_interface;
 pub mod rust_bytecode;
 pub(crate) mod ssa;
@@ -56,6 +57,7 @@ use types::BlockTemperature;
 
 pub use frontend::diagnostic::{SourceLocation, SourceSpan};
 pub use low_ir::Program as LowProgram;
+pub use profile::Profile;
 pub use ssa::report::{
     FixedPointOptimizationReport, FunctionOptimizationReport, OptimizationRecord, OptimizationRemark,
     OptimizationRemarkKind, OptimizationReport, PassRunReport,
@@ -95,6 +97,8 @@ pub struct CompileOptions {
     /// a `_profiling` suffix so both variants can be linked together. The
     /// plain variant compiles those functions to nothing.
     pub profiling: bool,
+    /// The virtual machine the interpreter is compiled for.
+    pub profile: Profile,
 }
 
 /// Controls optional diagnostics collected while optimizing a program.
@@ -166,6 +170,7 @@ pub struct PreparedProgram {
 struct BytecodeMetadata {
     handler_layouts: Vec<BytecodeHandlerLayout>,
     dispatch_handlers: Vec<Option<HandlerId>>,
+    dispatch: identity::DispatchLayout,
 }
 
 /// Textual assembly produced by a Flap backend.
@@ -437,9 +442,20 @@ impl Compiler {
                 .iter()
                 .map(|specialization| specialization.definition.clone()),
         );
+        let encoding = self.options.profile.instruction_encoding();
+        if self.options.profile == Profile::WebAssembly
+            && self.options.target.architecture == Architecture::Aarch64
+            && self.options.target.object_format == ObjectFormat::Coff
+        {
+            return Err(CompileError::new(
+                CompileStage::Parse,
+                None,
+                "the WebAssembly profile is not implemented for AArch64 Windows",
+            ));
+        }
         // The interpreter dispatches on a single opcode byte, so a table beyond
         // 256 entries would have unreachable handlers.
-        if ops.len() > DISPATCH_TABLE_SIZE {
+        if encoding == profile::InstructionEncoding::FixedLayout && ops.len() > DISPATCH_TABLE_SIZE {
             return Err(CompileError::new(
                 CompileStage::Parse,
                 None,
@@ -483,6 +499,7 @@ impl Compiler {
             .enumerate()
             .map(|(index, typed_handler)| {
                 let mut function = ssa::lowering::lower_handler(typed_handler)?;
+                function.exact_u32_arithmetic = self.options.profile == Profile::WebAssembly;
                 ssa::inline::inline_calls(&mut function, &ssa_inline_functions)?;
                 ssa::optimize::resolve_constants(&mut function, &constants);
                 Ok(HandlerTemplate {
@@ -516,27 +533,51 @@ impl Compiler {
 
         for handler in &mut handlers {
             ssa::optimize::resolve_layout_constants(&mut handler.function, &constants)?;
+            check_profile_registers(&handler.function, self.options.profile)?;
         }
 
         let handler_ids = handlers
             .iter()
             .map(|handler| (handler.name(), handler.id))
             .collect::<HashMap<_, _>>();
-        let dispatch_handlers = ops
-            .iter()
-            .map(|op| handler_ids.get(op.name.as_str()).copied())
-            .collect();
+        let (dispatch_handlers, dispatch) = match encoding {
+            profile::InstructionEncoding::FixedLayout => (
+                ops.iter()
+                    .map(|op| handler_ids.get(op.name.as_str()).copied())
+                    .collect(),
+                identity::DispatchLayout::default(),
+            ),
+            profile::InstructionEncoding::RawBytes => raw_bytes_dispatch(&ops, &handler_ids)?,
+        };
         let ops_by_name = ops.iter().map(|op| (op.name.as_str(), op)).collect::<HashMap<_, _>>();
         let handler_layouts = handlers
             .iter()
             .map(|handler| {
-                BytecodeHandlerLayout::new(
+                let op = ops_by_name.get(handler.name()).copied();
+                let mut layout = BytecodeHandlerLayout::new(
                     handler.name(),
                     &handler.function.parameter_names,
                     &handler.function.parameter_types,
-                    ops_by_name.get(handler.name()).copied(),
+                    op,
                 )
-                .map_err(|message| CompileError::new(CompileStage::Semantic, Some(handler.name()), message))
+                .map_err(|message| CompileError::new(CompileStage::Semantic, Some(handler.name()), message))?;
+                if encoding == profile::InstructionEncoding::RawBytes {
+                    if !handler.function.parameter_names.is_empty() {
+                        return Err(CompileError::new(
+                            CompileStage::Semantic,
+                            Some(handler.name()),
+                            "a raw-bytes handler decodes its own immediates and cannot declare parameters",
+                        ));
+                    }
+                    // `dispatch_next` steps over a primary opcode byte. Prefixed handlers
+                    // decode the length of their sub-opcode themselves.
+                    layout.size = match op.and_then(|op| op.opcode) {
+                        Some(metadata::RawOpcode::Primary(_)) => Some(1),
+                        _ => None,
+                    };
+                    layout.slow_path = None;
+                }
+                Ok(layout)
             })
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -546,6 +587,7 @@ impl Compiler {
                 bytecode: BytecodeMetadata {
                     handler_layouts,
                     dispatch_handlers,
+                    dispatch,
                 },
                 handlers,
             },
@@ -566,6 +608,7 @@ impl Compiler {
             }
         }
         program.dispatch_handlers = prepared.bytecode.dispatch_handlers.clone();
+        program.dispatch = prepared.bytecode.dispatch.clone();
 
         for template in &prepared.handlers {
             let mut handler = low_ir::lowering::lower_handler_with_constants(
@@ -660,6 +703,117 @@ impl Compiler {
     }
 }
 
+/// The number of entries of each secondary dispatch table. Sub-opcodes are
+/// LEB128 values, so handlers bounds check them before dispatching.
+pub(crate) const SECONDARY_DISPATCH_TABLE_SIZE: usize = 512;
+
+/// Build the dispatch tables of a raw-bytes program from the `@opcode`
+/// annotations of its handlers.
+fn raw_bytes_dispatch(
+    ops: &[metadata::InstructionDefinition],
+    handler_ids: &HashMap<&str, HandlerId>,
+) -> Result<(Vec<Option<HandlerId>>, identity::DispatchLayout), CompileError> {
+    let mut primary = vec![None; DISPATCH_TABLE_SIZE];
+    let mut dispatch = identity::DispatchLayout::default();
+    let semantic_error = |op: &metadata::InstructionDefinition, message: String| {
+        CompileError::new(CompileStage::Semantic, Some(&op.name), message)
+    };
+    for op in ops {
+        let Some(&id) = handler_ids.get(op.name.as_str()) else {
+            continue;
+        };
+        if op.is_fallback {
+            if op.opcode.is_some() {
+                return Err(semantic_error(
+                    op,
+                    "a @fallback handler cannot have an opcode".to_string(),
+                ));
+            }
+            if dispatch.fallback.replace(id).is_some() {
+                return Err(semantic_error(
+                    op,
+                    "a program can only have one @fallback handler".to_string(),
+                ));
+            }
+            continue;
+        }
+        let slot = match op.opcode {
+            None => {
+                return Err(semantic_error(
+                    op,
+                    "a raw-bytes handler needs an @opcode or @fallback annotation".to_string(),
+                ));
+            }
+            Some(metadata::RawOpcode::Primary(opcode)) => &mut primary[usize::from(opcode)],
+            Some(metadata::RawOpcode::Prefixed { prefix, sub_opcode }) => {
+                if !(0xfb..=0xff).contains(&prefix) {
+                    return Err(semantic_error(
+                        op,
+                        format!("secondary dispatch tables exist for the prefixes 0xfb to 0xff, not {prefix:#x}"),
+                    ));
+                }
+                if sub_opcode as usize >= SECONDARY_DISPATCH_TABLE_SIZE {
+                    return Err(semantic_error(
+                        op,
+                        format!("sub-opcode {sub_opcode:#x} exceeds the {SECONDARY_DISPATCH_TABLE_SIZE}-entry table"),
+                    ));
+                }
+                let index = match dispatch.secondary.iter().position(|table| table.prefix == prefix) {
+                    Some(index) => index,
+                    None => {
+                        dispatch.secondary.push(identity::SecondaryDispatchTable {
+                            prefix,
+                            handlers: vec![None; SECONDARY_DISPATCH_TABLE_SIZE],
+                        });
+                        dispatch.secondary.len() - 1
+                    }
+                };
+                &mut dispatch.secondary[index].handlers[sub_opcode as usize]
+            }
+        };
+        if slot.replace(id).is_some() {
+            return Err(semantic_error(
+                op,
+                "another handler already has this opcode".to_string(),
+            ));
+        }
+    }
+    dispatch.secondary.sort_by_key(|table| table.prefix);
+    Ok((primary, dispatch))
+}
+
+/// Reject handlers that name interpreter registers their profile does not pin.
+fn check_profile_registers(function: &ssa::Function, profile: Profile) -> Result<(), CompileError> {
+    use types::{InterpreterRegister, RegisterReference};
+    let check = |register: InterpreterRegister| {
+        if profile.has_register(register) {
+            return Ok(());
+        }
+        Err(CompileError::new(
+            CompileStage::Semantic,
+            Some(&function.name),
+            format!(
+                "the {profile:?} profile has no interpreter register '{}'",
+                register.as_str()
+            ),
+        ))
+    };
+    for value in &function.values {
+        if let ssa::ValueDefinition::Constant(ssa::Constant::MachineRegister(RegisterReference::Interpreter(
+            register,
+        ))) = &value.definition
+        {
+            check(*register)?;
+        }
+    }
+    for instruction in &function.instructions {
+        if let ssa::Operation::MachineAssign { destination, .. } = &instruction.operation {
+            check(*destination)?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -693,6 +847,7 @@ const HEAP_REGION_OFFSET_MASK = 0x3FFFFFFFFFF
             has_jscvt: false,
             enable_assertions: false,
             profiling: false,
+            profile: Profile::JavaScript,
         })
     }
 

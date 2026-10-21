@@ -31,6 +31,9 @@ pub(crate) fn select_program(
             orient_commutative_updates(&mut handler.instructions);
             split_rematerializable_live_ranges_across_calls(&mut handler.instructions);
             materialize_constant_register_inputs(&mut handler.instructions);
+            if architecture == Architecture::X86_64 {
+                materialize_wide_immediates(&mut handler.instructions);
+            }
             // Splitting and constant materialization create new virtual registers, so interning must follow them.
             let virtual_registers = low_ir::intern_virtual_registers(handler.id, &mut handler.instructions);
             let mut instructions = Vec::with_capacity(handler.instructions.len());
@@ -98,6 +101,7 @@ pub(crate) fn select_program(
     Ok(Program {
         runtime: program.runtime,
         dispatch_handlers: program.dispatch_handlers,
+        dispatch: program.dispatch,
         architecture,
         functions,
     })
@@ -116,6 +120,92 @@ fn materialize_constant_register_inputs(instructions: &mut Vec<low_ir::Instructi
             }
             let register = LowOperand::VirtualRegister(low_ir::VirtualRegister::new(format!(
                 "constant_{instruction_index}_{operand_index}"
+            )));
+            materialized.push(low_ir::Instruction {
+                opcode: Operation::Move(IntegerWidth::U64),
+                operands: vec![register.clone(), std::mem::replace(operand, register)],
+            });
+        }
+        materialized.push(instruction);
+    }
+    *instructions = materialized;
+}
+
+/// x86-64 compares, combines, and multiplies 64-bit registers only with sign-extended 32-bit immediates, so other
+/// immediates go into a register first, which also spares the operations scratch registers of their own.
+fn materialize_wide_immediates(instructions: &mut Vec<low_ir::Instruction>) {
+    let mut materialized = Vec::with_capacity(instructions.len());
+    for (instruction_index, mut instruction) in std::mem::take(instructions).into_iter().enumerate() {
+        let compares_64_bits = matches!(
+            instruction.opcode,
+            Operation::Branch(
+                crate::intrinsic::BranchOperation::Equality {
+                    width: IntegerWidth::U64,
+                    ..
+                } | crate::intrinsic::BranchOperation::Ordered {
+                    width: IntegerWidth::U64,
+                    ..
+                }
+            ) | Operation::AssertBranch(
+                crate::intrinsic::BranchOperation::Equality {
+                    width: IntegerWidth::U64,
+                    ..
+                } | crate::intrinsic::BranchOperation::Ordered {
+                    width: IntegerWidth::U64,
+                    ..
+                }
+            )
+        );
+        let combines_64_bits = matches!(
+            instruction.opcode,
+            Operation::IntegerBinary {
+                operation: crate::intrinsic::IntegerBinaryOperation::Binary(
+                    crate::target::description::BinaryOperation::Add
+                        | crate::target::description::BinaryOperation::Subtract
+                        | crate::target::description::BinaryOperation::And
+                        | crate::target::description::BinaryOperation::Or
+                        | crate::target::description::BinaryOperation::Xor
+                ),
+                width: IntegerWidth::U64,
+            }
+        );
+        // Masking with 0xffffffff is a 32-bit move, which needs no immediate.
+        let is_low_half_mask = matches!(
+            instruction.opcode,
+            Operation::IntegerBinary {
+                operation: crate::intrinsic::IntegerBinaryOperation::Binary(
+                    crate::target::description::BinaryOperation::And
+                ),
+                ..
+            }
+        ) && matches!(instruction.operands.get(1), Some(LowOperand::Immediate(value)) if *value as u64 == 0xffff_ffff);
+        let multiplies_64_bits = matches!(
+            instruction.opcode,
+            Operation::IntegerBinary {
+                operation: crate::intrinsic::IntegerBinaryOperation::Binary(
+                    crate::target::description::BinaryOperation::Multiply
+                ),
+                width: IntegerWidth::U64,
+            }
+        );
+        // A multiplication can take its immediate in any input position, the others take it second.
+        let candidates = if multiplies_64_bits {
+            1..instruction.operands.len()
+        } else if compares_64_bits || combines_64_bits {
+            1..instruction.operands.len().min(2)
+        } else {
+            0..0
+        };
+        for position in candidates {
+            if is_low_half_mask {
+                break;
+            }
+            let operand = &mut instruction.operands[position];
+            if !matches!(operand, LowOperand::Immediate(value) if i32::try_from(*value).is_err()) {
+                continue;
+            }
+            let register = LowOperand::VirtualRegister(low_ir::VirtualRegister::new(format!(
+                "wide_immediate_{instruction_index}_{position}"
             )));
             materialized.push(low_ir::Instruction {
                 opcode: Operation::Move(IntegerWidth::U64),

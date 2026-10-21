@@ -460,6 +460,8 @@ mod tests {
                 falls_through: false,
                 layout: Default::default(),
                 array: None,
+                opcode: None,
+                is_fallback: false,
             },
             components: Vec::new(),
         }];
@@ -489,6 +491,8 @@ mod tests {
                 falls_through: false,
                 layout: Default::default(),
                 array: None,
+                opcode: None,
+                is_fallback: false,
             },
             components: vec![crate::metadata::SpecializedComponentLayout {
                 bytecode: "Source".to_string(),

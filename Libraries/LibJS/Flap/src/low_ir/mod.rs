@@ -87,6 +87,17 @@ impl VirtualRegister {
         }
     }
 
+    /// A register created after interning, with the next free index of its function.
+    pub(crate) fn interned(name: impl Into<String>, function: HandlerId, index: u32, class: RegisterClass) -> Self {
+        Self {
+            id: Some(VirtualRegisterId { function, index }),
+            name: name.into().into(),
+            class,
+            origin: VirtualRegisterOrigin::Named,
+            identity_hash: 0,
+        }
+    }
+
     pub(crate) fn ssa(function: HandlerId, index: u32, value: usize, class: RegisterClass) -> Self {
         Self {
             id: Some(VirtualRegisterId { function, index }),
@@ -544,6 +555,7 @@ pub struct Program {
     pub(crate) runtime: RuntimeConstants,
     pub(crate) handlers: Vec<Handler>,
     pub(crate) dispatch_handlers: Vec<Option<HandlerId>>,
+    pub(crate) dispatch: crate::identity::DispatchLayout,
 }
 
 impl Program {
@@ -552,6 +564,7 @@ impl Program {
             runtime: RuntimeConstants::default(),
             handlers: Vec::new(),
             dispatch_handlers: Vec::new(),
+            dispatch: Default::default(),
         }
     }
 }

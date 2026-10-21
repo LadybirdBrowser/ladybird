@@ -29,6 +29,7 @@ fn compile(architecture: Architecture, profiling: bool) -> String {
         has_jscvt: false,
         enable_assertions: true,
         profiling,
+        profile: flapc::Profile::JavaScript,
     })
     .compile(CompilationUnit {
         source: SourceInput {

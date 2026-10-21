@@ -1397,6 +1397,11 @@ impl Lowerer<'_> {
                     vec![lhs, rhs],
                 )
             }
+            Condition::FloatComparison { lhs, rhs, comparison } => {
+                let lhs = self.lower_value(lhs)?;
+                let rhs = self.lower_value(rhs)?;
+                self.append_integer_comparison(IntegerComparisonOperation::Float(*comparison), vec![lhs, rhs])
+            }
             Condition::BitTest { value, mask, set } => {
                 let value = self.lower_value(value)?;
                 let mask = self.lower_value(mask)?;

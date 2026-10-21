@@ -85,6 +85,9 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
             // NB: A load that traps carries an assertion about what it loaded, so it can only reuse
             //     a load that made the same assertion. Reusing a plain load would drop the check.
             let traps = function.instructions[instruction_id.0].effects.may_trap;
+            // OPTIMIZATION: A cold block reloads what a hot block already loaded instead of reusing it. Reusing the
+            // value would keep it live through the hot path up to the cold branch, which costs a register there.
+            let in_cold_block = function.blocks[block.0].layout == super::BlockLayout::Cold;
             let key = location_key(function, location);
             let forwarded_load =
                 available_loads
@@ -94,6 +97,9 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
                     .rev()
                     .find_map(|(load, loaded_location, value)| {
                         ((!traps || function.instructions[load.0].effects.may_trap)
+                            && (!in_cold_block
+                                || function.blocks[analysis.instruction_layout.block(*load).0].layout
+                                    == super::BlockLayout::Cold)
                             && dominates_instruction(&analysis, *load, *instruction_id)
                             && alias(function, loaded_location, location) == AliasResult::Must
                             && function.values[value.0].ty == *result_type

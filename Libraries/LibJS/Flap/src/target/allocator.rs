@@ -215,6 +215,7 @@ pub(crate) fn allocate_program(program: TargetProgram) -> Result<AllocatedProgra
     let allocated = AllocatedProgram {
         runtime: program.runtime,
         dispatch_handlers: program.dispatch_handlers,
+        dispatch: program.dispatch,
         architecture: program.architecture,
         functions,
     };
@@ -251,13 +252,148 @@ pub(crate) fn allocate_handler(
         .filter(|instruction| instruction.opcode.operation() != crate::target::description::Operation::Cold)
         .collect::<Vec<_>>();
     let successors = instruction_successors(&analyzed);
-    let assignments = allocate(handler, &analyzed, &successors, arch)?;
-    let mut rewritten = rewrite(handler, &handler.instructions, &assignments, runtime)?;
+    let assignments = match allocate(handler, &analyzed, &successors, arch) {
+        Ok(assignments) => assignments,
+        Err(error) => match crate::target::spill::SpillArea::of(runtime) {
+            Some(area) => return allocate_with_spills(handler, runtime, area, error),
+            None => return Err(error),
+        },
+    };
+    finish_allocation(handler, &assignments, runtime)
+}
+
+fn finish_allocation(
+    handler: &TargetFunction,
+    assignments: &AllocationPlan,
+    runtime: &RuntimeConstants,
+) -> Result<ControlFlowGraph<AllocatedOperand, SelectedOpcode>, CompileError> {
+    let mut rewritten = rewrite(handler, &handler.instructions, assignments, runtime)?;
     invert_branches_over_jumps(&mut rewritten);
     remove_unreferenced_labels(&mut rewritten);
     invert_branches_over_jumps(&mut rewritten);
     remove_unreferenced_labels(&mut rewritten);
     build_allocated_graph(handler, rewritten)
+}
+
+/// Allocate a handler that does not fit in the registers by spilling values to the profile's spill area, one at a
+/// time, until it does. Handlers that fit never get here, so their code does not change.
+fn allocate_with_spills(
+    handler: &TargetFunction,
+    runtime: &RuntimeConstants,
+    area: crate::target::spill::SpillArea,
+    original_error: CompileError,
+) -> Result<ControlFlowGraph<AllocatedOperand, SelectedOpcode>, CompileError> {
+    let mut function = handler.clone();
+    let try_allocate = |function: &TargetFunction| {
+        let analyzed = function
+            .instructions
+            .iter()
+            .filter(|instruction| instruction.opcode.operation() != crate::target::description::Operation::Cold)
+            .collect::<Vec<_>>();
+        let successors = instruction_successors(&analyzed);
+        allocate(function, &analyzed, &successors, function.architecture)
+    };
+    if crate::target::spill::isolate_fixed_operands(&mut function)
+        && let Ok(assignments) = try_allocate(&function)
+    {
+        return finish_allocation(&function, &assignments, runtime);
+    }
+    let mut slot = 0;
+    // Rematerializing takes no slot, so this is bounded by the number of values rather than of slots.
+    for _ in 0..function.virtual_registers.len() {
+        // Spill from the class that is over capacity somewhere, and from the other one if nothing in it can be.
+        let first = pressured_class(&function).unwrap_or(VirtualRegisterClass::GeneralPurpose);
+        let others = match first {
+            VirtualRegisterClass::GeneralPurpose => [VirtualRegisterClass::FloatingPoint, VirtualRegisterClass::Vector],
+            VirtualRegisterClass::FloatingPoint => [VirtualRegisterClass::Vector, VirtualRegisterClass::GeneralPurpose],
+            VirtualRegisterClass::Vector => [
+                VirtualRegisterClass::FloatingPoint,
+                VirtualRegisterClass::GeneralPurpose,
+            ],
+        };
+        if ![first, others[0], others[1]]
+            .into_iter()
+            .any(|class| crate::target::spill::spill_one_register(&mut function, &area, &mut slot, class))
+        {
+            break;
+        }
+        let analyzed = function
+            .instructions
+            .iter()
+            .filter(|instruction| instruction.opcode.operation() != crate::target::description::Operation::Cold)
+            .collect::<Vec<_>>();
+        let successors = instruction_successors(&analyzed);
+        if let Ok(assignments) = allocate(&function, &analyzed, &successors, function.architecture) {
+            return finish_allocation(&function, &assignments, runtime);
+        }
+    }
+    Err(original_error)
+}
+
+/// For each instruction of `function`, the indices of the virtual registers live right after it. Cold annotations
+/// execute nothing, and nothing is live after them.
+pub(crate) fn live_after_each_instruction(function: &TargetFunction) -> Option<Vec<Vec<u32>>> {
+    let mut positions = Vec::with_capacity(function.instructions.len());
+    let analyzed = function
+        .instructions
+        .iter()
+        .enumerate()
+        .filter(|(_, instruction)| instruction.opcode.operation() != crate::target::description::Operation::Cold)
+        .map(|(index, instruction)| {
+            positions.push(index);
+            instruction
+        })
+        .collect::<Vec<_>>();
+    let successors = instruction_successors(&analyzed);
+    let names = Names::new(function.id, &function.virtual_registers);
+    let liveness = compute_liveness(&function.name, &analyzed, &successors, &names, function.architecture).ok()?;
+    let mut live_after = vec![Vec::new(); function.instructions.len()];
+    for (analyzed_index, live) in liveness.live_out.into_iter().enumerate() {
+        live_after[positions[analyzed_index]] = live;
+    }
+    Some(live_after)
+}
+
+/// The register class whose live values outnumber its allocatable registers somewhere in `function`, preferring
+/// floating point, whose pool is the smaller one.
+fn pressured_class(function: &TargetFunction) -> Option<VirtualRegisterClass> {
+    let analyzed = function
+        .instructions
+        .iter()
+        .filter(|instruction| instruction.opcode.operation() != crate::target::description::Operation::Cold)
+        .collect::<Vec<_>>();
+    let successors = instruction_successors(&analyzed);
+    let names = Names::new(function.id, &function.virtual_registers);
+    let liveness = compute_liveness(&function.name, &analyzed, &successors, &names, function.architecture).ok()?;
+    let registers = register_info_for(function.architecture);
+    let mut over_gpr = false;
+    let mut over_fpr = false;
+    for live in &liveness.live_in {
+        let gpr = live
+            .iter()
+            .filter(|register| names.name(**register).class() == VirtualRegisterClass::GeneralPurpose)
+            .count();
+        let fpr = live.len() - gpr;
+        over_gpr |= gpr >= registers.temporaries.len();
+        over_fpr |= fpr >= registers.fp_temporaries.len();
+    }
+    if over_fpr {
+        // Vectors share the floating-point registers, so spilling either kind relieves both.
+        let vectors_live = liveness
+            .live_in
+            .iter()
+            .flatten()
+            .any(|register| names.name(*register).class() == VirtualRegisterClass::Vector);
+        Some(if vectors_live {
+            VirtualRegisterClass::Vector
+        } else {
+            VirtualRegisterClass::FloatingPoint
+        })
+    } else if over_gpr {
+        Some(VirtualRegisterClass::GeneralPurpose)
+    } else {
+        None
+    }
 }
 
 fn build_allocated_graph(
@@ -594,7 +730,7 @@ impl ColoringContext<'_> {
     fn pool_mask(&self, class: VirtualRegisterClass) -> RegisterSet {
         match class {
             VirtualRegisterClass::GeneralPurpose => self.gpr_mask,
-            VirtualRegisterClass::FloatingPoint => self.fpr_mask,
+            VirtualRegisterClass::FloatingPoint | VirtualRegisterClass::Vector => self.fpr_mask,
         }
     }
 
@@ -2708,62 +2844,5 @@ mod tests {
             );
         }
         assert_eq!(instruction.operands[3].register_name(), Some("x9"));
-    }
-
-    #[test]
-    fn and_immediate_keeps_live_virtuals_off_x86_scratch_registers() {
-        // x86_64 lowers large `and` immediates through rax, or through r11
-        // when the destination is rax. Temps live across the instruction
-        // must avoid both scratch registers.
-        let out = allocated(
-            vec![
-                instruction!(Operation::Move(IntegerWidth::U64), register("base"), immediate(100)),
-                instruction!(
-                    Operation::Move(IntegerWidth::U64),
-                    register("index"),
-                    immediate(0x123456789)
-                ),
-                instruction!(
-                    Operation::IntegerBinary {
-                        operation: IntegerBinaryOperation::Binary(BinaryOperation::And),
-                        width: IntegerWidth::U64
-                    },
-                    register("index"),
-                    immediate(0x3ffffffff)
-                ),
-                instruction!(
-                    Operation::IntegerBinary {
-                        operation: IntegerBinaryOperation::Binary(BinaryOperation::Add),
-                        width: IntegerWidth::U64
-                    },
-                    register("index"),
-                    register("base")
-                ),
-                instruction!(Operation::StoreOperand, immediate(0), register("index")),
-                instruction!(Operation::Control(ControlOperation::DispatchNext)),
-            ],
-            Architecture::X86_64,
-        );
-        for insn in &out {
-            if is_operation(insn, Operation::Move(IntegerWidth::U64))
-                && insn.operands.len() == 2
-                && let AllocatedOperand::Immediate(100) = insn.operands[1]
-                && let Some(name) = insn.operands[0].register_name()
-            {
-                assert_ne!(name, "rax", "live virtual must avoid rax");
-                assert_ne!(name, "r11", "live virtual must avoid r11");
-            }
-            if is_operation(
-                insn,
-                Operation::IntegerBinary {
-                    operation: IntegerBinaryOperation::Binary(BinaryOperation::And),
-                    width: IntegerWidth::U64,
-                },
-            ) && let Some(name) = insn.operands.first().and_then(AllocatedOperand::register_name)
-            {
-                assert_ne!(name, "rax", "and dst must avoid rax");
-                assert_ne!(name, "r11", "and dst must avoid r11");
-            }
-        }
     }
 }

@@ -20,6 +20,7 @@ fn compile_interpreter(architecture: Architecture) -> String {
         has_jscvt: false,
         enable_assertions: true,
         profiling: false,
+        profile: flapc::Profile::JavaScript,
     });
     compiler
         .compile(CompilationUnit {

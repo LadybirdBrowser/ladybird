@@ -632,9 +632,6 @@ impl<'a> Checker<'a> {
         let Some(else_body) = else_body else {
             let then_body = self.check_scoped_block(then_body)?;
             let terminal = then_body.last().is_some_and(statement_is_terminal);
-            if *temperature == BlockTemperature::Cold && !terminal {
-                return self.error(statement.span, "a continuing if cannot be @cold");
-            }
             let captures = collect_captures(&then_body, outer_variable_count);
             self.statements.push(Statement::new(
                 StatementKindIr::If {
@@ -1507,15 +1504,11 @@ impl<'a> Checker<'a> {
             } else if *mode == ParameterMode::In
                 && (matches!(
                     argument.kind,
-                    ExpressionKind::Call { .. }
-                        | ExpressionKind::Binary {
-                            operator: BinaryOperator::Add | BinaryOperator::Subtract | BinaryOperator::Multiply,
-                            ..
-                        }
-                        | ExpressionKind::Index { .. }
-                ) || matches!(&argument.kind, ExpressionKind::Name(name) if name.contains('.') && !name.starts_with('.')))
+                    ExpressionKind::Call { .. } | ExpressionKind::Index { .. }
+                ) || integer_arithmetic_lhs(argument).is_some()
+                    || matches!(&argument.kind, ExpressionKind::Name(name) if name.contains('.') && !name.starts_with('.')))
             {
-                let call = self.check_initializer(argument)?;
+                let call = self.check_initializer_with_expected(argument, Some(expected_type))?;
                 if call.return_type.as_ref() != Some(expected_type) {
                     let found = call
                         .return_type
@@ -2219,9 +2212,25 @@ impl<'a> Checker<'a> {
         ty: &Type,
         operation: IntegerBinaryOperation,
     ) -> Result<Call, Diagnostic> {
-        let lhs = self.check_materialized_value(lhs, ty)?;
+        let mut lhs = self.check_materialized_value(lhs, ty)?;
         if !matches!(lhs.kind, ValueKind::Variable(_)) {
-            return self.error(lhs.span, "integer arithmetic requires a binding as its left operand");
+            // The arithmetic intrinsics take their left operand in a register, so a literal or constant goes into a
+            // binding of its own first.
+            let span = lhs.span;
+            let destination = self.declare_hidden("arithmetic_lhs", ty.clone(), span);
+            self.statements.push(Statement::new(
+                StatementKindIr::call(
+                    [destination],
+                    Call::new(
+                        CallTarget::Intrinsic(Intrinsic::LowLevel(LowLevelOperation::Move)),
+                        vec![lhs],
+                        vec![ParameterMode::In],
+                        Some(ty.clone()),
+                    ),
+                ),
+                span,
+            ));
+            lhs = Value::new(ValueKind::Variable(destination), ty.clone(), span);
         }
         let rhs = self.check_materialized_value(rhs, ty)?;
         Ok(Call::new(
@@ -2523,6 +2532,20 @@ impl<'a> Checker<'a> {
         let Some((lhs, lhs_type)) = self.check_scalar_condition_lhs(lhs)? else {
             return Ok(None);
         };
+        if lhs_type == Type::F64 {
+            let rhs = self.check_materialized_value(rhs, &lhs_type)?;
+            use crate::intrinsic::OrderedFloatComparison;
+            return Ok(Some(Condition::FloatComparison {
+                lhs,
+                rhs,
+                comparison: match relation {
+                    ComparisonRelation::Less => OrderedFloatComparison::Less,
+                    ComparisonRelation::LessOrEqual => OrderedFloatComparison::LessOrEqual,
+                    ComparisonRelation::Greater => OrderedFloatComparison::Greater,
+                    ComparisonRelation::GreaterOrEqual => OrderedFloatComparison::GreaterOrEqual,
+                },
+            }));
+        }
         let signed = match lhs_type {
             Type::I8 | Type::I16 | Type::I32 | Type::I64 => true,
             Type::U8 | Type::U16 | Type::U32 | Type::U64 => false,
@@ -2548,6 +2571,18 @@ impl<'a> Checker<'a> {
         };
         if lhs_type == Type::Value {
             return Ok(None);
+        }
+        if lhs_type == Type::F64 {
+            let rhs = self.check_materialized_value(rhs, &lhs_type)?;
+            return Ok(Some(Condition::FloatComparison {
+                lhs,
+                rhs,
+                comparison: if equal {
+                    crate::intrinsic::OrderedFloatComparison::Equal
+                } else {
+                    crate::intrinsic::OrderedFloatComparison::NotEqual
+                },
+            }));
         }
         let rhs = match &rhs.kind {
             ExpressionKind::Integer(0) => Value::new(ValueKind::Integer(0), lhs_type.clone(), rhs.span),
@@ -3833,6 +3868,7 @@ pub(crate) fn condition_uses_and_defs(condition: &Condition) -> (Vec<VariableId>
         Condition::LogicalNot(condition) => condition_uses_and_defs(condition),
         Condition::ScalarEquality { lhs, rhs, .. } => (direct_value_variables([lhs, rhs]), Vec::new()),
         Condition::ScalarRelational { lhs, rhs, .. } => (direct_value_variables([lhs, rhs]), Vec::new()),
+        Condition::FloatComparison { lhs, rhs, .. } => (direct_value_variables([lhs, rhs]), Vec::new()),
         Condition::BitTest { value, mask, .. } => (direct_value_variables([value, mask]), Vec::new()),
         Condition::ValueTag {
             value, tag, source_tag, ..

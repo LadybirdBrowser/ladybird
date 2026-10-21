@@ -208,6 +208,19 @@ pub struct InstructionDefinition {
     pub falls_through: bool,
     pub layout: OpLayout,
     pub array: Option<ArrayLayout>,
+    /// The opcode a raw-bytes instruction dispatches on (`@opcode(...)`).
+    pub opcode: Option<RawOpcode>,
+    /// The handler runs every opcode that has no handler of its own
+    /// (`@fallback`).
+    pub is_fallback: bool,
+}
+
+/// The encoding of a raw-bytes instruction: a primary opcode byte, or a prefix
+/// byte followed by a LEB128 sub-opcode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RawOpcode {
+    Primary(u8),
+    Prefixed { prefix: u8, sub_opcode: u32 },
 }
 
 #[derive(Debug, Clone)]
@@ -352,6 +365,8 @@ pub fn parse_flap_metadata(source_name: &str, content: &str) -> Result<Vec<Instr
                 .split_whitespace()
                 .any(|token| token == annotation)
         };
+        let opcode = parse_opcode_annotation(&declaration[close + 1..])
+            .map_err(|message| ParseError::new(source_name, start_line, 1, format!("handler '{name}': {message}")))?;
         let mut op = InstructionDefinition {
             name: name.to_string(),
             parent: "Instruction".to_string(),
@@ -360,6 +375,8 @@ pub fn parse_flap_metadata(source_name: &str, content: &str) -> Result<Vec<Instr
             falls_through: has_annotation("@fallthrough"),
             layout: OpLayout::default(),
             array: None,
+            opcode,
+            is_fallback: has_annotation("@fallback"),
         };
         if op.falls_through && !op.is_terminator {
             return Err(ParseError::new(
@@ -374,6 +391,41 @@ pub fn parse_flap_metadata(source_name: &str, content: &str) -> Result<Vec<Instr
         line_index += 1;
     }
     Ok(ops)
+}
+
+fn parse_integer_literal(text: &str) -> Option<u64> {
+    let text = text.trim();
+    if let Some(hexadecimal) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        return u64::from_str_radix(hexadecimal, 16).ok();
+    }
+    text.parse().ok()
+}
+
+/// Parse the `@opcode(primary)` or `@opcode(prefix, sub_opcode)` annotation
+/// that follows a handler's parameter list, if it has one.
+fn parse_opcode_annotation(annotations: &str) -> Result<Option<RawOpcode>, String> {
+    let Some(start) = annotations.find("@opcode") else {
+        return Ok(None);
+    };
+    let rest = annotations[start + "@opcode".len()..].trim_start();
+    let arguments = rest
+        .strip_prefix('(')
+        .and_then(|rest| rest.split_once(')'))
+        .map(|(arguments, _)| arguments)
+        .ok_or("malformed @opcode annotation")?;
+    let values = arguments
+        .split(',')
+        .map(|argument| parse_integer_literal(argument).ok_or(format!("invalid opcode '{}'", argument.trim())))
+        .collect::<Result<Vec<_>, _>>()?;
+    let byte = |value: u64| u8::try_from(value).map_err(|_| format!("opcode {value:#x} does not fit in a byte"));
+    match values.as_slice() {
+        [primary] => Ok(Some(RawOpcode::Primary(byte(*primary)?))),
+        [prefix, sub_opcode] => Ok(Some(RawOpcode::Prefixed {
+            prefix: byte(*prefix)?,
+            sub_opcode: u32::try_from(*sub_opcode).map_err(|_| format!("sub-opcode {sub_opcode:#x} is too large"))?,
+        })),
+        _ => Err("@opcode takes an opcode byte, or a prefix byte and a sub-opcode".to_string()),
+    }
 }
 
 fn find_matching_parenthesis(source: &str, open: usize) -> Option<usize> {
@@ -878,6 +930,8 @@ pub fn derive_specialized_instructions(
             falls_through: ops_by_name[last_component.bytecode.as_str()].falls_through,
             layout: OpLayout::default(),
             array: None,
+            opcode: None,
+            is_fallback: false,
         };
         validate_op(&mut definition)?;
         derived.push(SpecializedInstruction { definition, components });

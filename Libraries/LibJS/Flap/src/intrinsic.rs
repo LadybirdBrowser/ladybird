@@ -366,7 +366,12 @@ pub(crate) enum MemoryWidth {
     HalfWord,
     Word,
     DoubleWord,
+    /// An f32 in a floating-point register.
     Float,
+    /// An f64 in a floating-point register.
+    Double,
+    /// A 128-bit vector, in a floating-point register.
+    Vector,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -452,6 +457,7 @@ pub(crate) enum BranchOperation {
     },
     AnyEqual,
     ValueBitsNegative,
+    OrderedFloat(OrderedFloatComparison),
 }
 
 intrinsic_names!(BranchOperation {
@@ -482,6 +488,12 @@ intrinsic_names!(BranchOperation {
     Self::Bit(TestCondition::Set) => "branch_bit_set" signatures [signature!([In AnyGpr, In AnyGpr, In Label])];
     Self::AnyEqual => "branch_any_eq" signatures [signature!([In AnyGpr, In AnyGpr, In AnyGpr, In Label])];
     Self::ValueBitsNegative => "branch_value_bits_negative" signatures [signature!([In Value, In Label])];
+    Self::OrderedFloat(OrderedFloatComparison::Equal) => "branch_float_equal" signatures [signature!([In F64, In F64, In Label])];
+    Self::OrderedFloat(OrderedFloatComparison::NotEqual) => "branch_float_not_equal" signatures [signature!([In F64, In F64, In Label])];
+    Self::OrderedFloat(OrderedFloatComparison::Less) => "branch_float_less" signatures [signature!([In F64, In F64, In Label])];
+    Self::OrderedFloat(OrderedFloatComparison::LessOrEqual) => "branch_float_less_or_equal" signatures [signature!([In F64, In F64, In Label])];
+    Self::OrderedFloat(OrderedFloatComparison::Greater) => "branch_float_greater" signatures [signature!([In F64, In F64, In Label])];
+    Self::OrderedFloat(OrderedFloatComparison::GreaterOrEqual) => "branch_float_greater_or_equal" signatures [signature!([In F64, In F64, In Label])];
 });
 
 impl BranchOperation {
@@ -529,6 +541,11 @@ impl BranchOperation {
                 width: IntegerWidth::U64,
                 condition: SignCondition::NotNegative,
             },
+            Self::OrderedFloat(comparison) => Self::OrderedFloat(match comparison {
+                OrderedFloatComparison::Equal => OrderedFloatComparison::NotEqual,
+                OrderedFloatComparison::NotEqual => OrderedFloatComparison::Equal,
+                _ => return None,
+            }),
             Self::Float(_) | Self::AnyEqual => return None,
         })
     }
@@ -617,6 +634,538 @@ define_named_intrinsic_enum! {
 }
 
 define_named_intrinsic_enum! {
+    // Integer and floating-point operations that machine-independent code has no other form for. Integer operands
+    // and results are bit patterns: 32-bit ones are zero-extended u32s, whatever their signedness. Truncating a
+    // float does not check the range: out-of-range inputs give 0x8000000000000000.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub(crate) enum NumericOperation {
+        DivideSigned32 => "div_s32" signatures [signature!([In U32, In U32] -> U32)];
+        DivideUnsigned32 => "div_u32" signatures [signature!([In U32, In U32] -> U32)];
+        RemainderSigned32 => "rem_s32" signatures [signature!([In U32, In U32] -> U32)];
+        RemainderUnsigned32 => "rem_u32" signatures [signature!([In U32, In U32] -> U32)];
+        DivideSigned64 => "div_s64" signatures [signature!([In U64, In U64] -> U64)];
+        DivideUnsigned64 => "div_u64" signatures [signature!([In U64, In U64] -> U64)];
+        RemainderSigned64 => "rem_s64" signatures [signature!([In U64, In U64] -> U64)];
+        RemainderUnsigned64 => "rem_u64" signatures [signature!([In U64, In U64] -> U64)];
+        CountLeadingZeros32 => "clz32" signatures [signature!([In U32] -> U32)];
+        CountTrailingZeros32 => "ctz32" signatures [signature!([In U32] -> U32)];
+        PopulationCount32 => "popcnt32" signatures [signature!([In U32] -> U32)];
+        CountLeadingZeros64 => "clz64" signatures [signature!([In U64] -> U64)];
+        CountTrailingZeros64 => "ctz64" signatures [signature!([In U64] -> U64)];
+        PopulationCount64 => "popcnt64" signatures [signature!([In U64] -> U64)];
+        RotateLeft32 => "rotl32" signatures [signature!([In U32, In U32] -> U32)];
+        RotateRight32 => "rotr32" signatures [signature!([In U32, In U32] -> U32)];
+        RotateLeft64 => "rotl64" signatures [signature!([In U64, In U64] -> U64)];
+        RotateRight64 => "rotr64" signatures [signature!([In U64, In U64] -> U64)];
+        Float64FromBits => "f64_from_bits" signatures [signature!([In U64] -> F64)];
+        Float64ToBits => "f64_to_bits" signatures [signature!([In F64] -> U64)];
+        Float32FromBits => "f32_from_bits" signatures [signature!([In U32] -> F32)];
+        Float32ToBits => "f32_to_bits" signatures [signature!([In F32] -> U32)];
+        TruncateFloat64ToSigned64 => "truncate_f64_to_s64" signatures [signature!([In F64] -> U64)];
+        ConvertSigned64ToFloat32 => "s64_to_f32" signatures [signature!([In U64] -> F32)];
+        ConvertSigned64ToFloat64 => "s64_to_f64" signatures [signature!([In U64] -> F64)];
+        RoundFloat64ToZero => "trunc_f64" signatures [signature!([In F64] -> F64)];
+        RoundFloat64ToNearest => "nearest_f64" signatures [signature!([In F64] -> F64)];
+        RoundFloat64Up => "ceil_f64" signatures [signature!([In F64] -> F64)];
+        RoundFloat64Down => "floor_f64" signatures [signature!([In F64] -> F64)];
+        SquareRootFloat64 => "sqrt_f64" signatures [signature!([In F64] -> F64)];
+        AddFloat32 => "add_f32" signatures [signature!([In F32, In F32] -> F32)];
+        SubtractFloat32 => "sub_f32" signatures [signature!([In F32, In F32] -> F32)];
+        MultiplyFloat32 => "mul_f32" signatures [signature!([In F32, In F32] -> F32)];
+        DivideFloat32 => "div_f32" signatures [signature!([In F32, In F32] -> F32)];
+        SquareRootFloat32 => "sqrt_f32" signatures [signature!([In F32] -> F32)];
+        PromoteFloat32 => "promote_f32" signatures [signature!([In F32] -> F64)];
+        DemoteFloat64 => "demote_f64" signatures [signature!([In F64] -> F32)];
+    }
+}
+
+define_named_intrinsic_enum! {
+    // Atomic accesses to 8 to 64 bits of memory, sequentially consistent: loads, and read-modify-write operations,
+    // which return the old value, zero-extended. An exchange whose result is unused is a sequentially consistent
+    // store. The fence orders the plain accesses around it like a sequentially consistent access would.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub(crate) enum AtomicOperation {
+        CompareExchange8 => "atomic_cmpxchg8" signatures [signature!([In Memory, In U64, In U64] -> U64)];
+        CompareExchange16 => "atomic_cmpxchg16" signatures [signature!([In Memory, In U64, In U64] -> U64)];
+        CompareExchange32 => "atomic_cmpxchg32" signatures [signature!([In Memory, In U64, In U64] -> U64)];
+        CompareExchange64 => "atomic_cmpxchg64" signatures [signature!([In Memory, In U64, In U64] -> U64)];
+        Exchange8 => "atomic_xchg8" signatures [signature!([In Memory, In U64] -> U64)];
+        Exchange16 => "atomic_xchg16" signatures [signature!([In Memory, In U64] -> U64)];
+        Exchange32 => "atomic_xchg32" signatures [signature!([In Memory, In U64] -> U64)];
+        Exchange64 => "atomic_xchg64" signatures [signature!([In Memory, In U64] -> U64)];
+        FetchAdd8 => "atomic_add8" signatures [signature!([In Memory, In U64] -> U64)];
+        FetchAdd16 => "atomic_add16" signatures [signature!([In Memory, In U64] -> U64)];
+        FetchAdd32 => "atomic_add32" signatures [signature!([In Memory, In U64] -> U64)];
+        FetchAdd64 => "atomic_add64" signatures [signature!([In Memory, In U64] -> U64)];
+        Load8 => "atomic_load8" signatures [signature!([In Memory] -> U64)];
+        Load16 => "atomic_load16" signatures [signature!([In Memory] -> U64)];
+        Load32 => "atomic_load32" signatures [signature!([In Memory] -> U64)];
+        Load64 => "atomic_load64" signatures [signature!([In Memory] -> U64)];
+        Fence => "atomic_fence" signatures [signature!([])];
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AtomicOperationKind {
+    CompareExchange,
+    Exchange,
+    FetchAdd,
+    Load,
+    Fence,
+}
+
+impl AtomicOperation {
+    pub(crate) fn kind(self) -> AtomicOperationKind {
+        use AtomicOperation::*;
+        match self {
+            CompareExchange8 | CompareExchange16 | CompareExchange32 | CompareExchange64 => {
+                AtomicOperationKind::CompareExchange
+            }
+            Exchange8 | Exchange16 | Exchange32 | Exchange64 => AtomicOperationKind::Exchange,
+            FetchAdd8 | FetchAdd16 | FetchAdd32 | FetchAdd64 => AtomicOperationKind::FetchAdd,
+            Load8 | Load16 | Load32 | Load64 => AtomicOperationKind::Load,
+            Fence => AtomicOperationKind::Fence,
+        }
+    }
+
+    pub(crate) fn width(self) -> IntegerWidth {
+        use AtomicOperation::*;
+        match self {
+            CompareExchange8 | Exchange8 | FetchAdd8 | Load8 => IntegerWidth::U8,
+            CompareExchange16 | Exchange16 | FetchAdd16 | Load16 => IntegerWidth::U16,
+            CompareExchange32 | Exchange32 | FetchAdd32 | Load32 => IntegerWidth::U32,
+            CompareExchange64 | Exchange64 | FetchAdd64 | Load64 | Fence => IntegerWidth::U64,
+        }
+    }
+}
+
+define_named_intrinsic_enum! {
+    // 128-bit vector operations, most of them one SSE4.1 instruction on x86-64. Lanes are little-endian, the lowest
+    // lane in the lowest bytes. Binary operations take the destination's lanes from their left operand. Shifts take
+    // their count from the low 64 bits of their right operand. Comparisons set every bit of a true lane.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub(crate) enum VectorOperation {
+        FromU64Pair => "v128_from_u64x2" signatures [signature!([In U64, In U64] -> V128)];
+        And => "v128_and" signatures [signature!([In V128, In V128] -> V128)];
+        Or => "v128_or" signatures [signature!([In V128, In V128] -> V128)];
+        Xor => "v128_xor" signatures [signature!([In V128, In V128] -> V128)];
+        AndNot => "v128_andnot" signatures [signature!([In V128, In V128] -> V128)];
+        AddI8 => "v128_add_i8" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractI8 => "v128_sub_i8" signatures [signature!([In V128, In V128] -> V128)];
+        EqualI8 => "v128_eq_i8" signatures [signature!([In V128, In V128] -> V128)];
+        GreaterSignedI8 => "v128_gt_s_i8" signatures [signature!([In V128, In V128] -> V128)];
+        AddI16 => "v128_add_i16" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractI16 => "v128_sub_i16" signatures [signature!([In V128, In V128] -> V128)];
+        EqualI16 => "v128_eq_i16" signatures [signature!([In V128, In V128] -> V128)];
+        GreaterSignedI16 => "v128_gt_s_i16" signatures [signature!([In V128, In V128] -> V128)];
+        AddI32 => "v128_add_i32" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractI32 => "v128_sub_i32" signatures [signature!([In V128, In V128] -> V128)];
+        EqualI32 => "v128_eq_i32" signatures [signature!([In V128, In V128] -> V128)];
+        GreaterSignedI32 => "v128_gt_s_i32" signatures [signature!([In V128, In V128] -> V128)];
+        AddI64 => "v128_add_i64" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractI64 => "v128_sub_i64" signatures [signature!([In V128, In V128] -> V128)];
+        EqualI64 => "v128_eq_i64" signatures [signature!([In V128, In V128] -> V128)];
+        GreaterSignedI64 => "v128_gt_s_i64" signatures [signature!([In V128, In V128] -> V128)];
+        AddSaturateSignedI8 => "v128_add_sat_s_i8" signatures [signature!([In V128, In V128] -> V128)];
+        AddSaturateUnsignedI8 => "v128_add_sat_u_i8" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractSaturateSignedI8 => "v128_sub_sat_s_i8" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractSaturateUnsignedI8 => "v128_sub_sat_u_i8" signatures [signature!([In V128, In V128] -> V128)];
+        AverageUnsignedI8 => "v128_avgr_u_i8" signatures [signature!([In V128, In V128] -> V128)];
+        AddSaturateSignedI16 => "v128_add_sat_s_i16" signatures [signature!([In V128, In V128] -> V128)];
+        AddSaturateUnsignedI16 => "v128_add_sat_u_i16" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractSaturateSignedI16 => "v128_sub_sat_s_i16" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractSaturateUnsignedI16 => "v128_sub_sat_u_i16" signatures [signature!([In V128, In V128] -> V128)];
+        AverageUnsignedI16 => "v128_avgr_u_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyI16 => "v128_mul_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyI32 => "v128_mul_i32" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyUnsignedLowI32 => "v128_mul_u32_to_u64" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyHighSignedI16 => "v128_mulhi_s_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyHighUnsignedI16 => "v128_mulhi_u_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyHighRoundScaleI16 => "v128_mulhrs_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyAddI16 => "v128_madd_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyAddUnsignedSignedI8 => "v128_madd_u8_s8" signatures [signature!([In V128, In V128] -> V128)];
+        MinimumSignedI8 => "v128_min_s_i8" signatures [signature!([In V128, In V128] -> V128)];
+        MinimumUnsignedI8 => "v128_min_u_i8" signatures [signature!([In V128, In V128] -> V128)];
+        MaximumSignedI8 => "v128_max_s_i8" signatures [signature!([In V128, In V128] -> V128)];
+        MaximumUnsignedI8 => "v128_max_u_i8" signatures [signature!([In V128, In V128] -> V128)];
+        MinimumSignedI16 => "v128_min_s_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MinimumUnsignedI16 => "v128_min_u_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MaximumSignedI16 => "v128_max_s_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MaximumUnsignedI16 => "v128_max_u_i16" signatures [signature!([In V128, In V128] -> V128)];
+        MinimumSignedI32 => "v128_min_s_i32" signatures [signature!([In V128, In V128] -> V128)];
+        MinimumUnsignedI32 => "v128_min_u_i32" signatures [signature!([In V128, In V128] -> V128)];
+        MaximumSignedI32 => "v128_max_s_i32" signatures [signature!([In V128, In V128] -> V128)];
+        MaximumUnsignedI32 => "v128_max_u_i32" signatures [signature!([In V128, In V128] -> V128)];
+        ShiftLeftI16 => "v128_shl_i16" signatures [signature!([In V128, In V128] -> V128)];
+        ShiftRightUnsignedI16 => "v128_shr_u_i16" signatures [signature!([In V128, In V128] -> V128)];
+        ShiftLeftI32 => "v128_shl_i32" signatures [signature!([In V128, In V128] -> V128)];
+        ShiftRightUnsignedI32 => "v128_shr_u_i32" signatures [signature!([In V128, In V128] -> V128)];
+        ShiftLeftI64 => "v128_shl_i64" signatures [signature!([In V128, In V128] -> V128)];
+        ShiftRightUnsignedI64 => "v128_shr_u_i64" signatures [signature!([In V128, In V128] -> V128)];
+        ShiftRightSignedI16 => "v128_shr_s_i16" signatures [signature!([In V128, In V128] -> V128)];
+        ShiftRightSignedI32 => "v128_shr_s_i32" signatures [signature!([In V128, In V128] -> V128)];
+        Shuffle8 => "v128_shuffle_i8" signatures [signature!([In V128, In V128] -> V128)];
+        NarrowSignedI16 => "v128_narrow_s_i16" signatures [signature!([In V128, In V128] -> V128)];
+        NarrowUnsignedI16 => "v128_narrow_u_i16" signatures [signature!([In V128, In V128] -> V128)];
+        NarrowSignedI32 => "v128_narrow_s_i32" signatures [signature!([In V128, In V128] -> V128)];
+        NarrowUnsignedI32 => "v128_narrow_u_i32" signatures [signature!([In V128, In V128] -> V128)];
+        InterleaveLowI8 => "v128_interleave_low_i8" signatures [signature!([In V128, In V128] -> V128)];
+        InterleaveHighI8 => "v128_interleave_high_i8" signatures [signature!([In V128, In V128] -> V128)];
+        InterleaveLowI16 => "v128_interleave_low_i16" signatures [signature!([In V128, In V128] -> V128)];
+        InterleaveHighI16 => "v128_interleave_high_i16" signatures [signature!([In V128, In V128] -> V128)];
+        InterleaveLowI32 => "v128_interleave_low_i32" signatures [signature!([In V128, In V128] -> V128)];
+        InterleaveHighI32 => "v128_interleave_high_i32" signatures [signature!([In V128, In V128] -> V128)];
+        InterleaveLowI64 => "v128_interleave_low_i64" signatures [signature!([In V128, In V128] -> V128)];
+        InterleaveHighI64 => "v128_interleave_high_i64" signatures [signature!([In V128, In V128] -> V128)];
+        AddF32 => "v128_add_f32" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractF32 => "v128_sub_f32" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyF32 => "v128_mul_f32" signatures [signature!([In V128, In V128] -> V128)];
+        DivideF32 => "v128_div_f32" signatures [signature!([In V128, In V128] -> V128)];
+        MinimumF32 => "v128_min_f32" signatures [signature!([In V128, In V128] -> V128)];
+        MaximumF32 => "v128_max_f32" signatures [signature!([In V128, In V128] -> V128)];
+        EqualF32 => "v128_eq_f32" signatures [signature!([In V128, In V128] -> V128)];
+        NotEqualF32 => "v128_ne_f32" signatures [signature!([In V128, In V128] -> V128)];
+        LessF32 => "v128_lt_f32" signatures [signature!([In V128, In V128] -> V128)];
+        LessOrEqualF32 => "v128_le_f32" signatures [signature!([In V128, In V128] -> V128)];
+        UnorderedF32 => "v128_unord_f32" signatures [signature!([In V128, In V128] -> V128)];
+        SquareRootF32 => "v128_sqrt_f32" signatures [signature!([In V128] -> V128)];
+        CeilF32 => "v128_ceil_f32" signatures [signature!([In V128] -> V128)];
+        FloorF32 => "v128_floor_f32" signatures [signature!([In V128] -> V128)];
+        TruncF32 => "v128_trunc_f32" signatures [signature!([In V128] -> V128)];
+        NearestF32 => "v128_nearest_f32" signatures [signature!([In V128] -> V128)];
+        AddF64 => "v128_add_f64" signatures [signature!([In V128, In V128] -> V128)];
+        SubtractF64 => "v128_sub_f64" signatures [signature!([In V128, In V128] -> V128)];
+        MultiplyF64 => "v128_mul_f64" signatures [signature!([In V128, In V128] -> V128)];
+        DivideF64 => "v128_div_f64" signatures [signature!([In V128, In V128] -> V128)];
+        MinimumF64 => "v128_min_f64" signatures [signature!([In V128, In V128] -> V128)];
+        MaximumF64 => "v128_max_f64" signatures [signature!([In V128, In V128] -> V128)];
+        EqualF64 => "v128_eq_f64" signatures [signature!([In V128, In V128] -> V128)];
+        NotEqualF64 => "v128_ne_f64" signatures [signature!([In V128, In V128] -> V128)];
+        LessF64 => "v128_lt_f64" signatures [signature!([In V128, In V128] -> V128)];
+        LessOrEqualF64 => "v128_le_f64" signatures [signature!([In V128, In V128] -> V128)];
+        UnorderedF64 => "v128_unord_f64" signatures [signature!([In V128, In V128] -> V128)];
+        SquareRootF64 => "v128_sqrt_f64" signatures [signature!([In V128] -> V128)];
+        CeilF64 => "v128_ceil_f64" signatures [signature!([In V128] -> V128)];
+        FloorF64 => "v128_floor_f64" signatures [signature!([In V128] -> V128)];
+        TruncF64 => "v128_trunc_f64" signatures [signature!([In V128] -> V128)];
+        NearestF64 => "v128_nearest_f64" signatures [signature!([In V128] -> V128)];
+        AbsoluteI8 => "v128_abs_i8" signatures [signature!([In V128] -> V128)];
+        AbsoluteI16 => "v128_abs_i16" signatures [signature!([In V128] -> V128)];
+        AbsoluteI32 => "v128_abs_i32" signatures [signature!([In V128] -> V128)];
+        ExtendLowSignedI8 => "v128_extend_low_s_i8" signatures [signature!([In V128] -> V128)];
+        ExtendLowUnsignedI8 => "v128_extend_low_u_i8" signatures [signature!([In V128] -> V128)];
+        ExtendLowSignedI16 => "v128_extend_low_s_i16" signatures [signature!([In V128] -> V128)];
+        ExtendLowUnsignedI16 => "v128_extend_low_u_i16" signatures [signature!([In V128] -> V128)];
+        ExtendLowSignedI32 => "v128_extend_low_s_i32" signatures [signature!([In V128] -> V128)];
+        ExtendLowUnsignedI32 => "v128_extend_low_u_i32" signatures [signature!([In V128] -> V128)];
+        ConvertSignedI32ToF32 => "v128_convert_s_i32_f32" signatures [signature!([In V128] -> V128)];
+        TruncateF32ToSignedI32 => "v128_truncate_f32_s_i32" signatures [signature!([In V128] -> V128)];
+        ConvertLowSignedI32ToF64 => "v128_convert_low_s_i32_f64" signatures [signature!([In V128] -> V128)];
+        TruncateF64ToSignedI32 => "v128_truncate_f64_s_i32" signatures [signature!([In V128] -> V128)];
+        PromoteLowF32 => "v128_promote_low_f32" signatures [signature!([In V128] -> V128)];
+        DemoteF64 => "v128_demote_f64" signatures [signature!([In V128] -> V128)];
+        HighHalf => "v128_high_half" signatures [signature!([In V128] -> V128)];
+        BroadcastLowI32 => "v128_broadcast_low_i32" signatures [signature!([In V128] -> V128)];
+        Low64 => "v128_low_u64" signatures [signature!([In V128] -> U64)];
+        High64 => "v128_high_u64" signatures [signature!([In V128] -> U64)];
+        ByteMask => "v128_bitmask_i8" signatures [signature!([In V128] -> U64)];
+        SignMaskF32 => "v128_bitmask_f32" signatures [signature!([In V128] -> U64)];
+        SignMaskF64 => "v128_bitmask_f64" signatures [signature!([In V128] -> U64)];
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum VectorOperationKind {
+    /// Two u64 halves, the low one first, make a vector.
+    FromU64Pair,
+    Binary,
+    Unary,
+    /// A vector gives a u64.
+    ToGeneralPurpose,
+    /// A vector gives a u32, zero-extended.
+    ToGeneralPurpose32,
+}
+
+impl VectorOperation {
+    pub(crate) fn kind(self) -> VectorOperationKind {
+        match self {
+            Self::FromU64Pair => VectorOperationKind::FromU64Pair,
+            Self::And
+            | Self::Or
+            | Self::Xor
+            | Self::AndNot
+            | Self::AddI8
+            | Self::SubtractI8
+            | Self::EqualI8
+            | Self::GreaterSignedI8
+            | Self::AddI16
+            | Self::SubtractI16
+            | Self::EqualI16
+            | Self::GreaterSignedI16
+            | Self::AddI32
+            | Self::SubtractI32
+            | Self::EqualI32
+            | Self::GreaterSignedI32
+            | Self::AddI64
+            | Self::SubtractI64
+            | Self::EqualI64
+            | Self::GreaterSignedI64
+            | Self::AddSaturateSignedI8
+            | Self::AddSaturateUnsignedI8
+            | Self::SubtractSaturateSignedI8
+            | Self::SubtractSaturateUnsignedI8
+            | Self::AverageUnsignedI8
+            | Self::AddSaturateSignedI16
+            | Self::AddSaturateUnsignedI16
+            | Self::SubtractSaturateSignedI16
+            | Self::SubtractSaturateUnsignedI16
+            | Self::AverageUnsignedI16
+            | Self::MultiplyI16
+            | Self::MultiplyI32
+            | Self::MultiplyUnsignedLowI32
+            | Self::MultiplyHighSignedI16
+            | Self::MultiplyHighUnsignedI16
+            | Self::MultiplyHighRoundScaleI16
+            | Self::MultiplyAddI16
+            | Self::MultiplyAddUnsignedSignedI8
+            | Self::MinimumSignedI8
+            | Self::MinimumUnsignedI8
+            | Self::MaximumSignedI8
+            | Self::MaximumUnsignedI8
+            | Self::MinimumSignedI16
+            | Self::MinimumUnsignedI16
+            | Self::MaximumSignedI16
+            | Self::MaximumUnsignedI16
+            | Self::MinimumSignedI32
+            | Self::MinimumUnsignedI32
+            | Self::MaximumSignedI32
+            | Self::MaximumUnsignedI32
+            | Self::ShiftLeftI16
+            | Self::ShiftRightUnsignedI16
+            | Self::ShiftLeftI32
+            | Self::ShiftRightUnsignedI32
+            | Self::ShiftLeftI64
+            | Self::ShiftRightUnsignedI64
+            | Self::ShiftRightSignedI16
+            | Self::ShiftRightSignedI32
+            | Self::Shuffle8
+            | Self::NarrowSignedI16
+            | Self::NarrowUnsignedI16
+            | Self::NarrowSignedI32
+            | Self::NarrowUnsignedI32
+            | Self::InterleaveLowI8
+            | Self::InterleaveHighI8
+            | Self::InterleaveLowI16
+            | Self::InterleaveHighI16
+            | Self::InterleaveLowI32
+            | Self::InterleaveHighI32
+            | Self::InterleaveLowI64
+            | Self::InterleaveHighI64
+            | Self::AddF32
+            | Self::SubtractF32
+            | Self::MultiplyF32
+            | Self::DivideF32
+            | Self::MinimumF32
+            | Self::MaximumF32
+            | Self::EqualF32
+            | Self::NotEqualF32
+            | Self::LessF32
+            | Self::LessOrEqualF32
+            | Self::UnorderedF32
+            | Self::AddF64
+            | Self::SubtractF64
+            | Self::MultiplyF64
+            | Self::DivideF64
+            | Self::MinimumF64
+            | Self::MaximumF64
+            | Self::EqualF64
+            | Self::NotEqualF64
+            | Self::LessF64
+            | Self::LessOrEqualF64
+            | Self::UnorderedF64 => VectorOperationKind::Binary,
+            Self::SquareRootF32
+            | Self::CeilF32
+            | Self::FloorF32
+            | Self::TruncF32
+            | Self::NearestF32
+            | Self::SquareRootF64
+            | Self::CeilF64
+            | Self::FloorF64
+            | Self::TruncF64
+            | Self::NearestF64
+            | Self::AbsoluteI8
+            | Self::AbsoluteI16
+            | Self::AbsoluteI32
+            | Self::ExtendLowSignedI8
+            | Self::ExtendLowUnsignedI8
+            | Self::ExtendLowSignedI16
+            | Self::ExtendLowUnsignedI16
+            | Self::ExtendLowSignedI32
+            | Self::ExtendLowUnsignedI32
+            | Self::ConvertSignedI32ToF32
+            | Self::TruncateF32ToSignedI32
+            | Self::ConvertLowSignedI32ToF64
+            | Self::TruncateF64ToSignedI32
+            | Self::PromoteLowF32
+            | Self::DemoteF64
+            | Self::HighHalf
+            | Self::BroadcastLowI32 => VectorOperationKind::Unary,
+            Self::Low64 | Self::High64 => VectorOperationKind::ToGeneralPurpose,
+            Self::ByteMask | Self::SignMaskF32 | Self::SignMaskF64 => VectorOperationKind::ToGeneralPurpose32,
+        }
+    }
+
+    pub(crate) fn x86_64_mnemonic(self) -> &'static str {
+        match self {
+            Self::FromU64Pair => "movq",
+            Self::And => "pand",
+            Self::Or => "por",
+            Self::Xor => "pxor",
+            Self::AndNot => "pandn",
+            Self::AddI8 => "paddb",
+            Self::SubtractI8 => "psubb",
+            Self::EqualI8 => "pcmpeqb",
+            Self::GreaterSignedI8 => "pcmpgtb",
+            Self::AddI16 => "paddw",
+            Self::SubtractI16 => "psubw",
+            Self::EqualI16 => "pcmpeqw",
+            Self::GreaterSignedI16 => "pcmpgtw",
+            Self::AddI32 => "paddd",
+            Self::SubtractI32 => "psubd",
+            Self::EqualI32 => "pcmpeqd",
+            Self::GreaterSignedI32 => "pcmpgtd",
+            Self::AddI64 => "paddq",
+            Self::SubtractI64 => "psubq",
+            Self::EqualI64 => "pcmpeqq",
+            Self::GreaterSignedI64 => "pcmpgtq",
+            Self::AddSaturateSignedI8 => "paddsb",
+            Self::AddSaturateUnsignedI8 => "paddusb",
+            Self::SubtractSaturateSignedI8 => "psubsb",
+            Self::SubtractSaturateUnsignedI8 => "psubusb",
+            Self::AverageUnsignedI8 => "pavgb",
+            Self::AddSaturateSignedI16 => "paddsw",
+            Self::AddSaturateUnsignedI16 => "paddusw",
+            Self::SubtractSaturateSignedI16 => "psubsw",
+            Self::SubtractSaturateUnsignedI16 => "psubusw",
+            Self::AverageUnsignedI16 => "pavgw",
+            Self::MultiplyI16 => "pmullw",
+            Self::MultiplyI32 => "pmulld",
+            Self::MultiplyUnsignedLowI32 => "pmuludq",
+            Self::MultiplyHighSignedI16 => "pmulhw",
+            Self::MultiplyHighUnsignedI16 => "pmulhuw",
+            Self::MultiplyHighRoundScaleI16 => "pmulhrsw",
+            Self::MultiplyAddI16 => "pmaddwd",
+            Self::MultiplyAddUnsignedSignedI8 => "pmaddubsw",
+            Self::MinimumSignedI8 => "pminsb",
+            Self::MinimumUnsignedI8 => "pminub",
+            Self::MaximumSignedI8 => "pmaxsb",
+            Self::MaximumUnsignedI8 => "pmaxub",
+            Self::MinimumSignedI16 => "pminsw",
+            Self::MinimumUnsignedI16 => "pminuw",
+            Self::MaximumSignedI16 => "pmaxsw",
+            Self::MaximumUnsignedI16 => "pmaxuw",
+            Self::MinimumSignedI32 => "pminsd",
+            Self::MinimumUnsignedI32 => "pminud",
+            Self::MaximumSignedI32 => "pmaxsd",
+            Self::MaximumUnsignedI32 => "pmaxud",
+            Self::ShiftLeftI16 => "psllw",
+            Self::ShiftRightUnsignedI16 => "psrlw",
+            Self::ShiftLeftI32 => "pslld",
+            Self::ShiftRightUnsignedI32 => "psrld",
+            Self::ShiftLeftI64 => "psllq",
+            Self::ShiftRightUnsignedI64 => "psrlq",
+            Self::ShiftRightSignedI16 => "psraw",
+            Self::ShiftRightSignedI32 => "psrad",
+            Self::Shuffle8 => "pshufb",
+            Self::NarrowSignedI16 => "packsswb",
+            Self::NarrowUnsignedI16 => "packuswb",
+            Self::NarrowSignedI32 => "packssdw",
+            Self::NarrowUnsignedI32 => "packusdw",
+            Self::InterleaveLowI8 => "punpcklbw",
+            Self::InterleaveHighI8 => "punpckhbw",
+            Self::InterleaveLowI16 => "punpcklwd",
+            Self::InterleaveHighI16 => "punpckhwd",
+            Self::InterleaveLowI32 => "punpckldq",
+            Self::InterleaveHighI32 => "punpckhdq",
+            Self::InterleaveLowI64 => "punpcklqdq",
+            Self::InterleaveHighI64 => "punpckhqdq",
+            Self::AddF32 => "addps",
+            Self::SubtractF32 => "subps",
+            Self::MultiplyF32 => "mulps",
+            Self::DivideF32 => "divps",
+            Self::MinimumF32 => "minps",
+            Self::MaximumF32 => "maxps",
+            Self::EqualF32 => "cmpeqps",
+            Self::NotEqualF32 => "cmpneqps",
+            Self::LessF32 => "cmpltps",
+            Self::LessOrEqualF32 => "cmpleps",
+            Self::UnorderedF32 => "cmpunordps",
+            Self::SquareRootF32 => "sqrtps",
+            Self::CeilF32 => "roundps",
+            Self::FloorF32 => "roundps",
+            Self::TruncF32 => "roundps",
+            Self::NearestF32 => "roundps",
+            Self::AddF64 => "addpd",
+            Self::SubtractF64 => "subpd",
+            Self::MultiplyF64 => "mulpd",
+            Self::DivideF64 => "divpd",
+            Self::MinimumF64 => "minpd",
+            Self::MaximumF64 => "maxpd",
+            Self::EqualF64 => "cmpeqpd",
+            Self::NotEqualF64 => "cmpneqpd",
+            Self::LessF64 => "cmpltpd",
+            Self::LessOrEqualF64 => "cmplepd",
+            Self::UnorderedF64 => "cmpunordpd",
+            Self::SquareRootF64 => "sqrtpd",
+            Self::CeilF64 => "roundpd",
+            Self::FloorF64 => "roundpd",
+            Self::TruncF64 => "roundpd",
+            Self::NearestF64 => "roundpd",
+            Self::AbsoluteI8 => "pabsb",
+            Self::AbsoluteI16 => "pabsw",
+            Self::AbsoluteI32 => "pabsd",
+            Self::ExtendLowSignedI8 => "pmovsxbw",
+            Self::ExtendLowUnsignedI8 => "pmovzxbw",
+            Self::ExtendLowSignedI16 => "pmovsxwd",
+            Self::ExtendLowUnsignedI16 => "pmovzxwd",
+            Self::ExtendLowSignedI32 => "pmovsxdq",
+            Self::ExtendLowUnsignedI32 => "pmovzxdq",
+            Self::ConvertSignedI32ToF32 => "cvtdq2ps",
+            Self::TruncateF32ToSignedI32 => "cvttps2dq",
+            Self::ConvertLowSignedI32ToF64 => "cvtdq2pd",
+            Self::TruncateF64ToSignedI32 => "cvttpd2dq",
+            Self::PromoteLowF32 => "cvtps2pd",
+            Self::DemoteF64 => "cvtpd2ps",
+            Self::HighHalf => "pshufd",
+            Self::BroadcastLowI32 => "pshufd",
+            Self::Low64 => "movq",
+            Self::High64 => "pextrq",
+            Self::ByteMask => "pmovmskb",
+            Self::SignMaskF32 => "movmskps",
+            Self::SignMaskF64 => "movmskpd",
+        }
+    }
+
+    /// The immediate operand the x86-64 instruction takes, if any.
+    pub(crate) fn x86_64_immediate(self) -> Option<i64> {
+        match self {
+            Self::CeilF32 => Some(10),
+            Self::FloorF32 => Some(9),
+            Self::TruncF32 => Some(11),
+            Self::NearestF32 => Some(8),
+            Self::CeilF64 => Some(10),
+            Self::FloorF64 => Some(9),
+            Self::TruncF64 => Some(11),
+            Self::NearestF64 => Some(8),
+            Self::HighHalf => Some(238),
+            Self::BroadcastLowI32 => Some(0),
+            Self::High64 => Some(1),
+            _ => None,
+        }
+    }
+}
+
+define_named_intrinsic_enum! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub(crate) enum AddressOperation {
         SequenceElement => "sequence_element_address";
@@ -675,6 +1224,17 @@ pub(crate) enum ComparisonDomain {
     UnsignedInteger,
 }
 
+/// A comparison of two floats with IEEE semantics: false if either is NaN, except for inequality, which is true.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum OrderedFloatComparison {
+    Equal,
+    NotEqual,
+    Less,
+    LessOrEqual,
+    Greater,
+    GreaterOrEqual,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum IntegerComparisonOperation {
     Equal,
@@ -685,6 +1245,7 @@ pub(crate) enum IntegerComparisonOperation {
     },
     BitsSet,
     BitsClear,
+    Float(OrderedFloatComparison),
 }
 
 intrinsic_names!(IntegerComparisonOperation {
@@ -704,6 +1265,12 @@ intrinsic_names!(IntegerComparisonOperation {
     Self::Relational { relation: ComparisonRelation::GreaterOrEqual, domain: ComparisonDomain::UnsignedInteger } => "greater_than_or_equal_unsigned";
     Self::BitsSet => "bits_set";
     Self::BitsClear => "bits_clear";
+    Self::Float(OrderedFloatComparison::Equal) => "float_equal";
+    Self::Float(OrderedFloatComparison::NotEqual) => "float_not_equal";
+    Self::Float(OrderedFloatComparison::Less) => "float_less";
+    Self::Float(OrderedFloatComparison::LessOrEqual) => "float_less_or_equal";
+    Self::Float(OrderedFloatComparison::Greater) => "float_greater";
+    Self::Float(OrderedFloatComparison::GreaterOrEqual) => "float_greater_or_equal";
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -843,6 +1410,7 @@ define_named_intrinsic_enum! {
         Dispatch => "dispatch" signatures [signature!([])];
         DispatchVariable => "dispatch_variable" signatures [signature!([In AnyGpr])];
         GotoHandler => "goto_handler" signatures [signature!([In AnyGpr])];
+        DispatchSecondary => "dispatch_secondary" signatures [signature!([In AnyGpr, In AnyGpr])];
         Exit => "exit" signatures [signature!([])];
         JumpBytecode => "jump" signatures [signature!([In BytecodeOffset])];
         JumpLabel => "jmp" signatures [signature!([In Label])];
@@ -853,7 +1421,12 @@ impl ControlOperation {
     pub(crate) fn writes_machine_state(self) -> bool {
         matches!(
             self,
-            Self::DispatchNext | Self::DispatchVariable | Self::GotoHandler | Self::Exit | Self::JumpBytecode
+            Self::DispatchNext
+                | Self::DispatchVariable
+                | Self::GotoHandler
+                | Self::DispatchSecondary
+                | Self::Exit
+                | Self::JumpBytecode
         )
     }
 
@@ -884,6 +1457,8 @@ intrinsic_names!(MemoryOperation {
     Self::LoadCellPointer => "load_cell_ptr" signatures [signature!([Out AnyGpr, In Memory])];
     Self::LoadNonnullCellPointer => "load_nonnull_cell_ptr" signatures [signature!([Out AnyGpr, In Memory])];
     Self::Load { width: MemoryWidth::Float, signed: false } => "loadf32" signatures [signature!([Out F32, In Memory])];
+    Self::Load { width: MemoryWidth::Double, signed: false } => "loadf64" signatures [signature!([Out F64, In Memory])];
+    Self::Load { width: MemoryWidth::Vector, signed: false } => "load128" signatures [signature!([Out V128, In Memory])];
     Self::LoadPair(PairWidth::Word) => "load_pair32" signatures [signature!([In Memory, In Memory] -> (U32, U32)), signature!([Out AnyGpr, Out AnyGpr, In Memory, In Memory])];
     Self::LoadPair(PairWidth::DoubleWord) => "load_pair64" signatures [signature!([In Memory, In Memory] -> (U64, U64)), signature!([Out AnyGpr, Out AnyGpr, In Memory, In Memory])];
     Self::Store(MemoryWidth::Byte) => "store8" signatures [signature!([In Memory, In AnyGpr])];
@@ -891,6 +1466,8 @@ intrinsic_names!(MemoryOperation {
     Self::Store(MemoryWidth::Word) => "store32" signatures [signature!([In Memory, In AnyGpr])];
     Self::Store(MemoryWidth::DoubleWord) => "store64" signatures [signature!([In Memory, In AnyGpr])];
     Self::Store(MemoryWidth::Float) => "storef32" signatures [signature!([In Memory, In F32])];
+    Self::Store(MemoryWidth::Double) => "storef64" signatures [signature!([In Memory, In F64])];
+    Self::Store(MemoryWidth::Vector) => "store128" signatures [signature!([In Memory, In V128])];
     Self::StorePair(PairWidth::Word) => "store_pair32" signatures [signature!([In Memory, In Memory, In AnyGpr, In AnyGpr])];
     Self::StorePair(PairWidth::DoubleWord) => "store_pair64" signatures [signature!([In Memory, In Memory, In AnyGpr, In AnyGpr])];
 });
@@ -909,7 +1486,8 @@ impl MemoryOperation {
             MemoryWidth::Byte => 1,
             MemoryWidth::HalfWord => 2,
             MemoryWidth::Word | MemoryWidth::Float => 4,
-            MemoryWidth::DoubleWord => 8,
+            MemoryWidth::DoubleWord | MemoryWidth::Double => 8,
+            MemoryWidth::Vector => 16,
         }
     }
 
@@ -985,7 +1563,10 @@ define_intrinsic_families! {
     IntegerComparison(IntegerComparisonOperation),
     LowLevel(LowLevelOperation),
     Memory(MemoryOperation),
+    Numeric(NumericOperation),
+    Atomic(AtomicOperation),
     Operand(OperandOperation),
+    Vector(VectorOperation),
     Value(ValueOperation),
 }
 
@@ -1006,6 +1587,7 @@ pub(crate) enum IntrinsicValueType {
     U16,
     U32,
     U64,
+    V128,
     Value,
     ValueTag,
     Vm,
@@ -1096,6 +1678,10 @@ impl Intrinsic {
                 ..IntrinsicEffects::PURE
             },
             Self::Memory(operation) => operation.effects(),
+            Self::Atomic(_) => IntrinsicEffects {
+                memory: ModRef::ReadWrite,
+                ..IntrinsicEffects::PURE
+            },
             Self::Operand(operation) => IntrinsicEffects {
                 memory: match operation {
                     OperandOperation::Decode => ModRef::None,
@@ -1124,7 +1710,9 @@ impl Intrinsic {
             | Self::IntegerBinary(_)
             | Self::IntegerComparison(_)
             | Self::LowLevel(_)
-            | Self::Value(_) => IntrinsicEffects::PURE,
+            | Self::Numeric(_)
+            | Self::Value(_)
+            | Self::Vector(_) => IntrinsicEffects::PURE,
         }
     }
 

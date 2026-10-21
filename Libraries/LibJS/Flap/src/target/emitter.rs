@@ -28,6 +28,12 @@ pub(crate) enum SimpleRegister {
     Pair(PairWidth),
     Word,
     Single,
+    Quad,
+    /// An AArch64 vector register with the given arrangement, like v0.16b.
+    Vector(&'static str),
+    /// The register's number between a prefix and a suffix, like the `w` and `` of w0 or the `{v` and `.16b}` of
+    /// {v0.16b}.
+    Numbered(&'static str, &'static str),
 }
 
 #[derive(Clone, Copy)]
@@ -88,6 +94,14 @@ pub(crate) const fn single(index: usize) -> SimpleOperand {
     SimpleOperand::Register(index, SimpleRegister::Single)
 }
 
+pub(crate) const fn quad(index: usize) -> SimpleOperand {
+    SimpleOperand::Register(index, SimpleRegister::Quad)
+}
+
+pub(crate) const fn vector(index: usize, arrangement: &'static str) -> SimpleOperand {
+    SimpleOperand::Register(index, SimpleRegister::Vector(arrangement))
+}
+
 fn simple_register_name(register: PhysicalRegister, format: SimpleRegister) -> String {
     match format {
         SimpleRegister::Native => register.as_str().to_string(),
@@ -96,6 +110,9 @@ fn simple_register_name(register: PhysicalRegister, format: SimpleRegister) -> S
         SimpleRegister::Pair(PairWidth::DoubleWord) => register.as_str().to_string(),
         SimpleRegister::Word => register.word_name(),
         SimpleRegister::Single => register.single_name(),
+        SimpleRegister::Quad => register.quad_name(),
+        SimpleRegister::Vector(arrangement) => format!("v{}.{arrangement}", register.number()),
+        SimpleRegister::Numbered(prefix, suffix) => format!("{prefix}{}{suffix}", register.number()),
     }
 }
 
@@ -211,7 +228,75 @@ pub(crate) fn resolve_label(op: &Operand, handler: &Handler) -> String {
     }
 }
 
+/// The handler that the dispatch table entries without a handler of their own
+/// point at.
+fn fallback_handler_name(program: &MachineProgram) -> &str {
+    program
+        .dispatch
+        .fallback
+        .and_then(|fallback| program.functions.iter().find(|function| function.id == fallback))
+        .map_or("fallback", |function| function.name.as_str())
+}
+
+fn emit_read_only_data_section(out: &mut String, program: &MachineProgram) {
+    match program.target.object_format {
+        ObjectFormat::MachO => w!(out, ".section __DATA,__const"),
+        ObjectFormat::Elf => w!(out, ".section .data.rel.ro"),
+        ObjectFormat::Coff => w!(out, ".section .rdata,\"dr\""),
+    }
+}
+
+/// The dispatch tables of a raw-bytes program: the primary table indexed by
+/// opcode byte, one table per prefix opcode indexed by sub-opcode, and the
+/// handler ranges of the primary table.
+fn emit_raw_bytes_dispatch_tables(out: &mut String, program: &MachineProgram) {
+    emit_read_only_data_section(out, program);
+    w!(out, ".p2align 3");
+    let handler_names = program
+        .functions
+        .iter()
+        .map(|handler| (handler.id, handler.name.as_str()))
+        .collect::<HashMap<_, _>>();
+    let fallback = fallback_handler_name(program);
+    let name = |handler: &Option<crate::identity::HandlerId>| {
+        handler
+            .and_then(|handler| handler_names.get(&handler).copied())
+            .unwrap_or(fallback)
+    };
+    let dispatch_table = program.interpreter_symbol("dispatch_table");
+    w!(out, ".globl CSYM({dispatch_table})");
+    w!(out, "CSYM({dispatch_table}):");
+    w!(out, "asm_dispatch_table:");
+    for index in 0..DISPATCH_TABLE_SIZE {
+        let handler = program.dispatch_handlers.get(index).copied().flatten();
+        w!(out, "    .quad asm_handler_{}", name(&handler));
+    }
+    w!(out);
+    for table in &program.dispatch.secondary {
+        w!(out, "asm_dispatch_table_{:02x}:", table.prefix);
+        for handler in &table.handlers {
+            w!(out, "    .quad asm_handler_{}", name(handler));
+        }
+        w!(out);
+    }
+    let handler_ranges = program.interpreter_symbol("handler_ranges");
+    w!(out, ".globl CSYM({handler_ranges})");
+    w!(out, ".p2align 3");
+    w!(out, "CSYM({handler_ranges}):");
+    for index in 0..DISPATCH_TABLE_SIZE {
+        let handler = program.dispatch_handlers.get(index).copied().flatten();
+        emit_handler_range(out, name(&handler));
+    }
+    w!(out);
+    w!(out, ".text");
+    w!(out);
+}
+
 pub(crate) fn emit_dispatch_tables(out: &mut String, program: &MachineProgram) {
+    if program.profile.instruction_encoding() == crate::profile::InstructionEncoding::RawBytes {
+        emit_raw_bytes_dispatch_tables(out, program);
+        return;
+    }
     match program.target.object_format {
         ObjectFormat::MachO => w!(out, ".section __DATA,__const"),
         ObjectFormat::Elf => w!(out, ".section .data.rel.ro"),
@@ -220,7 +305,7 @@ pub(crate) fn emit_dispatch_tables(out: &mut String, program: &MachineProgram) {
     w!(out, ".p2align 3");
     // The runtime picks a dispatch table for each executable (see
     // VmDispatchTables), so both tables are global.
-    let dispatch_table = program.global_symbol("js_interpreter_dispatch_table");
+    let dispatch_table = program.interpreter_symbol("dispatch_table");
     w!(out, ".globl CSYM({dispatch_table})");
     w!(out, "CSYM({dispatch_table}):");
     w!(out, "asm_dispatch_table:");
@@ -241,7 +326,7 @@ pub(crate) fn emit_dispatch_tables(out: &mut String, program: &MachineProgram) {
     }
     w!(out);
 
-    let debug_dispatch_table = program.global_symbol("js_interpreter_debug_dispatch_table");
+    let debug_dispatch_table = program.interpreter_symbol("debug_dispatch_table");
     w!(out, ".globl CSYM({debug_dispatch_table})");
     w!(out, "CSYM({debug_dispatch_table}):");
     w!(out, "asm_debug_dispatch_table:");
@@ -250,7 +335,7 @@ pub(crate) fn emit_dispatch_tables(out: &mut String, program: &MachineProgram) {
     }
     w!(out);
 
-    let handler_ranges = program.global_symbol("js_interpreter_handler_ranges");
+    let handler_ranges = program.interpreter_symbol("handler_ranges");
     w!(out, ".globl CSYM({handler_ranges})");
     w!(out, ".p2align 3");
     w!(out, "CSYM({handler_ranges}):");
@@ -353,13 +438,20 @@ pub(crate) fn emit_program(
         &mut out,
         program.target.object_format,
         seh_indentation,
-        &program.global_symbol("js_interpreter"),
+        &program.interpreter_symbol(""),
     );
     emit_entry(&mut out);
     emit_fallback(&mut out);
     emit_handler_bodies(&mut out);
     emit_exit(&mut out);
     emit_proc_end(&mut out, program.target.object_format);
+    if program.profile == crate::Profile::WebAssembly {
+        // Runtimes recognize faults inside the interpreter by its code range. Mach-O does not allow global labels
+        // inside a function's unwind information, so the end follows it.
+        let end = program.interpreter_symbol("end");
+        w!(out, ".globl CSYM({end})");
+        w!(out, "CSYM({end}):");
+    }
     emit_file_trailer(&mut out, program.target.object_format);
     out
 }

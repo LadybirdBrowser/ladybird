@@ -37,6 +37,8 @@ pub(crate) struct Emit<'a> {
     /// handlers switch to the dispatch table of the frame they continue in
     /// (see `VmDispatchTables`).
     pub(crate) profiling: bool,
+    /// The virtual machine the handlers are compiled for.
+    pub(crate) profile: crate::Profile,
     /// Distinguishes the local labels a single function generates.
     unique_counter: u64,
     /// The operands of the most recent floating-point comparison, so that a
@@ -62,6 +64,7 @@ impl<'a> Emit<'a> {
             enable_assertions: options.enable_assertions,
             has_jscvt: options.has_jscvt,
             profiling: options.profiling,
+            profile: options.profile,
             unique_counter: 0,
             last_fp_compare: None,
         }
