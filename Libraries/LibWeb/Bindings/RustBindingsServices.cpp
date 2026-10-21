@@ -34,6 +34,19 @@ GC::Ref<JS::HostObject> wrap_rust_interface_object(WrapperWorld& wrapper_world, 
 constexpr JSHostClass web_bindings_rust_interface_wrapper_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "RustInterface"sv,
     nullptr, nullptr, nullptr, JS_HOST_CLASS_IS_PLATFORM_OBJECT);
 
+bool rust_interface_object_implements_interface(JS::Object const& object, StringView interface_name)
+{
+    if (!JS::is_host_instance_of(object, web_bindings_rust_interface_wrapper_host_class))
+        return false;
+    // NB: The class of the wrappers of an interface has the name of the interface, and the class of the wrappers of
+    //     the interface that it inherits from as its parent.
+    for (auto const* host_class = &as<JS::HostObject>(object).host_class(); host_class != &web_bindings_rust_interface_wrapper_host_class; host_class = host_class->parent) {
+        if (StringView { host_class->name, host_class->name_length } == interface_name)
+            return true;
+    }
+    return false;
+}
+
 extern "C" {
 
 void* web_bindings_wrapper_world(void* realm, bool* is_main_world);
