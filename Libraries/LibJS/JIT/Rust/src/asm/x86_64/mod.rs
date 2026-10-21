@@ -6,10 +6,21 @@
 
 //! x86-64 instruction encoder.
 
+mod extended;
 mod macro_assembler;
 #[cfg(test)]
 mod tests;
 
+pub use extended::BitCount;
+pub use extended::BitwiseOp;
+pub use extended::FloatOp;
+pub use extended::Precision;
+pub use extended::Rounding;
+pub use extended::ShiftX;
+pub use extended::VexMap;
+pub use extended::VexOpcode;
+pub use extended::VexOperand;
+pub use extended::VexPrefix;
 pub use macro_assembler::MacroAssembler;
 
 use super::Address;
