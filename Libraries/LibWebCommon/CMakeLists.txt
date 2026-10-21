@@ -62,7 +62,6 @@ set(SOURCES
     WebDriver/Response.cpp
     WebDriver/TimeoutsConfiguration.cpp
     WebDriver/UserPrompt.cpp
-    WebView/AccessibilityNodeData.cpp
     WebView/Attribute.cpp
     WebView/BrowsingBehavior.cpp
     WebView/ConsoleOutput.cpp
@@ -104,6 +103,7 @@ invoke_py_generator(
 compile_ipc(Page/InputEvent.ipc Page/InputEventCodecs.h)
 compile_ipc(Page/TextEditingCommand.ipc Page/TextEditingCommandCodecs.h)
 compile_ipc(PixelUnits.ipc PixelUnitsCodecs.h)
+compile_ipc(WebView/AccessibilityNodeData.ipc WebView/AccessibilityNodeDataCodecs.h)
 
 # NB: The protocols between the UI process and the processes it hosts web content in only use LibWebCommon types, so
 #     both sides generate their endpoints from here.

@@ -10,7 +10,6 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGfx/Rect.h>
-#include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/Forward.h>
 
@@ -145,12 +144,4 @@ struct WEBCOMMON_API AccessibilityNodeData {
 
 }
 
-namespace IPC {
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::AccessibilityNodeData const&);
-
-template<>
-WEBCOMMON_API ErrorOr<WebView::AccessibilityNodeData> decode(Decoder&);
-
-}
+#include <LibWebCommon/WebView/AccessibilityNodeDataCodecs.h>

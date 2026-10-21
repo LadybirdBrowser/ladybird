@@ -818,8 +818,8 @@ Running the tests requires the Accessibility (TCC) permission to be granted to t
 
 ### `Libraries/LibWebCommon/`
 
-`WebView/AccessibilityNodeData.cpp` / `WebView/AccessibilityNodeData.h`
-- IPC-serializable struct that represents one node in the accessibility tree. Contains id, parent/child IDs, role, name, description, value, bounds, focus/disabled state, heading level, and `aria-live` value — along with the IPC `encode`/`decode` specializations.
+`WebView/AccessibilityNodeData.h` / `WebView/AccessibilityNodeData.ipc`
+- IPC-serializable struct that represents one node in the accessibility tree. Contains id, parent/child IDs, role, name, description, value, bounds, focus/disabled state, heading level, and `aria-live` value. `AccessibilityNodeData.ipc` declares its fields for IPC, and the IPC compiler generates its `encode`/`decode` specializations, declared in the generated `WebView/AccessibilityNodeDataCodecs.h` that the header includes.
 
 `Forward.h`
 - Forward declaration for `AccessibilityNodeData`.

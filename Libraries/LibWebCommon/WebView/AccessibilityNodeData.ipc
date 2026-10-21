@@ -1,0 +1,64 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+// NB: The IPC compiler cannot check that this lists every field of AccessibilityNodeData. A field left out here
+//     does not cross IPC.
+
+#include <LibWebCommon/WebView/AccessibilityNodeData.h>
+
+[ExistingCpp]
+struct WebView::AccessibilityNodeData {
+    i64 id;
+    i64 parent_id;
+    Vector<i64> child_ids;
+    String role;
+    String name;
+    String description;
+    String value;
+    String url;
+    String language;
+    Gfx::IntRect bounds;
+    bool is_focused;
+    bool is_disabled;
+    i32 heading_level;
+    i32 hierarchical_level;
+    String live;
+    i32 column_span;
+    i32 row_span;
+    i32 cell_column_index;
+    i32 table_row_count;
+    i32 table_column_count;
+    i64 table_caption_id;
+    String table_summary;
+    Vector<i64> column_header_ids;
+    Vector<i64> row_header_ids;
+    String keybinding;
+    Optional<double> value_numeric;
+    Optional<double> value_minimum;
+    Optional<double> value_maximum;
+    Optional<double> value_step;
+    bool is_selected;
+    WebView::AccessibilityNodeData::CheckedState checked_state;
+    WebView::AccessibilityNodeData::ExpandedState expanded_state;
+    bool is_editable;
+    bool is_multi_line;
+    bool is_password;
+    bool is_read_only;
+    bool is_required;
+    bool is_invalid;
+    bool is_multi_selectable;
+    WebView::AccessibilityNodeData::PressedState pressed_state;
+    bool is_visited;
+    i32 caret_offset;
+    i32 selection_start;
+    i32 selection_end;
+    String font_family;
+    String font_size;
+    String font_weight;
+    String font_style;
+    String color;
+    String background_color;
+    String text_decoration;
+    Vector<Gfx::IntPoint> character_offsets;
+    Vector<i32> line_break_character_offsets;
+    Vector<i32> line_heights;
+}
