@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSS Masking: Test clip-path property and shape function hline/vline keywords</title>
+  <link rel="help" href="https://drafts.csswg.org/css-shapes-2/#funcdef-shape">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/reference/green-100x100.html">
+  <meta name="assert" content="Test that center and edge keywords work in hline and vline">
+</head>
+<style>
+  #shape {
+    width: 200px;
+    height: 200px;
+    background-color: green;
+    clip-path: shape(from top left,
+                    hline to center,
+                    vline to center,
+                    hline to left,
+                    close);
+  }
+</style>
+<body>
+  <div id="shape"></div>
+</body>
+</html>

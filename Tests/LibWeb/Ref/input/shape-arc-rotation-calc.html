@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/shape-arc-rotation-calc-ref.html">
+<style>
+div {
+    width: 200px;
+    height: 200px;
+    background: green;
+    clip-path: shape(from 20px 100px, arc to 180px 100px of 100px 30px rotate calc(30deg + 15deg), close);
+}
+</style>
+<!-- An arc's rotation given as a calculation rotates the arc as the plain angle does. -->
+<div></div>

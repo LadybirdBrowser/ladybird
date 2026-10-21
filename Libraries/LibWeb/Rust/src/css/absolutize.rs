@@ -925,6 +925,7 @@ fn absolutize_basic_shape(
         fill_rule,
         points,
         path,
+        commands,
     } = value.basic_shape()?;
     // Absolutizes a freshly built 100%-minus calculation for the inset lowering.
     let flipped = |values: &[&StyleValueData],
@@ -970,6 +971,7 @@ fn absolutize_basic_shape(
                     fill_rule: *fill_rule,
                     points: points.clone(),
                     path: path.clone(),
+                    commands: crate::css::style_value::ShapeCommands::default(),
                 }),
             })))
         }
@@ -1016,6 +1018,7 @@ fn absolutize_basic_shape(
                     fill_rule: *fill_rule,
                     points: points.clone(),
                     path: path.clone(),
+                    commands: crate::css::style_value::ShapeCommands::default(),
                 }),
             })))
         }
@@ -1037,16 +1040,33 @@ fn absolutize_basic_shape(
                     fill_rule: *fill_rule,
                     points: points.clone(),
                     path: path.clone(),
+                    commands: crate::css::style_value::ShapeCommands::default(),
                 }),
             })))
         }
-        5 => {
+        // polygon() and shape() hold their coordinates as points.
+        5 | 7 => {
             let mut changed = false;
             let mut absolutized_points = Vec::with_capacity(points.as_slice().len());
+            // https://drafts.csswg.org/css-shapes-1/#shape-function
+            // A horizontal or vertical line to a side keyword draws to that position.
+            let keyword_as_percentage = |value: &RetainedStyleValueData, changed: &mut bool| {
+                let percentage = match value.optional_data() {
+                    Some(StyleValueData::Keyword { keyword }) => match *keyword {
+                        keyword::LEFT | keyword::TOP | keyword::X_START | keyword::Y_START => 0.0,
+                        keyword::CENTER => 50.0,
+                        keyword::RIGHT | keyword::BOTTOM | keyword::X_END | keyword::Y_END => 100.0,
+                        _ => return value.clone_retained(),
+                    },
+                    _ => return value.clone_retained(),
+                };
+                *changed = true;
+                retain_new(StyleValueData::Percentage { value: percentage })
+            };
             for point in points.as_slice() {
                 let [x, y] = point.values();
-                let x = resolve(x, &mut changed)?;
-                let y = resolve(y, &mut changed)?;
+                let x = resolve(&keyword_as_percentage(x, &mut changed), &mut changed)?;
+                let y = resolve(&keyword_as_percentage(y, &mut changed), &mut changed)?;
                 absolutized_points.push(crate::css::style_value::RetainedShapePoint::from_retained_values(x, y));
             }
             if !changed {
@@ -1054,7 +1074,7 @@ fn absolutize_basic_shape(
             }
             Some(Absolutized::Changed(retain_new(StyleValueData::BasicShape {
                 shape: OwnedBasicShapeData::new(BasicShapeData {
-                    kind: 5,
+                    kind: *kind,
                     v0: v0.clone_retained(),
                     v1: v1.clone_retained(),
                     v2: v2.clone_retained(),
@@ -1063,6 +1083,7 @@ fn absolutize_basic_shape(
                     fill_rule: *fill_rule,
                     points: crate::css::style_value::RetainedShapePointList::from_retained_points(absolutized_points),
                     path: path.clone(),
+                    commands: commands.clone(),
                 }),
             })))
         }

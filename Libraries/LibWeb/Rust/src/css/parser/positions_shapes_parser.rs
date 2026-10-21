@@ -744,6 +744,7 @@ fn basic_shape(
             fill_rule,
             points: RetainedShapePointList::from_retained_points(points),
             path,
+            commands: crate::css::style_value::ShapeCommands::default(),
         }),
     }
 }
@@ -934,6 +935,7 @@ fn parse_circle_or_ellipse(
             fill_rule: 0,
             points: RetainedShapePointList::from_retained_points(vec![]),
             path: CssPath::none(),
+            commands: crate::css::style_value::ShapeCommands::default(),
         }),
     })
 }
@@ -1022,9 +1024,306 @@ fn parse_basic_shape(context: &ParseContext, property: u16, values: &[ComponentV
         parse_polygon(context, property, arguments)
     } else if equals_ascii_case_insensitive(name, b"path") {
         parse_path(context, arguments)
+    } else if equals_ascii_case_insensitive(name, b"shape") {
+        parse_shape(context, property, arguments)
     } else {
         None
     }
+}
+
+/// The index in `values` of the first top-level identifier at or after `start` that matches one of `names`.
+fn find_identifier(values: &[ComponentValue], start: usize, names: &[&str]) -> Option<usize> {
+    values[start..]
+        .iter()
+        .position(|value| {
+            value.ident().is_some_and(|ident| {
+                names
+                    .iter()
+                    .any(|name| equals_ascii_case_insensitive(ident, name.as_bytes()))
+            })
+        })
+        .map(|index| start + index)
+}
+
+fn shape_point(x: StyleValueData, y: StyleValueData) -> RetainedShapePoint {
+    RetainedShapePoint::from_retained_values(retained(x), retained(y))
+}
+
+/// <coordinate-pair> = <length-percentage>{2}, filling all of `values`.
+fn parse_coordinate_pair(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> Option<RetainedShapePoint> {
+    let mut tokens = TokenStream::new(values);
+    let x = parse_length_percentage(context, property, &mut tokens)?;
+    let y = parse_length_percentage(context, property, &mut tokens)?;
+    tokens.discard_whitespace();
+    (!tokens.has_next_token()).then(|| shape_point(x, y))
+}
+
+/// A <position>, filling all of `values`, as the point of its two edges.
+fn parse_shape_position(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> Option<RetainedShapePoint> {
+    let StyleValueData::Position { edge_x, edge_y } = parse_position_value(context, property, values, false)? else {
+        return None;
+    };
+    Some(RetainedShapePoint::from_retained_values(edge_x, edge_y))
+}
+
+/// <command-end-point> = [ to <position> | by <coordinate-pair> ], filling all of `values`, and whether it is
+/// relative.
+fn parse_command_end_point(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> Option<(bool, RetainedShapePoint)> {
+    let start = values.iter().position(|value| !value.is_whitespace())?;
+    let keyword = values[start].ident()?;
+    let rest = &values[start + 1..];
+    if equals_ascii_case_insensitive(keyword, b"to") {
+        Some((false, parse_shape_position(context, property, rest)?))
+    } else if equals_ascii_case_insensitive(keyword, b"by") {
+        Some((true, parse_coordinate_pair(context, property, rest)?))
+    } else {
+        None
+    }
+}
+
+/// <control-point> = [ <position> | <relative-control-point> ] when `allows_position`, otherwise
+/// <relative-control-point> = <coordinate-pair> [ from [ start | end | origin ] ]?
+fn parse_control_point(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+    allows_position: bool,
+) -> Option<(crate::css::style_value::ShapeControlPointAnchor, RetainedShapePoint)> {
+    use crate::css::style_value::ShapeControlPointAnchor;
+    if let Some(from) = find_identifier(values, 0, &["from"]) {
+        let point = parse_coordinate_pair(context, property, &values[..from])?;
+        let mut tokens = TokenStream::new(&values[from + 1..]);
+        tokens.discard_whitespace();
+        let anchor = tokens.consume_a_token().ident()?;
+        let anchor = if equals_ascii_case_insensitive(anchor, b"start") {
+            ShapeControlPointAnchor::Start
+        } else if equals_ascii_case_insensitive(anchor, b"end") {
+            ShapeControlPointAnchor::End
+        } else if equals_ascii_case_insensitive(anchor, b"origin") {
+            ShapeControlPointAnchor::Origin
+        } else {
+            return None;
+        };
+        tokens.discard_whitespace();
+        return (!tokens.has_next_token()).then_some((anchor, point));
+    }
+    if allows_position && let Some(point) = parse_shape_position(context, property, values) {
+        return Some((ShapeControlPointAnchor::Origin, point));
+    }
+    Some((
+        ShapeControlPointAnchor::Start,
+        parse_coordinate_pair(context, property, values)?,
+    ))
+}
+
+// https://drafts.csswg.org/css-shapes-1/#shape-function
+fn parse_shape(context: &ParseContext, property: u16, arguments: &[ComponentValue]) -> Option<StyleValueData> {
+    use crate::css::style_value::{ShapeCommand, ShapeCommandKind, ShapeCommands};
+    let segments = arguments.split(ComponentValue::is_comma).collect::<Vec<_>>();
+    if segments.len() < 2 {
+        return None;
+    }
+
+    let mut commands = Vec::new();
+    let mut points = Vec::new();
+
+    // <'fill-rule'>? from <position>
+    let first = segments[0];
+    let from = find_identifier(first, 0, &["from"])?;
+    let fill_rule = if first[..from].iter().all(ComponentValue::is_whitespace) {
+        0
+    } else {
+        parse_fill_rule(&first[..from])?
+    };
+    points.push(parse_shape_position(context, property, &first[from + 1..])?);
+    commands.push(ShapeCommand::new(ShapeCommandKind::From, false));
+
+    for segment in &segments[1..] {
+        let start = segment.iter().position(|value| !value.is_whitespace())?;
+        let name = segment[start].ident()?;
+        let rest = &segment[start + 1..];
+        let named = |expected: &str| equals_ascii_case_insensitive(name, expected.as_bytes());
+        if named("close") {
+            if !rest.iter().all(ComponentValue::is_whitespace) {
+                return None;
+            }
+            commands.push(ShapeCommand::new(ShapeCommandKind::Close, false));
+        } else if named("move") || named("line") {
+            let (relative, point) = parse_command_end_point(context, property, rest)?;
+            let kind = if named("move") {
+                ShapeCommandKind::Move
+            } else {
+                ShapeCommandKind::Line
+            };
+            commands.push(ShapeCommand::new(kind, relative));
+            points.push(point);
+        } else if named("hline") || named("vline") {
+            let horizontal = named("hline");
+            let mut tokens = TokenStream::new(rest);
+            tokens.discard_whitespace();
+            let keyword = tokens.consume_a_token().ident()?;
+            let relative = if equals_ascii_case_insensitive(keyword, b"by") {
+                true
+            } else if equals_ascii_case_insensitive(keyword, b"to") {
+                false
+            } else {
+                return None;
+            };
+            tokens.discard_whitespace();
+            let keywords: &[&str] = if horizontal {
+                &["left", "center", "right", "x-start", "x-end"]
+            } else {
+                &["top", "center", "bottom", "y-start", "y-end"]
+            };
+            let named_keyword = (!relative)
+                .then(|| tokens.next_token().ident())
+                .flatten()
+                .filter(|ident| {
+                    keywords
+                        .iter()
+                        .any(|name| equals_ascii_case_insensitive(ident, name.as_bytes()))
+                })
+                .and_then(keyword_from_ascii_case_insensitive);
+            let coordinate = match named_keyword {
+                Some(parsed_keyword) => {
+                    tokens.discard_a_token();
+                    StyleValueData::Keyword {
+                        keyword: parsed_keyword,
+                    }
+                }
+                None => parse_length_percentage(context, property, &mut tokens)?,
+            };
+            tokens.discard_whitespace();
+            if tokens.has_next_token() {
+                return None;
+            }
+            let zero = || StyleValueData::Percentage { value: 0.0 };
+            points.push(if horizontal {
+                shape_point(coordinate, zero())
+            } else {
+                shape_point(zero(), coordinate)
+            });
+            let kind = if horizontal {
+                ShapeCommandKind::HorizontalLine
+            } else {
+                ShapeCommandKind::VerticalLine
+            };
+            commands.push(ShapeCommand::new(kind, relative));
+        } else if named("curve") || named("smooth") {
+            let curve = named("curve");
+            let with = find_identifier(rest, 0, &["with"]);
+            let (relative, end_point) =
+                parse_command_end_point(context, property, &rest[..with.unwrap_or(rest.len())])?;
+            let mut command = ShapeCommand::new(
+                if curve {
+                    ShapeCommandKind::Curve
+                } else {
+                    ShapeCommandKind::Smooth
+                },
+                relative,
+            );
+            points.push(end_point);
+            match with {
+                Some(with) => {
+                    let control_points = rest[with + 1..].split(|value| value.is_delim(b'/')).collect::<Vec<_>>();
+                    if control_points.len() > if curve { 2 } else { 1 } {
+                        return None;
+                    }
+                    for (index, values) in control_points.into_iter().enumerate() {
+                        let (anchor, point) = parse_control_point(context, property, values, !relative)?;
+                        command.control_points[index] = anchor;
+                        command.control_point_count += 1;
+                        points.push(point);
+                    }
+                }
+                None if curve => return None,
+                None => {}
+            }
+            commands.push(command);
+        } else if named("arc") {
+            let options = find_identifier(rest, 0, &["of", "cw", "ccw", "large", "small", "rotate"])?;
+            let (relative, end_point) = parse_command_end_point(context, property, &rest[..options])?;
+            let mut command = ShapeCommand::new(ShapeCommandKind::Arc, relative);
+            let mut tokens = TokenStream::new(&rest[options..]);
+            let mut radii = None;
+            let (mut sweep, mut size, mut rotation) = (None, None, None);
+            loop {
+                tokens.discard_whitespace();
+                if !tokens.has_next_token() {
+                    break;
+                }
+                let option = tokens.consume_a_token().ident()?;
+                let is = |expected: &str| equals_ascii_case_insensitive(option, expected.as_bytes());
+                if is("of") && radii.is_none() {
+                    let horizontal = parse_length_percentage(context, property, &mut tokens)?;
+                    let mut after_first = tokens.clone();
+                    let vertical = parse_length_percentage(context, property, &mut after_first);
+                    command.arc_has_one_radius = vertical.is_none();
+                    let vertical = match vertical {
+                        Some(vertical) => {
+                            tokens = after_first;
+                            vertical
+                        }
+                        None => horizontal.clone(),
+                    };
+                    radii = Some(shape_point(horizontal, vertical));
+                } else if (is("cw") || is("ccw")) && sweep.is_none() {
+                    sweep = Some(is("cw"));
+                } else if (is("large") || is("small")) && size.is_none() {
+                    size = Some(is("large"));
+                } else if is("rotate") && rotation.is_none() {
+                    rotation = Some(super::value_parser::parse_angle_from_stream(
+                        context,
+                        property,
+                        &mut tokens,
+                        NumericRange::INFINITE,
+                    )?);
+                } else {
+                    return None;
+                }
+            }
+            command.arc_clockwise = sweep.unwrap_or(false);
+            command.arc_large = size.unwrap_or(false);
+            command.arc_has_rotation = rotation.is_some();
+            let rotation = rotation.unwrap_or(StyleValueData::Angle {
+                value: 0.0,
+                unit: crate::css::calc::canonical_unit_code(&crate::css::calc::ANGLE_UNIT_CANONICAL_RATIOS),
+            });
+            points.push(end_point);
+            points.push(radii?);
+            points.push(shape_point(rotation.clone(), rotation));
+            commands.push(command);
+        } else {
+            return None;
+        }
+    }
+
+    Some(StyleValueData::BasicShape {
+        shape: OwnedBasicShapeData::new(BasicShapeData {
+            kind: 7,
+            v0: RetainedStyleValueData::none(),
+            v1: RetainedStyleValueData::none(),
+            v2: RetainedStyleValueData::none(),
+            v3: RetainedStyleValueData::none(),
+            v4: RetainedStyleValueData::none(),
+            fill_rule,
+            points: RetainedShapePointList::from_retained_points(points),
+            path: CssPath::none(),
+            commands: ShapeCommands::new(commands),
+        }),
+    })
 }
 
 fn shape_box(value: &ComponentValue) -> Option<StyleValueData> {
@@ -1753,6 +2052,7 @@ mod tests {
             ("ellipse(10px 20% at center)", 4),
             ("polygon(evenodd, 0 0, 100% 0, 50% 100%)", 5),
             ("path(evenodd, \"M 0 0 L 10 10\")", 6),
+            ("shape(from 0 0, line to right bottom, close)", 7),
         ] {
             let ParseOutcome::Parsed(value) = parse_geometry(property_id::CLIP_PATH, source) else {
                 panic!("basic shape should parse: {source}");
@@ -1760,7 +2060,7 @@ mod tests {
             assert!(matches!(&*value, StyleValueData::BasicShape { shape } if shape.as_ref().kind == expected_kind));
         }
         assert!(matches!(
-            parse_geometry(property_id::CLIP_PATH, "shape(from 0 0, close)"),
+            parse_geometry(property_id::CLIP_PATH, "shape(from 0 0)"),
             ParseOutcome::Invalid
         ));
     }

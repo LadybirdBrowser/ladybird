@@ -22,6 +22,7 @@ mod basic_shape_kind {
     pub const ELLIPSE: u8 = 4;
     pub const POLYGON: u8 = 5;
     pub const PATH: u8 = 6;
+    pub const SHAPE: u8 = 7;
 }
 
 mod radial_extent {
@@ -412,6 +413,138 @@ fn polygon_to_path(points: &crate::css::style_value::RetainedShapePointList, ref
     path.build()
 }
 
+/// One coordinate of a shape() point: a length-percentage, or a position edge holding one.
+fn shape_coordinate(value: &RetainedStyleValueData, basis: CssPixels) -> f32 {
+    let value = match value.data() {
+        StyleValueData::Edge { offset, .. } => offset.data(),
+        value => value,
+    };
+    LengthPercentageRef::over(value).to_px(basis).to_float()
+}
+
+// https://drafts.csswg.org/css-shapes-1/#shape-function
+// The commands used by shape() are dynamically turned into path segments when it is used for rendering.
+pub(crate) fn shape_to_path(
+    points: &[crate::css::style_value::RetainedShapePoint],
+    commands: &[crate::css::style_value::ShapeCommand],
+    reference_box: CssPixelRect,
+) -> OwnedPath {
+    use crate::css::style_value::{ShapeCommandKind, ShapeControlPointAnchor};
+    let (width, height) = (reference_box.width, reference_box.height);
+    let resolve = |point: &crate::css::style_value::RetainedShapePoint| {
+        let [x, y] = point.values();
+        (shape_coordinate(x, width), shape_coordinate(y, height))
+    };
+    let mut path = PathBuilder::new();
+    let mut points = points.iter();
+    let mut current = (0.0f32, 0.0f32);
+    let mut subpath_start = current;
+    // The second control point of the previous command, if it was a curve, for smooth commands to reflect.
+    let mut previous_control_point: Option<(f32, f32)> = None;
+    for command in commands {
+        let mut control_point = None;
+        let start = current;
+        let end_point = |offset: (f32, f32)| {
+            if command.relative {
+                (start.0 + offset.0, start.1 + offset.1)
+            } else {
+                offset
+            }
+        };
+        match command.kind {
+            ShapeCommandKind::From | ShapeCommandKind::Move => {
+                current = end_point(resolve(points.next().unwrap()));
+                subpath_start = current;
+                path.move_to(current.0, current.1);
+            }
+            ShapeCommandKind::Line => {
+                current = end_point(resolve(points.next().unwrap()));
+                path.line_to(current.0, current.1);
+            }
+            ShapeCommandKind::HorizontalLine => {
+                let (x, _) = resolve(points.next().unwrap());
+                current = if command.relative {
+                    (start.0 + x, start.1)
+                } else {
+                    (x, start.1)
+                };
+                path.line_to(current.0, current.1);
+            }
+            ShapeCommandKind::VerticalLine => {
+                let (_, y) = resolve(points.next().unwrap());
+                current = if command.relative {
+                    (start.0, start.1 + y)
+                } else {
+                    (start.0, y)
+                };
+                path.line_to(current.0, current.1);
+            }
+            ShapeCommandKind::Curve | ShapeCommandKind::Smooth => {
+                let end = end_point(resolve(points.next().unwrap()));
+                let mut control_points = Vec::with_capacity(2);
+                for anchor in &command.control_points[..usize::from(command.control_point_count)] {
+                    let offset = resolve(points.next().unwrap());
+                    control_points.push(match anchor {
+                        ShapeControlPointAnchor::Start => (start.0 + offset.0, start.1 + offset.1),
+                        ShapeControlPointAnchor::End => (end.0 + offset.0, end.1 + offset.1),
+                        ShapeControlPointAnchor::Origin => offset,
+                    });
+                }
+                if command.kind == ShapeCommandKind::Smooth {
+                    // A smooth command's first control point is the reflection of the previous curve's second
+                    // control point around the starting point, or the starting point itself.
+                    let reflected = previous_control_point.map_or(start, |previous| {
+                        (2.0 * start.0 - previous.0, 2.0 * start.1 - previous.1)
+                    });
+                    control_points.insert(0, reflected);
+                }
+                match control_points[..] {
+                    [only] => path.quadratic_bezier_curve_to(only.0, only.1, end.0, end.1),
+                    [first, second] => path.cubic_bezier_curve_to(first.0, first.1, second.0, second.1, end.0, end.1),
+                    _ => unreachable!("a curve has one or two control points"),
+                }
+                control_point = control_points.last().copied();
+                current = end;
+            }
+            ShapeCommandKind::Arc => {
+                let end = end_point(resolve(points.next().unwrap()));
+                let radii = points.next().unwrap();
+                let (radius_x, radius_y) = if command.arc_has_one_radius {
+                    // A single radius resolves percentages against the direction-agnostic size of the reference
+                    // box.
+                    let [radius, _] = radii.values();
+                    let agnostic_size = CssPixels::nearest_value_for(
+                        (width.to_double().powi(2) + height.to_double().powi(2)).sqrt() / std::f64::consts::SQRT_2,
+                    );
+                    let radius = shape_coordinate(radius, agnostic_size);
+                    (radius, radius)
+                } else {
+                    resolve(radii)
+                };
+                let rotation_degrees =
+                    crate::css::table_group_builder::angle_degrees(points.next().unwrap().values()[0].data())
+                        .unwrap_or(0.0);
+                path.elliptical_arc_to(
+                    end.0,
+                    end.1,
+                    radius_x.abs(),
+                    radius_y.abs(),
+                    rotation_degrees.to_radians() as f32,
+                    command.arc_large,
+                    command.arc_clockwise,
+                );
+                current = end;
+            }
+            ShapeCommandKind::Close => {
+                path.close();
+                current = subpath_start;
+            }
+        }
+        previous_control_point = control_point;
+    }
+    path.build()
+}
+
 pub(crate) fn compute_basic_shape_clip_path_data(
     layout_arena: &impl PaintRead,
     slot: NodeSlotId,
@@ -430,6 +563,7 @@ pub(crate) fn compute_basic_shape_clip_path_data(
         fill_rule,
         points,
         path,
+        commands,
     } = clip_path.basic_shape()?;
 
     // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
@@ -446,10 +580,13 @@ pub(crate) fn compute_basic_shape_clip_path_data(
         basic_shape_kind::ELLIPSE => ellipse_to_path(v0, v1, reference_box),
         basic_shape_kind::POLYGON => polygon_to_path(points, reference_box),
         basic_shape_kind::PATH => path.to_gfx_path(),
+        basic_shape_kind::SHAPE => shape_to_path(points.as_slice(), commands.as_slice(), reference_box),
         _ => unreachable!("computed clip-path basic shape holds an unlowered kind"),
     };
     let resolved_fill_rule = match *kind {
-        basic_shape_kind::POLYGON | basic_shape_kind::PATH => WindingRule::from_raw(i32::from(*fill_rule)),
+        basic_shape_kind::POLYGON | basic_shape_kind::PATH | basic_shape_kind::SHAPE => {
+            WindingRule::from_raw(i32::from(*fill_rule))
+        }
         _ => WindingRule::Nonzero,
     };
 
