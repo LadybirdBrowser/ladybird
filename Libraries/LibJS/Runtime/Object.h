@@ -186,6 +186,7 @@ public:
     void invalidate_property_lookup_caches();
 
     void set_prototype(GC::Ptr<Object>);
+    void set_realm_and_prototype(Realm&, GC::Ptr<Object>);
 
     [[nodiscard]] bool has_magical_length_property() const { return has_engine_object_flag(JS_LAYOUT_OBJECT_FLAG_HAS_MAGICAL_LENGTH_PROPERTY); }
     [[nodiscard]] bool is_typed_array() const { return has_engine_object_flag(JS_LAYOUT_OBJECT_FLAG_IS_TYPED_ARRAY); }

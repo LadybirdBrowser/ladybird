@@ -735,6 +735,26 @@ pub unsafe extern "C" fn js_object_set_prototype(vm: *mut JSVM, object: *mut JSO
     object.set_prototype(vm, prototype);
 }
 
+/// Like js_object_set_prototype(), and moves the object to the realm as far as its shape goes. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_object_set_realm_and_prototype(
+    vm: *mut JSVM,
+    object: *mut JSObject,
+    realm: *mut JSRealm,
+    prototype: *mut JSObject,
+) {
+    // SAFETY: See the module documentation.
+    let (vm, object, realm, prototype) = unsafe {
+        (
+            vm_from_abi(vm),
+            cell_from_abi::<JSObject>(object),
+            cell_from_abi::<JSRealm>(realm),
+            optional_cell_from_abi::<JSObject>(prototype),
+        )
+    };
+    object.set_realm_and_prototype(vm, realm, prototype);
+}
+
 /// Whether the object's own storage has a property of the key, without running any internal method. Borrows the key.
 /// Main thread only.
 #[unsafe(no_mangle)]

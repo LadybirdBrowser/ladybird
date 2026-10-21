@@ -2938,6 +2938,17 @@ impl Object {
             .set(self.shape().create_prototype_transition(vm, new_prototype));
     }
 
+    pub fn set_realm_and_prototype(&self, vm: &Vm, realm: Gc<Realm>, new_prototype: Option<Gc<Object>>) {
+        if self.shape().realm() == realm {
+            self.set_prototype(vm, new_prototype);
+            return;
+        }
+        self.shape.set(
+            self.shape()
+                .create_prototype_transition_into_realm(vm, realm, new_prototype),
+        );
+    }
+
     // Non-standard methods
 
     pub fn for_each_own_property_with_enumerability(

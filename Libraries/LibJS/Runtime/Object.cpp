@@ -412,6 +412,11 @@ void Object::set_prototype(GC::Ptr<Object> prototype)
     js_object_set_prototype(vm_of(*this), object_to_abi(*this), optional_object_to_abi(prototype.ptr()));
 }
 
+void Object::set_realm_and_prototype(Realm& realm, GC::Ptr<Object> prototype)
+{
+    js_object_set_realm_and_prototype(vm_of(*this), object_to_abi(*this), cell_to_abi<JSRealm>(realm), optional_object_to_abi(prototype.ptr()));
+}
+
 StringView Object::class_name() const
 {
     size_t length = 0;
