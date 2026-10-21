@@ -1,0 +1,4 @@
+Path2D: true
+Path2D under scale(0, 0): false
+Path2D under setTransform(0, 0, 0, 0, 0, 0): false
+Path added under setTransform(0, 0, 0, 0, 0, 0): false

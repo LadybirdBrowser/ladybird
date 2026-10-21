@@ -45,13 +45,14 @@ fn is_point_in_path_internal(
     y: f64,
     fill_rule: CanvasFillRule,
 ) -> bool {
-    let mut point = FloatPoint {
+    // NB: A transform that is not invertible maps every path onto a line or a point, which has no inside.
+    let Some(inverse_transform) = transform.inverse() else {
+        return false;
+    };
+    let point = inverse_transform.map_point(FloatPoint {
         x: float(x),
         y: float(y),
-    };
-    if let Some(inverse_transform) = transform.inverse() {
-        point = inverse_transform.map_point(point);
-    }
+    });
     path.contains(point.x, point.y, WindingRule::from(fill_rule) as i32)
 }
 
