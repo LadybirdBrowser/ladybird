@@ -19,7 +19,7 @@
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Forward.h>
 #include <LibGC/PrimitiveStorage.h>
-#include <LibWasm/Runtime/Export.h>
+#include <LibWasm/Export.h>
 
 namespace Wasm::FFI {
 
@@ -168,7 +168,7 @@ struct CustomSection {
 using Values = GC::ConservativeVector<Value, 8>;
 
 // A compiled module, which can be shared across threads and instantiated in any store.
-class WASMRUNTIME_API Module : public AtomicRefCounted<Module> {
+class WASM_API Module : public AtomicRefCounted<Module> {
 public:
     static ErrorOr<NonnullRefPtr<Module>, ByteString> compile(ReadonlyBytes);
     ~Module();
@@ -226,7 +226,7 @@ struct HostError {
 
 // What the entities of one thread share: their heap, types, and the interpreter's state. One store serves a whole
 // agent.
-class WASMRUNTIME_API Store {
+class WASM_API Store {
     AK_MAKE_NONCOPYABLE(Store);
     AK_MAKE_NONMOVABLE(Store);
     AK_ALLOC_WITH_KMALLOC;
@@ -295,7 +295,7 @@ private:
 };
 
 // The state of a WASI (wasi_snapshot_preview1) command. Its functions only work on Unix hosts.
-class WASMRUNTIME_API Wasi {
+class WASM_API Wasi {
     AK_MAKE_NONCOPYABLE(Wasi);
     AK_MAKE_NONMOVABLE(Wasi);
     AK_ALLOC_WITH_KMALLOC;

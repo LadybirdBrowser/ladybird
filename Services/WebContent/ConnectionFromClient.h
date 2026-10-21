@@ -75,9 +75,6 @@ public:
     // Asks the Browser to spawn this process's MediaServer if it has none, and to connect a client to it.
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_media_server_transport();
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_audio_server_transport();
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    Function<void(IPC::TransportHandle)> on_wasm_compiler_connection;
-#endif
 
     // Null outside test mode: the UI process connects the test endpoint only when it runs tests.
     TestConnection* test_connection();
@@ -115,7 +112,6 @@ private:
     virtual void connect_to_request_server(IPC::TransportHandle handle, int client_id) override;
     virtual void connect_to_test_endpoint(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
-    virtual void connect_to_wasm_compiler(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor_process(IPC::TransportHandle handle, IPC::TransportHandle render_clock_handle) override;
     virtual void set_site_compatibility_data(JsonValue data) override;
     virtual void compositor_process_reconnected() override;

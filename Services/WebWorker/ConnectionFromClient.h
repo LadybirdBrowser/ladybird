@@ -47,9 +47,6 @@ public:
 
     // Asks the Browser to spawn this process's MediaServer if it has none, and to connect a client to it.
     ErrorOr<NonnullOwnPtr<IPC::Transport>> request_media_server_transport();
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    Function<void(IPC::TransportHandle)> on_wasm_compiler_connection;
-#endif
 
 private:
     ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, bool enable_test_mode);
@@ -60,7 +57,6 @@ private:
     virtual void connect_to_request_server(IPC::TransportHandle handle, int client_id) override;
     virtual void simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle, int client_id) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
-    virtual void connect_to_wasm_compiler(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor(IPC::TransportHandle handle) override;
     virtual void set_site_compatibility_data(JsonValue data) override;
     virtual void set_user_agent(String user_agent) override;

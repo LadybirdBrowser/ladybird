@@ -6,7 +6,7 @@
 
 #include <LibGC/CAPI.h>
 #include <LibGC/Heap.h>
-#include <LibWasm/Runtime/Runtime.h>
+#include <LibWasm/Runtime.h>
 #include <RustFFI.h>
 
 namespace Wasm::Runtime {

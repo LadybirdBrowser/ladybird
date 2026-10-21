@@ -21,7 +21,7 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/URL.h>
-#include <LibWasm/Runtime/Runtime.h>
+#include <LibWasm/Runtime.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>

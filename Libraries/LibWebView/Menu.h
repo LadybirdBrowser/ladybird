@@ -124,7 +124,6 @@ enum class ActionID {
     DumpLocalStorage,
     DumpSessionStorage,
     DumpGCGraph,
-    DumpWasmStats,
     ShowLineBoxBorders,
     ShowCaretHitTestDebugOverlay,
     CollectGarbage,

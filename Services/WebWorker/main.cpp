@@ -34,11 +34,6 @@
 #include <Services/RendererSandbox.h>
 #include <WebWorker/ConnectionFromClient.h>
 
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-#    include <LibWasm/Types.h>
-#    include <LibWasmCompilerClient/State.h>
-#endif
-
 #include <openssl/thread.h>
 
 static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle, Optional<int> client_id);
@@ -157,16 +152,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     MediaClient::Client::set_transport_factory([client] {
         return client->request_media_server_transport();
     });
-
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    Wasm::set_cranelift_compile_callback([](Core::AnonymousBuffer const& buffer) {
-        return WasmCompilerClient::compiler_state().compile(buffer);
-    });
-
-    client->on_wasm_compiler_connection = [](auto handle) {
-        WasmCompilerClient::compiler_state().replace_connection(move(handle));
-    };
-#endif
 
     if (stats_log)
         stats_log->start_sampling([&heap](JsonObject& values) { heap.add_stats(values); });

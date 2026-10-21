@@ -16,7 +16,6 @@ endpoint WebWorkerServer {
     connect_to_request_server(IPC::TransportHandle handle, int client_id) =|
     simulate_request_server_connection_loss_and_reconnect_for_testing(IPC::TransportHandle replacement_handle, int client_id) => ()
     connect_to_image_decoder(IPC::TransportHandle handle) =|
-    connect_to_wasm_compiler(IPC::TransportHandle handle) =|
     connect_to_compositor(IPC::TransportHandle handle) =|
     set_site_compatibility_data(JsonValue data) =|
     set_user_agent(String user_agent) =|

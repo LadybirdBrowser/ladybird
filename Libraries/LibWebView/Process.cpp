@@ -109,7 +109,6 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
     };
     static constexpr Array allowed_prefixes {
         "ASAN_"sv,
-        "CRANELIFT_"sv,
         "LADYBIRD_"sv,
         "LC_"sv,
         "LIBGC_"sv,

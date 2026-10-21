@@ -48,11 +48,6 @@
 #include <WebContent/WebContentCompositorHost.h>
 #include <WebContent/WebDriverConnection.h>
 
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-#    include <LibWasm/Types.h>
-#    include <LibWasmCompilerClient/State.h>
-#endif
-
 #include <openssl/thread.h>
 
 #include <LibIPC/SingleServer.h>
@@ -313,16 +308,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Audio::ClientConnection::set_transport_factory([webcontent_client] {
         return webcontent_client->request_audio_server_transport();
     });
-
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    Wasm::set_cranelift_compile_callback([](Core::AnonymousBuffer const& buffer) {
-        return WasmCompilerClient::compiler_state().compile(buffer);
-    });
-
-    webcontent_client->on_wasm_compiler_connection = [](auto handle) {
-        WasmCompilerClient::compiler_state().replace_connection(move(handle));
-    };
-#endif
 
     if (stats_log) {
         stats_log->start_sampling([&heap](JsonObject& values) {

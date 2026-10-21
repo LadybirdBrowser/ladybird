@@ -150,11 +150,6 @@ ErrorOr<Optional<Core::AnonymousBuffer>> RequestClient::retrieve_cache_associate
     return IPCProxy::retrieve_cache_associated_data(network_isolation_key, url, method, headers, vary_key, associated_data);
 }
 
-ErrorOr<bool> RequestClient::create_synthetic_cache_entry(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method)
-{
-    return IPCProxy::create_synthetic_cache_entry(network_isolation_key, url, method);
-}
-
 bool RequestClient::stop_request(Badge<Request>, Request& request)
 {
     auto stopped_request = m_requests.take(request.id());

@@ -29,11 +29,9 @@ constexpr inline size_t MAXIMUM_CACHE_ENTRY_VARIANT_COUNT = 16;
 
 enum class CacheEntryAssociatedData {
     JavaScriptBytecode,
-    WebAssemblyCompiledCode,
 };
 constexpr inline Array CACHE_ENTRY_ASSOCIATED_DATA_TYPES {
     CacheEntryAssociatedData::JavaScriptBytecode,
-    CacheEntryAssociatedData::WebAssemblyCompiledCode,
 };
 
 i64 compute_maximum_disk_cache_size(u64 free_bytes, u64 limit_maximum_disk_cache_size = DEFAULT_MAXIMUM_DISK_CACHE_SIZE);

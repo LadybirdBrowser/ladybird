@@ -41,7 +41,7 @@ TEST_CASE(helper_environment_keeps_loader_and_session_variables_out)
     MUST(Core::Environment::set("OPENSSL_CONF"sv, "/tmp/openssl.cnf"sv, Core::Environment::Overwrite::Yes));
     MUST(Core::Environment::set("XDG_RUNTIME_DIR"sv, "/run/user/1000"sv, Core::Environment::Overwrite::Yes));
 
-    for (auto type : { WebView::ProcessType::Compositor, WebView::ProcessType::WebContent, WebView::ProcessType::WebWorker, WebView::ProcessType::RequestServer, WebView::ProcessType::ImageDecoder, WebView::ProcessType::MediaServer, WebView::ProcessType::AudioServer, WebView::ProcessType::WasmCompiler }) {
+    for (auto type : { WebView::ProcessType::Compositor, WebView::ProcessType::WebContent, WebView::ProcessType::WebWorker, WebView::ProcessType::RequestServer, WebView::ProcessType::ImageDecoder, WebView::ProcessType::MediaServer, WebView::ProcessType::AudioServer }) {
         auto environment = WebView::Process::helper_process_environment(type);
         EXPECT(!environment.contains_slow("LD_PRELOAD=/tmp/evil.so"sv));
         EXPECT(!environment.contains_slow("LD_LIBRARY_PATH=/tmp"sv));

@@ -149,7 +149,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--process",
         default="WebContent",
-        choices=["WebContent", "WebWorker", "RequestServer", "ImageDecoder", "Compositor", "WasmCompiler"],
+        choices=["WebContent", "WebWorker", "RequestServer", "ImageDecoder", "Compositor"],
     )
     args = parser.parse_args()
     run_test(args.webdriver_binary, args.process)

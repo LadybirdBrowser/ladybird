@@ -21,10 +21,6 @@
 #include <LibWebView/WebWorkerClient.h>
 #include <RequestServer/SiteBinding.h>
 
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-#    include <LibWasmCompilerClient/Client.h>
-#endif
-
 namespace WebView {
 
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsPrivate, Web::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id);
@@ -37,9 +33,6 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::WebWorkerClient>> launch_web_worker_process(Web::HTML::AgentType, IsPrivate, Web::HTML::WorkerAgentId);
 WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, HTTPDiskCacheMode);
 WEBVIEW_API void apply_dns_settings(Requests::RequestControlClient&);
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-WEBVIEW_API ErrorOr<NonnullRefPtr<WasmCompilerClient::Client>> launch_wasm_compiler_process();
-#endif
 
 struct ImageDecoderConnection {
     IPC::TransportHandle handle;
@@ -76,8 +69,5 @@ struct MediaServerClientConnection {
     int client_id { -1 };
 };
 WEBVIEW_API ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller, Function<ErrorOr<IPC::TransportHandle>()> connect_audio_server);
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_wasm_compiler_client();
-#endif
 
 }
