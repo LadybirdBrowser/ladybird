@@ -99,7 +99,7 @@ public:
     void clear_animated_properties(Badge<StyleComputer>);
     OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_custom_properties() const { return m_animated_custom_properties; }
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
-    void const* effective_property_data(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+    StyleValueFFI::StyleValueData const* effective_property_data(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
     PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<Utf16FlyString> const&> document_supported_schemes) const;
     FontVariantEmoji font_variant_emoji() const;

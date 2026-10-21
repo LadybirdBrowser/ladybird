@@ -423,7 +423,7 @@ StyleValue const& ComputedStyleWorkingSet::property(PropertyID property_id, With
     return *wrapper;
 }
 
-void const* ComputedStyleWorkingSet::effective_property_data(PropertyID property_id, WithAnimationsApplied return_animated_value) const
+StyleValueFFI::StyleValueData const* ComputedStyleWorkingSet::effective_property_data(PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
     auto effective = ComputedValuesFFI::rust_computed_longhand_table_effective_value(
@@ -432,7 +432,7 @@ void const* ComputedStyleWorkingSet::effective_property_data(PropertyID property
         to_underlying(property_id),
         return_animated_value == WithAnimationsApplied::Yes);
     VERIFY(effective.value);
-    return effective.value;
+    return static_cast<StyleValueFFI::StyleValueData const*>(effective.value);
 }
 
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme

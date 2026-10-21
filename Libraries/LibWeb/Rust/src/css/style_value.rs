@@ -2167,36 +2167,27 @@ pub unsafe extern "C" fn rust_style_value_copy_computed_font_families(
 }
 
 /// Reads the primitive payload of a computed absolute length.
-///
-/// # Safety
-/// `value` must point at live Length StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_computed_length_value(value: *const c_void) -> f64 {
-    match unsafe { &*(value as *const StyleValueData) } {
+pub extern "C" fn rust_style_value_computed_length_value(value: &StyleValueData) -> f64 {
+    match value {
         StyleValueData::Length { value, .. } => *value,
         _ => unreachable!("computed value must be a length"),
     }
 }
 
 /// Reads the primitive payload of a computed number.
-///
-/// # Safety
-/// `value` must point at live Number StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_computed_number(value: *const c_void) -> f64 {
-    match unsafe { &*(value as *const StyleValueData) } {
+pub extern "C" fn rust_style_value_computed_number(value: &StyleValueData) -> f64 {
+    match value {
         StyleValueData::Number { value } => *value,
         _ => unreachable!("computed value must be a number"),
     }
 }
 
 /// Reads the primitive payload of a computed percentage.
-///
-/// # Safety
-/// `value` must point at live Percentage StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_computed_percentage(value: *const c_void) -> f64 {
-    match unsafe { &*(value as *const StyleValueData) } {
+pub extern "C" fn rust_style_value_computed_percentage(value: &StyleValueData) -> f64 {
+    match value {
         StyleValueData::Percentage { value } => *value,
         _ => unreachable!("computed value must be a percentage"),
     }
@@ -3567,9 +3558,7 @@ pub(crate) fn retained_value_may_depend_on_font_metrics(value: &RetainedStyleVal
     style_value_dependency_flags(value.data()) & 4 != 0
 }
 
-/// # Safety
-/// `data` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_depends_on_current_color(data: *const c_void) -> bool {
-    value_depends_on_current_color(unsafe { &*(data as *const StyleValueData) })
+pub extern "C" fn rust_style_value_depends_on_current_color(data: &StyleValueData) -> bool {
+    value_depends_on_current_color(data)
 }

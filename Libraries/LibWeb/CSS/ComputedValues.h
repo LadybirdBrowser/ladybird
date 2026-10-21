@@ -591,7 +591,7 @@ public:
     RefPtr<AbstractImageStyleValue const> list_style_image() const { return m_inherited.list->list_style_image_value(); }
     // Whether this style reads its tree scope's counter-style registry, which a pseudo-element's does for any named
     // counter style.
-    bool reads_counter_style_environment(bool is_pseudo) const { return ComputedValuesFFI::rust_style_reads_counter_style_environment(m_noninherited.content_data->content.pointer, list_style_type_data(), is_pseudo); }
+    bool reads_counter_style_environment(bool is_pseudo) const { return ComputedValuesFFI::rust_style_reads_counter_style_environment(static_cast<StyleValueFFI::StyleValueData const*>(m_noninherited.content_data->content.pointer), static_cast<StyleValueFFI::StyleValueData const*>(list_style_type_data()), is_pseudo); }
 
     Optional<URL> clip_path() const { return m_noninherited.mask_data->clip_path_value(); }
     Color flood_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->flood_color); }
