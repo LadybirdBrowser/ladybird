@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>
+<script>
+    // An SVG <image> whose image data is CORS-cross-origin is not origin-clean, as an HTML <img> is not.
+
+    // 1x1 opaque red PNG.
+    const redPng =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+
+    function newCanvas() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        return canvas;
+    }
+
+    function readback(label, canvas) {
+        try {
+            canvas.getContext("2d").getImageData(0, 0, 1, 1);
+            println(`${label}: readable`);
+        } catch (error) {
+            println(`${label}: ${error.name}`);
+        }
+    }
+
+    async function loadSvgImage(url) {
+        const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+        image.setAttribute("width", "1");
+        image.setAttribute("height", "1");
+        await new Promise((resolve, reject) => {
+            image.addEventListener("load", resolve);
+            image.addEventListener("error", reject);
+            image.setAttribute("href", url);
+            document.querySelector("svg").appendChild(image);
+        });
+        return image;
+    }
+
+    promiseTest(async () => {
+        const crossOriginURL = await httpTestServer().createEcho("GET", "/tainted-svg-image.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body_encoding: "base64",
+            body: redPng,
+        });
+        const crossOrigin = await loadSvgImage(crossOriginURL);
+        const sameOrigin = await loadSvgImage(`data:image/png;base64,${redPng}`);
+
+        {
+            const canvas = newCanvas();
+            canvas.getContext("2d").drawImage(crossOrigin, 0, 0);
+            readback("Cross-origin SVG image drawn", canvas);
+        }
+        {
+            const canvas = newCanvas();
+            const context = canvas.getContext("2d");
+            context.fillStyle = context.createPattern(crossOrigin, "repeat");
+            readback("Pattern of cross-origin SVG image", canvas);
+        }
+        {
+            const bitmap = await createImageBitmap(crossOrigin);
+            const canvas = newCanvas();
+            canvas.getContext("2d").drawImage(bitmap, 0, 0);
+            readback("ImageBitmap of cross-origin SVG image drawn", canvas);
+        }
+        {
+            const canvas = newCanvas();
+            const context = canvas.getContext("2d");
+            context.drawImage(sameOrigin, 0, 0);
+            readback("Same-origin SVG image drawn", canvas);
+            println(`Pixel: ${context.getImageData(0, 0, 1, 1).data.join(",")}`);
+        }
+    });
+</script>
