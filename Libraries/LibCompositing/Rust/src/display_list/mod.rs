@@ -6,6 +6,7 @@
 
 pub mod builder;
 pub mod canvas_2d;
+pub mod canvas_2d_recorder;
 pub mod commands;
 pub mod damage;
 pub mod depth_sorted_plan;
