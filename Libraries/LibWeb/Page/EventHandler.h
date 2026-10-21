@@ -71,6 +71,13 @@ public:
     EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, double wheel_tick_120ths_x, double wheel_tick_120ths_y, Web::WheelDeltaPrecision = Web::WheelDeltaPrecision::Discrete, Web::ScrollGesturePhase = Web::ScrollGesturePhase::None, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mouseleave();
     EventResult handle_mousecancel();
+
+    // https://w3c.github.io/pointerevents/#pointer-capture
+    // The mouse is the one pointer there is. It is in its active buttons state while the page holds a button of it.
+    bool is_mouse_pointer_in_active_buttons_state() const { return m_buttons_of_last_dispatched_pointer_event != 0; }
+    GC::Ptr<DOM::Element> pending_pointer_capture_target_override() const { return m_pending_pointer_capture_target_override.ptr(); }
+    void set_pending_pointer_capture_target_override(Badge<DOM::Element>, DOM::Element&);
+    void clear_pending_pointer_capture_target_override(Badge<DOM::Element>);
     EventResult insert_replacement_text(Utf16String const&);
 #if defined(AK_OS_MACOS)
     bool select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position);
@@ -210,7 +217,22 @@ private:
         CancelledByPage,
         SwallowedByChromeWidget,
     };
-    PointerEventDispatchResult dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType, GC::Ptr<DOM::Node>, RefPtr<Painting::ChromeWidget>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count = 0);
+    struct DispatchedPointerEvent {
+        PointerEventDispatchResult result;
+        // The node that captured the pointer as the event fired, which the event went to instead of the hit test
+        // target, if any.
+        GC::Ptr<DOM::Node> pointer_capture_target;
+    };
+    DispatchedPointerEvent dispatch_a_pointer_event_for_a_device_that_supports_hover(Layout::BegunRead const&, PointerEventType, GC::Ptr<DOM::Node> hit_test_target, RefPtr<Painting::ChromeWidget>, MouseEventCoordinates, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count = 0);
+    // Whether the next pointer event goes to a capturing element rather than to the hit test target.
+    bool next_pointer_event_is_captured() const;
+    enum class PointerCaptureEventsFired : u8 {
+        No,
+        Yes,
+    };
+    PointerCaptureEventsFired process_pending_pointer_capture(Layout::BegunRead const&);
+    void fire_pointer_capture_event(Layout::BegunRead const&, Utf16FlyString const& event_name, DOM::Node& target);
+    void release_pointer_capture_implicitly(Layout::BegunRead const&);
     void track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node>, Optional<DOM::HoverEventData> = {});
     void report_hovered_node_to_client(GC::Ptr<DOM::Node>);
 
@@ -268,6 +290,15 @@ private:
         CSSPixelPoint screen_position;
     };
     Optional<PointerEventPosition> m_last_dispatched_pointer_event_position;
+    // The buttons of the last pointerdown, pointermove or pointerup dispatched, which say whether the mouse is in its
+    // active buttons state.
+    unsigned m_buttons_of_last_dispatched_pointer_event { 0 };
+
+    // https://w3c.github.io/pointerevents/#dfn-pending-pointer-capture-target-override
+    GC::Weak<DOM::Element> m_pending_pointer_capture_target_override;
+    // https://w3c.github.io/pointerevents/#dfn-pointer-capture-target-override
+    // The document once the capturing element is removed from it, which lostpointercapture then fires at.
+    GC::Weak<DOM::Node> m_pointer_capture_target_override;
 
     OwnPtr<AutoScrollHandler> m_auto_scroll_handler;
     OwnPtr<MiddleButtonScrollHandler> m_middle_button_scroll_handler;

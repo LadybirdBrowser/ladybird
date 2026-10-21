@@ -161,6 +161,7 @@ enum class InvalidateLayoutTreeReason {
     X(EventHandlerHandleMouseMove, false)           \
     X(EventHandlerHandleMouseUp, false)             \
     X(EventHandlerHandleMouseWheel, false)          \
+    X(EventHandlerPointerCaptureEvents, false)      \
     X(EventHandlerRunActivationBehavior, false)     \
     X(EventHandlerShowContextMenu, false)           \
     X(FontFaceSetReady, false)                      \

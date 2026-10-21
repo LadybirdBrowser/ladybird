@@ -1,0 +1,7 @@
+press: (no events)
+first move after the press: gotpointercapture@target, lostpointercapture@document, pointermove@other
+second move: pointermove@other
+release: pointerup@other
+press and move with a capture: gotpointercapture@replacement (own listener), gotpointercapture@replacement, pointermove@replacement (own listener), pointermove@replacement
+move after the capturing element was removed: lostpointercapture@document, pointermove@other
+release: pointerup@other

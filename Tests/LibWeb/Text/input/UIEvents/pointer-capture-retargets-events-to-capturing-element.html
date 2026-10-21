@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #track {
+        position: absolute;
+        left: 100px;
+        top: 100px;
+        width: 200px;
+        height: 20px;
+        background: gray;
+    }
+    #thumb {
+        position: absolute;
+        left: 50px;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        background: black;
+    }
+    #other {
+        position: absolute;
+        left: 100px;
+        top: 300px;
+        width: 200px;
+        height: 50px;
+        background: lightblue;
+    }
+</style>
+<div id="track"><div id="thumb"></div></div>
+<div id="other"></div>
+<script>
+    test(() => {
+        const track = document.getElementById("track");
+        const thumb = document.getElementById("thumb");
+        const other = document.getElementById("other");
+        const log = [];
+        const describe = e => {
+            const target = e.target === document ? "document" : e.target.id || e.target.nodeName;
+            let description = `${e.type}@${target}`;
+            if (e.type === "pointermove" || e.type === "click")
+                description += ` client=${e.clientX},${e.clientY} offset=${e.offsetX},${e.offsetY}`;
+            return description;
+        };
+        const bubblingTypes = [
+            "pointerdown", "pointermove", "pointerup", "gotpointercapture", "lostpointercapture",
+            "pointerover", "pointerout", "mousedown", "mousemove", "mouseup", "mouseover", "mouseout", "click",
+        ];
+        for (const type of bubblingTypes)
+            document.addEventListener(type, e => log.push(describe(e)));
+        for (const element of [track, thumb, other])
+            for (const type of ["pointerenter", "pointerleave", "mouseenter", "mouseleave"])
+                element.addEventListener(type, e => log.push(describe(e)));
+        const flush = label => {
+            println(`${label}:`);
+            for (const line of log)
+                println(`  ${line}`);
+            log.length = 0;
+        };
+
+        // A slider thumb captures the pointer that presses it, so the moves of the drag and its release go to the
+        // thumb wherever the pointer is, and the pointer leaves the thumb only once released.
+        let pointerId;
+        thumb.addEventListener("pointerdown", e => {
+            pointerId = e.pointerId;
+            thumb.setPointerCapture(pointerId);
+            println(`hasPointerCapture right after setPointerCapture: ${thumb.hasPointerCapture(pointerId)}`);
+        }, { once: true });
+        thumb.addEventListener("pointerup", e => {
+            println(`hasPointerCapture during pointerup: ${thumb.hasPointerCapture(pointerId)}`);
+        }, { once: true });
+        internals.mouseMove(160, 110);
+        flush("move onto the thumb");
+        internals.mouseDown(160, 110);
+        flush("press the thumb");
+        internals.mouseMove(250, 110);
+        flush("drag along the track");
+        internals.mouseMove(200, 325);
+        flush("drag over the other element");
+        internals.mouseUp(200, 325);
+        flush("release over the other element");
+        println(`hasPointerCapture after the release: ${thumb.hasPointerCapture(pointerId)}`);
+
+        // An element other than the pressed one can capture the pointer. The pointer moves into it as the capture
+        // takes effect, and the click of the press goes to it.
+        other.addEventListener("pointerdown", e => thumb.setPointerCapture(e.pointerId), { once: true });
+        internals.mouseDown(200, 325);
+        flush("press the other element, which hands the pointer to the thumb");
+        internals.mouseMove(210, 330);
+        flush("move as the thumb takes the capture");
+        internals.mouseUp(210, 330);
+        flush("release");
+    });
+</script>

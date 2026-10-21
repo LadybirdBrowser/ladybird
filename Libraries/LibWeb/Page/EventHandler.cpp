@@ -395,7 +395,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
     m_mousedown_click_count = click_count;
 
-    if (!scrollbar_dragged_by_compositor.has_value()) {
+    if (!scrollbar_dragged_by_compositor.has_value() && !next_pointer_event_is_captured()) {
         auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, remote_target, [=](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
             return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers, click_count, {}, remote_target);
         });
@@ -424,7 +424,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     m_mousedown_visual_viewport_position = visual_viewport_position;
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *layout_node);
-    auto dispatch_result = dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerDown, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count);
+    auto dispatch_result = dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerDown, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count).result;
 
     bool is_context_menu_trigger = button == UIEvents::MouseButton::Secondary;
 #if defined(AK_OS_MACOS)
@@ -617,7 +617,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             return EventResult::Dropped;
 
         // A move the lanes handed to a same-process iframe goes to it, whose lanes hovered what is under the pointer there.
-        if (!goes_to_lane_hover_target || Painting::is_navigable_container_viewport_paintable(*target_layout_node)) {
+        if ((!goes_to_lane_hover_target || Painting::is_navigable_container_viewport_paintable(*target_layout_node)) && !next_pointer_event_is_captured()) {
             auto nested_navigable = local_nested_navigable_at(*target_layout_node, node);
             auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, remote_target, [&](EventHandler& event_handler, CSSPixelPoint position) {
                 return event_handler.handle_mousemove(position, screen_position, buttons, modifiers, remote_target);
@@ -651,7 +651,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             auto movement = compute_mouse_event_movement(screen_position);
             m_mousemove_previous_screen_position = screen_position;
 
-            if (dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerMove, *node, chrome_widget, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers) != PointerEventDispatchResult::RunDefaultActions)
+            if (dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerMove, *node, chrome_widget, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers).result != PointerEventDispatchResult::RunDefaultActions)
                 return EventResult::Cancelled;
         }
     } else if (m_mousedown_target) {
@@ -662,7 +662,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         auto movement = compute_mouse_event_movement(screen_position);
         m_mousemove_previous_screen_position = screen_position;
 
-        if (dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerMove, document->html_element(), nullptr, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers) != PointerEventDispatchResult::RunDefaultActions)
+        if (dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerMove, document->html_element(), nullptr, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers).result != PointerEventDispatchResult::RunDefaultActions)
             return EventResult::Cancelled;
     }
 
@@ -763,7 +763,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         //     chance to end a drag that went outside the window.
         if (m_mousedown_target) {
             auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *document->layout_node(read));
-            dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerUp, document->html_element(), nullptr, coordinates, screen_position, {}, button, buttons, modifiers, click_count);
+            dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerUp, document->html_element(), nullptr, coordinates, screen_position, {}, button, buttons, modifiers, click_count);
             return EventResult::Handled;
         }
 
@@ -777,11 +777,13 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     if (!node)
         return EventResult::Dropped;
 
-    auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, remote_target, [&](EventHandler& event_handler, CSSPixelPoint position) {
-        return event_handler.handle_mouseup(position, screen_position, button, buttons, modifiers, remote_target);
-    });
-    if (dispath_result.has_value())
-        return *dispath_result;
+    if (!next_pointer_event_is_captured()) {
+        auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, remote_target, [&](EventHandler& event_handler, CSSPixelPoint position) {
+            return event_handler.handle_mouseup(position, screen_position, button, buttons, modifiers, remote_target);
+        });
+        if (dispath_result.has_value())
+            return *dispath_result;
+    }
 
     // NB: Search for the first parent of the hit target that's an element.
     //
@@ -796,17 +798,20 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         return EventResult::Dropped;
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *layout_node);
-    [[maybe_unused]] auto dispatch_result = dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerUp, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count);
+    auto dispatched_pointer_up = dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerUp, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count);
 
 #if defined(AK_OS_MACOS)
     // INTEROP: Blink, WebKit, and Gecko defer changing a selection clicked for a possible drag until an uncancelled
     //          mouseup. Blink and WebKit clear non-editable selections, while Gecko collapses them to a caret.
-    if (m_mousedown_preserved_selection && dispatch_result == PointerEventDispatchResult::RunDefaultActions)
+    if (m_mousedown_preserved_selection && dispatched_pointer_up.result == PointerEventDispatchResult::RunDefaultActions)
         finish_selection_from_preserved_mousedown(*document, visual_viewport_position);
 #endif
 
+    // https://w3c.github.io/pointerevents/#the-click-auxclick-and-contextmenu-events
+    // The target of click and auxclick events is the pointer capture target override of the pointerup event, if the
+    // pointer was captured as it fired, even though lostpointercapture has fired by now.
     // NB: If the middle button was used to scroll, suppress click and activation behavior.
-    auto click_target = target_for_click_event(m_mousedown_target, *node);
+    auto click_target = dispatched_pointer_up.pointer_capture_target ? dispatched_pointer_up.pointer_capture_target : target_for_click_event(m_mousedown_target, *node);
     if (click_target && !middle_button_autoscrolled) {
         // NB: Mouseup listeners may have invalidated layout. Click offsets are relative to the click target,
         //     which may differ from the mouseup target.
@@ -1404,7 +1409,7 @@ EventResult EventHandler::handle_mousecancel()
     // The values of the following properties of the pointercancel event MUST match the values of the last dispatched
     // pointer event with the same pointerId: [...] and the coordinates inherited from Mouse Events.
     auto const& last_position = *m_last_dispatched_pointer_event_position;
-    dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerCancel, target, nullptr, last_position.coordinates, last_position.screen_position, {}, UIEvents::MouseButton::Primary, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
+    dispatch_a_pointer_event_for_a_device_that_supports_hover(read, PointerEventType::PointerCancel, target, nullptr, last_position.coordinates, last_position.screen_position, {}, UIEvents::MouseButton::Primary, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
 
     // NB: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)
@@ -1417,7 +1422,7 @@ EventResult EventHandler::handle_mousecancel()
     track_the_effective_position_of_the_legacy_mouse_pointer(nullptr);
 
     // 4. Implicitly release the pointer capture if the pointer is currently captured.
-    // NB: The press is released as this returns.
+    // NB: Firing the pointercancel event released the capture, and the press is released as this returns.
     // FIXME: Also end a drag that a chrome widget, such as a scrollbar, has captured.
 
     return EventResult::Handled;
@@ -4177,6 +4182,111 @@ void EventHandler::reset_mouse_input_tracking(Badge<Page>)
     clear_mousedown_tracking();
     stop_updating_selection();
     m_wheel_scroll_latch.clear();
+
+    // The press ended in another document, so no pointerup here releases a capture it set, and the mouse holds no
+    // button that a capture needs.
+    m_buttons_of_last_dispatched_pointer_event = 0;
+    if (auto document = m_navigable->active_document(); document && (m_pending_pointer_capture_target_override.ptr() || m_pointer_capture_target_override.ptr())) {
+        Layout::ForcedReadScope read { *document };
+        release_pointer_capture_implicitly(read);
+    }
+}
+
+void EventHandler::set_pending_pointer_capture_target_override(Badge<DOM::Element>, DOM::Element& element)
+{
+    m_pending_pointer_capture_target_override = element;
+}
+
+void EventHandler::clear_pending_pointer_capture_target_override(Badge<DOM::Element>)
+{
+    m_pending_pointer_capture_target_override = nullptr;
+}
+
+bool EventHandler::next_pointer_event_is_captured() const
+{
+    // Processing the pending pointer capture before the event makes the pending override the override, or clears the
+    // override, and drops a pending override that is no longer connected.
+    auto pending_pointer_capture_target_override = m_pending_pointer_capture_target_override.ptr();
+    return pending_pointer_capture_target_override && pending_pointer_capture_target_override->is_connected();
+}
+
+// https://w3c.github.io/pointerevents/#process-pending-pointer-capture
+EventHandler::PointerCaptureEventsFired EventHandler::process_pending_pointer_capture(Layout::BegunRead const& read)
+{
+    // https://w3c.github.io/pointerevents/#implicit-release-of-pointer-capture
+    // When the pointer capture target override is no longer connected, the pointer capture target override SHOULD be
+    // set to the document. When the pending pointer capture target override is no longer connected, the pending
+    // pointer capture target override node SHOULD be cleared.
+    if (auto pending_pointer_capture_target_override = m_pending_pointer_capture_target_override.ptr(); pending_pointer_capture_target_override && !pending_pointer_capture_target_override->is_connected())
+        m_pending_pointer_capture_target_override = nullptr;
+    if (auto pointer_capture_target_override = m_pointer_capture_target_override.ptr(); pointer_capture_target_override && !pointer_capture_target_override->is_connected())
+        m_pointer_capture_target_override = GC::Ptr<DOM::Node> { &pointer_capture_target_override->document() };
+
+    GC::Ptr<DOM::Node> pointer_capture_target_override = m_pointer_capture_target_override.ptr();
+    GC::Ptr<DOM::Node> pending_pointer_capture_target_override = m_pending_pointer_capture_target_override.ptr();
+    auto events_fired = PointerCaptureEventsFired::No;
+
+    // 1. If the pointer capture target override for this pointer is set and is not equal to the pending pointer
+    //    capture target override, then fire a pointer event named lostpointercapture at the pointer capture target
+    //    override node.
+    if (pointer_capture_target_override && pointer_capture_target_override != pending_pointer_capture_target_override) {
+        fire_pointer_capture_event(read, UIEvents::EventNames::lostpointercapture, *pointer_capture_target_override);
+        events_fired = PointerCaptureEventsFired::Yes;
+    }
+
+    // 2. If the pending pointer capture target override for this pointer is set and is not equal to the pointer
+    //    capture target override, then fire a pointer event named gotpointercapture at the pending pointer capture
+    //    target override.
+    if (pending_pointer_capture_target_override && pending_pointer_capture_target_override != pointer_capture_target_override) {
+        fire_pointer_capture_event(read, UIEvents::EventNames::gotpointercapture, *pending_pointer_capture_target_override);
+        events_fired = PointerCaptureEventsFired::Yes;
+    }
+
+    // 3. Set the pointer capture target override to the pending pointer capture target override, if set. Otherwise,
+    //    clear the pointer capture target override.
+    // NB: A listener of the events above may have set or released the capture again, which the override follows.
+    m_pointer_capture_target_override = GC::Ptr<DOM::Node> { m_pending_pointer_capture_target_override.ptr() };
+
+    // NB: A listener of the events above may have removed the capturing element as well. Its document then holds the
+    //     capture, and loses it before the pointer event these steps precede rather than at the one after.
+    if (auto pointer_capture_target_override = m_pointer_capture_target_override.ptr(); pointer_capture_target_override && !pointer_capture_target_override->is_connected()) {
+        m_pending_pointer_capture_target_override = nullptr;
+        m_pointer_capture_target_override = nullptr;
+        fire_pointer_capture_event(read, UIEvents::EventNames::lostpointercapture, pointer_capture_target_override->document());
+        events_fired = PointerCaptureEventsFired::Yes;
+    }
+    return events_fired;
+}
+
+// https://w3c.github.io/pointerevents/#the-gotpointercapture-event
+// https://w3c.github.io/pointerevents/#the-lostpointercapture-event
+void EventHandler::fire_pointer_capture_event(Layout::BegunRead const& read, Utf16FlyString const& event_name, DOM::Node& target)
+{
+    // The event tells where the pointer is, which is where its last pointer event went.
+    MouseEventCoordinates coordinates;
+    CSSPixelPoint screen_position;
+    if (m_last_dispatched_pointer_event_position.has_value()) {
+        coordinates = m_last_dispatched_pointer_event_position->coordinates;
+        screen_position = m_last_dispatched_pointer_event_position->screen_position;
+        // NB: The listeners of the events fired before this one may have invalidated layout.
+        target.document().update_layout(DOM::UpdateLayoutReason::EventHandlerPointerCaptureEvents);
+        if (auto* target_layout_node = target.layout_node(read))
+            coordinates = compute_mouse_event_coordinates(coordinates.visual_viewport_position, coordinates.viewport_position, *target_layout_node);
+    }
+    auto event = MUST(UIEvents::PointerEvent::create_from_platform_event(HTML::relevant_global_object(target), m_navigable->active_window_proxy(), event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, {}, UIEvents::MouseButton::None, m_buttons_of_last_dispatched_pointer_event, m_last_known_mouse_modifiers));
+    // Bubbles: Yes. Cancelable: No. Composed: Yes.
+    event->set_cancelable(false);
+    target.dispatch_event(event);
+}
+
+// https://w3c.github.io/pointerevents/#implicit-release-of-pointer-capture
+void EventHandler::release_pointer_capture_implicitly(Layout::BegunRead const& read)
+{
+    // Immediately after firing the pointerup or pointercancel events, the user agent MUST clear the pending pointer
+    // capture target override for the pointerId of the pointerup or pointercancel event that was just dispatched, and
+    // then run process pending pointer capture steps to fire lostpointercapture if necessary.
+    m_pending_pointer_capture_target_override = nullptr;
+    process_pending_pointer_capture(read);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#run-light-dismiss-activities
@@ -4200,10 +4310,35 @@ static void set_node_and_ancestors_being_activated(GC::Ptr<DOM::Node> node, bool
 }
 
 // https://w3c.github.io/pointerevents/#mapping-for-devices-that-support-hover
-EventHandler::PointerEventDispatchResult EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType type, GC::Ptr<DOM::Node> node, RefPtr<Painting::ChromeWidget> chrome_widget, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
+EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_a_device_that_supports_hover(Layout::BegunRead const& read, PointerEventType type, GC::Ptr<DOM::Node> hit_test_target, RefPtr<Painting::ChromeWidget> chrome_widget, MouseEventCoordinates coordinates, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
 {
     auto& document = *m_navigable->active_document();
     auto& relevant_global_object = HTML::relevant_global_object(document);
+
+    // https://w3c.github.io/pointerevents/#firing-events-using-the-pointerevent-interface
+    // 1. If the event is not a gotpointercapture, lostpointercapture, click, auxclick or contextmenu event, run the
+    //    process pending pointer capture steps for this PointerEvent.
+    if (process_pending_pointer_capture(read) == PointerCaptureEventsFired::Yes) {
+        // NB: Dispatching an event may have disturbed the world.
+        if (m_navigable->active_document().ptr() != &document)
+            return { PointerEventDispatchResult::CancelledByPage, {} };
+        document.update_layout(DOM::UpdateLayoutReason::EventHandlerPointerCaptureEvents);
+    }
+
+    // 2. Determine the target at which the event is fired as follows:
+    //    - If the pointer capture target override has been set for the pointer, set the target to pointer capture
+    //      target override object.
+    //    - Otherwise, set the target to the object returned by normal hit test mechanisms.
+    GC::Ptr<DOM::Node> node = hit_test_target;
+    GC::Ptr<DOM::Node> pointer_capture_target = m_pointer_capture_target_override.ptr();
+    auto hit_test_coordinates = coordinates;
+    if (pointer_capture_target) {
+        node = pointer_capture_target;
+        // NB: A chrome widget under the pointer, such as a scrollbar, is a hit test result as well.
+        chrome_widget = nullptr;
+        if (auto* pointer_capture_target_layout_node = node->layout_node(read))
+            coordinates = compute_mouse_event_coordinates(coordinates.visual_viewport_position, coordinates.viewport_position, *pointer_capture_target_layout_node);
+    }
 
     auto pointer_event_name = [&] {
         switch (type) {
@@ -4257,7 +4392,7 @@ EventHandler::PointerEventDispatchResult EventHandler::dispatch_a_pointer_event_
     if (chrome_widget || m_captured_chrome_widget)
         document.update_layout(DOM::UpdateLayoutReason::EventHandlerDispatchChromeWidgetEvent);
     if (!dispatch_chrome_widget_pointer_event(chrome_widget, pointer_event_name, button, coordinates.visual_viewport_position))
-        return PointerEventDispatchResult::SwallowedByChromeWidget;
+        return { PointerEventDispatchResult::SwallowedByChromeWidget, pointer_capture_target };
 
     // FIXME: This will be moved to the click event and need to track the targets of the pointerdown and pointerup events.
     //        https://github.com/w3c/pointerevents/pull/460
@@ -4265,12 +4400,36 @@ EventHandler::PointerEventDispatchResult EventHandler::dispatch_a_pointer_event_
 
     // 3. Dispatch the pointer event.
     m_last_dispatched_pointer_event_position = PointerEventPosition { coordinates, screen_position };
+    m_buttons_of_last_dispatched_pointer_event = type == PointerEventType::PointerCancel ? 0 : buttons;
     bool pointer_event_cancelled = !node->dispatch_event(pointer_event);
 
     // 4. If the pointer event dispatched was pointerdown and event's canceled flag is set, then set the PREVENT MOUSE
     //    EVENT flag for this pointerType.
     if (type == PointerEventType::PointerDown && pointer_event_cancelled)
         m_prevent_mouse_event = true;
+
+    // https://w3c.github.io/pointerevents/#implicit-release-of-pointer-capture
+    if (type == PointerEventType::PointerUp || type == PointerEventType::PointerCancel) {
+        release_pointer_capture_implicitly(read);
+
+        // After running process pending pointer capture steps, if the pointer supports hover, user agent MUST also
+        // send corresponding boundary events necessary to reflect the current position of the pointer with no capture.
+        // NB: A cancelled pointer leaves the window, which its caller moves it out of.
+        if (type == PointerEventType::PointerUp && pointer_capture_target && m_navigable->active_document().ptr() == &document) {
+            // NB: The listeners of the events above may have invalidated layout.
+            document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseUp);
+            track_the_effective_position_of_the_legacy_mouse_pointer(hit_test_target, DOM::HoverEventData {
+                                                                                          .screen_position = screen_position,
+                                                                                          .page_offset = hit_test_coordinates.page_offset,
+                                                                                          .viewport_position = hit_test_coordinates.viewport_position,
+                                                                                          .offset = hit_test_coordinates.offset,
+                                                                                          .movement = movement,
+                                                                                          .button = button,
+                                                                                          .buttons = buttons,
+                                                                                          .modifiers = modifiers,
+                                                                                      });
+        }
+    }
 
     // 5. If the PREVENT MOUSE EVENT flag is not set for this pointerType and the pointer event dispatched was:
     bool run_default_activation_behavior = false;
@@ -4302,7 +4461,7 @@ EventHandler::PointerEventDispatchResult EventHandler::dispatch_a_pointer_event_
     if (type == PointerEventType::PointerUp || type == PointerEventType::PointerCancel)
         m_prevent_mouse_event = false;
 
-    return run_default_activation_behavior ? PointerEventDispatchResult::RunDefaultActions : PointerEventDispatchResult::CancelledByPage;
+    return { run_default_activation_behavior ? PointerEventDispatchResult::RunDefaultActions : PointerEventDispatchResult::CancelledByPage, pointer_capture_target };
 }
 
 void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node> target, Optional<DOM::HoverEventData> hover_event_data)
@@ -4392,6 +4551,10 @@ void EventHandler::reset_hover_for_document_replacement(Badge<HTML::LocalNavigab
     // this document (an iframe the pointer once passed through, e.g.) is going away underneath it.
     m_effective_legacy_mouse_pointer_position = nullptr;
     m_wheel_scroll_latch.clear();
+    // A capture in the outgoing document ends with it, with no lostpointercapture event into that document.
+    m_pending_pointer_capture_target_override = nullptr;
+    m_pointer_capture_target_override = nullptr;
+    m_buttons_of_last_dispatched_pointer_event = 0;
     if (m_navigable->page().hover_reporting_navigable() == m_navigable)
         report_hovered_node_to_client(nullptr);
 }
