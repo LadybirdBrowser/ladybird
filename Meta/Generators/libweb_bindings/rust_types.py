@@ -47,7 +47,7 @@ SUPPORTED_TYPE_EXTENDED_ATTRIBUTES = {"AllowShared", "AllowResizable"}
 INTEGER_TYPES = {"long": "i32", "unsigned long": "u32", "long long": "i64", "unsigned long long": "u64"}
 
 # The floating point types, with the Rust type of their values.
-FLOATING_POINT_TYPES = {"float": "f32", "unrestricted float": "f32", "unrestricted double": "f64"}
+FLOATING_POINT_TYPES = {"float": "f32", "unrestricted float": "f32", "double": "f64", "unrestricted double": "f64"}
 
 # The types whose values are plain data, with the Rust type of their values. None of these Rust types is or holds a
 # cell, which holds_cells() relies on.

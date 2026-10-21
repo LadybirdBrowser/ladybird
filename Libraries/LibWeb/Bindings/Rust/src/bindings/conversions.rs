@@ -289,6 +289,26 @@ pub(crate) fn to_unrestricted_float(vm: &Vm, value: Value) -> ThrowCompletionOr<
     Ok(x as f32)
 }
 
+/// A JS value converted to a double, https://webidl.spec.whatwg.org/#js-double
+///
+/// The identifier is the name of the parameter or member that the value is of, which the error names.
+pub(crate) fn to_double(vm: &Vm, value: Value, identifier: &str) -> ThrowCompletionOr<f64> {
+    // 1. Let x be ? ToNumber(V).
+    let x = value.to_double(vm)?;
+
+    // 2. If x is NaN, +∞, or −∞, then throw a TypeError.
+    if !x.is_finite() {
+        return vm.throw_completion(
+            ErrorKind::TypeError,
+            ErrorType::InvalidRestrictedFloatingPointParameter,
+            &[&identifier],
+        );
+    }
+
+    // 3. Return the IDL double value that represents the same numeric value as x.
+    Ok(x)
+}
+
 /// A JS value converted to an unrestricted double, https://webidl.spec.whatwg.org/#js-unrestricted-double
 pub(crate) fn to_unrestricted_double(vm: &Vm, value: Value) -> ThrowCompletionOr<f64> {
     // 1. Let x be ? ToNumber(V).

@@ -393,8 +393,8 @@ def write_rust_interface(
     use crate::bindings::conversions::{{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
         implements_cpp_interface, record_to_js, rooted_sequence_to_js, sequence_from_js, sequence_to_js,
-        to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface, to_dom_string, to_float, to_long,
-        to_long_long, to_typed_array, to_unrestricted_double, to_unrestricted_float, to_unsigned_long,
+        to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface, to_dom_string, to_double, to_float,
+        to_long, to_long_long, to_typed_array, to_unrestricted_double, to_unrestricted_float, to_unsigned_long,
         to_unsigned_long_long, to_usv_string,
     }};
     use crate::bindings::interface::{{
@@ -814,7 +814,7 @@ pub(crate) mod definitions {
         dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface, iterator_method,
         record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js, sequence_to_js,
         throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
-        to_dom_string, to_enumeration_value, to_float, to_long, to_long_long, to_typed_array,
+        to_dom_string, to_double, to_enumeration_value, to_float, to_long, to_long_long, to_typed_array,
         to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
     };
     use crate::bindings::interface::{Ref, create_dictionary_object, set_dictionary_member, to_interface};
