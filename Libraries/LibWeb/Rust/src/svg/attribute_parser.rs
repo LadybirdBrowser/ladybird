@@ -5,7 +5,7 @@
  */
 
 use super::parser::{Input, Parser};
-use super::path_parser::FfiSvgInput;
+use crate::css::ffi_support::FfiUtf16View;
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -350,46 +350,38 @@ pub struct FfiSvgTransform {
     pub values: [f32; 6],
 }
 
-fn with_input<T>(input: FfiSvgInput, parse: impl FnOnce(Input<'_>) -> T) -> Option<T> {
-    // SAFETY: FFI callers satisfy FfiSvgInput's pointer contract for the duration of the call.
-    Some(parse(unsafe { input.input()? }))
+fn with_input<T>(input: FfiUtf16View<'_>, parse: impl FnOnce(Input<'_>) -> T) -> Option<T> {
+    Some(parse(super::path_parser::svg_input(input)?))
 }
 
-/// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `value` must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_svg_integer(input: FfiSvgInput, value: *mut i32) -> bool {
+pub extern "C" fn rust_parse_svg_integer(input: FfiUtf16View<'_>, value: &mut i32) -> bool {
     let Some(parsed_value) = with_input(input, parse_integer).flatten() else {
         return false;
     };
-    unsafe { value.write(parsed_value) };
+    *value = parsed_value;
     true
 }
 
-/// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and the output pointers must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_svg_number_percentage(
-    input: FfiSvgInput,
-    value: *mut f32,
-    is_percentage: *mut bool,
+pub extern "C" fn rust_parse_svg_number_percentage(
+    input: FfiUtf16View<'_>,
+    value: &mut f32,
+    is_percentage: &mut bool,
 ) -> bool {
     let Some(parsed_value) = with_input(input, parse_number_percentage).flatten() else {
         return false;
     };
-    unsafe {
-        value.write(parsed_value.value);
-        is_percentage.write(parsed_value.is_percentage);
-    }
+    *value = parsed_value.value;
+    *is_percentage = parsed_value.is_percentage;
     true
 }
 
 /// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `context` must be valid for
-/// `set_points`.
+/// `context` must be valid for `set_points`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_svg_points(
-    input: FfiSvgInput,
+    input: FfiUtf16View<'_>,
     context: *mut c_void,
     set_points: unsafe extern "C" fn(*mut c_void, *const FfiSvgPoint, usize),
 ) {
@@ -405,11 +397,10 @@ pub unsafe extern "C" fn rust_parse_svg_points(
 }
 
 /// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `context` must be valid for
-/// `set_transforms`.
+/// `context` must be valid for `set_transforms`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_svg_transform(
-    input: FfiSvgInput,
+    input: FfiUtf16View<'_>,
     context: *mut c_void,
     set_transforms: unsafe extern "C" fn(*mut c_void, *const FfiSvgTransform, usize),
 ) -> bool {
@@ -427,52 +418,43 @@ pub unsafe extern "C" fn rust_parse_svg_transform(
     true
 }
 
-/// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and the output pointers must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_svg_preserve_aspect_ratio(
-    input: FfiSvgInput,
-    align: *mut u8,
-    meet_or_slice: *mut u8,
+pub extern "C" fn rust_parse_svg_preserve_aspect_ratio(
+    input: FfiUtf16View<'_>,
+    align: &mut u8,
+    meet_or_slice: &mut u8,
 ) -> bool {
     let Some((parsed_align, parsed_meet_or_slice)) = with_input(input, parse_preserve_aspect_ratio).flatten() else {
         return false;
     };
-    unsafe {
-        align.write(parsed_align);
-        meet_or_slice.write(parsed_meet_or_slice);
-    }
+    *align = parsed_align;
+    *meet_or_slice = parsed_meet_or_slice;
     true
 }
 
-/// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `value` must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_svg_units(input: FfiSvgInput, value: *mut u8) -> bool {
+pub extern "C" fn rust_parse_svg_units(input: FfiUtf16View<'_>, value: &mut u8) -> bool {
     let Some(parsed_value) = with_input(input, parse_units).flatten() else {
         return false;
     };
-    unsafe { value.write(parsed_value) };
+    *value = parsed_value;
     true
 }
 
-/// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `value` must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_svg_spread_method(input: FfiSvgInput, value: *mut u8) -> bool {
+pub extern "C" fn rust_parse_svg_spread_method(input: FfiUtf16View<'_>, value: &mut u8) -> bool {
     let Some(parsed_value) = with_input(input, parse_spread_method).flatten() else {
         return false;
     };
-    unsafe { value.write(parsed_value) };
+    *value = parsed_value;
     true
 }
 
 /// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `context` must be valid for
-/// `set_values`.
+/// `context` must be valid for `set_values`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_svg_table_values(
-    input: FfiSvgInput,
+    input: FfiUtf16View<'_>,
     context: *mut c_void,
     set_values: unsafe extern "C" fn(*mut c_void, *const f32, usize),
 ) {
@@ -480,36 +462,30 @@ pub unsafe extern "C" fn rust_parse_svg_table_values(
     unsafe { set_values(context, values.as_ptr(), values.len()) };
 }
 
-/// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and the output pointers must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_svg_view_box(
-    input: FfiSvgInput,
-    min_x: *mut f64,
-    min_y: *mut f64,
-    width: *mut f64,
-    height: *mut f64,
+pub extern "C" fn rust_parse_svg_view_box(
+    input: FfiUtf16View<'_>,
+    min_x: &mut f64,
+    min_y: &mut f64,
+    width: &mut f64,
+    height: &mut f64,
 ) -> bool {
     let Some(values) = with_input(input, parse_view_box).flatten() else {
         return false;
     };
-    unsafe {
-        min_x.write(values[0]);
-        min_y.write(values[1]);
-        width.write(values[2]);
-        height.write(values[3]);
-    }
+    *min_x = values[0];
+    *min_y = values[1];
+    *width = values[2];
+    *height = values[3];
     true
 }
 
-/// # Safety
-/// `input` must satisfy [`FfiSvgInput::input`]'s requirements and `value` must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_svg_clock_value_in_milliseconds(input: FfiSvgInput, value: *mut f64) -> bool {
+pub extern "C" fn rust_parse_svg_clock_value_in_milliseconds(input: FfiUtf16View<'_>, value: &mut f64) -> bool {
     let Some(parsed_value) = with_input(input, parse_clock_value_in_milliseconds).flatten() else {
         return false;
     };
-    unsafe { value.write(parsed_value) };
+    *value = parsed_value;
     true
 }
 

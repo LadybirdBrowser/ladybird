@@ -14,7 +14,7 @@
 
 namespace Web::SVG {
 
-static RustFFI::FfiSvgInput ffi_svg_input(Utf16View input)
+static RustFFI::FfiUtf16View ffi_svg_input(Utf16View input)
 {
     return {
         .ascii = input.has_ascii_storage() ? reinterpret_cast<u8 const*>(input.ascii_span().data()) : nullptr,

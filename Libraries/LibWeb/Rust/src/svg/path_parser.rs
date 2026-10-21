@@ -5,6 +5,8 @@
  */
 
 use super::parser::{Input, Parser as Lexer};
+use crate::css::css_tokenizer::TokenizerInput;
+use crate::css::ffi_support::FfiUtf16View;
 use libgfx_rust::path::{OwnedPath, PathBuilder};
 use std::ffi::c_void;
 use std::fmt::Write;
@@ -124,7 +126,7 @@ enum PathInstruction {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct ParsedPath {
+pub struct ParsedPath {
     instructions: Vec<PathInstruction>,
 }
 
@@ -845,86 +847,59 @@ impl<'a> Parser<'a> {
     }
 }
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiSvgInput {
-    pub ascii: *const u8,
-    pub utf16: *const u16,
-    pub length: usize,
+/// The units of `view`, or none for a view that names both or neither kind of storage.
+pub(super) fn svg_input(view: FfiUtf16View<'_>) -> Option<Input<'_>> {
+    Some(match view.units()? {
+        TokenizerInput::Ascii(units) => Input::Ascii(units),
+        TokenizerInput::Utf16(units) => Input::Utf16(units),
+    })
 }
 
-impl FfiSvgInput {
-    /// # Safety
-    /// For non-empty input, exactly one pointer must identify `length` readable units.
-    pub(super) unsafe fn input<'a>(self) -> Option<Input<'a>> {
-        if self.length == 0 {
-            return Some(Input::Ascii(&[]));
-        }
-        match (self.ascii.is_null(), self.utf16.is_null()) {
-            (false, true) => Some(Input::Ascii(unsafe {
-                ak::slice_from_raw_parts(self.ascii, self.length)
-            })),
-            (true, false) => Some(Input::Utf16(unsafe {
-                ak::slice_from_raw_parts(self.utf16, self.length)
-            })),
-            _ => None,
-        }
-    }
-}
-
-/// # Safety
-/// - `input` must satisfy [`FfiSvgInput::input`]'s requirements.
+/// The path `input` describes, as a new path C++ owns, or null where it describes none.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_svg_path_data(input: FfiSvgInput) -> *mut c_void {
-    let Some(input) = (unsafe { input.input() }) else {
+pub extern "C" fn rust_parse_svg_path_data(input: FfiUtf16View<'_>) -> *mut ParsedPath {
+    let Some(input) = svg_input(input) else {
         return std::ptr::null_mut();
     };
     let Some(instructions) = Parser::new(input).parse(true) else {
         return std::ptr::null_mut();
     };
-    Box::into_raw(Box::new(ParsedPath { instructions })).cast()
+    Box::into_raw(Box::new(ParsedPath { instructions }))
 }
 
-/// # Safety
-/// `path` must point to a live `ParsedPath`.
+/// A copy of `path`, as a new path C++ owns.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_svg_path_clone(path: *const c_void) -> *mut c_void {
-    let path = unsafe { &*path.cast::<ParsedPath>() };
-    Box::into_raw(Box::new(path.clone())).cast()
+pub extern "C" fn rust_svg_path_clone(path: &ParsedPath) -> *mut ParsedPath {
+    Box::into_raw(Box::new(path.clone()))
 }
 
 /// # Safety
 /// `path` must be a `ParsedPath` allocation returned by this module that has not yet been destroyed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_svg_path_destroy(path: *mut c_void) {
-    drop(unsafe { Box::from_raw(path.cast::<ParsedPath>()) });
+pub unsafe extern "C" fn rust_svg_path_destroy(path: *mut ParsedPath) {
+    drop(unsafe { Box::from_raw(path) });
 }
 
-/// # Safety
-/// `a` and `b` must point to live `ParsedPath` values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_svg_path_equals(a: *const c_void, b: *const c_void) -> bool {
-    unsafe { *a.cast::<ParsedPath>() == *b.cast::<ParsedPath>() }
+pub extern "C" fn rust_svg_path_equals(a: &ParsedPath, b: &ParsedPath) -> bool {
+    a == b
 }
 
 /// # Safety
-/// - `path` must point to a live `ParsedPath`.
-/// - `context` must be valid for `append` for the duration of this call.
+/// `context` must be valid for `append` for the duration of this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_svg_path_serialize(
-    path: *const c_void,
+    path: &ParsedPath,
     context: *mut c_void,
     append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
 ) {
-    let serialized = unsafe { &*path.cast::<ParsedPath>() }.serialize();
+    let serialized = path.serialize();
     unsafe { append(context, serialized.as_ptr(), serialized.len()) };
 }
 
-/// # Safety
-/// `path` must point to a live `ParsedPath`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_svg_path_to_gfx_path(path: *const c_void) -> *mut c_void {
-    unsafe { &*path.cast::<ParsedPath>() }.to_gfx_path().into_raw()
+pub extern "C" fn rust_svg_path_to_gfx_path(path: &ParsedPath) -> *mut c_void {
+    path.to_gfx_path().into_raw()
 }
 
 #[cfg(test)]
