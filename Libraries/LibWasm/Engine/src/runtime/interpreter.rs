@@ -118,9 +118,20 @@ fn missing_cpu_features() -> Vec<&'static str> {
 
 /// The lowest address the interpreter's frames may use on the current thread, leaving `reserve` bytes below it.
 pub fn stack_limit(reserve: usize) -> u64 {
-    let marker = 0u8;
-    let current = &raw const marker as usize;
-    let lowest = thread_stack_lowest_address().unwrap_or(current.saturating_sub(1024 * 1024));
+    // OPTIMIZATION: Finding where a thread's stack ends can mean reading /proc/self/maps (glibc does for the main
+    //               thread), which took over half a millisecond per call from JavaScript into WebAssembly, so each
+    //               thread finds it once.
+    thread_local! {
+        static LOWEST: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    }
+    let lowest = LOWEST.with(|lowest| {
+        if lowest.get() == 0 {
+            let marker = 0u8;
+            let current = &raw const marker as usize;
+            lowest.set(thread_stack_lowest_address().unwrap_or(current.saturating_sub(1024 * 1024)));
+        }
+        lowest.get()
+    });
     (lowest + reserve) as u64
 }
 

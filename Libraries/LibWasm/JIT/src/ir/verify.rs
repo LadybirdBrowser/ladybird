@@ -124,7 +124,7 @@ pub fn verify(func: &Func, is_dead: &dyn Fn(Value) -> bool, after_cleanup: bool)
         let expected_successors = match func.node(terminator).op {
             Op::Jump => Some(1),
             Op::Branch | Op::BranchCompare | Op::BranchFloatCompare => Some(2),
-            Op::Return | Op::Trap | Op::TailCall => Some(0),
+            Op::Return | Op::Trap | Op::TailCall | Op::Throw => Some(0),
             _ => None,
         };
         if let Some(expected) = expected_successors
@@ -228,7 +228,7 @@ fn check_types(func: &Func, value: Value, error: &mut impl FnMut(String)) {
         | Op::Extend32S => matches!(node.ty, Type::I32 | Type::I64) && same(node.ty),
         Op::Eqz => node.ty == Type::I32 && matches!(input_type(0), Type::I32 | Type::I64 | Type::Ref),
         Op::Compare | Op::BranchCompare => {
-            matches!(input_type(0), Type::I32 | Type::I64 | Type::Ref) && input_type(0) == input_type(1)
+            matches!(input_type(0), Type::I32 | Type::I64 | Type::Ref | Type::Pointer) && input_type(0) == input_type(1)
         }
         Op::FAdd
         | Op::FSub
@@ -249,18 +249,31 @@ fn check_types(func: &Func, value: Value, error: &mut impl FnMut(String)) {
         Op::Wrap => node.ty == Type::I32 && input_type(0) == Type::I64,
         Op::Select => input_type(0) == Type::I32 && input_type(1) == node.ty && input_type(2) == node.ty,
         Op::Phi => same(node.ty),
-        Op::Load => input_type(0) == Type::Pointer && input_type(1) == Type::I32,
-        Op::Store => input_type(0) == Type::Pointer && input_type(1) == Type::I32,
+        // NB: GC objects' fields are accessed at the object's reference.
+        Op::Load | Op::Store => matches!(input_type(0), Type::Pointer | Type::Ref) && input_type(1) == Type::I32,
         Op::Branch => input_type(0) == Type::I32,
         Op::BrTable => input_type(0) == Type::I32,
-        Op::InstanceField
-        | Op::LoadPointer
-        | Op::GlobalGet
-        | Op::GlobalSet
-        | Op::Offset
-        | Op::FrameLoad
-        | Op::ReadField
-        | Op::WriteField => input_type(0) == Type::Pointer,
+        Op::InstanceField | Op::LoadPointer | Op::GlobalGet | Op::GlobalSet | Op::Offset | Op::FrameLoad => {
+            input_type(0) == Type::Pointer
+        }
+        // NB: References to runtime objects, like exceptions and GC objects, point at them.
+        Op::ReadField | Op::WriteField => matches!(input_type(0), Type::Pointer | Type::Ref),
+        Op::CheckedAddress => {
+            input_type(0) == Type::Pointer
+                && matches!(input_type(1), Type::I32 | Type::I64)
+                && input_type(2) == Type::I64
+                && node.ty == Type::Pointer
+        }
+        Op::AtomicRmw | Op::AtomicCompareExchange => {
+            input_type(0) == Type::Pointer
+                && matches!(node.ty, Type::I32 | Type::I64)
+                && inputs[1..].iter().all(|input| func.node(*input).ty == node.ty)
+        }
+        Op::Rtt => input_type(0) == Type::Pointer && node.ty == Type::Pointer,
+        Op::I31New => input_type(0) == Type::I32 && node.ty == Type::Ref,
+        Op::I31Get => input_type(0) == Type::Ref && node.ty == Type::I32,
+        Op::ElementAddress => input_type(0) == Type::Ref && input_type(1) == Type::I32 && node.ty == Type::Pointer,
+        Op::RefTest => input_type(0) == Type::Ref && input_type(1) == Type::I32,
         Op::TableElement => input_type(0) == Type::Pointer && node.ty == Type::Ref,
         Op::TableStore => input_type(0) == Type::Pointer && input_type(2) == Type::Ref,
         Op::CheckFunction => input_type(0) == Type::Ref && input_type(1) == Type::I32,

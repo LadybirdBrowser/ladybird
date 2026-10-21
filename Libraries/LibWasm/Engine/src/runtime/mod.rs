@@ -381,6 +381,8 @@ impl Store {
                 store: std::ptr::null_mut(),
                 arguments: [0; 6],
                 rtts: std::ptr::null(),
+                exception: 0,
+                resume: [0; 3],
             }),
             canonicalizer: TypeCanonicalizer::new(),
             types: Vec::new(),

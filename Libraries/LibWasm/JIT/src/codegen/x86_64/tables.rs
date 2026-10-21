@@ -150,6 +150,10 @@ impl CodeGenerator<'_> {
                     let trap = self.dynamic_trap_label();
                     self.asm.test_rr(Width::W64, target, target);
                     self.asm.jcc(Cond::NotEqual, trap);
+                } else if helper.traps_on_zero() {
+                    let trap = self.trap_label(libwasm_module::abi::TRAP_RUNTIME);
+                    self.asm.test_rr(Width::W64, target, target);
+                    self.asm.jcc(Cond::Equal, trap);
                 }
             }
             _ => unreachable!("{} is no runtime operation", node.op.name()),

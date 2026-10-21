@@ -188,6 +188,11 @@ pub struct ExecutionContext {
     pub arguments: [u64; 6],
     /// The runtime type of each store-wide type identity.
     pub rtts: *const *const Rtt,
+    /// The exception that compiled code handles where a call returns to it, or 0 (see `runtime/jit.rs`).
+    pub exception: u64,
+    /// Where an exception continues in compiled code, or in the entry trampoline: rsp, rbp and the address the
+    /// resume stub jumps to.
+    pub resume: [u64; 3],
 }
 
 /// What the interpreter knows about a type at runtime: how to check subtyping against it, and how objects of it are
@@ -232,6 +237,15 @@ pub const STORAGE_FUNCTION_REFERENCE: u8 = 6;
 pub const OBJECT_DATA_OFFSET: usize = 16;
 pub const OBJECT_LENGTH_OFFSET: usize = 24;
 pub const OBJECT_INLINE_DATA_OFFSET: usize = 32;
+
+/// An exception is a cell with the identity of its tag, the address of its payload (its values' slots in operand
+/// stack order, the last value in the lowest slot), the payload's length in slots, and how the collector follows
+/// each slot.
+pub const EXCEPTION_CELL_SIZE: usize = 48;
+pub const EXCEPTION_TAG_OFFSET: usize = 16;
+pub const EXCEPTION_PAYLOAD_OFFSET: usize = 24;
+pub const EXCEPTION_LENGTH_OFFSET: usize = 32;
+pub const EXCEPTION_KINDS_OFFSET: usize = 40;
 
 /// What the runtime enters the interpreter with, and what it gets back.
 #[repr(C)]

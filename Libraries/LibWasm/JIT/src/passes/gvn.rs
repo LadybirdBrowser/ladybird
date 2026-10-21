@@ -79,7 +79,7 @@ impl Gvn {
     pub fn visit(&mut self, func: &Func, value: Value) -> Option<Value> {
         let node = func.node(value);
         let epochs = match node.op {
-            Op::Store => {
+            Op::Store | Op::AtomicRmw | Op::AtomicCompareExchange | Op::AtomicFence => {
                 self.memory_epoch += 1;
                 return None;
             }

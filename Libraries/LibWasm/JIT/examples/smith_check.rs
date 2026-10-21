@@ -9,7 +9,11 @@
 //!
 //! ```text
 //! smith_check [--count N] [--seed S] [--keep DIRECTORY] [--wasm-tools PATH] [--stress-registers] [--no-licm] [--gvn]
+//!     [--simd] [--features gc,threads,memory64,multi-memory]
 //! ```
+//!
+//! `--features` turns on proposals besides the default ones, in every module. Modules that wait on shared memory are
+//! skipped, since nothing would wake them. With GC, modules get less fuel, since the stores never free objects.
 
 #[path = "../tests/harness/mod.rs"]
 mod harness;
@@ -38,12 +42,12 @@ const SMITH_FLAGS: &[&str] = &[
     "1",
     "--max-memory32-bytes",
     "262144",
+    "--max-memory64-bytes",
+    "262144",
     "--bulk-memory-enabled",
     "true",
     "--reference-types-enabled",
     "true",
-    "--relaxed-simd-enabled",
-    "false",
     "--exceptions-enabled",
     "false",
     "--gc-enabled",
@@ -152,6 +156,8 @@ fn main() {
     let mut stress_registers = false;
     let mut no_licm = false;
     let mut gvn = false;
+    let mut simd = false;
+    let mut features: Vec<String> = Vec::new();
     let mut wasm_tools = std::env::var("HOME")
         .map(|home| format!("{home}/.cargo/bin/wasm-tools"))
         .unwrap_or_default();
@@ -170,7 +176,42 @@ fn main() {
             "--stress-registers" => stress_registers = true,
             "--no-licm" => no_licm = true,
             "--gvn" => gvn = true,
+            "--simd" => simd = true,
+            "--features" => {
+                features = arguments
+                    .next()
+                    .expect("--features LIST")
+                    .split(',')
+                    .map(str::to_string)
+                    .collect();
+            }
             _ => panic!("unknown argument {argument}"),
+        }
+    }
+    let simd_flag = |iteration: usize| {
+        if simd || iteration.is_multiple_of(2) {
+            "true"
+        } else {
+            "false"
+        }
+    };
+    let mut flags: Vec<&str> = SMITH_FLAGS.to_vec();
+    let mut set_flag = |name: &str, value: &'static str| {
+        let position = flags.iter().position(|flag| *flag == name).expect("a known flag");
+        flags[position + 1] = value;
+    };
+    for feature in &features {
+        match feature.as_str() {
+            "gc" => {
+                set_flag("--gc-enabled", "true");
+                // NB: The stores of these tests never free GC objects, so allocating loops run out of memory with
+                //     the usual fuel.
+                set_flag("--fuel", "20000");
+            }
+            "threads" => set_flag("--threads-enabled", "true"),
+            "memory64" => set_flag("--memory64-enabled", "true"),
+            "multi-memory" => set_flag("--max-memories", "4"),
+            _ => panic!("unknown feature {feature}"),
         }
     }
     let mut random = Random(seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1);
@@ -181,9 +222,10 @@ fn main() {
             .collect::<Vec<_>>();
         let mut child = Command::new(&wasm_tools)
             .arg("smith")
-            .args(SMITH_FLAGS)
-            // NB: Every other module without SIMD, whose functions the JIT compiles more often.
-            .args(["--simd-enabled", if iteration % 2 == 0 { "true" } else { "false" }])
+            .args(&flags)
+            // NB: Every other module without SIMD, unless --simd says otherwise.
+            .args(["--simd-enabled", simd_flag(iteration)])
+            .args(["--relaxed-simd-enabled", simd_flag(iteration)])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -198,6 +240,9 @@ fn main() {
         let Ok(module) = libwasm_engine::compile(&bytes) else {
             continue;
         };
+        if waits(&module) {
+            continue;
+        }
         let module = Arc::new(module);
         let mut interpreted = Store::new();
         let mut jit = Store::new();
@@ -324,4 +369,18 @@ fn main() {
     if totals.failures > 0 {
         std::process::exit(1);
     }
+}
+
+/// Whether a function of the module waits on shared memory (`memory.atomic.wait32` and `wait64`).
+fn waits(module: &libwasm_engine::module::Module) -> bool {
+    use libwasm_jit::decode::{Decoder, Instruction};
+    module.code.iter().any(|body| {
+        let mut decoder = Decoder::new(&module.bytes, body.code.start as usize, body.code.end as usize);
+        while !decoder.is_at_end() {
+            if let Instruction::Atomic(1 | 2) = decoder.decode() {
+                return true;
+            }
+        }
+        false
+    })
 }

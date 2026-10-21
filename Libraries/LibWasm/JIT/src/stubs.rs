@@ -247,6 +247,15 @@ pub fn trap_exit(handler: u64) -> Vec<u8> {
     asm.finish().expect("stubs have no unbound labels")
 }
 
+/// Continues where the `resume` of the context in `context` says, as the runtime set it after unwinding an
+/// exception: loads rsp and rbp and jumps.
+pub fn resume(asm: &mut Assembler, context: Gpr) {
+    let resume = field(offset_of!(ExecutionContext, resume));
+    asm.mov_rm(Width::W64, SP, &Address::new(context, resume));
+    asm.mov_rm(Width::W64, FP, &Address::new(context, resume + 8));
+    asm.jmp_m(&Address::new(context, resume + 16));
+}
+
 /// Copies `count` 8-byte words from `from` up to `to` through `temp`, clobbering all four.
 fn copy_words(asm: &mut Assembler, from: Gpr, to: Gpr, count: Gpr, temp: Gpr) {
     let done = asm.new_label();
@@ -263,8 +272,9 @@ fn copy_words(asm: &mut Assembler, from: Gpr, to: Gpr, count: Gpr, temp: Gpr) {
     asm.bind(done);
 }
 
-/// The entry trampoline, `extern "C" fn(*mut NativeCall)`.
-pub fn entry_trampoline() -> Vec<u8> {
+/// The entry trampoline, `extern "C" fn(*mut NativeCall)`, and the offset of the address its call of compiled code
+/// returns to, where an exception the compiled code does not handle continues (see `RuntimeInfo::throw`).
+pub fn entry_trampoline() -> (Vec<u8>, usize) {
     let mut asm = Assembler::new();
     let record = gpr(convention::R11);
     let (rax, rcx, rdx, rsi, rdi) = (
@@ -326,6 +336,7 @@ pub fn entry_trampoline() -> Vec<u8> {
         asm.mov_rm(Width::W64, gpr(register), &Address::new(record, field(offset)));
     }
     asm.call_m(&call_field(offset_of!(NativeCall, entry)));
+    let return_offset = asm.offset();
     // NB: Tail calls may have moved rsp; the record has it.
     asm.mov_rm(Width::W64, record, &Address::new(FP, -48));
     asm.mov_rm(Width::W64, SP, &call_field(offset_of!(NativeCall, saved_sp)));
@@ -351,12 +362,16 @@ pub fn entry_trampoline() -> Vec<u8> {
     }
     asm.pop(FP);
     asm.ret();
-    asm.finish().expect("stubs have no unbound labels")
+    (asm.finish().expect("stubs have no unbound labels"), return_offset)
 }
+
+/// What the runtime function of the adapter returns when the call threw an exception, which the runtime unwound: the
+/// adapter continues where the context's `resume` says.
+pub const ADAPTER_RESUME: u64 = u64::MAX;
 
 /// The runtime adapter. `function` is the runtime's `extern "C" fn(*mut ExecutionContext) -> u64`, which it calls
 /// with the callee's header, the save area and fp as the context's first three arguments. A nonzero result is a
-/// trap code.
+/// trap code, or `ADAPTER_RESUME`.
 pub fn runtime_adapter(function: u64, runtime: &RuntimeInfo) -> Vec<u8> {
     let mut asm = Assembler::new();
     let instance = gpr(convention::INSTANCE_REGISTER);
@@ -403,8 +418,20 @@ pub fn runtime_adapter(function: u64, runtime: &RuntimeInfo) -> Vec<u8> {
     asm.pop(FP);
     asm.ret();
     asm.bind(trap);
+    let unwound = asm.new_label();
+    asm.cmp_ri(Width::W64, gpr(convention::RAX), -1);
+    asm.jcc(Cond::Equal, unwound);
     asm.mov_rr(Width::W32, gpr(convention::RDI), gpr(convention::RAX));
     asm.mov_ri(SCRATCH, runtime.trap_exit);
     asm.jmp_r(SCRATCH);
+    asm.bind(unwound);
+    let context = gpr(convention::RAX);
+    asm.mov_rm(Width::W64, context, &Address::new(FP, convention::FRAME_INSTANCE));
+    asm.mov_rm(
+        Width::W64,
+        context,
+        &Address::new(context, field(offset_of!(InstanceData, context))),
+    );
+    resume(&mut asm, context);
     asm.finish().expect("stubs have no unbound labels")
 }

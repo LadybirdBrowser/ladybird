@@ -1,0 +1,3 @@
+externref: true, anyref: 42, funcref: null
+a value that does not convert: LinkError
+a value for a mutable global: LinkError

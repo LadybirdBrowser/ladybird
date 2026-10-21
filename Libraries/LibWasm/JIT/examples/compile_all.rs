@@ -30,6 +30,11 @@ const RUNTIME: RuntimeInfo = RuntimeInfo {
     memory_grow: 0x7fff_0000_2000,
     table_grow: 0x7fff_0000_3000,
     call_host: 0x7fff_0000_4000,
+    allocate: 0x7fff_0000_5000,
+    wait: 0x7fff_0000_6000,
+    notify: 0x7fff_0000_7000,
+    allocate_exception: 0x7fff_0000_8000,
+    throw: 0x7fff_0000_9000,
 };
 
 /// Functions at least this big count for the slowest function per byte.

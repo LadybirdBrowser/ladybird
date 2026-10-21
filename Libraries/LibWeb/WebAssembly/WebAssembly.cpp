@@ -619,43 +619,38 @@ JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm
         case Wasm::Runtime::ExternKind::Global: {
             auto value_type = store.canonical_value_type(module, import.type.value_type);
             Wasm::Runtime::Entity address = nullptr;
-            // 3.5.1. If v is a Number or v is a BigInt,
-            if (import_.is_number() || import_.is_bigint()) {
-                // 3.5.1.1. If valtype is i64 and v is a Number,
-                if (import_.is_number() && value_type.kind == ValueKind::I64) {
-                    // 3.5.1.1.1. Throw a LinkError exception.
-                    return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number to a BigInteger"sv);
-                }
-                // 3.5.1.2. If valtype is not i64 and v is a BigInt,
-                if (import_.is_bigint() && value_type.kind != ValueKind::I64) {
-                    // 3.5.1.2.1. Throw a LinkError exception.
-                    return vm.throw_completion<LinkError>("Import resolution attempted to cast a BigInteger to a Number"sv);
-                }
-                // 3.5.1.3. If valtype is v128,
-                if (value_type.kind == ValueKind::V128) {
-                    // 3.5.1.3.1. Throw a LinkError exception.
-                    return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number or BigInt to a V128"sv);
-                }
-                // 3.5.1.4. Let value be ToWebAssemblyValue(v, valtype).
-                auto cast_value = TRY(to_webassembly_value(vm, import_, value_type));
-                // 3.5.1.5. Let store be the surrounding agent's associated store.
-                // 3.5.1.6. Let (store, globaladdr) be global_alloc(store, const valtype, value).
-                // 3.5.1.7. Set the surrounding agent's associated store to store.
-                address = store.allocate_global(value_type, false, cast_value);
-            }
-            // 3.5.2. Otherwise, if v implements Global,
-            else if (auto* global = import_.is_object() ? Bindings::global_from_value(import_) : nullptr) {
-                // 3.5.2.1. Let globaladdr be v.[[Global]].
+            // 3.5.1. If v implements Global,
+            if (auto* global = Bindings::global_from_value(import_)) {
+                // 3.5.1.1. Let globaladdr be v.[[Global]].
                 address = global->address();
             }
-            // 3.5.3. Otherwise,
+            // 3.5.2. Otherwise,
             else {
-                // 3.5.3.1. Throw a LinkError exception.
-                return vm.throw_completion<LinkError>("Invalid value for global type"sv);
+                // 3.5.2.1. If valtype is i64 and v is not a BigInt, throw a LinkError exception.
+                if (value_type.kind == ValueKind::I64 && !import_.is_bigint())
+                    return vm.throw_completion<LinkError>("Import resolution attempted to use a non-BigInt for an i64 global"sv);
+                // 3.5.2.2. If valtype is one of i32, f32 or f64 and v is not a Number, throw a LinkError exception.
+                if ((value_type.kind == ValueKind::I32 || value_type.kind == ValueKind::F32 || value_type.kind == ValueKind::F64) && !import_.is_number())
+                    return vm.throw_completion<LinkError>("Import resolution attempted to use a non-Number for a numeric global"sv);
+                // 3.5.2.3. If valtype is v128, throw a LinkError exception.
+                if (value_type.kind == ValueKind::V128)
+                    return vm.throw_completion<LinkError>("Import resolution attempted to use a value for a V128 global"sv);
+                // 3.5.2.4. If mut is var, throw a LinkError exception.
+                if (import.type.is_mutable)
+                    return vm.throw_completion<LinkError>("Import resolution attempted to use a value for a mutable global"sv);
+                // 3.5.2.5. Let value be ToWebAssemblyValue(v, valtype). If this throws a TypeError, catch it, and throw
+                //          a LinkError exception.
+                auto value = to_webassembly_value(vm, import_, value_type);
+                if (value.is_error())
+                    return vm.throw_completion<LinkError>("Import resolution attempted to use a value of the wrong type for a global"sv);
+                // 3.5.2.6. Let store be the surrounding agent's associated store.
+                // 3.5.2.7. Let (store, globaladdr) be global_alloc(store, const valtype, value).
+                // 3.5.2.8. Set the surrounding agent's associated store to store.
+                address = store.allocate_global(value_type, false, value.release_value());
             }
 
-            // 3.5.4. Let externglobal be global globaladdr.
-            // 3.5.5. Append externglobal to imports.
+            // 3.5.3. Let externglobal be global globaladdr.
+            // 3.5.4. Append externglobal to imports.
             imports.unchecked_append({ Wasm::Runtime::ExternKind::Global, address });
             break;
         }

@@ -69,6 +69,34 @@ pub fn node_text(func: &Func, value: Value) -> String {
         Op::Helper => write!(text, " {}", crate::ir::Helper::from_index(node.args[2]).name()).unwrap(),
         Op::CallResult => write!(text, " v{} #{}", node.args[0], node.args[1]).unwrap(),
         Op::Trap => write!(text, " {}", node.args[0]).unwrap(),
+        Op::CheckedAddress => write!(text, " size {} flags {:#x}", 1 << (node.flags & 7), node.flags & !7).unwrap(),
+        Op::AtomicRmw => write!(
+            text,
+            " {} size {}",
+            crate::ir::AtomicOp::from_index(node.args[2]).name(),
+            1 << node.flags
+        )
+        .unwrap(),
+        Op::AtomicCompareExchange | Op::ElementAddress => write!(text, " size {}", 1 << node.flags).unwrap(),
+        Op::Rtt => write!(text, " type {}", node.args[1]).unwrap(),
+        Op::I31Get if node.flags != 0 => text.push_str(" signed"),
+        Op::RefTest => write!(
+            text,
+            " {}{}{} depth {}",
+            crate::ir::HeapTest::from_flags(node.flags).name(),
+            if node.flags & crate::ir::REF_TEST_NULLABLE != 0 {
+                " null"
+            } else {
+                ""
+            },
+            if node.flags & crate::ir::REF_TEST_CAST != 0 {
+                " cast"
+            } else {
+                ""
+            },
+            node.args[2]
+        )
+        .unwrap(),
         Op::BrTable => {
             let block = func
                 .blocks

@@ -24,7 +24,10 @@
 //! dominates its use. Global values are numbered too, keyed by epochs that `global.set` and calls advance.
 
 mod calls;
+mod exceptions;
 pub mod fold;
+pub mod gc;
+mod memories;
 mod simd;
 mod tables;
 
@@ -61,6 +64,10 @@ enum ControlKind {
     Loop,
     If,
     Else,
+    /// A `try_table`, the body of a legacy `try`, and a legacy `catch` or `catch_all` handler.
+    TryTable,
+    Try,
+    Catch,
 }
 
 /// The parameter and result types of a block, as ranges of `Builder::types`.
@@ -92,6 +99,15 @@ struct Control {
     /// For loops, their index in `Func::loops` and the start of their incomplete phis.
     loop_index: u32,
     incomplete_start: u32,
+    /// For a handler (see `exceptions.rs`): the exceptions thrown in its region, as a list through `Builder::edges`
+    /// of edges carrying the exception, and the handler around it in `Builder::controls`, or NONE.
+    throws: u32,
+    outer_handler: u32,
+    /// For `try_table` and legacy `try`: the start and count of its clauses in `Builder::clauses`.
+    clauses: (u32, u32),
+    /// For a legacy handler: the exception it caught, or NONE if nothing throws to it, and its next clause.
+    exception: Value,
+    next_clause: u32,
 }
 
 impl Control {
@@ -173,8 +189,15 @@ pub struct Builder {
     memory_base: Value,
     /// The zero vector, which every v128 local starts as, once made.
     vector_zero: Value,
+    /// The byte offsets of struct fields, by (type index, field index); the field count gives the size.
+    field_offsets: Table<u64>,
     /// What an OSR compile needs (see `build_osr`), or what probing for one found.
     osr: Option<Osr>,
+    /// The innermost handler whose region the code is in, as an index into `controls`, or NONE.
+    handler: u32,
+    clauses: Vec<exceptions::Clause>,
+    /// The function, among the module's defined ones.
+    defined: u32,
 }
 
 /// An OSR compile: the function as a continuation of an interpreter frame at an outermost loop.
@@ -244,6 +267,9 @@ impl Builder {
         self.read_values.clear();
         self.params.clear();
         self.vector_zero = NONE;
+        self.field_offsets.clear();
+        self.handler = NONE;
+        self.clauses.clear();
     }
 
     /// Builds the IR of the defined function `index` (counting imports) of `module` into `func`.
@@ -300,6 +326,7 @@ impl Builder {
         self.clear();
         func.clear();
         let defined = (index - module.imported_function_count) as usize;
+        self.defined = defined as u32;
         let body = &module.code[defined];
         let ty = module.function_type(index).expect("functions have function types");
         let start = body.code.start as usize;
@@ -353,6 +380,11 @@ impl Builder {
             numbering_mark: 0,
             loop_index: NONE,
             incomplete_start: 0,
+            throws: NONE,
+            outer_handler: NONE,
+            clauses: (0, 0),
+            exception: NONE,
+            next_clause: 0,
         });
 
         let mut decoder = Decoder::new(&module.bytes, start, body.code.end as usize);
@@ -944,7 +976,11 @@ impl Builder {
         pc: usize,
     ) -> Result<(), CompileFailure> {
         match instruction {
-            Instruction::Else | Instruction::End => self.instruction(func, module, *instruction, decoder, pc),
+            Instruction::Else
+            | Instruction::End
+            | Instruction::Catch(_)
+            | Instruction::CatchAll
+            | Instruction::Delegate(_) => self.instruction(func, module, *instruction, decoder, pc),
             _ if crate::decode::nesting_change(instruction) > 0 => {
                 // Skips the nested construct, which is unreachable as a whole.
                 let mut depth = 1;
@@ -984,7 +1020,11 @@ impl Builder {
                 let (params, results) = self.block_signature(module, block_type)?;
                 let at_osr_loop = self.osr.as_ref().is_some_and(|osr| osr.pc == pc as u32);
                 if at_osr_loop && self.osr.as_ref().is_some_and(|osr| osr.probing) {
-                    let outermost = !self.controls.iter().any(|control| control.kind == ControlKind::Loop);
+                    // NB: A legacy handler's exception is no value the frame has, so loops in handlers do not OSR.
+                    let outermost = !self
+                        .controls
+                        .iter()
+                        .any(|control| matches!(control.kind, ControlKind::Loop | ControlKind::Catch));
                     let stack_types = self.stack.iter().map(|value| func.node(*value).ty).collect();
                     let osr = self.osr.as_mut().expect("probing");
                     osr.found = outermost;
@@ -1000,7 +1040,7 @@ impl Builder {
                 self.begin_if(func, params, results);
             }
             I::Else => self.begin_else(func),
-            I::End => self.end(func),
+            I::End => self.end(func, module),
             I::Br(depth) => {
                 self.branch(func, depth);
                 self.set_unreachable();
@@ -1103,7 +1143,7 @@ impl Builder {
                 let value = self.pure(func, Node::new(op, ty, 0, [a, 0, 0]));
                 self.push(value);
             }
-            I::CheckedAccess { .. } => return unsupported(pc, "an access of a memory without guard pages"),
+            I::CheckedAccess { opcode, argument } => self.checked_access(func, module, opcode, argument),
             I::MemorySize(memory) => self.memory_size(func, module, memory),
             I::MemoryGrow(memory) => self.memory_grow(func, module, memory),
             I::CallIndirect { type_index, table } => {
@@ -1115,14 +1155,27 @@ impl Builder {
                 self.call_indirect(func, module, type_index, table, CallKind::Tail, pc)?;
             }
             I::ReturnCallRef(type_index) => self.call_ref(func, module, type_index, CallKind::Tail, pc)?,
-            I::Throw(_)
-            | I::ThrowRef
-            | I::TryTable(_)
-            | I::Try(_)
-            | I::Catch(_)
-            | I::CatchAll
-            | I::Delegate(_)
-            | I::Rethrow(_) => return unsupported(pc, "exception handling"),
+            I::TryTable(block_type) => {
+                let (params, results) = self.block_signature(module, block_type)?;
+                let clauses: Vec<[u32; 3]> = decoder.catch_clauses().collect();
+                self.begin_try_table(params, results, &clauses);
+            }
+            I::Try(block_type) => {
+                let (params, results) = self.block_signature(module, block_type)?;
+                self.begin_try(module, params, results, decoder.position());
+            }
+            I::Catch(_) | I::CatchAll => self.begin_catch(func, module),
+            I::Delegate(label) => self.delegate(func, label),
+            I::Throw(tag) => self.throw_tag(func, module, tag),
+            I::ThrowRef => {
+                let exception = Self::resolve(func, self.pop());
+                Self::append(
+                    func,
+                    Node::new(Op::CheckNull, Type::None, TRAP_NULL_REFERENCE as u8, [exception, 0, 0]),
+                );
+                self.throw_exception(func, exception);
+            }
+            I::Rethrow(label) => self.rethrow(func, label),
             I::TableGet(table) => self.table_get(func, table),
             I::TableSet(table) => self.table_set(func, table),
             I::RefNull(_) => {
@@ -1171,7 +1224,14 @@ impl Builder {
                 }
             }
             I::Misc(sub_opcode) => self.bulk(func, module, sub_opcode, decoder.misc_indices()),
-            I::Gc(_) => return unsupported(pc, "a GC instruction"),
+            I::Gc(sub_opcode) => self.gc(
+                func,
+                module,
+                sub_opcode,
+                decoder.gc_indices(),
+                decoder.gc_heap_types(),
+                decoder.gc_flags(),
+            ),
             I::Vector { opcode, index } => {
                 let plain = match opcode {
                     quickening::LOCAL_GET_V128 => I::LocalGet(index),
@@ -1184,13 +1244,8 @@ impl Builder {
                 };
                 return self.instruction(func, module, plain, decoder, pc);
             }
-            I::Simd { sub_opcode, checked } => {
-                if checked {
-                    return unsupported(pc, "an access of a memory without guard pages");
-                }
-                return self.simd(func, sub_opcode, decoder, pc);
-            }
-            I::Atomic(_) => return unsupported(pc, "an atomic instruction"),
+            I::Simd { sub_opcode, checked } => return self.simd(func, module, sub_opcode, checked, decoder, pc),
+            I::Atomic(sub_opcode) => self.atomic(func, module, sub_opcode, decoder),
         }
         Ok(())
     }
@@ -1291,6 +1346,11 @@ impl Builder {
             numbering_mark: self.numbering_log.len() as u32,
             loop_index: NONE,
             incomplete_start: self.incomplete.len() as u32,
+            throws: NONE,
+            outer_handler: NONE,
+            clauses: (0, 0),
+            exception: NONE,
+            next_clause: 0,
         });
     }
 
@@ -1419,7 +1479,7 @@ impl Builder {
         control.unreachable = false;
     }
 
-    fn end(&mut self, func: &mut Func) {
+    fn end(&mut self, func: &mut Func, module: &Module) {
         let index = self.controls.len() - 1;
         let control = self.controls[index];
         match control.kind {
@@ -1432,6 +1492,8 @@ impl Builder {
             }
             ControlKind::Loop => self.end_loop(func, index),
             ControlKind::Block | ControlKind::If | ControlKind::Else => self.end_block(func, index),
+            ControlKind::TryTable => self.end_try_table(func, module, index),
+            ControlKind::Try | ControlKind::Catch => self.end_try(func, index),
         }
     }
 

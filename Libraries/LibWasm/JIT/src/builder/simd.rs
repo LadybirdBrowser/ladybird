@@ -6,83 +6,48 @@
 
 //! The SIMD instructions. They keep their sub-opcode in the IR (`VectorUnary`, `VectorBinary`, ...), so that one
 //! node kind per shape carries all of them and code generation picks each one's instructions.
+//!
+//! The relaxed instructions get the semantics the interpreter chose for them: all but the multiply-adds and the dot
+//! products are their deterministic counterparts, which they become here, so that they share those nodes' value
+//! numbers and code.
 
 use super::{Builder, unsupported};
 use crate::CompileFailure;
-use crate::decode::Decoder;
-use crate::ir::{Func, Node, Op, Type, Value};
+use crate::decode::{Decoder, MemoryArgument};
+use crate::ir::{Func, LoadKind, Node, Op, Type, Value};
+use libwasm_module::Module;
+use libwasm_module::instruction_tables::{SimdKind, simd_kind};
 use libwasm_module::opcode::simd::*;
 
-/// What the builder knows about a SIMD instruction it compiles.
-enum Shape {
-    /// A load of 16 bytes or fewer into a vector.
-    Load,
-    Store,
-    Const,
-    Shuffle,
-    /// A unary operation, and its result's type.
-    Unary(Type),
-    /// A binary operation of vectors, or of a vector and an i32 shift count.
-    Binary,
-    Ternary,
-    /// An extraction of a lane, of the lane's type.
-    ExtractLane(Type),
-    ReplaceLane,
+/// The deterministic instruction a relaxed one behaves as, or the instruction itself.
+fn canonical(sub_opcode: u32) -> u32 {
+    match sub_opcode {
+        I8X16_RELAXED_SWIZZLE => I8X16_SWIZZLE,
+        I32X4_RELAXED_TRUNC_F32X4_S => I32X4_TRUNC_SAT_F32X4_S,
+        I32X4_RELAXED_TRUNC_F32X4_U => I32X4_TRUNC_SAT_F32X4_U,
+        I32X4_RELAXED_TRUNC_F64X2_S_ZERO => I32X4_TRUNC_SAT_F64X2_S_ZERO,
+        I32X4_RELAXED_TRUNC_F64X2_U_ZERO => I32X4_TRUNC_SAT_F64X2_U_ZERO,
+        I8X16_RELAXED_LANESELECT | I16X8_RELAXED_LANESELECT | I32X4_RELAXED_LANESELECT | I64X2_RELAXED_LANESELECT => {
+            V128_BITSELECT
+        }
+        F32X4_RELAXED_MIN => F32X4_MIN,
+        F32X4_RELAXED_MAX => F32X4_MAX,
+        F64X2_RELAXED_MIN => F64X2_MIN,
+        F64X2_RELAXED_MAX => F64X2_MAX,
+        I16X8_RELAXED_Q15MULR_S => I16X8_Q15MULR_SAT_S,
+        _ => sub_opcode,
+    }
 }
 
-/// The shape of a SIMD instruction the JIT compiles, or None.
-fn shape(sub_opcode: u32) -> Option<Shape> {
-    use Type::{F32, F64, I32, I64, V128};
-    Some(match sub_opcode {
-        V128_LOAD..=V128_LOAD64_SPLAT | V128_LOAD32_ZERO | V128_LOAD64_ZERO => Shape::Load,
-        V128_STORE => Shape::Store,
-        V128_CONST => Shape::Const,
-        I8X16_SHUFFLE => Shape::Shuffle,
-        I8X16_SPLAT | I16X8_SPLAT | I32X4_SPLAT => Shape::Unary(V128),
-        I64X2_SPLAT => Shape::Unary(V128),
-        F32X4_SPLAT => Shape::Unary(V128),
-        F64X2_SPLAT => Shape::Unary(V128),
-        I8X16_EXTRACT_LANE_S | I8X16_EXTRACT_LANE_U | I16X8_EXTRACT_LANE_S | I16X8_EXTRACT_LANE_U
-        | I32X4_EXTRACT_LANE => Shape::ExtractLane(I32),
-        I64X2_EXTRACT_LANE => Shape::ExtractLane(I64),
-        F32X4_EXTRACT_LANE => Shape::ExtractLane(F32),
-        F64X2_EXTRACT_LANE => Shape::ExtractLane(F64),
-        I8X16_REPLACE_LANE | I16X8_REPLACE_LANE | I32X4_REPLACE_LANE => Shape::ReplaceLane,
-        I64X2_REPLACE_LANE => Shape::ReplaceLane,
-        F32X4_REPLACE_LANE => Shape::ReplaceLane,
-        F64X2_REPLACE_LANE => Shape::ReplaceLane,
-        V128_NOT
-        | I8X16_ABS
-        | I16X8_ABS
-        | I32X4_ABS
-        | I8X16_NEG
-        | I16X8_NEG
-        | I32X4_NEG
-        | I64X2_NEG
-        | F32X4_ABS
-        | F32X4_NEG
-        | F32X4_SQRT
-        | F64X2_ABS
-        | F64X2_NEG
-        | F64X2_SQRT
-        | F32X4_CONVERT_I32X4_S => Shape::Unary(V128),
-        V128_ANY_TRUE | I8X16_ALL_TRUE | I16X8_ALL_TRUE | I32X4_ALL_TRUE | I64X2_ALL_TRUE | I8X16_BITMASK
-        | I32X4_BITMASK | I64X2_BITMASK => Shape::Unary(I32),
-        V128_AND | V128_ANDNOT | V128_OR | V128_XOR | I8X16_SWIZZLE | I8X16_EQ | I8X16_NE | I16X8_EQ | I16X8_NE
-        | I32X4_EQ | I32X4_NE | I64X2_EQ | I64X2_NE | I8X16_GT_S | I16X8_GT_S | I32X4_GT_S | I64X2_GT_S
-        | I8X16_LT_S | I16X8_LT_S | I32X4_LT_S | I64X2_LT_S | F32X4_EQ | F32X4_NE | F32X4_LT | F32X4_GT | F32X4_LE
-        | F32X4_GE | F64X2_EQ | F64X2_NE | F64X2_LT | F64X2_GT | F64X2_LE | F64X2_GE | I8X16_ADD | I8X16_SUB
-        | I8X16_ADD_SAT_S | I8X16_ADD_SAT_U | I8X16_SUB_SAT_S | I8X16_SUB_SAT_U | I16X8_ADD | I16X8_SUB | I16X8_MUL
-        | I32X4_ADD | I32X4_SUB | I32X4_MUL | I64X2_ADD | I64X2_SUB | I8X16_MIN_S | I8X16_MIN_U | I8X16_MAX_S
-        | I8X16_MAX_U | I16X8_MIN_S | I16X8_MIN_U | I16X8_MAX_S | I16X8_MAX_U | I32X4_MIN_S | I32X4_MIN_U
-        | I32X4_MAX_S | I32X4_MAX_U | F32X4_ADD | F32X4_SUB | F32X4_MUL | F32X4_DIV | F64X2_ADD | F64X2_SUB
-        | F64X2_MUL | F64X2_DIV => Shape::Binary,
-        I16X8_SHL | I16X8_SHR_S | I16X8_SHR_U | I32X4_SHL | I32X4_SHR_S | I32X4_SHR_U | I64X2_SHL | I64X2_SHR_U => {
-            Shape::Binary
-        }
-        V128_BITSELECT => Shape::Ternary,
-        _ => return None,
-    })
+/// The type of a lane of `lane.extract` or `lane.replace` instruction, as values carry it.
+fn lane_type(ty: libwasm_module::types::ValType) -> Type {
+    use libwasm_module::types::ValType;
+    match ty {
+        ValType::I64 => Type::I64,
+        ValType::F32 => Type::F32,
+        ValType::F64 => Type::F64,
+        _ => Type::I32,
+    }
 }
 
 impl Builder {
@@ -92,64 +57,136 @@ impl Builder {
         Self::append(func, Node::new(Op::Const128, Type::V128, 0, [index, 0, 0]))
     }
 
+    /// The base, index and offset of an access of `1 << size_log2` bytes at `index` in `argument`'s memory: memory 0
+    /// with guard pages, or else the address after checking it (quickening rule 2).
+    fn simd_address(
+        &mut self,
+        func: &mut Func,
+        module: &Module,
+        checked: bool,
+        argument: MemoryArgument,
+        index: Value,
+        size_log2: u8,
+    ) -> (Value, Value, u32) {
+        if !checked {
+            debug_assert_eq!(argument.memory, 0, "plain accesses are of memory 0");
+            return (self.memory_base, index, argument.offset as u32);
+        }
+        let address = self.checked_address(func, module, argument, index, size_log2, false);
+        let zero = self.constant(func, Type::I32, 0);
+        (address, zero, 0)
+    }
+
+    fn store(&mut self, func: &mut Func, (base, index, offset): (Value, Value, u32), value: Value, size_log2: u8) {
+        let start = func.operands.len() as u32;
+        func.operands.extend_from_slice(&[base, index, value]);
+        Self::append(func, Node::new(Op::Store, Type::None, size_log2, [start, 3, offset]));
+    }
+
     pub(super) fn simd(
         &mut self,
         func: &mut Func,
+        module: &Module,
         sub_opcode: u32,
+        checked: bool,
         decoder: &Decoder<'_>,
         pc: usize,
     ) -> Result<(), CompileFailure> {
-        let Some(shape) = shape(sub_opcode) else {
-            return unsupported(pc, "a SIMD instruction");
+        let sub_opcode = canonical(sub_opcode);
+        let Some(kind) = simd_kind(sub_opcode) else {
+            return unsupported(pc, "an unknown SIMD instruction");
         };
-        let value = match shape {
-            Shape::Load => {
-                let argument = decoder.simd_argument();
-                debug_assert_eq!(argument.memory, 0, "plain accesses are of memory 0");
+        let value = match kind {
+            SimdKind::Load { size } => {
                 let index = Self::resolve(func, self.pop());
+                let argument = decoder.simd_argument();
+                let size_log2 = size.trailing_zeros() as u8;
+                let (base, index, offset) = self.simd_address(func, module, checked, argument, index, size_log2);
                 Self::append(
                     func,
-                    Node::new(
-                        Op::VectorLoad,
-                        Type::V128,
-                        sub_opcode as u8,
-                        [self.memory_base, index, argument.offset as u32],
-                    ),
+                    Node::new(Op::VectorLoad, Type::V128, sub_opcode as u8, [base, index, offset]),
                 )
             }
-            Shape::Store => {
-                let argument = decoder.simd_argument();
+            SimdKind::Store { .. } => {
                 let value = Self::resolve(func, self.pop());
                 let index = Self::resolve(func, self.pop());
-                let start = func.operands.len() as u32;
-                func.operands.extend_from_slice(&[self.memory_base, index, value]);
-                Self::append(
-                    func,
-                    Node::new(Op::Store, Type::None, 4, [start, 3, argument.offset as u32]),
-                );
+                let address = self.simd_address(func, module, checked, decoder.simd_argument(), index, 4);
+                self.store(func, address, value, 4);
                 return Ok(());
             }
-            Shape::Const => {
+            SimdKind::LoadLane { size } => {
+                // A scalar load, and its value replacing the lane.
+                let lane = u32::from(decoder.simd_lane());
+                let vector = Self::resolve(func, self.pop());
+                let index = Self::resolve(func, self.pop());
+                let argument = decoder.simd_argument();
+                let size_log2 = size.trailing_zeros() as u8;
+                let (base, index, offset) = self.simd_address(func, module, checked, argument, index, size_log2);
+                let (kind, ty, replace) = match size {
+                    1 => (LoadKind::I32U8, Type::I32, I8X16_REPLACE_LANE),
+                    2 => (LoadKind::I32U16, Type::I32, I16X8_REPLACE_LANE),
+                    4 => (LoadKind::I32, Type::I32, I32X4_REPLACE_LANE),
+                    _ => (LoadKind::I64, Type::I64, I64X2_REPLACE_LANE),
+                };
+                let scalar = Self::append(func, Node::new(Op::Load, ty, kind as u8, [base, index, offset]));
+                self.pure(
+                    func,
+                    Node::new(Op::ReplaceLane, Type::V128, 0, [vector, scalar, replace | (lane << 16)]),
+                )
+            }
+            SimdKind::StoreLane { size } => {
+                // The lane extracted, and stored as a scalar.
+                let lane = u32::from(decoder.simd_lane());
+                let vector = Self::resolve(func, self.pop());
+                let index = Self::resolve(func, self.pop());
+                let (ty, extract, size_log2) = match size {
+                    1 => (Type::I32, I8X16_EXTRACT_LANE_U, 0),
+                    2 => (Type::I32, I16X8_EXTRACT_LANE_U, 1),
+                    4 => (Type::I32, I32X4_EXTRACT_LANE, 2),
+                    _ => (Type::I64, I64X2_EXTRACT_LANE, 3),
+                };
+                let scalar = self.pure(func, Node::new(Op::ExtractLane, ty, 0, [vector, extract, lane]));
+                let address = self.simd_address(func, module, checked, decoder.simd_argument(), index, size_log2);
+                self.store(func, address, scalar, size_log2);
+                return Ok(());
+            }
+            SimdKind::Const => {
                 let bits = u128::from_le_bytes(decoder.simd_bytes());
                 self.vector_constant(func, bits)
             }
-            Shape::Shuffle => {
-                let b = Self::resolve(func, self.pop());
-                let a = Self::resolve(func, self.pop());
+            SimdKind::Shuffle => {
+                let mut b = Self::resolve(func, self.pop());
+                let mut a = Self::resolve(func, self.pop());
+                let mut lanes = decoder.simd_bytes();
+                // A shuffle of one vector names it twice, with lanes 0 to 15, so that the other one need not live
+                // on for it, and code generation sees what it is.
+                if lanes.iter().all(|lane| *lane < 16) {
+                    b = a;
+                } else if lanes.iter().all(|lane| *lane >= 16) {
+                    a = b;
+                }
+                if a == b {
+                    lanes = lanes.map(|lane| lane & 15);
+                }
                 let index = func.constants.len() as u32;
-                func.constants.push(u128::from_le_bytes(decoder.simd_bytes()));
+                func.constants.push(u128::from_le_bytes(lanes));
                 Self::append(func, Node::new(Op::Shuffle, Type::V128, 0, [a, b, index]))
             }
-            Shape::Unary(result) => {
+            SimdKind::Splat(_) | SimdKind::Unary | SimdKind::Test => {
+                let result = if matches!(kind, SimdKind::Test) {
+                    Type::I32
+                } else {
+                    Type::V128
+                };
                 let a = Self::resolve(func, self.pop());
                 self.pure(func, Node::new(Op::VectorUnary, result, 0, [a, sub_opcode, 0]))
             }
-            Shape::Binary => {
+            SimdKind::Binary | SimdKind::Shift => {
                 let b = Self::resolve(func, self.pop());
                 let a = Self::resolve(func, self.pop());
                 self.pure(func, Node::new(Op::VectorBinary, Type::V128, 0, [a, b, sub_opcode]))
             }
-            Shape::Ternary => {
+            SimdKind::Ternary => {
                 let c = Self::resolve(func, self.pop());
                 let b = Self::resolve(func, self.pop());
                 let a = Self::resolve(func, self.pop());
@@ -158,12 +195,15 @@ impl Builder {
                     Node::new(Op::VectorTernary, Type::V128, sub_opcode as u8, [a, b, c]),
                 )
             }
-            Shape::ExtractLane(ty) => {
+            SimdKind::ExtractLane { result, .. } => {
                 let a = Self::resolve(func, self.pop());
                 let lane = u32::from(decoder.simd_lane());
-                self.pure(func, Node::new(Op::ExtractLane, ty, 0, [a, sub_opcode, lane]))
+                self.pure(
+                    func,
+                    Node::new(Op::ExtractLane, lane_type(result), 0, [a, sub_opcode, lane]),
+                )
             }
-            Shape::ReplaceLane => {
+            SimdKind::ReplaceLane { .. } => {
                 let b = Self::resolve(func, self.pop());
                 let a = Self::resolve(func, self.pop());
                 let lane = u32::from(decoder.simd_lane());

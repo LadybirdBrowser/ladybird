@@ -17,7 +17,9 @@ use super::heap::{
     object_size_class,
 };
 use super::{Store, TagAddress, Value};
+pub use crate::abi::EXCEPTION_CELL_SIZE;
 use crate::abi::{
+    EXCEPTION_KINDS_OFFSET, EXCEPTION_LENGTH_OFFSET, EXCEPTION_PAYLOAD_OFFSET, EXCEPTION_TAG_OFFSET,
     OBJECT_DATA_OFFSET, OBJECT_INLINE_DATA_OFFSET, OBJECT_LENGTH_OFFSET, RTT_KIND_ARRAY, RTT_KIND_FUNCTION,
     RTT_KIND_STRUCT, Rtt, STORAGE_32, STORAGE_64, STORAGE_FUNCTION_REFERENCE, STORAGE_I8, STORAGE_I16,
     STORAGE_REFERENCE, STORAGE_V128,
@@ -25,11 +27,6 @@ use crate::abi::{
 use crate::types::{CompositeType, HeapType, StorageType, SubType, ValType};
 use core::ffi::c_void;
 
-pub const EXCEPTION_CELL_SIZE: usize = 48;
-const EXCEPTION_TAG_OFFSET: usize = 16;
-const EXCEPTION_PAYLOAD_OFFSET: usize = 24;
-const EXCEPTION_LENGTH_OFFSET: usize = 32;
-const EXCEPTION_KINDS_OFFSET: usize = 40;
 const STORE_ROOT_STORE_OFFSET: usize = 16;
 
 /// The largest data an object can have.

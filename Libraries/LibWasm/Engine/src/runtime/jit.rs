@@ -12,6 +12,11 @@
 //!   compiled functions through the entry trampoline (`call_compiled`).
 //! - Compiled code traps through the trap exit, which leaves the interpreter's innermost entry like a trap in the
 //!   interpreter does. A memory access of compiled code that faults goes to the trap exit too.
+//! - Compiled code handles the exceptions of its own handlers itself. An exception that leaves a compiled function,
+//!   or comes out of a call through the runtime adapter, is unwound here over the compiled frames, to the first
+//!   call that handles exceptions (an exception site) or to the entry trampoline, which continue as if the call had
+//!   returned, with the exception in the context. From the trampoline, the exception goes on in the interpreter
+//!   frame that called the compiled code.
 //! - Each store has its own code space; the trap exit, the trampoline and the adapter are the process's.
 //!
 //! - Hot functions compile on the process's compile threads while the interpreter keeps running them. The runtime
@@ -141,12 +146,15 @@ export! {
     wasm_runtime_call_compiled => call_compiled,
     wasm_runtime_call_from_native => call_from_native,
     wasm_runtime_tier_up => tier_up,
+    wasm_runtime_allocate_exception => allocate_exception,
+    wasm_runtime_throw_from_native => throw_from_native,
 }
 
 /// Called when a function's tier-up budget runs out: `arguments[0]` is its header, and `arguments[2]` is 0 for a call
 /// and 1 for a loop, whose instruction `arguments[1]` points at, in the frame at `arguments[3]`. Compiles the function
 /// if the JIT is on, or has it compiled in the background. At a loop, continues the frame in compiled code if it can
-/// (OSR) and returns the top of the frame's operand stack with the results on it; returns 0 otherwise.
+/// (OSR) and returns the top of the frame's operand stack with the results on it, or if the frame threw an exception,
+/// 1 if a handler of the interpreter caught it and 2 if it left the interpreter; returns 0 otherwise.
 unsafe fn tier_up(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let [header, pc, reason, frame, ..] = (*context).arguments;
@@ -176,12 +184,63 @@ unsafe fn tier_up(context: *mut ExecutionContext) -> u64 {
         }
         match native::enter_at_loop(store, address, pc, frame) {
             native::LoopEntry::Ran(top) => top,
+            native::LoopEntry::Threw(exception) => {
+                // The frame's own handlers had their chance in the compiled code, so the exception goes on in the
+                // frame's caller, at the call instruction it returns past.
+                let read = |offset: isize| *((frame as *const u8).offset(offset) as *const u64);
+                let caller = read(crate::abi::FRAME_SAVED_FP);
+                let call = read(crate::abi::FRAME_RETURN_IP) - 1;
+                // NB: 0 means the loop goes on in the interpreter, so a trap is 2 here.
+                match rethrow_in_interpreter(context, store, exception, caller, call) {
+                    0 => 2,
+                    resumed => resumed,
+                }
+            }
             native::LoopEntry::Pending => {
                 address.get_mut().header.tier_up_budget = POLL_BUDGET + crate::abi::TIER_UP_CALL_COST;
                 0
             }
             native::LoopEntry::Never => 0,
         }
+    }
+}
+
+/// Continues an exception that compiled code did not handle in the interpreter, at the instruction `pc` of the frame
+/// `frame`. Returns 1 if a handler there caught it (see `wasm_runtime_throw`), or 0 if it leaves the interpreter, as a
+/// trap the store keeps.
+unsafe fn rethrow_in_interpreter(
+    context: *mut ExecutionContext,
+    store: &mut Store,
+    exception: u64,
+    frame: u64,
+    pc: u64,
+) -> u64 {
+    unsafe {
+        if super::helpers::unwind(context, store, exception, frame, pc) {
+            return 1;
+        }
+        store.pending_trap = Some(Trap::UncaughtException(exception));
+        0
+    }
+}
+
+/// `Helper::AllocateException`: a new exception with the tag whose identity is `arguments[0]` and a zeroed payload.
+unsafe fn allocate_exception(context: *mut ExecutionContext) -> u64 {
+    unsafe {
+        let store = store_of(context);
+        let tag = store.tag_from_identity((*context).arguments[0]);
+        let slot_count: u32 = store.tag(tag).ty.params.iter().map(|param| param.slot_count()).sum();
+        store.allocate_exception(tag, &vec![0; slot_count as usize])
+    }
+}
+
+/// Throws the exception `arguments[0]` from the compiled frame whose fp is `arguments[1]`, whose own handlers did not
+/// catch it. Returns the context, whose `resume` says where the code continues.
+unsafe fn throw_from_native(context: *mut ExecutionContext) -> u64 {
+    unsafe {
+        let [exception, frame, ..] = (*context).arguments;
+        native::unwind(store_of(context), exception, frame);
+        context as u64
     }
 }
 
@@ -319,9 +378,19 @@ fn ir_types(types: &[ValType]) -> Vec<libwasm_jit::ir::Type> {
 }
 
 /// Calls a compiled function from the interpreter: `arguments[0]` is its header and `arguments[1]` the top of the
-/// operand stack, where its arguments are. Replaces them with its results and returns the new top.
+/// operand stack, where its arguments are, `arguments[2]` where the call returns to and `arguments[3]` the caller's
+/// frame. Replaces the arguments with its results and returns the new top, or if it threw an exception, 1 if a
+/// handler of the interpreter caught it, or 0 if it left the interpreter (see `rethrow_in_interpreter`).
 unsafe fn call_compiled(context: *mut ExecutionContext) -> u64 {
-    unsafe { native::call_compiled(context) }
+    unsafe {
+        match native::call_compiled(context) {
+            Ok(top) => top,
+            Err(exception) => {
+                let [_, _, return_ip, frame, ..] = (*context).arguments;
+                rethrow_in_interpreter(context, store_of(context), exception, frame, return_ip - 1)
+            }
+        }
+    }
 }
 
 /// Calls a function that runs in the runtime from compiled code, through the runtime adapter: `arguments[0]` is its
@@ -359,6 +428,11 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
         let address = FunctionAddress::from_ptr(function);
         let results = match store.invoke(address, &arguments) {
             Ok(results) => results,
+            Err(Trap::UncaughtException(exception)) => {
+                // NB: The adapter's frame is a frame of the compiled caller's callee.
+                native::unwind(store, exception, frame);
+                return libwasm_jit::stubs::ADAPTER_RESUME;
+            }
             Err(trap) => {
                 let code = trap_code(&trap);
                 store.pending_trap = Some(trap);
@@ -397,7 +471,7 @@ mod native {
     use crate::runtime::{FunctionAddress, FunctionInstance, FunctionKind, InstanceAddress, Store, helpers};
     use libwasm_jit::convention::{self, Place};
     use libwasm_jit::stubs::NativeCall;
-    use libwasm_jit::{CompileContext, CompileRequest, RuntimeInfo};
+    use libwasm_jit::{CompileContext, CompileRequest, CompiledFunction, RuntimeInfo};
     use std::collections::{HashMap, HashSet};
     use std::sync::mpsc::{Receiver, Sender, channel};
     use std::sync::{Arc, Mutex, OnceLock};
@@ -406,6 +480,8 @@ mod native {
     pub struct Stubs {
         pub trap_exit: u64,
         pub entry: u64,
+        /// Where the entry trampoline's call of compiled code returns to.
+        pub entry_return: u64,
         pub adapter: u64,
         pub runtime: RuntimeInfo,
     }
@@ -423,8 +499,13 @@ mod native {
                 memory_grow: helpers::wasm_runtime_memory_grow as *const () as u64,
                 table_grow: helpers::wasm_runtime_table_grow as *const () as u64,
                 call_host: helpers::wasm_runtime_call_host as *const () as u64,
+                allocate: helpers::wasm_runtime_allocate as *const () as u64,
+                wait: helpers::wasm_runtime_wait as *const () as u64,
+                notify: helpers::wasm_runtime_notify as *const () as u64,
+                allocate_exception: super::wasm_runtime_allocate_exception as *const () as u64,
+                throw: super::wasm_runtime_throw_from_native as *const () as u64,
             };
-            let trampoline = libwasm_jit::stubs::entry_trampoline();
+            let (trampoline, return_offset) = libwasm_jit::stubs::entry_trampoline();
             let entry = chunk.add(&trampoline);
             let adapter_code =
                 libwasm_jit::stubs::runtime_adapter(super::wasm_runtime_call_from_native as *const () as u64, &runtime);
@@ -437,6 +518,7 @@ mod native {
             Stubs {
                 trap_exit,
                 entry,
+                entry_return: entry + return_offset as u64,
                 adapter,
                 runtime,
             }
@@ -523,7 +605,7 @@ mod native {
     /// A compile a compile thread finished, for the store that asked for it.
     struct Finished {
         key: CompileKey,
-        code: Result<Vec<u8>, libwasm_jit::CompileFailure>,
+        code: Result<CompiledFunction, libwasm_jit::CompileFailure>,
     }
 
     struct Job {
@@ -560,7 +642,7 @@ mod native {
                             let Ok(job) = job else {
                                 return;
                             };
-                            let code = libwasm_jit::compile(&mut context, &job.request).map(|compiled| compiled.code);
+                            let code = libwasm_jit::compile(&mut context, &job.request);
                             // NB: The store may be gone, and its results with it.
                             let _ = job.reply.send(Finished { key: job.key, code });
                         }
@@ -588,6 +670,8 @@ mod native {
     pub enum LoopEntry {
         /// The frame ran to its end compiled; this is the top of its operand stack, with the results on it.
         Ran(u64),
+        /// The frame threw this exception, which its own handlers did not catch.
+        Threw(u64),
         /// The code for the loop is still compiling.
         Pending,
         /// The frame cannot continue compiled at this loop.
@@ -602,6 +686,8 @@ mod native {
         /// The code of each compile, and the compiles that failed.
         code: HashMap<CompileKey, u64>,
         failed: HashSet<CompileKey>,
+        /// The return addresses of the calls in compiled code that handle exceptions.
+        exception_sites: HashSet<u64>,
         /// The compiles the compile threads have yet to finish, and where they send them.
         pending: HashSet<CompileKey>,
         finished: Option<(Sender<Finished>, Receiver<Finished>)>,
@@ -640,12 +726,17 @@ mod native {
         }
 
         /// Installs the result of a compile.
-        fn finish(&mut self, key: CompileKey, code: Result<Vec<u8>, libwasm_jit::CompileFailure>) {
-            let Ok(code) = code else {
+        fn finish(&mut self, key: CompileKey, compiled: Result<CompiledFunction, libwasm_jit::CompileFailure>) {
+            let Ok(CompiledFunction {
+                code, exception_sites, ..
+            }) = compiled
+            else {
                 self.failed.insert(key);
                 return;
             };
             let entry = self.add_code(&code);
+            self.exception_sites
+                .extend(exception_sites.iter().map(|offset| entry + u64::from(*offset)));
             if super::options().perf_map {
                 let name = match key.osr {
                     None => format!("wasm-function-{}", key.function),
@@ -667,7 +758,7 @@ mod native {
             }
             if super::options().sync {
                 let request = self.request(key);
-                let code = libwasm_jit::compile(&mut self.context, &request).map(|compiled| compiled.code);
+                let code = libwasm_jit::compile(&mut self.context, &request);
                 self.finish(key, code);
                 return self.compile(key);
             }
@@ -709,6 +800,33 @@ mod native {
             for Finished { key, code } in finished {
                 self.pending.remove(&key);
                 self.finish(key, code);
+            }
+        }
+    }
+
+    /// Unwinds `exception` from the compiled frame whose fp is `frame`: finds the first exception site its callers
+    /// return to, or else the entry trampoline, and has the code continue there (see `ExecutionContext::resume`),
+    /// with the exception in the context.
+    pub unsafe fn unwind(store: &mut Store, exception: u64, frame: u64) {
+        unsafe {
+            let read = |address: u64| *(address as *const u64);
+            let entry_return = stubs().entry_return;
+            let sites = &store.jit.as_ref().expect("compiled code ran").exception_sites;
+            // The return address of the callee whose fp `callee` is leads into its caller's frame.
+            let mut callee = frame;
+            loop {
+                let return_address = read(callee.wrapping_add_signed(crate::abi::FRAME_RETURN_IP as i64));
+                if return_address == entry_return || sites.contains(&return_address) {
+                    let context = &mut *store.context;
+                    context.exception = exception;
+                    context.resume = [
+                        callee,
+                        read(callee.wrapping_add_signed(crate::abi::FRAME_SAVED_FP as i64)),
+                        return_address,
+                    ];
+                    return;
+                }
+                callee = read(callee.wrapping_add_signed(crate::abi::FRAME_SAVED_FP as i64));
             }
         }
     }
@@ -760,7 +878,7 @@ mod native {
         state
     }
 
-    pub unsafe fn call_compiled(context: *mut ExecutionContext) -> u64 {
+    pub unsafe fn call_compiled(context: *mut ExecutionContext) -> Result<u64, u64> {
         unsafe {
             let [header, top, ..] = (*context).arguments;
             let function = &*(header as *const FunctionInstance);
@@ -787,14 +905,14 @@ mod native {
 
     /// Calls `entry`, compiled code of `function` that takes arguments of types `params`, the `index`th of which
     /// is at `argument(index)`. Stores the function's results on an operand stack ending at `end`, and returns its
-    /// new top. A trap leaves through the code and does not return.
+    /// new top, or the exception it threw. A trap leaves through the code and does not return.
     unsafe fn run(
         function: &FunctionInstance,
         entry: u64,
         params: &[libwasm_jit::ir::Type],
         argument: impl Fn(usize) -> *const u64,
         end: *mut u64,
-    ) -> u64 {
+    ) -> Result<u64, u64> {
         unsafe {
             let header_data: &FunctionHeader = &function.header;
             let results = ir_types(&function.ty.results);
@@ -845,6 +963,10 @@ mod native {
             call.image_slots = image_slots as u64;
             let trampoline: extern "C" fn(*mut NativeCall) = std::mem::transmute(stubs().entry as usize);
             trampoline(&raw mut call);
+            let context = (*header_data.instance).context;
+            if (*context).exception != 0 {
+                return Err(std::mem::take(&mut (*context).exception));
+            }
             let return_top = end.sub(result_slots);
             convention::result_places(&results, &mut places);
             let (mut gprs, mut xmms) = (0, 0);
@@ -873,7 +995,7 @@ mod native {
                 let destination = return_top.add(result_slots - home - count);
                 std::ptr::copy_nonoverlapping(words.as_ptr(), destination, count);
             }
-            return_top as u64
+            Ok(return_top as u64)
         }
     }
 
@@ -899,7 +1021,10 @@ mod native {
             let entry = jit.code[&key];
             let params = [libwasm_jit::ir::Type::Pointer];
             let base = (frame as *mut u8).sub(crate::abi::FRAME_HEADER_SIZE).cast::<u64>();
-            LoopEntry::Ran(run(function, entry, &params, |_| &raw const frame, base))
+            match run(function, entry, &params, |_| &raw const frame, base) {
+                Ok(top) => LoopEntry::Ran(top),
+                Err(exception) => LoopEntry::Threw(exception),
+            }
         }
     }
 }
@@ -934,8 +1059,13 @@ mod native {
 
     pub enum LoopEntry {
         Ran(u64),
+        Threw(u64),
         Pending,
         Never,
+    }
+
+    pub unsafe fn unwind(_store: &mut Store, _exception: u64, _frame: u64) {
+        unreachable!("the JIT is off where it has no code generator")
     }
 
     pub fn compile_instance(_store: &mut Store, _instance: InstanceAddress) {}
@@ -953,7 +1083,7 @@ mod native {
         LoopEntry::Never
     }
 
-    pub unsafe fn call_compiled(_context: *mut ExecutionContext) -> u64 {
+    pub unsafe fn call_compiled(_context: *mut ExecutionContext) -> Result<u64, u64> {
         unreachable!("the JIT is off where it has no code generator")
     }
 }

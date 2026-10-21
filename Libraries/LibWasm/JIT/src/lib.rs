@@ -69,6 +69,15 @@ pub struct RuntimeInfo {
     pub memory_grow: u64,
     pub table_grow: u64,
     pub call_host: u64,
+    /// `wasm_runtime_allocate`, `wasm_runtime_wait` and `wasm_runtime_notify`.
+    pub allocate: u64,
+    pub wait: u64,
+    pub notify: u64,
+    /// `wasm_runtime_allocate_exception` (`Helper::AllocateException`), and `wasm_runtime_throw_from_native`, which
+    /// takes an exception and the fp of the frame that throws it, unwinds the exception, and returns the context,
+    /// whose `resume` says where to continue.
+    pub allocate_exception: u64,
+    pub throw: u64,
 }
 
 /// What to compile.
@@ -134,6 +143,9 @@ pub struct CompiledFunction {
     pub code: Vec<u8>,
     /// The bytes between fp and rsp in the function's frame.
     pub frame_size: u32,
+    /// The offsets of the return addresses of the calls that handle exceptions: an exception the runtime unwinds to
+    /// one of them continues there, with the context's `exception` set, as if the call had returned.
+    pub exception_sites: Vec<u32>,
     pub stats: Stats,
     pub dump: Option<String>,
 }
@@ -243,6 +255,7 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
     let mut compiled = CompiledFunction {
         code: generated.code,
         frame_size: generated.frame_size,
+        exception_sites: generated.exception_sites,
         stats,
         dump: None,
     };

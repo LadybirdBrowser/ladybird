@@ -337,10 +337,28 @@ pub enum Helper {
     TableCopy,
     /// table data, segment, destination, source, count.
     TableInit,
+    /// address, expected value, timeout in nanoseconds, size: 0 when woken, 1 if the value differed, 2 on timeout.
+    AtomicWait,
+    /// address, count: how many waiters it woke.
+    AtomicNotify,
+    /// rtt, data size in bytes, array length: the new zeroed GC object, or zero (when the runtime has the trap).
+    Allocate,
+    /// array, start, the low and high 64 bits of the value, count.
+    ArrayFill,
+    /// destination array, destination start, source array, source start, count.
+    ArrayCopy,
+    /// array, data segment, destination, source, count.
+    ArrayInitData,
+    /// array, element segment, destination, source, count.
+    ArrayInitElem,
+    /// segment, start, count, bytes per item, TRAP_* code: traps with the code unless the items are in the segment.
+    SegmentRange,
+    /// tag identity: a new exception with that tag and a zeroed payload, for the code to fill in.
+    AllocateException,
 }
 
 impl Helper {
-    pub const ALL: [Helper; 8] = [
+    pub const ALL: [Helper; 17] = [
         Helper::MemoryGrow,
         Helper::TableGrow,
         Helper::MemoryFill,
@@ -349,6 +367,15 @@ impl Helper {
         Helper::TableFill,
         Helper::TableCopy,
         Helper::TableInit,
+        Helper::AtomicWait,
+        Helper::AtomicNotify,
+        Helper::Allocate,
+        Helper::ArrayFill,
+        Helper::ArrayCopy,
+        Helper::ArrayInitData,
+        Helper::ArrayInitElem,
+        Helper::SegmentRange,
+        Helper::AllocateException,
     ];
 
     pub fn from_index(index: u32) -> Self {
@@ -357,7 +384,20 @@ impl Helper {
 
     /// Whether the helper returns 0 or the TRAP_* code to trap with, rather than a value.
     pub fn may_trap(self) -> bool {
-        !matches!(self, Helper::MemoryGrow | Helper::TableGrow)
+        !matches!(
+            self,
+            Helper::MemoryGrow
+                | Helper::TableGrow
+                | Helper::AtomicWait
+                | Helper::AtomicNotify
+                | Helper::Allocate
+                | Helper::AllocateException
+        )
+    }
+
+    /// Whether a value of zero means the runtime trapped, with TRAP_RUNTIME.
+    pub fn traps_on_zero(self) -> bool {
+        self == Helper::Allocate
     }
 
     pub fn name(self) -> &'static str {
@@ -370,6 +410,15 @@ impl Helper {
             Helper::TableFill => "table_fill",
             Helper::TableCopy => "table_copy",
             Helper::TableInit => "table_init",
+            Helper::AtomicWait => "atomic_wait",
+            Helper::AtomicNotify => "atomic_notify",
+            Helper::Allocate => "allocate",
+            Helper::ArrayFill => "array_fill",
+            Helper::ArrayCopy => "array_copy",
+            Helper::ArrayInitData => "array_init_data",
+            Helper::ArrayInitElem => "array_init_elem",
+            Helper::SegmentRange => "segment_range",
+            Helper::AllocateException => "allocate_exception",
         }
     }
 }
@@ -384,6 +433,108 @@ pub const FLAG_CANNOT_TRAP: u8 = 0x80;
 
 /// `Node::flags` bit of `GlobalGet` for globals no code can change.
 pub const FLAG_IMMUTABLE: u8 = 0x40;
+
+/// `Node::flags` bits of `CheckedAddress`, besides log2 of the access size in the low bits: an atomic access, which
+/// must be aligned, and an access of a memory64, whose index and offset may add up past 2^64.
+pub const CHECKED_ATOMIC: u8 = 0x08;
+pub const CHECKED_MEMORY64: u8 = 0x10;
+
+/// The read-modify-write operations of `AtomicRmw`, in its args[2].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum AtomicOp {
+    Add,
+    Sub,
+    And,
+    Or,
+    Xor,
+    Exchange,
+}
+
+impl AtomicOp {
+    pub const ALL: [AtomicOp; 6] = [
+        AtomicOp::Add,
+        AtomicOp::Sub,
+        AtomicOp::And,
+        AtomicOp::Or,
+        AtomicOp::Xor,
+        AtomicOp::Exchange,
+    ];
+
+    pub fn from_index(index: u32) -> Self {
+        Self::ALL[index as usize]
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            AtomicOp::Add => "add",
+            AtomicOp::Sub => "sub",
+            AtomicOp::And => "and",
+            AtomicOp::Or => "or",
+            AtomicOp::Xor => "xor",
+            AtomicOp::Exchange => "xchg",
+        }
+    }
+}
+
+/// What `RefTest` checks a reference against, in the low bits of its flags.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum HeapTest {
+    /// Every reference but null: any, func, extern and exn.
+    NonNull,
+    /// An i31 or a GC object: eq.
+    Eq,
+    I31,
+    /// A GC object of a struct type.
+    Struct,
+    /// A GC object of an array type.
+    Array,
+    /// Only null: none, nofunc, noextern and noexn.
+    Nothing,
+    /// A GC object whose type is the identity input or one of its subtypes, which are args[2] deep.
+    ConcreteObject,
+    /// A function whose type is the identity input or one of its subtypes, which are args[2] deep.
+    ConcreteFunction,
+}
+
+impl HeapTest {
+    pub const ALL: [HeapTest; 8] = [
+        HeapTest::NonNull,
+        HeapTest::Eq,
+        HeapTest::I31,
+        HeapTest::Struct,
+        HeapTest::Array,
+        HeapTest::Nothing,
+        HeapTest::ConcreteObject,
+        HeapTest::ConcreteFunction,
+    ];
+
+    pub fn from_flags(flags: u8) -> Self {
+        Self::ALL[(flags & 0xf) as usize]
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            HeapTest::NonNull => "non_null",
+            HeapTest::Eq => "eq",
+            HeapTest::I31 => "i31",
+            HeapTest::Struct => "struct",
+            HeapTest::Array => "array",
+            HeapTest::Nothing => "nothing",
+            HeapTest::ConcreteObject => "object",
+            HeapTest::ConcreteFunction => "function",
+        }
+    }
+}
+
+/// `Node::flags` bits of `RefTest`, besides the `HeapTest`: null matches too; and the test is a cast, which traps
+/// where the reference does not match and has no value.
+pub const REF_TEST_NULLABLE: u8 = 0x10;
+pub const REF_TEST_CAST: u8 = 0x80;
+/// `Node::flags` bit of a `Call` in a region of an exception handler, which checks the context's `exception` once
+/// it returns (see `builder/exceptions.rs`).
+pub const FLAG_CHECKS_EXCEPTION: u8 = 0x01;
 
 macro_rules! ops {
     ($($(#[$meta:meta])* $name:ident: $shape:expr, $effect:ident, $text:literal;)*) => {
@@ -541,6 +692,35 @@ ops! {
     /// args: table data, index, value; flags: the TRAP_* code for an index out of bounds.
     TableStore: Fixed(3), Write, "table_store";
 
+    // Memories without guard pages, and atomics.
+    /// args: memory data, index (i32, or i64 for a memory64), offset (i64); flags: log2 of the access size,
+    /// CHECKED_ATOMIC, CHECKED_MEMORY64. The address of the access at index + offset, after checking that it is in
+    /// the memory, and for atomics then that it is aligned.
+    CheckedAddress: Fixed(3), Read, "checked_address";
+    /// args: address, value, the `AtomicOp`; flags: log2 of the size. Applies the op atomically and returns the old
+    /// value, zero-extended.
+    AtomicRmw: Fixed(2), Write, "atomic_rmw";
+    /// args: address, expected value, replacement; flags: log2 of the size. Returns the old value, zero-extended.
+    AtomicCompareExchange: Fixed(3), Write, "atomic_cmpxchg";
+    /// A sequentially consistent fence.
+    AtomicFence: Fixed(0), Write, "atomic_fence";
+
+    // GC objects. A field or element is accessed with `Load`, `VectorLoad` and `Store` at its address, or at the
+    // object with the field's offset where the data is inline.
+    /// args: instance, the module's type index. The `Rtt` of the type, which never changes.
+    Rtt: Fixed(1), Pure, "rtt";
+    /// args: i32. The i31 reference of its low 31 bits.
+    I31New: Fixed(1), Pure, "ref_i31";
+    /// args: i31 reference (not null); flags: 1 to sign-extend. The i32 value.
+    I31Get: Fixed(1), Pure, "i31_get";
+    /// args: array, index; flags: log2 of the element size. The address of the element, after checking the array for
+    /// null and the index against its length.
+    ElementAddress: Fixed(2), Read, "element_address";
+    /// args: reference, the type identity it is tested against (a constant for abstract heap types), the depth of
+    /// that type; flags: `HeapTest`, REF_TEST_NULLABLE, REF_TEST_CAST. Whether the reference matches, as an i32; a
+    /// cast has no value and traps instead where it does not.
+    RefTest: Fixed(2), Pure, "ref_test";
+
     // Calls.
     /// args: callee FunctionHeader, the calling instance. The callee's instance: its function header's, or for a host
     /// function, which has none, the caller's, through which its stub finds the runtime.
@@ -576,6 +756,9 @@ ops! {
     Trap: Fixed(0), Terminator, "trap";
     /// operands and args like `Call`. A call whose results are the function's.
     TailCall: Variadic, Terminator, "tail_call";
+    /// args: an exception reference, not null. Throws it to the function's callers: the runtime unwinds it to the
+    /// first call that handles exceptions, or out of compiled code.
+    Throw: Fixed(1), Terminator, "throw";
 }
 
 impl Op {
@@ -629,6 +812,7 @@ impl Node {
             {
                 Effect::Pure
             }
+            Op::RefTest if self.flags & REF_TEST_CAST != 0 => Effect::Write,
             op => op.base_effect(),
         }
     }
