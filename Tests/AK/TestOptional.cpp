@@ -309,6 +309,9 @@ TEST_CASE(test_copy_ctor_and_dtor_called)
         ~NonDestructible() = delete;
     };
     static_assert(!IsDestructible<Optional<NonDestructible>>);
+
+    static_assert(!IsCopyConstructible<Optional<NonCopyable>>);
+    static_assert(!IsCopyAssignable<Optional<NonCopyable>>);
 }
 
 TEST_CASE(basic_optional_reference)
