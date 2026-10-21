@@ -1,0 +1,1 @@
+PASS: shallow reads resolve in every declaration order

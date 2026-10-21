@@ -2290,9 +2290,6 @@ fn substitute_against_stores(
         written.data(),
         &mut resolution_environment,
         style_query_references.as_deref_mut(),
-        None,
-        Default::default(),
-        None,
     );
     let invalid = || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
     match resolution {

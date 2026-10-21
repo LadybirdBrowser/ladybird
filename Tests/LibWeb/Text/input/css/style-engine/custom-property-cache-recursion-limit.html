@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        // A deep read can hit the substitution recursion limit while computing --consumer.
+        // That failure must not be cached: computing --consumer on its own still succeeds.
+        // Sweep around the limit of 64, allowing for the calls made by var() and if().
+        for (let depth = 48; depth <= 72; ++depth) {
+            const declarations = [
+                ["--deep", "calc(".repeat(depth) + "var(--consumer)" + ")".repeat(depth)],
+                ["--consumer", "var(--value)"],
+                ["--value", "if(else: 1px)"],
+            ];
+            // Check every declaration order so an earlier shallow read cannot hide the failure.
+            for (const declarationOrder of [
+                [0, 1, 2],
+                [0, 2, 1],
+                [1, 0, 2],
+                [1, 2, 0],
+                [2, 0, 1],
+                [2, 1, 0],
+            ]) {
+                const element = document.createElement("div");
+                for (const index of declarationOrder) {
+                    element.style.setProperty(...declarations[index]);
+                }
+                document.body.append(element);
+                const value = getComputedStyle(element).getPropertyValue("--consumer").trim();
+                element.remove();
+                if (value !== "1px") {
+                    const names = declarationOrder.map(index => declarations[index][0]).join(", ");
+                    println(`FAIL: depth ${depth}, declaration order [${names}]: --consumer was ${JSON.stringify(value)}, expected "1px"`);
+                    return;
+                }
+            }
+        }
+        println("PASS: shallow reads resolve in every declaration order");
+    });
+</script>

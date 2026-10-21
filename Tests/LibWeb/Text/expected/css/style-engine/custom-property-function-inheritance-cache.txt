@@ -1,0 +1,3 @@
+direct and inherited reads: 2px 2px
+after source changes: 3px 3px
+cyclic property and independent call: fallback 1px

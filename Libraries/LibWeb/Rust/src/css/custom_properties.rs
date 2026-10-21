@@ -939,7 +939,9 @@ struct ASFResolutionContext<'a> {
     style_query_dependencies: Option<&'a mut Option<Box<StyleQueryDependencies>>>,
     custom_property_finalization: CustomPropertyFinalization<'a>,
     registered_value_reads: Option<&'a mut RegisteredValueReads>,
-    final_custom_properties: Option<&'a HashMap<Vec<u16>, RetainedStyleValueData>>,
+    element_store: Option<&'a CustomPropertyStore>,
+    element_values: Option<&'a mut HashMap<usize, RetainedStyleValueData>>,
+    substitution_limit_hits: u64,
     function_local_scopes: Vec<FunctionLocalScope>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
 }
@@ -1288,18 +1290,33 @@ pub(crate) fn finalize_element_custom_property(
     value
 }
 
+#[cfg(test)]
+thread_local! {
+    static CUSTOM_PROPERTY_COMPUTATIONS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
 fn compute_element_custom_property(
     store: &CustomPropertyStore,
     registry: &CustomPropertyRegistry,
     name: &[u16],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
-) -> Result<(RetainedStyleValueData, bool), ()> {
+) -> Result<RetainedStyleValueData, ()> {
     let name_raw = store.own_names[name];
+
+    if let Some(cached) = context.element_values.as_deref().ok_or(())?.get(&name_raw) {
+        return Ok(cached.clone());
+    }
+
+    let limit_hits_before_computation = context.substitution_limit_hits;
+
+    #[cfg(test)]
+    CUSTOM_PROPERTY_COMPUTATIONS.with(|count| count.set(count.get() + 1));
+
     let entry = &store.own_values[&name_raw];
     let (tokens, includes_substitution, tainted) = cached_tokens_for_custom_property_value(entry.value.data(), context);
 
-    let (value, is_cyclic) = if includes_substitution {
+    let value = if includes_substitution {
         let guarded_contexts = GuardedSubstitutionContexts {
             contexts: Rc::new(RefCell::new(
                 context
@@ -1320,6 +1337,7 @@ fn compute_element_custom_property(
             uses_attr_tainted_url: false,
             style_query_dependencies: context.style_query_dependencies.as_deref_mut(),
             registered_value_reads: context.registered_value_reads.as_deref_mut(),
+            element_values: context.element_values.as_deref_mut(),
             function_local_scopes: Vec::new(),
             token_cache: context.token_cache.as_deref_mut(),
             ..*context
@@ -1334,9 +1352,9 @@ fn compute_element_custom_property(
             Some(SubstitutionContextDependency::Property(name.to_vec(), None)),
         );
 
-        let result_is_cyclic = matches!(result, TokenResolution::Cyclic);
+        context.substitution_limit_hits = property_context.substitution_limit_hits;
 
-        let value = match result {
+        match result {
             TokenResolution::Resolved(tokens) => crate::css::cascaded_properties::parse_substituted_value(
                 property_context.parse_context.ok_or(())?,
                 crate::css::property_metadata::property_id::CUSTOM,
@@ -1347,12 +1365,12 @@ fn compute_element_custom_property(
                 RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid)
             }
             TokenResolution::NotHandled => return Err(()),
-        };
-        (value, result_is_cyclic)
+        }
     } else {
-        (entry.value.clone(), false)
+        entry.value.clone()
     };
-    let value = finalize_element_custom_property(
+
+    let finalized_value = finalize_element_custom_property(
         registry,
         context.inheritance_store,
         &context.custom_property_finalization,
@@ -1361,7 +1379,73 @@ fn compute_element_custom_property(
         name,
         value,
     );
-    Ok((value, is_cyclic))
+
+    if context.substitution_limit_hits == limit_hits_before_computation {
+        context
+            .element_values
+            .as_deref_mut()
+            .ok_or(())?
+            .insert(name_raw, finalized_value.clone());
+    }
+
+    Ok(finalized_value)
+}
+
+/// Computes the element's declared custom properties, reusing completed values across declarations.
+pub(crate) fn resolve_element_custom_properties(
+    inputs: &VarResolutionInputs,
+    environment: &mut VarResolutionEnvironment,
+    style_query_dependencies: Option<&mut Option<Box<StyleQueryDependencies>>>,
+    finalization: CustomPropertyFinalization,
+) -> (Vec<RetainedStyleValueData>, RegisteredValueReads) {
+    let store = inputs.store.expect("declared custom properties have an element store");
+
+    let mut reads = RegisteredValueReads::default();
+
+    let mut context = ASFResolutionContext {
+        attributes: Some(&environment.attributes),
+        inheritance_store: inputs.inheritance_store,
+        attribute_names_are_ascii_case_insensitive: inputs.attribute_names_are_ascii_case_insensitive,
+        custom_functions: Some(&environment.custom_functions),
+        parse_context: inputs.parse_context,
+        media_environment: inputs.media_environment,
+        style_query_length_resolution_context: inputs.style_query_inputs.map(|inputs| &inputs.length),
+        style_query_color_resolution_input: inputs.style_query_inputs.map(|inputs| inputs.color_input()),
+        style_query_tree_counting: inputs.style_query_inputs.and_then(|inputs| inputs.tree_counting),
+        style_query_dependencies,
+        custom_property_finalization: finalization,
+        registered_value_reads: Some(&mut reads),
+        element_store: Some(store),
+        element_values: Some(&mut HashMap::new()),
+        token_cache: Some(&mut environment.token_cache),
+        ..Default::default()
+    };
+
+    let registry = inputs
+        .registry
+        .unwrap_or_else(|| CustomPropertyRegistry::shared_empty());
+
+    let values = store
+        .declared_names
+        .iter()
+        .map(|&name_raw| {
+            let name = &store.own_values[&name_raw].name;
+            match compute_element_custom_property(store, registry, name, &mut context, 0) {
+                Ok(value) => value,
+                Err(()) => finalize_element_custom_property(
+                    registry,
+                    inputs.inheritance_store,
+                    &finalization,
+                    context.registered_value_reads.as_deref_mut().unwrap(),
+                    name_raw,
+                    name,
+                    RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
+                ),
+            }
+        })
+        .collect();
+
+    (values, reads)
 }
 
 fn computed_property_tokens(value: &RetainedStyleValueData, context: &mut ASFResolutionContext) -> TokenResolution {
@@ -1622,20 +1706,6 @@ fn resolve_custom_property_with_lookup(
     if lookup == CustomPropertyLookup::Normal && context.guarded_contexts.mark_cycle_if_guarded(&substitution_context) {
         return TokenResolution::Cyclic;
     }
-    if lookup == CustomPropertyLookup::Normal
-        && let Some(final_values) = context.final_custom_properties
-        && let Some(data) = final_values.get(name).and_then(RetainedStyleValueData::optional_data)
-    {
-        if matches!(data, StyleValueData::GuaranteedInvalid) {
-            return TokenResolution::Invalid;
-        }
-        let (tokens, includes_substitution, contains_attr_tainted_values) =
-            cached_tokens_for_custom_property_value(data, context);
-        context.contains_attr_tainted_values |= contains_attr_tainted_values;
-        if !includes_substitution {
-            return TokenResolution::Resolved(tokens.to_vec());
-        }
-    }
     let registration = registry.and_then(|registry| registry.registrations.get(name));
     let entry_and_owner = store.and_then(|store| {
         if lookup == CustomPropertyLookup::ExplicitInheritance {
@@ -1652,18 +1722,20 @@ fn resolve_custom_property_with_lookup(
             .map_or(TokenResolution::Invalid, TokenResolution::from_source);
     };
     if lookup == CustomPropertyLookup::Normal
-        && context.registered_value_reads.is_some()
+        && context.element_store.is_some_and(|store| std::ptr::eq(store, owner))
+        && owner.declared_names.contains(&owner.own_names[name])
         && store.is_some_and(|store| std::ptr::eq(store, owner))
     {
-        return match compute_element_custom_property(
+        let computed_value = compute_element_custom_property(
             owner,
             registry.unwrap_or_else(|| CustomPropertyRegistry::shared_empty()),
             name,
             context,
             recursion_depth + 1,
-        ) {
-            Ok((value, true)) if matches!(value.data(), StyleValueData::GuaranteedInvalid) => TokenResolution::Cyclic,
-            Ok((value, _)) => computed_property_tokens(&value, context),
+        );
+
+        return match computed_value {
+            Ok(value) => computed_property_tokens(&value, context),
             Err(()) => TokenResolution::NotHandled,
         };
     }
@@ -1676,7 +1748,10 @@ fn resolve_custom_property_with_lookup(
     // https://drafts.csswg.org/css-cascade-5/#inheritance
     // The inherited value of a property on an element is the computed value of the property on the element’s parent
     // element.
-    if lookup == CustomPropertyLookup::ExplicitInheritance || store.is_some_and(|store| !std::ptr::eq(store, owner)) {
+    if context.element_store.is_some()
+        || lookup == CustomPropertyLookup::ExplicitInheritance
+        || store.is_some_and(|store| !std::ptr::eq(store, owner))
+    {
         return TokenResolution::Resolved(source.to_vec());
     }
     let result = if includes_var {
@@ -3172,6 +3247,7 @@ fn substitute_tokens(
     recursion_depth: u32,
 ) -> TokenResolution {
     if recursion_depth > MAX_SUBSTITUTION_RECURSION_DEPTH {
+        context.substitution_limit_hits += 1;
         return TokenResolution::Invalid;
     }
 
@@ -3262,6 +3338,7 @@ fn substitute_tokens(
         }
         let remaining_token_count = tokens.len() - close_index - 1;
         if output.len() + remaining_token_count > MAX_SUBSTITUTED_TOKEN_COUNT {
+            context.substitution_limit_hits += 1;
             return TokenResolution::Invalid;
         }
         index = close_index + 1;
@@ -3372,7 +3449,6 @@ pub(crate) struct VarResolutionInputs<'a> {
     pub(crate) style_query_inputs: Option<&'a crate::css::cascaded_properties::FfiStyleQueryInputs>,
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve_vars(
     inputs: &VarResolutionInputs,
     property_id: u16,
@@ -3380,9 +3456,6 @@ pub(crate) fn resolve_vars(
     value_data: &StyleValueData,
     environment: &mut VarResolutionEnvironment,
     style_query_dependencies: Option<&mut Option<Box<StyleQueryDependencies>>>,
-    final_custom_properties: Option<&HashMap<Vec<u16>, RetainedStyleValueData>>,
-    custom_property_finalization: CustomPropertyFinalization,
-    registered_value_reads: Option<&mut RegisteredValueReads>,
 ) -> NativeVarResolution {
     let VarResolutionInputs {
         store,
@@ -3422,9 +3495,6 @@ pub(crate) fn resolve_vars(
         style_query_color_resolution_input: style_query_inputs.map(|inputs| inputs.color_input()),
         style_query_tree_counting: style_query_inputs.and_then(|inputs| inputs.tree_counting),
         style_query_dependencies,
-        final_custom_properties,
-        custom_property_finalization,
-        registered_value_reads,
         token_cache: Some(token_cache),
         ..Default::default()
     };
@@ -3800,6 +3870,92 @@ mod tests {
             substitute_without_custom_properties(&source),
             TokenResolution::Invalid
         ));
+    }
+
+    fn build_custom_property_store(
+        parse_context: &ParseContext,
+        properties: &[(&str, &str)],
+    ) -> Arc<CustomPropertyStore> {
+        let entries = properties
+            .iter()
+            .enumerate()
+            .map(|(name_raw, (name, source))| {
+                let source = utf16(source);
+                let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
+                let crate::css::parser::value_parser::ParseOutcome::Parsed(value) =
+                    crate::css::parser::value_parser::parse_css_value_with_source(
+                        parse_context,
+                        crate::css::property_metadata::property_id::CUSTOM,
+                        &values,
+                        &source,
+                        &source,
+                    )
+                else {
+                    panic!("custom property value should parse");
+                };
+                (
+                    name_raw,
+                    CustomPropertyEntry {
+                        _name: RetainedUtf16FlyString::none(),
+                        name: utf16(name).into(),
+                        value: RetainedStyleValueData::from_arc(value),
+                        important: false,
+                    },
+                )
+            })
+            .collect();
+
+        CustomPropertyStore::child(None, entries)
+    }
+
+    #[test]
+    fn element_custom_properties_are_computed_once_for_repeated_references() {
+        let registry = CustomPropertyRegistry::empty();
+
+        let random_index = RandomFunctionIndex::default();
+        let parse_context = registry.parse_context(&random_index);
+
+        // Put the consumer first so --shared is computed on demand. References inside if()
+        // were not visible to the dependency ordering used before completed values were cached.
+        let definitions = [
+            ("--consumer", "if(else: var(--shared) var(--shared))"),
+            ("--shared", "if(else: 1px)"),
+        ];
+
+        let store = build_custom_property_store(&parse_context, &definitions);
+
+        let inputs = VarResolutionInputs {
+            store: Some(&store),
+            inheritance_store: None,
+            registry: Some(&registry),
+            parse_context: Some(&parse_context),
+            media_environment: None,
+            attribute_names_are_ascii_case_insensitive: false,
+            style_query_inputs: None,
+        };
+
+        let mut environment = prepare_var_resolution_environment(&[], &[], 0, &[]);
+
+        CUSTOM_PROPERTY_COMPUTATIONS.with(|count| count.set(0));
+
+        let (values, _) =
+            resolve_element_custom_properties(&inputs, &mut environment, None, CustomPropertyFinalization::default());
+
+        let sources: Vec<_> = values
+            .iter()
+            .map(|value| {
+                String::from_utf16(&crate::css::serialize::serialize_resolved_style_value_to_utf16(
+                    value.data(),
+                ))
+                .unwrap()
+                .trim()
+                .to_owned()
+            })
+            .collect();
+        assert_eq!(sources, ["1px 1px", "1px"]);
+        CUSTOM_PROPERTY_COMPUTATIONS.with(|count| {
+            assert_eq!(count.get(), 2, "each declaration should be computed only once");
+        });
     }
 }
 
