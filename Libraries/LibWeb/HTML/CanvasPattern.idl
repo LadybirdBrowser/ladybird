@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/canvas.html#canvaspattern
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface CanvasPattern {
     // opaque object
     undefined setTransform(optional DOMMatrix2DInit transform = {});

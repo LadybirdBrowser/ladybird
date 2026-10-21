@@ -38,6 +38,11 @@ pub(crate) mod encoding;
     not(web_idl_bindings),
     allow(dead_code, reason = "only the generated bindings use the interfaces")
 )]
+pub(crate) mod geometry;
+#[cfg_attr(
+    not(web_idl_bindings),
+    allow(dead_code, reason = "only the generated bindings use the interfaces")
+)]
 #[allow(
     clippy::unnecessary_wraps,
     reason = "the bindings call every attribute and operation as one that can throw"

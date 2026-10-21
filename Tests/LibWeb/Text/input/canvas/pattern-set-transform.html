@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const source = document.createElement("canvas");
+        source.width = source.height = 4;
+        const sourceContext = source.getContext("2d");
+        sourceContext.fillStyle = "lime";
+        sourceContext.fillRect(0, 0, 2, 4);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 8;
+        const context = canvas.getContext("2d");
+
+        function pixelsAfterFillingWith(pattern) {
+            context.clearRect(0, 0, 8, 8);
+            context.fillStyle = pattern;
+            context.fillRect(0, 0, 8, 8);
+            return `x=0: ${context.getImageData(0, 0, 1, 1).data}; x=2: ${context.getImageData(2, 0, 1, 1).data}`;
+        }
+
+        const pattern = context.createPattern(source, "repeat");
+        println(`pattern is a CanvasPattern: ${pattern instanceof CanvasPattern}`);
+        println(`toString tag: ${Object.prototype.toString.call(pattern)}`);
+        println(`untransformed: ${pixelsAfterFillingWith(pattern)}`);
+
+        pattern.setTransform({ e: 2 });
+        println(`translated by e: ${pixelsAfterFillingWith(pattern)}`);
+
+        pattern.setTransform({ m41: 2, e: 2 });
+        println(`translated by m41 and e: ${pixelsAfterFillingWith(pattern)}`);
+
+        pattern.setTransform({ e: NaN });
+        println(`after a NaN member: ${pixelsAfterFillingWith(pattern)}`);
+
+        pattern.setTransform();
+        println(`after no transform: ${pixelsAfterFillingWith(pattern)}`);
+
+        pattern.setTransform({ e: 2 });
+        pattern.setTransform(new DOMMatrix([1, 0, 0, 1, 0, 0]));
+        println(`after an identity DOMMatrix: ${pixelsAfterFillingWith(pattern)}`);
+
+        for (const transform of [{ a: 1, m11: 2 }, { f: 1, m42: 0 }, "not a dictionary"]) {
+            try {
+                pattern.setTransform(transform);
+                println(`setTransform(${JSON.stringify(transform)}): no exception`);
+            } catch (e) {
+                println(`setTransform(${JSON.stringify(transform)}): ${e.constructor.name}: ${e.message}`);
+            }
+        }
+        try {
+            pattern.setTransform({ a: NaN, m11: NaN, c: 0, m21: -0 });
+            println("setTransform with NaN members that agree: no exception");
+        } catch (e) {
+            println(`setTransform with NaN members that agree: ${e.constructor.name}`);
+        }
+
+        for (const repetition of ["", null, "repeat-x", "repeat-y", "no-repeat", "REPEAT", "round"]) {
+            try {
+                const created = context.createPattern(source, repetition);
+                println(`createPattern(source, ${JSON.stringify(repetition)}): ${Object.prototype.toString.call(created)}`);
+            } catch (e) {
+                println(`createPattern(source, ${JSON.stringify(repetition)}): DOMException ${e.name}`);
+            }
+        }
+
+        const empty = document.createElement("canvas");
+        empty.width = 0;
+        try {
+            context.createPattern(empty, "repeat");
+        } catch (e) {
+            println(`createPattern of an empty canvas: DOMException ${e.name}`);
+        }
+        println(`createPattern of a canvas without a size: ${context.createPattern(new Image(), "repeat")}`);
+    });
+</script>

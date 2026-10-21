@@ -6,12 +6,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Compositor/CompositorHost.h>
-#include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Canvas/Canvas2DRecorder.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/HTML/CanvasPattern.h>
@@ -21,14 +19,11 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(CanvasPattern);
+extern "C" {
 
-CanvasPattern::CanvasPattern(Gfx::CanvasPatternPaintStyle& pattern)
-    : m_pattern(pattern)
-{
+// Defined in Bindings/Rust/src/html/exports.rs.
+void* web_canvas_pattern_create(JSVM*, Gfx::DecodedImageFrame const* frame, Compositing::Canvas2DPatternRepetition);
 }
-
-CanvasPattern::~CanvasPattern() = default;
 
 // A pattern outlives any one video frame, so it reads the frame back instead of holding it.
 static Optional<Gfx::DecodedImageFrame> read_back_current_video_frame(HTMLVideoElement& video)
@@ -61,15 +56,15 @@ static Optional<Gfx::DecodedImageFrame> read_back_current_video_frame(HTMLVideoE
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createpattern
 WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(CanvasImageSource const& image, Utf16FlyString const& repetition)
 {
-    auto parse_repetition = [&](auto value) -> Optional<Gfx::CanvasPatternPaintStyle::Repetition> {
+    auto parse_repetition = [&](auto value) -> Optional<Compositing::Canvas2DPatternRepetition> {
         if (value == u"repeat"sv)
-            return Gfx::CanvasPatternPaintStyle::Repetition::Repeat;
+            return Compositing::Canvas2DPatternRepetition::Repeat;
         if (value == u"repeat-x"sv)
-            return Gfx::CanvasPatternPaintStyle::Repetition::RepeatX;
+            return Compositing::Canvas2DPatternRepetition::RepeatX;
         if (value == u"repeat-y"sv)
-            return Gfx::CanvasPatternPaintStyle::Repetition::RepeatY;
+            return Compositing::Canvas2DPatternRepetition::RepeatY;
         if (value == u"no-repeat"sv)
-            return Gfx::CanvasPatternPaintStyle::Repetition::NoRepeat;
+            return Compositing::Canvas2DPatternRepetition::NoRepeat;
         return {};
     };
 
@@ -98,35 +93,12 @@ WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(CanvasImageSou
         frame = read_back_current_video_frame(*video);
     else
         frame = canvas_image_source_frame(image);
-    auto paint_style = TRY_OR_THROW_OOM(JS::VM::the(), Gfx::CanvasPatternPaintStyle::create(frame, *repetition_value));
+    auto* pattern = static_cast<CanvasPattern*>(web_canvas_pattern_create(JS::HostABI::vm_to_abi(JS::VM::the()), frame.has_value() ? &frame.value() : nullptr, *repetition_value));
 
     // FIXME: 7. If image is not origin-clean, then mark pattern as not origin-clean.
 
     // 8. Return pattern.
-    return GC::Heap::the().allocate<CanvasPattern>(*paint_style);
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-canvaspattern-settransform
-WebIDL::ExceptionOr<void> CanvasPattern::set_transform(GC::Ref<Geometry::DOMMatrix> matrix)
-{
-    // 1. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
-    // NB: This is done by the binding helper before entering the implementation.
-
-    // 2. If one or more of matrix's m11 element, m12 element, m21 element, m22 element, m41 element, or m42 element are infinite or NaN, then return.
-    if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))
-        return {};
-
-    // 3. Reset the pattern's transformation matrix to matrix.
-    Gfx::AffineTransform affine_transform(matrix->a(), matrix->b(), matrix->c(), matrix->d(), matrix->e(), matrix->f());
-    m_pattern->set_transform(affine_transform);
-
-    return {};
-}
-
-WebIDL::ExceptionOr<void> CanvasPattern::set_transform(Bindings::DOMMatrix2DInit const& transform)
-{
-    auto matrix = Geometry::DOMMatrix::create_from_dom_matrix_2d_init(TRY(Geometry::validate_and_fixup_dom_matrix_2d_init(transform)));
-    return set_transform(matrix);
+    return GC::Ptr { pattern };
 }
 
 }

@@ -9,42 +9,21 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <LibGfx/PaintStyle.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/CanvasPattern.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 
-namespace Web::Bindings {
-
-struct DOMMatrix2DInit;
-
-}
-
-namespace Web::Geometry {
-
-class DOMMatrix;
-
-}
-
 namespace Web::HTML {
 
-class CanvasPattern final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(CanvasPattern, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(CanvasPattern);
+// https://html.spec.whatwg.org/multipage/canvas.html#canvaspattern
+// The C++ side of a CanvasPattern, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/html): what the
+// 2D contexts create and paint with.
+class WEB_API CanvasPattern final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(CanvasPattern, canvas_pattern)
 
 public:
     static WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> create(CanvasImageSource const& image, Utf16FlyString const& repetition);
-
-    ~CanvasPattern();
-
-    NonnullRefPtr<Gfx::PaintStyle> to_gfx_paint_style() { return m_pattern; }
-    WebIDL::ExceptionOr<void> set_transform(GC::Ref<Geometry::DOMMatrix> transform);
-    WebIDL::ExceptionOr<void> set_transform(Bindings::DOMMatrix2DInit const& transform);
-
-private:
-    CanvasPattern(Gfx::CanvasPatternPaintStyle&);
-
-    NonnullRefPtr<Gfx::CanvasPatternPaintStyle> m_pattern;
 };
 
 }

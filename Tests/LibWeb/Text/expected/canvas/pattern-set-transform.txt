@@ -1,0 +1,21 @@
+pattern is a CanvasPattern: true
+toString tag: [object CanvasPattern]
+untransformed: x=0: 0,255,0,255; x=2: 0,0,0,0
+translated by e: x=0: 0,0,0,0; x=2: 0,255,0,255
+translated by m41 and e: x=0: 0,0,0,0; x=2: 0,255,0,255
+after a NaN member: x=0: 0,0,0,0; x=2: 0,255,0,255
+after no transform: x=0: 0,255,0,255; x=2: 0,0,0,0
+after an identity DOMMatrix: x=0: 0,255,0,255; x=2: 0,0,0,0
+setTransform({"a":1,"m11":2}): TypeError: DOMMatrix2DInit.a and DOMMatrix2DInit.m11 must have the same value if they are both present
+setTransform({"f":1,"m42":0}): TypeError: DOMMatrix2DInit.f and DOMMatrix2DInit.m42 must have the same value if they are both present
+setTransform("not a dictionary"): TypeError: Not an object of type DOMMatrix2DInit
+setTransform with NaN members that agree: no exception
+createPattern(source, ""): [object CanvasPattern]
+createPattern(source, null): [object CanvasPattern]
+createPattern(source, "repeat-x"): [object CanvasPattern]
+createPattern(source, "repeat-y"): [object CanvasPattern]
+createPattern(source, "no-repeat"): [object CanvasPattern]
+createPattern(source, "REPEAT"): DOMException SyntaxError
+createPattern(source, "round"): DOMException SyntaxError
+createPattern of an empty canvas: DOMException InvalidStateError
+createPattern of a canvas without a size: null
