@@ -33,7 +33,6 @@ private:
     virtual void get_session_history(u64 command_id, String window_handle) override;
     virtual void load_url(u64 command_id, String window_handle, URL::URL url) override;
     virtual void run_content_command(u64 command_id, String window_handle, Web::WebDriver::SessionBrowsingContext browsing_context, String name, JsonValue payload, Vector<String> arguments) override;
-    virtual void new_window(u64 command_id, String window_handle, JsonValue payload) override;
     virtual void switch_to_window(u64 command_id, String window_handle) override;
     virtual void switch_to_parent_frame(u64 command_id, String window_handle) override;
     virtual void set_current_browsing_context_to_top_level(u64 command_id, String window_handle) override;

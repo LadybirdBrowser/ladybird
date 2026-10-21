@@ -39,7 +39,6 @@ struct WindowConfiguration {
 enum class ShowWindow {
     No,
     Yes,
-    WithoutActivating,
 };
 
 class Application final : public WebView::Application {

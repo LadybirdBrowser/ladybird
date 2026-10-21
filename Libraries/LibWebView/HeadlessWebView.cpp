@@ -81,10 +81,6 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     // A headless window is exactly its viewport, so every page gets the viewport as its window size.
     m_window_size = viewport_size.to_type<int>();
 
-    on_new_webdriver_window = [this](auto) {
-        return NewWebDriverWindow { *create_view_for_new_tab_or_window(this->is_private()), NewWindowType::Tab };
-    };
-
     on_new_web_view = [this](auto, auto, CanonicalTraversable& traversable) {
         auto web_view = HeadlessWebView::create_child(*this, traversable);
 
