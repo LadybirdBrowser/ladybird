@@ -30,7 +30,7 @@ from Utils.webidl_parser import Operation
 RUST_METHOD_NAME = re.compile(r"[a-z][a-z0-9_]*")
 
 # The extended attributes of the members of an interface that the Rust bindings handle.
-SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {"FIXME", "ImplementedAs", "NewObject", "SameObject"}
+SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {"CachedAccessor", "FIXME", "ImplementedAs", "NewObject", "SameObject"}
 SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {"FIXME", "ImplementedAs", "NewObject", "SameObject"}
 
 
@@ -47,6 +47,12 @@ class RustAttribute:
     getter_method: str
     # The method of the implementation that the setter calls, for an attribute that is not read only.
     setter_method: Optional[str]
+
+    @property
+    def is_cached(self) -> bool:
+        """Whether the getter returns the same value for as long as the object lives, which the engine then caches on
+        the object: [CachedAccessor]."""
+        return "CachedAccessor" in self.attribute.extended_attributes
 
     @property
     def getter_function(self) -> str:
@@ -214,6 +220,8 @@ def rust_members(interface: Interface) -> RustMembers:
         if "FIXME" in attribute.extended_attributes:
             members.attributes_in_order.append(attribute.name)
             continue
+        if "CachedAccessor" in attribute.extended_attributes and not attribute.readonly:
+            fail(f"its attribute {attribute.name} is [CachedAccessor] and not read only")
         getter_method = method_of(attribute.name, attribute.extended_attributes)
         setter_method = None if attribute.readonly else f"set_{generated_function_stem(getter_method)}"
         rust_attribute = RustAttribute(attribute, getter_method, setter_method)

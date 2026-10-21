@@ -399,10 +399,10 @@ def write_rust_interface(
     }};
     use crate::bindings::interface::{{
         Inherits, Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute,
-        define_constants, define_interface_object_properties, define_operation, define_to_string_tag,
-        define_unimplemented_property, entry_point_arguments, implementation_if, implementation_of,
-        prototype_from_new_target, rejected_promise, set_interface_prototype_object_prototype, this_object,
-        to_interface,
+        define_cached_attribute, define_constants, define_interface_object_properties, define_operation,
+        define_to_string_tag, define_unimplemented_property, entry_point_arguments, implementation_if,
+        implementation_of, prototype_from_new_target, rejected_promise, set_interface_prototype_object_prototype,
+        this_object, to_interface,
     }};
     use crate::bindings::{{CallContext, WebIdlResult}};
 
@@ -506,6 +506,10 @@ def write_rust_interface(
             continue
         name = attribute.attribute.name
         getter = f"raw_native!({attribute.getter_function})"
+        if attribute.is_cached:
+            out.write(f'        define_cached_attribute(vm, realm, prototype, "{name}", {getter});\n')
+            defined_property_names.append(name)
+            continue
         setter = "None" if attribute.setter_method is None else f"raw_native!({attribute.setter_function})"
         out.write(f'        define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});\n')
         defined_property_names.append(name)
