@@ -1,0 +1,35 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+// NB: The IPC compiler cannot check that this lists every field of TextEditingCommand. A field left out here
+//     does not cross IPC.
+
+#include <LibWebCommon/Page/TextEditingCommand.h>
+
+[ExistingCpp]
+enum Web::TextEditingCommand::Type : u8 {
+    MoveBackward,
+    MoveForward,
+    MoveWordBackward,
+    MoveWordForward,
+    MoveUp,
+    MoveDown,
+    MoveToBeginningOfParagraph,
+    MoveToEndOfParagraph,
+    MoveToBeginningOfLine,
+    MoveToEndOfLine,
+    MoveToLeftEndOfLine,
+    MoveToRightEndOfLine,
+    PageUp,
+    PageDown,
+    DeleteBackward,
+    DeleteForward,
+    DeleteWordBackward,
+    DeleteWordForward,
+    DeleteToEndOfParagraph,
+}
+
+[ExistingCpp]
+struct Web::TextEditingCommand {
+    Web::TextEditingCommand::Type type;
+    bool extend_selection;
+}

@@ -101,6 +101,8 @@ invoke_py_generator(
                  "${LADYBIRD_SOURCE_DIR}/Meta/Utils/utils.py"
 )
 
+compile_ipc(Page/InputEvent.ipc Page/InputEventCodecs.h)
+compile_ipc(Page/TextEditingCommand.ipc Page/TextEditingCommandCodecs.h)
 compile_ipc(PixelUnits.ipc PixelUnitsCodecs.h)
 
 # NB: The protocols between the UI process and the processes it hosts web content in only use LibWebCommon types, so

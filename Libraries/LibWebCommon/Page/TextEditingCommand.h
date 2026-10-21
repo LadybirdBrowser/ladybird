@@ -7,8 +7,6 @@
 #pragma once
 
 #include <AK/Types.h>
-#include <LibIPC/Forward.h>
-#include <LibWebCommon/Export.h>
 
 namespace Web {
 
@@ -43,12 +41,4 @@ struct TextEditingCommand {
 
 }
 
-namespace IPC {
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::TextEditingCommand const&);
-
-template<>
-WEBCOMMON_API ErrorOr<Web::TextEditingCommand> decode(Decoder&);
-
-}
+#include <LibWebCommon/Page/TextEditingCommandCodecs.h>
