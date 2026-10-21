@@ -5,7 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
-#include <AK/MemoryStream.h>
+#include <AK/HashMap.h>
 #include <LibCore/File.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
@@ -22,9 +22,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibTest/JavaScriptTestHost.h>
-#include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
-#include <LibWasm/AbstractMachine/Validator.h>
-#include <LibWasm/Types.h>
+#include <LibWasm/Runtime/Runtime.h>
 #include <string.h>
 
 TEST_ROOT("Libraries/LibWasm/Tests");
@@ -58,7 +56,39 @@ TESTJS_GLOBAL_FUNCTION(read_binary_wasm_file, readBinaryWasmFile)
     return JS::Value(array);
 }
 
+namespace {
+
 static constexpr JSHostClass web_assembly_module_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "WebAssemblyModule"sv, nullptr, nullptr, nullptr, 0);
+
+// Host references (`ref.extern n` in the spec tests) are encoded so that they are never null, and never look like a
+// pointer or an i31 reference.
+static u64 host_reference_bits(u64 value)
+{
+    return (value << 2) | 2;
+}
+
+static Optional<u64> host_reference_value(u64 bits)
+{
+    if ((bits & 3) != 2)
+        return {};
+    return bits >> 2;
+}
+
+struct ImportName {
+    ByteString module;
+    ByteString name;
+
+    bool operator==(ImportName const&) const = default;
+};
+
+}
+
+template<>
+struct AK::Traits<ImportName> : public DefaultTraits<ImportName> {
+    static unsigned hash(ImportName const& name) { return pair_int_hash(name.module.hash(), name.name.hash()); }
+};
+
+namespace {
 
 // The module that parseWebAssemblyModule() instantiates. Script sees it as a host object that carries this cell as its
 // host data and has the module's getExport() and invoke() as own properties.
@@ -69,48 +99,51 @@ class WebAssemblyModule final : public JS::Cell {
 public:
     using JSValueConversionIsForbidden = void;
 
-    WebAssemblyModule()
-    {
-        machine().enable_instruction_count_limit();
-    }
-
     static WebAssemblyModule* from_object(JS::Object const& object)
     {
         return JS::host_data_if<WebAssemblyModule>(object);
     }
 
-    static Wasm::AbstractMachine& machine()
+    static Wasm::Runtime::Store& store()
     {
-        if (!s_machine)
-            s_machine = make<Wasm::AbstractMachine>();
-        return *s_machine;
+        if (!s_store)
+            s_store = make<Wasm::Runtime::Store>();
+        return *s_store;
     }
 
-    static void reset_machine()
+    static void reset_store()
     {
-        s_machine = nullptr;
         s_spec_test_namespace.clear();
+        s_store = nullptr;
     }
 
-    Wasm::Module& module() { return *m_module; }
-    Wasm::ModuleInstance& module_instance() { return *m_module_instance; }
+    u32 instance() const { return m_instance; }
 
-    static JS::ThrowCompletionOr<GC::Ref<JS::HostObject>> create(JS::Realm& realm, NonnullRefPtr<Wasm::Module> module, HashMap<Wasm::Linker::Name, Wasm::ExternValue> const& imports)
+    static JS::ThrowCompletionOr<GC::Ref<JS::HostObject>> create(JS::Realm& realm, NonnullRefPtr<Wasm::Runtime::Module> module, HashMap<ImportName, Wasm::Runtime::Extern> const& registered)
     {
         auto& vm = realm.vm();
+        auto const& spectest = spec_test_namespace();
+        Vector<Wasm::Runtime::Extern> imports;
+        for (size_t index = 0; index < module->import_count(); ++index) {
+            auto import = module->import(index);
+            ImportName name { import.module, import.name };
+            if (auto value = registered.get(name); value.has_value()) {
+                imports.append(*value);
+                continue;
+            }
+            if (auto value = spectest.get(name); value.has_value()) {
+                imports.append(*value);
+                continue;
+            }
+            return vm.throw_completion<JS::TypeError>("Link failed"_utf16);
+        }
+        auto result = store().instantiate(*module, imports);
+        if (result.is_error())
+            return vm.throw_completion<JS::TypeError>(Utf16String::from_utf8(result.error().message));
+
         auto instance = realm.create<WebAssemblyModule>();
         instance->m_module = move(module);
-        Wasm::Linker linker(*instance->m_module);
-        linker.link(imports);
-        linker.link(spec_test_namespace());
-        auto link_result = linker.finish();
-        if (link_result.is_error())
-            return vm.throw_completion<JS::TypeError>("Link failed"_utf16);
-        auto result = machine().instantiate(*instance->m_module, link_result.release_value());
-        if (result.is_error())
-            return vm.throw_completion<JS::TypeError>(Utf16String::from_utf8(result.release_error().error));
-        instance->m_module_instance = result.release_value();
-
+        instance->m_instance = result.value();
         auto object = JS::HostObject::create(realm, web_assembly_module_host_class, realm.intrinsics().object_prototype(), {}, instance);
         object->define_native_function(realm, "getExport"_utf16_fly_string, get_export, 1, JS::default_attributes);
         object->define_native_function(realm, "invoke"_utf16_fly_string, wasm_invoke, 1, JS::default_attributes);
@@ -123,113 +156,86 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(get_export);
     JS_DECLARE_NATIVE_FUNCTION(wasm_invoke);
 
-    static HashMap<Wasm::Linker::Name, Wasm::ExternValue> const& spec_test_namespace()
+    static HashMap<ImportName, Wasm::Runtime::Extern> const& spec_test_namespace()
     {
+        using namespace Wasm::Runtime;
         if (!s_spec_test_namespace.is_empty())
             return s_spec_test_namespace;
 
-        Wasm::FunctionType print_type { {}, {} };
-        auto address_print = alloc_noop_function(print_type);
-        s_spec_test_namespace.set({ "spectest", "print", print_type }, Wasm::ExternValue { *address_print });
+        auto add_print = [](StringView name, Vector<ValueType> parameters) {
+            auto address = store().allocate_host_function({ move(parameters), {} }, [](auto&, auto, auto) -> ErrorOr<void, ByteString> {
+                // Noop, this just needs to exist.
+                return {};
+            });
+            s_spec_test_namespace.set({ "spectest", name }, { ExternKind::Function, address });
+        };
+        auto i32 = ValueType::scalar(ValueKind::I32);
+        auto i64 = ValueType::scalar(ValueKind::I64);
+        auto f32 = ValueType::scalar(ValueKind::F32);
+        auto f64 = ValueType::scalar(ValueKind::F64);
+        add_print("print"sv, {});
+        add_print("print_i32"sv, { i32 });
+        add_print("print_i64"sv, { i64 });
+        add_print("print_f32"sv, { f32 });
+        add_print("print_f64"sv, { f64 });
+        add_print("print_i32_f32"sv, { i32, f32 });
+        add_print("print_f64_f64"sv, { f64, f64 });
 
-        Wasm::FunctionType print_i32_type { { Wasm::ValueType(Wasm::ValueType::I32) }, {} };
-        auto address_i32 = alloc_noop_function(print_i32_type);
-        s_spec_test_namespace.set({ "spectest", "print_i32", print_i32_type }, Wasm::ExternValue { *address_i32 });
+        auto funcref = ValueType::reference(HeapKind::Function);
+        auto table = store().allocate_table(funcref, { 10, 20, true, false, false }, 0);
+        s_spec_test_namespace.set({ "spectest", "table" }, { ExternKind::Table, table });
+        auto table64 = store().allocate_table(funcref, { 10, 20, true, true, false }, 0);
+        s_spec_test_namespace.set({ "spectest", "table64" }, { ExternKind::Table, table64 });
 
-        Wasm::FunctionType print_i64_type { { Wasm::ValueType(Wasm::ValueType::I64) }, {} };
-        auto address_i64 = alloc_noop_function(print_i64_type);
-        s_spec_test_namespace.set({ "spectest", "print_i64", print_i64_type }, Wasm::ExternValue { *address_i64 });
+        auto memory = store().allocate_memory({ 1, 2, true, false, false });
+        s_spec_test_namespace.set({ "spectest", "memory" }, { ExternKind::Memory, memory.value() });
 
-        Wasm::FunctionType print_f32_type { { Wasm::ValueType(Wasm::ValueType::F32) }, {} };
-        auto address_f32 = alloc_noop_function(print_f32_type);
-        s_spec_test_namespace.set({ "spectest", "print_f32", print_f32_type }, Wasm::ExternValue { *address_f32 });
-
-        Wasm::FunctionType print_f64_type { { Wasm::ValueType(Wasm::ValueType::F64) }, {} };
-        auto address_f64 = alloc_noop_function(print_f64_type);
-        s_spec_test_namespace.set({ "spectest", "print_f64", print_f64_type }, Wasm::ExternValue { *address_f64 });
-
-        Wasm::FunctionType print_i32_f32_type { { Wasm::ValueType(Wasm::ValueType::I32), Wasm::ValueType(Wasm::ValueType::F32) }, {} };
-        auto address_i32_f32 = alloc_noop_function(print_i32_f32_type);
-        s_spec_test_namespace.set({ "spectest", "print_i32_f32", print_i32_f32_type }, Wasm::ExternValue { *address_i32_f32 });
-
-        Wasm::FunctionType print_f64_f64_type { { Wasm::ValueType(Wasm::ValueType::F64), Wasm::ValueType(Wasm::ValueType::F64) }, {} };
-        auto address_f64_f64 = alloc_noop_function(print_f64_f64_type);
-        s_spec_test_namespace.set({ "spectest", "print_f64_f64", print_f64_f64_type }, Wasm::ExternValue { *address_f64_f64 });
-
-        Wasm::TableType table_type { Wasm::ValueType(Wasm::ValueType::FunctionReference), Wasm::Limits(Wasm::AddressType::I32, 10, 20) };
-        auto table_address = machine().store().allocate(table_type);
-        s_spec_test_namespace.set({ "spectest", "table", table_type }, Wasm::ExternValue { *table_address });
-
-        Wasm::TableType table64_type { Wasm::ValueType(Wasm::ValueType::FunctionReference), Wasm::Limits(Wasm::AddressType::I64, 10, 20) };
-        auto table64_address = machine().store().allocate(table64_type);
-        s_spec_test_namespace.set({ "spectest", "table64", table64_type }, Wasm::ExternValue { *table64_address });
-
-        Wasm::MemoryType memory_type { Wasm::Limits(Wasm::AddressType::I32, 1, 2) };
-        auto memory_address = machine().store().allocate(memory_type);
-        s_spec_test_namespace.set({ "spectest", "memory", memory_type }, Wasm::ExternValue { *memory_address });
-
-        Wasm::GlobalType global_i32 { Wasm::ValueType(Wasm::ValueType::I32), false };
-        auto global_i32_address = machine().store().allocate(global_i32, Wasm::Value(666));
-        s_spec_test_namespace.set({ "spectest", "global_i32", global_i32 }, Wasm::ExternValue { *global_i32_address });
-
-        Wasm::GlobalType global_i64 { Wasm::ValueType(Wasm::ValueType::I64), false };
-        auto global_i64_address = machine().store().allocate(global_i64, Wasm::Value((i64)666));
-        s_spec_test_namespace.set({ "spectest", "global_i64", global_i64 }, Wasm::ExternValue { *global_i64_address });
-
-        Wasm::GlobalType global_f32 { Wasm::ValueType(Wasm::ValueType::F32), false };
-        auto global_f32_address = machine().store().allocate(global_f32, Wasm::Value(666.6f));
-        s_spec_test_namespace.set({ "spectest", "global_f32", global_f32 }, Wasm::ExternValue { *global_f32_address });
-
-        Wasm::GlobalType global_f64 { Wasm::ValueType(Wasm::ValueType::F64), false };
-        auto global_f64_address = machine().store().allocate(global_f64, Wasm::Value(666.6));
-        s_spec_test_namespace.set({ "spectest", "global_f64", global_f64 }, Wasm::ExternValue { *global_f64_address });
+        s_spec_test_namespace.set({ "spectest", "global_i32" }, { ExternKind::Global, store().allocate_global(i32, false, Value::from_i32(666)) });
+        s_spec_test_namespace.set({ "spectest", "global_i64" }, { ExternKind::Global, store().allocate_global(i64, false, Value::from_i64(666)) });
+        s_spec_test_namespace.set({ "spectest", "global_f32" }, { ExternKind::Global, store().allocate_global(f32, false, Value::from_f32(666.6f)) });
+        s_spec_test_namespace.set({ "spectest", "global_f64" }, { ExternKind::Global, store().allocate_global(f64, false, Value::from_f64(666.6)) });
 
         return s_spec_test_namespace;
     }
 
-    static Optional<Wasm::FunctionAddress> alloc_noop_function(Wasm::FunctionType type)
-    {
-        return machine().store().allocate(Wasm::HostFunction {
-            [](auto&, auto) -> Wasm::Result {
-                // Noop, this just needs to exist.
-                return Wasm::Result { Vector<Wasm::Value> {} };
-            },
-            type,
-            "__TEST" });
-    }
-
-    static HashMap<Wasm::Linker::Name, Wasm::ExternValue> s_spec_test_namespace;
-    static OwnPtr<Wasm::AbstractMachine> s_machine;
-    RefPtr<Wasm::Module> m_module;
-    RefPtr<Wasm::ModuleInstance> m_module_instance;
+    static HashMap<ImportName, Wasm::Runtime::Extern> s_spec_test_namespace;
+    static OwnPtr<Wasm::Runtime::Store> s_store;
+    RefPtr<Wasm::Runtime::Module> m_module;
+    u32 m_instance { 0 };
 };
 
 GC_DEFINE_ALLOCATOR(WebAssemblyModule);
 
-OwnPtr<Wasm::AbstractMachine> WebAssemblyModule::s_machine;
-HashMap<Wasm::Linker::Name, Wasm::ExternValue> WebAssemblyModule::s_spec_test_namespace;
+OwnPtr<Wasm::Runtime::Store> WebAssemblyModule::s_store;
+HashMap<ImportName, Wasm::Runtime::Extern> WebAssemblyModule::s_spec_test_namespace;
+
+}
 
 TESTJS_RUN_FILE_FUNCTION(ByteString const&, JS::Realm&, JS::ExecutionContext&)
 {
-    WebAssemblyModule::reset_machine();
+    WebAssemblyModule::reset_store();
     return Test::JS::RunFileHookResult::RunAsNormal;
+}
+
+static JS::ThrowCompletionOr<ByteBuffer> bytes_of_typed_array(JS::VM& vm, JS::Value value, StringView function_name)
+{
+    auto object = TRY(value.to_object(vm));
+    if (!is<JS::Uint8Array>(*object))
+        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Expected a Uint8Array argument to {}", function_name));
+    auto& array = static_cast<JS::Uint8Array&>(*object);
+    auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::SeqCst);
+    return MUST(array.viewed_array_buffer()->copy_to_byte_buffer(array.byte_offset(), JS::typed_array_byte_length(record)));
 }
 
 TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
 {
     auto& realm = *vm.current_realm();
-    auto object = TRY(vm.argument(0).to_object(vm));
-    if (!is<JS::Uint8Array>(*object))
-        return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to parse_webassembly_module"_utf16);
-    auto& array = static_cast<JS::Uint8Array&>(*object);
-    auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::SeqCst);
-    auto bytes = MUST(array.viewed_array_buffer()->copy_to_byte_buffer(array.byte_offset(), JS::typed_array_byte_length(record)));
-    FixedMemoryStream stream { ReadonlyBytes { bytes.data(), bytes.size() } };
-    auto result = Wasm::Module::parse(stream);
-    if (result.is_error())
-        return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(Wasm::parse_error_to_byte_string(result.error())));
+    auto bytes = TRY(bytes_of_typed_array(vm, vm.argument(0), "parse_webassembly_module"sv));
+    auto module = Wasm::Runtime::Module::compile(bytes);
+    if (module.is_error())
+        return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(module.error()));
 
-    HashMap<Wasm::Linker::Name, Wasm::ExternValue> imports;
+    HashMap<ImportName, Wasm::Runtime::Extern> imports;
     auto import_value = vm.argument(1);
     if (auto import_object = import_value.template as_if<JS::Object>()) {
         for (auto property_key_value : TRY(import_object->ordinary_own_property_keys())) {
@@ -240,61 +246,34 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
             auto* module_object = module_value.is_object() ? WebAssemblyModule::from_object(module_value.as_object()) : nullptr;
             if (!module_object)
                 continue;
-            for (auto& entry : module_object->module_instance().exports()) {
-                // FIXME: Don't pretend that everything is a function
-                imports.set({ property_key.as_string().to_utf16_string().to_byte_string(), entry.name(), Wasm::TypeIndex(0) }, entry.value());
-            }
+            auto module_name = property_key.as_string().to_utf16_string().to_byte_string();
+            for (auto& entry : WebAssemblyModule::store().instance_exports(module_object->instance()))
+                imports.set({ module_name, entry.name }, entry.value);
         }
     }
 
-    return JS::Value(TRY(WebAssemblyModule::create(realm, result.release_value(), imports)));
+    return JS::Value(TRY(WebAssemblyModule::create(realm, module.release_value(), imports)));
 }
 
 TESTJS_GLOBAL_FUNCTION(validate_webassembly_module, validateWebAssemblyModule)
 {
-    auto object = TRY(vm.argument(0).to_object(vm));
-    if (!is<JS::Uint8Array>(*object))
-        return vm.throw_completion<JS::TypeError>("Expected a Uint8Array argument to validate_webassembly_module"_utf16);
-    auto& array = static_cast<JS::Uint8Array&>(*object);
-    auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::SeqCst);
-    auto bytes = MUST(array.viewed_array_buffer()->copy_to_byte_buffer(array.byte_offset(), JS::typed_array_byte_length(record)));
-    FixedMemoryStream stream { ReadonlyBytes { bytes.data(), bytes.size() } };
-    auto result = Wasm::Module::parse(stream);
-    if (result.is_error())
-        return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(Wasm::parse_error_to_byte_string(result.error())));
-    if (auto validation = WebAssemblyModule::machine().validate(*result.value(), {}, Wasm::CompileToNative::No); validation.is_error())
-        return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(validation.release_error().error_string));
+    auto bytes = TRY(bytes_of_typed_array(vm, vm.argument(0), "validate_webassembly_module"sv));
+    auto module = Wasm::Runtime::Module::compile(bytes);
+    if (module.is_error())
+        return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(module.error()));
     return JS::js_undefined();
 }
 
+// FIXME: These ask about the Cranelift JIT, which is gone; the tests that use them return early when nothing is
+//        eligible.
 TESTJS_GLOBAL_FUNCTION(is_cranelift_compiled, isCraneliftCompiled)
 {
-    auto address = static_cast<unsigned long>(TRY(vm.argument(0).to_double(vm)));
-    auto function_instance = WebAssemblyModule::machine().store().get(Wasm::FunctionAddress { address });
-    if (!function_instance)
-        return vm.throw_completion<JS::TypeError>("Invalid function address"_utf16);
-
-    auto* wasm_function = function_instance->get_pointer<Wasm::WasmFunction>();
-    if (!wasm_function)
-        return JS::Value(false);
-
-    auto const& compiled_instructions = wasm_function->code().func().body().compiled_instructions;
-    return JS::Value(Wasm::cranelift_entry_acquire(compiled_instructions) != 0);
+    return JS::Value(false);
 }
 
 TESTJS_GLOBAL_FUNCTION(is_cranelift_eligible, isCraneliftEligible)
 {
-    auto address = static_cast<unsigned long>(TRY(vm.argument(0).to_double(vm)));
-    auto function_instance = WebAssemblyModule::machine().store().get(Wasm::FunctionAddress { address });
-    if (!function_instance)
-        return vm.throw_completion<JS::TypeError>("Invalid function address"_utf16);
-
-    auto* wasm_function = function_instance->get_pointer<Wasm::WasmFunction>();
-    if (!wasm_function)
-        return JS::Value(false);
-
-    auto const& compiled_instructions = wasm_function->code().func().body().compiled_instructions;
-    return JS::Value(compiled_instructions.cranelift_eligible);
+    return JS::Value(false);
 }
 
 TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
@@ -354,16 +333,6 @@ TESTJS_GLOBAL_FUNCTION(is_arithmetic_nan64, isArithmeticNaN64)
     return (bits & 0x7FF0000000000000ull) == 0x7FF0000000000000ull && payload >= 0x0008000000000000ull;
 }
 
-TESTJS_GLOBAL_FUNCTION(is_valid_funcref_in, isValidFuncrefIn)
-{
-    auto value = TRY(vm.argument(0).to_length(vm));
-    auto module_object = TRY(vm.argument(1).to_object(vm));
-    auto* module = WebAssemblyModule::from_object(*module_object);
-    if (!module)
-        return vm.throw_completion<JS::TypeError>("Expected a WebAssemblyModule"_utf16);
-    return JS::Value(module->machine().store().get(Wasm::FunctionAddress { value }) != nullptr);
-}
-
 TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
 {
     auto expected = TRY(vm.argument(0).to_object(vm));
@@ -407,237 +376,172 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
     return true;
 }
 
+TESTJS_GLOBAL_FUNCTION(is_valid_funcref_in, isValidFuncrefIn)
+{
+    auto value = TRY(vm.argument(0).to_length(vm));
+    auto module_object = TRY(vm.argument(1).to_object(vm));
+    if (!WebAssemblyModule::from_object(*module_object))
+        return vm.throw_completion<JS::TypeError>("Expected a WebAssemblyModule"_utf16);
+    return JS::Value(value < NumericLimits<u32>::max());
+}
+
+static JS::Value reference_to_js_value(Wasm::Runtime::Value value, Wasm::Runtime::ValueType type)
+{
+    using namespace Wasm::Runtime;
+    if (value.is_null_reference())
+        return JS::js_null();
+    auto bits = value.reference_bits();
+    if (auto host = host_reference_value(bits); host.has_value())
+        return JS::Value(static_cast<double>(*host));
+    if ((bits & 1) != 0)
+        return JS::Value(static_cast<double>(static_cast<i32>(bits) >> 1));
+    if (type.heap == HeapKind::Function || type.heap == HeapKind::NoFunction || type.heap == HeapKind::Concrete) {
+        if (auto function = WebAssemblyModule::store().function_from_reference(bits); function.has_value())
+            return JS::Value(static_cast<double>(*function));
+    }
+    return JS::js_undefined();
+}
+
+static JS::ThrowCompletionOr<JS::Value> to_js_value(JS::VM& vm, Wasm::Runtime::Value value, Wasm::Runtime::ValueType type)
+{
+    using namespace Wasm::Runtime;
+    switch (type.kind) {
+    case ValueKind::I32:
+        return JS::Value(static_cast<double>(value.to_i32()));
+    case ValueKind::I64:
+        return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { value.to_i64() }));
+    case ValueKind::F32:
+        return JS::Value(static_cast<double>(value.f32_bits()));
+    case ValueKind::F64:
+        return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { value.f64_bits() } }));
+    case ValueKind::V128: {
+        auto buffer = TRY(JS::ArrayBuffer::create(*vm.current_realm(), 16));
+        u64 halves[2] = { value.low, value.high };
+        buffer->overwrite(0, reinterpret_cast<u8 const*>(halves), sizeof(halves));
+        return JS::Value(buffer);
+    }
+    case ValueKind::Reference:
+        return reference_to_js_value(value, type);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
 {
+    using namespace Wasm::Runtime;
     auto name = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
-    auto this_value = vm.this_value();
-    auto object = TRY(this_value.to_object(vm));
+    auto object = TRY(vm.this_value().to_object(vm));
     auto* instance = WebAssemblyModule::from_object(*object);
     if (!instance)
         return vm.throw_completion<JS::TypeError>("Not a WebAssemblyModule"_utf16);
-    for (auto& entry : instance->module_instance().exports()) {
-        if (entry.name() == name.to_byte_string()) {
-            auto& value = entry.value();
-            if (auto ptr = value.get_pointer<Wasm::FunctionAddress>())
-                return JS::Value(static_cast<unsigned long>(ptr->value()));
-            if (auto v = value.get_pointer<Wasm::GlobalAddress>()) {
-                auto global = machine().store().get(*v);
-                switch (global->type().type().kind()) {
-                case Wasm::ValueType::I32:
-                    return JS::Value(static_cast<double>(global->value().to<i32>()));
-                case Wasm::ValueType::I64:
-                    return JS::BigInt::create(vm, Crypto::SignedBigInteger { global->value().to<i64>() });
-                case Wasm::ValueType::F32:
-                    return JS::Value(static_cast<double>(global->value().to<float>()));
-                case Wasm::ValueType::F64:
-                    return JS::Value(global->value().to<double>());
-                case Wasm::ValueType::V128: {
-                    auto value = global->value().to<u128>();
-                    return JS::BigInt::create(vm, Crypto::SignedBigInteger::import_data(value.bytes()));
-                }
-                case Wasm::ValueType::FunctionReference:
-                case Wasm::ValueType::NoFunctionReference:
-                case Wasm::ValueType::ExternReference:
-                case Wasm::ValueType::NoExternReference:
-                case Wasm::ValueType::ExceptionReference:
-                case Wasm::ValueType::NoExceptionReference:
-                case Wasm::ValueType::AnyReference:
-                case Wasm::ValueType::EqReference:
-                case Wasm::ValueType::I31Reference:
-                case Wasm::ValueType::StructReference:
-                case Wasm::ValueType::ArrayReference:
-                case Wasm::ValueType::NoneReference:
-                case Wasm::ValueType::TypeUseReference: {
-                    auto ref = global->value().to<Wasm::Reference>();
-                    return ref.ref().visit(
-                        [&](Wasm::Reference::Null const&) -> JS::Value { return JS::js_null(); },
-                        [](Wasm::Reference::Exception const&) -> JS::Value { return JS::js_undefined(); },
-                        [](Wasm::Reference::I31 const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.value)); },
-                        [](Wasm::Reference::GcObject const&) -> JS::Value { return JS::js_undefined(); },
-                        [&](auto const& ref) -> JS::Value { return JS::Value(static_cast<double>(ref.address.value())); });
-                }
-                case Wasm::ValueType::I8:
-                case Wasm::ValueType::I16:
-                    return vm.throw_completion<JS::TypeError>("Unsupported heap reference"_utf16);
-                }
-            }
-            return vm.throw_completion<JS::TypeError>(Utf16String::formatted("'{}' does not refer to a function or a global", name));
+    auto value = store().find_export(instance->instance(), name);
+    if (!value.has_value())
+        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("'{}' could not be found", name));
+    if (value->kind == ExternKind::Function)
+        return JS::Value(static_cast<double>(value->address));
+    if (value->kind == ExternKind::Global) {
+        bool is_mutable = false;
+        auto type = store().global_type(value->address, is_mutable);
+        auto global = store().global_get(value->address);
+        switch (type.kind) {
+        case ValueKind::I32:
+            return JS::Value(static_cast<double>(global.to_i32()));
+        case ValueKind::I64:
+            return JS::BigInt::create(vm, Crypto::SignedBigInteger { global.to_i64() });
+        case ValueKind::F32:
+            return JS::Value(static_cast<double>(global.to_f32()));
+        case ValueKind::F64:
+            return JS::Value(global.to_f64());
+        case ValueKind::V128: {
+            u64 halves[2] = { global.low, global.high };
+            return JS::BigInt::create(vm, Crypto::SignedBigInteger::import_data({ reinterpret_cast<u8 const*>(halves), sizeof(halves) }));
+        }
+        case ValueKind::Reference:
+            return reference_to_js_value(global, type);
         }
     }
-    return vm.throw_completion<JS::TypeError>(Utf16String::formatted("'{}' could not be found", name));
+    return vm.throw_completion<JS::TypeError>(Utf16String::formatted("'{}' does not refer to a function or a global", name));
 }
 
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
 {
-    auto address = static_cast<unsigned long>(TRY(vm.argument(0).to_double(vm)));
-    Wasm::FunctionAddress function_address { address };
-    auto function_instance = WebAssemblyModule::machine().store().get(function_address);
-    if (!function_instance)
-        return vm.throw_completion<JS::TypeError>("Invalid function address"_utf16);
+    using namespace Wasm::Runtime;
+    auto address = static_cast<u32>(TRY(vm.argument(0).to_double(vm)));
+    auto type = store().function_type(address);
 
-    Wasm::FunctionType const* type { nullptr };
-    function_instance->visit([&](auto& value) { type = &value.type(); });
-    if (!type)
-        return vm.throw_completion<JS::TypeError>("Invalid function found at given address"_utf16);
-
-    Vector<Wasm::Value> arguments;
-    if (type->parameters().size() + 1 > vm.argument_count())
-        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Expected {} arguments for call, but found {}", type->parameters().size() + 1, vm.argument_count()));
+    Vector<Value> arguments;
+    if (type.parameters.size() + 1 > vm.argument_count())
+        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Expected {} arguments for call, but found {}", type.parameters.size() + 1, vm.argument_count()));
     size_t index = 1;
-    for (auto& param : type->parameters()) {
+    for (auto parameter : type.parameters) {
         auto argument = vm.argument(index++);
         double double_value = 0;
         if (!argument.is_bigint() && !argument.is_object())
             double_value = TRY(argument.to_double(vm));
-        switch (param.kind()) {
-        case Wasm::ValueType::Kind::I32:
-            arguments.append(Wasm::Value(static_cast<i64>(double_value)));
+        switch (parameter.kind) {
+        case ValueKind::I32:
+            arguments.append(Value::from_i32(static_cast<i32>(static_cast<i64>(double_value))));
             break;
-        case Wasm::ValueType::Kind::I64:
-            if (argument.is_bigint()) {
-                auto value = bit_cast<i64>(TRY(argument.to_bigint_uint64(vm)));
-                arguments.append(Wasm::Value(value));
-            } else {
-                arguments.append(Wasm::Value(static_cast<i64>(double_value)));
-            }
+        case ValueKind::I64:
+            if (argument.is_bigint())
+                arguments.append(Value::from_i64(bit_cast<i64>(TRY(argument.to_bigint_uint64(vm)))));
+            else
+                arguments.append(Value::from_i64(static_cast<i64>(double_value)));
             break;
-        case Wasm::ValueType::Kind::F32:
-            arguments.append(Wasm::Value(bit_cast<float>(static_cast<u32>(double_value))));
+        case ValueKind::F32:
+            arguments.append(Value::from_f32_bits(static_cast<u32>(double_value)));
             break;
-        case Wasm::ValueType::Kind::F64:
-            if (argument.is_bigint()) {
-                auto value = TRY(argument.to_bigint_uint64(vm));
-                arguments.append(Wasm::Value(bit_cast<double>(value)));
-            } else {
-                arguments.append(Wasm::Value(double_value));
-            }
+        case ValueKind::F64:
+            if (argument.is_bigint())
+                arguments.append(Value::from_f64_bits(TRY(argument.to_bigint_uint64(vm))));
+            else
+                arguments.append(Value::from_f64(double_value));
             break;
-        case Wasm::ValueType::Kind::V128: {
+        case ValueKind::V128: {
             auto object = MUST(argument.to_object(vm));
             if (!is<JS::TypedArrayBase>(*object))
                 return vm.throw_completion<JS::TypeError>("Expected typed array"_utf16);
             auto& array = static_cast<JS::TypedArrayBase&>(*object);
             auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::SeqCst);
-            if (JS::typed_array_byte_length(record) < sizeof(u128))
+            if (JS::typed_array_byte_length(record) < 16)
                 return vm.throw_completion<JS::TypeError>("Expected at least 16 bytes"_utf16);
-            u128 bits = 0;
-            auto* ptr = bit_cast<u8*>(&bits);
-            array.viewed_array_buffer()->copy_to(array.byte_offset(), { ptr, sizeof(u128) });
-            arguments.append(Wasm::Value(bits));
+            u64 halves[2] = { 0, 0 };
+            array.viewed_array_buffer()->copy_to(array.byte_offset(), { reinterpret_cast<u8*>(halves), sizeof(halves) });
+            arguments.append(Value::from_v128(halves[0], halves[1]));
             break;
         }
-        case Wasm::ValueType::Kind::FunctionReference: {
+        case ValueKind::Reference:
             if (argument.is_null()) {
-                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::FunctionReference) } }));
+                arguments.append(Value::from_reference(0));
                 break;
             }
-            Wasm::FunctionAddress addr = static_cast<u64>(double_value);
-            arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Func { addr, machine().store().get_module_for(addr) } }));
-            break;
-        }
-        case Wasm::ValueType::Kind::ExternReference:
-            if (argument.is_null()) {
-                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::ExternReference) } }));
+            switch (parameter.heap) {
+            case HeapKind::Function:
+                arguments.append(Value::from_reference(store().function_reference(static_cast<u32>(double_value))));
                 break;
-            }
-            arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Extern { static_cast<u64>(double_value) } }));
-            break;
-        case Wasm::ValueType::Kind::ExceptionReference:
-            if (argument.is_null())
-                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::ExceptionReference) } }));
-            else
-                return vm.throw_completion<JS::TypeError>("Exception references are not supported"_utf16);
-            break;
-        case Wasm::ValueType::Kind::TypeUseReference:
-            if (argument.is_null())
-                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(Wasm::ValueType::Kind::TypeUseReference, param.unsafe_typeindex()) } }));
-            else
+            case HeapKind::Extern:
+            case HeapKind::Any:
+                arguments.append(Value::from_reference(host_reference_bits(static_cast<u64>(double_value))));
+                break;
+            default:
                 return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"_utf16);
-            break;
-        case Wasm::ValueType::Kind::AnyReference:
-            if (argument.is_null()) {
-                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(param.kind()) } }));
-                break;
             }
-            // A host reference passed by address (e.g. a `(ref.host n)` spec-test argument); it enters the any hierarchy as an internalized extern reference.
-            arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Extern { static_cast<u64>(double_value) } }));
             break;
-        case Wasm::ValueType::Kind::NoFunctionReference:
-        case Wasm::ValueType::Kind::NoExternReference:
-        case Wasm::ValueType::Kind::EqReference:
-        case Wasm::ValueType::Kind::I31Reference:
-        case Wasm::ValueType::Kind::StructReference:
-        case Wasm::ValueType::Kind::ArrayReference:
-        case Wasm::ValueType::Kind::NoneReference:
-        case Wasm::ValueType::Kind::NoExceptionReference:
-            if (argument.is_null())
-                arguments.append(Wasm::Value(Wasm::Reference { Wasm::Reference::Null { Wasm::ValueType(param.kind()) } }));
-            else
-                return vm.throw_completion<JS::TypeError>("GC Heap references are not supported"_utf16);
-            break;
-        case Wasm::ValueType::Kind::I8:
-        case Wasm::ValueType::Kind::I16:
-            return vm.throw_completion<JS::TypeError>("Packed types are not valid parameter types"_utf16);
         }
     }
 
-    auto functype = WebAssemblyModule::machine().store().get(function_address)->visit([&](auto& func) { return func.type(); });
-    auto result = WebAssemblyModule::machine().invoke(function_address, arguments);
-    if (result.is_trap()) {
-        if (auto ptr = result.trap().data.get_pointer<Wasm::ExternallyManagedTrap>())
-            return ptr->unsafe_external_object_as<JS::Completion>();
-        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Execution trapped: {}", result.trap().format()));
-    }
+    auto result = store().invoke(address, arguments);
+    if (result.is_error())
+        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Execution trapped: {}", result.error()));
 
-    if (result.values().is_empty())
+    auto& values = result.value();
+    if (values.is_empty())
         return JS::js_null();
+    if (values.size() == 1)
+        return to_js_value(vm, values.first(), type.results.first());
 
-    auto to_js_value = [&](Wasm::Value const& value, Wasm::ValueType type) -> JS::ThrowCompletionOr<JS::Value> {
-        switch (type.kind()) {
-        case Wasm::ValueType::I32:
-            return JS::Value(static_cast<double>(value.to<i32>()));
-        case Wasm::ValueType::I64:
-            return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { value.to<i64>() }));
-        case Wasm::ValueType::F32:
-            return JS::Value(static_cast<double>(bit_cast<u32>(value.to<float>())));
-        case Wasm::ValueType::F64:
-            return JS::Value(JS::BigInt::create(vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { bit_cast<u64>(value.to<double>()) } }));
-        case Wasm::ValueType::V128: {
-            u128 val = value.to<u128>();
-            // FIXME: remove the MUST here
-            auto buf = MUST(JS::ArrayBuffer::create(*vm.current_realm(), 16));
-            auto bytes = val.bytes();
-            buf->overwrite(0, bytes.data(), bytes.size());
-            return JS::Value(buf);
-        }
-        case Wasm::ValueType::FunctionReference:
-        case Wasm::ValueType::NoFunctionReference:
-        case Wasm::ValueType::ExternReference:
-        case Wasm::ValueType::NoExternReference:
-        case Wasm::ValueType::AnyReference:
-        case Wasm::ValueType::EqReference:
-        case Wasm::ValueType::I31Reference:
-        case Wasm::ValueType::StructReference:
-        case Wasm::ValueType::ArrayReference:
-        case Wasm::ValueType::NoneReference:
-        case Wasm::ValueType::TypeUseReference:
-            return (value.to<Wasm::Reference>()).ref().visit([&](Wasm::Reference::Null) { return JS::js_null(); }, [&](Wasm::Reference::Exception) { return JS::js_undefined(); }, [&](Wasm::Reference::I31 const& ref) { return JS::Value(static_cast<double>(ref.value)); }, [&](Wasm::Reference::GcObject const&) { return JS::js_undefined(); }, [&](auto const& ref) { return JS::Value(static_cast<double>(ref.address.value())); });
-        case Wasm::ValueType::ExceptionReference:
-        case Wasm::ValueType::NoExceptionReference:
-            return JS::js_null();
-        case Wasm::ValueType::I8:
-        case Wasm::ValueType::I16:
-            return vm.throw_completion<JS::TypeError>("Unsupported packed type"_utf16);
-        }
-        VERIFY_NOT_REACHED();
-    };
-
-    if (result.values().size() == 1)
-        return to_js_value(result.values().first(), functype.results().first());
-
-    size_t i = 0;
-    return JS::Array::create_from<Wasm::Value>(*vm.current_realm(), result.values(), [&](Wasm::Value value) {
-        auto value_type = type->results()[i++];
-        return MUST(to_js_value(value, value_type));
-    });
+    Vector<JS::Value> js_values;
+    for (size_t result_index = 0; result_index < values.size(); ++result_index)
+        js_values.append(TRY(to_js_value(vm, values[result_index], type.results[result_index])));
+    return JS::Array::create_from(*vm.current_realm(), js_values);
 }

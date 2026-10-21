@@ -67,4 +67,6 @@ if (ENABLE_CRANELIFT_JIT)
     )
 endif()
 
+add_subdirectory(Runtime)
+
 include(wasm_spec_tests)
