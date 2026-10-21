@@ -26,7 +26,7 @@
         }
 
         frameA.contentWindow.location.replace("data:text/html,<script>parent.postMessage('replaced', '*')<\/script>");
-        const timedOut = new Promise(resolve => setTimeout(() => resolve("not replaced"), 2000));
-        println(await Promise.race([replaced.then(() => "replaced"), timedOut]));
+        await replaced;
+        println("replaced");
     });
 </script>
