@@ -122,7 +122,7 @@ mod tests {
         let view = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
         // All context fields are booleans, integers, or nullable pointers.
         let context = ParseContext::default();
-        let parsed = unsafe { parse_shared_stylesheet(view, &context) };
+        let parsed = parse_shared_stylesheet(view, Some(&context));
         let rules = crate::css::rule::NativeRuleList::from_parsed(parsed);
         let media = MediaList::new(Default::default());
         NativeStyleSheet::new(rules, media)

@@ -155,6 +155,12 @@ private:
 
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
+    // The rule contexts as the bytes the Rust parser reads them as.
+    ReadonlyBytes rule_context_bytes() const
+    {
+        static_assert(sizeof(RuleContext) == sizeof(u8));
+        return { reinterpret_cast<u8 const*>(m_rule_context.data()), m_rule_context.size() };
+    }
 
     GC::Ptr<DOM::Document const> m_document;
     ParsingMode m_parsing_mode { ParsingMode::Normal };

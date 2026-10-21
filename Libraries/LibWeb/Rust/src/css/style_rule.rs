@@ -63,7 +63,7 @@ mod tests {
         let source = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
         // All context fields are booleans, integers, or nullable pointers.
         let context = ParseContext::default();
-        let parsed = unsafe { parse_shared_stylesheet(source, &context) };
+        let parsed = parse_shared_stylesheet(source, Some(&context));
         crate::css::rule::NativeRuleList::from_parsed(parsed)
     }
 

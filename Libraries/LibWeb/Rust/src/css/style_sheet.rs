@@ -666,7 +666,7 @@ mod tests {
         let units: Vec<_> = source.encode_utf16().collect();
         // All fields are booleans, integers, or nullable pointers; zero is an empty parser context.
         let context = ParseContext::default();
-        unsafe { parse_shared_stylesheet(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), &context) }
+        parse_shared_stylesheet(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), Some(&context))
     }
 
     fn sheet(parsed: &std::sync::Arc<ParsedStyleSheet>) -> Rc<NativeStyleSheet> {

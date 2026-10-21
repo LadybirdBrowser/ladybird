@@ -544,7 +544,7 @@ mod tests {
         let view = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
         // All context fields are booleans, integers, or nullable pointers.
         let context = ParseContext::default();
-        let parsed = unsafe { parse_shared_stylesheet(view, &context) };
+        let parsed = parse_shared_stylesheet(view, Some(&context));
         let rules = crate::css::rule::NativeRuleList::from_parsed(parsed);
         let media = MediaList::new(Default::default());
         NativeStyleSheet::new(rules, media)
@@ -1186,9 +1186,8 @@ mod tests {
             let units: Vec<_> = source.encode_utf16().collect();
             let parsed = std::thread::spawn(move || {
                 let context = ParseContext::default();
-                let parsed = unsafe {
-                    parse_shared_stylesheet(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), &context)
-                };
+                let parsed =
+                    parse_shared_stylesheet(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), Some(&context));
                 assert_eq!(RULE_OWNER_ALLOCATIONS.get(), 0);
                 assert_eq!(DECLARATION_OWNER_ALLOCATIONS.get(), 0);
                 assert_eq!(crate::css::descriptor_block::DESCRIPTOR_OWNER_ALLOCATIONS.get(), 0);
@@ -1571,7 +1570,7 @@ mod tests {
             for (source, expected) in [("色|item { color: red; }", 1), ("未知|item { color: red; }", 0)] {
                 let units: Vec<_> = source.encode_utf16().collect();
                 let view = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
-                let parsed = unsafe { parse_shared_stylesheet(view, &context) };
+                let parsed = parse_shared_stylesheet(view, Some(&context));
                 let rules = crate::css::rule::NativeRuleList::from_parsed(parsed);
                 assert_eq!(rules.materialized_rules().len(), expected);
             }

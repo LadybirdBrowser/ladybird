@@ -125,12 +125,10 @@ pub extern "C" fn rust_compiled_function_retain(
 pub(crate) fn compile_functions_for_testing(source: &str) -> Vec<CompiledFunction> {
     let units: Vec<_> = source.encode_utf16().collect();
     let context = crate::css::parser::value_parser::ParseContext::default();
-    let parsed = unsafe {
-        crate::css::parser::syntax_parser::parse_shared_stylesheet(
-            crate::css::css_tokenizer::TokenizerInput::Utf16(&units),
-            &raw const context,
-        )
-    };
+    let parsed = crate::css::parser::syntax_parser::parse_shared_stylesheet(
+        crate::css::css_tokenizer::TokenizerInput::Utf16(&units),
+        Some(&context),
+    );
     let rules = super::NativeRuleList::from_parsed(parsed);
     let mut compiled = Vec::new();
     let _ = rules.visit_rules(&mut |rule| {

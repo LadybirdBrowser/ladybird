@@ -244,7 +244,7 @@ TEST_CASE(native_function_fragments_preserve_declaration_context)
 {
     ValueParserFFI::ParseContext context {};
     u8 rule_context = to_underlying(RuleContext::AtFunction);
-    auto* parse = ValueParserFFI::rust_parse_css_rule_syntax(ffi_utf16_view(u"@supports (display: block) { result: 50px; }"sv), &rule_context, 1, true, &context);
+    auto* parse = ValueParserFFI::rust_parse_css_rule_syntax(ffi_utf16_view(u"@supports (display: block) { result: 50px; }"sv), ReadonlyBytes { &rule_context, 1 }, true, &context);
     RustRuleList rules { ValueParserFFI::rust_css_syntax_native_rules(parse) };
     ValueParserFFI::rust_css_syntax_parse_free(parse);
     EXPECT_EQ(rules.size(), 1u);
@@ -252,7 +252,7 @@ TEST_CASE(native_function_fragments_preserve_declaration_context)
     EXPECT_EQ(ValueParserFFI::rust_rule_list_count(children), 1u);
     RustRule declarations { ValueParserFFI::rust_rule_list_at(children, 0) };
     EXPECT_EQ(declarations.type(), RustRule::Type::FunctionDeclarations);
-    parse = ValueParserFFI::rust_parse_css_block_syntax(ffi_utf16_view(u"result: 60px;"sv), &rule_context, 1, &context, false);
+    parse = ValueParserFFI::rust_parse_css_block_syntax(ffi_utf16_view(u"result: 60px;"sv), ReadonlyBytes { &rule_context, 1 }, &context, false);
     RustRuleList block { ValueParserFFI::rust_css_syntax_native_rules(parse) };
     ValueParserFFI::rust_css_syntax_parse_free(parse);
     EXPECT_EQ(block.size(), 1u);
@@ -354,7 +354,7 @@ static RustDeclarationBlock parse_native_declaration_block(Utf16View source)
     ValueParserFFI::ParseContext context {};
     u8 rule_context = to_underlying(RuleContext::Style);
     auto* parse = ValueParserFFI::rust_parse_css_block_syntax(
-        { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &rule_context, 1, &context, false);
+        { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, ReadonlyBytes { &rule_context, 1 }, &context, false);
     auto* block = ValueParserFFI::rust_css_syntax_parse_declaration_block(parse);
     ValueParserFFI::rust_css_syntax_parse_free(parse);
     return RustDeclarationBlock { block };

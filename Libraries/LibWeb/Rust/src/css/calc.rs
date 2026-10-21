@@ -353,10 +353,10 @@ pub(crate) fn serialize_context_free_calculation(
         crate::css::parser::calc_parser::CalcParserContext {
             percentages_resolve_as: None,
             property: 0,
-            random_function_index: std::ptr::null_mut(),
+            random_function_index: None,
             allowed_color_channels: 0,
             allow_random_functions: false,
-            parse_context: std::ptr::null(),
+            parse_context: None,
         },
     )
     .ok()?;

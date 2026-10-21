@@ -30,7 +30,9 @@ use crate::css::parser::query_parser::{
     parse_and_evaluate_media_if_condition, parse_and_evaluate_supports_if_condition, parse_style_range_from_source,
 };
 use crate::css::parser::syntax::{SyntaxNode, SyntaxType, clone_syntax_handle, parse_syntax, parse_with_syntax};
-use crate::css::parser::value_parser::{FfiValueParsingContext, FfiValueParsingContextKind, ParseContext};
+use crate::css::parser::value_parser::{
+    FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, RandomFunctionIndex,
+};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::serialize::serialize_component_values_to_utf16;
 use crate::css::style_value::RetainedStyleValueData;
@@ -312,7 +314,7 @@ impl CustomPropertyRegistry {
         )
     }
 
-    pub(crate) fn parse_context(&self, random_function_index: &mut usize) -> ParseContext<'_> {
+    pub(crate) fn parse_context<'a>(&'a self, random_function_index: &'a RandomFunctionIndex) -> ParseContext<'a> {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
@@ -324,7 +326,7 @@ impl CustomPropertyRegistry {
             document_url: ak::Span::new(&self.document_url),
             document_base_url: ak::Span::new(&self.document_base_url),
             length_resolution_context: None,
-            random_function_index,
+            random_function_index: Some(random_function_index),
         }
     }
 }
@@ -374,14 +376,14 @@ impl CustomPropertyRegistry {
         registration: &RegisteredCustomProperty,
         source: &[u16],
     ) -> Option<StyleValueData> {
-        let mut random_function_index = 0;
+        let random_function_index = RandomFunctionIndex::default();
         let value_context = FfiValueParsingContext {
             kind: FfiValueParsingContextKind::Property,
             value: crate::css::property_metadata::property_id::CUSTOM,
             secondary_value: 0,
             name: Default::default(),
         };
-        let mut context = self.parse_context(&mut random_function_index);
+        let mut context = self.parse_context(&random_function_index);
         context.value_contexts = ak::Span::new(std::slice::from_ref(&value_context));
         parse_with_syntax(&context, source, &registration.syntax)
     }
@@ -1448,8 +1450,8 @@ fn normalize_function_tokens(
         return TokenResolution::NotHandled;
     };
     let source = serialize_tokens(tokens);
-    let mut random_function_index = 0;
-    let context = registry.parse_context(&mut random_function_index);
+    let random_function_index = RandomFunctionIndex::default();
+    let context = registry.parse_context(&random_function_index);
     let Some(parsed) = parse_with_syntax(&context, &source, syntax) else {
         return TokenResolution::Invalid;
     };
@@ -1999,8 +2001,8 @@ fn registered_style_query_values_are_equal(
     query_tokens: &[OwnedToken],
     resolution_context: &mut ASFResolutionContext,
 ) -> bool {
-    let mut random_function_index = 0;
-    let context = registry.parse_context(&mut random_function_index);
+    let random_function_index = RandomFunctionIndex::default();
+    let context = registry.parse_context(&random_function_index);
     let Some(computed) = parse_with_syntax(&context, &serialize_tokens(computed_tokens), syntax) else {
         return false;
     };
@@ -2160,12 +2162,12 @@ fn evaluate_style_range_value(
         TokenResolution::NotHandled => return Err(ConditionEvaluation::NotHandled),
     };
     let source = serialize_tokens(&resolved);
-    let mut random_function_index = 0;
+    let random_function_index = RandomFunctionIndex::default();
     let registry_parse_context;
     let parse_context = match (context.parse_context, registry) {
         (Some(parse_context), _) => parse_context,
         (None, Some(registry)) => {
-            registry_parse_context = registry.parse_context(&mut random_function_index);
+            registry_parse_context = registry.parse_context(&random_function_index);
             &registry_parse_context
         }
         (None, None) => return Ok(None),
@@ -2987,8 +2989,8 @@ fn parse_attr_value_with_syntax(
     syntax: &SyntaxNode,
 ) -> Option<Vec<OwnedToken>> {
     let registry = registry?;
-    let mut random_function_index = 0;
-    let parsed = parse_with_syntax(&registry.parse_context(&mut random_function_index), source, syntax)?;
+    let random_function_index = RandomFunctionIndex::default();
+    let parsed = parse_with_syntax(&registry.parse_context(&random_function_index), source, syntax)?;
     let serialized = crate::css::serialize::serialize_style_value_to_utf16(&parsed);
     Some(tokenize_owned(&serialized))
 }
@@ -3447,8 +3449,8 @@ mod tests {
     #[test]
     fn style_queries_only_report_sibling_dependencies_for_tree_counting() {
         let registry = CustomPropertyRegistry::empty();
-        let mut random_index = 0;
-        let parse_context = registry.parse_context(&mut random_index);
+        let random_index = RandomFunctionIndex::default();
+        let parse_context = registry.parse_context(&random_index);
         let length = crate::css::style_compute::FfiLengthResolutionContext::default();
         for (source, expected, reads_sibling_position) in [
             ("10px", 10.0, false),

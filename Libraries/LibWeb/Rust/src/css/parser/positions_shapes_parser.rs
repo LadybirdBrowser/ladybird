@@ -1625,19 +1625,7 @@ mod tests {
     use crate::css::parser::component_value::consume_a_list_of_component_values;
 
     fn context() -> ParseContext<'static> {
-        ParseContext {
-            in_quirks_mode: false,
-            is_svg_presentation_attribute: false,
-            is_substituted_value: false,
-            contains_attr_tainted_values: false,
-            is_ua_style_sheet: false,
-            value_contexts: ak::Span::default(),
-            declared_namespaces: None,
-            document_url: ak::Span::default(),
-            document_base_url: ak::Span::default(),
-            length_resolution_context: None,
-            random_function_index: std::ptr::null_mut(),
-        }
+        ParseContext::default()
     }
 
     fn parse(property: u16, source: &str) -> ParseOutcome {

@@ -348,7 +348,7 @@ pub(crate) fn parse_substituted_value(
     contains_attr_tainted_values: bool,
 ) -> RetainedStyleValueData {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionParse);
-    let mut random_function_index = 0;
+    let random_function_index = crate::css::parser::value_parser::RandomFunctionIndex::default();
     let value_context = FfiValueParsingContext {
         kind: FfiValueParsingContextKind::Property,
         value: property_id,
@@ -359,7 +359,7 @@ pub(crate) fn parse_substituted_value(
     context.is_substituted_value = true;
     context.contains_attr_tainted_values = contains_attr_tainted_values;
     context.value_contexts = ak::Span::new(std::slice::from_ref(&value_context));
-    context.random_function_index = &raw mut random_function_index;
+    context.random_function_index = Some(&random_function_index);
     match parse_css_value_from_source(&context, property_id, source) {
         ParseOutcome::Parsed(value) => RetainedStyleValueData::from_arc(value),
         ParseOutcome::Invalid | ParseOutcome::NotHandled => {

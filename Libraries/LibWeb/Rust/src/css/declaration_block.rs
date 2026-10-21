@@ -642,7 +642,7 @@ mod tests {
         let input = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
         // All context fields are booleans, integers, or nullable pointers.
         let context = ParseContext::default();
-        let parse = unsafe { parse_shared_stylesheet(input, &context) };
+        let parse = parse_shared_stylesheet(input, Some(&context));
         let rules = crate::css::rule::NativeRuleList::from_parsed(parse);
         let rule = &rules.rule_at(0);
         rule.cascade_declarations().unwrap()
@@ -710,7 +710,7 @@ mod tests {
         let input = crate::css::css_tokenizer::TokenizerInput::Utf16(&units);
         // All context fields are booleans, integers, or nullable pointers.
         let context = ParseContext::default();
-        let parse = unsafe { parse_shared_stylesheet(input, &context) };
+        let parse = parse_shared_stylesheet(input, Some(&context));
         let rules = crate::css::rule::NativeRuleList::from_parsed(parse);
         let rule = rules.rule_at(0);
         let nested = rule.child_rules().unwrap().rule_at(1);
