@@ -356,6 +356,27 @@ fn measure_scrollable_overflow_impl(
         }
     }
 
+    // https://drafts.csswg.org/css-grid-2/#overflow
+    // The grid is also included in a grid container's scrollable overflow region.
+    // INTEROP: Blink only does this when the grid container is a scroll container, so the grid does not reach the
+    //          scrollable overflow of its ancestors.
+    if style_queries::is_scroll_container(layout_arena, box_node)
+        && let Some(tracks) = paintable_geometry::committed_used_grid_tracks(layout_arena, box_paintable)
+    {
+        let grid_area = tracks
+            .grid_area
+            .translated_by(paintable_absolute_content_box.location());
+        // NB: A grid with tracks in one axis only, e.g. columns but no rows, still reaches the overflow in that axis.
+        if grid_area.width > CssPixels::default() {
+            scrollable_overflow_rect.unite_horizontally(grid_area);
+            in_flow_and_floated_content_bounds.unite_horizontally(grid_area);
+        }
+        if grid_area.height > CssPixels::default() {
+            scrollable_overflow_rect.unite_vertically(grid_area);
+            in_flow_and_floated_content_bounds.unite_vertically(grid_area);
+        }
+    }
+
     // - The border boxes of all boxes for which it is the containing block and whose border boxes are positioned not
     //   wholly in the negative scrollable overflow region,
     //   FIXME: accounting for 3D transforms by projecting each box onto the plane of the element that establishes
