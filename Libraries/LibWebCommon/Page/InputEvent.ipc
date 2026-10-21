@@ -1,0 +1,48 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+// NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
+//     here does not cross IPC, as the browser data of the events deliberately does not.
+
+#include <LibWebCommon/Page/InputEvent.h>
+
+[ExistingCpp]
+struct Web::KeyEvent {
+    Web::KeyEvent::Type type;
+    Web::UIEvents::KeyCode key;
+    Web::UIEvents::KeyModifier modifiers;
+    u32 code_point;
+    bool repeat;
+    bool should_insert_text;
+    bool async_scroll_performed_default_action;
+    u64 id;
+    Vector<Web::TextEditingCommand> editing_commands;
+    bool native_editing_binding_resolved;
+}
+
+[ExistingCpp]
+struct Web::MouseEvent {
+    Web::MouseEvent::Type type;
+    Web::DevicePixelPoint position;
+    Web::DevicePixelPoint screen_position;
+    Web::UIEvents::MouseButton button;
+    Web::UIEvents::MouseButton buttons;
+    Web::UIEvents::KeyModifier modifiers;
+    double wheel_delta_x;
+    double wheel_delta_y;
+    double wheel_tick_120ths_x;
+    double wheel_tick_120ths_y;
+    Web::WheelDeltaPrecision wheel_delta_precision;
+    Web::ScrollGesturePhase scroll_gesture_phase;
+    i32 click_count;
+    bool async_scroll_performed_default_action;
+    u64 id;
+    Optional<Web::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor;
+}
+
+[ExistingCpp]
+struct Web::PinchEvent {
+    Web::DevicePixelPoint position;
+    Web::UIEvents::KeyModifier modifiers;
+    [Finite] double scale_delta;
+    u64 id;
+}

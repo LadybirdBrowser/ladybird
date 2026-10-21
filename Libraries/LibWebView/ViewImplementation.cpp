@@ -41,6 +41,7 @@
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
+#include <math.h>
 
 namespace WebView {
 
@@ -685,6 +686,11 @@ static constexpr auto longest_user_activation_delivery = AK::Duration::from_seco
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
+    // NB: A pinch event's scale delta must be finite to be sent over IPC. Drop a pinch event the platform gave us
+    //     with a scale delta that is not finite.
+    if (auto const* pinch_event = event.get_pointer<Web::PinchEvent>(); pinch_event && !isfinite(pinch_event->scale_delta))
+        return;
+
     auto* key_event = event.get_pointer<Web::KeyEvent>();
     auto* mouse_event = event.get_pointer<Web::MouseEvent>();
     if (m_debugger_paused) {

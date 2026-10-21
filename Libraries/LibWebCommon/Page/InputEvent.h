@@ -10,7 +10,6 @@
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Point.h>
-#include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
 #include <LibWebCommon/Page/TextEditingCommand.h>
@@ -41,7 +40,7 @@ struct WEBCOMMON_API KeyEvent {
     bool repeat { false };
     bool should_insert_text { false };
 
-    OwnPtr<BrowserInputData> browser_data;
+    OwnPtr<BrowserInputData> browser_data {};
     bool async_scroll_performed_default_action { false };
 
     // The UI process numbers the events it sends, and a completion names the event it finished.
@@ -129,7 +128,7 @@ struct WEBCOMMON_API MouseEvent {
     ScrollGesturePhase scroll_gesture_phase { ScrollGesturePhase::None };
     int click_count { 0 };
 
-    OwnPtr<BrowserInputData> browser_data;
+    OwnPtr<BrowserInputData> browser_data {};
     bool async_scroll_performed_default_action { false };
     u64 id { 0 };
     Optional<Web::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
@@ -144,24 +143,4 @@ struct WEBCOMMON_API PinchEvent {
 
 }
 
-namespace IPC {
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::KeyEvent const&);
-
-template<>
-WEBCOMMON_API ErrorOr<Web::KeyEvent> decode(Decoder&);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::MouseEvent const&);
-
-template<>
-WEBCOMMON_API ErrorOr<Web::MouseEvent> decode(Decoder&);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::PinchEvent const&);
-
-template<>
-WEBCOMMON_API ErrorOr<Web::PinchEvent> decode(Decoder&);
-
-}
+#include <LibWebCommon/Page/InputEventCodecs.h>
