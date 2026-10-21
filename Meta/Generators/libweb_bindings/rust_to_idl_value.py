@@ -72,6 +72,10 @@ def rust_to_idl_value(
         raise UnsupportedByRustBindings(
             f"{what} has the type {idl_type} with [EnforceRange], which the Rust bindings only handle on integer types"
         )
+    if "LegacyNullToEmptyString" in attributes and (idl_type.nullable or name != "DOMString"):
+        raise UnsupportedByRustBindings(
+            f"{what} has the type {idl_type} with [LegacyNullToEmptyString], which applies to DOMString only"
+        )
     # https://webidl.spec.whatwg.org/#js-nullable-type
     if idl_type.nullable:
         inner_type = idl_type.without_nullable()
@@ -90,6 +94,8 @@ def rust_to_idl_value(
             f"{what} has the type {idl_type}, which the Rust bindings do not convert to yet"
         )
     if name == "DOMString":
+        if "LegacyNullToEmptyString" in attributes:
+            return f"to_dom_string_treating_null_as_empty(vm, {value})"
         return f"to_dom_string(vm, {value})"
     if name == "USVString":
         return f"to_usv_string(vm, {value})"
