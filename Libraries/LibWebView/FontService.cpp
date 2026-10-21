@@ -13,6 +13,10 @@
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibWebView/FontService.h>
 
+#ifdef AK_OS_MACOS
+#    include <LibGfx/Font/TypefaceCoreText.h>
+#endif
+
 #include <fcntl.h>
 
 #if !defined(AK_OS_WINDOWS)
@@ -90,6 +94,12 @@ ErrorOr<void> FontService::build_catalog()
             // A face without a family name cannot be matched.
             if (typeface->family().is_empty())
                 return;
+#ifdef AK_OS_MACOS
+            // The compositor draws the faces of installed fonts with CoreText, which does not load every face that
+            // HarfBuzz reads, such as one with hvgl outlines.
+            if (!Gfx::core_text_accepts_font_data(*typeface->font_data_backing(), ttc_index))
+                return;
+#endif
             auto face_id = next_face_id++;
             auto names = typeface->local_font_names();
             if (names.is_error()) {

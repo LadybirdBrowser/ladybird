@@ -40,6 +40,9 @@ private:
     ReadonlyBytes m_bytes;
 };
 
+// The offset of the table directory of a face, if the data is an SFNT font or a collection of them.
+Optional<size_t> table_directory_offset(FontDataReader const&, u32 face_index);
+
 // Whether a face has a table, by the same rules as FontTable, without reading the table.
 bool face_has_table(hb_face_t*, FourCC tag);
 
@@ -56,8 +59,13 @@ public:
     FontTable(hb_face_t*, FourCC tag);
     ~FontTable();
 
+    // The table and the font data after it. FreeType reads the fixed-size fields of a table from here, so a field
+    // that a table which is too short cuts off comes from the data that follows the table.
+    FontDataReader const& with_following_data() const { return m_with_following_data; }
+
 private:
     hb_blob_t* m_blob { nullptr };
+    FontDataReader m_with_following_data;
 };
 
 }

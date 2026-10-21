@@ -27,7 +27,6 @@
 #define POINTS_PER_INCH 72.0f
 #define DEFAULT_DPI 96
 
-class SkTypeface;
 struct hb_blob_t;
 struct hb_face_t;
 struct hb_font_t;
@@ -95,9 +94,14 @@ public:
         {
         }
 
+        ReadonlyBytes bytes() const;
+
         Storage storage;
     };
 
+    // The face of font data that FreeType loads as an SFNT font and that HarfBuzz reads, so that both shaping and every
+    // rasterizer have the face. The upper 16 bits of the index select a named instance of a variable face, from 1.
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_font_data(NonnullRefPtr<FontDataBacking>, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_mapped_file(NonnullOwnPtr<Core::MappedFile>, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_anonymous_buffer(Core::AnonymousBuffer, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
@@ -112,10 +116,10 @@ public:
     u16 width() const;
     u8 slope() const;
 
-    ReadonlyBytes font_data() const LIFETIME_BOUND { return buffer(); }
+    ReadonlyBytes font_data() const LIFETIME_BOUND { return m_font_data ? m_font_data->bytes() : ReadonlyBytes {}; }
     // What keeps the font data alive. Null for a typeface without font data of its own.
     RefPtr<FontDataBacking> font_data_backing() const { return m_font_data; }
-    u32 collection_index() const { return ttc_index(); }
+    u32 collection_index() const { return m_ttc_index; }
 
     [[nodiscard]] NonnullRefPtr<Font> font(float point_size, FontVariationSettings const& variations = {}, Gfx::ShapeFeatures const& shape_features = {}) const;
     // A font that measures and shapes text like font() but draws nothing. Each call makes a new font.
@@ -154,7 +158,6 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    virtual bool is_skia() const { return false; }
     virtual bool is_core_text() const { return false; }
 
     // How many glyph pages the calling thread has filled in, for tests of its glyph page caches.
@@ -169,19 +172,17 @@ protected:
         PlatformFontName,
     };
 
+    // A typeface without font data of its own.
     Typeface();
 
-    virtual ReadonlyBytes buffer() const = 0;
-    virtual u32 ttc_index() const = 0;
     virtual void encode_font_data_for_ipc(IPC::Encoder&) const;
     virtual hb_face_t* create_harfbuzz_face() const;
     // A typeface that the platform picked for a style answers with that style, whatever its tables say.
     virtual Optional<FaceStyle> fixed_style() const { return {}; }
 
-    void set_font_data(NonnullRefPtr<FontDataBacking> backing) { m_font_data = move(backing); }
-    bool has_font_data_backing() const { return !m_font_data.is_null(); }
-
 private:
+    Typeface(NonnullRefPtr<FontDataBacking>, u32 ttc_index);
+
     friend class Font;
 
     template<typename T>
@@ -191,6 +192,7 @@ private:
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 
     RefPtr<FontDataBacking> m_font_data;
+    u32 m_ttc_index { 0 };
     Optional<SystemFontIdentifier> m_system_font_identifier;
     Optional<String> m_file_path;
 

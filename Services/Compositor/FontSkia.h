@@ -13,6 +13,15 @@ class SkFont;
 
 namespace Compositor {
 
+enum class FontRasterizer {
+    // The font manager of the platform: CoreText on macOS, DirectWrite on Windows, and FreeType elsewhere.
+    Platform,
+    FreeType,
+};
+
+// Call this before any text is drawn.
+void set_font_rasterizer(FontRasterizer);
+
 // Makes every font use normal hinting, so that text looks the same on every machine.
 void force_font_hinting_for_testing();
 

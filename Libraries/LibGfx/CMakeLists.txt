@@ -23,7 +23,6 @@ set(SOURCES
     Font/SystemFallbackFonts.cpp
     Font/SystemFontMatcher.cpp
     Font/Typeface.cpp
-    Font/TypefaceSkia.cpp
     Font/WOFF/Loader.cpp
     Font/WOFF2/Loader.cpp
     FontCascadeList.cpp

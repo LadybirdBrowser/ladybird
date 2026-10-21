@@ -77,8 +77,15 @@ static Optional<SystemFontFile> find_loadable_file(StringView path, u32 ttc_inde
     if (mapped_file.is_error())
         return {};
     auto format = format_of(mapped_file.value()->bytes());
-    if (load_mapped_file(mapped_file.release_value(), ttc_index, format).is_error())
+    auto typeface = load_mapped_file(mapped_file.release_value(), ttc_index, format);
+    if (typeface.is_error())
         return {};
+#ifdef AK_OS_MACOS
+    // The compositor draws the faces of installed fonts with CoreText, which does not load every face that HarfBuzz
+    // reads, such as one with hvgl outlines.
+    if (!core_text_accepts_font_data(*typeface.value()->font_data_backing(), ttc_index))
+        return {};
+#endif
     auto string_path = String::from_byte_string(canonical_path.release_value());
     if (string_path.is_error())
         return {};

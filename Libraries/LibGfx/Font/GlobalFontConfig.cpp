@@ -6,6 +6,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/ByteString.h>
+#include <AK/LsanSuppressions.h>
 #include <AK/NeverDestroyed.h>
 #include <LibGfx/Font/GlobalFontConfig.h>
 #include <fontconfig/fontconfig.h>
