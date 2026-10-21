@@ -65,10 +65,6 @@
 #    include <LibIPC/TransportBootstrapMach.h>
 #endif
 
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-#    include <LibWasmCompilerClient/Client.h>
-#endif
-
 namespace Compositing {
 
 struct KeyEvent;
@@ -124,9 +120,6 @@ public:
     static ErrorOr<NonnullRefPtr<Requests::RequestClient>> request_server_client(IsPrivate = IsPrivate::No);
     // The control connection of the default session's RequestServer with no site.
     static Requests::RequestControlClient& request_server_control_client();
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    static WasmCompilerClient::Client& wasm_compiler_client() { return *the().m_wasm_compiler_client; }
-#endif
 
     virtual bool supports_system_menu_bar() const { return false; }
     virtual bool supports_vertical_tabs() const { return false; }
@@ -454,9 +447,6 @@ private:
     void crash_compositor_process();
     void offer_crash_report(ByteString const& report_name);
     ErrorOr<void> launch_request_server();
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    ErrorOr<void> launch_wasm_compiler_server();
-#endif
     ErrorOr<void> launch_devtools_server();
     // Returns whether the combined rules changed.
     ErrorOr<bool> load_content_blocker_lists();
@@ -626,9 +616,6 @@ private:
 
     OwnPtr<RequestServerManager> m_request_server_manager;
     HashMap<u64, Function<void()>> m_image_decoder_exit_handlers;
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    RefPtr<WasmCompilerClient::Client> m_wasm_compiler_client;
-#endif
     RefPtr<CompositorClient> m_compositor_client;
     bool m_reported_compositor_gpu_presentation_unavailable { false };
     // The last identity a Compositor reported, which outlives that Compositor until its replacement reports.

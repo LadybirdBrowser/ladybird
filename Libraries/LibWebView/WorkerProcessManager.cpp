@@ -220,9 +220,6 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
             request_server_instance = TRY(RequestServerManager::the().browser_instance(*session));
         auto request_server_connection = TRY(RequestServerManager::the().connect_new_client(*request_server_instance, *session, RequestServer::SiteBinding::Bound));
         auto image_decoder = TRY(launch_image_decoder_process());
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-        auto wasm_compiler_handle = TRY(connect_new_wasm_compiler_client());
-#endif
 
         client->request_server_site_bindings().did_connect(request_server_connection.client_id);
         client->async_connect_to_request_server(move(request_server_connection.handle), request_server_connection.client_id);
@@ -234,9 +231,6 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         client->async_set_navigator_compatibility_mode(Application::the().navigator_compatibility_mode());
         client->async_set_preferred_languages(Application::settings().languages());
         connect_to_image_decoder(*client, move(image_decoder));
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-        client->async_connect_to_wasm_compiler(wasm_compiler_handle);
-#endif
 
         if (auto compositor_handle = Application::the().connect_new_compositor_canvas_client(); !compositor_handle.is_error())
             client->async_connect_to_compositor(compositor_handle.release_value());

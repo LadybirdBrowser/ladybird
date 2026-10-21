@@ -877,23 +877,6 @@ Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClien
     return Optional<Core::AnonymousBuffer> { buffer.release_value() };
 }
 
-Messages::RequestServer::CreateSyntheticCacheEntryResponse ConnectionFromClient::create_synthetic_cache_entry(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method)
-{
-    if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
-        return false;
-
-    auto partition = network_isolation_key.has_value() ? network_isolation_key->disk_cache_partition() : OptionalNone {};
-    if (!m_disk_cache.has_value() || !partition.has_value())
-        return false;
-
-    auto result = m_disk_cache->create_synthetic_entry(*partition, url, method);
-    if (result.is_error()) {
-        dbgln("Failed to create synthetic cache entry for {}: {}", url, result.error());
-        return false;
-    }
-    return result.value();
-}
-
 size_t ConnectionFromClient::websocket_count() const
 {
     return m_pending_websockets.size() + m_websockets.size();

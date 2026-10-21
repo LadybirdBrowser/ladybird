@@ -1,5 +1,5 @@
 test("multi-memory loads, stores, bounds checks, and growth remain interpreter-compatible", () => {
-    const binary = readBinaryWasmFile("Fixtures/Modules/cranelift-multi-memory-access.wasm");
+    const binary = readBinaryWasmFile("Fixtures/Modules/multi-memory-access.wasm");
     const module = parseWebAssemblyModule(binary);
     const roundtrip = module.getExport("roundtrip");
     const loadAt = module.getExport("load_at");

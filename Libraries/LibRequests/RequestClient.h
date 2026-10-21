@@ -71,8 +71,6 @@ public:
     ErrorOr<Optional<Core::ImmutableBytes>> store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, Core::AnonymousBuffer);
     ErrorOr<Optional<Core::AnonymousBuffer>> retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData);
 
-    ErrorOr<bool> create_synthetic_cache_entry(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method);
-
     Function<void()> on_request_server_died;
 
 private:

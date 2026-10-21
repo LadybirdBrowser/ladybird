@@ -1,7 +1,5 @@
-;; The bytecode compiler inlines $inlinee into $caller, splicing the callee's blocks (plus a wrapper block) into the
-;; caller's instruction list. That pushes far more labels at run time than the validator counted for $caller alone, so
-;; the label reservation must be recomputed from the compiled instructions. $caller returns multiple values to keep it
-;; out of Cranelift and on the interpreter path that pushes labels.
+;; $caller nests blocks around calls to $inlinee, which nests blocks of its own, so the blocks open at the deepest point
+;; are many more than $caller has alone. $caller returns multiple values.
 (module
   (memory 1)
 

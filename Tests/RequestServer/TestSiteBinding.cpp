@@ -83,19 +83,20 @@ struct TestServer {
         VERIFY(response);
     }
 
-    // Asks RequestServer to create a cache entry in the partition of the key, and returns whether the entry exists.
-    bool create_synthetic_cache_entry(HTTP::NetworkIsolationKey const& network_isolation_key)
+    // Puts associated data in the cache partition of the key, and returns whether RequestServer reads it back.
+    bool can_use_cache_partition(HTTP::NetworkIsolationKey const& network_isolation_key)
     {
         auto url = URL::Parser::basic_parse("https://cdn.example/library.js"sv).release_value();
-        auto message = make<Messages::RequestServer::CreateSyntheticCacheEntry>(network_isolation_key, url, ByteString { "GET" });
-        VERIFY(MUST(static_cast<RequestServerEndpoint::Stub&>(*connection).handle(move(message))));
-
-        // NB: Associated data can be stored only for an entry that exists.
+        auto partition = *network_isolation_key.disk_cache_partition();
+        (void)MUST(disk_cache->create_synthetic_entry(partition, url, "GET"sv));
         auto request_headers = HTTP::HeaderList::create();
-        auto stored = MUST(disk_cache->store_associated_data(*network_isolation_key.disk_cache_partition(), url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, "data"sv.bytes()));
-        if (stored.has_value())
-            (void)Core::System::close(stored->fd);
-        return stored.has_value();
+        auto stored = MUST(disk_cache->store_associated_data(partition, url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, "data"sv.bytes()));
+        VERIFY(stored.has_value());
+        (void)Core::System::close(stored->fd);
+
+        auto& stub = static_cast<RequestServerEndpoint::Stub&>(*connection);
+        auto response = stub.retrieve_cache_associated_data(network_isolation_key, url, ByteString { "GET" }, {}, 0u, HTTP::CacheEntryAssociatedData::JavaScriptBytecode);
+        return response.data().has_value();
     }
 
     void start_request(u64 request_id, StringView url, HTTP::NetworkIsolationKey const& network_isolation_key)
@@ -144,18 +145,18 @@ TEST_CASE(bound_client_uses_only_the_cache_partitions_of_its_sites)
 {
     TestServer server;
 
-    EXPECT(!server.create_synthetic_cache_entry(key("https://a.example"sv, "https://a.example"sv)));
+    EXPECT(!server.can_use_cache_partition(key("https://a.example"sv, "https://a.example"sv)));
 
     server.bind_to_site("https://a.example"sv, "https://a.example"sv);
-    EXPECT(server.create_synthetic_cache_entry(key("https://a.example"sv, "https://a.example"sv)));
+    EXPECT(server.can_use_cache_partition(key("https://a.example"sv, "https://a.example"sv)));
 
     // Neither another top-level site nor another frame site under the bound one is reachable.
-    EXPECT(!server.create_synthetic_cache_entry(key("https://b.example"sv, "https://b.example"sv)));
-    EXPECT(!server.create_synthetic_cache_entry(key("https://b.example"sv, "https://a.example"sv)));
-    EXPECT(!server.create_synthetic_cache_entry(key("https://a.example"sv, "https://b.example"sv)));
+    EXPECT(!server.can_use_cache_partition(key("https://b.example"sv, "https://b.example"sv)));
+    EXPECT(!server.can_use_cache_partition(key("https://b.example"sv, "https://a.example"sv)));
+    EXPECT(!server.can_use_cache_partition(key("https://a.example"sv, "https://b.example"sv)));
 
     server.bind_to_site("https://a.example"sv, "https://b.example"sv);
-    EXPECT(server.create_synthetic_cache_entry(key("https://a.example"sv, "https://b.example"sv)));
+    EXPECT(server.can_use_cache_partition(key("https://a.example"sv, "https://b.example"sv)));
 }
 
 TEST_CASE(bound_client_requests_only_for_its_sites)

@@ -97,8 +97,6 @@ private:
     virtual Messages::RequestServer::StoreCacheAssociatedDataResponse store_cache_associated_data(Optional<HTTP::NetworkIsolationKey>, URL::URL, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, Core::AnonymousBuffer) override;
     virtual Messages::RequestServer::RetrieveCacheAssociatedDataResponse retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey>, URL::URL, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData) override;
 
-    virtual Messages::RequestServer::CreateSyntheticCacheEntryResponse create_synthetic_cache_entry(Optional<HTTP::NetworkIsolationKey>, URL::URL, ByteString method) override;
-
     virtual void websocket_connect(u64 websocket_id, URL::URL, Optional<HTTP::NetworkIsolationKey>, ByteString, Vector<ByteString>, Vector<ByteString>, Vector<HTTP::Header>) override;
     virtual void websocket_send(u64 websocket_id, bool, ByteBuffer) override;
     virtual void websocket_send_shared(u64 websocket_id, bool, Core::AnonymousBuffer) override;

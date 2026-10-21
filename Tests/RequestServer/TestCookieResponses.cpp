@@ -465,7 +465,7 @@ TEST_CASE(unknown_cache_associated_data_kind_is_rejected)
         TestServer server;
         TestConnection connection { server };
 
-        connection.store_cache_associated_data(HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode);
+        connection.store_cache_associated_data(HTTP::CacheEntryAssociatedData::JavaScriptBytecode);
         EXPECT(connection.is_open());
     }
 

@@ -1,7 +1,7 @@
 function loadGlobalModules() {
-    const globalsBinary = readBinaryWasmFile("Fixtures/Modules/cranelift-global-access.wasm");
-    const calleeBinary = readBinaryWasmFile("Fixtures/Modules/cranelift-global-cross-module-callee.wasm");
-    const callerBinary = readBinaryWasmFile("Fixtures/Modules/cranelift-global-cross-module-caller.wasm");
+    const globalsBinary = readBinaryWasmFile("Fixtures/Modules/global-access.wasm");
+    const calleeBinary = readBinaryWasmFile("Fixtures/Modules/global-cross-module-callee.wasm");
+    const callerBinary = readBinaryWasmFile("Fixtures/Modules/global-cross-module-caller.wasm");
 
     const globals = parseWebAssemblyModule(globalsBinary);
     const callee = parseWebAssemblyModule(calleeBinary);

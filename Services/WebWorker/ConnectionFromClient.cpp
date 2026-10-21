@@ -52,14 +52,6 @@ ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_media_serve
     return response->take_handle()->create_transport();
 }
 
-void ConnectionFromClient::connect_to_wasm_compiler([[maybe_unused]] IPC::TransportHandle handle)
-{
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    if (on_wasm_compiler_connection)
-        on_wasm_compiler_connection(move(handle));
-#endif
-}
-
 void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
 {
     auto transport = MUST(handle.create_transport());

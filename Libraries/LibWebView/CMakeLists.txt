@@ -153,11 +153,6 @@ if (LINUX)
     endif()
 endif()
 
-if (ENABLE_CRANELIFT_JIT)
-    target_link_libraries(LibWebView PRIVATE LibWasmCompilerClient)
-    target_compile_definitions(LibWebView PUBLIC HAVE_WASM_COMPILER_SERVICE=1)
-endif()
-
 if (APPLE)
     target_link_libraries(LibWebView PRIVATE "-framework Carbon")
 endif()

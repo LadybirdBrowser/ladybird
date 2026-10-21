@@ -32,7 +32,6 @@
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibUnicode/TimeZone.h>
-#include <LibWasm/Types.h>
 #include <LibWeb/ARIA/RoleType.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
@@ -431,14 +430,6 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
 {
     if (on_image_decoder_connection)
         on_image_decoder_connection(handle);
-}
-
-void ConnectionFromClient::connect_to_wasm_compiler([[maybe_unused]] IPC::TransportHandle handle)
-{
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    if (on_wasm_compiler_connection)
-        on_wasm_compiler_connection(move(handle));
-#endif
 }
 
 void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle, IPC::TransportHandle render_clock_handle)
@@ -1086,11 +1077,6 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
 
     if (request == "dump-all-css-errors") {
         Web::CSS::Parser::ErrorReporter::the().dump();
-        return;
-    }
-
-    if (request == "dump-wasm-stats") {
-        Wasm::dump_module_stats();
         return;
     }
 

@@ -29,7 +29,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
 #include <LibMain/Main.h>
-#include <LibWasm/Runtime/Runtime.h>
+#include <LibWasm/Runtime.h>
 #include <math.h>
 
 using Wasm::Runtime::Entity;

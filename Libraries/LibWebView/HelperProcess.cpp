@@ -498,23 +498,6 @@ void shut_down_video_decoder_servers()
     s_video_decoder_servers->clear();
 }
 
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-ErrorOr<NonnullRefPtr<WasmCompilerClient::Client>> launch_wasm_compiler_process()
-{
-    auto const& browser_options = WebView::Application::browser_options();
-
-    Vector<ByteString> arguments;
-    if (browser_options.disable_sandbox == DisableSandbox::Yes)
-        arguments.append("--disable-sandbox"sv);
-    if (auto server = mach_server_name(); server.has_value()) {
-        arguments.append("--mach-server-name"sv);
-        arguments.append(server.value());
-    }
-
-    return launch_server_process<WasmCompilerClient::Client>("WasmCompiler"sv, arguments);
-}
-#endif
-
 ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
 {
     auto const& browser_options = WebView::Application::browser_options();
@@ -729,19 +712,5 @@ ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<Medi
         return Error::from_string_literal("Failed to connect to MediaServer");
     return MediaServerClientConnection { response->take_handle().release_value(), response->client_id() };
 }
-
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-ErrorOr<IPC::TransportHandle> connect_new_wasm_compiler_client()
-{
-    auto response = Application::wasm_compiler_client().send_sync_but_allow_failure<Messages::WasmCompilerServer::ConnectNewClients>(1);
-    if (!response)
-        return Error::from_string_literal("Failed to connect to WasmCompiler");
-
-    auto handles = response->take_handles();
-    if (handles.size() != 1)
-        return Error::from_string_literal("Failed to connect to WasmCompiler");
-    return handles.take_last();
-}
-#endif
 
 }

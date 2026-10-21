@@ -9,17 +9,13 @@ set(ladybird_helper_processes
     WebWorker
 )
 
-if (ENABLE_CRANELIFT_JIT)
-    list(APPEND ladybird_helper_processes WasmCompiler)
-endif()
-
 # Kills the helpers when the Browser is gone, which the kernel cannot do on macOS.
 if (APPLE)
     list(APPEND ladybird_helper_processes ProcessReaper)
 endif()
 
 # On macOS, helpers run with the hardened runtime, so the kernel refuses to run code from memory that was writable, except
-# in the MAP_JIT regions where the renderers put the WebAssembly code that Cranelift compiles. Library validation stays
+# in the MAP_JIT regions where the renderers put the code that their JIT compilers generate. Library validation stays
 # off, since development builds sign their libraries ad hoc, without a team identifier. Every build of the helper signs
 # it, so that targeted builds keep these protections too.
 function(ladybird_sign_helper_process target)

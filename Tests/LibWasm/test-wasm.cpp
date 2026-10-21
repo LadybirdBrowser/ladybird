@@ -23,7 +23,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibTest/JavaScriptTestHost.h>
-#include <LibWasm/Runtime/Runtime.h>
+#include <LibWasm/Runtime.h>
 #include <string.h>
 #include <sys/resource.h>
 
@@ -287,18 +287,6 @@ TESTJS_GLOBAL_FUNCTION(validate_webassembly_module, validateWebAssemblyModule)
     if (module.is_error())
         return vm.throw_completion<JS::SyntaxError>(Utf16String::from_utf8(module.error()));
     return JS::js_undefined();
-}
-
-// FIXME: These ask about the Cranelift JIT, which is gone; the tests that use them return early when nothing is
-//        eligible.
-TESTJS_GLOBAL_FUNCTION(is_cranelift_compiled, isCraneliftCompiled)
-{
-    return JS::Value(false);
-}
-
-TESTJS_GLOBAL_FUNCTION(is_cranelift_eligible, isCraneliftEligible)
-{
-    return JS::Value(false);
 }
 
 // The most memory the process has had resident, in bytes.

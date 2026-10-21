@@ -295,9 +295,6 @@ if (BUILD_TESTING AND NOT WIN32)
         )
         set_tests_properties(TestWebDriverBrowserCrashRecovery PROPERTIES TIMEOUT 120)
         set(crash_report_helpers WebWorker RequestServer ImageDecoder Compositor)
-        if (ENABLE_CRANELIFT_JIT)
-            list(APPEND crash_report_helpers WasmCompiler)
-        endif()
         foreach(helper IN LISTS crash_report_helpers)
             add_test(
                 NAME Test${helper}CrashReport

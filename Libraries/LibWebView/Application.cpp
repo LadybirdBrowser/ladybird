@@ -1106,9 +1106,6 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     // The client's WebContentClient picks up this same session when it is created.
     auto request_server_connection = TRY(connect_new_request_server_client(session_for_new_view(is_private), RequestServer::SiteBinding::Bound));
     auto image_decoder = TRY(launch_image_decoder_process());
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    auto wasm_compiler_handle = TRY(connect_new_wasm_compiler_client());
-#endif
 
     auto cross_process_id_allocator = allocate_cross_process_id_allocator();
     auto root_navigable_id = navigable_to_adopt.has_value() ? *navigable_to_adopt : cross_process_id_allocator.allocate();
@@ -1139,9 +1136,6 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     client->async_connect_to_request_server(move(request_server_connection.handle), request_server_connection.client_id);
     client->async_set_site_compatibility_data(m_site_compatibility_data);
     connect_to_image_decoder(*client, move(image_decoder));
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    client->async_connect_to_wasm_compiler(wasm_compiler_handle);
-#endif
 
     if (m_content_blocker_list_buffer.has_value())
         client->async_set_content_blockers(*m_content_blocker_list_buffer);
@@ -1755,9 +1749,6 @@ ErrorOr<void> Application::launch_services()
     }
 
     TRY(launch_request_server());
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-    TRY(launch_wasm_compiler_server());
-#endif
     TRY(launch_compositor_process());
 
     if (m_browser_options.devtools_port.has_value()) {
@@ -1969,46 +1960,6 @@ void Application::set_image_decoder_exit_handler(u64 child_id, Function<void()> 
     m_image_decoder_exit_handlers.set(child_id, move(handler));
 }
 
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-ErrorOr<void> Application::launch_wasm_compiler_server()
-{
-    m_wasm_compiler_client = TRY(launch_wasm_compiler_process());
-
-    m_wasm_compiler_client->on_death = [this]() {
-        m_wasm_compiler_client = nullptr;
-
-        if (Core::EventLoop::current().was_exit_requested())
-            return;
-
-        if (auto result = launch_wasm_compiler_server(); result.is_error()) {
-            dbgln("Failed to restart WebAssembly compiler: {}", result.error());
-            VERIFY_NOT_REACHED();
-        }
-
-        auto client_count = WebContentClient::client_count() + WorkerProcessManager::the().client_count();
-
-        auto response = m_wasm_compiler_client->send_sync_but_allow_failure<Messages::WasmCompilerServer::ConnectNewClients>(client_count);
-        if (!response || response->handles().size() != client_count) {
-            dbgln("Failed to connect {} new clients to WasmCompiler", client_count);
-            VERIFY_NOT_REACHED();
-        }
-
-        auto handles = response->take_handles();
-
-        WebContentClient::for_each_client([&](WebContentClient& client) {
-            client.async_connect_to_wasm_compiler(handles.take_last());
-            return IterationDecision::Continue;
-        });
-        WorkerProcessManager::the().for_each_client([&](WebWorkerClient& client) {
-            client.async_connect_to_wasm_compiler(handles.take_last());
-            return IterationDecision::Continue;
-        });
-    };
-
-    return {};
-}
-#endif
-
 ErrorOr<void> Application::launch_devtools_server()
 {
     VERIFY(!m_devtools);
@@ -2196,15 +2147,6 @@ void Application::process_did_exit(Process&& process, Optional<int>)
             if (auto on_request_server_died = move(client->on_request_server_died))
                 on_request_server_died();
         }
-        break;
-    case ProcessType::WasmCompiler:
-#if defined(HAVE_WASM_COMPILER_SERVICE)
-        if (auto client = process.client<WasmCompilerClient::Client>()) {
-            dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart WebAssembly compiler");
-            if (auto on_death = move(client->on_death))
-                on_death();
-        }
-#endif
         break;
     case ProcessType::WebContent:
         if (auto client = process.client<WebContentClient>()) {
@@ -2740,7 +2682,6 @@ void Application::initialize_actions()
     m_debug_menu->add_action(Action::create("Dump Cookies"sv, ActionID::DumpCookies, [this]() { m_default_session->cookie_jar->dump_cookies(); }));
     m_debug_menu->add_action(Action::create("Dump Local Storage"sv, ActionID::DumpLocalStorage, debug_request("dump-local-storage"sv)));
     m_debug_menu->add_action(Action::create("Dump Session Storage"sv, ActionID::DumpSessionStorage, debug_request("dump-session-storage"sv)));
-    m_debug_menu->add_action(Action::create("Dump WASM Stats"sv, ActionID::DumpWasmStats, debug_request("dump-wasm-stats"sv)));
     m_debug_menu->add_action(Action::create("Dump GC graph"sv, ActionID::DumpGCGraph, [this]() {
         if (auto view = active_web_view(); view.has_value()) {
             auto gc_graph_path = view->dump_gc_graph();
