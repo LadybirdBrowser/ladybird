@@ -29,6 +29,8 @@ pub(crate) enum BorderShape {
         fill_rule: WindingRule,
         /// The shape against its reference box shrunk by half the stroke width, along the inner edge of the stroke.
         inner_edge: OwnedPath,
+        /// The shape against its reference box grown by half the stroke width, along the outer edge of the stroke.
+        outer_edge: OwnedPath,
         width: f32,
         color: Option<Color>,
     },
@@ -60,6 +62,19 @@ impl BorderShape {
         match self {
             Self::Stroke { .. } => None,
             Self::Fill { outer, inner, .. } => combined_path([outer, inner]),
+        }
+    }
+
+    /// https://drafts.csswg.org/css-borders-4/#border-shape-shadow-interaction
+    /// An outer box-shadow is cast as if the shape defined by the outer path were opaque. An inner box-shadow is cast
+    /// as if everything outside the shape defined by the inner path were opaque. A single shape's outer and inner
+    /// paths are the edges of its stroke.
+    pub(crate) fn into_shadow_paths(self) -> (OwnedPath, OwnedPath) {
+        match self {
+            Self::Stroke {
+                outer_edge, inner_edge, ..
+            } => (outer_edge, inner_edge),
+            Self::Fill { outer, inner, .. } => (outer, inner),
         }
     }
 
@@ -209,19 +224,23 @@ impl BorderShape {
                 let reference = reference_box(layout_arena, slot, style, geometry_box, keyword::HALF_BORDER_BOX);
                 let (path, fill_rule) = basic_shape_device_path(shape, reference, pixel_ratio);
                 let half_width = relevant_side_width(style, edge).scaled(0.5);
+                let inset_reference = |by: CssPixels| {
+                    CssPixelRect::new(
+                        reference.x + by,
+                        reference.y + by,
+                        reference.width - by - by,
+                        reference.height - by - by,
+                    )
+                };
                 // FIXME: Moving the reference box by half the stroke width only offsets coordinates given as
                 //        percentages. Shapes with absolute lengths need the edges of the stroke's outline instead.
-                let inner_edge_reference = CssPixelRect::new(
-                    reference.x + half_width,
-                    reference.y + half_width,
-                    reference.width - half_width - half_width,
-                    reference.height - half_width - half_width,
-                );
-                let (inner_edge, _) = basic_shape_device_path(shape, inner_edge_reference, pixel_ratio);
+                let (inner_edge, _) = basic_shape_device_path(shape, inset_reference(half_width), pixel_ratio);
+                let (outer_edge, _) = basic_shape_device_path(shape, inset_reference(-half_width), pixel_ratio);
                 Some(Self::Stroke {
                     path,
                     fill_rule,
                     inner_edge,
+                    outer_edge,
                     width: side.width as f32,
                     color,
                 })

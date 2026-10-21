@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Borders: border-shape with box-shadow (blur > 0)</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-shadow-blur-ref.html">
+<meta name="fuzzy" content="maxDifference=0-32;totalPixels=0-500">
+<meta name="assert" content="box-shadow blur on a circle border-shape should exactly match the blur on a border-radius circle.">
+<style>
+  body {
+    margin: 0;
+    padding: 50px;
+  }
+  #target {
+    width: 100px;
+    height: 100px;
+    background: green;
+    border-shape: circle(50px at 50% 50%);
+    box-shadow: 0 0 10px 0 black;
+  }
+</style>
+<body>
+  <div id="target"></div>
+</body>
+</html>

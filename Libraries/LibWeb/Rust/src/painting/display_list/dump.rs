@@ -437,6 +437,19 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             write!(output, " blur_radius={}", command.blur_radius).unwrap();
             write_field(output, "color", command.color);
         }
+        DisplayListCommandType::PaintPathBoxShadow => {
+            let command = read_command::<PaintPathBoxShadow>(payload);
+            write_field(output, "shape_path_bounding_rect", command.shape_path_bounding_rect);
+            write_field(output, "offset", command.offset);
+            write!(
+                output,
+                " blur_radius={} spread_distance={}",
+                command.blur_radius, command.spread_distance
+            )
+            .unwrap();
+            write!(output, " inner={}", command.inner).unwrap();
+            write_field(output, "color", command.color);
+        }
         DisplayListCommandType::PaintTextShadow => {
             let command = read_command::<PaintTextShadow>(payload);
             write_field(output, "shadows_rect", command.shadows_bounding_rect);

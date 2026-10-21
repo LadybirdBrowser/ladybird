@@ -117,6 +117,7 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         | T::PaintConicGradient
         | T::PaintOuterBoxShadow
         | T::PaintInnerBoxShadow
+        | T::PaintPathBoxShadow
         | T::FillRectWithRoundedCorners
         | T::FillRoundedRectRing
         | T::FillPath
@@ -268,6 +269,7 @@ fn command_blend(
         | T::DrawVideoFrame
         | T::PaintOuterBoxShadow
         | T::PaintInnerBoxShadow
+        | T::PaintPathBoxShadow
         | T::PaintTextShadow
         | T::FillRectWithRoundedCorners
         | T::FillRoundedRectRing
