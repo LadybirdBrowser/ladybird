@@ -116,15 +116,14 @@ fn custom_property_value_moved(
     let new = new.and_then(|store| store.get(name));
     let (old, new) = match (old, new) {
         (None, None) => return false,
-        (Some(old), Some(new)) => (old.value.pointer(), new.value.pointer()),
+        (Some(old), Some(new)) => (&old.value, &new.value),
         _ => return true,
     };
-    if std::ptr::eq(old, new) {
+    if std::ptr::eq(old.pointer(), new.pointer()) {
         return false;
     }
-    // SAFETY: Both values are kept alive by the stores that hold them.
-    matches!(unsafe { &*old }, StyleValueData::PendingSubstitution { .. })
-        || !unsafe { crate::css::style_value::rust_style_value_equals(old, new) }
+    matches!(old.optional_data(), Some(StyleValueData::PendingSubstitution { .. }))
+        || !crate::css::style_value::retained_style_values_equal(old, new)
 }
 
 /// # Safety

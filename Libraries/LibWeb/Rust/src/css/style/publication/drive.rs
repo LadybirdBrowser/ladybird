@@ -228,7 +228,7 @@ impl RetainedState {
                 .1
                 .as_ref()
                 .and_then(|view| view.longhand_table)
-                .map_or(std::ptr::null(), ComputedLonghandTable::raw_cascaded_font_size)
+                .and_then(ComputedLonghandTable::raw_cascaded_font_size_value)
         };
         let default_size = CssPixels::from_integer(13).raw_value();
         let document_inputs = FfiFontSizeRecascadeDocumentInputs::from_document(inputs);
@@ -240,7 +240,7 @@ impl RetainedState {
             false,
             default_size,
             document_inputs,
-            std::ptr::null(),
+            None,
         );
         while batch.status != FontSizeRecascadeStatus::Complete {
             let index = batch.next_index;
@@ -329,7 +329,7 @@ impl RetainedState {
                 batch.depends_on_viewport_metrics,
                 default_size,
                 document_inputs,
-                &raw const context,
+                Some(&context),
             );
             // The context resolves every length a cascaded font-size holds.
             if batch.status == FontSizeRecascadeStatus::NeedsCppLengthResolution {

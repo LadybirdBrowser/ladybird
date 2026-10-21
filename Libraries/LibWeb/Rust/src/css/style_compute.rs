@@ -799,27 +799,26 @@ impl FfiFontSizeRecascadeDocumentInputs {
 /// and viewport-relative lengths resolve from the size reached so far and the
 /// document's inputs.
 ///
-/// A non-null `length_resolution_context` applies only to the value at
+/// A `length_resolution_context` applies only to the value at
 /// `start_index`.
 /// Building it involves font work, so the caller does so lazily after a batch
 /// reports `NeedsLengthResolution` and resumes at the reported index.
 ///
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn recascade_font_size_batch(
+pub(crate) fn recascade_font_size_batch<'a>(
     value_count: usize,
-    mut value_at: impl FnMut(usize) -> *const c_void,
+    mut value_at: impl FnMut(usize) -> Option<&'a StyleValueData>,
     start_index: usize,
     current_size_raw: i32,
     current_depends_on_viewport_metrics: bool,
     default_size_raw: i32,
     document_inputs: FfiFontSizeRecascadeDocumentInputs,
-    length_resolution_context: *const FfiLengthResolutionContext,
+    supplied_length_resolution_context: Option<&FfiLengthResolutionContext>,
 ) -> FfiFontSizeRecascadeBatch {
     assert!(start_index <= value_count);
     let mut current_size = CssPixels::from_raw(current_size_raw);
     let mut depends_on_viewport_metrics = current_depends_on_viewport_metrics;
     let default_size = CssPixels::from_raw(default_size_raw);
-    let supplied_length_resolution_context = unsafe { length_resolution_context.as_ref() };
     let mut skipped_calculated_value = false;
     let stopped =
         |status, next_index, current_size: CssPixels, depends_on_viewport_metrics, skipped_calculated_value| {
@@ -833,11 +832,9 @@ pub(crate) fn recascade_font_size_batch(
         };
 
     for index in start_index..value_count {
-        let value = value_at(index);
-        if value.is_null() {
+        let Some(value) = value_at(index) else {
             continue;
-        }
-        let value = unsafe { &*value.cast::<StyleValueData>() };
+        };
         match value {
             StyleValueData::Keyword { keyword } => {
                 if *keyword == keyword::INITIAL || *keyword == keyword::UNSET {
@@ -3060,9 +3057,7 @@ impl<'a> ParentSnapshot<'a> {
             return Some(entry.value_handle());
         }
         for (property, value) in self.table.retained_inheritance_dependent_values() {
-            if property == property_id
-                && crate::css::style_value::style_value_dependency_flags(value.pointer()) & 1 != 0
-            {
+            if property == property_id && crate::css::style_value::style_value_dependency_flags(value.data()) & 1 != 0 {
                 return Some(value);
             }
         }
@@ -4945,8 +4940,7 @@ fn effective_longhand_data<'a>(
     overlay: Option<&'a AnimatedOverlay>,
     property_id: u16,
 ) -> &'a StyleValueData {
-    let effective = table.effective_value(overlay, property_id, true);
-    unsafe { &*effective.value.cast::<StyleValueData>() }
+    table.effective_value_handle(overlay, property_id, true).0.data()
 }
 
 fn effective_keyword(table: &ComputedLonghandTable, overlay: Option<&AnimatedOverlay>, property_id: u16) -> u16 {
@@ -7060,8 +7054,8 @@ fn finalize_animated_box_type(
     // A value the overlay animates keeps its animation's place; one it does not is adjusted over the base value.
     let mut adjust = |property_id: u16, keyword_or_display: StyleValueData| {
         let value = retained_new(keyword_or_display);
-        let effective = longhand_table.effective_value(Some(&*overlay), property_id, true);
-        if unsafe { &*effective.value.cast::<StyleValueData>() } == value.data() {
+        let (effective, _) = longhand_table.effective_value_handle(Some(&*overlay), property_id, true);
+        if effective.data() == value.data() {
             return;
         }
         match overlay
@@ -7696,12 +7690,7 @@ mod tests {
             unit: unit_code("em") as u8,
         };
         let final_percentage = StyleValueData::Percentage { value: 50.0 };
-        let values: [*const std::ffi::c_void; 4] = [
-            std::ptr::null(),
-            (&percentage as *const StyleValueData).cast(),
-            (&em as *const StyleValueData).cast(),
-            (&final_percentage as *const StyleValueData).cast(),
-        ];
+        let values = [None, Some(&percentage), Some(&em), Some(&final_percentage)];
         let default_size = CssPixels::from_integer(13);
         let batch = recascade_font_size_batch(
             values.len(),
@@ -7716,7 +7705,7 @@ mod tests {
                 viewport_width: 800.0,
                 viewport_height: 600.0,
             },
-            std::ptr::null(),
+            None,
         );
         assert!(batch.status == FontSizeRecascadeStatus::Complete);
         assert_eq!(batch.next_index, values.len());
@@ -7733,10 +7722,7 @@ mod tests {
             value: 10.0,
             unit: unit_code("vw") as u8,
         };
-        let values: [*const std::ffi::c_void; 2] = [
-            (&rem as *const StyleValueData).cast(),
-            (&vw as *const StyleValueData).cast(),
-        ];
+        let values = [Some(&rem), Some(&vw)];
         let batch = recascade_font_size_batch(
             values.len(),
             |index| values[index],
@@ -7750,7 +7736,7 @@ mod tests {
                 viewport_width: 800.0,
                 viewport_height: 600.0,
             },
-            std::ptr::null(),
+            None,
         );
         assert!(batch.status == FontSizeRecascadeStatus::Complete);
         assert_eq!(batch.current_size_raw, CssPixels::from_integer(80).raw_value());
@@ -7763,7 +7749,7 @@ mod tests {
             value: 2.0,
             unit: unit_code("ex") as u8,
         };
-        let values: [*const std::ffi::c_void; 1] = [(&ex as *const StyleValueData).cast()];
+        let values = [Some(&ex)];
         let batch = recascade_font_size_batch(
             values.len(),
             |index| values[index],
@@ -7777,7 +7763,7 @@ mod tests {
                 viewport_width: 800.0,
                 viewport_height: 600.0,
             },
-            std::ptr::null(),
+            None,
         );
         assert!(batch.status == FontSizeRecascadeStatus::NeedsLengthResolution);
         assert_eq!(batch.next_index, 0);
