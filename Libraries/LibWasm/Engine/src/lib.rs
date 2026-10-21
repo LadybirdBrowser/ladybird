@@ -18,26 +18,12 @@ mod rust_demangle;
 #[path = "../../../RustPanic.rs"]
 mod rust_panic;
 
-pub mod abi;
 pub mod capi;
-pub mod error;
-pub mod instruction_tables;
-pub mod module;
-pub mod opcode;
-pub mod parser;
-pub mod quickening;
-pub mod reader;
 pub mod runtime;
-pub mod types;
-pub mod validator;
 pub mod wasi;
 
-pub use error::{Error, Result};
-pub use module::Module;
-
-/// Decode and validate a binary module.
-pub fn compile(bytes: &[u8]) -> Result<Module> {
-    let mut module = parser::parse(bytes)?;
-    validator::validate(&mut module)?;
-    Ok(module)
-}
+// The module format is a crate of its own, which the JIT depends on too.
+pub use libwasm_module::{
+    Error, Module, Result, abi, compile, error, instruction_tables, module, opcode, parser, quickening, reader, types,
+    validator,
+};

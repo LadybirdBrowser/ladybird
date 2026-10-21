@@ -834,8 +834,25 @@ dependencies = [
  "flapc",
  "ladybird_allocator",
  "libc",
+ "libwasm_module",
  "rustc-demangle",
 ]
+
+[[package]]
+name = "libwasm_jit"
+version = "0.1.0"
+dependencies = [
+ "fARM64",
+ "iced-x86",
+ "libc",
+ "libwasm_engine",
+ "libwasm_module",
+ "serde_json",
+]
+
+[[package]]
+name = "libwasm_module"
+version = "0.1.0"
 
 [[package]]
 name = "libweb_bindings_rust"

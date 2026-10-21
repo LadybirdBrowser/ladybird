@@ -86,6 +86,8 @@ pub struct FunctionHeader {
     /// For functions with v128 parameters or locals (FUNCTION_KIND_WASM_VECTOR), the offset from fp of each local's
     /// 16-byte storage, or zero for scalar locals. Null otherwise.
     pub vector_storage: *const u32,
+    /// Where compiled code calls the function: its compiled code, or zero while it has none.
+    pub native_entry: u64,
 }
 
 /// A memory, as the interpreter sees it.
@@ -129,6 +131,8 @@ pub struct InstanceData {
     pub tags: *const u64,
     pub function_count: u32,
     pub memory_count: u32,
+    /// The `ExecutionContext` of the store the instance belongs to, which compiled code finds the runtime through.
+    pub context: *mut ExecutionContext,
 }
 
 /// A passive segment: its contents and their length, in bytes for data and in elements for element segments.
@@ -277,6 +281,7 @@ pub fn layout_constants() -> String {
     field!("FUNCTION_LOCAL_COUNT", FunctionHeader, local_count);
     field!("FUNCTION_LOCALS_SIZE", FunctionHeader, locals_size);
     field!("FUNCTION_VECTOR_STORAGE", FunctionHeader, vector_storage);
+    field!("FUNCTION_NATIVE_ENTRY", FunctionHeader, native_entry);
     field!("FUNCTION_FRAME_SIZE", FunctionHeader, frame_size);
     field!("FUNCTION_TYPE_IDENTITY", FunctionHeader, type_identity);
     field!("FUNCTION_HOST", FunctionHeader, host);
@@ -297,6 +302,7 @@ pub fn layout_constants() -> String {
     field!("INSTANCE_ELEMENT_SEGMENTS", InstanceData, element_segments);
     field!("INSTANCE_MEMORY_COUNT", InstanceData, memory_count);
     field!("INSTANCE_TAGS", InstanceData, tags);
+    field!("INSTANCE_CONTEXT", InstanceData, context);
     field!("SEGMENT_CONTENTS", Segment, contents);
     field!("SEGMENT_LENGTH", Segment, length);
     field!("CONTEXT_STACK_LIMIT", ExecutionContext, stack_limit);
