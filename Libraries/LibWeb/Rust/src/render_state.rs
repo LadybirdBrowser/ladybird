@@ -785,15 +785,14 @@ fn stack_has_room_for_render_job(tree_depth: u32) -> bool {
     /// The stack a job on a render state takes beside its recursion through the tree, with room to spare.
     const STACK_BESIDE_RECURSION: usize = 1024 * 1024;
     unsafe extern "C" {
-        fn web_current_thread_stack_base() -> usize;
+        safe fn web_current_thread_stack_base() -> usize;
     }
     thread_local! {
         static STACK_BASE: Cell<usize> = const { Cell::new(0) };
     }
     let mut base = STACK_BASE.get();
     if base == 0 {
-        // SAFETY: The function only reads the calling thread's stack bounds.
-        base = unsafe { web_current_thread_stack_base() };
+        base = web_current_thread_stack_base();
         STACK_BASE.set(base);
     }
     let here = 0u8;

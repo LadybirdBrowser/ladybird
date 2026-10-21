@@ -20,9 +20,9 @@ unsafe extern "C" {
         start: *mut usize,
         end: *mut usize,
     );
-    fn unicode_layout_bidirectional_class(code_point: u32) -> u8;
-    fn unicode_layout_line_break_class(code_point: u32) -> u8;
-    fn unicode_layout_code_point_has_emoji_property(code_point: u32) -> bool;
+    safe fn unicode_layout_bidirectional_class(code_point: u32) -> u8;
+    safe fn unicode_layout_line_break_class(code_point: u32) -> u8;
+    safe fn unicode_layout_code_point_has_emoji_property(code_point: u32) -> bool;
 }
 
 // LibUnicode's LineBreakClass, in declaration order.
@@ -36,8 +36,7 @@ mod line_break_class {
 }
 
 fn line_break_class(code_point: u32) -> u8 {
-    // SAFETY: Pure Unicode table lookup.
-    unsafe { unicode_layout_line_break_class(code_point) }
+    unicode_layout_line_break_class(code_point)
 }
 
 // Classifies a code point for direction-run splitting: strong LTR/RTL, direction-neutral Common, or ContextDependent
@@ -72,8 +71,7 @@ fn text_type_for_code_point(code_point: u32) -> u8 {
         return text_type;
     }
 
-    // SAFETY: Pure Unicode table lookup.
-    match unsafe { unicode_layout_bidirectional_class(code_point) } {
+    match unicode_layout_bidirectional_class(code_point) {
         // LibUnicode's BidiClass, in declaration order: AN, B, CS, NSM, EN, ES, ET, S, WS.
         0 | 1 | 3..=7 | 21 | 22 => X,
         // BN, FSI, ON, PDF, PDI.
@@ -609,14 +607,12 @@ impl<'text> TextChunker<'text> {
         let has_emoji_property = if code_point < 0x300 {
             matches!(code_point, 0x23 | 0x2a | 0x30..=0x39 | 0xa9 | 0xae)
         } else {
-            // SAFETY: Pure Unicode table lookup.
-            unsafe { unicode_layout_code_point_has_emoji_property(code_point) }
+            unicode_layout_code_point_has_emoji_property(code_point)
         };
         debug_assert!(
             code_point >= 0x300 || {
                 let presentation = emoji_presentation_for_code_point(code_point, next_code_point);
-                // SAFETY: Pure Unicode table lookup.
-                let has_property = unsafe { unicode_layout_code_point_has_emoji_property(code_point) };
+                let has_property = unicode_layout_code_point_has_emoji_property(code_point);
                 presentation.is_emoji == default_presentation.is_emoji
                     && presentation.forced == default_presentation.forced
                     && has_property == has_emoji_property
