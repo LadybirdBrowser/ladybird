@@ -3147,27 +3147,7 @@ impl RetainedState {
             }
         }
         let original = original?;
-        pending_longhands.sort_unstable();
-        pending_longhands.dedup();
-        fn leaf_longhands(property: u16, leaves: &mut Vec<u16>) {
-            for &longhand in crate::css::property_metadata::longhands_for_shorthand(property) {
-                if longhand < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID {
-                    leaf_longhands(longhand, leaves);
-                } else {
-                    leaves.push(longhand);
-                }
-            }
-        }
-        let mut leaves = Vec::with_capacity(pending_longhands.len());
-        let shorthand = (crate::css::property_metadata::FIRST_SHORTHAND_PROPERTY_ID
-            ..=crate::css::property_metadata::LAST_SHORTHAND_PROPERTY_ID)
-            .find(|&candidate| {
-                leaves.clear();
-                leaf_longhands(candidate, &mut leaves);
-                leaves.sort_unstable();
-                leaves.dedup();
-                leaves == pending_longhands
-            })?;
+        let shorthand = crate::css::property_metadata::shorthand_with_leaf_longhands(pending_longhands)?;
         Some((shorthand, original.clone_retained()))
     }
 

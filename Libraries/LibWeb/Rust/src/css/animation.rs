@@ -7081,7 +7081,11 @@ pub(crate) fn resolve_published_animation_declarations(
                 easing_from_computed_timing_function(value)
             });
             easings.push(substituted_easing.unwrap_or_else(|| keyframe.easing.clone()));
-            for declaration in effect.declarations_of(keyframe) {
+            let keyframe_declarations = effect.declarations_of(keyframe);
+            // The values of the shorthands written with arbitrary substitution functions that this keyframe's
+            // longhands pend the substitution of, each already standing for its longhands.
+            let mut substituted_shorthand_values: Vec<*const StyleValueData> = Vec::new();
+            for declaration in keyframe_declarations {
                 let (value, use_initial) = match &declaration.value {
                     PublishedValue::ElementValue => {
                         let Some(value) = table.get(declaration.property_id) else {
@@ -7090,6 +7094,72 @@ pub(crate) fn resolve_published_animation_declarations(
                         (value.clone_retained(), true)
                     }
                     PublishedValue::Declared(value) => match value.data() {
+                        // https://drafts.csswg.org/css-values-5/#pending-substitution-value
+                        // The longhands of a shorthand written with an arbitrary substitution function take their
+                        // parts of its value once it substitutes, so the shorthand stands for them.
+                        StyleValueData::PendingSubstitution { .. } => {
+                            // NB: The longhands of a shorthand nested in the one written (`background-position` in
+                            //     `background`) pend the nested shorthand's pending value in turn.
+                            fn written_shorthand_value(value: &RetainedStyleValueData) -> &RetainedStyleValueData {
+                                match value.data() {
+                                    StyleValueData::PendingSubstitution {
+                                        original_shorthand_value,
+                                    } => written_shorthand_value(original_shorthand_value),
+                                    _ => value,
+                                }
+                            }
+                            let original_shorthand_value = written_shorthand_value(value);
+                            let original = original_shorthand_value.pointer();
+                            if substituted_shorthand_values.contains(&original) {
+                                continue;
+                            }
+                            substituted_shorthand_values.push(original);
+                            let pending_longhands = keyframe_declarations
+                                .iter()
+                                .filter(|candidate| {
+                                    matches!(&candidate.value, PublishedValue::Declared(written)
+                                        if matches!(written.data(), StyleValueData::PendingSubstitution { .. })
+                                            && written_shorthand_value(written).pointer() == original)
+                                })
+                                .map(|candidate| candidate.property_id)
+                                .collect::<Vec<_>>();
+                            // NB: A later declaration may have replaced some of the written shorthand's longhands,
+                            //     so this takes the smallest shorthand with the pending longhands whose grammar
+                            //     parses the substituted value (`border` rather than `border-width` for
+                            //     `border: 2px solid` where only the widths still pend).
+                            // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+                            let Some((shorthand, value)) =
+                                crate::css::property_metadata::shorthands_with_leaf_longhands(&pending_longhands)
+                                    .into_iter()
+                                    .map(|shorthand| (shorthand, substitute(shorthand, &[], original_shorthand_value)))
+                                    .find(|(_, value)| !matches!(value.data(), StyleValueData::GuaranteedInvalid))
+                            else {
+                                continue;
+                            };
+                            // NB: Only the longhands that still pend the shorthand's value take their parts of it; a
+                            //     later declaration in the keyframe replaced the others.
+                            crate::css::style_compute::expand_shorthands_with(
+                                shorthand,
+                                &value,
+                                false,
+                                &mut |longhand, data, _| {
+                                    if pending_longhands.contains(&longhand) {
+                                        declarations.push(AnimationDeclaration {
+                                            keyframe_index,
+                                            property_id: longhand,
+                                            custom_name_id: 0,
+                                            custom_is_inherited: false,
+                                            custom_is_important: false,
+                                            value: data.clone_retained(),
+                                            style_sheet_resource_context,
+                                            use_initial: false,
+                                            is_transition,
+                                        });
+                                    }
+                                },
+                            );
+                            continue;
+                        }
                         StyleValueData::Unresolved { .. } => {
                             let value = substitute(declaration.property_id, &[], value);
                             // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time

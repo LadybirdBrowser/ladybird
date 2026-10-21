@@ -259,6 +259,54 @@ pub(crate) fn property_defines_a_css_transition(property_id: u16) -> bool {
     )
 }
 
+/// Each shorthand with its longhands, through any shorthand nested in it (`border-width` in `border`), sorted.
+fn shorthand_leaf_longhands() -> &'static [(u16, Box<[u16]>)] {
+    fn leaf_longhands(property: u16, leaves: &mut Vec<u16>) {
+        for &longhand in longhands_for_shorthand(property) {
+            if longhand < FIRST_LONGHAND_PROPERTY_ID {
+                leaf_longhands(longhand, leaves);
+            } else {
+                leaves.push(longhand);
+            }
+        }
+    }
+    static SHORTHAND_LEAVES: std::sync::OnceLock<Vec<(u16, Box<[u16]>)>> = std::sync::OnceLock::new();
+    SHORTHAND_LEAVES.get_or_init(|| {
+        (FIRST_SHORTHAND_PROPERTY_ID..=LAST_SHORTHAND_PROPERTY_ID)
+            .map(|shorthand| {
+                let mut leaves = Vec::new();
+                leaf_longhands(shorthand, &mut leaves);
+                leaves.sort_unstable();
+                leaves.dedup();
+                (shorthand, leaves.into_boxed_slice())
+            })
+            .collect()
+    })
+}
+
+/// The shorthand whose longhands, through any shorthand nested in it, are exactly `longhands`: the one a value pending
+/// substitution in each of them was written for.
+pub(crate) fn shorthand_with_leaf_longhands(mut longhands: Vec<u16>) -> Option<u16> {
+    longhands.sort_unstable();
+    longhands.dedup();
+    shorthand_leaf_longhands()
+        .iter()
+        .find(|(_, leaves)| **leaves == *longhands)
+        .map(|(shorthand, _)| *shorthand)
+}
+
+/// The shorthands whose longhands, through any shorthand nested in it, include all of `longhands`, with the fewest
+/// longhands first: those a value pending substitution in each of them may have been written for, where a later
+/// declaration may have replaced some of the shorthand's other longhands.
+pub(crate) fn shorthands_with_leaf_longhands(longhands: &[u16]) -> Vec<u16> {
+    let mut shorthands = shorthand_leaf_longhands()
+        .iter()
+        .filter(|(_, leaves)| longhands.iter().all(|longhand| leaves.binary_search(longhand).is_ok()))
+        .collect::<Vec<_>>();
+    shorthands.sort_by_key(|(_, leaves)| leaves.len());
+    shorthands.into_iter().map(|(shorthand, _)| *shorthand).collect()
+}
+
 /// Returns the longhands a shorthand expands to, in Properties.json order.
 pub fn longhands_for_shorthand(property_id: u16) -> &'static [u16] {
     if !property_is_shorthand(property_id) {

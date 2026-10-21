@@ -1836,10 +1836,10 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
                 if (use_initial && !property.is_custom_property() && property_is_shorthand(property.id()))
                     continue;
                 StyleValueFFI::StyleValueData const* data = use_initial ? nullptr : value.get<RustStyleValueHandle>().data();
-                // A shorthand's pending substitution animates nothing, and neither does a value that
-                // is invalid at computed-value time.
+                // A value that is invalid at computed-value time animates nothing. A longhand pending the
+                // substitution of its shorthand's value is substituted with it when the engine samples it.
                 // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
-                if (!use_initial && (data->tag == StyleValueFFI::StyleValueData::Tag::PendingSubstitution || (data->tag == StyleValueFFI::StyleValueData::Tag::GuaranteedInvalid && !property.is_custom_property())))
+                if (!use_initial && data->tag == StyleValueFFI::StyleValueData::Tag::GuaranteedInvalid && !property.is_custom_property())
                     continue;
                 if (property.is_custom_property())
                     ffi_custom_declarations.append({ .name = property.name().raw_identity(), .value = data });
