@@ -1001,12 +1001,9 @@ mod tests {
     fn only_a_change_that_writes_the_rows_makes_the_host_read_them_again() {
         use crate::layout::layout_changes::LayoutChange;
         use crate::layout::node_data::{NodeFlag, NodeSlotId};
-        let pointer = document_host::document_host_create();
-        // SAFETY: The host lives until it is destroyed below.
-        let host = unsafe { &*pointer };
-        // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
-        let arena = unsafe { &mut *host.arena_for_test() };
-        let row = arena.allocate_for_test().slot;
+        let test_host = TestHost::new();
+        let host = test_host.host();
+        let row = host.with_arena_for_test(|arena| arena.allocate_for_test().slot);
         host.fresh_rows(ScriptForcedRead::for_test());
         host.queue_change(ArenaChange::Layout(LayoutChange::SetNeedsFullLayoutTreeUpdate));
         assert!(host.rows().is_some(), "a layout mark leaves the rows as they are");
@@ -1028,44 +1025,38 @@ mod tests {
             host.fresh_rows(ScriptForcedRead::for_test()).flags(row) & NodeFlag::IsEditingHost as u32,
             0
         );
-        arena
-            .free_subtree(row)
-            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-        // SAFETY: The host is destroyed once, and nothing reaches it after.
-        unsafe { document_host::document_host_destroy(pointer) };
+        host.with_arena_for_test(|arena| {
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        });
     }
 
     #[test]
     fn a_host_that_lets_go_of_its_rows_reads_them_again() {
-        let pointer = document_host::document_host_create();
-        // SAFETY: The host lives until it is destroyed below.
-        let host = unsafe { &*pointer };
+        let test_host = TestHost::new();
+        let host = test_host.host();
         let rows = host.fresh_rows(ScriptForcedRead::for_test());
         host.let_go_of_rows();
         assert!(host.rows().is_none());
         assert!(!Rc::ptr_eq(&rows, &host.fresh_rows(ScriptForcedRead::for_test())));
-        // SAFETY: The host is destroyed once, and nothing reaches it after.
-        unsafe { document_host::document_host_destroy(pointer) };
     }
 
     #[test]
     fn a_write_through_the_arena_makes_the_host_read_the_rows_again() {
-        let pointer = document_host::document_host_create();
-        // SAFETY: The host lives until it is destroyed below.
-        let host = unsafe { &*pointer };
+        let test_host = TestHost::new();
+        let host = test_host.host();
         host.fresh_rows(ScriptForcedRead::for_test());
         assert!(host.rows().is_some());
-        // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
-        let arena = unsafe { &mut *host.arena_for_test() };
-        let row = arena.allocate_for_test().slot;
+        let row = host.with_arena_for_test(|arena| arena.allocate_for_test().slot);
         assert!(host.rows().is_none());
         assert!(host.fresh_rows(ScriptForcedRead::for_test()).node(row).is_some());
-        arena
-            .free_subtree(row)
-            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        host.with_arena_for_test(|arena| {
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        });
         assert!(host.rows().is_none());
-        // SAFETY: The host is destroyed once, and nothing reaches it after.
-        unsafe { document_host::document_host_destroy(pointer) };
     }
 
     #[test]
@@ -1073,11 +1064,12 @@ mod tests {
         use crate::layout::layout_changes::{LayoutWrite, write};
         let test_host = TestHost::new();
         let host = test_host.host();
-        // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between jobs.
-        let arena = unsafe { &mut *host.arena_for_test() };
-        let parent = arena.allocate_for_test().slot;
-        let child = arena.allocate_for_test().slot;
-        arena.insert_child(parent, child, crate::layout::node_data::NodeSlotId::INVALID);
+        let parent = host.with_arena_for_test(|arena| {
+            let parent = arena.allocate_for_test().slot;
+            let child = arena.allocate_for_test().slot;
+            arena.insert_child(parent, child, crate::layout::node_data::NodeSlotId::INVALID);
+            parent
+        });
         let written = write(
             ScriptForcedRead::for_test(),
             host,
@@ -1085,8 +1077,7 @@ mod tests {
         );
         assert!(!written.was_attached);
         written.host_work.pay(&crate::stage::MainThread::for_test());
-        // SAFETY: As above.
-        assert_eq!(unsafe { &*host.arena_for_test() }.live_slot_count(), 0);
+        assert_eq!(host.with_arena_for_test(|arena| arena.live_slot_count()), 0);
     }
 
     #[test]
@@ -1097,18 +1088,19 @@ mod tests {
         };
         let test_host = TestHost::new();
         let host = test_host.host();
-        // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between jobs.
-        let arena = unsafe { &mut *host.arena_for_test() };
-        let viewport = arena.allocate_for_test().slot;
-        arena.write_shape(viewport).set_kind(NodeKind::Viewport);
-        arena.populate_paintable_row(viewport);
-        arena.scrollable_overflow.viewport.set(Some(viewport));
-        // The viewport had scrollable overflow before it was laid out again, and a read measures it first since.
-        arena
-            .committed_side_data_mut(viewport)
-            .overflow_relative_to_padding_box
-            .has_scrollable_overflow = true;
-        arena.note_row_overflow_unmeasured(viewport);
+        let viewport = host.with_arena_for_test(|arena| {
+            let viewport = arena.allocate_for_test().slot;
+            arena.write_shape(viewport).set_kind(NodeKind::Viewport);
+            arena.populate_paintable_row(viewport);
+            arena.scrollable_overflow.viewport.set(Some(viewport));
+            // The viewport had scrollable overflow before it was laid out again, and a read measures it first since.
+            arena
+                .committed_side_data_mut(viewport)
+                .overflow_relative_to_padding_box
+                .has_scrollable_overflow = true;
+            arena.note_row_overflow_unmeasured(viewport);
+            viewport
+        });
         let measure = || {
             host.ask(ScriptForcedRead::for_test(), |state| {
                 state.arena_mut().measure_scrollable_overflow();
@@ -1118,16 +1110,18 @@ mod tests {
         document_host_note_paint_preparation_is_current(host);
         measure();
         assert!(!document_host_paint_preparation_is_current(host));
-        assert!(arena.scrollable_overflow.scrollability_changed.get());
+        assert!(host.with_arena_for_test(|arena| arena.scrollable_overflow.scrollability_changed.get()));
 
         // A read that measures nothing leaves the preparation as it is.
         document_host_note_paint_preparation_is_current(host);
         measure();
         assert!(document_host_paint_preparation_is_current(host));
 
-        arena
-            .free_subtree(viewport)
-            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        host.with_arena_for_test(|arena| {
+            arena
+                .free_subtree(viewport)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        });
     }
 
     #[test]
@@ -1146,26 +1140,27 @@ mod tests {
     #[test]
     fn a_style_write_leaves_what_the_rows_are_to_read_from_the_rows_the_host_has() {
         use crate::layout::node_data::{NodeFlag, NodeKind, StylePayloadsRef};
-        let pointer = document_host::document_host_create();
-        // SAFETY: The host lives until it is destroyed below.
-        let host = unsafe { &*pointer };
-        // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
-        let arena = unsafe { &mut *host.arena_for_test() };
-        let row = arena.allocate_for_test().slot;
-        arena.write_shape(row).set_kind(NodeKind::BlockContainer);
+        let test_host = TestHost::new();
+        let host = test_host.host();
+        let row = host.with_arena_for_test(|arena| {
+            let row = arena.allocate_for_test().slot;
+            arena.write_shape(row).set_kind(NodeKind::BlockContainer);
+            row
+        });
         host.fresh_rows(ScriptForcedRead::for_test());
 
-        let shape = arena.write_shape(row);
-        shape.set_style(StylePayloadsRef::new(NonNull::dangling().as_ptr()));
-        shape.mark();
+        host.with_arena_untold_for_test(|arena| {
+            let shape = arena.write_shape(row);
+            shape.set_style(StylePayloadsRef::new(NonNull::dangling().as_ptr()));
+            shape.mark();
+        });
         assert!(host.rows().is_none(), "a style write leaves the rows stale");
         let identities = host.row_identities(ScriptForcedRead::for_test());
         assert_eq!(identities.identity_flags(row), 0);
         assert!(host.rows().is_none(), "reading what the rows are publishes none again");
 
         // A test that writes the arena directly tells the host so by asking for it again.
-        // SAFETY: As above.
-        unsafe { &mut *host.arena_for_test() }.set_node_flag(row, NodeFlag::Anonymous, true);
+        host.with_arena_for_test(|arena| arena.set_node_flag(row, NodeFlag::Anonymous, true));
         assert_eq!(
             host.row_identities(ScriptForcedRead::for_test()).identity_flags(row),
             NodeFlag::Anonymous as u32
@@ -1175,17 +1170,16 @@ mod tests {
             "a write of what a row is publishes the rows again"
         );
 
-        // SAFETY: As above.
-        unsafe { &mut *host.arena_for_test() }
-            .free_subtree(row)
-            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        host.with_arena_for_test(|arena| {
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        });
         assert!(
             host.row_identities(ScriptForcedRead::for_test())
                 .shell_facts(row)
                 .is_none()
         );
-        // SAFETY: The host is destroyed once, and nothing reaches it after.
-        unsafe { document_host::document_host_destroy(pointer) };
     }
 }
 
