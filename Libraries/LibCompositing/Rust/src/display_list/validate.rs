@@ -6,7 +6,8 @@
 
 //! Checks a display list tape that comes from another process before anything reads it. A tape that passes has
 //! well formed records, valid enum and bool bytes, and spans inside their payloads, so the typed reads that replay,
-//! damage and the player make of it are sound.
+//! damage and the player make of it are sound. The tape of a page and that of a 2D canvas each hold only the
+//! commands of their own kind.
 
 use super::builder::{COMMAND_ALIGNMENT, HEADER_SIZE, read_header};
 use super::commands::*;
@@ -50,6 +51,14 @@ tape_enum!(CompositorScrollNodeKind as u8 { Viewport, Element, PseudoElement });
 tape_enum!(PathPaintKind as u8 { Color, PaintStyle });
 tape_enum!(DisplayListPaintStyleType as u8 { None, LinearGradient, RadialGradient, Pattern });
 tape_enum!(DisplayListGradientSpreadMethod as u8 { Pad, Repeat, Reflect });
+tape_enum!(Canvas2DPaintKind as u8 {
+    Color,
+    LinearGradient,
+    RadialGradient,
+    ConicGradient,
+    Pattern,
+});
+tape_enum!(Canvas2DPatternRepetition as u8 { Repeat, RepeatX, RepeatY, NoRepeat });
 tape_enum!(WindingRule as i32 { Nonzero, EvenOdd });
 tape_enum!(LineStyle as u8 { Solid, Dotted, Dashed });
 tape_enum!(ScalingMode as i32 { None, Bilinear, BilinearMipmap, NearestNeighbor });
@@ -105,6 +114,10 @@ impl Payload<'_> {
 
     fn i32_at(self, offset: usize) -> i32 {
         i32::from_ne_bytes(self.bytes[offset..offset + 4].try_into().unwrap())
+    }
+
+    fn f32_at(self, offset: usize) -> f32 {
+        f32::from_ne_bytes(self.bytes[offset..offset + 4].try_into().unwrap())
     }
 
     fn bool_at(self, offset: usize) -> Result<(), ValidationError> {
@@ -252,6 +265,31 @@ fn validate_paint_style(
     }
 }
 
+fn validate_canvas_2d_paint(payload: Payload, offset: usize) -> Result<(), ValidationError> {
+    payload.enum_at::<Canvas2DPaintKind>(offset + offset_of!(Canvas2DPaint, kind))?;
+    payload.enum_at::<Canvas2DPatternRepetition>(offset + offset_of!(Canvas2DPaint, pattern_repetition))?;
+    payload.bool_at(offset + offset_of!(Canvas2DPaint, pattern_has_image))?;
+    validate_color_stops(payload, offset + offset_of!(Canvas2DPaint, color_stops), false)?;
+    validate_optional_at(
+        payload,
+        offset + offset_of!(Canvas2DPaint, pattern_transform),
+        offset_of!(OptionalAffineTransform, has_value),
+    )
+}
+
+fn validate_canvas_2d_compositing(payload: Payload, offset: usize) -> Result<(), ValidationError> {
+    payload.span_at(offset + offset_of!(Canvas2DCompositing, filter))?;
+    payload.bool_at(offset + offset_of!(Canvas2DCompositing, has_filter))?;
+    // The player turns the global alpha into a byte, which only a value from 0 to 1 converts to.
+    let global_alpha = payload.f32_at(offset + offset_of!(Canvas2DCompositing, global_alpha));
+    if !(0.0..=1.0).contains(&global_alpha) {
+        return Err("Canvas 2D stream command has a global alpha outside 0 to 1");
+    }
+    payload.enum_at::<CompositingAndBlendingOperator>(
+        offset + offset_of!(Canvas2DCompositing, compositing_and_blending_operator),
+    )
+}
+
 fn command_struct_size(command_type: DisplayListCommandType) -> usize {
     use DisplayListCommandType as T;
     match command_type {
@@ -293,6 +331,19 @@ fn command_struct_size(command_type: DisplayListCommandType) -> usize {
         T::CompositorSnapArea => size_of::<CompositorSnapArea>(),
         T::CompositorScrollChainingBarrier => size_of::<CompositorScrollChainingBarrier>(),
         T::CompositorNestedContextWheelRegion => size_of::<CompositorNestedContextWheelRegion>(),
+        T::Canvas2DFillPath => size_of::<Canvas2DFillPath>(),
+        T::Canvas2DStrokePath => size_of::<Canvas2DStrokePath>(),
+        T::Canvas2DDrawGlyphRun => size_of::<Canvas2DDrawGlyphRun>(),
+        T::Canvas2DClearRect => size_of::<Canvas2DClearRect>(),
+        T::Canvas2DDrawImageFrame => size_of::<Canvas2DDrawImageFrame>(),
+        T::Canvas2DDrawCanvas => size_of::<Canvas2DDrawCanvas>(),
+        T::Canvas2DDrawVideoFrame => size_of::<Canvas2DDrawVideoFrame>(),
+        T::Canvas2DSetTransform => size_of::<Canvas2DSetTransform>(),
+        T::Canvas2DSave => size_of::<Canvas2DSave>(),
+        T::Canvas2DRestore => size_of::<Canvas2DRestore>(),
+        T::Canvas2DClipPath => size_of::<Canvas2DClipPath>(),
+        T::Canvas2DReset => size_of::<Canvas2DReset>(),
+        T::Canvas2DClearCanvas => size_of::<Canvas2DClearCanvas>(),
     }
 }
 
@@ -476,6 +527,41 @@ fn validate_command_fields(
             p.u8_below(offset_of!(CompositorSnapArea, align_y), SNAP_ALIGN_COUNT)?;
             p.bool_at(offset_of!(CompositorSnapArea, always_stop))?;
         }
+        T::Canvas2DFillPath => {
+            p.span_at(offset_of!(Canvas2DFillPath, path_data))?;
+            validate_canvas_2d_paint(p, offset_of!(Canvas2DFillPath, paint))?;
+            p.enum_at::<WindingRule>(offset_of!(Canvas2DFillPath, winding_rule))?;
+            validate_canvas_2d_compositing(p, offset_of!(Canvas2DFillPath, compositing))?;
+        }
+        T::Canvas2DStrokePath => {
+            p.span_at(offset_of!(Canvas2DStrokePath, path_data))?;
+            validate_canvas_2d_paint(p, offset_of!(Canvas2DStrokePath, paint))?;
+            p.enum_at::<CapStyle>(offset_of!(Canvas2DStrokePath, cap_style))?;
+            p.enum_at::<JoinStyle>(offset_of!(Canvas2DStrokePath, join_style))?;
+            p.array_span_at::<f32>(offset_of!(Canvas2DStrokePath, dash_array))?;
+            validate_canvas_2d_compositing(p, offset_of!(Canvas2DStrokePath, compositing))?;
+        }
+        T::Canvas2DDrawGlyphRun => {
+            p.array_span_at::<DisplayListGlyph>(offset_of!(Canvas2DDrawGlyphRun, glyphs))?;
+            validate_canvas_2d_paint(p, offset_of!(Canvas2DDrawGlyphRun, paint))?;
+            validate_canvas_2d_compositing(p, offset_of!(Canvas2DDrawGlyphRun, compositing))?;
+        }
+        T::Canvas2DDrawImageFrame => {
+            p.enum_at::<ScalingMode>(offset_of!(Canvas2DDrawImageFrame, scaling_mode))?;
+            validate_canvas_2d_compositing(p, offset_of!(Canvas2DDrawImageFrame, compositing))?;
+        }
+        T::Canvas2DDrawCanvas => {
+            p.enum_at::<ScalingMode>(offset_of!(Canvas2DDrawCanvas, scaling_mode))?;
+            validate_canvas_2d_compositing(p, offset_of!(Canvas2DDrawCanvas, compositing))?;
+        }
+        T::Canvas2DDrawVideoFrame => {
+            p.enum_at::<ScalingMode>(offset_of!(Canvas2DDrawVideoFrame, scaling_mode))?;
+            validate_canvas_2d_compositing(p, offset_of!(Canvas2DDrawVideoFrame, compositing))?;
+        }
+        T::Canvas2DClipPath => {
+            p.span_at(offset_of!(Canvas2DClipPath, path_data))?;
+            p.enum_at::<WindingRule>(offset_of!(Canvas2DClipPath, winding_rule))?;
+        }
         T::PaintOuterBoxShadow
         | T::PaintInnerBoxShadow
         | T::FillRectWithRoundedCorners
@@ -487,7 +573,13 @@ fn validate_command_fields(
         | T::CompositorWheelHitTestTargetWithCornerRadii
         | T::CompositorMainThreadWheelEventRegion
         | T::CompositorBlockingWheelEventRegion
-        | T::CompositorNestedContextWheelRegion => {}
+        | T::CompositorNestedContextWheelRegion
+        | T::Canvas2DClearRect
+        | T::Canvas2DSetTransform
+        | T::Canvas2DSave
+        | T::Canvas2DRestore
+        | T::Canvas2DReset
+        | T::Canvas2DClearCanvas => {}
     }
     Ok(())
 }
@@ -525,7 +617,14 @@ impl RunSummary {
     }
 }
 
-fn validate_header_bytes(bytes: &[u8]) -> Result<DisplayListCommandHeader, ValidationError> {
+// The kind of tape whose records are checked, which decides the commands they may hold.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TapeKind {
+    DisplayList,
+    Canvas2D,
+}
+
+fn validate_header_bytes(bytes: &[u8], kind: TapeKind) -> Result<DisplayListCommandHeader, ValidationError> {
     if bytes.len() < HEADER_SIZE {
         return Err("Display list ends inside a command header");
     }
@@ -538,8 +637,28 @@ fn validate_header_bytes(bytes: &[u8]) -> Result<DisplayListCommandHeader, Valid
         return Err("Display list command header has an invalid bool");
     }
     let header = read_header(bytes);
-    if !header.has_bounding_rect && !header.command_type.is_compositor_metadata() {
-        return Err("Display list draw command has no bounding rect");
+    match kind {
+        TapeKind::DisplayList => {
+            if header.command_type.is_canvas_2d() {
+                return Err("Display list holds a command of the canvas 2D stream");
+            }
+            if !header.has_bounding_rect && !header.command_type.is_compositor_metadata() {
+                return Err("Display list draw command has no bounding rect");
+            }
+        }
+        TapeKind::Canvas2D => {
+            if !header.command_type.is_canvas_2d() {
+                return Err("Canvas 2D stream holds a command of a display list");
+            }
+            // The canvas player plays commands one by one under the state of the canvas.
+            if header.inline_clip_count != 0 || header.has_inline_transform {
+                return Err("Canvas 2D stream command has inline clips or an inline transform");
+            }
+            // A command of the canvas draws under the state that the commands before it left, so no rect bounds it.
+            if header.has_bounding_rect {
+                return Err("Canvas 2D stream command has a bounding rect");
+            }
+        }
     }
     Ok(header)
 }
@@ -547,12 +666,13 @@ fn validate_header_bytes(bytes: &[u8]) -> Result<DisplayListCommandHeader, Valid
 // Checks one stream of records, and pushes the nested record streams its commands hold onto `pending`.
 fn validate_records<'a>(
     records: &'a [u8],
+    kind: TapeKind,
     pending: &mut Vec<&'a [u8]>,
     mut summary: Option<&mut RunSummary>,
 ) -> Result<(), ValidationError> {
     let mut offset = 0;
     while offset < records.len() {
-        let header = validate_header_bytes(&records[offset..])?;
+        let header = validate_header_bytes(&records[offset..], kind)?;
         let payload_size = header.payload_size as usize;
         let payload_start = offset + HEADER_SIZE;
         if !payload_size.is_multiple_of(COMMAND_ALIGNMENT) || payload_size > records.len() - payload_start {
@@ -658,9 +778,14 @@ pub fn validate_tape(tape: &[u8], run_bytes: &[u8]) -> Result<Vec<DisplayListCom
             return Err("Adjacent display list command runs share a visual context");
         }
         let mut summary = RunSummary::default();
-        validate_records(&tape[next_offset..next_offset + size], &mut pending, Some(&mut summary))?;
+        validate_records(
+            &tape[next_offset..next_offset + size],
+            TapeKind::DisplayList,
+            &mut pending,
+            Some(&mut summary),
+        )?;
         while let Some(records) = pending.pop() {
-            validate_records(records, &mut pending, None)?;
+            validate_records(records, TapeKind::DisplayList, &mut pending, None)?;
         }
         if !summary.matches(&run) {
             return Err("Display list command run summary disagrees with its records");
@@ -672,6 +797,21 @@ pub fn validate_tape(tape: &[u8], run_bytes: &[u8]) -> Result<Vec<DisplayListCom
         return Err("Display list command runs do not cover the tape");
     }
     Ok(runs)
+}
+
+/// Checks the tape of a segment of the canvas 2D stream, which is a run of records with no run table, each a command
+/// of the canvas 2D stream that holds no nested records.
+pub fn validate_canvas_2d_tape(tape: &[u8]) -> Result<(), ValidationError> {
+    if !tape.len().is_multiple_of(COMMAND_ALIGNMENT) || u32::try_from(tape.len()).is_err() {
+        return Err("Canvas 2D stream tape has an invalid size");
+    }
+    let mut pending = Vec::new();
+    validate_records(tape, TapeKind::Canvas2D, &mut pending, None)?;
+    debug_assert!(
+        pending.is_empty(),
+        "no command of the canvas 2D stream holds nested records"
+    );
+    Ok(())
 }
 
 #[cfg(test)]
