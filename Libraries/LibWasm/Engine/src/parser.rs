@@ -8,6 +8,7 @@
 //! byte ranges, which validation decodes as it checks them.
 
 use crate::error::{Error, Result};
+use crate::module::CustomSection;
 use crate::module::{
     ConstantExpression, Data, DataMode, Element, ElementItems, ElementMode, Export, ExternalKind, FunctionBody, Global,
     Import, ImportDescription, Module, RecursionGroup, Table,
@@ -88,7 +89,11 @@ pub fn parse(bytes: &[u8]) -> Result<Module> {
         }
         match id {
             SECTION_CUSTOM => {
-                section.read_name()?;
+                let name = section.read_name()?.to_string();
+                module.custom_sections.push(CustomSection {
+                    name,
+                    contents: section.position() as u32..section.end() as u32,
+                });
                 continue;
             }
             SECTION_TYPE => parse_type_section(&mut section, &mut module)?,

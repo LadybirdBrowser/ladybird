@@ -1,0 +1,62 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // (module
+    //   (type $box (struct (field externref)))
+    //   (global $boxed (mut (ref null $box)) (ref.null $box))
+    //   (global (export "global") (mut externref) (ref.null extern))
+    //   (table (export "table") 1 externref)
+    //   (func (export "box") (param externref) (global.set $boxed (struct.new $box (local.get 0))))
+    //   (func (export "unbox") (result externref) (struct.get $box 0 (global.get $boxed))))
+    const bytes = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x5f, 0x01, 0x6f, 0x00, 0x60,
+        0x01, 0x6f, 0x00, 0x60, 0x00, 0x01, 0x6f, 0x03, 0x03, 0x02, 0x01, 0x02, 0x04, 0x04, 0x01, 0x6f,
+        0x00, 0x01, 0x06, 0x0c, 0x02, 0x63, 0x00, 0x01, 0xd0, 0x00, 0x0b, 0x6f, 0x01, 0xd0, 0x6f, 0x0b,
+        0x07, 0x20, 0x04, 0x06, 0x67, 0x6c, 0x6f, 0x62, 0x61, 0x6c, 0x03, 0x01, 0x05, 0x74, 0x61, 0x62,
+        0x6c, 0x65, 0x01, 0x00, 0x03, 0x62, 0x6f, 0x78, 0x00, 0x00, 0x05, 0x75, 0x6e, 0x62, 0x6f, 0x78,
+        0x00, 0x01, 0x0a, 0x14, 0x02, 0x09, 0x00, 0x20, 0x00, 0xfb, 0x00, 0x00, 0x24, 0x00, 0x0b, 0x08,
+        0x00, 0x23, 0x00, 0xfb, 0x02, 0x00, 0x00, 0x0b, 0x00, 0x17, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x04,
+        0x06, 0x01, 0x00, 0x03, 0x62, 0x6f, 0x78, 0x07, 0x08, 0x01, 0x00, 0x05, 0x62, 0x6f, 0x78, 0x65,
+        0x64,
+    ]);
+
+    async function collectGarbage() {
+        for (let index = 0; index < 4; ++index) {
+            await animationFrame();
+            await internals.gcAsync();
+        }
+    }
+
+    // The frame's object refers to the frame's instance, whose global, table, and GC struct refer back to the object.
+    function createCycleInRemovedFrame() {
+        const frame = document.createElement("iframe");
+        document.body.append(frame);
+        const frameWindow = frame.contentWindow;
+        const instance = new frameWindow.WebAssembly.Instance(new frameWindow.WebAssembly.Module(bytes));
+        const object = new frameWindow.Object();
+        object.instance = instance;
+        instance.exports.global.value = object;
+        instance.exports.table.set(0, object);
+        instance.exports.box(object);
+        println(`frame object is held by wasm: ${instance.exports.unbox() === object}`);
+        const weakObject = new WeakRef(object);
+        frame.remove();
+        return weakObject;
+    }
+
+    asyncTest(async done => {
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes));
+        instance.exports.box({ name: "boxed object" });
+        instance.exports.table.set(0, 42);
+        instance.exports.global.value = "a string";
+        await collectGarbage();
+        println(`struct field after collection: ${instance.exports.unbox().name}`);
+        println(`table element after collection: ${instance.exports.table.get(0)}`);
+        println(`global after collection: ${instance.exports.global.value}`);
+
+        const weakObject = createCycleInRemovedFrame();
+        await collectGarbage();
+        println(`frame object collected with its frame: ${weakObject.deref() === undefined}`);
+        done();
+    });
+</script>

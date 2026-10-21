@@ -30,6 +30,7 @@ pub mod reader;
 pub mod runtime;
 pub mod types;
 pub mod validator;
+pub mod wasi;
 
 pub use error::{Error, Result};
 pub use module::Module;

@@ -4,14 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The runtime: the store of functions, memories, tables, and globals that instances share, instantiation, and
-//! calling into the interpreter.
+//! The runtime: the store, which holds what the entities of a thread share (types, runtime types, the interpreter's
+//! context), the entities themselves (see entity.rs), instantiation, and calling into the interpreter.
 
 pub mod constant;
+pub mod entity;
 pub mod gc;
+pub mod heap;
 pub mod helpers;
 pub mod interpreter;
 pub mod memory;
+pub mod ranges;
 
 use crate::abi::{
     EntryRecord, ExecutionContext, FRAME_HEADER_SIZE, FUNCTION_KIND_HOST, FUNCTION_KIND_WASM,
@@ -143,18 +146,12 @@ impl Trap {
     }
 }
 
-macro_rules! define_address {
-    ($name:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub struct $name(pub u32);
-    };
-}
-define_address!(FunctionAddress);
-define_address!(TableAddress);
-define_address!(MemoryAddress);
-define_address!(GlobalAddress);
-define_address!(InstanceAddress);
-define_address!(TagAddress);
+pub type FunctionAddress = entity::Handle<FunctionInstance>;
+pub type TableAddress = entity::Handle<TableInstance>;
+pub type MemoryAddress = entity::Handle<MemoryInstance>;
+pub type GlobalAddress = entity::Handle<GlobalInstance>;
+pub type InstanceAddress = entity::Handle<Instance>;
+pub type TagAddress = entity::Handle<TagInstance>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExternValue {
@@ -167,21 +164,27 @@ pub enum ExternValue {
 
 /// A tag, which exceptions are thrown with. Its address is its identity.
 pub struct TagInstance {
-    pub address: TagAddress,
     /// The types of the values an exception with this tag carries.
     pub ty: FuncType,
     pub type_identity: u32,
 }
 
-/// An exception: a tag and the values thrown with it, in operand stack order (the last value in the lowest slot).
-/// An exception reference is the address of its ExceptionInstance.
-pub struct ExceptionInstance {
-    pub tag: TagAddress,
-    pub payload: Box<[u64]>,
+/// A function the embedder implements.
+pub trait HostFunction {
+    /// Get the arguments and return the results, in the function type's order.
+    fn call(&self, store: &mut Store, arguments: &[Value]) -> Result<Vec<Value>, Trap>;
+
+    /// Visit the cells the function refers to, which its function keeps alive.
+    fn visit_edges(&self, _visitor: &heap::Visitor) {}
 }
 
-/// A function the embedder implements. It gets the arguments and returns the results, in the function type's order.
-pub type HostCallback = Rc<dyn Fn(&mut Store, &[Value]) -> Result<Vec<Value>, Trap>>;
+impl<F: Fn(&mut Store, &[Value]) -> Result<Vec<Value>, Trap>> HostFunction for F {
+    fn call(&self, store: &mut Store, arguments: &[Value]) -> Result<Vec<Value>, Trap> {
+        self(store, arguments)
+    }
+}
+
+pub type HostCallback = Rc<dyn HostFunction>;
 
 pub enum FunctionKind {
     Wasm {
@@ -193,32 +196,40 @@ pub enum FunctionKind {
 }
 
 /// A function. The interpreter sees its header, which is its first field, so that a function reference, which points
-/// at the header, also points at the function.
+/// at the header, is the function's handle.
 #[repr(C)]
 pub struct FunctionInstance {
     pub header: FunctionHeader,
-    pub address: FunctionAddress,
     pub ty: FuncType,
     /// What `header.vector_storage` points at.
     pub vector_storage: Box<[u32]>,
     pub kind: FunctionKind,
 }
 
+/// A table. The interpreter sees its data, which is its first field and so at its handle.
+#[repr(C)]
 pub struct TableInstance {
-    pub data: Box<TableData>,
+    pub data: TableData,
     pub ty: TableType,
     pub elements: Vec<u64>,
+    /// How the collector follows the elements (TRACE_*).
+    pub trace: u8,
 }
 
 impl TableInstance {
-    fn new(ty: TableType, initial: u64) -> Self {
+    fn new(ty: TableType, initial: u64, trace: u8) -> Self {
         let mut elements = vec![initial; ty.limits.min as usize];
-        let data = Box::new(TableData {
+        let data = TableData {
             elements: elements.as_mut_ptr(),
             size: elements.len() as u64,
             address64: u64::from(ty.limits.address_type == crate::types::AddressType::I64),
-        });
-        Self { data, ty, elements }
+        };
+        Self {
+            data,
+            ty,
+            elements,
+            trace,
+        }
     }
 
     fn sync(&mut self) {
@@ -242,11 +253,14 @@ impl TableInstance {
 /// The largest number of elements a table may grow to.
 const MAX_TABLE_SIZE: u64 = 10_000_000;
 
+/// A global. The interpreter sees its value's slots, which are its first field and so at its handle.
 #[repr(C, align(16))]
 pub struct GlobalInstance {
     /// The value's slots: one, or two for v128.
     pub value: [u64; 2],
     pub ty: GlobalType,
+    /// How the collector follows the value (TRACE_*).
+    pub trace: u8,
 }
 
 impl GlobalInstance {
@@ -261,9 +275,10 @@ impl GlobalInstance {
     }
 }
 
-/// An instance. The interpreter sees its `data`.
+/// An instance. The interpreter sees its data, which is its first field and so at its handle.
+#[repr(C)]
 pub struct Instance {
-    pub data: Box<InstanceData>,
+    pub data: InstanceData,
     pub module: Arc<Module>,
     pub functions: Vec<FunctionAddress>,
     pub tables: Vec<TableAddress>,
@@ -274,6 +289,8 @@ pub struct Instance {
     pub type_identities: Vec<u32>,
     /// The references of each passive element segment. The interpreter sees them through `element_segments`.
     pub element_storage: Vec<Vec<u64>>,
+    /// How the collector follows the references of each element segment (TRACE_*).
+    pub element_traces: Vec<u8>,
     /// Each element segment, empty once dropped or used by instantiation.
     pub element_segments: Vec<Segment>,
     /// Each data segment, empty once dropped or used by instantiation.
@@ -300,22 +317,18 @@ pub enum InstantiationError {
 /// The bytes of stack a call into WebAssembly leaves free for the runtime functions it calls.
 const STACK_RESERVE: usize = 256 * 1024;
 
+/// What the entities of a thread share. Its heap holds the entities, which the store does not refer to: they live
+/// while their embedder, other entities, or running code refer to them, and belong to the store that made them.
 pub struct Store {
     context: Box<ExecutionContext>,
-    pub functions: Vec<Box<FunctionInstance>>,
-    pub tables: Vec<Box<TableInstance>>,
-    pub memories: Vec<Box<MemoryInstance>>,
-    pub globals: Vec<Box<GlobalInstance>>,
-    pub instances: Vec<Box<Instance>>,
-    pub tags: Vec<Box<TagInstance>>,
-    /// The runtime type of each type identity, and the addresses the interpreter sees them by.
-    #[allow(clippy::vec_box)] // The interpreter holds the addresses of the Rtts, which must not move.
-    rtts: Vec<Box<gc::RttStorage>>,
+    /// Where entities, GC objects, exceptions, runtime types, and memories live.
+    pub heap: heap::Heap,
+    /// The cell through which the heap traces the runtime types, which the store keeps for as long as it lives.
+    pub(crate) root_cell: *mut u8,
+    /// The root that keeps `root_cell` alive.
+    root: Option<*mut core::ffi::c_void>,
+    /// The runtime type of each type identity, in the cells the heap keeps them in.
     rtt_pointers: Vec<*const crate::abi::Rtt>,
-    // FIXME: Collect objects nothing refers to anymore.
-    objects: Vec<Box<[u64]>>,
-    // FIXME: Collect exceptions nothing refers to anymore.
-    pub exceptions: Vec<Box<ExceptionInstance>>,
     canonicalizer: TypeCanonicalizer,
     /// The type of each store-wide type identity, with its type indices replaced by identities, so that types of
     /// different modules can be compared.
@@ -324,6 +337,8 @@ pub struct Store {
     identities: Vec<u32>,
     /// A trap a runtime function reported, which the interpreter only knows as TRAP_RUNTIME.
     pending_trap: Option<Trap>,
+    /// What runs after `memory.grow` grows a memory.
+    pub memory_grow_callback: Option<Rc<dyn Fn(MemoryAddress)>>,
 }
 
 impl Default for Store {
@@ -332,8 +347,27 @@ impl Default for Store {
     }
 }
 
+impl Drop for Store {
+    fn drop(&mut self) {
+        if !self.root_cell.is_null() {
+            gc::detach_store_root(self.root_cell);
+        }
+        if let (Some(root), Some(heap)) = (self.root.take(), self.heap.gc()) {
+            heap.unroot(root);
+        }
+        self.heap.drop_standalone_entities();
+    }
+}
+
 impl Store {
+    /// A store whose GC objects and memories are plain allocations that are never freed.
     pub fn new() -> Self {
+        Self::with_heap(None)
+    }
+
+    /// A store whose entities and GC objects live in the heap of `interface`, and whose memories live in its
+    /// primitive storage. The store must stay where it is once `attach_to_heap()` gives it a root cell.
+    pub fn with_heap(interface: Option<heap::GcInterface>) -> Self {
         interpreter::check_cpu_features();
         interpreter::install_fault_handler();
         Self {
@@ -345,53 +379,60 @@ impl Store {
                 arguments: [0; 6],
                 rtts: std::ptr::null(),
             }),
-            functions: Vec::new(),
-            tables: Vec::new(),
-            memories: Vec::new(),
-            globals: Vec::new(),
-            instances: Vec::new(),
             canonicalizer: TypeCanonicalizer::new(),
             types: Vec::new(),
             identities: Vec::new(),
             pending_trap: None,
-            tags: Vec::new(),
-            exceptions: Vec::new(),
-            rtts: Vec::new(),
+            heap: heap::Heap::new(interface, &gc::CELL_FUNCTIONS),
+            root_cell: std::ptr::null_mut(),
+            root: None,
             rtt_pointers: Vec::new(),
-            objects: Vec::new(),
+            memory_grow_callback: None,
         }
     }
 
+    /// Have the heap keep the runtime types for as long as the store lives. The store must not move after this.
+    pub fn attach_to_heap(&mut self) {
+        let Some(heap) = self.heap.gc() else {
+            return;
+        };
+        self.root_cell = gc::allocate_store_root(&self.heap, self);
+        self.root = Some(heap.root(self.root_cell));
+    }
+
+    // NB: The accessors below trust that the entity lives, which its embedder, or the instance it belongs to,
+    //     guarantees while it uses it.
+
     pub fn function(&self, address: FunctionAddress) -> &FunctionInstance {
-        &self.functions[address.0 as usize]
+        unsafe { address.get() }
     }
 
     pub fn memory(&self, address: MemoryAddress) -> &MemoryInstance {
-        &self.memories[address.0 as usize]
+        unsafe { address.get() }
     }
 
     pub fn memory_mut(&mut self, address: MemoryAddress) -> &mut MemoryInstance {
-        &mut self.memories[address.0 as usize]
+        unsafe { address.get_mut() }
     }
 
     pub fn table(&self, address: TableAddress) -> &TableInstance {
-        &self.tables[address.0 as usize]
+        unsafe { address.get() }
     }
 
     pub fn table_mut(&mut self, address: TableAddress) -> &mut TableInstance {
-        &mut self.tables[address.0 as usize]
+        unsafe { address.get_mut() }
     }
 
     pub fn global(&self, address: GlobalAddress) -> &GlobalInstance {
-        &self.globals[address.0 as usize]
+        unsafe { address.get() }
     }
 
     pub fn global_mut(&mut self, address: GlobalAddress) -> &mut GlobalInstance {
-        &mut self.globals[address.0 as usize]
+        unsafe { address.get_mut() }
     }
 
     pub fn instance(&self, address: InstanceAddress) -> &Instance {
-        &self.instances[address.0 as usize]
+        unsafe { address.get() }
     }
 
     /// The store-wide identity of a function type that is not part of a recursion group.
@@ -417,13 +458,15 @@ impl Store {
         {
             return;
         }
+        let first = self.types.len() as u32;
         for sub_type in group {
-            let identity = self.types.len() as u32;
-            self.identities.push(identity);
+            self.identities.push(self.types.len() as u32);
             self.types.push(sub_type.clone());
-            let rtt = gc::RttStorage::new(self, identity);
-            self.rtt_pointers.push(&raw const rtt.rtt);
-            self.rtts.push(rtt);
+        }
+        // Types of a group refer to each other, so they all have to be there before their runtime types are made.
+        for identity in first..self.types.len() as u32 {
+            let rtt = gc::allocate_rtt(self, identity);
+            self.rtt_pointers.push(rtt);
         }
         self.context.rtts = self.rtt_pointers.as_ptr();
     }
@@ -437,51 +480,57 @@ impl Store {
     }
 
     pub fn allocate_host_function(&mut self, ty: FuncType, callback: HostCallback) -> FunctionAddress {
-        let address = FunctionAddress(self.functions.len() as u32);
         let type_identity = self.identity_of_function_type(&ty);
-        let mut function = Box::new(FunctionInstance {
-            header: FunctionHeader {
-                code: std::ptr::null(),
-                code_end: std::ptr::null(),
-                side_table: std::ptr::null(),
-                instance: std::ptr::null(),
-                kind: FUNCTION_KIND_HOST,
-                param_slots: ty.params.iter().map(|param| param.slot_count()).sum(),
-                result_slots: ty.results.iter().map(|result| result.slot_count()).sum(),
-                local_count: 0,
-                locals_size: 0,
-                reserved: 0,
-                frame_size: 0,
-                type_identity,
-                host: std::ptr::null(),
-                vector_storage: std::ptr::null(),
+        let function = entity::allocate(
+            &self.heap,
+            FunctionInstance {
+                header: FunctionHeader {
+                    code: std::ptr::null(),
+                    code_end: std::ptr::null(),
+                    side_table: std::ptr::null(),
+                    instance: std::ptr::null(),
+                    kind: FUNCTION_KIND_HOST,
+                    param_slots: ty.params.iter().map(|param| param.slot_count()).sum(),
+                    result_slots: ty.results.iter().map(|result| result.slot_count()).sum(),
+                    local_count: 0,
+                    locals_size: 0,
+                    reserved: 0,
+                    frame_size: 0,
+                    type_identity,
+                    host: std::ptr::null(),
+                    vector_storage: std::ptr::null(),
+                },
+                ty,
+                vector_storage: Box::new([]),
+                kind: FunctionKind::Host(callback),
             },
-            address,
-            ty,
-            vector_storage: Box::new([]),
-            kind: FunctionKind::Host(callback),
-        });
-        function.header.host = (&raw const *function).cast();
-        self.functions.push(function);
-        address
+        );
+        unsafe { function.get_mut() }.header.host = function.as_ptr().cast_const().cast();
+        function
     }
 
     pub fn allocate_memory(&mut self, ty: crate::types::MemoryType) -> Option<MemoryAddress> {
-        let memory = MemoryInstance::new(ty)?;
-        self.memories.push(Box::new(memory));
-        Some(MemoryAddress(self.memories.len() as u32 - 1))
+        let memory = MemoryInstance::new(ty, &self.heap)?;
+        Some(entity::allocate(&self.heap, memory))
     }
 
-    pub fn allocate_table(&mut self, ty: TableType, initial: u64) -> TableAddress {
-        self.tables.push(Box::new(TableInstance::new(ty, initial)));
-        TableAddress(self.tables.len() as u32 - 1)
+    /// Add a table of `ty.limits.min` elements set to `initial`. Returns None if it would be too large.
+    pub fn allocate_table(&mut self, ty: TableType, initial: u64) -> Option<TableAddress> {
+        if ty.limits.min > MAX_TABLE_SIZE {
+            return None;
+        }
+        let trace = gc::trace_of(ValType::Ref(ty.element), &self.types);
+        Some(entity::allocate(&self.heap, TableInstance::new(ty, initial, trace)))
     }
 
     pub fn allocate_global(&mut self, ty: GlobalType, value: Value) -> GlobalAddress {
-        let mut global = Box::new(GlobalInstance { value: [0; 2], ty });
+        let mut global = GlobalInstance {
+            value: [0; 2],
+            ty,
+            trace: gc::trace_of(ty.value, &self.types),
+        };
         global.set(value);
-        self.globals.push(global);
-        GlobalAddress(self.globals.len() as u32 - 1)
+        entity::allocate(&self.heap, global)
     }
 
     pub fn instantiate(
@@ -489,6 +538,23 @@ impl Store {
         module: Arc<Module>,
         imports: &[ExternValue],
     ) -> Result<InstanceAddress, InstantiationError> {
+        // Instantiation keeps references in places the collector does not look, like the values of constant
+        // expressions on their way into globals and segments. The start function runs once they are in place.
+        self.heap.defer_gc();
+        let instance = self.instantiate_without_starting(module, imports);
+        self.heap.undefer_gc();
+        let (instance, start) = instance?;
+        if let Some(start) = start {
+            self.invoke(start, &[]).map_err(InstantiationError::Trap)?;
+        }
+        Ok(instance)
+    }
+
+    fn instantiate_without_starting(
+        &mut self,
+        module: Arc<Module>,
+        imports: &[ExternValue],
+    ) -> Result<(InstanceAddress, Option<FunctionAddress>), InstantiationError> {
         let link_error = |message: &str| Err(InstantiationError::Link(message.to_string()));
         if imports.len() != module.imports.len() {
             return link_error("wrong number of imports");
@@ -578,46 +644,50 @@ impl Store {
         }
 
         // The instance is allocated before its contents, so that its functions can point at its data.
-        let instance_address = InstanceAddress(self.instances.len() as u32);
-        let mut instance = Box::new(Instance {
-            data: Box::new(InstanceData {
-                memory0_base: std::ptr::null_mut(),
-                memories: std::ptr::null(),
-                globals: std::ptr::null(),
-                functions: std::ptr::null(),
-                tables: std::ptr::null(),
-                type_identities: std::ptr::null(),
-                data_segments: std::ptr::null(),
-                element_segments: std::ptr::null(),
-                tags: std::ptr::null(),
-                function_count: 0,
-                memory_count: 0,
-            }),
-            module: module.clone(),
-            functions: Vec::new(),
-            tables: Vec::new(),
-            memories: Vec::new(),
-            globals: Vec::new(),
-            exports: HashMap::new(),
-            type_identities,
-            element_storage: Vec::new(),
-            element_segments: Vec::new(),
-            data_segments: module
-                .data
-                .iter()
-                .map(|data| Segment {
-                    contents: module.bytes.as_ptr().wrapping_add(data.bytes.start as usize),
-                    length: u64::from(data.bytes.end - data.bytes.start),
-                })
-                .collect(),
-            function_headers: Vec::new(),
-            global_slots: Vec::new(),
-            tags: Vec::new(),
-            tag_identities: Vec::new(),
-            table_datas: Vec::new(),
-            memory_datas: Vec::new(),
-        });
-        let instance_data: *const InstanceData = &raw const *instance.data;
+        let instance_address = entity::allocate(
+            &self.heap,
+            Instance {
+                data: InstanceData {
+                    memory0_base: std::ptr::null_mut(),
+                    memories: std::ptr::null(),
+                    globals: std::ptr::null(),
+                    functions: std::ptr::null(),
+                    tables: std::ptr::null(),
+                    type_identities: std::ptr::null(),
+                    data_segments: std::ptr::null(),
+                    element_segments: std::ptr::null(),
+                    tags: std::ptr::null(),
+                    function_count: 0,
+                    memory_count: 0,
+                },
+                module: module.clone(),
+                functions: Vec::new(),
+                tables: Vec::new(),
+                memories: Vec::new(),
+                globals: Vec::new(),
+                exports: HashMap::new(),
+                type_identities,
+                element_storage: Vec::new(),
+                element_traces: Vec::new(),
+                element_segments: Vec::new(),
+                data_segments: module
+                    .data
+                    .iter()
+                    .map(|data| Segment {
+                        contents: module.bytes.as_ptr().wrapping_add(data.bytes.start as usize),
+                        length: u64::from(data.bytes.end - data.bytes.start),
+                    })
+                    .collect(),
+                function_headers: Vec::new(),
+                global_slots: Vec::new(),
+                tags: Vec::new(),
+                tag_identities: Vec::new(),
+                table_datas: Vec::new(),
+                memory_datas: Vec::new(),
+            },
+        );
+        let instance = unsafe { instance_address.get_mut() };
+        let instance_data: *const InstanceData = instance_address.as_ptr().cast_const().cast();
 
         for (offset, &type_index) in module.functions.iter().enumerate() {
             let info = &module.function_infos[offset];
@@ -652,51 +722,47 @@ impl Store {
             let vector_storage = vector_storage.into_boxed_slice();
             let frame_size =
                 (FRAME_HEADER_SIZE as u32 + info.max_stack_slots * 8 + SPILL_AREA_SIZE as u32).next_multiple_of(16);
-            let address = FunctionAddress(self.functions.len() as u32);
             let code = module.bytes.as_ptr().wrapping_add(body.code.start as usize);
             let code_end = module.bytes.as_ptr().wrapping_add(body.code.end as usize - 1);
-            self.functions.push(Box::new(FunctionInstance {
-                header: FunctionHeader {
-                    code,
-                    code_end,
-                    side_table: info.side_table.as_ptr().cast(),
-                    instance: instance_data,
-                    kind: if has_v128_locals {
-                        FUNCTION_KIND_WASM_VECTOR
-                    } else {
-                        FUNCTION_KIND_WASM
+            let address = entity::allocate(
+                &self.heap,
+                FunctionInstance {
+                    header: FunctionHeader {
+                        code,
+                        code_end,
+                        side_table: info.side_table.as_ptr().cast(),
+                        instance: instance_data,
+                        kind: if has_v128_locals {
+                            FUNCTION_KIND_WASM_VECTOR
+                        } else {
+                            FUNCTION_KIND_WASM
+                        },
+                        param_slots: ty.params.iter().map(|param| param.slot_count()).sum(),
+                        result_slots: ty.results.iter().map(|result| result.slot_count()).sum(),
+                        local_count,
+                        locals_size,
+                        reserved: 0,
+                        frame_size,
+                        type_identity: instance.type_identities[type_index as usize],
+                        host: std::ptr::null(),
+                        vector_storage: if has_v128_locals {
+                            vector_storage.as_ptr()
+                        } else {
+                            std::ptr::null()
+                        },
                     },
-                    param_slots: ty.params.iter().map(|param| param.slot_count()).sum(),
-                    result_slots: ty.results.iter().map(|result| result.slot_count()).sum(),
-                    local_count,
-                    locals_size,
-                    reserved: 0,
-                    frame_size,
-                    type_identity: instance.type_identities[type_index as usize],
-                    host: std::ptr::null(),
-                    vector_storage: if has_v128_locals {
-                        vector_storage.as_ptr()
-                    } else {
-                        std::ptr::null()
+                    ty,
+                    vector_storage,
+                    kind: FunctionKind::Wasm {
+                        module: module.clone(),
+                        index: module.imported_function_count + offset as u32,
+                        instance: instance_address,
                     },
                 },
-                address,
-                ty,
-                vector_storage,
-                kind: FunctionKind::Wasm {
-                    module: module.clone(),
-                    index: module.imported_function_count + offset as u32,
-                    instance: instance_address,
-                },
-            }));
+            );
             functions.push(address);
         }
         instance.functions = functions;
-        instance.function_headers = instance
-            .functions
-            .iter()
-            .map(|address| &raw const self.function(*address).header)
-            .collect();
 
         for memory in &module.memories {
             let address = self
@@ -747,7 +813,10 @@ impl Store {
             let ValType::Ref(element) = canonical(ValType::Ref(table.ty.element)) else {
                 unreachable!("table elements are references");
             };
-            tables.push(self.allocate_table(TableType { element, ..table.ty }, initial));
+            let address = self
+                .allocate_table(TableType { element, ..table.ty }, initial)
+                .ok_or_else(|| InstantiationError::Link("cannot allocate table".to_string()))?;
+            tables.push(address);
         }
         instance.tables = tables;
         for tag in &module.tags {
@@ -759,7 +828,7 @@ impl Store {
             tags.push(self.allocate_tag_with_identity(ty, type_identity));
         }
         instance.tags = tags;
-        self.refresh_instance_data(&mut instance);
+        refresh_instance_data(instance);
 
         for export in &module.exports {
             let value = match export.kind {
@@ -803,6 +872,14 @@ impl Store {
             element_values.push(values);
         }
         instance.element_storage = element_values;
+        instance.element_traces = module
+            .elements
+            .iter()
+            .map(|element| {
+                let ty = ValType::Ref(element.ty).map_type_indices(&|index| instance.type_identities[index as usize]);
+                gc::trace_of(ty, &self.types)
+            })
+            .collect();
         instance.element_segments = instance
             .element_storage
             .iter()
@@ -818,14 +895,13 @@ impl Store {
             .collect();
         instance.data.element_segments = instance.element_segments.as_ptr();
         instance.data.data_segments = instance.data_segments.as_ptr();
-        self.instances.push(instance);
-        let instance_index = instance_address.0 as usize;
 
         for (index, element) in module.elements.iter().enumerate() {
             if let ElementMode::Active { table, offset } = &element.mode {
-                let offset = self.evaluate_offset(instance_index, &module, offset)?;
-                let table_address = self.instances[instance_index].tables[*table as usize];
-                let values = std::mem::take(&mut self.instances[instance_index].element_storage[index]);
+                let offset = self.evaluate_offset(instance_address, &module, offset)?;
+                let instance = unsafe { instance_address.get_mut() };
+                let table_address = instance.tables[*table as usize];
+                let values = std::mem::take(&mut instance.element_storage[index]);
                 let table = self.table_mut(table_address);
                 let end = offset.checked_add(values.len() as u64);
                 if end.is_none_or(|end| end > table.elements.len() as u64) {
@@ -837,8 +913,8 @@ impl Store {
 
         for (index, data) in module.data.iter().enumerate() {
             if let DataMode::Active { memory, offset } = &data.mode {
-                let offset = self.evaluate_offset(instance_index, &module, offset)?;
-                let memory_address = self.instances[instance_index].memories[*memory as usize];
+                let offset = self.evaluate_offset(instance_address, &module, offset)?;
+                let memory_address = self.instance(instance_address).memories[*memory as usize];
                 let bytes = module.bytes_of(&data.bytes);
                 let memory = self.memory_mut(memory_address);
                 let end = offset.checked_add(bytes.len() as u64);
@@ -846,24 +922,23 @@ impl Store {
                     return Err(InstantiationError::Trap(Trap::MemoryOutOfBounds));
                 }
                 memory.bytes_mut()[offset as usize..offset as usize + bytes.len()].copy_from_slice(bytes);
-                self.instances[instance_index].data_segments[index].length = 0;
+                unsafe { instance_address.get_mut() }.data_segments[index].length = 0;
             }
         }
 
-        if let Some(start) = module.start {
-            let function = self.instances[instance_index].functions[start as usize];
-            self.invoke(function, &[]).map_err(InstantiationError::Trap)?;
-        }
-        Ok(instance_address)
+        let start = module
+            .start
+            .map(|start| self.instance(instance_address).functions[start as usize]);
+        Ok((instance_address, start))
     }
 
     fn evaluate_offset(
         &mut self,
-        instance_index: usize,
+        instance: InstanceAddress,
         module: &Module,
         expression: &crate::module::ConstantExpression,
     ) -> Result<u64, InstantiationError> {
-        let instance = &self.instances[instance_index];
+        let instance = unsafe { instance.get() };
         let (globals, functions, type_identities) = (
             instance.globals.clone(),
             instance.functions.clone(),
@@ -878,50 +953,8 @@ impl Store {
         }
     }
 
-    /// Point the instance's interpreter-visible data at its current contents.
-    fn refresh_instance_data(&self, instance: &mut Instance) {
-        instance.function_headers = instance
-            .functions
-            .iter()
-            .map(|address| &raw const self.function(*address).header)
-            .collect();
-        instance.global_slots = instance
-            .globals
-            .iter()
-            .map(|address| self.globals[address.0 as usize].value.as_ptr().cast_mut())
-            .collect();
-        instance.table_datas = instance
-            .tables
-            .iter()
-            .map(|address| (&raw const *self.tables[address.0 as usize].data).cast_mut())
-            .collect();
-        instance.memory_datas = instance
-            .memories
-            .iter()
-            .map(|address| (&raw const *self.memories[address.0 as usize].data).cast_mut())
-            .collect();
-        let data = &mut instance.data;
-        data.functions = instance.function_headers.as_ptr();
-        data.function_count = instance.function_headers.len() as u32;
-        data.globals = instance.global_slots.as_ptr();
-        data.tables = instance.table_datas.as_ptr();
-        data.memories = instance.memory_datas.as_ptr();
-        data.memory_count = instance.memory_datas.len() as u32;
-        data.memory0_base = instance
-            .memories
-            .first()
-            .map_or(std::ptr::null_mut(), |address| self.memory(*address).data.base);
-        data.type_identities = instance.type_identities.as_ptr();
-        instance.tag_identities = instance
-            .tags
-            .iter()
-            .map(|address| (&raw const *self.tags[address.0 as usize]) as u64)
-            .collect();
-        instance.data.tags = instance.tag_identities.as_ptr();
-    }
-
     pub fn tag(&self, address: TagAddress) -> &TagInstance {
-        &self.tags[address.0 as usize]
+        unsafe { address.get() }
     }
 
     /// Add a tag for exceptions that carry values of the parameter types of `ty`.
@@ -931,44 +964,47 @@ impl Store {
     }
 
     fn allocate_tag_with_identity(&mut self, ty: FuncType, type_identity: u32) -> TagAddress {
-        let address = TagAddress(self.tags.len() as u32);
-        self.tags.push(Box::new(TagInstance {
-            address,
-            ty,
-            type_identity,
-        }));
-        address
+        entity::allocate(&self.heap, TagInstance { ty, type_identity })
     }
 
-    /// The tag of an exception reference's identity.
+    /// Allocate an exception with the tag `tag` that carries `values`, one for each parameter of the tag's type.
+    pub fn allocate_exception_with_values(&mut self, tag: TagAddress, values: &[Value]) -> u64 {
+        // An exception's slots are in operand stack order, the last value first.
+        let mut payload = Vec::new();
+        for value in values.iter().rev() {
+            value.push_slots(&mut payload);
+        }
+        self.allocate_exception(tag, &payload)
+    }
+
+    /// The values an exception carries, one for each parameter of its tag's type.
+    pub fn exception_values(&self, reference: u64) -> Vec<Value> {
+        let exception = self.exception(reference);
+        let params = &self.tag(exception.tag).ty.params;
+        let mut values = Vec::with_capacity(params.len());
+        let mut slot = exception.payload.len();
+        for &param in params {
+            slot -= param.slot_count() as usize;
+            values.push(Value::from_slots(param, &exception.payload[slot..]));
+        }
+        values
+    }
+
+    /// The tag of a tag identity, which is the tag's handle.
     pub fn tag_from_identity(&self, identity: u64) -> TagAddress {
-        unsafe { (*(identity as *const TagInstance)).address }
-    }
-
-    /// Make an exception with `tag` and the values of `payload`, and return its reference.
-    pub fn allocate_exception(&mut self, tag: TagAddress, payload: Box<[u64]>) -> u64 {
-        let exception = Box::new(ExceptionInstance { tag, payload });
-        let reference = (&raw const *exception) as u64;
-        self.exceptions.push(exception);
-        reference
-    }
-
-    /// The exception an exception reference refers to.
-    pub fn exception(&self, reference: u64) -> &ExceptionInstance {
-        unsafe { &*(reference as *const ExceptionInstance) }
+        unsafe { TagAddress::from_ptr(identity as *const TagInstance) }
     }
 
     pub fn function_reference(&self, address: FunctionAddress) -> u64 {
-        (&raw const self.function(address).header) as u64
+        address.as_ptr() as u64
     }
 
-    /// The function a non-null function reference refers to.
+    /// The function a function reference refers to, which is the function's handle.
     pub fn function_from_reference(&self, reference: u64) -> Option<FunctionAddress> {
         if reference == 0 {
             return None;
         }
-        let function = unsafe { &*(reference as *const FunctionInstance) };
-        Some(function.address)
+        Some(unsafe { FunctionAddress::from_ptr(reference as *const FunctionInstance) })
     }
 
     pub fn invoke(&mut self, address: FunctionAddress, arguments: &[Value]) -> Result<Vec<Value>, Trap> {
@@ -1014,12 +1050,43 @@ impl Store {
     }
 
     fn call_host(&mut self, address: FunctionAddress, arguments: &[Value]) -> Result<Vec<Value>, Trap> {
-        let FunctionKind::Host(callback) = &self.functions[address.0 as usize].kind else {
+        let FunctionKind::Host(callback) = &self.function(address).kind else {
             unreachable!("only host functions are called through call_host")
         };
         let callback = callback.clone();
-        callback(self, arguments)
+        callback.call(self, arguments)
     }
+}
+
+/// Point the instance's interpreter-visible data at its current contents. The interpreter's view of each entity is at
+/// its handle.
+fn refresh_instance_data(instance: &mut Instance) {
+    instance.function_headers = instance
+        .functions
+        .iter()
+        .map(|address| address.as_ptr().cast_const().cast::<FunctionHeader>())
+        .collect();
+    instance.global_slots = instance.globals.iter().map(|address| address.as_ptr().cast()).collect();
+    instance.table_datas = instance.tables.iter().map(|address| address.as_ptr().cast()).collect();
+    instance.memory_datas = instance
+        .memories
+        .iter()
+        .map(|address| address.as_ptr().cast())
+        .collect();
+    let data = &mut instance.data;
+    data.functions = instance.function_headers.as_ptr();
+    data.function_count = instance.function_headers.len() as u32;
+    data.globals = instance.global_slots.as_ptr();
+    data.tables = instance.table_datas.as_ptr();
+    data.memories = instance.memory_datas.as_ptr();
+    data.memory_count = instance.memory_datas.len() as u32;
+    data.memory0_base = instance
+        .memories
+        .first()
+        .map_or(std::ptr::null_mut(), |address| unsafe { address.get() }.data.base);
+    data.type_identities = instance.type_identities.as_ptr();
+    instance.tag_identities = instance.tags.iter().map(|address| address.as_ptr() as u64).collect();
+    instance.data.tags = instance.tag_identities.as_ptr();
 }
 
 fn limits_match(current: u64, current_max: Option<u64>, expected: &crate::types::Limits) -> bool {

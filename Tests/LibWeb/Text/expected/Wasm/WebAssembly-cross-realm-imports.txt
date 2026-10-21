@@ -1,0 +1,8 @@
+memory of another realm: 123
+grown from WebAssembly: 1, old buffer detached: true, new length: 131072
+table of another realm: 42
+global of another realm: 7
+global written from both sides: 10
+function of another realm: 42
+re-exported function is the same object: true
+re-exported function's realm: true

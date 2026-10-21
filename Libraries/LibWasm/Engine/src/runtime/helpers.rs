@@ -7,7 +7,7 @@
 //! The runtime services the interpreter calls for what needs the runtime: growing memories and tables, and calling
 //! host functions. Each takes the execution context, whose `arguments` hold the operands.
 
-use super::{FunctionInstance, FunctionKind, Store, Trap, Value};
+use super::{FunctionInstance, FunctionKind, MemoryAddress, Store, TableAddress, Trap, Value};
 use crate::abi::{
     ExecutionContext, FRAME_FUNCTION, FRAME_HEADER_SIZE, FRAME_INSTANCE, FRAME_RETURN_IP, FRAME_SAVED_FP, MemoryData,
     TableData,
@@ -30,12 +30,15 @@ pub unsafe extern "C" fn wasm_runtime_memory_grow(context: *mut ExecutionContext
         let data = (*context).arguments[0] as *const MemoryData;
         let delta = (*context).arguments[1];
         let store = store_of(context);
-        store
-            .memories
-            .iter_mut()
-            .find(|memory| std::ptr::eq(&raw const *memory.data, data))
-            .and_then(|memory| memory.grow(delta))
-            .unwrap_or(u64::MAX)
+        // The data is at the memory's handle.
+        let memory = MemoryAddress::from_ptr(data.cast());
+        let Some(previous) = store.memory_mut(memory).grow(delta) else {
+            return u64::MAX;
+        };
+        if let Some(callback) = store.memory_grow_callback.clone() {
+            callback(memory);
+        }
+        previous
     }
 }
 
@@ -52,11 +55,10 @@ pub unsafe extern "C" fn wasm_runtime_table_grow(context: *mut ExecutionContext)
         let delta = (*context).arguments[1];
         let initial = (*context).arguments[2];
         let store = store_of(context);
+        // The data is at the table's handle.
         store
-            .tables
-            .iter_mut()
-            .find(|table| std::ptr::eq(&raw const *table.data, data))
-            .and_then(|table| table.grow(delta, initial))
+            .table_mut(TableAddress::from_ptr(data.cast()))
+            .grow(delta, initial)
             .unwrap_or(u64::MAX)
     }
 }
@@ -90,7 +92,7 @@ pub unsafe extern "C" fn wasm_runtime_call_host(context: *mut ExecutionContext) 
             slot -= ty.slot_count() as usize;
             arguments.push(Value::from_slots(ty, &slots[slot..]));
         }
-        let results = match callback(store, &arguments) {
+        let results = match callback.call(store, &arguments) {
             Ok(results) => results,
             Err(Trap::UncaughtException(exception)) => {
                 // The exception continues in the caller, as if the call instruction had thrown it.
@@ -117,8 +119,8 @@ pub unsafe extern "C" fn wasm_runtime_call_host(context: *mut ExecutionContext) 
     }
 }
 
-/// Allocate a zeroed GC object of `arguments[1]` bytes whose runtime type is `arguments[0]`. Returns zero if it is
-/// too large.
+/// Allocate a GC object whose runtime type is `arguments[0]`, with `arguments[1]` bytes of zeroed data and, for an
+/// array, `arguments[2]` elements. Returns zero if it is too large.
 ///
 /// # Safety
 ///
@@ -129,7 +131,8 @@ pub unsafe extern "C" fn wasm_runtime_allocate(context: *mut ExecutionContext) -
         let store = store_of(context);
         let rtt = (*context).arguments[0] as *const crate::abi::Rtt;
         let size = (*context).arguments[1];
-        let object = store.allocate_object(rtt, size);
+        let length = (*context).arguments[2];
+        let object = store.allocate_object(rtt, size, length);
         if object == 0 {
             store.pending_trap = Some(Trap::Host("out of memory".to_string()));
         }
@@ -157,8 +160,8 @@ pub unsafe extern "C" fn wasm_runtime_throw(context: *mut ExecutionContext) -> u
             let tag = store.tag_from_identity((*context).arguments[0]);
             let slot_count: u32 = store.tag(tag).ty.params.iter().map(|param| param.slot_count()).sum();
             let top = (*context).arguments[1] as *const u64;
-            let payload: Box<[u64]> = ak::slice_from_raw_parts(top, slot_count as usize).into();
-            exception = store.allocate_exception(tag, payload);
+            let payload = ak::slice_from_raw_parts(top, slot_count as usize).to_vec();
+            exception = store.allocate_exception(tag, &payload);
         }
         if unwind(context, store, exception, frame, pc) {
             return 1;
@@ -206,7 +209,7 @@ unsafe fn unwind(context: *mut ExecutionContext, store: &Store, exception: u64, 
                         continue;
                     }
                     let payload: &[u64] = match clause.kind {
-                        CatchKind::Catch | CatchKind::CatchRef => &store.exception(exception).payload,
+                        CatchKind::Catch | CatchKind::CatchRef => store.exception(exception).payload,
                         CatchKind::CatchAll | CatchKind::CatchAllRef => &[],
                     };
                     let pushes_reference = matches!(clause.kind, CatchKind::CatchRef | CatchKind::CatchAllRef);

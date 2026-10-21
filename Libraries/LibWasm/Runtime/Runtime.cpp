@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/CAPI.h>
+#include <LibGC/Heap.h>
 #include <LibWasm/Runtime/Runtime.h>
 #include <RustFFI.h>
 
@@ -11,7 +13,6 @@ namespace Wasm::Runtime {
 
 static_assert(sizeof(ValueType) == sizeof(FFI::WasmValueType));
 static_assert(sizeof(Value) == sizeof(FFI::WasmValue));
-static_assert(sizeof(Extern) == sizeof(FFI::WasmExtern));
 static_assert(sizeof(Limits) == sizeof(FFI::WasmLimits));
 static_assert(sizeof(ExternType) == sizeof(FFI::WasmExternType));
 
@@ -111,9 +112,52 @@ Optional<FunctionType> Module::function_type(u32 type_index) const
     });
 }
 
-Store::Store()
-    : m_store(FFI::wasm_store_create())
+size_t Module::custom_section_count() const
 {
+    return FFI::wasm_module_custom_section_count(m_module);
+}
+
+CustomSection Module::custom_section(size_t index) const
+{
+    FFI::WasmStringView name {};
+    FFI::WasmStringView contents {};
+    FFI::wasm_module_custom_section(m_module, index, &name, &contents);
+    return { from_ffi(name), ReadonlyBytes { contents.data, contents.length } };
+}
+
+template<typename To, typename From>
+static To function_cast(From function)
+{
+    return reinterpret_cast<To>(function);
+}
+
+static FFI::GcInterface gc_interface(GC::Heap& heap)
+{
+    using Interface = FFI::GcInterface;
+    return {
+        .heap = &heap,
+        .gc_get_layout = function_cast<decltype(Interface::gc_get_layout)>(gc_get_layout),
+        .gc_allocator_create = function_cast<decltype(Interface::gc_allocator_create)>(gc_allocator_create),
+        .gc_heap_allocate_cell = function_cast<decltype(Interface::gc_heap_allocate_cell)>(gc_heap_allocate_cell),
+        .gc_heap_defer_gc = function_cast<decltype(Interface::gc_heap_defer_gc)>(gc_heap_defer_gc),
+        .gc_heap_undefer_gc = function_cast<decltype(Interface::gc_heap_undefer_gc)>(gc_heap_undefer_gc),
+        .gc_heap_collect_garbage = function_cast<decltype(Interface::gc_heap_collect_garbage)>(gc_heap_collect_garbage),
+        .gc_heap_did_allocate_external_memory = function_cast<decltype(Interface::gc_heap_did_allocate_external_memory)>(gc_heap_did_allocate_external_memory),
+        .gc_root_create = function_cast<decltype(Interface::gc_root_create)>(gc_root_create),
+        .gc_root_destroy = function_cast<decltype(Interface::gc_root_destroy)>(gc_root_destroy),
+        .gc_visitor_visit_cell = function_cast<decltype(Interface::gc_visitor_visit_cell)>(gc_visitor_visit_cell),
+        .gc_visitor_visit_possible_values = function_cast<decltype(Interface::gc_visitor_visit_possible_values)>(gc_visitor_visit_possible_values),
+        .gc_primitive_storage_reserve = function_cast<decltype(Interface::gc_primitive_storage_reserve)>(gc_primitive_storage_reserve),
+        .gc_primitive_storage_resize = function_cast<decltype(Interface::gc_primitive_storage_resize)>(gc_primitive_storage_resize),
+        .gc_primitive_storage_free = gc_primitive_storage_free,
+        .gc_primitive_storage_data = gc_primitive_storage_data,
+    };
+}
+
+Store::Store(GC::Heap& heap)
+{
+    auto interface = gc_interface(heap);
+    m_store = FFI::wasm_store_create(&interface);
 }
 
 Store::~Store()
@@ -121,27 +165,39 @@ Store::~Store()
     FFI::wasm_store_destroy(m_store);
 }
 
+static void* to_ffi(Entity entity) { return entity; }
+static Entity entity_from_ffi(void* cell) { return static_cast<GC::ForeignCell*>(cell); }
+
 namespace {
 
 struct HostFunctionData {
     Store& store;
     Store::HostFunction function;
-    size_t result_count { 0 };
 };
 
 }
 
-static bool call_host_function(void* user_data, FFI::WasmStore*, FFI::WasmValue const* arguments, size_t argument_count, FFI::WasmValue* results, size_t result_count, FFI::WasmString* error)
+static FFI::WasmStatus call_host_function(void* user_data, FFI::WasmStore*, FFI::WasmValue const* arguments, size_t argument_count, FFI::WasmValue* results, size_t result_count, FFI::WasmString* error, u64* exception)
 {
     auto& data = *static_cast<HostFunctionData*>(user_data);
     ReadonlySpan<Value> argument_span { reinterpret_cast<Value const*>(arguments), argument_count };
     Span<Value> result_span { reinterpret_cast<Value*>(results), result_count };
     auto result = data.function(data.store, argument_span, result_span);
-    if (result.is_error()) {
-        *error = make_string(result.error());
-        return false;
+    if (!result.is_error())
+        return FFI::WasmStatus::Ok;
+    if (auto thrown = result.error().thrown_exception; thrown.has_value()) {
+        *exception = *thrown;
+        return FFI::WasmStatus::Exception;
     }
-    return true;
+    *error = make_string(result.error().message);
+    return FFI::WasmStatus::Trap;
+}
+
+static void visit_host_function(void* user_data, void* visitor)
+{
+    // NB: LibGC's C interface passes its Cell::Visitor as the visitor.
+    auto& data = *static_cast<HostFunctionData*>(user_data);
+    static_cast<GC::Cell::Visitor*>(visitor)->visit_possible_values(data.function.raw_capture_range());
 }
 
 static void release_host_function(void* user_data)
@@ -149,7 +205,7 @@ static void release_host_function(void* user_data)
     delete static_cast<HostFunctionData*>(user_data);
 }
 
-u32 Store::allocate_host_function(FunctionType const& type, HostFunction function)
+Entity Store::allocate_host_function(FunctionType const& type, HostFunction function)
 {
     Vector<FFI::WasmValueType> parameters;
     Vector<FFI::WasmValueType> results;
@@ -157,173 +213,305 @@ u32 Store::allocate_host_function(FunctionType const& type, HostFunction functio
         parameters.append(to_ffi(parameter));
     for (auto result : type.results)
         results.append(to_ffi(result));
-    auto* data = new HostFunctionData { *this, move(function), type.results.size() };
-    return FFI::wasm_store_allocate_host_function(m_store, parameters.data(), parameters.size(), results.data(), results.size(), call_host_function, data, release_host_function);
+    auto* data = new HostFunctionData { *this, move(function) };
+    return entity_from_ffi(FFI::wasm_store_allocate_host_function(m_store, parameters.data(), parameters.size(), results.data(), results.size(), call_host_function, visit_host_function, release_host_function, data));
 }
 
-Optional<u32> Store::allocate_memory(Limits limits)
+Optional<Entity> Store::allocate_memory(Limits limits)
 {
-    u32 address = 0;
-    if (!FFI::wasm_store_allocate_memory(m_store, to_ffi(limits), &address))
+    void* memory = nullptr;
+    if (!FFI::wasm_store_allocate_memory(m_store, to_ffi(limits), &memory))
         return {};
-    return address;
+    return entity_from_ffi(memory);
 }
 
-u32 Store::allocate_table(ValueType element, Limits limits, u64 initial)
+Optional<Entity> Store::allocate_table(ValueType element, Limits limits, u64 initial)
 {
-    return FFI::wasm_store_allocate_table(m_store, to_ffi(element), to_ffi(limits), initial);
+    void* table = nullptr;
+    if (!FFI::wasm_store_allocate_table(m_store, to_ffi(element), to_ffi(limits), initial, &table))
+        return {};
+    return entity_from_ffi(table);
 }
 
-u32 Store::allocate_global(ValueType type, bool is_mutable, Value value)
+Entity Store::allocate_global(ValueType type, bool is_mutable, Value value)
 {
-    return FFI::wasm_store_allocate_global(m_store, to_ffi(type), is_mutable, to_ffi(value));
+    return entity_from_ffi(FFI::wasm_store_allocate_global(m_store, to_ffi(type), is_mutable, to_ffi(value)));
 }
 
-ErrorOr<u32, Failure> Store::instantiate(Module const& module, ReadonlySpan<Extern> imports)
+static Failure failure_of(FFI::WasmStatus status, FFI::WasmString error, u64 exception)
 {
-    u32 instance = 0;
-    FFI::WasmString error {};
-    auto status = FFI::wasm_store_instantiate(m_store, module.handle(), reinterpret_cast<FFI::WasmExtern const*>(imports.data()), imports.size(), &instance, &error);
     switch (status) {
-    case FFI::WasmStatus::Ok:
-        return instance;
     case FFI::WasmStatus::LinkError:
-        return Failure { FailureKind::LinkError, take_string(error) };
+        return { FailureKind::LinkError, take_string(error) };
     case FFI::WasmStatus::Trap:
-        return Failure { FailureKind::Trap, take_string(error) };
+        return { FailureKind::Trap, take_string(error) };
+    case FFI::WasmStatus::Exception:
+        return { FailureKind::Exception, take_string(error), exception };
+    case FFI::WasmStatus::StackExhausted:
+        return { FailureKind::StackExhausted, take_string(error) };
+    case FFI::WasmStatus::Ok:
+        break;
     }
     VERIFY_NOT_REACHED();
 }
 
-Vector<InstanceExport> Store::instance_exports(u32 instance)
+ErrorOr<Entity, Failure> Store::instantiate(Module const& module, ReadonlySpan<Extern> imports)
 {
-    auto count = FFI::wasm_store_instance_export_count(m_store, instance);
+    static_assert(sizeof(Extern) == sizeof(FFI::WasmExtern));
+    void* instance = nullptr;
+    FFI::WasmString error {};
+    u64 exception = 0;
+    auto status = FFI::wasm_store_instantiate(m_store, module.handle(), reinterpret_cast<FFI::WasmExtern const*>(imports.data()), imports.size(), &instance, &error, &exception);
+    if (status == FFI::WasmStatus::Ok)
+        return entity_from_ffi(instance);
+    return failure_of(status, error, exception);
+}
+
+Vector<InstanceExport> Store::instance_exports(Entity instance)
+{
+    auto count = FFI::wasm_store_instance_export_count(m_store, to_ffi(instance));
     Vector<InstanceExport> exports;
     exports.ensure_capacity(count);
     for (size_t index = 0; index < count; ++index) {
         FFI::WasmStringView name {};
         FFI::WasmExtern value {};
-        if (!FFI::wasm_store_instance_export(m_store, instance, index, &name, &value))
+        if (!FFI::wasm_store_instance_export(m_store, to_ffi(instance), index, &name, &value))
             continue;
         exports.unchecked_append({ from_ffi(name), bit_cast<Extern>(value) });
     }
     return exports;
 }
 
-Optional<Extern> Store::find_export(u32 instance, StringView name)
+Optional<Extern> Store::find_export(Entity instance, StringView name)
 {
     FFI::WasmExtern value {};
-    if (!FFI::wasm_store_instance_find_export(m_store, instance, reinterpret_cast<u8 const*>(name.characters_without_null_termination()), name.length(), &value))
+    if (!FFI::wasm_store_instance_find_export(m_store, to_ffi(instance), reinterpret_cast<u8 const*>(name.characters_without_null_termination()), name.length(), &value))
         return {};
     return bit_cast<Extern>(value);
 }
 
-FunctionType Store::function_type(u32 function)
+FunctionType Store::function_type(Entity function)
 {
     size_t parameter_count = 0;
     size_t result_count = 0;
-    FFI::wasm_store_function_type(m_store, function, &parameter_count, &result_count);
+    FFI::wasm_store_function_type(m_store, to_ffi(function), &parameter_count, &result_count);
     return make_function_type(parameter_count, result_count, [&](auto* parameters, auto* results) {
-        FFI::wasm_store_function_type_values(m_store, function, parameters, results);
+        FFI::wasm_store_function_type_values(m_store, to_ffi(function), parameters, results);
     });
 }
 
-ErrorOr<Vector<Value>, ByteString> Store::invoke(u32 function, ReadonlySpan<Value> arguments)
+ErrorOr<Values, Failure> Store::invoke(Entity function, ReadonlySpan<Value> arguments)
 {
     size_t parameter_count = 0;
     size_t result_count = 0;
-    FFI::wasm_store_function_type(m_store, function, &parameter_count, &result_count);
-    Vector<Value> results;
+    FFI::wasm_store_function_type(m_store, to_ffi(function), &parameter_count, &result_count);
+    Values results;
     results.resize(result_count);
     FFI::WasmString error {};
-    auto status = FFI::wasm_store_invoke(m_store, function, reinterpret_cast<FFI::WasmValue const*>(arguments.data()), arguments.size(), reinterpret_cast<FFI::WasmValue*>(results.data()), results.size(), &error);
+    u64 exception = 0;
+    auto status = FFI::wasm_store_invoke(m_store, to_ffi(function), reinterpret_cast<FFI::WasmValue const*>(arguments.data()), arguments.size(), reinterpret_cast<FFI::WasmValue*>(results.data()), results.size(), &error, &exception);
     if (status != FFI::WasmStatus::Ok)
-        return take_string(error);
+        return failure_of(status, error, exception);
     return results;
 }
 
-u64 Store::function_reference(u32 function)
+u64 Store::function_reference(Entity function)
 {
-    return FFI::wasm_store_function_reference(m_store, function);
+    return FFI::wasm_store_function_reference(m_store, to_ffi(function));
 }
 
-Optional<u32> Store::function_from_reference(u64 reference)
+Entity Store::function_from_reference(u64 reference)
 {
-    u32 function = 0;
-    if (!FFI::wasm_store_function_from_reference(m_store, reference, &function))
+    void* function = nullptr;
+    VERIFY(FFI::wasm_store_function_from_reference(m_store, reference, &function));
+    return entity_from_ffi(function);
+}
+
+Optional<u32> Store::function_index(Entity function)
+{
+    u32 index = 0;
+    if (!FFI::wasm_store_function_index(m_store, to_ffi(function), &index))
         return {};
-    return function;
+    return index;
 }
 
-Bytes Store::memory(u32 memory)
+Entity Store::allocate_tag(ReadonlySpan<ValueType> parameters)
+{
+    Vector<FFI::WasmValueType> types;
+    for (auto parameter : parameters)
+        types.append(to_ffi(parameter));
+    return entity_from_ffi(FFI::wasm_store_allocate_tag(m_store, types.data(), types.size()));
+}
+
+Vector<ValueType> Store::tag_parameters(Entity tag)
+{
+    Vector<FFI::WasmValueType> types;
+    types.resize(FFI::wasm_store_tag_parameter_count(m_store, to_ffi(tag)));
+    FFI::wasm_store_tag_parameters(m_store, to_ffi(tag), types.data());
+    Vector<ValueType> parameters;
+    parameters.ensure_capacity(types.size());
+    for (auto type : types)
+        parameters.unchecked_append(from_ffi(type));
+    return parameters;
+}
+
+u64 Store::allocate_exception(Entity tag, ReadonlySpan<Value> values)
+{
+    return FFI::wasm_store_allocate_exception(m_store, to_ffi(tag), reinterpret_cast<FFI::WasmValue const*>(values.data()), values.size());
+}
+
+Entity Store::exception_tag(u64 exception)
+{
+    return entity_from_ffi(FFI::wasm_store_exception_tag(m_store, exception));
+}
+
+Values Store::exception_values(u64 exception)
+{
+    Values values;
+    values.resize(FFI::wasm_store_tag_parameter_count(m_store, to_ffi(exception_tag(exception))));
+    FFI::wasm_store_exception_values(m_store, exception, reinterpret_cast<FFI::WasmValue*>(values.data()));
+    return values;
+}
+
+Bytes Store::memory(Entity memory)
 {
     size_t size = 0;
-    auto* data = FFI::wasm_store_memory_data(m_store, memory, &size);
+    auto* data = FFI::wasm_store_memory_data(m_store, to_ffi(memory), &size);
     return { data, size };
 }
 
-i64 Store::grow_memory(u32 memory, u64 delta)
+i64 Store::grow_memory(Entity memory, u64 delta)
 {
-    return FFI::wasm_store_memory_grow(m_store, memory, delta);
+    return FFI::wasm_store_memory_grow(m_store, to_ffi(memory), delta);
 }
 
-Limits Store::memory_limits(u32 memory)
+Limits Store::memory_limits(Entity memory)
 {
-    return from_ffi(FFI::wasm_store_memory_limits(m_store, memory));
+    return from_ffi(FFI::wasm_store_memory_limits(m_store, to_ffi(memory)));
 }
 
-u64 Store::table_size(u32 table)
+GC::PrimitiveStorageHandle Store::memory_primitive_storage_handle(Entity memory)
 {
-    return FFI::wasm_store_table_size(m_store, table);
+    auto handle = FFI::wasm_store_memory_primitive_storage_handle(m_store, to_ffi(memory));
+    return { .index = static_cast<u32>(handle), .generation = static_cast<u32>(handle >> GC_PRIMITIVE_STORAGE_HANDLE_GENERATION_SHIFT) };
 }
 
-ValueType Store::table_element_type(u32 table)
+void Store::set_memory_grow_callback(Function<void(Entity)> callback)
+{
+    m_memory_grow_callback = move(callback);
+    if (!m_memory_grow_callback) {
+        FFI::wasm_store_clear_memory_grow_callback(m_store);
+        return;
+    }
+    FFI::wasm_store_set_memory_grow_callback(
+        m_store, [](void* user_data, void* memory) {
+            static_cast<Store*>(user_data)->m_memory_grow_callback(entity_from_ffi(memory));
+        },
+        this);
+}
+
+u64 Store::table_size(Entity table)
+{
+    return FFI::wasm_store_table_size(m_store, to_ffi(table));
+}
+
+ValueType Store::table_element_type(Entity table)
 {
     FFI::WasmValueType element {};
     FFI::WasmLimits limits {};
-    FFI::wasm_store_table_type(m_store, table, &element, &limits);
+    FFI::wasm_store_table_type(m_store, to_ffi(table), &element, &limits);
     return from_ffi(element);
 }
 
-Limits Store::table_limits(u32 table)
+Limits Store::table_limits(Entity table)
 {
     FFI::WasmValueType element {};
     FFI::WasmLimits limits {};
-    FFI::wasm_store_table_type(m_store, table, &element, &limits);
+    FFI::wasm_store_table_type(m_store, to_ffi(table), &element, &limits);
     return from_ffi(limits);
 }
 
-Optional<u64> Store::table_get(u32 table, u64 index)
+Optional<u64> Store::table_get(Entity table, u64 index)
 {
     u64 value = 0;
-    if (!FFI::wasm_store_table_get(m_store, table, index, &value))
+    if (!FFI::wasm_store_table_get(m_store, to_ffi(table), index, &value))
         return {};
     return value;
 }
 
-bool Store::table_set(u32 table, u64 index, u64 value)
+bool Store::table_set(Entity table, u64 index, u64 value)
 {
-    return FFI::wasm_store_table_set(m_store, table, index, value);
+    return FFI::wasm_store_table_set(m_store, to_ffi(table), index, value);
 }
 
-i64 Store::grow_table(u32 table, u64 delta, u64 initial)
+i64 Store::grow_table(Entity table, u64 delta, u64 initial)
 {
-    return FFI::wasm_store_table_grow(m_store, table, delta, initial);
+    return FFI::wasm_store_table_grow(m_store, to_ffi(table), delta, initial);
 }
 
-ValueType Store::global_type(u32 global, bool& is_mutable)
+ValueType Store::global_type(Entity global, bool& is_mutable)
 {
-    return from_ffi(FFI::wasm_store_global_type(m_store, global, &is_mutable));
+    return from_ffi(FFI::wasm_store_global_type(m_store, to_ffi(global), &is_mutable));
 }
 
-Value Store::global_get(u32 global)
+Value Store::global_get(Entity global)
 {
-    return from_ffi(FFI::wasm_store_global_get(m_store, global));
+    return from_ffi(FFI::wasm_store_global_get(m_store, to_ffi(global)));
 }
 
-void Store::global_set(u32 global, Value value)
+void Store::global_set(Entity global, Value value)
 {
-    FFI::wasm_store_global_set(m_store, global, to_ffi(value));
+    FFI::wasm_store_global_set(m_store, to_ffi(global), to_ffi(value));
+}
+
+static Vector<FFI::WasmStringView> string_views(ReadonlySpan<ByteString> strings)
+{
+    Vector<FFI::WasmStringView> views;
+    views.ensure_capacity(strings.size());
+    for (auto const& string : strings)
+        views.unchecked_append({ reinterpret_cast<u8 const*>(string.characters()), string.length() });
+    return views;
+}
+
+Wasi::Wasi(ReadonlySpan<ByteString> arguments, ReadonlySpan<ByteString> environment, ReadonlySpan<Preopen> preopens)
+{
+    Vector<ByteString> host_paths;
+    Vector<ByteString> guest_paths;
+    for (auto const& preopen : preopens) {
+        host_paths.append(preopen.host_path);
+        guest_paths.append(preopen.guest_path);
+    }
+    auto argument_views = string_views(arguments);
+    auto environment_views = string_views(environment);
+    auto host_views = string_views(host_paths);
+    auto guest_views = string_views(guest_paths);
+    m_wasi = FFI::wasm_wasi_create(argument_views.data(), argument_views.size(), environment_views.data(), environment_views.size(), host_views.data(), guest_views.data(), preopens.size());
+}
+
+Wasi::~Wasi()
+{
+    FFI::wasm_wasi_destroy(m_wasi);
+}
+
+Optional<Entity> Wasi::allocate_function(Store& store, StringView name)
+{
+    void* function = nullptr;
+    if (!FFI::wasm_wasi_allocate_function(store.handle(), m_wasi, reinterpret_cast<u8 const*>(name.characters_without_null_termination()), name.length(), &function))
+        return {};
+    return entity_from_ffi(function);
+}
+
+void Wasi::set_memory(Entity memory)
+{
+    FFI::wasm_wasi_set_memory(m_wasi, to_ffi(memory));
+}
+
+Optional<i32> Wasi::exit_code() const
+{
+    i32 code = 0;
+    if (!FFI::wasm_wasi_exit_code(m_wasi, &code))
+        return {};
+    return code;
 }
 
 }

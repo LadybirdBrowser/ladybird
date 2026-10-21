@@ -9,17 +9,19 @@
 
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <LibGC/Root.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/HostFunction.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/URL.h>
-#include <LibWasm/AbstractMachine/AbstractMachine.h>
+#include <LibWasm/Runtime/Runtime.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -38,84 +40,97 @@ WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::
 
 namespace Detail {
 
-Wasm::HostFunction create_host_function(JS::Realm&, JS::FunctionObject& function, Wasm::FunctionType const& type, size_t function_index);
-
 struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> {
-    explicit CompiledWebAssemblyModule(NonnullRefPtr<Wasm::Module> module)
+    explicit CompiledWebAssemblyModule(NonnullRefPtr<Wasm::Runtime::Module> module)
         : module(move(module))
     {
     }
 
-    NonnullRefPtr<Wasm::Module> module;
+    NonnullRefPtr<Wasm::Runtime::Module> module;
 };
 
-class WebAssemblyCache : public RefCounted<WebAssemblyCache> {
+// The surrounding agent's associated store, and the agent's Exported Function, Global, Memory, and Table object caches.
+// The store holds no wasm entity: each lives while the objects that stand for it, or other entities, refer to it. The
+// caches only map entities to their objects for as long as both live.
+class WebAssemblyCache {
+    AK_MAKE_NONCOPYABLE(WebAssemblyCache);
+    AK_MAKE_NONMOVABLE(WebAssemblyCache);
+
 public:
-    WebAssemblyCache();
-    ~WebAssemblyCache();
+    using Entity = Wasm::Runtime::Entity;
 
-    void visit_edges(JS::Cell::Visitor&);
+    // The cache of the current thread's agent.
+    static WebAssemblyCache& the();
 
-    void add_compiled_module(NonnullRefPtr<CompiledWebAssemblyModule> module) { m_compiled_modules.append(module); }
-    void add_function_instance(Wasm::FunctionAddress address, GC::Ptr<JS::NativeFunction> function) { m_function_instances.set(address, function); }
-    void add_imported_object(GC::Ptr<JS::Object> object) { m_imported_objects.set(object); }
-    void add_extern_value(Wasm::ExternAddress address, JS::Value value)
-    {
-        if (auto entry = m_extern_values.get(address); entry.has_value())
-            m_inverse_extern_values.remove(entry.value());
-        m_extern_values.set(address, value);
-        m_inverse_extern_values.set(value, address);
-    }
-    void add_global_instance(Wasm::GlobalAddress address, GC::Ptr<WebAssembly::Global> global) { m_global_instances.set(address, global); }
-    void add_memory_instance(Wasm::MemoryAddress address, GC::Ptr<WebAssembly::Memory> memory) { m_memory_instances.set(address, memory); }
-    void remove_memory_instance(Wasm::MemoryAddress address) { m_memory_instances.remove(address); }
-    void add_table_instance(Wasm::TableAddress address, GC::Ptr<WebAssembly::Table> table) { m_table_instances.set(address, table); }
+    Wasm::Runtime::Store& store() { return *m_store; }
 
-    Optional<GC::Ptr<JS::NativeFunction>> get_function_instance(Wasm::FunctionAddress address) { return m_function_instances.get(address); }
-    Optional<JS::Value> get_extern_value(Wasm::ExternAddress address) { return m_extern_values.get(address); }
-    Optional<GC::Ptr<WebAssembly::Global>> get_global_instance(Wasm::GlobalAddress address) { return m_global_instances.get(address); }
-    Optional<GC::Ptr<WebAssembly::Memory>> get_memory_instance(Wasm::MemoryAddress address) { return m_memory_instances.get(address); }
-    Optional<GC::Ptr<WebAssembly::Table>> get_table_instance(Wasm::TableAddress address) { return m_table_instances.get(address); }
+    // The tag of the exceptions that carry JavaScript values through WebAssembly code, as their only (externref)
+    // value.
+    Entity js_tag() const { return m_js_tag; }
 
-    HashMap<Wasm::FunctionAddress, GC::Ptr<JS::NativeFunction>> const& function_instances() const { return m_function_instances; }
-    HashMap<Wasm::ExternAddress, JS::Value> const& extern_values() const { return m_extern_values; }
-    HashMap<JS::Value, Wasm::ExternAddress> const& inverse_extern_values() const { return m_inverse_extern_values; }
-    HashMap<Wasm::GlobalAddress, GC::Ptr<WebAssembly::Global>> const& global_instances() const { return m_global_instances; }
-    HashMap<Wasm::MemoryAddress, GC::Ptr<WebAssembly::Memory>> const& memory_instances() const { return m_memory_instances; }
-    HashMap<Wasm::TableAddress, GC::Ptr<WebAssembly::Table>> const& table_instances() const { return m_table_instances; }
-    HashTable<GC::Ptr<JS::Object>> const& imported_objects() const { return m_imported_objects; }
-    Wasm::AbstractMachine& abstract_machine() { return m_abstract_machine; }
+    GC::Ptr<JS::NativeFunction> function_object(Entity function) const;
+    void set_function_object(Entity function, JS::NativeFunction&);
+    GC::Ptr<WebAssembly::Global> global_object(Entity global) const;
+    void set_global_object(Entity global, WebAssembly::Global&);
+    GC::Ptr<WebAssembly::Memory> memory_object(Entity memory) const;
+    void set_memory_object(Entity memory, WebAssembly::Memory&);
+    GC::Ptr<WebAssembly::Table> table_object(Entity table) const;
+    void set_table_object(Entity table, WebAssembly::Table&);
+    void for_each_memory_object(Function<void(WebAssembly::Memory&)> const&) const;
+
+    // The index of a host function: how many functions were imported before it.
+    void set_host_function_index(Entity function, size_t index) { m_host_function_indices.set(function, index); }
+    Optional<size_t> host_function_index(Entity function) const { return m_host_function_indices.get(function); }
 
 private:
-    HashMap<Wasm::FunctionAddress, GC::Ptr<JS::NativeFunction>> m_function_instances;
-    HashMap<Wasm::ExternAddress, JS::Value> m_extern_values;
-    HashMap<JS::Value, Wasm::ExternAddress> m_inverse_extern_values;
-    HashMap<Wasm::GlobalAddress, GC::Ptr<WebAssembly::Global>> m_global_instances;
-    HashMap<Wasm::MemoryAddress, GC::Ptr<WebAssembly::Memory>> m_memory_instances;
-    HashMap<Wasm::TableAddress, GC::Ptr<WebAssembly::Table>> m_table_instances;
-    Vector<NonnullRefPtr<CompiledWebAssemblyModule>> m_compiled_modules;
-    HashTable<GC::Ptr<JS::Object>> m_imported_objects;
-    Wasm::AbstractMachine m_abstract_machine;
+    explicit WebAssemblyCache(GC::Heap&);
+    ~WebAssemblyCache();
+
+    // Objects by entity. An entry whose object is gone is stale: its entity may be gone too, and its address reused.
+    template<typename T>
+    class ObjectCache {
+    public:
+        GC::Ptr<T> get(Entity) const;
+        void set(Entity, T&);
+        void for_each(Function<void(T&)> const&) const;
+
+    private:
+        HashMap<Entity, GC::Weak<T>> m_objects;
+        size_t m_live_after_pruning { 0 };
+    };
+
+    NonnullOwnPtr<Wasm::Runtime::Store> m_store;
+    Entity m_js_tag { nullptr };
+    GC::Root<GC::ForeignCell> m_js_tag_root;
+    ObjectCache<JS::NativeFunction> m_function_objects;
+    ObjectCache<WebAssembly::Global> m_global_objects;
+    ObjectCache<WebAssembly::Memory> m_memory_objects;
+    ObjectCache<WebAssembly::Table> m_table_objects;
+    // NB: An entry outlives its function, but every host function sets its own, so a live one's entry is right.
+    HashMap<Entity, size_t> m_host_function_indices;
 };
 
 // https://webassembly.github.io/spec/js-api/#exported-function
-GC::Ref<JS::HostFunction> create_exported_function(JS::Realm&, Utf16FlyString name, size_t length, ESCAPING Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress);
+GC::Ref<JS::HostFunction> create_exported_function(JS::Realm&, Utf16FlyString name, size_t length, ESCAPING Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::Runtime::Entity function);
 
 // The value of the function's [[FunctionAddress]] internal slot, if it has one and is therefore an Exported Function.
-Optional<Wasm::FunctionAddress> exported_function_address(JS::FunctionObject const&);
+Optional<Wasm::Runtime::Entity> exported_function_address(JS::FunctionObject const&);
 
-NonnullRefPtr<WebAssemblyCache> get_cache(JS::Realm&);
-
-JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS::Realm&, Wasm::Module const&, GC::Ptr<JS::Object> import_object);
+JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM&, Wasm::Runtime::Module const&, GC::Ptr<JS::Object> import_object);
+JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_core_module(JS::VM&, Wasm::Runtime::Module const&, ReadonlySpan<Wasm::Runtime::Extern> imports);
+Wasm::Runtime::Entity create_host_function(JS::VM&, JS::FunctionObject& function, Wasm::Runtime::FunctionType type, size_t function_index);
 JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::Realm&, ReadonlyBytes);
-Utf16FlyString name_of_webassembly_function(Wasm::Store&, Wasm::FunctionAddress);
-GC::Ptr<JS::NativeFunction> create_native_function(JS::Realm&, Wasm::FunctionAddress address, Utf16FlyString name, GC::Ptr<Instance> instance = nullptr);
-JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::Realm&, JS::Value value, Wasm::ValueType const& type);
-Wasm::Value default_webassembly_value(JS::Realm&, Wasm::ValueType type);
-JS::Value to_js_value(JS::Realm&, Wasm::Value& wasm_value, Wasm::ValueType type);
+Utf16FlyString name_of_webassembly_function(Wasm::Runtime::Entity function);
+GC::Ref<JS::NativeFunction> create_native_function(JS::Realm&, Wasm::Runtime::Entity function);
+JS::ThrowCompletionOr<Wasm::Runtime::Value> to_webassembly_value(JS::VM&, JS::Value value, Wasm::Runtime::ValueType type);
+Wasm::Runtime::Value default_webassembly_value(JS::VM&, Wasm::Runtime::ValueType type);
+JS::ThrowCompletionOr<JS::Value> to_js_value(JS::VM&, Wasm::Runtime::Value wasm_value, Wasm::Runtime::ValueType type);
+JS::Completion completion_of_failure(JS::VM&, Wasm::Runtime::Failure const&);
 JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::Realm&);
 JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM&, JS::ArrayBuffer&, size_t);
 JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM&, JS::ArrayBuffer&, size_t);
+
+inline constexpr size_t page_size = 65536;
 
 }
 

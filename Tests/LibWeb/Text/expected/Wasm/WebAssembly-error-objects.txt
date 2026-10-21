@@ -269,25 +269,25 @@ new.target from this realm without a prototype: uses RuntimeError.prototype: tru
 other realm's constructor is distinct: true
 other realm's error: prototype is that realm's prototype: true, instanceof this realm's RuntimeError: false, Object.prototype.toString: [object Error]
 == Errors thrown by the engine
-invalid module: CompileError: Unexpected end-of-file
+invalid module: CompileError: malformed module: unexpected end of section or function
   own keys: message
   prototype is CompileError.prototype: true
   instanceof CompileError: true, instanceof Error: true
   constructor: true
   Object.prototype.toString: [object Error]
   Error.isError: true
-  name: CompileError, message: "Unexpected end-of-file"
-  stack head: CompileError: Unexpected end-of-file
+  name: CompileError, message: "malformed module: unexpected end of section or function"
+  stack head: CompileError: malformed module: unexpected end of section or function
   stack frames: Module > <script> > thrownBy > <script> > <script>
-rejected compile: CompileError: Unexpected end-of-file
+rejected compile: CompileError: malformed module: unexpected end of section or function
   own keys: message
   prototype is CompileError.prototype: true
   instanceof CompileError: true, instanceof Error: true
   constructor: true
   Object.prototype.toString: [object Error]
   Error.isError: true
-  name: CompileError, message: "Unexpected end-of-file"
-  stack head: CompileError: Unexpected end-of-file
+  name: CompileError, message: "malformed module: unexpected end of section or function"
+  stack head: CompileError: malformed module: unexpected end of section or function
   stack frames: 
 missing import: LinkError: 42 is not a function (evaluated from '[wasm import object]["f"]')
   own keys: message
@@ -309,15 +309,15 @@ rejected instantiate: LinkError: undefined is not a function (evaluated from '[w
   name: LinkError, message: "undefined is not a function (evaluated from '[wasm import object][\"f\"]')"
   stack head: LinkError: undefined is not a function (evaluated from '[wasm import object]["f"]')
   stack frames: 
-trapping start function: RuntimeError: Start function trapped
+trapping start function: RuntimeError: Wasm execution trapped (WIP): unreachable
   own keys: message
   prototype is RuntimeError.prototype: true
   instanceof RuntimeError: true, instanceof Error: true
   constructor: true
   Object.prototype.toString: [object Error]
   Error.isError: true
-  name: RuntimeError, message: "Start function trapped"
-  stack head: RuntimeError: Start function trapped
+  name: RuntimeError, message: "Wasm execution trapped (WIP): unreachable"
+  stack head: RuntimeError: Wasm execution trapped (WIP): unreachable
   stack frames: Instance > <script> > thrownBy > <script> > <script> > <unknown> > <unknown>
 trap: RuntimeError
   own keys: message

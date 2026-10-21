@@ -645,7 +645,11 @@ impl FunctionValidator<'_> {
         let opcode = self.module.bytes[self.instruction_start as usize];
         let is_core_access = (crate::opcode::I32_LOAD..=crate::opcode::I64_STORE32).contains(&opcode);
         self.checked_access = None;
-        if memory != 0 || address_type == AddressType::I64 {
+        // The plain handlers only decode `align offset` with a one-byte alignment, for memory 0 as a memory32 (see
+        // rule 1 in quickening.rs). Every other encoding, even of the same access, becomes a checked access.
+        let is_plain =
+            memory_bytes.is_none() && alignment_end - alignment_start == 1 && address_type == AddressType::I32;
+        if !is_plain {
             if is_core_access {
                 self.rewrites.push(crate::quickening::checked_access(
                     &self.module.bytes,
@@ -1081,13 +1085,23 @@ impl FunctionValidator<'_> {
                 let address_type = self.memory_address_type(reader.read_u32()?)?;
                 self.unary(address_type.value_type(), address_type.value_type())?;
             }
-            opcode::I32_CONST => {
-                reader.read_i32()?;
-                self.push_value(I32);
-            }
-            opcode::I64_CONST => {
-                reader.read_i64()?;
-                self.push_value(I64);
+            opcode::I32_CONST | opcode::I64_CONST => {
+                let start = reader.position();
+                let is_i64 = opcode == opcode::I64_CONST;
+                let value = if is_i64 {
+                    reader.read_i64()?
+                } else {
+                    i64::from(reader.read_i32()?)
+                };
+                if let Some(rewrite) = crate::quickening::fixed_constant(
+                    self.instruction_start as usize,
+                    reader.position() - start,
+                    value,
+                    is_i64,
+                ) {
+                    self.rewrites.push(rewrite);
+                }
+                self.push_value(if is_i64 { I64 } else { I32 });
             }
             opcode::F32_CONST => {
                 reader.read_bytes(4)?;

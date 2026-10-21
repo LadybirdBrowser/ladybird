@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 350 tests
 
-349 Pass
-1 Fail
+350 Pass
 Pass	#1 Reinitialize the default imports
 Pass	#2 Test that WebAssembly compilation succeeds (call_indirect.wast:3)
 Pass	#3 Test that WebAssembly compilation succeeds (wrapper)
@@ -125,7 +124,7 @@ Pass	#118 Run a WebAssembly test without special assertions (call_indirect.wast:
 Pass	#119 Test that WebAssembly compilation succeeds (wrapper)
 Pass	#120 Test that WebAssembly instantiation succeeds (wrapper)
 Pass	#121 Run a WebAssembly test without special assertions (call_indirect.wast:490)
-Fail	#122 Test that a WebAssembly code returns a specific result (call_indirect.wast:491)
+Pass	#122 Test that a WebAssembly code returns a specific result (call_indirect.wast:491)
 Pass	#123 Test that a WebAssembly code returns a specific result (call_indirect.wast:493)
 Pass	#124 Test that a WebAssembly code returns a specific result (call_indirect.wast:494)
 Pass	#125 Test that a WebAssembly code returns a specific result (call_indirect.wast:495)

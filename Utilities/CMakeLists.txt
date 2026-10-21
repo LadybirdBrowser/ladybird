@@ -2,7 +2,7 @@ ladybird_utility(js SOURCES js.cpp LIBS LibJSStandalone LibMain)
 if (NOT WIN32 AND NOT ANDROID)
     target_link_libraries(js PRIVATE PkgConfig::LIBEDIT)
 endif()
-ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain LibJSStandalone LibCrypto LibGC)
+ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasmRuntime LibMain LibJSStandalone LibCrypto LibGC)
 
 ladybird_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 ladybird_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)

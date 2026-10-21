@@ -176,8 +176,11 @@ pub struct ExecutionContext {
 }
 
 /// What the interpreter knows about a type at runtime: how to check subtyping against it, and how objects of it are
-/// laid out. A GC object starts with the address of its type's Rtt; an array continues with its length, then its
-/// elements, and a struct with its fields.
+/// laid out. Rtts live in cells of their own, after the cell header (see heap.rs).
+///
+/// A GC object is a cell that starts with the address of its type's Rtt, followed by the cell header LibGC owns, the
+/// address of its data (OBJECT_DATA_OFFSET), and an array's length (OBJECT_LENGTH_OFFSET). The data is a struct's
+/// fields or an array's elements, inline at OBJECT_INLINE_DATA_OFFSET if they fit there and outside the heap otherwise.
 #[repr(C)]
 pub struct Rtt {
     pub kind: u32,
@@ -185,11 +188,11 @@ pub struct Rtt {
     pub depth: u32,
     /// The identities of this type's supertypes, from the root down, and of this type last: `depth + 1` of them.
     pub display: *const u32,
-    /// For structs, the byte offset of each field from the start of the object.
+    /// For structs, the byte offset of each field from the start of the data.
     pub field_offsets: *const u32,
     /// The STORAGE_* kind of each field of a struct, or of the elements of an array.
     pub field_kinds: *const u8,
-    /// For structs, the size of an object; for arrays, the size of an element.
+    /// For structs, the size of the data; for arrays, the size of an element.
     pub size: u32,
     pub field_count: u32,
 }
@@ -199,17 +202,21 @@ pub const RTT_KIND_STRUCT: u32 = 1;
 pub const RTT_KIND_ARRAY: u32 = 2;
 
 /// How a struct field or array element is stored: one 8-byte word, with packed and 32-bit values zero-extended
-/// in it, or 16 bytes for a v128.
+/// in it, or 16 bytes for a v128. References the collector follows (those of the any, extern, and exn hierarchies)
+/// have a kind of their own.
 pub const STORAGE_64: u8 = 0;
 pub const STORAGE_I8: u8 = 1;
 pub const STORAGE_I16: u8 = 2;
 pub const STORAGE_V128: u8 = 3;
 pub const STORAGE_32: u8 = 4;
+/// A reference in the any, extern, or exn hierarchy, which the collector follows.
+pub const STORAGE_REFERENCE: u8 = 5;
+/// A function reference, which the collector follows to its function. Stored like STORAGE_64.
+pub const STORAGE_FUNCTION_REFERENCE: u8 = 6;
 
-/// Where an array's elements start.
-pub const ARRAY_ELEMENTS_OFFSET: usize = 16;
-/// Where a struct's fields start.
-pub const STRUCT_FIELDS_OFFSET: usize = 8;
+pub const OBJECT_DATA_OFFSET: usize = 16;
+pub const OBJECT_LENGTH_OFFSET: usize = 24;
+pub const OBJECT_INLINE_DATA_OFFSET: usize = 32;
 
 /// What the runtime enters the interpreter with, and what it gets back.
 #[repr(C)]
@@ -312,8 +319,10 @@ pub fn layout_constants() -> String {
     constant("STORAGE_I16", STORAGE_I16 as usize);
     constant("STORAGE_V128", STORAGE_V128 as usize);
     constant("STORAGE_32", STORAGE_32 as usize);
-    constant("ARRAY_ELEMENTS_OFFSET", ARRAY_ELEMENTS_OFFSET);
-    constant("STRUCT_FIELDS_OFFSET", STRUCT_FIELDS_OFFSET);
+    constant("STORAGE_REFERENCE", STORAGE_REFERENCE as usize);
+    constant("STORAGE_FUNCTION_REFERENCE", STORAGE_FUNCTION_REFERENCE as usize);
+    constant("OBJECT_DATA_OFFSET", OBJECT_DATA_OFFSET);
+    constant("OBJECT_LENGTH_OFFSET", OBJECT_LENGTH_OFFSET);
     constant("CONTEXT_ARGUMENT_1", offset_of!(ExecutionContext, arguments) + 8);
     constant("CONTEXT_ARGUMENT_2", offset_of!(ExecutionContext, arguments) + 16);
     constant("CONTEXT_ARGUMENT_3", offset_of!(ExecutionContext, arguments) + 24);

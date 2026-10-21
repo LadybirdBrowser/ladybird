@@ -6,11 +6,12 @@
 
 //! Linear memories. A memory reserves the address range its accesses can form up front and only commits what it has
 //! grown to, so that its base never moves and accesses past its end fault into the guard region instead of needing a
-//! bounds check.
+//! bounds check. A store with a LibGC heap keeps its memories in LibGC's primitive storage, inside the cage that
+//! array buffers live in, so that buffers can view them; other stores map their own.
 
+use super::ranges::RangeSet;
 use crate::abi::MemoryData;
 use crate::types::{AddressType, MemoryType};
-use std::sync::Mutex;
 
 pub const PAGE_SIZE: u64 = 64 * 1024;
 const MEMORY32_MAX_PAGES: u64 = 1 << 16;
@@ -24,26 +25,31 @@ const MEMORY64_MAX_PAGES: u64 = 1 << 18;
 pub const GUARDED_RESERVATION_SIZE: u64 = 2 * (MEMORY32_MAX_PAGES * PAGE_SIZE) + PAGE_SIZE;
 
 /// The address ranges all memories reserve, for the fault handler to recognize accesses that ran off a memory.
-static RESERVATIONS: Mutex<Vec<(usize, usize)>> = Mutex::new(Vec::new());
+static RESERVATIONS: RangeSet = RangeSet::new();
 
+/// Whether `address` is in the reservation of a memory. Async-signal-safe, for the fault handler.
 pub fn is_in_any_reservation(address: usize) -> bool {
-    // The fault handler cannot block, so a contended lock means the fault is not ours to handle.
-    let Ok(reservations) = RESERVATIONS.try_lock() else {
-        return false;
-    };
-    reservations
-        .iter()
-        .any(|&(start, length)| address >= start && address - start < length)
+    RESERVATIONS.contains(address)
 }
 
+/// A memory. The interpreter sees its data, which is its first field and so at its handle.
+#[repr(C)]
 pub struct MemoryInstance {
-    /// What the interpreter reads. Boxed, so that its address stays put for the instances that refer to it.
-    pub data: Box<MemoryData>,
+    pub data: MemoryData,
     pub ty: MemoryType,
     reservation: *mut u8,
     reservation_size: usize,
     pages: u64,
     maximum_pages: u64,
+    backing: Backing,
+}
+
+enum Backing {
+    Mapping,
+    PrimitiveStorage {
+        handle: u64,
+        interface: super::heap::GcInterface,
+    },
 }
 
 // The reservation is only accessed through the memory that owns it.
@@ -111,42 +117,70 @@ mod platform {
 }
 
 impl MemoryInstance {
-    pub fn new(ty: MemoryType) -> Option<Self> {
-        let (maximum_pages, reservation_size) = match ty.limits.address_type {
-            AddressType::I32 => (
-                ty.limits.max.unwrap_or(MEMORY32_MAX_PAGES).min(MEMORY32_MAX_PAGES),
-                GUARDED_RESERVATION_SIZE as usize,
-            ),
+    pub fn new(ty: MemoryType, heap: &super::heap::Heap) -> Option<Self> {
+        let (maximum_pages, capacity, guard_size) = match ty.limits.address_type {
+            AddressType::I32 => {
+                let maximum_pages = ty.limits.max.unwrap_or(MEMORY32_MAX_PAGES).min(MEMORY32_MAX_PAGES);
+                let capacity = maximum_pages * PAGE_SIZE;
+                (maximum_pages, capacity, GUARDED_RESERVATION_SIZE - capacity)
+            }
             AddressType::I64 => {
                 let maximum_pages = ty.limits.max.unwrap_or(MEMORY64_MAX_PAGES).min(MEMORY64_MAX_PAGES);
                 // A memory that cannot grow still reserves a page, so that its base is a valid address.
-                (maximum_pages, (maximum_pages.max(1) * PAGE_SIZE) as usize)
+                (maximum_pages, maximum_pages.max(1) * PAGE_SIZE, 0)
             }
         };
         if ty.limits.min > maximum_pages {
             return None;
         }
-        let reservation = unsafe { platform::reserve(reservation_size) };
-        if reservation.is_null() {
-            return None;
-        }
-        RESERVATIONS
-            .lock()
-            .expect("the reservation list is never poisoned")
-            .push((reservation as usize, reservation_size));
+        let reservation_size = (capacity + guard_size) as usize;
+        let (reservation, backing) = match heap.gc() {
+            Some(gc) => {
+                let interface = gc.interface;
+                let mut handle = 0;
+                let mut layout = super::heap::PrimitiveStorageLayout::default();
+                let reserved = unsafe {
+                    (interface.gc_primitive_storage_reserve)(
+                        0,
+                        capacity as usize,
+                        true,
+                        guard_size as usize,
+                        &raw mut handle,
+                        &raw mut layout,
+                    )
+                };
+                if !reserved {
+                    return None;
+                }
+                let data = unsafe { (interface.gc_primitive_storage_data)(handle) };
+                (data, Backing::PrimitiveStorage { handle, interface })
+            }
+            None => {
+                let reservation = unsafe { platform::reserve(reservation_size) };
+                if reservation.is_null() {
+                    return None;
+                }
+                (reservation, Backing::Mapping)
+            }
+        };
         let mut memory = Self {
-            data: Box::new(MemoryData {
+            data: MemoryData {
                 base: reservation,
                 size: 0,
                 address64: u64::from(ty.limits.address_type == AddressType::I64),
                 shared: u64::from(ty.limits.shared),
-            }),
+            },
             ty,
             reservation,
             reservation_size,
             pages: 0,
             maximum_pages,
+            backing,
         };
+        // NB: Dropping the memory releases the reservation if anything fails from here on.
+        if !RESERVATIONS.add(reservation as usize, reservation_size) {
+            return None;
+        }
         memory.grow(ty.limits.min)?;
         Some(memory)
     }
@@ -157,6 +191,14 @@ impl MemoryInstance {
 
     pub fn size(&self) -> usize {
         (self.pages * PAGE_SIZE) as usize
+    }
+
+    /// The handle of the primitive storage the memory lives in, or zero if it is a plain mapping.
+    pub fn primitive_storage_handle(&self) -> u64 {
+        match &self.backing {
+            Backing::Mapping => 0,
+            Backing::PrimitiveStorage { handle, .. } => *handle,
+        }
     }
 
     pub fn maximum_pages(&self) -> u64 {
@@ -171,9 +213,23 @@ impl MemoryInstance {
             return None;
         }
         if delta != 0 {
-            let start = unsafe { self.reservation.add(self.size()) };
-            if !unsafe { platform::commit(start, (delta * PAGE_SIZE) as usize) } {
-                return None;
+            match &self.backing {
+                Backing::Mapping => {
+                    let start = unsafe { self.reservation.add(self.size()) };
+                    if !unsafe { platform::commit(start, (delta * PAGE_SIZE) as usize) } {
+                        return None;
+                    }
+                }
+                Backing::PrimitiveStorage { handle, interface } => {
+                    // Within the capacity, the storage stays where it is.
+                    let new_size = (new_pages * PAGE_SIZE) as usize;
+                    let resized = unsafe {
+                        (interface.gc_primitive_storage_resize)(*handle, new_size, true, core::ptr::null_mut())
+                    };
+                    if !resized {
+                        return None;
+                    }
+                }
             }
         }
         self.pages = new_pages;
@@ -192,11 +248,12 @@ impl MemoryInstance {
 
 impl Drop for MemoryInstance {
     fn drop(&mut self) {
-        let start = self.reservation as usize;
-        RESERVATIONS
-            .lock()
-            .expect("the reservation list is never poisoned")
-            .retain(|&(reservation, _)| reservation != start);
-        unsafe { platform::release(self.reservation, self.reservation_size) };
+        RESERVATIONS.remove(self.reservation as usize);
+        match &self.backing {
+            Backing::Mapping => unsafe { platform::release(self.reservation, self.reservation_size) },
+            Backing::PrimitiveStorage { handle, interface } => unsafe {
+                (interface.gc_primitive_storage_free)(*handle);
+            },
+        }
     }
 }

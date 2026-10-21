@@ -4,34 +4,95 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! GC objects: their runtime types, layout, and allocation (see `Rtt` in abi.rs for the layout).
+//! GC objects, exceptions, and runtime types, as cells of the heap (see heap.rs), and how the collector traces them.
 //!
 //! References in the any hierarchy are encoded so that their kind shows in their low bits: zero is null, an i31 has
 //! bit 0 set (its value is in the bits above), a host value converted from an externref has bits 1:0 equal to 0b10,
-//! and GC objects are 8-byte aligned addresses. Converting between externref and anyref keeps the bits.
+//! and GC objects and exceptions are the addresses of their cells. Converting between externref and anyref keeps the
+//! bits. An embedder's host values should be the addresses of its cells with bit 1 set, so that the collector keeps
+//! them alive; other host values are never followed.
 
-use super::{Store, Value};
-use crate::abi::{
-    ARRAY_ELEMENTS_OFFSET, RTT_KIND_ARRAY, RTT_KIND_FUNCTION, RTT_KIND_STRUCT, Rtt, STORAGE_32, STORAGE_64, STORAGE_I8,
-    STORAGE_I16, STORAGE_V128, STRUCT_FIELDS_OFFSET,
+use super::heap::{
+    CELL_HEADER_SIZE, CellFunctions, CellType, Heap, TRACE_FUNCTION, TRACE_NONE, TRACE_REFERENCE, Visitor,
+    object_size_class,
 };
-use crate::types::{CompositeType, StorageType, ValType};
+use super::{Store, TagAddress, Value};
+use crate::abi::{
+    OBJECT_DATA_OFFSET, OBJECT_INLINE_DATA_OFFSET, OBJECT_LENGTH_OFFSET, RTT_KIND_ARRAY, RTT_KIND_FUNCTION,
+    RTT_KIND_STRUCT, Rtt, STORAGE_32, STORAGE_64, STORAGE_FUNCTION_REFERENCE, STORAGE_I8, STORAGE_I16,
+    STORAGE_REFERENCE, STORAGE_V128,
+};
+use crate::types::{CompositeType, HeapType, StorageType, SubType, ValType};
+use core::ffi::c_void;
 
-/// An Rtt and the arrays it points at.
-pub struct RttStorage {
-    pub rtt: Rtt,
-    display: Box<[u32]>,
-    _field_offsets: Box<[u32]>,
-    _field_kinds: Box<[u8]>,
+pub const EXCEPTION_CELL_SIZE: usize = 48;
+const EXCEPTION_TAG_OFFSET: usize = 16;
+const EXCEPTION_PAYLOAD_OFFSET: usize = 24;
+const EXCEPTION_LENGTH_OFFSET: usize = 32;
+const EXCEPTION_KINDS_OFFSET: usize = 40;
+const STORE_ROOT_STORE_OFFSET: usize = 16;
+
+/// The largest data an object can have.
+const MAX_OBJECT_DATA_SIZE: u64 = 1 << 31;
+
+pub static CELL_FUNCTIONS: CellFunctions = CellFunctions {
+    object_visit_edges,
+    object_destroy,
+    object_external_memory_size,
+    rtt_visit_edges,
+    rtt_destroy,
+    exception_visit_edges,
+    exception_destroy,
+    store_root_visit_edges,
+    store_root_destroy,
+    entity_visit_edges: super::entity::entity_visit_edges,
+    entity_destroy: super::entity::entity_destroy,
+};
+
+unsafe fn read<T: Copy>(cell: *const c_void, offset: usize) -> T {
+    unsafe { cell.cast::<u8>().add(offset).cast::<T>().read() }
 }
 
-pub fn storage_kind(storage: StorageType) -> u8 {
+unsafe fn write<T>(cell: *mut u8, offset: usize, value: T) {
+    unsafe { cell.add(offset).cast::<T>().write(value) };
+}
+
+/// How the collector follows values of `ty` (TRACE_*). Concrete heap types are identities of `types`.
+pub fn trace_of(ty: ValType, types: &[SubType]) -> u8 {
+    let ValType::Ref(reference) = ty else {
+        return TRACE_NONE;
+    };
+    match reference.heap {
+        HeapType::Func | HeapType::NoFunc => TRACE_FUNCTION,
+        HeapType::Concrete(identity) => match types.get(identity as usize).map(|ty| &ty.composite) {
+            Some(CompositeType::Func(_)) => TRACE_FUNCTION,
+            Some(_) => TRACE_REFERENCE,
+            None => panic!("concrete heap types are identities of the store"),
+        },
+        _ => TRACE_REFERENCE,
+    }
+}
+
+pub fn storage_kind(storage: StorageType, types: &[SubType]) -> u8 {
     match storage {
         StorageType::I8 => STORAGE_I8,
         StorageType::I16 => STORAGE_I16,
         StorageType::Val(ValType::V128) => STORAGE_V128,
         StorageType::Val(ValType::I32 | ValType::F32) => STORAGE_32,
-        StorageType::Val(_) => STORAGE_64,
+        StorageType::Val(value) => match trace_of(value, types) {
+            TRACE_REFERENCE => STORAGE_REFERENCE,
+            TRACE_FUNCTION => STORAGE_FUNCTION_REFERENCE,
+            _ => STORAGE_64,
+        },
+    }
+}
+
+/// How the collector follows a field of storage `kind`.
+fn trace_of_storage(kind: u8) -> u8 {
+    match kind {
+        STORAGE_REFERENCE => TRACE_REFERENCE,
+        STORAGE_FUNCTION_REFERENCE => TRACE_FUNCTION,
+        _ => TRACE_NONE,
     }
 }
 
@@ -39,82 +100,295 @@ fn storage_size(kind: u8) -> u32 {
     if kind == STORAGE_V128 { 16 } else { 8 }
 }
 
-impl RttStorage {
-    /// The runtime type of the store type `identity`, whose supertypes have runtime types already.
-    pub fn new(store: &Store, identity: u32) -> Box<Self> {
-        let sub_type = &store.types[identity as usize];
-        let mut display = match sub_type.supertypes.first() {
-            Some(&supertype) => store.rtts[supertype as usize].display.to_vec(),
-            None => Vec::new(),
+fn leak<T>(values: Vec<T>) -> *const T {
+    Box::leak(values.into_boxed_slice()).as_ptr()
+}
+
+unsafe fn free<T>(pointer: *const T, length: usize) {
+    if length != 0 {
+        unsafe {
+            drop(Box::from_raw(core::ptr::slice_from_raw_parts_mut(
+                pointer.cast_mut(),
+                length,
+            )));
         };
-        display.push(identity);
-        let (kind, field_kinds, field_offsets, size) = match &sub_type.composite {
-            CompositeType::Func(_) => (RTT_KIND_FUNCTION, Vec::new(), Vec::new(), 0),
-            CompositeType::Struct(fields) => {
-                let kinds: Vec<u8> = fields.iter().map(|field| storage_kind(field.storage)).collect();
-                let mut offsets = Vec::with_capacity(kinds.len());
-                let mut offset = STRUCT_FIELDS_OFFSET as u32;
-                for &kind in &kinds {
-                    offsets.push(offset);
-                    offset += storage_size(kind);
-                }
-                (RTT_KIND_STRUCT, kinds, offsets, offset)
-            }
-            CompositeType::Array(element) => {
-                let kind = storage_kind(element.storage);
-                (RTT_KIND_ARRAY, vec![kind], Vec::new(), storage_size(kind))
-            }
-        };
-        let display = display.into_boxed_slice();
-        let field_offsets = field_offsets.into_boxed_slice();
-        let field_kinds = field_kinds.into_boxed_slice();
-        Box::new(Self {
-            rtt: Rtt {
-                kind,
-                depth: display.len() as u32 - 1,
-                display: display.as_ptr(),
-                field_offsets: field_offsets.as_ptr(),
-                field_kinds: field_kinds.as_ptr(),
-                size,
-                field_count: field_offsets.len() as u32,
-            },
-            display,
-            _field_offsets: field_offsets,
-            _field_kinds: field_kinds,
-        })
     }
 }
 
-/// The largest object the runtime allocates.
-const MAX_OBJECT_SIZE: u64 = 1 << 31;
+/// The Rtt of a cell that holds one.
+fn rtt_of_cell(cell: *mut u8) -> *mut Rtt {
+    cell.wrapping_add(CELL_HEADER_SIZE).cast()
+}
+
+fn cell_of_rtt(rtt: *const Rtt) -> *mut u8 {
+    rtt.cast::<u8>().cast_mut().wrapping_sub(CELL_HEADER_SIZE)
+}
+
+/// Allocate the runtime type of the store type `identity`, whose supertypes have runtime types already.
+pub fn allocate_rtt(store: &Store, identity: u32) -> *const Rtt {
+    let sub_type = &store.types[identity as usize];
+    let mut display = match sub_type.supertypes.first() {
+        Some(&supertype) => {
+            let parent = store.rtt(supertype);
+            unsafe { ak::slice_from_raw_parts(parent.display, parent.depth as usize + 1) }.to_vec()
+        }
+        None => Vec::new(),
+    };
+    display.push(identity);
+    let (kind, field_kinds, field_offsets, size) = match &sub_type.composite {
+        CompositeType::Func(_) => (RTT_KIND_FUNCTION, Vec::new(), Vec::new(), 0),
+        CompositeType::Struct(fields) => {
+            let kinds: Vec<u8> = fields
+                .iter()
+                .map(|field| storage_kind(field.storage, &store.types))
+                .collect();
+            let mut offsets = Vec::with_capacity(kinds.len());
+            let mut offset = 0;
+            for &kind in &kinds {
+                offsets.push(offset);
+                offset += storage_size(kind);
+            }
+            (RTT_KIND_STRUCT, kinds, offsets, offset)
+        }
+        CompositeType::Array(element) => {
+            let kind = storage_kind(element.storage, &store.types);
+            (RTT_KIND_ARRAY, vec![kind], Vec::new(), storage_size(kind))
+        }
+    };
+    let depth = display.len() as u32 - 1;
+    let field_count = field_offsets.len() as u32;
+    let kind_count = field_kinds.len();
+    let cell = store.heap.allocate_cell(CellType::Rtt);
+    let rtt = rtt_of_cell(cell);
+    unsafe {
+        rtt.write(Rtt {
+            kind,
+            depth,
+            display: leak(display),
+            field_offsets: leak(field_offsets),
+            field_kinds: leak(field_kinds),
+            size,
+            field_count: kind_count as u32,
+        });
+        // The count of offsets and kinds differs for arrays, which have one kind and no offsets.
+        debug_assert!(field_count as usize <= kind_count);
+    }
+    rtt
+}
+
+unsafe extern "C" fn rtt_visit_edges(_: *mut c_void, _: *mut c_void) {}
+
+unsafe extern "C" fn rtt_destroy(cell: *mut c_void) {
+    unsafe {
+        let rtt = &*rtt_of_cell(cell.cast());
+        free(rtt.display, rtt.depth as usize + 1);
+        let kind_count = if rtt.kind == RTT_KIND_ARRAY {
+            1
+        } else {
+            rtt.field_count as usize
+        };
+        free(rtt.field_kinds, kind_count);
+        let offset_count = if rtt.kind == RTT_KIND_STRUCT {
+            rtt.field_count as usize
+        } else {
+            0
+        };
+        free(rtt.field_offsets, offset_count);
+    }
+}
+
+/// Allocate a zeroed object of the type `rtt` with `data_size` bytes of data and, for an array, `length` elements.
+/// Returns zero if the data is too large.
+pub fn allocate_object(heap: &Heap, rtt: *const Rtt, data_size: u64, length: u64) -> u64 {
+    if data_size > MAX_OBJECT_DATA_SIZE {
+        return 0;
+    }
+    let (cell, data) = match object_size_class(data_size as usize) {
+        Some(class) => {
+            let cell = heap.allocate_cell(CellType::Object(class));
+            (cell, unsafe { cell.add(OBJECT_INLINE_DATA_OFFSET) })
+        }
+        None => {
+            // The data lives outside the heap, after a word that holds the number of words after it. It counts towards
+            // the next collection before the cell is allocated, which may collect.
+            let words = data_size.div_ceil(8) as usize;
+            heap.did_allocate_external_memory((words + 1) * 8);
+            let block = Box::leak(vec![0u64; words + 1].into_boxed_slice());
+            block[0] = words as u64;
+            let data = unsafe { block.as_mut_ptr().add(1) }.cast::<u8>();
+            (heap.allocate_cell(CellType::Object(0)), data)
+        }
+    };
+    unsafe {
+        write(cell, 0, rtt as u64);
+        write(cell, OBJECT_DATA_OFFSET, data as u64);
+        write(cell, OBJECT_LENGTH_OFFSET, length);
+    }
+    cell as u64
+}
+
+/// The out-of-line data of an object and its size in words, if it has some.
+unsafe fn out_of_line_data(cell: *const c_void) -> Option<(*mut u64, usize)> {
+    unsafe {
+        let data: *mut u64 = read(cell, OBJECT_DATA_OFFSET);
+        if data.cast::<u8>().cast_const() == cell.cast::<u8>().add(OBJECT_INLINE_DATA_OFFSET) {
+            return None;
+        }
+        let block = data.sub(1);
+        Some((block, *block as usize + 1))
+    }
+}
+
+unsafe extern "C" fn object_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
+    let visitor = Visitor::new(visitor);
+    unsafe {
+        let rtt: *const Rtt = read(cell, 0);
+        visitor.visit_cell(cell_of_rtt(rtt));
+        let rtt = &*rtt;
+        let data: *const u8 = read(cell, OBJECT_DATA_OFFSET);
+        if rtt.kind == RTT_KIND_STRUCT {
+            for index in 0..rtt.field_count as usize {
+                let trace = trace_of_storage(*rtt.field_kinds.add(index));
+                if trace != TRACE_NONE {
+                    let field = data.add(*rtt.field_offsets.add(index) as usize).cast::<u64>().read();
+                    visitor.visit_value(field, trace);
+                }
+            }
+        } else {
+            let trace = trace_of_storage(*rtt.field_kinds);
+            if trace != TRACE_NONE {
+                let length: u64 = read(cell, OBJECT_LENGTH_OFFSET);
+                for index in 0..length as usize {
+                    visitor.visit_value(data.cast::<u64>().add(index).read(), trace);
+                }
+            }
+        }
+    }
+}
+
+unsafe extern "C" fn object_destroy(cell: *mut c_void) {
+    unsafe {
+        if let Some((block, words)) = out_of_line_data(cell) {
+            free(block, words);
+        }
+    }
+}
+
+unsafe extern "C" fn object_external_memory_size(cell: *const c_void) -> usize {
+    unsafe { out_of_line_data(cell).map_or(0, |(_, words)| words * 8) }
+}
+
+/// An exception: a tag and the values thrown with it, in operand stack order (the last value in the lowest slot).
+pub struct Exception {
+    pub tag: TagAddress,
+    pub payload: &'static [u64],
+}
+
+/// Allocate an exception with the tag `tag` and the slots of `payload`, which the collector follows as `traces` says
+/// (TRACE_*).
+pub fn allocate_exception(heap: &Heap, tag: TagAddress, payload: &[u64], traces: &[u8]) -> u64 {
+    let cell = heap.allocate_cell(CellType::Exception);
+    let kinds: Vec<u8> = traces.to_vec();
+    unsafe {
+        write(cell, EXCEPTION_TAG_OFFSET, tag.as_ptr() as u64);
+        write(cell, EXCEPTION_PAYLOAD_OFFSET, leak(payload.to_vec()) as u64);
+        write(cell, EXCEPTION_LENGTH_OFFSET, payload.len() as u64);
+        write(cell, EXCEPTION_KINDS_OFFSET, leak(kinds) as u64);
+    }
+    cell as u64
+}
+
+/// The exception an exception reference refers to.
+pub fn exception(reference: u64) -> Exception {
+    let cell = reference as *const c_void;
+    unsafe {
+        let tag: u64 = read(cell, EXCEPTION_TAG_OFFSET);
+        let payload: *const u64 = read(cell, EXCEPTION_PAYLOAD_OFFSET);
+        let length: u64 = read(cell, EXCEPTION_LENGTH_OFFSET);
+        Exception {
+            tag: TagAddress::from_ptr(tag as *const super::TagInstance),
+            payload: if length == 0 {
+                &[]
+            } else {
+                ak::slice_from_raw_parts(payload, length as usize)
+            },
+        }
+    }
+}
+
+unsafe extern "C" fn exception_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
+    let visitor = Visitor::new(visitor);
+    unsafe {
+        let payload: *const u64 = read(cell, EXCEPTION_PAYLOAD_OFFSET);
+        let length: u64 = read(cell, EXCEPTION_LENGTH_OFFSET);
+        let kinds: *const u8 = read(cell, EXCEPTION_KINDS_OFFSET);
+        let tag: *const super::TagInstance = read(cell, EXCEPTION_TAG_OFFSET);
+        visitor.visit_cell(TagAddress::from_ptr(tag).cell());
+        for index in 0..length as usize {
+            visitor.visit_value(*payload.add(index), *kinds.add(index));
+        }
+    }
+}
+
+unsafe extern "C" fn exception_destroy(cell: *mut c_void) {
+    unsafe {
+        let length: u64 = read(cell, EXCEPTION_LENGTH_OFFSET);
+        free(read::<*const u64>(cell, EXCEPTION_PAYLOAD_OFFSET), length as usize);
+        free(read::<*const u8>(cell, EXCEPTION_KINDS_OFFSET), length as usize);
+    }
+}
+
+/// Allocate the cell through which the collector reaches what a store refers to.
+pub(crate) fn allocate_store_root(heap: &Heap, store: *const Store) -> *mut u8 {
+    let cell = heap.allocate_cell(CellType::StoreRoot);
+    unsafe { write(cell, STORE_ROOT_STORE_OFFSET, store as u64) };
+    cell
+}
+
+/// Detach a store's root cell from the store, which is going away, so that the collector no longer reaches it.
+pub(crate) fn detach_store_root(cell: *mut u8) {
+    unsafe { write(cell, STORE_ROOT_STORE_OFFSET, 0u64) };
+}
+
+unsafe extern "C" fn store_root_destroy(cell: *mut c_void) {
+    unsafe {
+        let store: *mut Store = read(cell, STORE_ROOT_STORE_OFFSET);
+        if let Some(store) = store.as_mut() {
+            store.root_cell = std::ptr::null_mut();
+        }
+    }
+}
+
+unsafe extern "C" fn store_root_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
+    unsafe {
+        let store: *const Store = read(cell, STORE_ROOT_STORE_OFFSET);
+        if let Some(store) = store.as_ref() {
+            store.trace(&Visitor::new(visitor));
+        }
+    }
+}
 
 impl Store {
     pub fn rtt(&self, identity: u32) -> &Rtt {
-        &self.rtts[identity as usize].rtt
+        unsafe { &*self.rtt_pointers[identity as usize] }
     }
 
-    /// Allocate a zeroed object of `size` bytes whose type is `rtt`, or return zero if it is too large.
-    pub fn allocate_object(&mut self, rtt: *const Rtt, size: u64) -> u64 {
-        if size > MAX_OBJECT_SIZE {
-            return 0;
-        }
-        let mut words = vec![0u64; size.div_ceil(8) as usize].into_boxed_slice();
-        words[0] = rtt as u64;
-        let object = words.as_mut_ptr() as u64;
-        self.objects.push(words);
-        object
+    /// Allocate a zeroed object of `data_size` bytes whose type is `rtt`, or return zero if it is too large.
+    pub fn allocate_object(&mut self, rtt: *const Rtt, data_size: u64, length: u64) -> u64 {
+        allocate_object(&self.heap, rtt, data_size, length)
     }
 
     /// Allocate a struct of the type `identity` with the given field values.
     pub fn allocate_struct(&mut self, identity: u32, fields: &[Value]) -> u64 {
         let rtt: *const Rtt = self.rtt(identity);
         let size = u64::from(unsafe { (*rtt).size });
-        let object = self.allocate_object(rtt, size);
+        let object = self.allocate_object(rtt, size, 0);
+        let data = unsafe { read::<*mut u8>(object as *const c_void, OBJECT_DATA_OFFSET) };
         for (index, value) in fields.iter().enumerate() {
             unsafe {
                 let offset = *(*rtt).field_offsets.add(index);
                 let kind = *(*rtt).field_kinds.add(index);
-                store_field(object + u64::from(offset), kind, *value);
+                store_field(data.add(offset as usize), kind, *value);
             }
         }
         object
@@ -124,26 +398,45 @@ impl Store {
     pub fn allocate_array(&mut self, identity: u32, values: &[Value]) -> u64 {
         let rtt: *const Rtt = self.rtt(identity);
         let (element_size, kind) = unsafe { (u64::from((*rtt).size), *(*rtt).field_kinds) };
-        let size = ARRAY_ELEMENTS_OFFSET as u64 + values.len() as u64 * element_size;
-        let object = self.allocate_object(rtt, size);
+        let object = self.allocate_object(rtt, values.len() as u64 * element_size, values.len() as u64);
         if object == 0 {
             return 0;
         }
-        unsafe {
-            *((object + 8) as *mut u64) = values.len() as u64;
-            for (index, value) in values.iter().enumerate() {
-                store_field(
-                    object + ARRAY_ELEMENTS_OFFSET as u64 + index as u64 * element_size,
-                    kind,
-                    *value,
-                );
-            }
+        let data = unsafe { read::<*mut u8>(object as *const c_void, OBJECT_DATA_OFFSET) };
+        for (index, value) in values.iter().enumerate() {
+            unsafe { store_field(data.add(index * element_size as usize), kind, *value) };
         }
         object
     }
+
+    /// Make an exception with `tag` and the values of `payload` (in operand stack order), and return its reference.
+    pub fn allocate_exception(&mut self, tag: TagAddress, payload: &[u64]) -> u64 {
+        let mut traces = Vec::with_capacity(payload.len());
+        // The slots are in operand stack order, the last parameter first.
+        for &param in self.tag(tag).ty.params.iter().rev() {
+            traces.push(trace_of(param, &self.types));
+            traces.extend(std::iter::repeat_n(TRACE_NONE, param.slot_count() as usize - 1));
+        }
+        allocate_exception(&self.heap, tag, payload, &traces)
+    }
+
+    /// The exception an exception reference refers to.
+    pub fn exception(&self, reference: u64) -> Exception {
+        exception(reference)
+    }
+
+    /// Visit what the store keeps: its runtime types, and the exception of a trap that is on its way out.
+    pub fn trace(&self, visitor: &Visitor) {
+        for &rtt in &self.rtt_pointers {
+            visitor.visit_cell(cell_of_rtt(rtt));
+        }
+        if let Some(super::Trap::UncaughtException(exception)) = &self.pending_trap {
+            visitor.visit_cell(*exception as *mut u8);
+        }
+    }
 }
 
-unsafe fn store_field(address: u64, kind: u8, value: Value) {
+unsafe fn store_field(address: *mut u8, kind: u8, value: Value) {
     let mut slots = Vec::with_capacity(2);
     value.push_slots(&mut slots);
     let mask = match kind {
@@ -152,9 +445,9 @@ unsafe fn store_field(address: u64, kind: u8, value: Value) {
         _ => u64::MAX,
     };
     unsafe {
-        *(address as *mut u64) = slots[0] & mask;
+        address.cast::<u64>().write(slots[0] & mask);
         if kind == STORAGE_V128 {
-            *((address + 8) as *mut u64) = slots[1];
+            address.cast::<u64>().add(1).write(slots[1]);
         }
     }
 }

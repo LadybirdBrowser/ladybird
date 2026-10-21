@@ -9,7 +9,6 @@
 
 #include <AK/Optional.h>
 #include <LibJS/Forward.h>
-#include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWeb/Bindings/Memory.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
@@ -36,8 +35,8 @@ class Memory : public Bindings::GCAllocatedWrappable {
     };
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Memory>> create(NonnullRefPtr<Detail::WebAssemblyCache>, MemoryDescriptor const&);
-    static GC::Ref<Memory> create(NonnullRefPtr<Detail::WebAssemblyCache>, Wasm::MemoryAddress, Shared);
+    static WebIDL::ExceptionOr<GC::Ref<Memory>> create(MemoryDescriptor const&);
+    static GC::Ref<Memory> create(Wasm::Runtime::Entity memory, Shared);
     static WebIDL::ExceptionOr<GC::Ref<Memory>> create_for_constructor(JS::Object&, MemoryDescriptor const&);
 
     WebIDL::ExceptionOr<u32> grow(u32 delta);
@@ -45,23 +44,20 @@ public:
     WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> to_resizable_buffer(JS::Realm&);
     WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> buffer(JS::Realm&);
 
-    Wasm::MemoryAddress address() const { return m_address; }
+    Wasm::Runtime::Entity address() const { return m_memory; }
     bool is_shared() const { return m_shared == Shared::Yes; }
-    Detail::WebAssemblyCache& cache() { return *m_cache; }
-    Detail::WebAssemblyCache& cache() const { return *m_cache; }
+    static Detail::WebAssemblyCache& cache() { return Detail::WebAssemblyCache::the(); }
 
 private:
-    Memory(NonnullRefPtr<Detail::WebAssemblyCache>, Wasm::MemoryAddress, Shared shared);
+    Memory(Wasm::Runtime::Entity memory, Shared shared);
 
     virtual void visit_edges(Visitor&) override;
-    virtual void finalize() override;
 
-    NonnullRefPtr<Detail::WebAssemblyCache> m_cache;
-    Wasm::MemoryAddress m_address;
+    Wasm::Runtime::Entity m_memory { nullptr };
     Shared m_shared { Shared::No };
 };
 
 bool memory_has_buffer_object(Memory const&, JS::ArrayBuffer const&);
-void refresh_the_memory_buffer(Detail::WebAssemblyCache&, Wasm::MemoryAddress);
+void refresh_the_memory_buffer(Memory&);
 
 }

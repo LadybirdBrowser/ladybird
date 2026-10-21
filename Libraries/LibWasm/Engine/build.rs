@@ -31,11 +31,13 @@ fn main() {
     println!("cargo::rustc-check-cfg=cfg(wasm_interpreter)");
     println!("cargo:rerun-if-changed=cbindgen.toml");
     println!("cargo:rerun-if-changed=src/capi.rs");
+    println!("cargo:rerun-if-changed=src/runtime/heap.rs");
 
     // The bindings only cover the C ABI, so they are generated from that file alone.
     let bindings = cbindgen::Builder::new()
         .with_config(cbindgen::Config::from_file(manifest_directory.join("cbindgen.toml")).expect("read cbindgen.toml"))
         .with_src(manifest_directory.join("src/capi.rs"))
+        .with_src(manifest_directory.join("src/runtime/heap.rs"))
         .generate()
         .expect("generate the C ABI header");
     bindings.write_to_file(output_directory.join("RustFFI.h"));

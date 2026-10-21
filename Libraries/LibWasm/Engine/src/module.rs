@@ -126,6 +126,13 @@ pub struct RecursionGroup {
     pub count: u32,
 }
 
+/// A custom section: its name and the range of its contents.
+#[derive(Debug, Clone)]
+pub struct CustomSection {
+    pub name: String,
+    pub contents: ByteRange,
+}
+
 #[derive(Debug, Default)]
 pub struct Module {
     pub bytes: Box<[u8]>,
@@ -144,6 +151,7 @@ pub struct Module {
     pub data_count: Option<u32>,
     pub code: Vec<FunctionBody>,
     pub data: Vec<Data>,
+    pub custom_sections: Vec<CustomSection>,
 
     // Index spaces, imports first.
     pub imported_function_count: u32,
