@@ -474,14 +474,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         // This is the same as establishing an independent block formatting context, except that grid layout is used
         // instead of block layout: floats do not intrude into the grid container, and the grid container’s margins do
         // not collapse with the margins of its contents.
-        matches!(
-            formatting_context::formatting_context_type_created_by_box(self.facts(node)),
-            Some(
-                formatting_context::FormattingContextType::Block
-                    | formatting_context::FormattingContextType::Flex
-                    | formatting_context::FormattingContextType::Grid
+        self.facts(node).is_replaced_box()
+            || matches!(
+                formatting_context::formatting_context_type_created_by_box(self.facts(node)),
+                Some(
+                    formatting_context::FormattingContextType::Block
+                        | formatting_context::FormattingContextType::Flex
+                        | formatting_context::FormattingContextType::Grid
+                )
             )
-        )
     }
 
     // The definite inline space left for this box after the float bands that
