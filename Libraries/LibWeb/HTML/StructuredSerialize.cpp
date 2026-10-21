@@ -2249,7 +2249,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
         // 1. If transferable has neither an [[ArrayBufferData]] internal slot nor a [[Detached]] internal slot, then throw a "DataCloneError" DOMException.
         // FIXME: Handle transferring objects with [[Detached]] internal slot.
-        if (!as_array_buffer && !Bindings::transferable_from_object(*transferable))
+        if (!as_array_buffer && !Bindings::transferable_from_object(*transferable).has_value())
             return WebIDL::DataCloneError::create("Cannot transfer type"_utf16);
 
         // 2. If transferable has an [[ArrayBufferData]] internal slot and IsSharedArrayBuffer(transferable) is true, then throw a "DataCloneError" DOMException.
@@ -2274,7 +2274,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
     // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there
     //         is not enough memory for it, the pixels travel inline.
-    Optional<ImageBitmap::SharedPixels> image_bitmap_pixels;
+    Optional<ImageBitmapSharedPixels> image_bitmap_pixels;
     Checked<size_t> image_bitmap_pixels_size = 0;
     for (auto const& transferable : transfer_list) {
         if (auto* image_bitmap = Bindings::impl_from<ImageBitmap>(transferable.ptr()); image_bitmap && image_bitmap->bitmap())
@@ -2282,7 +2282,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
     }
     if (!image_bitmap_pixels_size.has_overflow() && image_bitmap_pixels_size.value() > 0) {
         if (auto buffer = Core::AnonymousBuffer::create_with_size(image_bitmap_pixels_size.value(), Core::AnonymousBuffer::Sealability::Sealable); !buffer.is_error()) {
-            image_bitmap_pixels = ImageBitmap::SharedPixels { .buffer = buffer.release_value(), .buffer_index = static_cast<u32>(serialized_writer.shared_buffers().size()) };
+            image_bitmap_pixels = ImageBitmapSharedPixels { .buffer = buffer.release_value(), .buffer_index = static_cast<u32>(serialized_writer.shared_buffers().size()) };
             serialized_writer.shared_buffers().append(image_bitmap_pixels->buffer);
         }
     }
@@ -2301,7 +2301,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
             return WebIDL::DataCloneError::create("Cannot transfer detached buffer"_utf16);
 
         // 2. If transferable has a [[Detached]] internal slot and transferable.[[Detached]] is true, then throw a "DataCloneError" DOMException.
-        if (auto* transferable_object = Bindings::transferable_from_object(*transferable)) {
+        if (auto transferable_object = Bindings::transferable_from_object(*transferable); transferable_object.has_value()) {
             if (transferable_object->is_detached())
                 return WebIDL::DataCloneError::create("Value already transferred"_utf16);
         }
@@ -2343,11 +2343,11 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         // 5. Otherwise:
         else {
             // 1. Assert: transferable is a platform object that is a transferable object.
-            auto& transferable_object = *Bindings::transferable_from_object(*transferable);
+            auto transferable_object = Bindings::transferable_from_object(*transferable).release_value();
             VERIFY(Bindings::is_platform_object(*transferable));
 
             // 2. Let interfaceName be the identifier of the primary interface of transferable.
-            auto interface_name = transferable_object.primary_interface();
+            auto interface_name = transferable_object.primary_interface;
 
             // 3. Set dataHolder.[[Type]] to interfaceName.
             MUST(data_holder.encode(interface_name));
@@ -2356,10 +2356,10 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
             if (interface_name == TransferType::ImageBitmap)
                 TRY(Bindings::impl_from<ImageBitmap>(transferable.ptr())->transfer_steps(data_holder, image_bitmap_pixels.has_value() ? &image_bitmap_pixels.value() : nullptr));
             else
-                TRY(transferable_object.transfer_steps(realm, data_holder));
+                TRY(transferable_object.transfer_steps(realm, data_holder, image_bitmap_pixels.has_value() ? &image_bitmap_pixels.value() : nullptr));
 
             // 5. Set transferable.[[Detached]] to true.
-            transferable_object.set_detached(true);
+            transferable_object.set_detached();
         }
 
         // 6. Append dataHolder to transferDataHolders.

@@ -204,7 +204,7 @@ WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(JS::Realm&, HTML::Transfer
     return transfer_steps(data_holder, nullptr);
 }
 
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataEncoder& data_holder, SharedPixels* shared_pixels)
+WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataEncoder& data_holder, ImageBitmapSharedPixels* shared_pixels)
 {
     // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
 

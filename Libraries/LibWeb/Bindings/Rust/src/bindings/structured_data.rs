@@ -4,16 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What an interface implemented in Rust that is serializable does in a structured serialization,
-//! https://html.spec.whatwg.org/multipage/structured-data.html#serializable-objects
+//! What an interface implemented in Rust that is serializable or transferable does in a structured serialization,
+//! https://html.spec.whatwg.org/multipage/structured-data.html#serializable-objects and
+//! https://html.spec.whatwg.org/multipage/structured-data.html#transferable-objects
 //!
 //! StructuredSerialize of LibWeb's C++ runs the algorithms, and runs the steps of such an interface through the entry
 //! points that the generated bindings of the interface define, which call the functions here. The steps read and
 //! write the records of the serialization through what C++ lends them; the structs that it lends are in
 //! Libraries/LibWeb/Bindings/RustSerialization.h. Unlike an object of an interface implemented in C++, which is
 //! created before its deserialization steps fill it in, an object of an interface implemented in Rust is what its
-//! deserialization steps return.
+//! deserialization steps and its transfer-receiving steps return.
 
+use core::cell::Cell;
 use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
@@ -100,6 +102,46 @@ pub(crate) trait Serializable: Interface {
     fn deserialization_steps(cx: &mut CallContext, serialized: &mut SerializationReader) -> WebIdlResult<Self>;
 }
 
+/// The data holder of a transferred object, which its transfer steps write to: a Web::Bindings::RustTransferDataWriter
+/// that C++ lends for the steps.
+pub(crate) struct TransferDataWriter<'a> {
+    raw: NonNull<c_void>,
+    _lent: PhantomData<&'a mut c_void>,
+}
+
+impl TransferDataWriter<'_> {
+    /// The data holder as the C ABI of an interface's C++ class takes it, which encodes what the steps write.
+    pub(crate) fn as_raw(&mut self) -> *mut c_void {
+        self.raw.as_ptr()
+    }
+}
+
+/// The data holder of a received object, which its transfer-receiving steps read from: a
+/// Web::Bindings::RustTransferDataReader that C++ lends for the steps.
+pub(crate) struct TransferDataReader<'a> {
+    raw: NonNull<c_void>,
+    _lent: PhantomData<&'a mut c_void>,
+}
+
+impl TransferDataReader<'_> {
+    /// The data holder as the C ABI of an interface's C++ class takes it, which decodes what the steps read.
+    pub(crate) fn as_raw(&mut self) -> *mut c_void {
+        self.raw.as_ptr()
+    }
+}
+
+/// An interface that is transferable, [Transferable] in its IDL.
+pub(crate) trait Transferable: Interface {
+    /// The [[Detached]] internal slot of the object, https://html.spec.whatwg.org/multipage/structured-data.html#detached
+    fn detached(&self) -> &Cell<bool>;
+
+    /// https://html.spec.whatwg.org/multipage/structured-data.html#transfer-steps
+    fn transfer_steps(&self, cx: &mut CallContext, data_holder: &mut TransferDataWriter) -> WebIdlResult<()>;
+
+    /// https://html.spec.whatwg.org/multipage/structured-data.html#transfer-receiving-steps, which create the object.
+    fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Self>;
+}
+
 /// The completion of steps, as the entry points return it to C++.
 fn completion(cx: &CallContext, result: WebIdlResult<Value>) -> RawNativeFunctionResult {
     let result: ThrowCompletionOr<Value> = result.map_err(|exception| exception.throw(cx));
@@ -152,5 +194,70 @@ pub(crate) unsafe fn deserialization_steps<T: Serializable>(
         _lent: PhantomData,
     };
     let result = T::deserialization_steps(&mut cx, &mut serialized);
+    completion(&cx, result.map(|implementation| wrap_new_object(&cx, implementation)))
+}
+
+/// The entry point that reads the [[Detached]] internal slot of an object of `T`.
+///
+/// # Safety
+///
+/// `cell` must be the live cell of an object of `T`.
+pub(crate) unsafe fn is_detached<T: Transferable>(cell: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell of an object of T.
+    let object = unsafe { cell_from_abi::<T>(cell) };
+    object.detached().get()
+}
+
+/// The entry point that sets the [[Detached]] internal slot of an object of `T` to true.
+///
+/// # Safety
+///
+/// `cell` must be the live cell of an object of `T`.
+pub(crate) unsafe fn set_detached<T: Transferable>(cell: *mut c_void) {
+    // SAFETY: The caller passes a live cell of an object of T.
+    let object = unsafe { cell_from_abi::<T>(cell) };
+    object.detached().set(true);
+}
+
+/// The entry point of the transfer steps of `T`.
+///
+/// # Safety
+///
+/// The pointers must be the VM, a live realm, the live cell of an object of `T`, and a data holder that C++ lends.
+pub(crate) unsafe fn transfer_steps<T: Transferable>(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    cell: *mut c_void,
+    data_holder: *mut c_void,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the VM, a live realm and a live cell of an object of T.
+    let ((vm, realm), object) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<T>(cell)) };
+    let mut cx = CallContext::new(vm, realm);
+    let mut data_holder = TransferDataWriter {
+        raw: NonNull::new(data_holder).expect("C++ lends a data holder"),
+        _lent: PhantomData,
+    };
+    let result = object.transfer_steps(&mut cx, &mut data_holder);
+    completion(&cx, result.map(|()| Value::UNDEFINED))
+}
+
+/// The entry point of the transfer-receiving steps of `T`, which returns the wrapper of the new object.
+///
+/// # Safety
+///
+/// The pointers must be the VM, a live realm, and a data holder that C++ lends.
+pub(crate) unsafe fn transfer_receiving_steps<T: Transferable>(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    data_holder: *mut c_void,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    let mut cx = CallContext::new(vm, realm);
+    let mut data_holder = TransferDataReader {
+        raw: NonNull::new(data_holder).expect("C++ lends a data holder"),
+        _lent: PhantomData,
+    };
+    let result = T::transfer_receiving_steps(&mut cx, &mut data_holder);
     completion(&cx, result.map(|implementation| wrap_new_object(&cx, implementation)))
 }

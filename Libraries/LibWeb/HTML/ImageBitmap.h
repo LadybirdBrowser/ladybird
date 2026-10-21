@@ -26,6 +26,15 @@ using ResizeQuality = Bindings::ResizeQuality;
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmapoptions
 using ImageBitmapOptions = Bindings::ImageBitmapOptions;
 
+// AD-HOC: The pixels of every ImageBitmap that one message transfers share one buffer of shared memory, which the
+//         message carries alongside the memory of its SharedArrayBuffers. However many bitmaps a message transfers,
+//         their pixels then take one attachment, and the receiver uses them without copying.
+struct ImageBitmapSharedPixels {
+    Core::AnonymousBuffer buffer;
+    u32 buffer_index { 0 };
+    size_t used_size { 0 };
+};
+
 class WEB_API ImageBitmap final
     : public Bindings::GCAllocatedWrappable
     , public Web::Bindings::Serializable
@@ -53,16 +62,8 @@ public:
 
     // Implementation specific:
 
-    // AD-HOC: The pixels of every ImageBitmap that one message transfers share one buffer of shared memory, which the
-    //         message carries alongside the memory of its SharedArrayBuffers. However many bitmaps a message transfers,
-    //         their pixels then take one attachment, and the receiver uses them without copying.
-    struct SharedPixels {
-        Core::AnonymousBuffer buffer;
-        u32 buffer_index { 0 };
-        size_t used_size { 0 };
-    };
     static size_t shared_pixels_size(Gfx::Bitmap const&);
-    WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&, SharedPixels*);
+    WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&, ImageBitmapSharedPixels*);
 
     void set_bitmap(RefPtr<Gfx::Bitmap>);
     Gfx::Bitmap* bitmap() const;
