@@ -67,7 +67,9 @@ bool CanvasHost::is_origin_clean() const
 {
     if (auto* context = canvas_2d_context())
         return context->origin_clean();
-    // FIXME: WebGL and WebGL2 contexts do not track the origin-clean flag yet.
+    // NB: The texture uploads of a WebGL context throw a "SecurityError" DOMException for a source that is not
+    //     origin-clean, so its bitmap stays origin-clean. A video is the exception, as long as its media data is
+    //     never CORS-cross-origin (see image_is_not_origin_clean()).
     return true;
 }
 

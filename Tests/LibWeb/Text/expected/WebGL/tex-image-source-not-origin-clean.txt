@@ -1,0 +1,40 @@
+webgl, texImage2D, cross-origin image: SecurityError
+webgl, texSubImage2D, cross-origin image: SecurityError
+webgl, texImage2D, ImageBitmap of the image: SecurityError
+webgl, texSubImage2D, ImageBitmap of the image: SecurityError
+webgl, texImage2D, tainted canvas: SecurityError
+webgl, texSubImage2D, tainted canvas: SecurityError
+webgl, texImage2D, tainted OffscreenCanvas: SecurityError
+webgl, texSubImage2D, tainted OffscreenCanvas: SecurityError
+webgl, texImage2D, clean canvas: no throw
+webgl, texSubImage2D, clean canvas: no throw
+webgl, texImage2D, clean ImageBitmap: no throw
+webgl, texSubImage2D, clean ImageBitmap: no throw
+webgl, error: 0
+webgl, WebGL canvas drawn, then read back: no throw
+webgl2, texImage2D, cross-origin image: SecurityError
+webgl2, texSubImage2D, cross-origin image: SecurityError
+webgl2, texImage2D with a size, cross-origin image: SecurityError
+webgl2, texSubImage2D with a size, cross-origin image: SecurityError
+webgl2, texImage2D, ImageBitmap of the image: SecurityError
+webgl2, texSubImage2D, ImageBitmap of the image: SecurityError
+webgl2, texImage2D with a size, ImageBitmap of the image: SecurityError
+webgl2, texSubImage2D with a size, ImageBitmap of the image: SecurityError
+webgl2, texImage2D, tainted canvas: SecurityError
+webgl2, texSubImage2D, tainted canvas: SecurityError
+webgl2, texImage2D with a size, tainted canvas: SecurityError
+webgl2, texSubImage2D with a size, tainted canvas: SecurityError
+webgl2, texImage2D, tainted OffscreenCanvas: SecurityError
+webgl2, texSubImage2D, tainted OffscreenCanvas: SecurityError
+webgl2, texImage2D with a size, tainted OffscreenCanvas: SecurityError
+webgl2, texSubImage2D with a size, tainted OffscreenCanvas: SecurityError
+webgl2, texImage2D, clean canvas: no throw
+webgl2, texSubImage2D, clean canvas: no throw
+webgl2, texImage2D with a size, clean canvas: no throw
+webgl2, texSubImage2D with a size, clean canvas: no throw
+webgl2, texImage2D, clean ImageBitmap: no throw
+webgl2, texSubImage2D, clean ImageBitmap: no throw
+webgl2, texImage2D with a size, clean ImageBitmap: no throw
+webgl2, texSubImage2D with a size, clean ImageBitmap: no throw
+webgl2, error: 0
+webgl2, WebGL canvas drawn, then read back: no throw

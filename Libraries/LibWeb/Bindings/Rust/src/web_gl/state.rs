@@ -12,6 +12,7 @@ use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ops::Deref;
 
+use ak::Utf16String;
 use libjs_rust::api::{ForeignCellSlot, Gc, Realm, Trace, Visitor, Vm};
 
 use super::canvas::{
@@ -39,6 +40,8 @@ use super::web_gl_uniform_location::WebGLUniformLocation;
 use super::web_gl_vertex_array_object::WebGLVertexArrayObject;
 use super::web_gl_vertex_array_object_oes::WebGLVertexArrayObjectOES;
 use crate::bindings::interface::{Inherits, Interface, Ref, Wrappable, cell_into_abi};
+use crate::bindings::{Exception, WebIdlResult};
+use crate::canvas_2d::canvas::CanvasImageSourceKind;
 
 pub(crate) const MAX_WEBGL_DRAWING_BUFFER_DIMENSION: i32 = 16384;
 
@@ -354,11 +357,18 @@ impl ContextState {
         source: &TexImageSource,
         format: u32,
         r#type: u32,
-    ) -> Option<(Frame, FrameUpload)> {
-        // FIXME: If this function is called with an HTMLImageElement or HTMLVideoElement whose origin differs from the
-        //        origin of the containing Document, or with an HTMLCanvasElement, ImageBitmap or OffscreenCanvas whose
-        //        bitmap's origin-clean flag is set to false, a SECURITY_ERR exception must be thrown. See Origin
-        //        Restrictions.
+    ) -> WebIdlResult<Option<(Frame, FrameUpload)>> {
+        // If this function is called with an HTMLImageElement or HTMLVideoElement whose origin differs from the origin
+        // of the containing Document, or with an HTMLCanvasElement, ImageBitmap or OffscreenCanvas whose bitmap's
+        // origin-clean flag is set to false, a SECURITY_ERR exception must be thrown. See Origin Restrictions.
+        // https://registry.khronos.org/webgl/specs/latest/1.0/#ORIGIN_RESTRICTIONS
+        if tex_image_source_is_not_origin_clean(source) {
+            return Err(Exception::Dom(
+                "SecurityError",
+                Utf16String::from_ascii(b"Cannot upload a texture source that is not origin-clean"),
+            ));
+        }
+
         let source_frame = match *source {
             TexImageSource::ImageBitmap(image_bitmap) => match image_bitmap.frame() {
                 Some(image_frame) => read_tex_image_frame(&image_frame, format, r#type),
@@ -391,10 +401,10 @@ impl ContextState {
         };
         let frame = match source_frame {
             TexImageSourceFrame::Frame(frame) => frame,
-            TexImageSourceFrame::NoFrame => return None,
+            TexImageSourceFrame::NoFrame => return Ok(None),
             TexImageSourceFrame::InvalidValue => {
                 self.set_error(GL_INVALID_VALUE);
-                return None;
+                return Ok(None);
             }
         };
         // The first pixel transferred from the source to the WebGL implementation corresponds to the upper left
@@ -406,7 +416,7 @@ impl ContextState {
             flip_y,
             premultiply_alpha: self.unpack_premultiply_alpha.get(),
         };
-        Some((frame, upload))
+        Ok(Some((frame, upload)))
     }
 
     /// https://registry.khronos.org/webgl/specs/latest/2.0/#PIXEL_STORE_PARAM_CONSTRAINTS
@@ -490,5 +500,19 @@ impl ContextState {
         self.any_samples_passed.set(None);
         self.any_samples_passed_conservative.set(None);
         self.transform_feedback_primitives_written.set(None);
+    }
+}
+
+/// https://html.spec.whatwg.org/multipage/canvas.html#the-image-argument-is-not-origin-clean
+fn tex_image_source_is_not_origin_clean(source: &TexImageSource) -> bool {
+    match *source {
+        TexImageSource::ImageBitmap(image_bitmap) => !image_bitmap.origin_clean(),
+        TexImageSource::ImageData(_) => false,
+        TexImageSource::HTMLImageElement(object) => CanvasImageSourceKind::HTMLImageElement.is_not_origin_clean(object),
+        TexImageSource::HTMLCanvasElement(object) => {
+            CanvasImageSourceKind::HTMLCanvasElement.is_not_origin_clean(object)
+        }
+        TexImageSource::HTMLVideoElement(object) => CanvasImageSourceKind::HTMLVideoElement.is_not_origin_clean(object),
+        TexImageSource::OffscreenCanvas(object) => CanvasImageSourceKind::OffscreenCanvas.is_not_origin_clean(object),
     }
 }

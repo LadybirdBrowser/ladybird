@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A texture upload from a source that is not origin-clean throws a "SecurityError" DOMException, so a WebGL canvas
+    // stays origin-clean.
+
+    // 1x1 opaque red PNG.
+    const redPng =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+
+    function newCanvas() {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        return canvas;
+    }
+
+    function report(label, fn) {
+        try {
+            fn();
+            println(`${label}: no throw`);
+        } catch (error) {
+            println(`${label}: ${error.name}`);
+        }
+    }
+
+    promiseTest(async () => {
+        const imageURL = await httpTestServer().createEcho("GET", "/tex-image-source-not-origin-clean.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body_encoding: "base64",
+            body: redPng,
+        });
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+            image.src = imageURL;
+        });
+
+        const taintedCanvas = newCanvas();
+        taintedCanvas.getContext("2d").drawImage(image, 0, 0);
+        const taintedOffscreenCanvas = new OffscreenCanvas(1, 1);
+        taintedOffscreenCanvas.getContext("2d").drawImage(image, 0, 0);
+        const sources = {
+            "cross-origin image": image,
+            "ImageBitmap of the image": await createImageBitmap(image),
+            "tainted canvas": taintedCanvas,
+            "tainted OffscreenCanvas": taintedOffscreenCanvas,
+            "clean canvas": newCanvas(),
+            "clean ImageBitmap": await createImageBitmap(new ImageData(1, 1)),
+        };
+
+        for (const type of ["webgl", "webgl2"]) {
+            const glCanvas = newCanvas();
+            const gl = glCanvas.getContext(type);
+            gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            for (const [name, source] of Object.entries(sources)) {
+                report(`${type}, texImage2D, ${name}`, () =>
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source)
+                );
+                report(`${type}, texSubImage2D, ${name}`, () =>
+                    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, source)
+                );
+                if (type === "webgl2") {
+                    report(`${type}, texImage2D with a size, ${name}`, () =>
+                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, source)
+                    );
+                    report(`${type}, texSubImage2D with a size, ${name}`, () =>
+                        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, source)
+                    );
+                }
+            }
+            println(`${type}, error: ${gl.getError()}`);
+
+            const canvas = newCanvas();
+            canvas.getContext("2d").drawImage(glCanvas, 0, 0);
+            report(`${type}, WebGL canvas drawn, then read back`, () =>
+                canvas.getContext("2d").getImageData(0, 0, 1, 1)
+            );
+        }
+    });
+</script>

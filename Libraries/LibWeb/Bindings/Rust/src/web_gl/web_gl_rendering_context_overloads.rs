@@ -301,7 +301,7 @@ impl RenderingContext<WebGL1> {
         r#type: u32,
         source: TexImageSource,
     ) -> WebIdlResult<()> {
-        let Some((frame, upload)) = self.read_texture_image_source(&source, format, r#type) else {
+        let Some((frame, upload)) = self.read_texture_image_source(&source, format, r#type)? else {
             return Ok(());
         };
         self.proxy
@@ -362,7 +362,7 @@ impl RenderingContext<WebGL1> {
         r#type: u32,
         source: TexImageSource,
     ) -> WebIdlResult<()> {
-        let Some((frame, upload)) = self.read_texture_image_source(&source, format, r#type) else {
+        let Some((frame, upload)) = self.read_texture_image_source(&source, format, r#type)? else {
             return Ok(());
         };
         self.proxy
