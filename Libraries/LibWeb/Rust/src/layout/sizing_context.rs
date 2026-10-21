@@ -844,6 +844,27 @@ impl<'pass> SizingContext<'pass> {
         } else {
             None
         };
+        // https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk
+        // INTEROP: Like Chrome, the block size the body fills is definite for its children.
+        let quirks_body_block = (facts.document_in_quirks_mode()
+            && facts.is_html_body_element()
+            && facts.is_block_container()
+            && style.height().is_auto()
+            && !used.has_definite_block_size()
+            && !facts.is_absolutely_positioned()
+            && !facts.is_floating()
+            && !facts.is_inline())
+        .then_some(constraints.percentage_basis_block_size)
+        .flatten()
+        .map(|parent_block_size| {
+            let border_box_block_size = parent_block_size - used.margin_top.get() - used.margin_bottom.get();
+            (border_box_block_size
+                - style.border_top_width()
+                - used.padding_top.get()
+                - used.padding_bottom.get()
+                - style.border_bottom_width())
+            .max(CssPixels::default())
+        });
         let forwards_button_content_block_basis = Self::forwards_button_percentage_block_basis(&facts);
         // https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level
         // Anonymous block boxes are ignored when resolving percentage values that would refer to it:
@@ -862,6 +883,8 @@ impl<'pass> SizingContext<'pass> {
             }
         } else if used.has_definite_block_size() {
             Some(used.content_block_size.get())
+        } else if quirks_body_block.is_some() {
+            quirks_body_block
         } else if should_forward_indefinite_basis {
             constraints.percentage_basis_block_size
         } else {
@@ -890,6 +913,8 @@ impl<'pass> SizingContext<'pass> {
             Some(used.content_block_size.get())
         } else if facts.is_table_cell() {
             Some(CssPixels::default())
+        } else if quirks_body_block.is_some() {
+            quirks_body_block
         } else if !style.height().is_auto()
             || facts.is_absolutely_positioned()
             || !facts.is_block_container()
@@ -1586,7 +1611,8 @@ impl<'pass> SizingContext<'pass> {
             let size = constraints.block_basis() - margins;
             // 3. Return the bigger value of size and the normal border box size the element would have
             //    according to the CSS specification.
-            block_size = block_size.max(size);
+            // NB: block_size is a content box size, so this takes the border and padding off size.
+            block_size = block_size.max(size - used.border_box_top(false) - used.border_box_bottom(false));
             // NOTE: The block size of the root element when affected by this quirk is considered to be definite.
             self.used(node).has_definite_block_size.set(true);
         }
@@ -1612,7 +1638,8 @@ impl<'pass> SizingContext<'pass> {
                 let size = constraints.block_basis() - margins;
                 // 3. Return the bigger value of size and the normal border box size the element would have
                 //    according to the CSS specification.
-                block_size = block_size.max(size);
+                // NB: block_size is a content box size, so this takes the border and padding off size.
+                block_size = block_size.max(size - used.border_box_top(false) - used.border_box_bottom(false));
             }
         }
         let used = self.used(node);
