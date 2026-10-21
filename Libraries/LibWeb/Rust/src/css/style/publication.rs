@@ -3484,8 +3484,40 @@ impl RetainedState {
         let mut element_relative = false;
         let mut substituted_container_units = 0;
         'winners: for winner in self.winner_groups.winners_in_state(state) {
+            // A declaration that reverts is remembered as declared, for the logical property group
+            // it belongs to.
+            let declared_winner = winner;
             // A revert whose continuation resumes at nothing leaves the property undeclared.
             let Some(mut winner) = self.winner_groups.resolved_winner(winner) else {
+                // NB: It computes as `unset`, but still wins over a logical counterpart that it reverted past, so
+                //     a reverted margin-inline-start declared after a margin-left still wins over it. Below every
+                //     declaration in cascade order, it loses to the counterparts that it did not revert past.
+                if declared_winner.property >= crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+                    && let operator @ (CascadeOperator::Revert | CascadeOperator::RevertLayer) =
+                        declared_winner.key.operator
+                    && crate::css::property_metadata::property_logical_group(declared_winner.property).is_some()
+                    && pseudo_kind.is_none_or(|kind| {
+                        crate::css::property_metadata::pseudo_element_supports_property(kind, declared_winner.property)
+                    })
+                    && let Ok(Some((index, ..))) = self.written_winner_value(node, &declared_winner)
+                {
+                    declarations.push((
+                        CascadePriority::lowest(),
+                        0,
+                        WinnerDeclaration::new(
+                            declared_winner.property,
+                            declared_winner.important,
+                            WinnerValue::Substituted {
+                                value: unset_value(),
+                                source: declared_winner.source,
+                            },
+                        ),
+                        Some(winner_store::RevertedDeclaration {
+                            position: (declared_winner.priority, index),
+                            operator,
+                        }),
+                    ));
+                }
                 continue;
             };
             if winner.key.animation_relevance != 0 {
@@ -3735,10 +3767,30 @@ impl RetainedState {
                 self.counters.bump(Counter::EngineComputedRecordBailValue);
                 return Err(Unanswered::Refused);
             }
+            let revert = if winner == declared_winner {
+                None
+            } else {
+                let operator = match declared_winner.key.operator {
+                    operator @ (CascadeOperator::Revert | CascadeOperator::RevertLayer) => operator,
+                    _ => reverted
+                        .first()
+                        .map_or(CascadeOperator::Revert, |&(_, operator)| operator),
+                };
+                // NB: Without the reverting declaration's position, the winner still applies, and its logical
+                //     property group falls back to ordering by cascade position.
+                match self.written_winner_value(node, &declared_winner) {
+                    Ok(Some((declared_index, ..))) => Some(winner_store::RevertedDeclaration {
+                        position: (declared_winner.priority, declared_index),
+                        operator,
+                    }),
+                    _ => None,
+                }
+            };
             declarations.push((
                 winner.priority,
                 index,
                 WinnerDeclaration::new(winner.property, winner.important, value),
+                revert,
             ));
         }
         // What a function's container conditions read is recorded with the node's record, as a
@@ -3747,12 +3799,18 @@ impl RetainedState {
             self.note_container_effects_for_host(node, effects);
         }
         declarations.sort_by_key(|(priority, index, ..)| (*priority, *index));
-        let mut store = WinnerStore::new(
-            declarations
-                .into_iter()
-                .map(|(_, _, declaration)| declaration)
-                .collect(),
-        );
+        let mut positions = Vec::with_capacity(declarations.len());
+        let mut reverted_declarations = Vec::new();
+        let mut store_declarations = Vec::with_capacity(declarations.len());
+        for (store_index, (priority, index, declaration, revert)) in declarations.into_iter().enumerate() {
+            positions.push((priority, index));
+            if let Some(revert) = revert {
+                reverted_declarations.push((store_index, revert));
+            }
+            store_declarations.push(declaration);
+        }
+        let mut store = WinnerStore::new(store_declarations);
+        store.set_reverted_declarations(positions, reverted_declarations);
         store.reads_sibling_position = style_query_references
             .borrow()
             .as_ref()

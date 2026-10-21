@@ -1,0 +1,4 @@
+rule: 0px
+rule-layer: 0px
+inline: 0px
+under-inline-revert-layer: 5px

@@ -1,0 +1,4 @@
+same-rule: 1px solid
+later-rule: 1px solid
+longhands: 1px solid
+logical-later: 0px none
