@@ -16,7 +16,6 @@ mod rust_panic;
 use crate::rust_panic::abort_on_panic;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::ffi::c_void;
 
 #[repr(C)]
 pub struct ContentBlockerString {
@@ -24,7 +23,7 @@ pub struct ContentBlockerString {
     length: usize,
 }
 
-struct ContentBlockerEngine {
+pub struct ContentBlockerEngine {
     engine: adblock::engine::Engine,
     generic_selector_list_rules: GenericSelectorListRules,
 }
@@ -41,26 +40,9 @@ enum SelectorKey {
     Id(String),
 }
 
-unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a [u8]> {
-    if len == 0 {
-        return Some(&[]);
-    }
-    if bytes.is_null() {
-        return None;
-    }
-    Some(unsafe { ak::slice_from_raw_parts(bytes, len) })
-}
-
-unsafe fn string_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a str> {
-    let bytes = unsafe { bytes_from_raw(bytes, len)? };
-    std::str::from_utf8(bytes).ok()
-}
-
-unsafe fn engine_from_raw<'a>(engine: *const c_void) -> Option<&'a ContentBlockerEngine> {
-    if engine.is_null() {
-        return None;
-    }
-    Some(unsafe { &*engine.cast::<ContentBlockerEngine>() })
+/// The bytes as a string, or none where they are not UTF-8.
+fn as_str(bytes: ak::Span<'_, u8>) -> Option<&str> {
+    std::str::from_utf8(bytes.as_slice()).ok()
 }
 
 fn string_to_ffi(string: String) -> ContentBlockerString {
@@ -357,13 +339,11 @@ fn has_generic_cosmetic_selectors_for_url(
         )
 }
 
-/// # Safety
-/// - `rules` and `rules_len` must point to a valid UTF-8 string
-/// - The returned pointer must be freed with `rust_content_blocker_free`
+/// An engine for `rules`, which C++ frees with `rust_content_blocker_free`, or null where the rules are not UTF-8.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_content_blocker_create(rules: *const u8, rules_len: usize) -> *mut c_void {
+pub extern "C" fn rust_content_blocker_create(rules: ak::Span<'_, u8>) -> *mut ContentBlockerEngine {
     abort_on_panic(|| {
-        let Some(rules) = (unsafe { string_from_raw(rules, rules_len) }) else {
+        let Some(rules) = as_str(rules) else {
             return std::ptr::null_mut();
         };
 
@@ -375,45 +355,39 @@ pub unsafe extern "C" fn rust_content_blocker_create(rules: *const u8, rules_len
             engine,
             generic_selector_list_rules,
         };
-        Box::into_raw(Box::new(engine)).cast()
+        Box::into_raw(Box::new(engine))
     })
 }
 
 /// # Safety
 /// - `engine` must be null or a valid pointer returned by `rust_content_blocker_create`
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_content_blocker_free(engine: *mut c_void) {
+pub unsafe extern "C" fn rust_content_blocker_free(engine: *mut ContentBlockerEngine) {
     abort_on_panic(|| {
         if !engine.is_null() {
-            drop(unsafe { Box::from_raw(engine.cast::<ContentBlockerEngine>()) });
+            drop(unsafe { Box::from_raw(engine) });
         }
     });
 }
 
-/// # Safety
-/// - `engine` must be null or a valid pointer returned by `rust_content_blocker_create`
-/// - String pointers and lengths must point to valid UTF-8 strings
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_content_blocker_matches(
-    engine: *const c_void,
-    url: *const u8,
-    url_len: usize,
-    source_url: *const u8,
-    source_url_len: usize,
-    request_type: *const u8,
-    request_type_len: usize,
+pub extern "C" fn rust_content_blocker_matches(
+    engine: Option<&ContentBlockerEngine>,
+    url: ak::Span<'_, u8>,
+    source_url: ak::Span<'_, u8>,
+    request_type: ak::Span<'_, u8>,
 ) -> bool {
     abort_on_panic(|| {
-        let Some(engine) = (unsafe { engine_from_raw(engine) }) else {
+        let Some(engine) = engine else {
             return false;
         };
-        let Some(url) = (unsafe { string_from_raw(url, url_len) }) else {
+        let Some(url) = as_str(url) else {
             return false;
         };
-        let Some(source_url) = (unsafe { string_from_raw(source_url, source_url_len) }) else {
+        let Some(source_url) = as_str(source_url) else {
             return false;
         };
-        let Some(request_type) = (unsafe { string_from_raw(request_type, request_type_len) }) else {
+        let Some(request_type) = as_str(request_type) else {
             return false;
         };
 
@@ -426,31 +400,25 @@ pub unsafe extern "C" fn rust_content_blocker_matches(
     })
 }
 
-/// # Safety
-/// - `engine` must be null or a valid pointer returned by `rust_content_blocker_create`
-/// - String pointers and lengths must point to valid UTF-8 strings
-/// - The returned string must be freed with `rust_content_blocker_free_string`
+/// C++ frees the returned string with `rust_content_blocker_free_string`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_content_blocker_cosmetic_css(
-    engine: *const c_void,
-    url: *const u8,
-    url_len: usize,
-    classes: *const u8,
-    classes_len: usize,
-    ids: *const u8,
-    ids_len: usize,
+pub extern "C" fn rust_content_blocker_cosmetic_css(
+    engine: Option<&ContentBlockerEngine>,
+    url: ak::Span<'_, u8>,
+    classes: ak::Span<'_, u8>,
+    ids: ak::Span<'_, u8>,
 ) -> ContentBlockerString {
     abort_on_panic(|| {
-        let Some(engine) = (unsafe { engine_from_raw(engine) }) else {
+        let Some(engine) = engine else {
             return string_to_ffi(String::new());
         };
-        let Some(url) = (unsafe { string_from_raw(url, url_len) }) else {
+        let Some(url) = as_str(url) else {
             return string_to_ffi(String::new());
         };
-        let Some(classes) = (unsafe { string_from_raw(classes, classes_len) }) else {
+        let Some(classes) = as_str(classes) else {
             return string_to_ffi(String::new());
         };
-        let Some(ids) = (unsafe { string_from_raw(ids, ids_len) }) else {
+        let Some(ids) = as_str(ids) else {
             return string_to_ffi(String::new());
         };
 
@@ -460,30 +428,24 @@ pub unsafe extern "C" fn rust_content_blocker_cosmetic_css(
     })
 }
 
-/// # Safety
-/// - `engine` must be null or a valid pointer returned by `rust_content_blocker_create`
-/// - String pointers and lengths must point to valid UTF-8 strings
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_content_blocker_has_generic_cosmetic_selectors(
-    engine: *const c_void,
-    url: *const u8,
-    url_len: usize,
-    classes: *const u8,
-    classes_len: usize,
-    ids: *const u8,
-    ids_len: usize,
+pub extern "C" fn rust_content_blocker_has_generic_cosmetic_selectors(
+    engine: Option<&ContentBlockerEngine>,
+    url: ak::Span<'_, u8>,
+    classes: ak::Span<'_, u8>,
+    ids: ak::Span<'_, u8>,
 ) -> bool {
     abort_on_panic(|| {
-        let Some(engine) = (unsafe { engine_from_raw(engine) }) else {
+        let Some(engine) = engine else {
             return false;
         };
-        let Some(url) = (unsafe { string_from_raw(url, url_len) }) else {
+        let Some(url) = as_str(url) else {
             return false;
         };
-        let Some(classes) = (unsafe { string_from_raw(classes, classes_len) }) else {
+        let Some(classes) = as_str(classes) else {
             return false;
         };
-        let Some(ids) = (unsafe { string_from_raw(ids, ids_len) }) else {
+        let Some(ids) = as_str(ids) else {
             return false;
         };
 
