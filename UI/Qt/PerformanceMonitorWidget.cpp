@@ -17,7 +17,7 @@ namespace Ladybird {
 
 static constexpr Array<char const*, 6> s_labels { "CPU ", "MEM ", "PEAK ", "↓ ", "↑ ", "FPS " };
 static constexpr Array<char const*, 6> s_value_templates { "9999%", "999.9 MB", "999.9 MB", "999.9 MB/s", "999.9 MB/s", "999" };
-static constexpr int metric_spacing = 8;
+static constexpr int metric_spacing = 12;
 static constexpr int text_start = 48;
 static constexpr int trailing_padding = 4;
 
@@ -80,12 +80,13 @@ void PerformanceMonitorWidget::paintEvent(QPaintEvent*)
         painter.save();
         painter.translate(x + label_width, 0);
         auto actual_width = fontMetrics().horizontalAdvance(segments[i]);
-        // NB: Very large counters fit inside their column without moving neighboring metrics.
+        // NB: Values sit against the end of their column, as numbers in a table do, so the gaps between metrics stay
+        //     even and nothing moves as values change. Very large counters fit inside their column.
         if (actual_width > value_width) {
             painter.scale(static_cast<double>(value_width) / actual_width, 1);
-            painter.drawText(QRect(0, 0, actual_width, height()), Qt::AlignVCenter | Qt::AlignLeft, segments[i]);
+            painter.drawText(QRect(0, 0, actual_width, height()), Qt::AlignVCenter | Qt::AlignRight, segments[i]);
         } else {
-            painter.drawText(QRect(0, 0, value_width, height()), Qt::AlignVCenter | Qt::AlignLeft, segments[i]);
+            painter.drawText(QRect(0, 0, value_width, height()), Qt::AlignVCenter | Qt::AlignRight, segments[i]);
         }
         painter.restore();
         x += label_width + value_width + metric_spacing;
