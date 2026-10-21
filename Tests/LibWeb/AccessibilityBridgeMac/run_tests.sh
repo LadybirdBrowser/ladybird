@@ -2,9 +2,9 @@
 #
 # Runs the macOS accessibility-bridge regression tests against NSAccessibility/AXUIElement.
 #
-# Requires: PyObjC frameworks (pyobjc-framework-ApplicationServices, pyobjc-framework-Cocoa) — usually pre-installed in
-# macOS's system Python. The shell/IDE running this script needs Accessibility permission granted in System Settings →
-# Privacy & Security → Accessibility.
+# Requires: PyObjC frameworks (pyobjc-framework-ApplicationServices, pyobjc-framework-Cocoa). The shell/IDE running this
+# script needs Accessibility permission granted in System Settings → Privacy & Security → Accessibility. Without either,
+# the script exits with status 77, which ctest reports as a skip.
 
 set -euo pipefail
 
@@ -24,9 +24,9 @@ if [[ ! -x "${LADYBIRD_BINARY}" ]]; then
     exit 1
 fi
 
-# The harness uses PyObjC's ApplicationServices module. The system /usr/bin/python3 (Apple-supplied) ships with PyObjC
-# preinstalled; Homebrew's python3 typically does not. Pick whichever python3 on the system has it. Honor a user-
-# supplied PYTHON env var first, then probe a short list of candidates in order.
+# The harness uses PyObjC's ApplicationServices module, which neither Apple's /usr/bin/python3 nor Homebrew's python3
+# ships with. Pick whichever python3 on the system has had it installed. Honor a user-supplied PYTHON env var first,
+# then probe a short list of candidates in order.
 candidates=()
 if [[ -n "${PYTHON:-}" ]]; then
     candidates+=("${PYTHON}")
@@ -44,15 +44,18 @@ for cand in "${candidates[@]}"; do
 done
 
 if [[ -z "${PYTHON_BIN}" ]]; then
-    echo "error: no python3 on PATH has the PyObjC ApplicationServices module." >&2
-    echo "       The harness uses PyObjC to drive the macOS NSAccessibility / AXUIElement APIs." >&2
-    echo >&2
-    echo "       Options:" >&2
-    echo "         (1) macOS's system Python ships with PyObjC preinstalled. If you have" >&2
-    echo "             /usr/bin/python3, set PYTHON=/usr/bin/python3 and re-run." >&2
-    echo "         (2) Or pip-install PyObjC into whichever python3 is on PATH:" >&2
-    echo "               python3 -m pip install --user pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa" >&2
-    exit 1
+    echo "skipping: none of ${candidates[*]} has the PyObjC ApplicationServices module." >&2
+    echo "       The harness uses PyObjC to drive the macOS NSAccessibility / AXUIElement APIs. To run these tests," >&2
+    echo "       pip-install pyobjc-framework-ApplicationServices and pyobjc-framework-Cocoa into a virtual" >&2
+    echo "       environment, and set PYTHON to its python3. See README.md in this directory." >&2
+    exit 77
+fi
+
+if [[ "$("${PYTHON_BIN}" -c "from ApplicationServices import AXIsProcessTrusted; print(AXIsProcessTrusted())")" != "True" ]]; then
+    echo "skipping: ${PYTHON_BIN} is not trusted for Accessibility." >&2
+    echo "       Grant the shell/IDE running this script Accessibility permission in System Settings →" >&2
+    echo "       Privacy & Security → Accessibility, then re-run." >&2
+    exit 77
 fi
 
 cd "${SCRIPT_DIR}"

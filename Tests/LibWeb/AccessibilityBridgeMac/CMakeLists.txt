@@ -23,6 +23,8 @@ add_test(
 )
 set_tests_properties(LibWebAccessibilityBridgeMacLayer1 PROPERTIES
     ENVIRONMENT "${LADYBIRD_A11Y_BRIDGE_MAC_ENV}"
+    # run_tests.sh exits with 77 when this machine lacks PyObjC or Accessibility permission.
+    SKIP_RETURN_CODE 77
     TIMEOUT 600
     TIMEOUT_SIGNAL_NAME SIGTERM
 )
