@@ -49,7 +49,7 @@ struct FileDownloader::Segment {
     bool response_validated { false };
     u8 retry_count { 0 };
 
-    MonotonicTime last_activity { MonotonicTime::now() };
+    MonotonicTime last_activity;
     u8 stall_restart_count { 0 };
 
     bool is_complete() const { return next_offset > end_offset; }

@@ -552,9 +552,10 @@ private:
 // Monotonic time represents time returned from the CLOCK_MONOTONIC clock, which has an arbitrary fixed reference point.
 class MonotonicTime : private Detail::UnawareTime {
 public:
-    // Monotonic time does not have a defined reference point.
-    // A MonotonicTime at the reference point is therefore meaningless.
-    MonotonicTime() = delete;
+    constexpr MonotonicTime()
+        : Detail::UnawareTime(Duration::zero())
+    {
+    }
     constexpr MonotonicTime(MonotonicTime const&) = default;
     constexpr MonotonicTime(MonotonicTime&&) = default;
     constexpr MonotonicTime& operator=(MonotonicTime const&) = default;
