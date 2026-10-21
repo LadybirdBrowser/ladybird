@@ -2391,7 +2391,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut svg_config = base_config.clone();
     svg_config.namespaces = Some(vec!["Web".to_string(), "SVG".to_string(), "RustFFI".to_string()]);
     svg_config.export.include = vec![
-        "FfiSvgInput".to_string(),
+        "FfiUtf16View".to_string(),
         "FfiSvgPoint".to_string(),
         "FfiSvgTransform".to_string(),
         "TRANSFORM_MATRIX".to_string(),
@@ -2401,10 +2401,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         "TRANSFORM_SKEW_Y".to_string(),
         "TRANSFORM_TRANSLATE".to_string(),
     ];
+    // A parsed path is opaque to C++, which holds it by pointer.
+    svg_config
+        .export
+        .rename
+        .insert("ParsedPath".to_string(), "void".to_string());
+    svg_config.export.exclude.push("ParsedPath".to_string());
 
     generate_ffi_header_strict(
         svg_config,
         &[
+            manifest_dir.join("src/css/ffi_support.rs"),
             manifest_dir.join("src/svg/attribute_parser.rs"),
             manifest_dir.join("src/svg/path_parser.rs"),
         ],
