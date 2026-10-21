@@ -566,7 +566,7 @@ pub(crate) fn to_buffer_source(vm: &Vm, value: Value, rules: &BufferSourceRules)
         }
     }
 
-    // 19. Throw a TypeError.
+    // 20. Throw a TypeError.
     throw_no_union_types_matched(vm)
 }
 
@@ -597,14 +597,14 @@ pub(crate) fn to_array_buffer_view(
         }
     }
 
-    // 19. Throw a TypeError.
+    // 20. Throw a TypeError.
     throw_no_union_types_matched(vm)
 }
 
 /// The last step of the conversion of a JS value to a union type, https://webidl.spec.whatwg.org/#js-union, with
 /// the message of the C++ bindings.
 pub(crate) fn throw_no_union_types_matched<T>(vm: &Vm) -> ThrowCompletionOr<T> {
-    // 19. Throw a TypeError.
+    // 20. Throw a TypeError.
     vm.throw_completion_with_message(ErrorKind::TypeError, "No union types matched".to_string())
 }
 

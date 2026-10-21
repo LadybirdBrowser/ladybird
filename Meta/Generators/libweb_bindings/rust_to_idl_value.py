@@ -153,6 +153,7 @@ class UnionMembers:
 
     dictionary_type: Optional[IDLType] = None
     string_type: Optional[IDLType] = None
+    numeric_type: Optional[IDLType] = None
     sequence_type: Optional[IDLParameterizedType] = None
     typed_array_types: List[IDLType] = field(default_factory=list)
     # The interfaces, implemented in either language, in the order of the union.
@@ -166,6 +167,10 @@ def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, 
             members.dictionary_type = member_type
         elif member_type.name in STRING_TYPES and members.string_type is None:
             members.string_type = member_type
+        elif (
+            member_type.name in INTEGER_TYPES or member_type.name in FLOATING_POINT_TYPES
+        ) and members.numeric_type is None:
+            members.numeric_type = member_type
         elif member_type.name in TYPED_ARRAY_NAMES:
             members.typed_array_types.append(member_type)
         elif cpp_interface(member_type, context) is not None or rust_interface(member_type, context) is not None:
@@ -337,7 +342,7 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
     if members.typed_array_types or members.sequence_type is not None or members.interface_types:
         if dictionary_conversion is not None:
             steps.append(
-                f"""            // 3. If V is null or undefined, then:
+                f"""            // 4. If V is null or undefined, then:
             //     1. If types includes a dictionary type, then return the result of converting V to that
             //        dictionary type.
             if value.is_nullish() {{
@@ -407,10 +412,10 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
         steps.append("            }\n")
     elif dictionary_conversion is not None:
         steps.append(
-            f"""            // 3. If V is null or undefined, then:
+            f"""            // 4. If V is null or undefined, then:
             //     1. If types includes a dictionary type, then return the result of converting V to that
             //        dictionary type.
-            // 13. If V is an Object, then:
+            // 11. If V is an Object, then:
             //     4. If types includes a dictionary type, then return the result of converting V to that
             //        dictionary type.
             if value.is_nullish() || value.is_object() {{
@@ -418,16 +423,34 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
             }}
 """
         )
+    numeric_type = members.numeric_type
+    numeric_conversion = None
+    if numeric_type is not None:
+        numeric_conversion = rust_to_idl_value(numeric_type, {}, "value", "value", context, what)
+        steps.append(
+            f"""            // 13. If V is a Number, then:
+            //     1. If types includes a numeric type, then return the result of converting V to that numeric type.
+            if value.is_number() {{
+                return Ok(Self::{rust_union_variant(numeric_type)}({numeric_conversion}?));
+            }}
+"""
+        )
     if string_type is not None:
         conversion = rust_to_idl_value(string_type, {}, "value", "value", context, what)
         steps.append(
-            f"""            // 17. If types includes a string type, then return the result of converting V to that type.
+            f"""            // 15. If types includes a string type, then return the result of converting V to that type.
             Ok(Self::{rust_union_variant(string_type)}({conversion}?))
+"""
+        )
+    elif numeric_type is not None:
+        steps.append(
+            f"""            // 17. If types includes a numeric type, then return the result of converting V to that numeric type.
+            Ok(Self::{rust_union_variant(numeric_type)}({numeric_conversion}?))
 """
         )
     else:
         steps.append(
-            """            // 19. Throw a TypeError.
+            """            // 20. Throw a TypeError.
             throw_no_union_types_matched(vm)
 """
         )
