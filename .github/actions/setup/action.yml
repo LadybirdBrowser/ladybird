@@ -120,7 +120,7 @@ runs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: 'Warm up the Rust toolchain'
-      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
+      if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' || inputs.os == 'Windows' }}
       shell: bash
       run: |
         if rustup toolchain install ; then
