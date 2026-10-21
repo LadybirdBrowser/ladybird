@@ -624,7 +624,7 @@ impl super::StyleEngine {
         let [store, inheritance_store] = custom_property_environments.map(|identity| {
             self.custom_property_environments
                 .store(identity)
-                .unwrap_or(std::ptr::null())
+                .map_or(std::ptr::null(), |store| std::sync::Arc::as_ptr(store).cast())
         });
         let inheritance_parent_style_record = inheritance_parent
             .and_then(|parent| self.held_style_records.get(&parent).copied())

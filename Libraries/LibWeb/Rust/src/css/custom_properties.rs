@@ -723,19 +723,10 @@ impl CustomPropertyStore {
             .is_some_and(|entry| entry.value.pointer().cast() == value)
     }
 
-    unsafe fn retained_parent(parent: *const c_void) -> Option<Arc<CustomPropertyStore>> {
-        if parent.is_null() {
-            return None;
-        }
-        let parent = parent.cast::<CustomPropertyStore>();
-        unsafe { Arc::increment_strong_count(parent) };
-        Some(unsafe { Arc::from_raw(parent) })
-    }
-
     fn child(
         mut parent: Option<Arc<CustomPropertyStore>>,
         entries: Vec<(usize, CustomPropertyEntry)>,
-    ) -> *const c_void {
+    ) -> Arc<CustomPropertyStore> {
         let mut own_names = HashMap::with_capacity(entries.len());
         let mut own_values = HashMap::with_capacity(entries.len());
         let mut declared_names = Vec::with_capacity(entries.len());
@@ -776,24 +767,21 @@ impl CustomPropertyStore {
             0
         };
 
-        Arc::into_raw(Arc::new(CustomPropertyStore {
+        Arc::new(CustomPropertyStore {
             own_values,
             declared_names,
             own_names,
             inheritance_parent,
             parent,
             ancestor_count,
-        }))
-        .cast()
+        })
     }
 
-    /// # Safety
-    /// `parent` must be null or a live raw `Arc` pointer to a `CustomPropertyStore`.
-    pub(crate) unsafe fn resolved_child(
+    pub(crate) fn resolved_child(
         &self,
-        parent: *const c_void,
+        parent: Option<Arc<CustomPropertyStore>>,
         values: Vec<(usize, RetainedStyleValueData)>,
-    ) -> *const c_void {
+    ) -> Arc<CustomPropertyStore> {
         let entries = values
             .into_iter()
             .map(|(name_raw, value)| {
@@ -812,16 +800,15 @@ impl CustomPropertyStore {
                 )
             })
             .collect();
-        Self::child(unsafe { Self::retained_parent(parent) }, entries)
+        Self::child(parent, entries)
     }
 
     /// # Safety
-    /// `parent` must be null or a live raw `Arc` pointer, and every value pointer must remain live
-    /// for this call.
+    /// Every name and value pointer must remain live for this call.
     pub(crate) unsafe fn cascaded_child(
-        parent: *const c_void,
+        parent: Option<Arc<CustomPropertyStore>>,
         values: Vec<(usize, Arc<[u16]>, bool, *const c_void)>,
-    ) -> *const c_void {
+    ) -> Arc<CustomPropertyStore> {
         let entries = values
             .into_iter()
             .map(|(name_raw, name, important, value)| {
@@ -840,7 +827,7 @@ impl CustomPropertyStore {
                 )
             })
             .collect();
-        Self::child(unsafe { Self::retained_parent(parent) }, entries)
+        Self::child(parent, entries)
     }
 }
 
@@ -3511,8 +3498,6 @@ mod tests {
                 },
             )],
         );
-        // SAFETY: child returns one owned Arc reference.
-        let store = unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) };
         let value = store.get(0).unwrap().value.clone();
         drop(store);
         assert!(matches!(value.data(), StyleValueData::Number { value } if *value == 1.0));

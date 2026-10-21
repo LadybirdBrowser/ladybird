@@ -15,9 +15,9 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::ffi::c_void;
 use std::hash::BuildHasherDefault;
 use std::hash::Hasher;
+use std::sync::Arc;
 
 use crate::css::custom_properties::{CustomPropertyStore, finalize_element_custom_property};
 use crate::css::parser::value_parser::{
@@ -434,19 +434,19 @@ fn custom_property_needs_resolution(value: &StyleValueData) -> bool {
 }
 
 /// Resolves the custom properties `store` declares, finalizing each registered value against
-/// `finalization`. Answers the store holding them over the parent's, which transfers one strong
-/// reference to the caller, or null where the element declares nothing that differs from the
-/// parent and may reuse its store; and what the registered values read as they computed.
-///
-/// # Safety
-/// `resolved_parent_store` must be null or a live raw `Arc` pointer to a `CustomPropertyStore`.
-pub(crate) unsafe fn resolve_declared_custom_properties(
+/// `finalization`. Answers the store holding them over the parent's, or none where the element
+/// declares nothing that differs from the parent and may reuse its store; and what the registered
+/// values read as they computed.
+pub(crate) fn resolve_declared_custom_properties(
     store: &CustomPropertyStore,
-    resolved_parent_store: *const c_void,
+    resolved_parent_store: Option<&Arc<CustomPropertyStore>>,
     reuse_resolved_parent_if_empty: bool,
     resolution_context: &mut CascadeResolutionContext,
     finalization: crate::css::custom_properties::CustomPropertyFinalization<'_>,
-) -> (*const c_void, crate::css::custom_properties::RegisteredValueReads) {
+) -> (
+    Option<Arc<CustomPropertyStore>>,
+    crate::css::custom_properties::RegisteredValueReads,
+) {
     let names = &store.declared_names;
     let own_entry = |name_raw: &usize| {
         store
@@ -468,8 +468,7 @@ pub(crate) unsafe fn resolve_declared_custom_properties(
         .collect();
     let mut reads = crate::css::custom_properties::RegisteredValueReads::default();
     let outputs = resolve_unresolved_style_values(resolution_context, &inputs, &finalization, &mut reads);
-    // SAFETY: Guaranteed by the caller.
-    let resolved_parent = unsafe { resolved_parent_store.cast::<CustomPropertyStore>().as_ref() };
+    let resolved_parent = resolved_parent_store;
     let resolved_values: Vec<_> = names
         .iter()
         .zip(outputs)
@@ -479,10 +478,9 @@ pub(crate) unsafe fn resolve_declared_custom_properties(
         .map(|(name_raw, value)| (*name_raw, value))
         .collect();
     let rust_store = if resolved_values.is_empty() && reuse_resolved_parent_if_empty {
-        std::ptr::null()
+        None
     } else {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { store.resolved_child(resolved_parent_store, resolved_values) }
+        Some(store.resolved_child(resolved_parent_store.cloned(), resolved_values))
     };
     (rust_store, reads)
 }

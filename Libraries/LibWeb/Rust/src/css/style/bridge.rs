@@ -1269,22 +1269,17 @@ pub unsafe extern "C" fn style_engine_note_custom_property_environment(
 }
 
 /// [`style_engine_note_custom_property_environment`] on `engine`.
-///
-/// # Safety
-/// As for [`style_engine_note_custom_property_environment`], for the arguments after `engine`.
-pub unsafe fn note_custom_property_environment(
+pub fn note_custom_property_environment(
     engine: &mut StyleEngine,
     identity: u64,
-    store: *const c_void,
+    store: Option<&std::sync::Arc<crate::css::custom_properties::CustomPropertyStore>>,
     inheritable: u64,
-    inheritable_store: *const c_void,
+    inheritable_store: Option<&std::sync::Arc<crate::css::custom_properties::CustomPropertyStore>>,
 ) {
-    unsafe {
-        engine.custom_property_environments.retain(identity, store);
-        engine
-            .custom_property_environments
-            .note_inheritable(identity, inheritable, inheritable_store);
-    }
+    engine.custom_property_environments.retain(identity, store);
+    engine
+        .custom_property_environments
+        .note_inheritable(identity, inheritable, inheritable_store);
 }
 
 /// The environment a child inherits from one the engine resolved: itself, unless a registration
@@ -2014,7 +2009,7 @@ pub(crate) fn publish_computed_groups_from_inputs(
     unsafe {
         engine
             .custom_property_environments
-            .retain(custom_property_environment, custom_property_store);
+            .retain_raw(custom_property_environment, custom_property_store);
     }
     if pseudo_kind == u8::MAX
         && let Some(node) = StyleNodeID::from_raw(node)
@@ -2475,7 +2470,7 @@ pub unsafe extern "C" fn style_engine_republish_record_environment(
         let Some(node) = StyleNodeID::from_raw(node) else {
             return (0, None);
         };
-        unsafe { engine.custom_property_environments.retain(environment, store) };
+        unsafe { engine.custom_property_environments.retain_raw(environment, store) };
         let Some(style_record) = engine.republish_record_environment(node, environment) else {
             return (0, None);
         };
@@ -2748,11 +2743,8 @@ pub unsafe extern "C" fn style_engine_borrow_engine_custom_property_environment(
         let Some((store, parent_identity)) = engine.custom_property_environments.engine_environment(identity) else {
             return std::ptr::null();
         };
-        unsafe {
-            std::sync::Arc::increment_strong_count(store.cast::<crate::css::custom_properties::CustomPropertyStore>());
-            *parent = parent_identity;
-        }
-        store
+        unsafe { *parent = parent_identity };
+        std::sync::Arc::into_raw(std::sync::Arc::clone(store)).cast()
     })
 }
 

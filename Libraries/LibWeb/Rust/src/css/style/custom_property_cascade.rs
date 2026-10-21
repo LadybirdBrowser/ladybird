@@ -1470,13 +1470,13 @@ impl RetainedState {
     /// names an environment keeps its store alive, and C++ makes a store for every environment,
     /// so a parent's is always held. `None` if it is not anyway: an environment built over no
     /// store would drop every custom property the node inherits.
-    fn inherited_environment_store(&self, environment: u64) -> Option<*const c_void> {
+    fn inherited_environment_store(&self, environment: u64) -> Option<Option<Arc<CustomPropertyStore>>> {
         if environment == 0 {
-            return Some(std::ptr::null());
+            return Some(None);
         }
         let store = self.custom_property_environments.store(environment);
         debug_assert!(store.is_some(), "an inherited environment keeps its store");
-        store
+        store.cloned().map(Some)
     }
 
     /// The environment of a node the engine computes a record for: the one it inherits of its
@@ -1739,7 +1739,7 @@ impl RetainedState {
             self.counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         };
-        let parent = unsafe { parent_store.cast::<CustomPropertyStore>().as_ref() };
+        let parent = parent_store.as_deref();
         let mut values = Vec::with_capacity(cascaded.len());
         for (declared, value) in &cascaded {
             let Some(name) = self.declared_custom_property_name(declared.name) else {
@@ -1770,9 +1770,8 @@ impl RetainedState {
         // The attributes an `attr()` among the declarations reads.
         let attributes =
             reads_attributes.then(|| SubstitutionAttributes::of(&self.facts, node, self.html_element_namespace));
-        // SAFETY: The parent store is live for as long as a record names its environment, and the
-        // values are the program's interned values, live for the call.
-        let cascaded_store = unsafe { Arc::from_raw(CustomPropertyStore::cascaded_child(parent_store, values).cast()) };
+        // SAFETY: The values are the program's interned values, live for the call.
+        let cascaded_store = unsafe { CustomPropertyStore::cascaded_child(parent_store.clone(), values) };
         let mut random_function_index = 0_usize;
         let mut parse_context = registry_ref.parse_context(&mut random_function_index);
         parse_context.in_quirks_mode = inputs.in_quirks_mode;
@@ -1783,12 +1782,10 @@ impl RetainedState {
         // The custom properties a `style()` query reads are the element's style query references,
         // which the host records with its record.
         let mut style_query_references = None;
-        // SAFETY: The store is live for as long as a record names its environment.
-        let inheritance_store = unsafe { inheritance_store.cast::<CustomPropertyStore>().as_ref() };
         let mut resolution_context = engine_resolution_context(
             &parse_context,
             Some(&cascaded_store),
-            inheritance_store,
+            inheritance_store.as_deref(),
             registry_ref,
             attributes.as_ref(),
             &media_environment,
@@ -1820,16 +1817,13 @@ impl RetainedState {
             color_scheme: registered.as_ref().map_or(0, |registered| registered.color_scheme),
             draw_random_base_value: Some(&draw_random_base_value),
         };
-        // SAFETY: The parent store is live for as long as a record names its environment.
-        let (rust_store, reads) = unsafe {
-            resolve_declared_custom_properties(
-                &cascaded_store,
-                parent_store,
-                !parent_store.is_null(),
-                &mut resolution_context,
-                finalization,
-            )
-        };
+        let (rust_store, reads) = resolve_declared_custom_properties(
+            &cascaded_store,
+            parent_store.as_ref(),
+            parent_store.is_some(),
+            &mut resolution_context,
+            finalization,
+        );
         drop(cascaded_store);
         self.counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
         // What the registered values and style queries read beyond the element's fonts reaches
@@ -1863,22 +1857,21 @@ impl RetainedState {
                 },
             );
         }
-        let identity = if rust_store.is_null() {
-            inherited_environment
-        } else if let Some(previous) =
-            self.environment_resolving_to_the_same_values(node, pseudo, rust_store, registry_ref)
-        {
-            // SAFETY: The resolution handed over one strong reference to the store, which nothing else holds.
-            drop(unsafe { Arc::from_raw(rust_store.cast::<CustomPropertyStore>()) });
-            previous
-        } else {
-            unsafe {
-                self.custom_property_environments.adopt_engine_environment(
-                    rust_store,
-                    inherited_environment,
-                    parent_store,
-                    registry_ref,
-                )
+        let identity = match rust_store {
+            None => inherited_environment,
+            Some(rust_store) => {
+                if let Some(previous) =
+                    self.environment_resolving_to_the_same_values(node, pseudo, &rust_store, registry_ref)
+                {
+                    previous
+                } else {
+                    self.custom_property_environments.adopt_engine_environment(
+                        rust_store,
+                        inherited_environment,
+                        parent_store.as_deref(),
+                        registry_ref,
+                    )
+                }
             }
         };
         // A viewport change reaches the records under the environment. One the element shares with
@@ -1903,7 +1896,7 @@ impl RetainedState {
         &self,
         node: StyleNodeID,
         pseudo: Option<u8>,
-        resolved: *const c_void,
+        resolved: &CustomPropertyStore,
         registry: &crate::css::custom_properties::CustomPropertyRegistry,
     ) -> Option<u64> {
         if pseudo.is_some() {
@@ -1917,14 +1910,6 @@ impl RetainedState {
             return None;
         }
         let previous_store = self.custom_property_environments.store(previous)?;
-        // SAFETY: Both stores are live: the previous one while the environment naming it is, the resolved one for
-        // the call.
-        let (previous_store, resolved) = unsafe {
-            (
-                &*previous_store.cast::<CustomPropertyStore>(),
-                &*resolved.cast::<CustomPropertyStore>(),
-            )
-        };
         (resolved.hands_down_every_value(registry) && resolved.holds_same_values_as(previous_store)).then_some(previous)
     }
 
@@ -2070,7 +2055,9 @@ impl RetainedState {
             }))
             .collect();
         // SAFETY: The base store is live for the sample, and the values are live for the call.
-        let cascaded_store = unsafe { Arc::from_raw(CustomPropertyStore::cascaded_child(base, values).cast()) };
+        let base = unsafe { super::environment_move::retained_store(base) };
+        // SAFETY: The values are live for the call.
+        let cascaded_store = unsafe { CustomPropertyStore::cascaded_child(base.clone(), values) };
         let registry = self.document_style_computation_inputs.custom_property_registry();
         let mut random_function_index = 0_usize;
         let mut parse_context = registry.parse_context(&mut random_function_index);
@@ -2102,15 +2089,16 @@ impl RetainedState {
             draw_random_base_value: Some(&draw_random_base_value),
             ..finalization
         };
-        // SAFETY: As above.
-        let (resolved, _) = unsafe {
-            resolve_declared_custom_properties(&cascaded_store, base, true, &mut resolution_context, finalization)
-        };
-        if resolved.is_null() {
+        let (resolved, _) = resolve_declared_custom_properties(
+            &cascaded_store,
+            base.as_ref(),
+            true,
+            &mut resolution_context,
+            finalization,
+        );
+        let Some(resolved) = resolved else {
             return Vec::new();
-        }
-        // SAFETY: The resolution hands over one strong reference to the store.
-        let resolved = unsafe { Arc::from_raw(resolved.cast::<CustomPropertyStore>()) };
+        };
         readers
             .iter()
             .filter_map(|(name, _, _)| {
@@ -2173,6 +2161,13 @@ impl RetainedState {
             style_query_references: Some(style_query_references),
             functions: functions.as_ref(),
         };
+        // SAFETY: The stores are null or live for the sample.
+        let (store, inheritance_store) = unsafe {
+            (
+                store.cast::<CustomPropertyStore>().as_ref(),
+                inheritance_store.cast::<CustomPropertyStore>().as_ref(),
+            )
+        };
         substitute_against_stores(
             store,
             inheritance_store,
@@ -2219,8 +2214,8 @@ impl RetainedState {
             return Ok(value);
         }
         let store_of = |identity| match identity {
-            0 => Some(std::ptr::null()),
-            identity => environments.store(identity),
+            0 => Some(None),
+            identity => environments.store(identity).map(|store| Some(&**store)),
         };
         let Some(store) = store_of(environment.own) else {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
@@ -2233,7 +2228,7 @@ impl RetainedState {
             };
             store
         } else {
-            std::ptr::null()
+            None
         };
         // The resolution reads the attributes and the custom functions only where the value does.
         let inputs = SubstitutionInputs {
@@ -2257,8 +2252,8 @@ impl RetainedState {
 /// source no grammar accepts, is the guaranteed-invalid value: the declaration is invalid at
 /// computed-value time.
 fn substitute_against_stores(
-    store: *const c_void,
-    inheritance_store: *const c_void,
+    store: Option<&CustomPropertyStore>,
+    inheritance_store: Option<&CustomPropertyStore>,
     inputs: &SubstitutionInputs<'_>,
     property: u16,
     root_custom_property_name: &[u16],
@@ -2278,13 +2273,6 @@ fn substitute_against_stores(
         functions.map_or(&[][..], |functions| functions.visibilities.as_slice()),
     );
     let mut style_query_references = inputs.style_query_references.map(std::cell::RefCell::borrow_mut);
-    // SAFETY: The stores are null or live while a record names their environments.
-    let (store, inheritance_store) = unsafe {
-        (
-            store.cast::<CustomPropertyStore>().as_ref(),
-            inheritance_store.cast::<CustomPropertyStore>().as_ref(),
-        )
-    };
     let resolution_inputs = VarResolutionInputs {
         store,
         inheritance_store,

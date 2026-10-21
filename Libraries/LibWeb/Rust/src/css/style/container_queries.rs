@@ -507,8 +507,7 @@ impl RetainedState {
                     .unwrap_or_default()
                 {
                     0 => None,
-                    // SAFETY: The store is live while the container's record names its environment.
-                    identity => Some(unsafe { &*self.custom_property_environments.store(identity)?.cast() }),
+                    identity => Some(&**self.custom_property_environments.store(identity)?),
                 };
                 let values = crate::css::computed_value_views::ComputedValuesView::new(
                     crate::css::host_shared::SharedPayload::as_pointer_slice(view.payloads),
