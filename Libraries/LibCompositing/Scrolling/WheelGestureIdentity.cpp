@@ -61,4 +61,12 @@ void WheelGestureIdentity::advance_to(Web::ScrollGesturePhase phase, MonotonicTi
         m_ended_at = now;
 }
 
+void WheelGestureIdentity::did_handle_event(MonotonicTime now)
+{
+    bool handled_event_ended_gesture = m_ended_at == m_last_event_time;
+    if (handled_event_ended_gesture)
+        m_ended_at = now;
+    m_last_event_time = now;
+}
+
 }

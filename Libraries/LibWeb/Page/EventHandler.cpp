@@ -952,6 +952,11 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     else
         m_wheel_scroll_latch.clear();
 
+    ScopeGuard measure_next_pause_from_end_of_handling = [this] {
+        if (m_wheel_scroll_latch.has_value())
+            m_wheel_scroll_latch->gesture.did_handle_event(MonotonicTime::now());
+    };
+
     // A wheel step is routed against the offsets the compositor holds now, which a step it just took may
     // have moved ahead of any rendering update.
     m_navigable->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
