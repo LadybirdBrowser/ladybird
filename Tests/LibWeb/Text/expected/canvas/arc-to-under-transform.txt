@@ -1,0 +1,4 @@
+Inside the square: 255
+Above the top edge: 0
+Outside the rounded corner: 0
+Inside the rounded corner: 255

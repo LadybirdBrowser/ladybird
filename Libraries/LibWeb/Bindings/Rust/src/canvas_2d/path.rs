@@ -80,8 +80,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         y2: f64,
         radius: f64,
     ) -> WebIdlResult<()> {
-        let transform = self.drawing_state().transform;
-        self.build_path(|path| canvas_path::arc_to(path, transform, x1, y1, x2, y2, radius))?;
+        self.build_path(|path| canvas_path::arc_to(path, x1, y1, x2, y2, radius))?;
         Ok(())
     }
 
