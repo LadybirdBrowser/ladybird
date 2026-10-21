@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    .flex {
+        display: flex;
+        width: 500px;
+    }
+    .item {
+        width: 125px;
+        flex: 0 0 content;
+    }
+    .content {
+        width: 300px;
+    }
+</style>
+<div class="flex"><div class="item" id="item"><div class="content"></div></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`item width: ${item.getBoundingClientRect().width}`);
+    });
+</script>
