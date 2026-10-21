@@ -958,14 +958,22 @@ impl DocumentHost {
         made
     }
 
-    /// The arena of the document's render state, for a unit test that writes it directly, whose render owner is the
-    /// test's own thread. The host knows nothing of what the test writes.
+    /// Runs `job` on the arena of the document's render state, for a unit test that writes it directly, whose render
+    /// owner is the test's own thread. The host knows nothing of what the test writes.
     #[cfg(test)]
-    pub(crate) fn arena_for_test(&self) -> *mut crate::layout::LayoutNodeArena {
+    pub(crate) fn with_arena_for_test<R>(&self, job: impl FnOnce(&mut crate::layout::LayoutNodeArena) -> R) -> R {
         self.facts.set(None);
-        owner::with_state(self.document, self.seed.take(), |state| {
-            std::ptr::from_mut(state.arena.arena_mut())
-        })
+        owner::with_state(self.document, self.seed.take(), |state| job(state.arena.arena_mut()))
+    }
+
+    /// [`Self::with_arena_for_test`] for a test that writes the arena without the host learning of it, which keeps the
+    /// facts it had.
+    #[cfg(test)]
+    pub(crate) fn with_arena_untold_for_test<R>(
+        &self,
+        job: impl FnOnce(&mut crate::layout::LayoutNodeArena) -> R,
+    ) -> R {
+        owner::with_state(self.document, self.seed.take(), |state| job(state.arena.arena_mut()))
     }
 
     /// Runs `job` on the document's render state on the render owner, after the writes the host queued, and waits for
@@ -1348,33 +1356,34 @@ impl<T> Waited<T> {
 
 /// A document host with a render state, for a unit test, which destroys both when it is dropped.
 #[cfg(test)]
-pub(crate) struct TestHost(*mut DocumentHost);
+pub(crate) struct TestHost(Option<Box<DocumentHost>>);
 
 #[cfg(test)]
 impl TestHost {
     pub(crate) fn new() -> Self {
-        Self(document_host_create())
+        Self(Some(Box::new(DocumentHost::new())))
     }
 
     pub(crate) fn host(&self) -> &DocumentHost {
-        // SAFETY: The host lives until the test host is dropped.
-        unsafe { &*self.0 }
+        self.0
+            .as_ref()
+            .expect("the test host holds its host until it is dropped")
     }
 
     /// The style engine of the host's document, as of every write the host queued, which the test reaches between the
     /// host's calls.
     pub(crate) fn engine(&self) -> crate::css::style::StyleEngineHandle {
-        // SAFETY: The host lives until the test host is dropped.
-        let host = unsafe { &*self.0 };
-        host.ask(super::ScriptForcedRead::for_test(), |state| state.engine)
+        self.host()
+            .ask(super::ScriptForcedRead::for_test(), |state| state.engine)
     }
 }
 
 #[cfg(test)]
 impl Drop for TestHost {
     fn drop(&mut self) {
-        // SAFETY: The test host made the host, and destroys it once.
-        unsafe { document_host_destroy(self.0) };
+        if let Some(host) = self.0.take() {
+            host.destroy();
+        }
     }
 }
 
@@ -1440,28 +1449,35 @@ pub extern "C" fn document_host_queue_writes_set_aside(host: &DocumentHost) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { Box::from_raw(host) };
-    // The document's teardown is the host's own read: a frame in flight lands first, and what it brought back for the
-    // host goes unpaid, as the host made nothing of it yet.
-    host.take_frame_in(ForcedRead::of_teardown());
-    // What writes the host streamed since its last job owe it, it pays as it would after a job.
-    if host.streamed.get() {
-        host.ask(ForcedRead::of_teardown(), |_| ());
-    }
-    let DocumentHost {
-        document,
-        seed,
-        host_tables,
-        ..
-    } = *host;
-    assert_eq!(
-        host_tables.shells.borrow().len(),
-        0,
-        "document host destroyed with layout nodes"
-    );
-    // A state no job made has nothing to drop, and the writes still queued for it go with the host.
-    if seed.into_inner().is_none() {
-        post_to_render_side(move || owner::retire(document));
+    unsafe { Box::from_raw(host) }.destroy();
+}
+
+impl DocumentHost {
+    /// Destroys the host, and has the render owner drop the render state of its document, where a job made one,
+    /// without waiting for it. No entry may reach the arena of its render state any more.
+    fn destroy(self: Box<Self>) {
+        // The document's teardown is the host's own read: a frame in flight lands first, and what it brought back for
+        // the host goes unpaid, as the host made nothing of it yet.
+        self.take_frame_in(ForcedRead::of_teardown());
+        // What writes the host streamed since its last job owe it, it pays as it would after a job.
+        if self.streamed.get() {
+            self.ask(ForcedRead::of_teardown(), |_| ());
+        }
+        let DocumentHost {
+            document,
+            seed,
+            host_tables,
+            ..
+        } = *self;
+        assert_eq!(
+            host_tables.shells.borrow().len(),
+            0,
+            "document host destroyed with layout nodes"
+        );
+        // A state no job made has nothing to drop, and the writes still queued for it go with the host.
+        if seed.into_inner().is_none() {
+            post_to_render_side(move || owner::retire(document));
+        }
     }
 }
 
@@ -1622,11 +1638,12 @@ mod tests {
     /// A host whose last job left the document's layout up to date.
     fn host_with_fresh_layout() -> (DocumentHost, crate::layout::node_data::NodeSlotId) {
         let host = DocumentHost::for_test();
-        // SAFETY: The test writes the arena on its own thread, which is the render owner of a test.
-        let arena = unsafe { &mut *host.arena_for_test() };
-        let viewport = arena.allocate_unbound();
-        arena.set_layout_root(viewport);
-        arena.reset_layout_update_flags_in_subtree(viewport);
+        let viewport = host.with_arena_for_test(|arena| {
+            let viewport = arena.allocate_unbound();
+            arena.set_layout_root(viewport);
+            arena.reset_layout_update_flags_in_subtree(viewport);
+            viewport
+        });
         host.ask(ScriptForcedRead::for_test(), |_| ());
         assert_eq!(host.known_layout_up_to_date_unless_built(), Some(true));
         (host, viewport)
