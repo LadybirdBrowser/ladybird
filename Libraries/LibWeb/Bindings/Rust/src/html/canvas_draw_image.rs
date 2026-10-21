@@ -93,8 +93,13 @@ impl CanvasImageSource {
     pub(crate) fn is_not_origin_clean(self) -> bool {
         match self.cpp_source() {
             Some((source, kind)) => kind.is_not_origin_clean(source),
-            // FIXME: image's bitmap's origin-clean flag is false.
-            None => false,
+            None => {
+                let Self::ImageBitmap(image_bitmap) = self else {
+                    unreachable!("an image source that is not implemented in C++ is an ImageBitmap");
+                };
+                // image's bitmap's origin-clean flag is false.
+                !image_bitmap.origin_clean()
+            }
         }
     }
 

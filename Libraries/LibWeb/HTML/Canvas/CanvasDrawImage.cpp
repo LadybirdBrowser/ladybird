@@ -6,6 +6,7 @@
  */
 
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageRequest.h>
@@ -87,6 +88,38 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
 
     // 2. Return good.
     return { CanvasImageSourceUsability::Good };
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#the-image-argument-is-not-origin-clean
+bool image_is_not_origin_clean(CanvasImageSource const& image)
+{
+    // An object image is not origin-clean if, switching on image's type:
+    return image.visit(
+        // HTMLOrSVGImageElement
+        [](GC::Ref<HTMLImageElement> image) {
+            // image's current request's image data is CORS-cross-origin.
+            return image->current_request().image_data()->is_cors_cross_origin();
+        },
+        [](GC::Ref<SVG::SVGImageElement>) {
+            // FIXME: image's current request's image data is CORS-cross-origin.
+            return false;
+        },
+        // HTMLVideoElement
+        [](GC::Ref<HTMLVideoElement>) {
+            // FIXME: image's media data is CORS-cross-origin.
+            return false;
+        },
+        // HTMLCanvasElement
+        // OffscreenCanvas
+        [](OneOf<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> auto const& canvas) {
+            // image's bitmap's origin-clean flag is false.
+            return !canvas->is_origin_clean();
+        },
+        // ImageBitmap
+        [](GC::Ref<ImageBitmap> image_bitmap) {
+            // image's bitmap's origin-clean flag is false.
+            return !image_bitmap->is_origin_clean();
+        });
 }
 
 }

@@ -218,6 +218,8 @@ WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> OffscreenCanvas::transfer_to_image_bit
 
     // 3. Let image be a newly created ImageBitmap object that references the same underlying bitmap data as this OffscreenCanvas object's bitmap.
     auto image = ImageBitmap::create(get_bitmap_from_surface());
+    // NB: The bitmap data that image references keeps the origin-clean flag of this OffscreenCanvas object's bitmap.
+    image->set_origin_clean(is_origin_clean());
 
     // 4. Set this OffscreenCanvas object's bitmap to reference a newly created bitmap of the same dimensions and color space as the previous bitmap, and with its pixels initialized to transparent black, or opaque black if the rendering context' s alpha is false.
     if (auto* context = m_context.get_pointer<GC::Ref<OffscreenCanvasRenderingContext2D>>())

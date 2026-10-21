@@ -44,7 +44,6 @@
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
-#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -720,29 +719,7 @@ void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind
 // https://html.spec.whatwg.org/multipage/canvas.html#the-image-argument-is-not-origin-clean
 bool web_canvas_2d_image_is_not_origin_clean(void* source_wrapper, CanvasImageSourceKind kind)
 {
-    // An object image is not origin-clean if, switching on image's type:
-    return image_source_from(source_wrapper, kind).visit(
-        // HTMLOrSVGImageElement
-        [](GC::Ref<HTMLImageElement> image) {
-            // image's current request's image data is CORS-cross-origin.
-            return image->current_request().image_data()->is_cors_cross_origin();
-        },
-        [](GC::Ref<SVG::SVGImageElement>) {
-            // FIXME: image's current request's image data is CORS-cross-origin.
-            return false;
-        },
-        [](GC::Ref<HTML::HTMLVideoElement>) {
-            // FIXME: image's media data is CORS-cross-origin.
-            return false;
-        },
-        // HTMLCanvasElement or OffscreenCanvas
-        [](OneOf<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> auto const& canvas) {
-            // image's bitmap's origin-clean flag is false.
-            return !canvas->is_origin_clean();
-        },
-        [](GC::Ref<ImageBitmap> const&) -> bool {
-            VERIFY_NOT_REACHED();
-        });
+    return image_is_not_origin_clean(image_source_from(source_wrapper, kind));
 }
 
 // The id of the canvas that a canvas or an OffscreenCanvas draws into, readied to be drawn, if it is drawn by its id.

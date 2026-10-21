@@ -65,8 +65,11 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             }
             DOMStringOrCanvasGradientOrCanvasPattern::CanvasGradient(gradient) => FillOrStrokeStyle::Gradient(gradient),
             DOMStringOrCanvasGradientOrCanvasPattern::CanvasPattern(pattern) => {
-                // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set
-                //           this's origin-clean flag to false.
+                // 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's
+                //    origin-clean flag to false.
+                if pattern.is_not_origin_clean() {
+                    self.set_origin_clean(false);
+                }
                 FillOrStrokeStyle::Pattern(pattern)
             }
         };
@@ -106,8 +109,11 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             }
             DOMStringOrCanvasGradientOrCanvasPattern::CanvasGradient(gradient) => FillOrStrokeStyle::Gradient(gradient),
             DOMStringOrCanvasGradientOrCanvasPattern::CanvasPattern(pattern) => {
-                // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set
-                //           this's origin-clean flag to false.
+                // 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's
+                //    origin-clean flag to false.
+                if pattern.is_not_origin_clean() {
+                    self.set_origin_clean(false);
+                }
                 FillOrStrokeStyle::Pattern(pattern)
             }
         };
