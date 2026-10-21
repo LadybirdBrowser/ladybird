@@ -18,8 +18,6 @@ class SVGRectElement final : public SVGGeometryElement {
 public:
     virtual ~SVGRectElement() override = default;
 
-    virtual Gfx::Path get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&) override;
-
     // AD-HOC: The spec states that the x, y, width, height, rx and ry IDL attributes reflect the respective computed values
     //         and their corresponding presentation attributes but other browsers reflect the attribute values instead - see
     //         https://github.com/w3c/svgwg/issues/1153
@@ -46,8 +44,6 @@ private:
     virtual bool is_svg_rect_element() const final { return true; }
 
     SVGRectElement(DOM::Document&, DOM::QualifiedName);
-
-    Gfx::FloatSize calculate_used_corner_radius_values(CSS::ComputedValues const&, float used_width, float used_height) const;
 };
 
 }

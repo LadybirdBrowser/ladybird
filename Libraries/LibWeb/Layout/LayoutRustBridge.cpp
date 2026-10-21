@@ -158,6 +158,40 @@ static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& elemen
     };
 }
 
+RustFFI::FfiSvgAttributeFacts svg_geometry_facts(DOM::Element const& element)
+{
+    RustFFI::FfiSvgAttributeFacts facts {};
+    if (is<SVG::SVGPathElement>(element))
+        facts.geometry_kind = RustFFI::SVG_GEOMETRY_KIND_PATH;
+    else if (is<SVG::SVGRectElement>(element))
+        facts.geometry_kind = RustFFI::SVG_GEOMETRY_KIND_RECT;
+    else if (is<SVG::SVGCircleElement>(element))
+        facts.geometry_kind = RustFFI::SVG_GEOMETRY_KIND_CIRCLE;
+    else if (is<SVG::SVGEllipseElement>(element))
+        facts.geometry_kind = RustFFI::SVG_GEOMETRY_KIND_ELLIPSE;
+    else if (is<SVG::SVGPolylineElement>(element))
+        facts.geometry_kind = RustFFI::SVG_GEOMETRY_KIND_POLYLINE;
+    else if (is<SVG::SVGPolygonElement>(element))
+        facts.geometry_kind = RustFFI::SVG_GEOMETRY_KIND_POLYGON;
+    else if (auto const* line_element = as_if<SVG::SVGLineElement>(element)) {
+        facts.geometry_kind = RustFFI::SVG_GEOMETRY_KIND_LINE;
+        facts.line_x1 = to_ffi_number_percentage(line_element->x1_value());
+        facts.line_y1 = to_ffi_number_percentage(line_element->y1_value());
+        facts.line_x2 = to_ffi_number_percentage(line_element->x2_value());
+        facts.line_y2 = to_ffi_number_percentage(line_element->y2_value());
+    }
+    return facts;
+}
+
+ReadonlySpan<Gfx::FloatPoint> svg_shape_points(DOM::Element const& element)
+{
+    if (auto const* polygon = as_if<SVG::SVGPolygonElement>(element))
+        return polygon->points();
+    if (auto const* polyline = as_if<SVG::SVGPolylineElement>(element))
+        return polyline->points();
+    return {};
+}
+
 // The SVG attributes an element parses, as the layout stage reads them.
 static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom_node)
 {
@@ -203,31 +237,7 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
         pattern_height = pattern_element->pattern_height();
     }
 
-    auto geometry_kind = RustFFI::SVG_GEOMETRY_KIND_NONE;
-    if (is<SVG::SVGPathElement>(dom_node))
-        geometry_kind = RustFFI::SVG_GEOMETRY_KIND_PATH;
-    else if (is<SVG::SVGRectElement>(dom_node))
-        geometry_kind = RustFFI::SVG_GEOMETRY_KIND_RECT;
-    else if (is<SVG::SVGCircleElement>(dom_node))
-        geometry_kind = RustFFI::SVG_GEOMETRY_KIND_CIRCLE;
-    else if (is<SVG::SVGEllipseElement>(dom_node))
-        geometry_kind = RustFFI::SVG_GEOMETRY_KIND_ELLIPSE;
-    else if (is<SVG::SVGPolylineElement>(dom_node))
-        geometry_kind = RustFFI::SVG_GEOMETRY_KIND_POLYLINE;
-    else if (is<SVG::SVGPolygonElement>(dom_node))
-        geometry_kind = RustFFI::SVG_GEOMETRY_KIND_POLYGON;
-
-    SVG::NumberPercentage line_x1 = SVG::NumberPercentage::create_number(0);
-    SVG::NumberPercentage line_y1 = SVG::NumberPercentage::create_number(0);
-    SVG::NumberPercentage line_x2 = SVG::NumberPercentage::create_number(0);
-    SVG::NumberPercentage line_y2 = SVG::NumberPercentage::create_number(0);
-    if (auto const* line_element = as_if<SVG::SVGLineElement>(dom_node)) {
-        geometry_kind = RustFFI::SVG_GEOMETRY_KIND_LINE;
-        line_x1 = line_element->x1_value();
-        line_y1 = line_element->y1_value();
-        line_x2 = line_element->x2_value();
-        line_y2 = line_element->y2_value();
-    }
+    auto geometry = svg_geometry_facts(dom_node);
 
     SVG::SVGTextPositioningElement::ParsedTextPositioning text_positioning;
     if (auto const* text_positioning_element = as_if<SVG::SVGTextPositioningElement>(dom_node))
@@ -287,11 +297,11 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
         .mask_y = to_ffi_number_percentage(mask_y),
         .mask_width = to_ffi_number_percentage(mask_width),
         .mask_height = to_ffi_number_percentage(mask_height),
-        .geometry_kind = geometry_kind,
-        .line_x1 = to_ffi_number_percentage(line_x1),
-        .line_y1 = to_ffi_number_percentage(line_y1),
-        .line_x2 = to_ffi_number_percentage(line_x2),
-        .line_y2 = to_ffi_number_percentage(line_y2),
+        .geometry_kind = geometry.geometry_kind,
+        .line_x1 = geometry.line_x1,
+        .line_y1 = geometry.line_y1,
+        .line_x2 = geometry.line_x2,
+        .line_y2 = geometry.line_y2,
         .text_x = to_ffi_svg_length_value(text_positioning.x),
         .text_y = to_ffi_svg_length_value(text_positioning.y),
         .text_dx = to_ffi_svg_length_value(text_positioning.dx),
@@ -369,11 +379,7 @@ void publish_table_spans(DOM::Element const& element)
 void publish_svg_attribute_facts(DOM::Element& element)
 {
     VERIFY(element.style_node_id() != 0);
-    ReadonlySpan<Gfx::FloatPoint> points;
-    if (auto const* polygon = as_if<SVG::SVGPolygonElement>(element))
-        points = polygon->points();
-    else if (auto const* polyline = as_if<SVG::SVGPolylineElement>(element))
-        points = polyline->points();
+    auto points = svg_shape_points(element);
     static_assert(sizeof(Gfx::FloatPoint) == sizeof(RustFFI::FfiFloatPoint));
     RustFFI::render_state_set_svg_attribute_facts(
         element.document().layout_node_arena().host(),

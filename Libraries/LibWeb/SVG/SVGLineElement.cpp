@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Path.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
@@ -35,26 +34,6 @@ void SVGLineElement::attribute_changed(Utf16FlyString const& name, Optional<Utf1
 
     if (name.is_one_of(SVG::AttributeNames::x1, SVG::AttributeNames::y1, SVG::AttributeNames::x2, SVG::AttributeNames::y2))
         set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
-}
-
-Gfx::Path SVGLineElement::get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&)
-{
-    auto const viewport_width = viewport_size.width().to_float();
-    auto const viewport_height = viewport_size.height().to_float();
-
-    Gfx::Path path;
-    float const x1 = m_x1.value_or({ 0, false }).resolve_relative_to(viewport_width);
-    float const y1 = m_y1.value_or({ 0, false }).resolve_relative_to(viewport_height);
-    float const x2 = m_x2.value_or({ 0, false }).resolve_relative_to(viewport_width);
-    float const y2 = m_y2.value_or({ 0, false }).resolve_relative_to(viewport_height);
-
-    // 1. perform an absolute moveto operation to absolute location (x1,y1)
-    path.move_to({ x1, y1 });
-
-    // 2. perform an absolute lineto operation to absolute location (x2,y2)
-    path.line_to({ x2, y2 });
-
-    return path;
 }
 
 }

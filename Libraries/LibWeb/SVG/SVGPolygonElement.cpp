@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Path.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
@@ -27,26 +26,6 @@ void SVGPolygonElement::attribute_changed(Utf16FlyString const& name, Optional<U
         m_points = parse_points(value.value_or({}));
         set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     }
-}
-
-Gfx::Path SVGPolygonElement::get_path(CSSPixelSize, CSS::ComputedValues const&)
-{
-    Gfx::Path path;
-
-    if (m_points.is_empty())
-        return path;
-
-    // 1. perform an absolute moveto operation to the first coordinate pair in the list of points
-    path.move_to(m_points.first());
-
-    // 2. for each subsequent coordinate pair, perform an absolute lineto operation to that coordinate pair.
-    for (size_t point_index = 1; point_index < m_points.size(); ++point_index)
-        path.line_to(m_points[point_index]);
-
-    // 3. perform a closepath command
-    path.close();
-
-    return path;
 }
 
 }

@@ -18,8 +18,6 @@ class SVGPathElement final : public SVGGeometryElement {
 public:
     virtual ~SVGPathElement() override = default;
 
-    virtual Gfx::Path get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&) override;
-
 private:
     virtual bool is_svg_path_element() const final { return true; }
 

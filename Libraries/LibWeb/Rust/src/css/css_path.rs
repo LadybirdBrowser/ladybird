@@ -92,11 +92,6 @@ impl std::fmt::Debug for CssPath {
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_css_path_to_gfx_path(path: &CssPath) -> *mut std::ffi::c_void {
-    path.to_gfx_path().into_raw()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
