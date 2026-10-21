@@ -86,7 +86,7 @@ public:
         Atomic<bool> m_aborted { false };
         bool m_blocked { false };
         ReadBlockedChangeHandler m_read_blocked_change_handler;
-        MonotonicTime m_active_timeout { MonotonicTime::now_coarse() };
+        MonotonicTime m_active_timeout;
 
         // The chunk and stream state that this cursor last chose a request position for. Reads within that chunk are
         // skipped until the state changes, since the choice would be the same.

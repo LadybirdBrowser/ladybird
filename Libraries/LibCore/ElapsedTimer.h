@@ -35,7 +35,7 @@ public:
     MonotonicTime const& origin_time() const { return m_origin_time; }
 
 private:
-    MonotonicTime m_origin_time { MonotonicTime::now() };
+    MonotonicTime m_origin_time;
     TimerType m_timer_type { TimerType::Coarse };
     bool m_valid { false };
 };
