@@ -111,12 +111,7 @@ fn parse_integer_component(
     if matches!(parsed, StyleValueData::Calculated { .. }) {
         super::stylesheet_cache::record_length_resolution_dependency();
     }
-    let length_context = unsafe {
-        context
-            .length_resolution_context
-            .cast::<FfiLengthResolutionContext>()
-            .as_ref()
-    };
+    let length_context = context.length_resolution_context;
     Some((resolve_descriptor_integer(&parsed, length_context)?, parsed))
 }
 
@@ -473,13 +468,7 @@ pub(crate) fn parse_descriptor(
     source: &[u16],
 ) -> Option<ParsedDescriptor> {
     let metadata = descriptor_metadata(at_rule, name)?;
-    let inherited_contexts = if context.value_context_count == 0 {
-        &[]
-    } else if context.value_contexts.is_null() {
-        return None;
-    } else {
-        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
-    };
+    let inherited_contexts = context.value_contexts.as_slice();
     let mut value_contexts = Vec::with_capacity(inherited_contexts.len() + 1);
     value_contexts.extend_from_slice(inherited_contexts);
     value_contexts.push(FfiValueParsingContext {
@@ -489,8 +478,7 @@ pub(crate) fn parse_descriptor(
         name: FfiUtf16View::default(),
     });
     let mut descriptor_context = *context;
-    descriptor_context.value_contexts = value_contexts.as_ptr();
-    descriptor_context.value_context_count = value_contexts.len();
+    descriptor_context.value_contexts = ak::Span::new(&value_contexts);
     let mut presence = SubstitutionFunctionsPresence::default();
     collect_arbitrary_substitution_function_presence(values, &mut presence).ok()?;
     let value = if presence.has_any() {
@@ -546,21 +534,18 @@ mod tests {
     use crate::css::style_value::StyleValueData;
     use std::sync::Arc;
 
-    fn context() -> ParseContext {
+    fn context() -> ParseContext<'static> {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
             is_substituted_value: false,
             contains_attr_tainted_values: false,
             is_ua_style_sheet: false,
-            value_contexts: std::ptr::null(),
-            value_context_count: 0,
-            declared_namespaces: std::ptr::null(),
-            document_url: std::ptr::null(),
-            document_url_length: 0,
-            document_base_url: std::ptr::null(),
-            document_base_url_length: 0,
-            length_resolution_context: std::ptr::null(),
+            value_contexts: ak::Span::default(),
+            declared_namespaces: None,
+            document_url: ak::Span::default(),
+            document_base_url: ak::Span::default(),
+            length_resolution_context: None,
             random_function_index: std::ptr::null_mut(),
         }
     }

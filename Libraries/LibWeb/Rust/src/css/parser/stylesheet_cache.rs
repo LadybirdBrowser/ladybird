@@ -165,16 +165,15 @@ fn own_text(source: TokenizerInput<'_>) -> Box<[u16]> {
     text.into_boxed_slice()
 }
 
-unsafe fn own_view(view: FfiUtf16View) -> Option<Box<[u16]>> {
+fn own_view(view: FfiUtf16View) -> Option<Box<[u16]>> {
     Some(own_text(view.units()?))
 }
 
-unsafe fn own_url(pointer: *const u8, length: usize) -> Option<Box<[u16]>> {
-    if length == 0 {
+fn own_url(bytes: &[u8]) -> Option<Box<[u16]>> {
+    if bytes.is_empty() {
         return Some(Box::default());
     }
     // The legacy URL context is UTF-8. Keep the cache's owned strings in native UTF-16.
-    let bytes = unsafe { ak::slice_from_raw_parts(pointer, length) };
     Some(std::str::from_utf8(bytes).ok()?.encode_utf16().collect())
 }
 
@@ -188,38 +187,34 @@ impl ContextKey {
             contains_attr_tainted_values,
             is_ua_style_sheet,
             value_contexts: borrowed_value_contexts,
-            value_context_count,
-            declared_namespaces: borrowed_declared_namespaces,
+            declared_namespaces,
             // Parsed values do not use the document URL. Image values capture the base URL.
             document_url: _,
-            document_url_length: _,
             document_base_url,
-            document_base_url_length,
             length_resolution_context,
             random_function_index,
         } = *context;
-        let mut value_contexts = Vec::with_capacity(value_context_count);
-        for index in 0..value_context_count {
-            let FfiValueParsingContext {
-                kind,
-                value,
-                secondary_value,
-                name,
-            } = unsafe { *borrowed_value_contexts.add(index) };
+        let mut value_contexts = Vec::with_capacity(borrowed_value_contexts.as_slice().len());
+        for &FfiValueParsingContext {
+            kind,
+            value,
+            secondary_value,
+            name,
+        } in borrowed_value_contexts.as_slice()
+        {
             value_contexts.push(ValueContextKey {
                 kind: kind as u8,
                 value,
                 secondary_value,
-                name: unsafe { own_view(name) }?,
+                name: own_view(name)?,
             });
         }
-        let declared_namespaces = unsafe { borrowed_declared_namespaces.as_ref() }
+        let declared_namespaces = declared_namespaces
             .into_iter()
             .flat_map(|namespaces| namespaces.prefixes.iter())
             .map(|namespace| namespace.units().into())
             .collect();
-        let length_resolution = match unsafe { length_resolution_context.cast::<FfiLengthResolutionContext>().as_ref() }
-        {
+        let length_resolution = match length_resolution_context {
             Some(context) => Some(LengthResolutionKey::new(context)?),
             None => None,
         };
@@ -236,7 +231,7 @@ impl ContextKey {
                 declared_namespaces,
                 random_function_index: unsafe { random_function_index.as_ref() }.copied(),
             },
-            document_base_url: unsafe { own_url(document_base_url, document_base_url_length) }?,
+            document_base_url: own_url(document_base_url.as_slice())?,
             length_resolution,
         })
     }

@@ -358,8 +358,7 @@ pub(crate) fn parse_substituted_value(
     let mut context = *base_context;
     context.is_substituted_value = true;
     context.contains_attr_tainted_values = contains_attr_tainted_values;
-    context.value_contexts = &raw const value_context;
-    context.value_context_count = 1;
+    context.value_contexts = ak::Span::new(std::slice::from_ref(&value_context));
     context.random_function_index = &raw mut random_function_index;
     match parse_css_value_from_source(&context, property_id, source) {
         ParseOutcome::Parsed(value) => RetainedStyleValueData::from_arc(value),

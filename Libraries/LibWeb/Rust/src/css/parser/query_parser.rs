@@ -1992,21 +1992,18 @@ enum ResolvedFeatureValue {
     Unknown,
 }
 
-fn media_value_parse_context(value_context: &FfiValueParsingContext<'static>) -> ParseContext {
+fn media_value_parse_context<'a>(value_context: &'a FfiValueParsingContext<'a>) -> ParseContext<'a> {
     ParseContext {
         in_quirks_mode: false,
         is_svg_presentation_attribute: false,
         is_substituted_value: false,
         contains_attr_tainted_values: false,
         is_ua_style_sheet: false,
-        value_contexts: value_context,
-        value_context_count: 1,
-        declared_namespaces: std::ptr::null(),
-        document_url: std::ptr::null(),
-        document_url_length: 0,
-        document_base_url: std::ptr::null(),
-        document_base_url_length: 0,
-        length_resolution_context: std::ptr::null(),
+        value_contexts: ak::Span::new(std::slice::from_ref(value_context)),
+        declared_namespaces: None,
+        document_url: ak::Span::default(),
+        document_base_url: ak::Span::default(),
+        length_resolution_context: None,
         random_function_index: std::ptr::null_mut(),
     }
 }
@@ -2458,11 +2455,11 @@ pub(crate) fn parse_and_evaluate_media_if_condition(
     Some(evaluate_media_expression(&expression, values, length_context))
 }
 
-pub(crate) unsafe fn parse_and_evaluate_supports_if_condition(
+pub(crate) fn parse_and_evaluate_supports_if_condition(
     source: &[u16],
-    context: &ParseContext,
+    context: &ParseContext<'_>,
 ) -> Option<MatchResult> {
-    let declared_namespaces = unsafe { declared_namespaces_from_context(context) };
+    let declared_namespaces = declared_namespaces_from_context(context);
     let evaluate_feature =
         |kind: SupportsFeatureKind, value: &[u16]| supports_feature_matches(context, &declared_namespaces, kind, value);
     // NB: Mirrors the supports arm of evaluate_condition_for_substitution, which this series
@@ -2942,9 +2939,9 @@ pub unsafe extern "C" fn rust_parse_sizes_attribute(
     .cast()
 }
 
-pub(crate) unsafe fn declared_namespaces_from_context(context: &ParseContext) -> Vec<TokenizerInput<'_>> {
-    let namespaces = unsafe { context.declared_namespaces.as_ref() };
-    namespaces
+pub(crate) fn declared_namespaces_from_context<'a>(context: &ParseContext<'a>) -> Vec<TokenizerInput<'a>> {
+    context
+        .declared_namespaces
         .into_iter()
         .flat_map(|namespaces| namespaces.prefixes.iter())
         .map(|namespace| TokenizerInput::Utf16(namespace.units()))
@@ -2970,7 +2967,7 @@ pub unsafe extern "C" fn rust_parse_supports_condition(
     let Some(context) = context else {
         return std::ptr::null();
     };
-    let declared_namespaces = unsafe { declared_namespaces_from_context(context) };
+    let declared_namespaces = declared_namespaces_from_context(context);
     let Some(expression) = parse_supports_condition(source, &|kind, value| {
         supports_feature_matches(context, &declared_namespaces, kind, value)
     }) else {
