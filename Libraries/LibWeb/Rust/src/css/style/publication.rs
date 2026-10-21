@@ -1877,13 +1877,7 @@ impl RetainedState {
         table: &ComputedLonghandTable,
     ) -> u64 {
         use crate::css::property_metadata::property_id as prop;
-        let value = |property| unsafe {
-            table
-                .effective_value(None, property, true)
-                .value
-                .cast::<StyleValueData>()
-                .as_ref()
-        };
+        let value = |property| table.effective_value_handle(None, property, true).0.optional_data();
         if !crate::css::style_compute::style_reads_counter_style_environment(
             value(prop::CONTENT),
             value(prop::LIST_STYLE_TYPE),

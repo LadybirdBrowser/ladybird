@@ -53,13 +53,8 @@ const fn mix_slot_hash(slot: usize, content: u64) -> u64 {
         .rotate_left((slot as u32) & 63)
 }
 
-pub(crate) fn longhand_slot_hash(slot: usize, value: *const c_void) -> u64 {
-    if value.is_null() {
-        return mix_slot_hash(slot, 0);
-    }
-    // SAFETY: A non-null slot value is live style value data.
-    let content = crate::css::style_value::style_value_content_hash(unsafe { value.cast::<StyleValueData>().as_ref() });
-    mix_slot_hash(slot, content)
+pub(crate) fn longhand_slot_hash(slot: usize, value: Option<&StyleValueData>) -> u64 {
+    mix_slot_hash(slot, crate::css::style_value::style_value_content_hash(value))
 }
 
 /// The memoized sum of a table's per-slot hashes.
@@ -423,19 +418,21 @@ impl SlotStorage {
     /// base reduces the comparison to the union of the two change lists, and a delta agrees with
     /// its own base everywhere but in its changes. Two tables sharing dense storage agree
     /// everywhere.
-    fn values_are_equal(&self, other: &Self, equal: impl Fn(*const c_void, *const c_void) -> bool) -> bool {
+    fn values_are_equal(
+        &self,
+        other: &Self,
+        equal: impl Fn(&RetainedStyleValueData, &RetainedStyleValueData) -> bool,
+    ) -> bool {
         match (self, other) {
             (Self::Dense(dense), Self::Delta { base, changes, .. })
             | (Self::Delta { base, changes, .. }, Self::Dense(dense))
                 if Arc::ptr_eq(dense, base) =>
             {
                 changes.iter().all(|change| {
-                    change.value.as_ref().is_none_or(|value| {
-                        equal(
-                            value.pointer().cast(),
-                            base.slots[usize::from(change.index)].pointer().cast(),
-                        )
-                    })
+                    change
+                        .value
+                        .as_ref()
+                        .is_none_or(|value| equal(value, &base.slots[usize::from(change.index)]))
                 })
             }
             (Self::Dense(first), Self::Dense(second)) => {
@@ -444,7 +441,7 @@ impl SlotStorage {
                         .slots
                         .iter()
                         .zip(second.slots.iter())
-                        .all(|(first, second)| equal(first.pointer().cast(), second.pointer().cast()))
+                        .all(|(first, second)| equal(first, second))
             }
             (
                 Self::Delta {
@@ -475,7 +472,7 @@ impl SlotStorage {
                         second_value = second_changes[second].value.as_ref().unwrap_or(base);
                         second += 1;
                     }
-                    if !equal(first_value.pointer().cast(), second_value.pointer().cast()) {
+                    if !equal(first_value, second_value) {
                         return false;
                     }
                 }
@@ -484,7 +481,7 @@ impl SlotStorage {
             _ => self
                 .values()
                 .zip(other.values())
-                .all(|(first, second)| equal(first.pointer().cast(), second.pointer().cast())),
+                .all(|(first, second)| equal(first, second)),
         }
     }
 
@@ -736,8 +733,7 @@ impl ComputedLonghandTable {
         );
         let index = Self::slot_index(property_id);
         let existing = self.storage.slot(index).0;
-        let equal_to_existing = !existing.pointer().is_null()
-            && unsafe { crate::css::style_value::rust_style_value_equals(existing.pointer(), value.pointer()) };
+        let equal_to_existing = !existing.pointer().is_null() && *existing == value;
         if !equal_to_existing {
             self.replace_slot_value(index, value);
         }
@@ -745,10 +741,9 @@ impl ComputedLonghandTable {
     }
 
     fn replace_slot_value(&mut self, index: usize, value: RetainedStyleValueData) {
-        let pointer = value.pointer().cast();
-        let previous = self.storage.slot(index).0.pointer().cast();
-        if previous != pointer {
-            self.adjust_slot_hash_sum(index, previous, pointer);
+        let previous = self.storage.slot(index).0;
+        if previous.pointer() != value.pointer() {
+            self.adjust_slot_hash_sum(index, previous.optional_data(), value.optional_data());
         }
         self.storage.set_value(index, value);
     }
@@ -758,7 +753,12 @@ impl ComputedLonghandTable {
         self.storage.set_source(index, i32::try_from(source_slot).unwrap_or(-1));
     }
 
-    fn adjust_slot_hash_sum(&mut self, index: usize, previous: *const c_void, replacement: *const c_void) {
+    fn adjust_slot_hash_sum(
+        &self,
+        index: usize,
+        previous: Option<&StyleValueData>,
+        replacement: Option<&StyleValueData>,
+    ) {
         if let Some(sum) = self.slot_hash_sum.get() {
             self.slot_hash_sum.set(Some(
                 sum.wrapping_sub(longhand_slot_hash(index, previous))
@@ -778,7 +778,7 @@ impl ComputedLonghandTable {
 
     pub(crate) fn recomputed_slot_hash_sum(&self) -> u64 {
         (0..LONGHAND_COUNT).fold(0_u64, |sum, slot| {
-            sum.wrapping_add(longhand_slot_hash(slot, self.storage.slot(slot).0.pointer().cast()))
+            sum.wrapping_add(longhand_slot_hash(slot, self.storage.slot(slot).0.optional_data()))
         })
     }
 
@@ -946,13 +946,9 @@ impl ComputedLonghandTable {
     }
 
     pub(crate) fn raw_cascaded_font_size_value(&self) -> Option<&StyleValueData> {
-        self.raw_cascaded_font_size.as_ref().map(RetainedStyleValueData::data)
-    }
-
-    pub(crate) fn raw_cascaded_font_size(&self) -> *const c_void {
         self.raw_cascaded_font_size
             .as_ref()
-            .map_or(std::ptr::null(), |value| value.pointer().cast())
+            .and_then(RetainedStyleValueData::optional_data)
     }
 
     pub(crate) fn set_raw_cascaded_font_size(&mut self, value: Option<RetainedStyleValueData>) {
@@ -992,11 +988,12 @@ impl ComputedLonghandTable {
             "the computed longhand table is immutable once its style is created"
         );
         let slot = Self::slot_index(property_id);
-        let previous = self.storage.slot(slot).0.pointer().cast();
-        let replacement = source.storage.slot(slot).0.pointer().cast();
-        if previous != replacement {
-            self.adjust_slot_hash_sum(slot, previous, replacement);
+        let previous = self.storage.slot(slot).0;
+        let replacement = source.storage.slot(slot).0;
+        if previous.pointer() != replacement.pointer() {
+            self.adjust_slot_hash_sum(slot, previous.optional_data(), replacement.optional_data());
         }
+        let replacement = replacement.pointer().cast::<c_void>();
         let source_slot = source.storage.slot(slot).1;
         if let SlotStorage::Delta {
             base,
@@ -1327,26 +1324,31 @@ impl ComputedLonghandTable {
     }
 
     pub(crate) fn publication_equals(&self, other: &Self) -> bool {
-        let values_equal = |first: *const c_void, second: *const c_void| {
-            first == second
-                || (!first.is_null()
-                    && !second.is_null()
-                    && unsafe { crate::css::style_value::rust_style_value_equals(first.cast(), second.cast()) })
-        };
+        use crate::css::style_value::{optional_style_values_equal, retained_style_values_equal};
         self.important_bits == other.important_bits
             && self.inherited_bits == other.inherited_bits
             && self.publication_sidecars() == other.publication_sidecars()
             && self.publication_dependency_flags() == other.publication_dependency_flags()
             && self.pseudo_element_styles() == other.pseudo_element_styles()
             && self.inheritance_dependent.len() == other.inheritance_dependent.len()
-            && self.storage.values_are_equal(&other.storage, values_equal)
-            && values_equal(self.raw_cascaded_font_size(), other.raw_cascaded_font_size())
+            && self
+                .storage
+                .values_are_equal(&other.storage, retained_style_values_equal)
+            && optional_style_values_equal(
+                self.raw_cascaded_font_size
+                    .as_ref()
+                    .and_then(RetainedStyleValueData::optional_data),
+                other
+                    .raw_cascaded_font_size
+                    .as_ref()
+                    .and_then(RetainedStyleValueData::optional_data),
+            )
             && self.inheritance_dependent.iter().all(|(property, value)| {
                 other
                     .inheritance_dependent
                     .iter()
                     .find(|(other_property, _)| other_property == property)
-                    .is_some_and(|(_, other_value)| values_equal(value.pointer().cast(), other_value.pointer().cast()))
+                    .is_some_and(|(_, other_value)| retained_style_values_equal(value, other_value))
             })
     }
 
@@ -1748,12 +1750,7 @@ mod tests {
 
     #[test]
     fn slot_values_compare_over_a_shared_base_and_across_bases() {
-        let equal = |first: *const c_void, second: *const c_void| {
-            first == second
-                || (!first.is_null()
-                    && !second.is_null()
-                    && unsafe { crate::css::style_value::rust_style_value_equals(first.cast(), second.cast()) })
-        };
+        let equal = crate::css::style_value::retained_style_values_equal;
         let mut base = ComputedLonghandTable::new();
         base.set(property_id::OPACITY, retained_number(0.5), -1);
         base.set(property_id::Z_INDEX, retained_number(7.0), -1);

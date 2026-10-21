@@ -4090,9 +4090,9 @@ fn longhand_table_hash(table: &ComputedLonghandTable) -> u64 {
     // NB: Inheritance-dependent values compare independently of insertion order. Sum the
     //     property-mixed hashes, as for longhand slots, without copying and sorting the values.
     let mut inheritance_dependent_hash_sum = 0_u64;
-    for (property, value) in table.inheritance_dependent_values() {
-        inheritance_dependent_hash_sum =
-            inheritance_dependent_hash_sum.wrapping_add(longhand_slot_hash(usize::from(property), value));
+    for (property, value) in table.retained_inheritance_dependent_values() {
+        inheritance_dependent_hash_sum = inheritance_dependent_hash_sum
+            .wrapping_add(longhand_slot_hash(usize::from(property), value.optional_data()));
     }
     inheritance_dependent_hash_sum.hash(&mut hasher);
     hasher.finish()

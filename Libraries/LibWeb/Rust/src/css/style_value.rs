@@ -3289,7 +3289,7 @@ pub(crate) fn retained_style_values_equal(first: &RetainedStyleValueData, second
 }
 
 /// Two absent values are equal, and an absent value equals no present one.
-fn optional_style_values_equal(first: Option<&StyleValueData>, second: Option<&StyleValueData>) -> bool {
+pub(crate) fn optional_style_values_equal(first: Option<&StyleValueData>, second: Option<&StyleValueData>) -> bool {
     match (first, second) {
         (None, None) => true,
         (Some(first), Some(second)) => style_values_equal(first, second),
@@ -3549,23 +3549,22 @@ pub(crate) fn value_may_depend_on_font_metrics(value: &StyleValueData) -> bool {
         .expect("font dependency requested for an unsupported value")
 }
 
-pub(crate) fn style_value_dependency_flags(value: *const StyleValueData) -> u8 {
-    let value = unsafe { &*value };
+pub(crate) fn style_value_dependency_flags(value: &StyleValueData) -> u8 {
     u8::from(value_depends_on_current_color(value))
         | (u8::from(value_depends_on_color_scheme(value)) << 1)
         | (u8::from(value_may_depend_on_font_metrics(value)) << 2)
 }
 
 pub(crate) fn retained_value_depends_on_current_color(value: &RetainedStyleValueData) -> bool {
-    style_value_dependency_flags(value.pointer()) & 1 != 0
+    style_value_dependency_flags(value.data()) & 1 != 0
 }
 
 pub(crate) fn retained_value_depends_on_color_scheme(value: &RetainedStyleValueData) -> bool {
-    style_value_dependency_flags(value.pointer()) & 2 != 0
+    style_value_dependency_flags(value.data()) & 2 != 0
 }
 
 pub(crate) fn retained_value_may_depend_on_font_metrics(value: &RetainedStyleValueData) -> bool {
-    style_value_dependency_flags(value.pointer()) & 4 != 0
+    style_value_dependency_flags(value.data()) & 4 != 0
 }
 
 /// # Safety
