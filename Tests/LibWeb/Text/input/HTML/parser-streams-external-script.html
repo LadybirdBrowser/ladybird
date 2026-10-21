@@ -2,8 +2,6 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(async (done) => {
-        internals.setTestTimeout(5000);
-
         const httpServer = httpTestServer();
         const scriptURL = await httpServer.createEcho("GET", "/parser-streams-external-script.js", {
             status: 200,

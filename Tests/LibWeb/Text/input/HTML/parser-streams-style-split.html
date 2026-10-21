@@ -2,8 +2,6 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(async (done) => {
-        internals.setTestTimeout(5000);
-
         const httpServer = httpTestServer();
         const stylePrefix = `<!DOCTYPE html><head><style>${" ".repeat(1700)}`;
         const body = `${stylePrefix}#target { color: rgb(1, 2, 3); }</style></head><body><div id="target">styled</div><script>window.onload = () => parent.postMessage({ color: getComputedStyle(document.getElementById("target")).color, text: document.getElementById("target").textContent }, "*");<\/script>`;
