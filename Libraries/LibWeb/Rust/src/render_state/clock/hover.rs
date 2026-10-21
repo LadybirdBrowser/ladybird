@@ -1417,12 +1417,9 @@ fn cursor_for_hit(state: &mut RenderState, hit: CursorHit) -> Option<u8> {
 /// or out of the context, beside the mouse event with the input event id `input_event_id`, and answers what the lane
 /// wants next, as a `PointerAnswer`.
 ///
-/// # Safety
-///
-/// `ticks` must come from `document_host_lease_clock` and not be released yet.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn clock_ticks_pointer_moved(
-    ticks: *const super::ClockTicks,
+pub extern "C" fn clock_ticks_pointer_moved(
+    ticks: &super::ClockTicks,
     has_position: bool,
     x: f32,
     y: f32,
@@ -1430,8 +1427,6 @@ pub unsafe extern "C" fn clock_ticks_pointer_moved(
     scrolled_since_frame: bool,
     input_event_id: u64,
 ) -> u8 {
-    // SAFETY: Guaranteed by the caller, whose reference this borrows.
-    let ticks = std::mem::ManuallyDrop::new(unsafe { std::sync::Arc::from_raw(ticks) });
     ticks.pointer_moved(PendingPointer {
         position: has_position.then_some(FloatPoint { x, y }),
         buttons,

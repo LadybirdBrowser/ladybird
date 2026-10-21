@@ -3299,15 +3299,14 @@ impl LayoutNodeArena {
         if !self.has_style_engine() {
             return;
         }
-        // SAFETY: As with `with_style_store`, the engine outlives the arena's live nodes, and no
-        // reader keeps a borrow of the engine across the host call this publication arrives in.
-        let engine = unsafe { self.style_engine().get_mut() };
-        for atom in retained {
-            engine.retain_published_atom(crate::css::style::index::StyleAtomID(atom));
-        }
-        for atom in released {
-            engine.release_published_atom(crate::css::style::index::StyleAtomID(atom));
-        }
+        self.with_style_engine(|engine| {
+            for atom in retained {
+                engine.retain_published_atom(crate::css::style::index::StyleAtomID(atom));
+            }
+            for atom in released {
+                engine.release_published_atom(crate::css::style::index::StyleAtomID(atom));
+            }
+        });
     }
 
     pub(crate) fn with_counter_style_registry<T>(

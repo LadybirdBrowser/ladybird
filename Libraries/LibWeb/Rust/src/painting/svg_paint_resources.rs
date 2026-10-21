@@ -50,7 +50,7 @@ pub(crate) struct PublishedSvgPattern {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) enum PublishedSvgPaintServer {
+pub enum PublishedSvgPaintServer {
     #[default]
     None,
     Gradient(PublishedSvgGradient),
