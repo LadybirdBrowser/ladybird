@@ -38,8 +38,8 @@ struct LoadedModule {
     name: Option<String>,
     interpreted: InstanceAddress,
     jit: InstanceAddress,
-    compiled: CompiledModule,
-    binding: TestBinding,
+    /// The module compiled by the tests, unless the runtime compiles it.
+    compiled: Option<(CompiledModule, TestBinding)>,
     diverged: bool,
 }
 
@@ -66,7 +66,7 @@ pub fn trap_code(trap: &Trap) -> u32 {
     }
 }
 
-fn outcome(result: Result<Vec<Value>, Trap>) -> Outcome {
+pub fn outcome(result: Result<Vec<Value>, Trap>) -> Outcome {
     match result {
         Ok(values) => Outcome::Values(values),
         Err(trap) => Outcome::Trap(trap_code(&trap)),
@@ -226,6 +226,7 @@ struct Script<'a> {
     verbose: bool,
     name: String,
     options: Options,
+    runtime: bool,
 }
 
 impl Script<'_> {
@@ -260,20 +261,24 @@ impl Script<'_> {
         let Ok(jit) = self.jit.instantiate(module.clone(), &jit_imports) else {
             return;
         };
-        let compiled = CompiledModule::compile(module.clone(), self.options);
-        let binding = TestBinding::new(&compiled, &self.jit, jit);
         let defined = module.code.len();
         self.totals.modules += 1;
         self.totals.functions += defined;
-        let first = module.imported_function_count as usize;
-        self.totals.compiled += compiled.entries[first..].iter().filter(|entry| **entry != 0).count();
-        self.totals.runnable += compiled.runnable[first..].iter().filter(|runnable| **runnable).count();
+        let compiled = if self.runtime {
+            None
+        } else {
+            let compiled = CompiledModule::compile(module.clone(), self.options);
+            let binding = TestBinding::new(&compiled, &self.jit, jit);
+            let first = module.imported_function_count as usize;
+            self.totals.compiled += compiled.entries[first..].iter().filter(|entry| **entry != 0).count();
+            self.totals.runnable += compiled.runnable[first..].iter().filter(|runnable| **runnable).count();
+            Some((compiled, binding))
+        };
         self.modules.push(LoadedModule {
             name,
             interpreted,
             jit,
             compiled,
-            binding,
             diverged: false,
         });
         self.current = Some(self.modules.len() - 1);
@@ -320,15 +325,16 @@ impl Script<'_> {
                 let expected = outcome(self.interpreted.invoke(*interpreted, &arguments));
                 let loaded = &mut self.modules[index];
                 let function = function_index(&self.jit, *jit, loaded.jit);
-                let actual = match function {
-                    Some(function) if loaded.compiled.runnable[function as usize] => {
+                let actual = match (function, &mut loaded.compiled) {
+                    (Some(function), None) => {
                         exercised.insert((index, function));
                         self.totals.cases += 1;
-                        Some(
-                            loaded
-                                .binding
-                                .call(&mut self.jit, &loaded.compiled, function, &arguments),
-                        )
+                        Some(outcome(self.jit.invoke(*jit, &arguments)))
+                    }
+                    (Some(function), Some((compiled, binding))) if compiled.runnable[function as usize] => {
+                        exercised.insert((index, function));
+                        self.totals.cases += 1;
+                        Some(binding.call(&mut self.jit, compiled, function, &arguments))
                     }
                     _ => None,
                 };
@@ -445,7 +451,9 @@ pub fn scripts(paths: &[String]) -> Vec<PathBuf> {
 }
 
 /// Runs every script of `paths` (scripts or directories of them).
-pub fn run(paths: &[String], verbose: bool, options: Options) -> Totals {
+/// Runs the scripts at `paths`. With `runtime`, the JIT's store runs every call through the runtime, which compiles
+/// what `LIBWASM_JIT` says, instead of calling compiled code directly.
+pub fn run(paths: &[String], verbose: bool, options: Options, runtime: bool) -> Totals {
     let mut totals = Totals::default();
     for path in scripts(paths) {
         let Ok(text) = std::fs::read_to_string(&path) else {
@@ -456,6 +464,7 @@ pub fn run(paths: &[String], verbose: bool, options: Options) -> Totals {
         };
         totals.scripts += 1;
         let mut interpreted = Store::new();
+        interpreted.disable_jit();
         let mut jit = Store::new();
         let spectest = (spectest(&mut interpreted), spectest(&mut jit));
         let mut registered = HashMap::new();
@@ -471,6 +480,7 @@ pub fn run(paths: &[String], verbose: bool, options: Options) -> Totals {
             verbose,
             name: path.file_name().unwrap().to_string_lossy().into_owned(),
             options,
+            runtime,
         };
         runner.run(&script);
     }

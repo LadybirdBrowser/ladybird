@@ -30,8 +30,8 @@
 //!   rsp            outgoing area of calls, 8 bytes per argument (and result area pointer, and result area)
 //! ```
 //!
-//! fp is the caller's rsp at the call. The header's first two words are the reverse of the interpreter's current
-//! frames; the interpreter moves to this order before compiled code runs in its frames (design, section 6).
+//! fp is the caller's rsp at the call, and the header is the interpreter's: its first two words are where the call and
+//! `push rbp` put them.
 
 use crate::ir::Type;
 
@@ -126,8 +126,8 @@ pub fn is_fpr(register: Register) -> bool {
 }
 
 /// The frame header, as offsets from fp (see the module documentation).
-pub const FRAME_RETURN_ADDRESS: i32 = -8;
-pub const FRAME_SAVED_FP: i32 = -16;
+pub const FRAME_RETURN_ADDRESS: i32 = libwasm_module::abi::FRAME_RETURN_IP as i32;
+pub const FRAME_SAVED_FP: i32 = libwasm_module::abi::FRAME_SAVED_FP as i32;
 pub const FRAME_INSTANCE: i32 = libwasm_module::abi::FRAME_INSTANCE as i32;
 pub const FRAME_HEADER_SIZE: i32 = libwasm_module::abi::FRAME_HEADER_SIZE as i32;
 

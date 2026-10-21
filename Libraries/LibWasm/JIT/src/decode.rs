@@ -66,6 +66,13 @@ pub enum Instruction {
     ThrowRef,
     /// A `try_table`, whose catch clauses the decoder skipped.
     TryTable(BlockType),
+    /// The legacy exception handling instructions: `try`, `catch` and its tag, `catch_all`, `delegate` and its
+    /// label, and `rethrow` and its label.
+    Try(BlockType),
+    Catch(u32),
+    CatchAll,
+    Delegate(u32),
+    Rethrow(u32),
     Drop,
     Select,
     SelectTyped(ValType),
@@ -387,6 +394,11 @@ impl<'a> Decoder<'a> {
             opcode::RETURN_CALL_REF => Instruction::ReturnCallRef(self.u32()),
             opcode::THROW => Instruction::Throw(self.u32()),
             opcode::THROW_REF => Instruction::ThrowRef,
+            opcode::TRY => Instruction::Try(self.block_type()),
+            opcode::CATCH => Instruction::Catch(self.u32()),
+            opcode::CATCH_ALL => Instruction::CatchAll,
+            opcode::DELEGATE => Instruction::Delegate(self.u32()),
+            opcode::RETHROW => Instruction::Rethrow(self.u32()),
             opcode::TRY_TABLE => {
                 let block_type = self.block_type();
                 let count = self.u32();
@@ -578,8 +590,13 @@ impl<'a> Decoder<'a> {
 /// How an instruction changes the nesting of blocks: +1 for those that open one, -1 for `end`.
 pub fn nesting_change(instruction: &Instruction) -> i32 {
     match instruction {
-        Instruction::Block(_) | Instruction::Loop(_) | Instruction::If(_) | Instruction::TryTable(_) => 1,
-        Instruction::End => -1,
+        Instruction::Block(_)
+        | Instruction::Loop(_)
+        | Instruction::If(_)
+        | Instruction::TryTable(_)
+        | Instruction::Try(_) => 1,
+        // NB: `catch` and `catch_all` continue the `try` they are in, like `else`.
+        Instruction::End | Instruction::Delegate(_) => -1,
         _ => 0,
     }
 }

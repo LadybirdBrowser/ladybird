@@ -834,6 +834,7 @@ dependencies = [
  "flapc",
  "ladybird_allocator",
  "libc",
+ "libwasm_jit",
  "libwasm_module",
  "rustc-demangle",
 ]

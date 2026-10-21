@@ -16,7 +16,6 @@
 //! pages that hold other installed code is safe.
 
 use core::cell::RefCell;
-use std::io::Write;
 use std::rc::Rc;
 
 const CHUNK_SIZE: usize = 4 * 1024 * 1024;
@@ -408,11 +407,8 @@ impl Drop for ExecutableMemory {
 }
 
 fn write_perf_map_entry(address: *const u8, size: usize, name: &str) {
-    let path = format!("/tmp/perf-{}.map", std::process::id());
-    let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) else {
-        eprintln!("LIBJS_JIT: Unable to open {path} for writing");
-        return;
-    };
     let name = if name.is_empty() { "<anonymous>" } else { name };
-    let _ = writeln!(file, "{:x} {size:x} JIT {name}", address as usize);
+    if ak::perf_map::write_perf_map_entry(address as usize, size, &format!("JIT {name}")).is_err() {
+        eprintln!("LIBJS_JIT: Unable to write /tmp/perf-{}.map", std::process::id());
+    }
 }

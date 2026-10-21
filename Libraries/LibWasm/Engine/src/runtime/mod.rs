@@ -13,6 +13,7 @@ pub mod gc;
 pub mod heap;
 pub mod helpers;
 pub mod interpreter;
+pub mod jit;
 pub mod memory;
 pub mod ranges;
 
@@ -339,6 +340,8 @@ pub struct Store {
     pending_trap: Option<Trap>,
     /// What runs after `memory.grow` grows a memory.
     pub memory_grow_callback: Option<Rc<dyn Fn(MemoryAddress)>>,
+    /// The store's compiled code, once it has some.
+    jit: Option<jit::StoreJit>,
 }
 
 impl Default for Store {
@@ -388,6 +391,7 @@ impl Store {
             root: None,
             rtt_pointers: Vec::new(),
             memory_grow_callback: None,
+            jit: None,
         }
     }
 
@@ -549,12 +553,12 @@ impl Store {
                     result_slots: ty.results.iter().map(|result| result.slot_count()).sum(),
                     local_count: 0,
                     locals_size: 0,
-                    reserved: 0,
+                    tier_up_budget: jit::initial_tier_up_budget(),
                     frame_size: 0,
                     type_identity,
                     host: std::ptr::null(),
                     vector_storage: std::ptr::null(),
-                    native_entry: 0,
+                    native_entry: jit::initial_native_entry(),
                 },
                 ty,
                 vector_storage: Box::new([]),
@@ -600,6 +604,7 @@ impl Store {
         let instance = self.instantiate_without_starting(module, imports);
         self.heap.undefer_gc();
         let (instance, start) = instance?;
+        jit::instantiated(self, instance);
         if let Some(start) = start {
             self.invoke(start, &[]).map_err(InstantiationError::Trap)?;
         }
@@ -795,7 +800,7 @@ impl Store {
                         result_slots: ty.results.iter().map(|result| result.slot_count()).sum(),
                         local_count,
                         locals_size,
-                        reserved: 0,
+                        tier_up_budget: jit::initial_tier_up_budget(),
                         frame_size,
                         type_identity: instance.type_identities[type_index as usize],
                         host: std::ptr::null(),
@@ -804,7 +809,7 @@ impl Store {
                         } else {
                             std::ptr::null()
                         },
-                        native_entry: 0,
+                        native_entry: jit::initial_native_entry(),
                     },
                     ty,
                     vector_storage,

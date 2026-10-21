@@ -563,8 +563,15 @@ impl Allocator {
                 }
             }
             self.place_phis(func, allocation, block, entry, &mut state);
-            let slot = edge_slot(func, entry, block);
-            self.edge_moves(func, allocation, entry, block, slot, &state);
+            // NB: Every forward edge gets its moves here: the entry's, and an OSR compile's second way in. The back
+            //     edges get theirs where their blocks end.
+            for index in 0..predecessors.len() {
+                let predecessor = func.predecessors(block)[index];
+                if predecessor < block {
+                    let slot = edge_slot(func, predecessor, block);
+                    self.edge_moves(func, allocation, predecessor, block, slot, &state);
+                }
+            }
             self.header_states[loop_index as usize] = state;
             self.set_contents(state);
             return;

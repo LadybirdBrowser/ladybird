@@ -91,6 +91,20 @@ impl CodeGenerator<'_> {
                 };
                 self.store(stored, b, size, &address);
             }
+            Op::FrameLoad => {
+                let mut address = Address::new(gpr(a), node.args[1] as i32);
+                if node.flags == 1 {
+                    self.asm.mov_rm(Width::W64, SCRATCH, &address);
+                    address = Address::new(SCRATCH, 0);
+                }
+                if node.ty == Type::V128 {
+                    self.load_vector(fpr(output).0, &address);
+                } else if node.ty.is_float() {
+                    self.asm.vmovs_rm(precision(node.ty), fpr(output), &address);
+                } else {
+                    self.asm.mov_rm(width(node.ty), gpr(output), &address);
+                }
+            }
             Op::InstanceField | Op::LoadPointer => {
                 let address = Address::new(gpr(a), node.args[1] as i32);
                 self.asm.mov_rm(Width::W64, gpr(output), &address);

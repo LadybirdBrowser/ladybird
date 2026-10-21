@@ -305,6 +305,19 @@ inline fn call_host_function(function: u64, return_ip: u64, context_pointer: u64
     dispatch;
 }
 
+# Call a function with compiled code, with its arguments on top of the operand stack. The runtime runs it and replaces
+# the arguments with its results; a trap in it leaves the interpreter from the compiled code.
+inline fn call_compiled_function(function: u64, return_ip: u64, context_pointer: u64) {
+    store64([context_pointer, CONTEXT_ARGUMENTS], function);
+    let top: u64 = vsp;
+    store64([context_pointer, CONTEXT_ARGUMENT_1], top);
+    # The helper may clobber every allocatable register, so nothing but its result is kept across it.
+    ip = return_ip;
+    let new_top: u64 = call_helper(wasm_runtime_call_compiled, context_pointer);
+    vsp = new_top;
+    dispatch;
+}
+
 # Continue at the exception handler the runtime found, which it left in the context's arguments.
 inline fn resume_at_handler() {
     let context_pointer = context();
@@ -481,16 +494,43 @@ inline fn call_vector_function(function: u64, return_ip: u64, context_pointer: u
     dispatch;
 }
 
+# Call `function` with its arguments on top of the operand stack, continuing at `return_ip` when it returns: charge
+# its tier-up budget, then enter it.
+inline fn call_function(function: u64, return_ip: u64, context_pointer: u64) {
+    let mut callee: u64 = function;
+    let mut callee_return_ip: u64 = return_ip;
+    let mut callee_context: u64 = context_pointer;
+    let mut budget: u64;
+    load32(budget, [callee, FUNCTION_TIER_UP_BUDGET]);
+    if budget < TIER_UP_CALL_COST @cold {
+        # The runtime compiles the function, or not, and resets its budget. It may clobber every allocatable register,
+        # so the call's operands wait in the context.
+        store64([callee_context, CONTEXT_ARGUMENTS], callee);
+        store64([callee_context, CONTEXT_ARGUMENT_1], callee_return_ip);
+        store64([callee_context, CONTEXT_ARGUMENT_2], 0);
+        let _ignored: u64 = call_helper(wasm_runtime_tier_up, callee_context);
+        callee_context = context();
+        load64(callee, [callee_context, CONTEXT_ARGUMENTS]);
+        load64(callee_return_ip, [callee_context, CONTEXT_ARGUMENT_1]);
+        load32(budget, [callee, FUNCTION_TIER_UP_BUDGET]);
+    }
+    store32([callee, FUNCTION_TIER_UP_BUDGET], budget - TIER_UP_CALL_COST);
+    enter_function(callee, callee_return_ip, callee_context);
+}
+
 # Enter `function` with its arguments on top of the operand stack, continuing at `return_ip` when it returns.
 #
 # OPTIMIZATION: The caller's state goes into the new frame's header as soon as the frame's address is known, so that
 # its registers can be reused while the arguments are copied.
-inline fn call_function(function: u64, return_ip: u64, context_pointer: u64) {
+inline fn enter_function(function: u64, return_ip: u64, context_pointer: u64) {
     let mut kind: u64;
     load32(kind, [function, FUNCTION_KIND]);
     if kind != FUNCTION_KIND_WASM @cold {
         if kind == FUNCTION_KIND_HOST {
             call_host_function(function, return_ip, context_pointer);
+        }
+        if kind == FUNCTION_KIND_COMPILED {
+            call_compiled_function(function, return_ip, context_pointer);
         }
         call_vector_function(function, return_ip, context_pointer);
     }
@@ -756,6 +796,15 @@ handler MemoryFault() @opcode(0xf2) {
     trap(TRAP_MEMORY_OUT_OF_BOUNDS);
 }
 
+# Compiled code traps here, with fp the frame of the code that trapped, whose header has the context, and the trap
+# code in the context's first argument.
+handler TrapFromNative() @opcode(0xef) {
+    let context_pointer = context();
+    let mut code: u64;
+    load64(code, [context_pointer, CONTEXT_ARGUMENTS]);
+    trap_with(code, context_pointer);
+}
+
 # Bytes that are no instruction. Validation rejects every one of them, so this is never reached.
 handler Fallback() @fallback {
     trap(TRAP_UNREACHABLE);
@@ -777,6 +826,28 @@ handler Block() @opcode(0x02) {
 }
 
 handler Loop() @opcode(0x03) {
+    let function = frame_word(FRAME_FUNCTION);
+    let mut budget: u64;
+    load32(budget, [function, FUNCTION_TIER_UP_BUDGET]);
+    if budget == 0 @cold {
+        let context_pointer = context();
+        store64([context_pointer, CONTEXT_ARGUMENTS], function);
+        let current: u64 = ip;
+        store64([context_pointer, CONTEXT_ARGUMENT_1], current);
+        store64([context_pointer, CONTEXT_ARGUMENT_2], 1);
+        let frame: u64 = fp;
+        store64([context_pointer, CONTEXT_ARGUMENT_3], frame);
+        # The runtime may run the rest of the function compiled from here (OSR), leaving its results on the operand
+        # stack.
+        let results_top: u64 = call_helper(wasm_runtime_tier_up, context_pointer);
+        if results_top != 0 {
+            vsp = results_top;
+            return_from_function();
+        }
+        let skipped = block_type_length(immediates());
+        advance(skipped + 1);
+    }
+    store32([function, FUNCTION_TIER_UP_BUDGET], budget - 1);
     let length = block_type_length(immediates());
     advance(length + 1);
 }

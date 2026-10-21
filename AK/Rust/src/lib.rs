@@ -6,6 +6,7 @@
 
 //! Rust views of shared AK data structures.
 
+pub mod perf_map;
 mod scope_guard;
 mod slice;
 

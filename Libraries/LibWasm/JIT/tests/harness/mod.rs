@@ -393,6 +393,7 @@ impl CompiledModule {
         let mut context = CompileContext::default();
         for (index, slot) in failures.iter_mut().enumerate().skip(first) {
             let request = CompileRequest {
+                osr: None,
                 module: module.clone(),
                 function: index as u32,
                 runtime,

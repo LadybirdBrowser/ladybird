@@ -173,6 +173,40 @@ pub struct Builder {
     memory_base: Value,
     /// The zero vector, which every v128 local starts as, once made.
     vector_zero: Value,
+    /// What an OSR compile needs (see `build_osr`), or what probing for one found.
+    osr: Option<Osr>,
+}
+
+/// An OSR compile: the function as a continuation of an interpreter frame at an outermost loop.
+///
+/// Its only parameter is the frame's fp. Its entry block branches, on a constant, to a block that loads the frame's
+/// locals and operand stack and jumps to the loop's header, and to the function's code as it starts, which never
+/// runs. That keeps the entry block dominating everything. At the loop's header, every value on the operand stack
+/// becomes a phi of the two ways in, and the back edges.
+#[derive(Default)]
+struct Osr {
+    /// The module offset of the loop instruction.
+    pc: u32,
+    /// The types of the operand stack at the loop, from bottom to top, parameters included.
+    stack_types: Vec<Type>,
+    /// While probing: whether the loop was found, reachable and in no other loop.
+    found: bool,
+    probing: bool,
+    /// The block that loads the frame, the slot of its jump to the header, and the values it loaded from the
+    /// operand stack.
+    block: BlockId,
+    slot: u32,
+    stack: Vec<Value>,
+    loop_index: u32,
+    entry_edge: u32,
+    edge: u32,
+    /// The phis of the values below the loop's parameters: (phi, value from the start, value from the frame).
+    below: Vec<(Value, Value, Value)>,
+}
+
+/// The fp offset of the local slot `local` of an interpreter frame.
+fn frame_local_offset(local: u32) -> i32 {
+    8 * local as i32
 }
 
 fn key(block: BlockId, local: u32) -> u64 {
@@ -214,6 +248,55 @@ impl Builder {
 
     /// Builds the IR of the defined function `index` (counting imports) of `module` into `func`.
     pub fn build(&mut self, module: &Module, index: u32, func: &mut Func) -> Result<(), CompileFailure> {
+        self.osr = None;
+        self.build_function(module, index, func)
+    }
+
+    /// The types of the operand stack at the loop at module offset `pc`, if it is reachable and in no other loop,
+    /// which an OSR compile needs. Builds the function into `func` to find out.
+    pub fn probe_osr(
+        &mut self,
+        module: &Module,
+        index: u32,
+        pc: u32,
+        func: &mut Func,
+    ) -> Result<Option<Vec<Type>>, CompileFailure> {
+        self.osr = Some(Osr {
+            pc,
+            probing: true,
+            ..Osr::default()
+        });
+        self.build_function(module, index, func)?;
+        let osr = self.osr.take().expect("the probe is there");
+        Ok(osr.found.then_some(osr.stack_types))
+    }
+
+    /// Builds the OSR compile of the function at the loop at `pc`, whose operand stack has `stack_types` there (see
+    /// `probe_osr`).
+    pub fn build_osr(
+        &mut self,
+        module: &Module,
+        index: u32,
+        pc: u32,
+        stack_types: Vec<Type>,
+        func: &mut Func,
+    ) -> Result<(), CompileFailure> {
+        self.osr = Some(Osr {
+            pc,
+            stack_types,
+            loop_index: NONE,
+            ..Osr::default()
+        });
+        let result = self.build_function(module, index, func);
+        self.osr = None;
+        result
+    }
+
+    fn is_osr_compile(&self) -> bool {
+        self.osr.as_ref().is_some_and(|osr| !osr.probing)
+    }
+
+    fn build_function(&mut self, module: &Module, index: u32, func: &mut Func) -> Result<(), CompileFailure> {
         self.clear();
         func.clear();
         let defined = (index - module.imported_function_count) as usize;
@@ -242,14 +325,18 @@ impl Builder {
         self.current.resize(self.local_types.len(), (NONE, NONE));
         self.global_epochs.resize(module.global_space.len(), 0);
 
-        let entry = self.new_block(func);
+        let mut entry = self.new_block(func);
         self.start_block(func, entry);
         self.sealed[entry as usize] = true;
         self.instance = self.entry_value(func, Op::Instance, Type::Pointer, 0);
         self.memory_base = self.entry_value(func, Op::MemoryBase, Type::Pointer, 0);
-        for (param_index, &param) in func.params.clone().iter().enumerate() {
-            let value = self.entry_value(func, Op::Param, param, param_index as u32);
-            self.params.push(value);
+        if self.is_osr_compile() {
+            entry = self.enter_osr(func);
+        } else {
+            for (param_index, &param) in func.params.clone().iter().enumerate() {
+                let value = self.entry_value(func, Op::Param, param, param_index as u32);
+                self.params.push(value);
+            }
         }
         let results = self.push_types(&ty.results)?;
         self.controls.push(Control {
@@ -282,6 +369,73 @@ impl Builder {
     }
 
     // Blocks.
+
+    /// Makes the entry of an OSR compile (see `Osr`) and returns the block the function's code starts in.
+    fn enter_osr(&mut self, func: &mut Func) -> BlockId {
+        let param_types = std::mem::take(&mut func.params);
+        func.params.push(Type::Pointer);
+        let frame = self.entry_value(func, Op::Param, Type::Pointer, 0);
+        // The function's own code never runs, but it must build as it would, so its parameters are not constants
+        // there.
+        for (local, &ty) in param_types.iter().enumerate() {
+            let indirect = u8::from(ty == Type::V128);
+            let value = Self::append(
+                func,
+                Node::new(
+                    Op::FrameLoad,
+                    ty,
+                    indirect,
+                    [frame, frame_local_offset(local as u32) as u32, 0],
+                ),
+            );
+            self.params.push(value);
+        }
+        let from_frame = self.new_block(func);
+        let start = self.new_block(func);
+        let always = self.constant(func, Type::I32, 1);
+        let entry = self.current_block;
+        self.terminate(
+            func,
+            Node::new(Op::Branch, Type::None, 0, [always, 0, 0]),
+            &[from_frame, start],
+        );
+        Self::set_predecessors(func, from_frame, &[entry]);
+        Self::set_predecessors(func, start, &[entry]);
+        self.start_block(func, from_frame);
+        for local in 0..self.local_types.len() as u32 {
+            let ty = self.local_types[local as usize];
+            let indirect = u8::from(ty == Type::V128);
+            let value = Self::append(
+                func,
+                Node::new(
+                    Op::FrameLoad,
+                    ty,
+                    indirect,
+                    [frame, frame_local_offset(local) as u32, 0],
+                ),
+            );
+            self.write_local(local, value);
+        }
+        let stack_types = std::mem::take(&mut self.osr.as_mut().expect("this is an OSR compile").stack_types);
+        let mut offset = -(libwasm_module::abi::FRAME_HEADER_SIZE as i32);
+        let mut stack = Vec::with_capacity(stack_types.len());
+        for &ty in &stack_types {
+            // The operand stack grows down from the frame header; a value's lowest slot is its first.
+            offset -= 8 * ty.slots() as i32;
+            stack.push(Self::append(
+                func,
+                Node::new(Op::FrameLoad, ty, 0, [frame, offset as u32, 0]),
+            ));
+        }
+        let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+        let osr = self.osr.as_mut().expect("this is an OSR compile");
+        osr.block = from_frame;
+        osr.slot = slot;
+        osr.stack = stack;
+        osr.stack_types = stack_types;
+        self.start_block(func, start);
+        start
+    }
 
     fn new_block(&mut self, func: &mut Func) -> BlockId {
         let block = func.blocks.len() as BlockId;
@@ -592,7 +746,11 @@ impl Builder {
                 continue;
             }
             let loop_index = func.blocks[frame.block as usize].loop_index;
-            if self.may_be_on_cycle(func, frame.block) && self.loop_writes.get(key(loop_index, local)).is_none() {
+            let osr_loop = self.osr.as_ref().map_or(NONE, |osr| osr.loop_index);
+            if self.may_be_on_cycle(func, frame.block)
+                && loop_index != osr_loop
+                && self.loop_writes.get(key(loop_index, local)).is_none()
+            {
                 // OPTIMIZATION: Everywhere in a loop that does not write the local, it has the value it entered
                 // the loop with. Reads after a loop would otherwise go around all of it.
                 let header = func.loops[loop_index as usize].header;
@@ -824,7 +982,18 @@ impl Builder {
             }
             I::Loop(block_type) => {
                 let (params, results) = self.block_signature(module, block_type)?;
+                let at_osr_loop = self.osr.as_ref().is_some_and(|osr| osr.pc == pc as u32);
+                if at_osr_loop && self.osr.as_ref().is_some_and(|osr| osr.probing) {
+                    let outermost = !self.controls.iter().any(|control| control.kind == ControlKind::Loop);
+                    let stack_types = self.stack.iter().map(|value| func.node(*value).ty).collect();
+                    let osr = self.osr.as_mut().expect("probing");
+                    osr.found = outermost;
+                    osr.stack_types = stack_types;
+                }
                 self.begin_loop(func, params, results);
+                if at_osr_loop && self.is_osr_compile() {
+                    self.enter_osr_loop(func);
+                }
             }
             I::If(block_type) => {
                 let (params, results) = self.block_signature(module, block_type)?;
@@ -946,7 +1115,14 @@ impl Builder {
                 self.call_indirect(func, module, type_index, table, CallKind::Tail, pc)?;
             }
             I::ReturnCallRef(type_index) => self.call_ref(func, module, type_index, CallKind::Tail, pc)?,
-            I::Throw(_) | I::ThrowRef | I::TryTable(_) => return unsupported(pc, "exception handling"),
+            I::Throw(_)
+            | I::ThrowRef
+            | I::TryTable(_)
+            | I::Try(_)
+            | I::Catch(_)
+            | I::CatchAll
+            | I::Delegate(_)
+            | I::Rethrow(_) => return unsupported(pc, "exception handling"),
             I::TableGet(table) => self.table_get(func, table),
             I::TableSet(table) => self.table_set(func, table),
             I::RefNull(_) => {
@@ -1163,6 +1339,42 @@ impl Builder {
         self.call_epoch += 1;
     }
 
+    /// Makes the loop just begun the one an OSR compile enters (see `Osr`).
+    fn enter_osr_loop(&mut self, func: &mut Func) {
+        let index = self.controls.len() - 1;
+        let control = self.controls[index];
+        let header = control.block;
+        let height = control.height as usize;
+        let mut osr = self.osr.take().expect("this is an OSR compile");
+        func.successors[osr.slot as usize] = header;
+        // The edge from the frame comes second, after the one from the function's start and before every back edge.
+        let values = self.edge_values.len() as u32;
+        self.edge_values.extend_from_slice(&osr.stack[height..]);
+        osr.entry_edge = control.edges;
+        self.edges.push(Edge {
+            block: osr.block,
+            slot: NONE,
+            values,
+            next: control.edges,
+        });
+        osr.edge = self.edges.len() as u32 - 1;
+        self.controls[index].edges = osr.edge;
+        osr.loop_index = control.loop_index;
+        for position in 0..height {
+            let normal = Self::resolve(func, self.stack[position]);
+            let phi = Self::new_phi(func, header, func.node(normal).ty);
+            osr.below.push((phi, normal, osr.stack[position]));
+            self.stack[position] = phi;
+        }
+        self.osr = Some(osr);
+        // Nothing numbered before the loop dominates the code after it any more. Every construct still open forgets
+        // what is numbered from here on when it ends, the loop included.
+        self.unnumber(0);
+        for control in &mut self.controls {
+            control.numbering_mark = 0;
+        }
+    }
+
     fn begin_if(&mut self, func: &mut Func, params: (u32, u32), results: (u32, u32)) {
         let condition = Self::resolve(func, self.pop());
         let then_block = self.new_block(func);
@@ -1343,6 +1555,26 @@ impl Builder {
                 func.operands[start as usize + predecessor_index] = value;
             }
             Self::try_remove_trivial_phi(func, phi);
+        }
+        if let Some(osr) = &self.osr
+            && osr.loop_index == control.loop_index
+            && control.loop_index != NONE
+        {
+            for &(phi, normal, from_frame) in &osr.below {
+                let start = func.operands.len() as u32;
+                for &edge in &self.scratch_values {
+                    let value = if edge == osr.entry_edge {
+                        normal
+                    } else if edge == osr.edge {
+                        from_frame
+                    } else {
+                        phi
+                    };
+                    func.operands.push(value);
+                }
+                func.nodes[phi as usize].args[0] = start;
+                func.nodes[phi as usize].args[1] = self.scratch_values.len() as u32;
+            }
         }
         for &phi in param_phis {
             Self::try_remove_trivial_phi(func, phi);
