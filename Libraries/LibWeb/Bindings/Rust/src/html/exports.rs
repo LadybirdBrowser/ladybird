@@ -10,13 +10,17 @@
 
 use core::ffi::c_void;
 
+use ak::Utf16String;
 use libcompositing_rust::display_list::canvas_2d::Paint;
 use libcompositing_rust::display_list::canvas_2d_recorder::FfiCanvas2DPaint;
 use libcompositing_rust::display_list::commands::{Canvas2DPaintKind, Canvas2DPatternRepetition};
+use libgfx_rust::AffineTransform;
 use libgfx_rust::image_frame::ImageFrameHandle;
+use libgfx_rust::path::PathMut;
 use libjs_rust::api::Vm;
 
 use super::canvas_gradient::CanvasGradient;
+use super::canvas_path::{self, CanvasPathError, RoundRectRadius};
 use super::canvas_pattern::CanvasPattern;
 use super::text_metrics::{TextMeasurements, TextMetrics};
 use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi};
@@ -208,4 +212,196 @@ pub unsafe extern "C" fn web_canvas_pattern_lend_paint(pattern: *mut c_void, out
         out_paint.has_pattern_transform = true;
         out_paint.pattern_transform = transform;
     }
+}
+
+/// What an operation of a canvas path threw, which `CanvasPathResult` of Libraries/LibWeb/HTML/Canvas/CanvasPath.cpp
+/// mirrors.
+#[derive(Clone, Copy)]
+#[repr(u8)]
+pub enum CanvasPathResultKind {
+    Ok,
+    IndexSizeError,
+    RangeError,
+}
+
+/// The result of an operation of a canvas path, with the message of its exception, an AK::Utf16String that the
+/// caller takes over, unless the operation threw none.
+#[repr(C)]
+pub struct CanvasPathResult {
+    kind: CanvasPathResultKind,
+    message: usize,
+}
+
+impl From<Result<(), CanvasPathError>> for CanvasPathResult {
+    fn from(result: Result<(), CanvasPathError>) -> Self {
+        match result {
+            Ok(()) => Self {
+                kind: CanvasPathResultKind::Ok,
+                message: 0,
+            },
+            Err(error) => Self {
+                kind: if error.is_range_error() {
+                    CanvasPathResultKind::RangeError
+                } else {
+                    CanvasPathResultKind::IndexSizeError
+                },
+                message: Utf16String::from_utf8(&error.message()).into_raw(),
+            },
+        }
+    }
+}
+
+// NB: `path` of every operation below is a Gfx::Path that the caller lends mutably for the call.
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_close_path(path: *mut c_void) {
+    // SAFETY: The caller lends a live path.
+    canvas_path::close_path(&mut unsafe { PathMut::from_raw(path) });
+}
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_move_to(path: *mut c_void, x: f32, y: f32) {
+    // SAFETY: The caller lends a live path.
+    canvas_path::move_to(&mut unsafe { PathMut::from_raw(path) }, x, y);
+}
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_line_to(path: *mut c_void, x: f32, y: f32) {
+    // SAFETY: The caller lends a live path.
+    canvas_path::line_to(&mut unsafe { PathMut::from_raw(path) }, x, y);
+}
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_quadratic_curve_to(path: *mut c_void, cpx: f32, cpy: f32, x: f32, y: f32) {
+    // SAFETY: The caller lends a live path.
+    canvas_path::quadratic_curve_to(&mut unsafe { PathMut::from_raw(path) }, cpx, cpy, x, y);
+}
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_bezier_curve_to(
+    path: *mut c_void,
+    cp1x: f64,
+    cp1y: f64,
+    cp2x: f64,
+    cp2y: f64,
+    x: f64,
+    y: f64,
+) {
+    // SAFETY: The caller lends a live path.
+    canvas_path::bezier_curve_to(&mut unsafe { PathMut::from_raw(path) }, cp1x, cp1y, cp2x, cp2y, x, y);
+}
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_arc_to(
+    path: *mut c_void,
+    transform: &AffineTransform,
+    x1: f64,
+    y1: f64,
+    x2: f64,
+    y2: f64,
+    radius: f64,
+) -> CanvasPathResult {
+    // SAFETY: The caller lends a live path.
+    canvas_path::arc_to(
+        &mut unsafe { PathMut::from_raw(path) },
+        *transform,
+        x1,
+        y1,
+        x2,
+        y2,
+        radius,
+    )
+    .into()
+}
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_rect(path: *mut c_void, x: f64, y: f64, w: f64, h: f64) {
+    // SAFETY: The caller lends a live path.
+    canvas_path::rect(&mut unsafe { PathMut::from_raw(path) }, x, y, w, h);
+}
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_round_rect(
+    path: *mut c_void,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    radii: ak::Span<'_, RoundRectRadius>,
+) -> CanvasPathResult {
+    // SAFETY: The caller lends a live path.
+    canvas_path::round_rect(&mut unsafe { PathMut::from_raw(path) }, x, y, w, h, radii.as_slice()).into()
+}
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_arc(
+    path: *mut c_void,
+    x: f32,
+    y: f32,
+    radius: f32,
+    start_angle: f32,
+    end_angle: f32,
+    counterclockwise: bool,
+) -> CanvasPathResult {
+    // SAFETY: The caller lends a live path.
+    let mut path = unsafe { PathMut::from_raw(path) };
+    canvas_path::arc(&mut path, x, y, radius, start_angle, end_angle, counterclockwise).into()
+}
+
+/// # Safety
+///
+/// `path` must be a live Gfx::Path.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_path_ellipse(
+    path: *mut c_void,
+    x: f32,
+    y: f32,
+    radius_x: f32,
+    radius_y: f32,
+    rotation: f32,
+    start_angle: f32,
+    end_angle: f32,
+    counterclockwise: bool,
+) -> CanvasPathResult {
+    // SAFETY: The caller lends a live path.
+    let mut path = unsafe { PathMut::from_raw(path) };
+    canvas_path::ellipse(
+        &mut path,
+        x,
+        y,
+        radius_x,
+        radius_y,
+        rotation,
+        start_angle,
+        end_angle,
+        counterclockwise,
+    )
+    .into()
 }

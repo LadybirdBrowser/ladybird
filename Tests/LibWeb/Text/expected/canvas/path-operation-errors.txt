@@ -1,0 +1,18 @@
+arc(-1): DOMException IndexSizeError: The radius provided (-1) is negative.
+arc(-0.1): DOMException IndexSizeError: The radius provided (-0.1) is negative.
+arc(-1e30): DOMException IndexSizeError: The radius provided (-1e+30) is negative.
+arc(-1e-7): DOMException IndexSizeError: The radius provided (-1e-7) is negative.
+arc(-Infinity): no exception
+arc(-1e39): no exception
+ellipse(-2, 1): DOMException IndexSizeError: The major-axis radius provided (-2) is negative.
+ellipse(1, -2.5): DOMException IndexSizeError: The minor-axis radius provided (-2.5) is negative.
+ellipse(NaN, -2): no exception
+arcTo(-0.1): DOMException IndexSizeError: The radius provided (-0.1) is negative.
+arcTo(-1e300): DOMException IndexSizeError: The radius provided (-1e+300) is negative.
+arcTo(NaN point, -1): no exception
+roundRect([]): RangeError: roundRect: Can have between 1 and 4 radii
+roundRect([1, 2, 3, 4, 5]): RangeError: roundRect: Can have between 1 and 4 radii
+roundRect(-1): RangeError: roundRect: Radius can't be negative
+roundRect({ x: 1, y: -1 }): RangeError: roundRect: Radius can't be negative
+roundRect([NaN, -1]): no exception
+roundRect(NaN size, []): no exception

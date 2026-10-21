@@ -17,12 +17,14 @@
 
 namespace Web::HTML {
 
+// A radius of roundRect(), which `RoundRectRadius` of Bindings/Rust/src/html/canvas_path.rs mirrors.
 struct CanvasRoundRectRadius {
     double x { 0 };
     double y { 0 };
 };
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvaspath
+// The path of a 2D context, which the operations of the mixin in Bindings/Rust/src/html/canvas_path.rs build on.
 class CanvasPath {
 public:
     virtual ~CanvasPath() = default;
@@ -53,8 +55,6 @@ protected:
 
 private:
     Gfx::AffineTransform active_transform() const;
-
-    void ensure_subpath(float x, float y);
 
     Optional<CanvasState const&> m_canvas_state;
     Gfx::Path m_path;

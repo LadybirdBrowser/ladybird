@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const context = document.createElement("canvas").getContext("2d");
+        function tryOperation(description, operation) {
+            try {
+                operation();
+                println(`${description}: no exception`);
+            } catch (e) {
+                const kind = e instanceof DOMException ? `DOMException ${e.name}` : e.constructor.name;
+                println(`${description}: ${kind}: ${e.message}`);
+            }
+        }
+        tryOperation("arc(-1)", () => context.arc(0, 0, -1, 0, 1));
+        tryOperation("arc(-0.1)", () => context.arc(0, 0, -0.1, 0, 1));
+        tryOperation("arc(-1e30)", () => context.arc(0, 0, -1e30, 0, 1));
+        tryOperation("arc(-1e-7)", () => context.arc(0, 0, -1e-7, 0, 1));
+        tryOperation("arc(-Infinity)", () => context.arc(0, 0, -Infinity, 0, 1));
+        tryOperation("arc(-1e39)", () => context.arc(0, 0, -1e39, 0, 1));
+        tryOperation("ellipse(-2, 1)", () => context.ellipse(0, 0, -2, 1, 0, 0, 1));
+        tryOperation("ellipse(1, -2.5)", () => context.ellipse(0, 0, 1, -2.5, 0, 0, 1));
+        tryOperation("ellipse(NaN, -2)", () => context.ellipse(0, 0, NaN, -2, 0, 0, 1));
+        tryOperation("arcTo(-0.1)", () => context.arcTo(0, 0, 1, 1, -0.1));
+        tryOperation("arcTo(-1e300)", () => context.arcTo(0, 0, 1, 1, -1e300));
+        tryOperation("arcTo(NaN point, -1)", () => context.arcTo(NaN, 0, 1, 1, -1));
+        tryOperation("roundRect([])", () => context.roundRect(0, 0, 10, 10, []));
+        tryOperation("roundRect([1, 2, 3, 4, 5])", () => context.roundRect(0, 0, 10, 10, [1, 2, 3, 4, 5]));
+        tryOperation("roundRect(-1)", () => context.roundRect(0, 0, 10, 10, -1));
+        tryOperation("roundRect({ x: 1, y: -1 })", () => context.roundRect(0, 0, 10, 10, { x: 1, y: -1 }));
+        tryOperation("roundRect([NaN, -1])", () => context.roundRect(0, 0, 10, 10, [NaN, -1]));
+        tryOperation("roundRect(NaN size, [])", () => context.roundRect(NaN, 0, 10, 10, []));
+    });
+</script>
