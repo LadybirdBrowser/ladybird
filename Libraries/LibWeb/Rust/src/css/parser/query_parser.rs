@@ -2911,20 +2911,19 @@ fn parse_sizes_attribute(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_sizes_attribute(
     source: FfiUtf16View,
-    context: *const ParseContext,
-    media_environment: *const FfiMediaEnvironment,
-    img_auto_width: *const f64,
+    context: Option<&ParseContext>,
+    media_environment: Option<&FfiMediaEnvironment>,
+    img_auto_width: Option<&f64>,
 ) -> *const c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SizesAttributeParseEntry);
     let Some(source) = source.units() else {
         return std::ptr::null();
     };
-    let Some(context) = (unsafe { context.as_ref() }) else {
+    let Some(context) = context else {
         return std::ptr::null();
     };
-    let media_environment =
-        unsafe { media_environment.as_ref() }.and_then(|environment| unsafe { ffi_media_environment(environment) });
-    let img_auto_width = unsafe { img_auto_width.as_ref() }.copied();
+    let media_environment = media_environment.and_then(|environment| unsafe { ffi_media_environment(environment) });
+    let img_auto_width = img_auto_width.copied();
     Arc::into_raw(Arc::new(parse_sizes_attribute(
         context,
         source,
@@ -2954,12 +2953,12 @@ fn create_expression_handle(expression: Expression, kind: QueryKind) -> *const F
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_parse_supports_condition(
     source: FfiUtf16View,
-    context: *const ParseContext,
+    context: Option<&ParseContext>,
 ) -> *const FfiQueryHandle {
     let Some(source) = source.units() else {
         return std::ptr::null();
     };
-    let Some(context) = (unsafe { context.as_ref() }) else {
+    let Some(context) = context else {
         return std::ptr::null();
     };
     let declared_namespaces = unsafe { declared_namespaces_from_context(context) };
@@ -3038,11 +3037,11 @@ pub(crate) unsafe fn evaluate_container_query(
 /// retain a copy of the borrowed UTF-16 slice.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn css_query_serialize_condition(
-    handle: *const FfiQueryHandle,
+    handle: Option<&FfiQueryHandle>,
     context: *mut c_void,
     visit: VisitQuerySerialization,
 ) -> bool {
-    let Some(handle) = (unsafe { handle.as_ref() }) else {
+    let Some(handle) = handle else {
         return false;
     };
     let QueryTree::Expression { expression, kind } = &handle.tree else {

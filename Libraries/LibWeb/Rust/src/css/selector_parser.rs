@@ -1368,25 +1368,17 @@ pub unsafe extern "C" fn rust_parsed_selector_list_destroy(list: *mut RustParsed
     }
 }
 
-/// # Safety
-/// `list` must point to a live parsed selector list.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parsed_selector_list_length(list: *const RustParsedSelectorList) -> usize {
-    unsafe { (&*list).selectors.len() }
+pub extern "C" fn rust_parsed_selector_list_length(list: &RustParsedSelectorList) -> usize {
+    list.selectors.len()
 }
 
-/// # Safety
-/// `list` must point to a live selector list and `index` must be in bounds.
+/// The selector at `index`, which must be in bounds, as a new selector that C++ owns.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parsed_selector_list_selector(
-    list: *const RustParsedSelectorList,
-    index: usize,
-) -> *mut RustSelector {
-    unsafe {
-        Box::into_raw(Box::new(RustSelector {
-            selector: (&(*list).selectors)[index].clone(),
-        }))
-    }
+pub extern "C" fn rust_parsed_selector_list_selector(list: &RustParsedSelectorList, index: usize) -> *mut RustSelector {
+    Box::into_raw(Box::new(RustSelector {
+        selector: list.selectors[index].clone(),
+    }))
 }
 
 #[cfg(test)]
