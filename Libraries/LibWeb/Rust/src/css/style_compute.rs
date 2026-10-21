@@ -5504,6 +5504,10 @@ pub struct FfiEffectTiming {
     pub has_timeline_scroller: bool,
     pub timeline_scroller_is_vertical: bool,
     pub timeline_scroller: i64,
+    /// The effect's animation runs on a progress-based timeline, whose minimum and maximum timeline times these are.
+    pub has_timeline_boundaries: bool,
+    pub minimum_timeline_time: f64,
+    pub maximum_timeline_time: f64,
     pub has_start_time: bool,
     pub has_hold_time: bool,
     /// The effect's animation is paused, which holds its time, as one whose play is pending does too.

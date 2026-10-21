@@ -663,6 +663,11 @@ ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations::Keyfra
             timing.timeline_scroller_is_vertical = scroller.vertical;
             timing.timeline_scroller = scroller.scroll_node.node_id.value();
         }
+        if (auto minimum = timeline->minimum_timeline_time(), maximum = timeline->maximum_timeline_time(); minimum.has_value() && maximum.has_value()) {
+            timing.has_timeline_boundaries = true;
+            timing.minimum_timeline_time = minimum->value;
+            timing.maximum_timeline_time = maximum->value;
+        }
     }
     optional_duration(animation.start_time(), timing.has_start_time, timing.start_time);
     optional_duration(animation.hold_time(), timing.has_hold_time, timing.hold_time);

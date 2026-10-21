@@ -175,6 +175,7 @@ protected:
     Optional<TimeValue> timeline_duration() const;
 
     Phase phase(Optional<TimeValue> const& local_time) const;
+    bool is_at_timeline_boundary() const;
     Optional<TimeValue> active_time_for_phase(Phase, Optional<TimeValue> const& local_time, Bindings::FillMode) const;
     Optional<double> overall_progress_for_phase(Phase, Optional<TimeValue> const& active_time) const;
     Optional<double> simple_iteration_progress(ResolvedTiming const&) const;

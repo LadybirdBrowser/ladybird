@@ -44,6 +44,10 @@ struct AnimationAttachmentRange {
     bool operator==(AnimationAttachmentRange const&) const = default;
 };
 
+// How far apart two progress-based timeline times, in percent, may be and still be the same but for floating point error.
+// NB: Must match PROGRESS_TOLERANCE in the style engine.
+constexpr double progress_timeline_tolerance = 1e-6;
+
 // The timeline times of the start and the end of an attachment range.
 struct AttachmentInterval {
     TimeValue start;

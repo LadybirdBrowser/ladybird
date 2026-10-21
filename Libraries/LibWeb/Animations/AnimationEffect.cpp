@@ -590,6 +590,26 @@ TimeValue AnimationEffect::after_active_boundary_time() const
     return max(min(m_start_delay + active_duration(), end_time()), TimeValue::create_zero(associated_timeline()));
 }
 
+// https://drafts.csswg.org/web-animations-2/#at-timeline-boundary
+bool AnimationEffect::is_at_timeline_boundary() const
+{
+    auto timeline = associated_timeline();
+    if (!timeline)
+        return false;
+    auto timeline_time = timeline->current_time();
+    if (!timeline_time.has_value())
+        return false;
+    auto matches = [&](Optional<TimeValue> const& time) {
+        return time.has_value() && fabs(timeline_time->value - time->value) < progress_timeline_tolerance;
+    };
+
+    // Determined based on the first matching condition:
+    // If the minimum timeline time matches the timeline current time: Return true
+    // If the maximum timeline time matches the timeline current time: Return true
+    // Otherwise: Return false
+    return matches(timeline->minimum_timeline_time()) || matches(timeline->maximum_timeline_time());
+}
+
 AnimationEffect::Phase AnimationEffect::phase() const
 {
     return phase(local_time());
@@ -602,22 +622,25 @@ AnimationEffect::Phase AnimationEffect::phase(Optional<TimeValue> const& local_t
     if (!local_time.has_value())
         return Phase::Idle;
 
+    auto at_timeline_boundary = this->is_at_timeline_boundary();
+
     auto before_active_boundary_time = this->before_active_boundary_time();
-    // https://www.w3.org/TR/web-animations-1/#animation-effect-before-phase
+    // https://drafts.csswg.org/web-animations-2/#animation-effect-phases-and-states
     // An animation effect is in the before phase if the animation effect’s local time is not unresolved and either of
     // the following conditions are met:
-    // - the local time is less than the before-active boundary time, or
-    // - the animation direction is "backwards" and the local time is equal to the before-active boundary time.
-    if (local_time.value() < before_active_boundary_time || (animation_direction() == AnimationDirection::Backwards && local_time.value() == before_active_boundary_time))
+    // 1. the local time is less than the before-active boundary time, or
+    // 2. the animation direction is "backwards" and the local time is equal to the before-active boundary time and
+    //    not at timeline boundary.
+    if (local_time.value() < before_active_boundary_time || (animation_direction() == AnimationDirection::Backwards && local_time.value() == before_active_boundary_time && !at_timeline_boundary))
         return Phase::Before;
 
     auto after_active_boundary_time = this->after_active_boundary_time();
-    // https://www.w3.org/TR/web-animations-1/#animation-effect-after-phase
     // An animation effect is in the after phase if the animation effect’s local time is not unresolved and either of
     // the following conditions are met:
-    // - the local time is greater than the active-after boundary time, or
-    // - the animation direction is "forwards" and the local time is equal to the active-after boundary time.
-    if (local_time.value() > after_active_boundary_time || (animation_direction() == AnimationDirection::Forwards && local_time.value() == after_active_boundary_time))
+    // 1. the local time is greater than the active-after boundary time, or
+    // 2. the animation direction is "forwards" and the local time is equal to the active-after boundary time and not
+    //    at timeline boundary.
+    if (local_time.value() > after_active_boundary_time || (animation_direction() == AnimationDirection::Forwards && local_time.value() == after_active_boundary_time && !at_timeline_boundary))
         return Phase::After;
 
     // https://www.w3.org/TR/web-animations-1/#animation-effect-active-phase
