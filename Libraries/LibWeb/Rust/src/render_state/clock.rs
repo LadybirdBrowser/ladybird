@@ -1774,17 +1774,12 @@ pub(super) fn settle_lanes_for_testing() {
 /// Writes the color the box of `element` showed in the last frame a tick of a lane of `host`'s document presented to
 /// `color`, as `0xAARRGGBB`, or that of its pseudo-element `generated_for` names where that is not 0, and answers whether
 /// a tick restyled the box in it. For a test.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and `color` must be
-/// valid for writes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_presented_color(
+pub extern "C" fn document_host_presented_color(
     host: &DocumentHost,
     element: u32,
     generated_for: u8,
-    color: *mut u32,
+    color: &mut u32,
 ) -> bool {
     super::wait_for_render_side();
     let Some(presented) =
@@ -1792,8 +1787,7 @@ pub unsafe extern "C" fn document_host_presented_color(
     else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { color.write(presented) };
+    *color = presented;
     true
 }
 
@@ -1814,16 +1808,11 @@ pub extern "C" fn document_host_mouse_event_is_outdated(host: &DocumentHost, inp
 
 /// Writes how many compositor animations drove the box of `element` in the last frame a tick of a lane of `host`'s
 /// document presented to `count`, and answers whether the frame showed the box's border box. For a test.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and `count` must be
-/// valid for writes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_presented_compositor_animation_count(
+pub extern "C" fn document_host_presented_compositor_animation_count(
     host: &DocumentHost,
     element: u32,
-    count: *mut u32,
+    count: &mut u32,
 ) -> bool {
     super::wait_for_render_side();
     let Some(presented) = StyleNodeID::from_raw(element)
@@ -1831,43 +1820,31 @@ pub unsafe extern "C" fn document_host_presented_compositor_animation_count(
     else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { count.write(presented) };
+    *count = presented;
     true
 }
 
 /// Writes the opacity the effect nodes of the box of `element` gave it in the last frame a tick of a lane of `host`'s
 /// document presented to `opacity`, and answers whether the frame showed the box's border box. For a test.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and `opacity` must
-/// be valid for writes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_presented_opacity(host: &DocumentHost, element: u32, opacity: *mut f32) -> bool {
+pub extern "C" fn document_host_presented_opacity(host: &DocumentHost, element: u32, opacity: &mut f32) -> bool {
     super::wait_for_render_side();
     let Some(presented) =
         StyleNodeID::from_raw(element).and_then(|element| host.clock_ticks().presented_opacity(element))
     else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { opacity.write(presented) };
+    *opacity = presented;
     true
 }
 
 /// Writes the border box of `element` in the last frame a tick of a lane of `host`'s document presented to `rect`, and
 /// answers whether a tick presented one. For a test.
-///
-/// # Safety
-///
-/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and `rect` must be
-/// valid for writes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_presented_border_box(
+pub extern "C" fn document_host_presented_border_box(
     host: &DocumentHost,
     element: u32,
-    rect: *mut FfiCssPixelRect,
+    rect: &mut FfiCssPixelRect,
 ) -> bool {
     super::wait_for_render_side();
     let Some(presented) =
@@ -1875,7 +1852,6 @@ pub unsafe extern "C" fn document_host_presented_border_box(
     else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { rect.write(presented.into()) };
+    *rect = presented.into();
     true
 }
