@@ -3158,6 +3158,8 @@ fn build_animation_group(
             payload.animation_iteration_count = retained(property_id::ANIMATION_ITERATION_COUNT);
             payload.animation_play_state = retained(property_id::ANIMATION_PLAY_STATE);
             payload.animation_timeline = retained(property_id::ANIMATION_TIMELINE);
+            payload.animation_range_start = retained(property_id::ANIMATION_RANGE_START);
+            payload.animation_range_end = retained(property_id::ANIMATION_RANGE_END);
             payload.animation_timing_function = retained(property_id::ANIMATION_TIMING_FUNCTION);
             payload.scroll_timeline_name = retained(property_id::SCROLL_TIMELINE_NAME);
             payload.scroll_timeline_axis = retained(property_id::SCROLL_TIMELINE_AXIS);

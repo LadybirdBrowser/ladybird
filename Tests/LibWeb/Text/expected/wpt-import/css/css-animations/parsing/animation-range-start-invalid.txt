@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	e.style['animation-range-start'] = "peek 50%" should not set the property value
+Pass	e.style['animation-range-start'] = "50% contain" should not set the property value
+Pass	e.style['animation-range-start'] = "50% cover" should not set the property value
+Pass	e.style['animation-range-start'] = "50% entry" should not set the property value
+Pass	e.style['animation-range-start'] = "50% enter" should not set the property value
+Pass	e.style['animation-range-start'] = "50% exit" should not set the property value
+Pass	e.style['animation-range-start'] = "contain contain" should not set the property value
+Pass	e.style['animation-range-start'] = "none" should not set the property value
+Pass	e.style['animation-range-start'] = "cover 50% enter 50%" should not set the property value
+Pass	e.style['animation-range-start'] = "normal 10px" should not set the property value
+Pass	e.style['animation-range-start'] = "normal foo" should not set the property value

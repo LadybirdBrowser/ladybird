@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Pass
+Pass	e.style['animation-range-start'] = "normal" should set the property value
+Pass	e.style['animation-range-start'] = "cover 0px" should set the property value
+Pass	e.style['animation-range-start'] = "cover 0%" should set the property value
+Pass	e.style['animation-range-start'] = "cover 100%" should set the property value
+Pass	e.style['animation-range-start'] = "cover 120%" should set the property value
+Pass	e.style['animation-range-start'] = "cover 42%" should set the property value
+Pass	e.style['animation-range-start'] = "0" should set the property value
+Pass	e.style['animation-range-start'] = "120%" should set the property value
+Pass	e.style['animation-range-start'] = "120px" should set the property value
+Pass	e.style['animation-range-start'] = "cover -42%" should set the property value
+Pass	e.style['animation-range-start'] = "contain 42%" should set the property value
+Pass	e.style['animation-range-start'] = "exit 42%" should set the property value
+Pass	e.style['animation-range-start'] = "exit 1%, cover 2%, contain 0%" should set the property value
+Pass	e.style['animation-range-start'] = "exit 1%, cover 2%, contain 100%" should set the property value
+Pass	e.style['animation-range-start'] = "exit-crossing 42%" should set the property value
+Pass	e.style['animation-range-start'] = "entry 42px" should set the property value
+Pass	e.style['animation-range-start'] = "entry-crossing 42px" should set the property value
+Pass	e.style['animation-range-start'] = "contain calc(10px + 10%)" should set the property value
+Pass	e.style['animation-range-start'] = "entry 1em" should set the property value
+Pass	e.style['animation-range-start'] = "exit calc(1em + 10px)" should set the property value
+Pass	e.style['animation-range-start'] = "entry 42%" should set the property value
+Pass	e.style['animation-range-start'] = "cover" should set the property value
+Pass	e.style['animation-range-start'] = "contain" should set the property value
+Pass	e.style['animation-range-start'] = "entry" should set the property value
+Pass	e.style['animation-range-start'] = "exit" should set the property value
+Pass	e.style['animation-range-start'] = "cover calc(sign(100em - 1px) * 1%)" should set the property value

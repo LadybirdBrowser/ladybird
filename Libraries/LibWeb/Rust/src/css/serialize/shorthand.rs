@@ -179,7 +179,15 @@ pub(super) fn serialize(
             let StyleValueData::Shorthand { sub_properties, .. } = whole else {
                 unreachable!("Shorthand style values retain values of the expected type");
             };
-            let reset_only = |id| property == property_id::ANIMATION && id == property_id::ANIMATION_TIMELINE;
+            let reset_only = |id| {
+                property == property_id::ANIMATION
+                    && matches!(
+                        id,
+                        property_id::ANIMATION_TIMELINE
+                            | property_id::ANIMATION_RANGE_START
+                            | property_id::ANIMATION_RANGE_END
+                    )
+            };
             let required = |id| {
                 (property == property_id::SCROLL_TIMELINE && id == property_id::SCROLL_TIMELINE_NAME)
                     || (property == property_id::VIEW_TIMELINE && id == property_id::VIEW_TIMELINE_NAME)
@@ -253,6 +261,38 @@ pub(super) fn serialize(
                     } else {
                         ""
                     });
+                }
+            }
+        }
+        // https://drafts.csswg.org/scroll-animations-1/#animation-range
+        property_id::ANIMATION_RANGE => {
+            let starts = get(property_id::ANIMATION_RANGE_START);
+            let ends = get(property_id::ANIMATION_RANGE_END);
+            let count = layer_count(starts);
+            if layer_count(ends) != count {
+                return;
+            }
+            for entry in 0..count {
+                if entry != 0 {
+                    sink.push_ascii(", ");
+                }
+                let start = layer(starts, entry);
+                let end = layer(ends, entry);
+                write(sink, start, mode);
+                // The end is left out where the shorthand would set it from the start: to the start's range name at
+                // 100%, or to normal, which a bare 100% is equivalent to.
+                let implied_end = match crate::css::parser::value_parser::animation_range_edge_name(start) {
+                    Some(name) => matches!(end, StyleValueData::Keyword { keyword } if *keyword == name),
+                    None => matches!(
+                        end,
+                        StyleValueData::Keyword {
+                            keyword: keyword::NORMAL
+                        } | StyleValueData::Percentage { value: 100.0 }
+                    ),
+                };
+                if !implied_end {
+                    sink.push_ascii(" ");
+                    write(sink, end, mode);
                 }
             }
         }

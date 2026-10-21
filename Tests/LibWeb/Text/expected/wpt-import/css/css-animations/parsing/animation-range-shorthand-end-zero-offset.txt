@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['animation-range'] = "normal cover 0%" should set the property value
+Pass	e.style['animation-range'] = "entry 0% exit 0%" should set the property value
+Pass	e.style['animation-range'] = "cover 50% exit 0%" should set the property value
+Pass	e.style['animation-range'] = "normal cover 100%" should set the property value
+Pass	e.style['animation-range'] = "entry 0% exit 100%" should set the property value
+Pass	e.style['animation-range'] = "normal exit 50%" should set the property value

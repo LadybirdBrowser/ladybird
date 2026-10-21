@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#propdef-animation-range">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="target" style="font-size:10px;"></div>
+<script>
+test_computed_value("animation-range-end", "initial", "normal");
+test_computed_value("animation-range-end", "normal");
+test_computed_value("animation-range-end", "cover 0%");
+test_computed_value("animation-range-end", "cover 100%", "cover");
+test_computed_value("animation-range-end", "COVER 0%", "cover 0%");
+test_computed_value("animation-range-end", "COVER 100%", "cover");
+test_computed_value("animation-range-end", "cover 120%");
+test_computed_value("animation-range-end", "0", "0px");
+test_computed_value("animation-range-end", "120%");
+test_computed_value("animation-range-end", "0%");
+test_computed_value("animation-range-end", "100%");
+test_computed_value("animation-range-end", "120px");
+test_computed_value("animation-range-end", "cover 42%");
+test_computed_value("animation-range-end", "cover -42%");
+test_computed_value("animation-range-end", "contain 42%");
+test_computed_value("animation-range-end", "exit 42%");
+test_computed_value("animation-range-end", "exit calc(41% + 1%)", "exit 42%");
+test_computed_value("animation-range-end", "exit-crossing 42%");
+test_computed_value("animation-range-end", "exit 1%, cover 2%, contain 0%");
+test_computed_value("animation-range-end", "exit 1%, cover 2%, contain 100%", "exit 1%, cover 2%, contain");
+test_computed_value("animation-range-end", "entry 42px");
+test_computed_value("animation-range-end", "entry-crossing 42px");
+
+test_computed_value("animation-range-end", "contain calc(10% + 10px)");
+test_computed_value("animation-range-end", "entry 1em", "entry 10px");
+test_computed_value("animation-range-end", "exit calc(1em + 10px)", "exit 20px");
+test_computed_value("animation-range-end", "cover");
+test_computed_value("animation-range-end", "contain");
+test_computed_value("animation-range-end", "entry");
+test_computed_value("animation-range-end", "exit");
+</script>

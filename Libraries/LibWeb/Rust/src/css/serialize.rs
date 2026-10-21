@@ -3173,6 +3173,7 @@ fn serialize_shorthand(
     // Shorthands requiring per-layer coordination or grammar disambiguation.
     if [
         property_id::ANIMATION,
+        property_id::ANIMATION_RANGE,
         property_id::BACKGROUND,
         property_id::BORDER,
         property_id::BACKGROUND_POSITION,

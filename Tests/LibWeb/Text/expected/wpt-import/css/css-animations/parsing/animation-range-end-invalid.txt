@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	e.style['animation-range-end'] = "infinite" should not set the property value
+Pass	e.style['animation-range-end'] = "1s 2s" should not set the property value
+Pass	e.style['animation-range-end'] = "1s / 2s" should not set the property value
+Pass	e.style['animation-range-end'] = "peek 50%" should not set the property value
+Pass	e.style['animation-range-end'] = "50% contain" should not set the property value
+Pass	e.style['animation-range-end'] = "50% cover" should not set the property value
+Pass	e.style['animation-range-end'] = "50% entry" should not set the property value
+Pass	e.style['animation-range-end'] = "50% enter" should not set the property value
+Pass	e.style['animation-range-end'] = "50% exit" should not set the property value
+Pass	e.style['animation-range-end'] = "contain contain" should not set the property value
+Pass	e.style['animation-range-end'] = "none" should not set the property value
+Pass	e.style['animation-range-end'] = "cover 50% enter 50%" should not set the property value
+Pass	e.style['animation-range-end'] = "normal 10px" should not set the property value
+Pass	e.style['animation-range-end'] = "normal foo" should not set the property value

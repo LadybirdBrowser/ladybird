@@ -305,7 +305,9 @@
       "animation-fill-mode",
       "animation-play-state",
       "animation-name",
-      "animation-timeline"
+      "animation-timeline",
+      "animation-range-start",
+      "animation-range-end"
     ]
   },
   "animation-composition": {
@@ -421,6 +423,33 @@
       "running",
       "paused"
     ]
+  },
+  "animation-range": {
+    "affects-layout": false,
+    "initial": "normal",
+    "multiplicity": "coordinating-list",
+    "longhands": [
+      "animation-range-start",
+      "animation-range-end"
+    ]
+  },
+  "animation-range-end": {
+    "style-group": "AnimationValues",
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "requires-computation": "cascaded-value",
+    "multiplicity": "coordinating-list"
+  },
+  "animation-range-start": {
+    "style-group": "AnimationValues",
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "requires-computation": "cascaded-value",
+    "multiplicity": "coordinating-list"
   },
   "animation-timeline": {
     "style-group": "AnimationValues",
