@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes longhand {
+        from { background-color: var(--from); }
+        to { background-color: var(--to); }
+    }
+    @keyframes shorthand {
+        from { background: var(--from); }
+        to { background: var(--to); }
+    }
+    @keyframes shorthand-to-literal {
+        from { background: var(--from); }
+        to { background: rgb(69, 77, 84); }
+    }
+    @keyframes nested-shorthand {
+        from { background: var(--from) 10px 20px; }
+        to { background: var(--to) 30px 40px; }
+    }
+    @keyframes partly-replaced-shorthand {
+        from { margin: var(--from-margin); margin-left: 0px; }
+        to { margin: var(--to-margin); margin-left: 40px; }
+    }
+    @keyframes shorthand-with-only-nested-longhands-pending {
+        from { border: var(--from-border); border-style: solid; border-color: red; border-image: none; }
+        to { border: var(--to-border); border-style: solid; border-color: red; border-image: none; }
+    }
+    .animated {
+        --from-margin: 0px;
+        --to-margin: 20px;
+        --from-border: 0px dotted blue;
+        --to-border: 20px dotted blue;
+        --from: rgb(255, 191, 0);
+        --to: rgb(69, 77, 84);
+        animation: none 1s linear both paused;
+        animation-delay: -0.25s;
+    }
+</style>
+<div class="animated" style="animation-name: longhand"></div>
+<div class="animated" style="animation-name: shorthand"></div>
+<div class="animated" style="animation-name: shorthand-to-literal"></div>
+<div class="animated" style="animation-name: nested-shorthand"></div>
+<div class="animated" style="animation-name: partly-replaced-shorthand"></div>
+<div class="animated" style="animation-name: shorthand-with-only-nested-longhands-pending"></div>
+<script>
+    // The longhands of a shorthand written with var() in a keyframe take their parts of its value once it
+    // substitutes against the element.
+    test(() => {
+        for (const element of document.querySelectorAll(".animated")) {
+            const style = getComputedStyle(element);
+            println(`${style.animationName}: ${style.backgroundColor} ${style.backgroundPosition} ${style.margin} ${style.borderTopWidth}`);
+        }
+    });
+</script>

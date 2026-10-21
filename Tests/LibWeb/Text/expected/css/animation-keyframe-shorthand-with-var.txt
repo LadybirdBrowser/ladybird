@@ -1,0 +1,6 @@
+longhand: rgb(209, 163, 21) 0% 0% 0px 0px
+shorthand: rgb(209, 163, 21) 0% 0% 0px 0px
+shorthand-to-literal: rgb(209, 163, 21) 0% 0% 0px 0px
+nested-shorthand: rgb(209, 163, 21) 15px 25px 0px 0px
+partly-replaced-shorthand: rgba(0, 0, 0, 0) 0% 0% 5px 5px 5px 10px 0px
+shorthand-with-only-nested-longhands-pending: rgba(0, 0, 0, 0) 0% 0% 0px 5px
