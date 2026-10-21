@@ -167,9 +167,10 @@ class DefinitionUsage:
             if is_implemented_in_rust(module.interface):
                 continue
             # NB: The C++ bindings declare and convert every dictionary of the modules that they generate, whether
-            #     or not an interface names it, unless only the Rust bindings convert it.
+            #     or not an interface names it, unless only the Rust bindings convert JS values to it.
             for dictionary in module.dictionaries:
-                if dictionary.name not in self.rust_dictionaries:
+                directions = self.rust_dictionaries.get(dictionary.name)
+                if directions is None or not directions.from_js:
                     self._name_for_cpp(dictionary.name)
             self._name_types_for_cpp(self.types_named_by_cpp_module(module))
 
