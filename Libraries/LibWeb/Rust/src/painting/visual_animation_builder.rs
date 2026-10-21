@@ -9,8 +9,6 @@
 //! values, the animations an effect has built and published, and the document-wide list the visual
 //! context tree receives.
 
-use std::ffi::c_void;
-
 use crate::css::absolutize::number_from_value;
 use crate::css::color_resolution::{ColorResolutionInput, FfiColorResolutionStyle, to_color};
 use crate::css::css_enums::keyword;
@@ -863,14 +861,6 @@ impl CompositorAnimationEffectState {
     }
 }
 
-/// # Safety
-///
-/// `state` must be a live handle from `compositor_animation_effect_state_create`.
-pub(crate) unsafe fn effect_state_from_handle<'a>(state: *mut c_void) -> &'a mut CompositorAnimationEffectState {
-    // SAFETY: The caller guarantees a live, exclusively used handle.
-    unsafe { &mut *state.cast::<CompositorAnimationEffectState>() }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1009,11 +999,11 @@ mod tests {
     }
 
     unsafe extern "C" fn test_resolved_keyframe_value(
-        context: *mut c_void,
+        context: *mut std::ffi::c_void,
         keyframe_index: usize,
         property_id: u16,
         uses_underlying_style: bool,
-    ) -> *const c_void {
+    ) -> *const std::ffi::c_void {
         let host = unsafe { &*context.cast::<TestHost>() };
         *host.resolutions.borrow_mut() += 1;
         host.values

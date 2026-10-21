@@ -21,6 +21,7 @@ use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
 use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
 use crate::painting::svg_filter::SvgFilterPrimitive;
+use crate::painting::visual_animation_builder::CompositorAnimationEffectState;
 use crate::render_state::{DocumentHost, RenderWait};
 use libcompositing_rust::ffi::tree_from_handle;
 use libgfx_rust::filter::Filter;
@@ -1245,25 +1246,20 @@ pub unsafe extern "C" fn render_state_background_color_animation_keyframe_colors
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn compositor_animation_effect_state_create() -> *mut c_void {
-    Box::into_raw(Box::new(
-        crate::painting::visual_animation_builder::CompositorAnimationEffectState::default(),
-    ))
-    .cast()
+pub extern "C" fn compositor_animation_effect_state_create() -> *mut CompositorAnimationEffectState {
+    Box::into_raw(Box::new(CompositorAnimationEffectState::default()))
 }
 
 /// # Safety
 ///
 /// `state` must be a handle from `compositor_animation_effect_state_create` that is given up here.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_state_destroy(state: *mut c_void) {
+pub unsafe extern "C" fn compositor_animation_effect_state_destroy(state: *mut CompositorAnimationEffectState) {
     if state.is_null() {
         return;
     }
     // SAFETY: The caller gives up the handle it created.
-    drop(unsafe {
-        Box::from_raw(state.cast::<crate::painting::visual_animation_builder::CompositorAnimationEffectState>())
-    });
+    drop(unsafe { Box::from_raw(state) });
 }
 
 /// Builds the animation of the request's target kind for the effect and keeps it pending with the
@@ -1271,17 +1267,17 @@ pub unsafe extern "C" fn compositor_animation_effect_state_destroy(state: *mut c
 ///
 /// # Safety
 ///
-/// `state` must be a live effect state handle, `document_host` a live document host on its document's thread, and the request and host, with every range they address, live
-/// for the call. The host's callbacks run synchronously and may not touch the arena.
+/// `document_host` must be a live document host on its document's thread, and the request and host, with every range
+/// they address, live for the call. The host's callbacks run synchronously and may not touch the arena.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn compositor_animation_effect_build(
-    state: *mut c_void,
+    state: &mut CompositorAnimationEffectState,
     document_host: &DocumentHost,
     request: *const crate::painting::host::FfiCompositorAnimationRequest,
     host: &crate::painting::host::FfiCompositorAnimationHost,
 ) -> crate::painting::host::FfiCompositorAnimationBuildOutcome {
-    use crate::painting::visual_animation_builder::{Host, Request, effect_state_from_handle};
-    let state = unsafe { effect_state_from_handle(state) };
+    use crate::painting::visual_animation_builder::{Host, Request};
+    // SAFETY: Guaranteed by the caller.
     let request = unsafe { Request::new(&*request) };
     let host = Host::new(host);
     let layout_node = request.layout_node();
@@ -1298,55 +1294,37 @@ pub unsafe extern "C" fn compositor_animation_effect_build(
     })
 }
 
-/// # Safety
-///
-/// `state` must be a live effect state handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_discard_pending(
-    state: *mut c_void,
+pub extern "C" fn compositor_animation_effect_discard_pending(
+    state: &mut CompositorAnimationEffectState,
     kind: crate::painting::host::FfiVisualAnimationTargetKind,
 ) {
-    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.discard_pending(kind);
+    state.discard_pending(kind);
 }
 
-/// # Safety
-///
-/// `state` must be a live effect state handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_has_pending(state: *mut c_void) -> bool {
-    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.has_pending()
+pub extern "C" fn compositor_animation_effect_has_pending(state: &CompositorAnimationEffectState) -> bool {
+    state.has_pending()
 }
 
-/// # Safety
-///
-/// `state` must be a live effect state handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_clear_pending(state: *mut c_void) {
-    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.clear_pending();
+pub extern "C" fn compositor_animation_effect_clear_pending(state: &mut CompositorAnimationEffectState) {
+    state.clear_pending();
 }
 
-/// # Safety
-///
-/// `state` must be a live effect state handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_has_retained(state: *mut c_void) -> bool {
-    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.has_retained()
+pub extern "C" fn compositor_animation_effect_has_retained(state: &CompositorAnimationEffectState) -> bool {
+    state.has_retained()
 }
 
-/// # Safety
-///
-/// `state` must be a live effect state handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_clear_retained(state: *mut c_void) {
-    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.clear_retained();
+pub extern "C" fn compositor_animation_effect_clear_retained(state: &mut CompositorAnimationEffectState) {
+    state.clear_retained();
 }
 
-/// # Safety
-///
-/// `state` must be a live effect state handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_reset(state: *mut c_void) {
-    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.reset();
+pub extern "C" fn compositor_animation_effect_reset(state: &mut CompositorAnimationEffectState) {
+    state.reset();
 }
 
 /// # Safety
