@@ -2776,7 +2776,7 @@ impl RetainedState {
         let inherited_groups = self.computed_group_sets.node_inherited_groups_identity(parent)?;
         // C++ styles the children of a display:none element on demand, past the engine's view of
         // the parent, so no first record is computed under one.
-        let parent_display = self.box_type_parent_display(parent, UnderDisplayNone::NoKey)?;
+        let parent_blockifies = self.box_type_parent_blockifies(parent, UnderDisplayNone::NoKey)?;
         let record = if self.state_explicitly_inherits_non_inherited_property(node, state) {
             parent_record.raw()
         } else {
@@ -2787,14 +2787,15 @@ impl RetainedState {
             inherited_groups,
             environment,
             dependency_flags,
-            parent_display,
+            parent_blockifies,
         })
     }
 
-    /// The display the box-type transformation reads as the parent's for a child of the parent:
-    /// the parent's own, past any display:contents ancestor, packed into one word. Under a
-    /// display:none parent, `display_none` says whether there is one.
-    fn box_type_parent_display(&self, parent: StyleNodeID, display_none: UnderDisplayNone) -> Option<u32> {
+    /// Whether the parent a child's box-type transformation reads blockifies the child: the
+    /// parent's own display, past any display:contents ancestor, is grid or flex inside. That is
+    /// all the transformation reads of it. Under a display:none parent, `display_none` says
+    /// whether there is an answer.
+    fn box_type_parent_blockifies(&self, parent: StyleNodeID, display_none: UnderDisplayNone) -> Option<bool> {
         let mut ancestor = Some(parent);
         while let Some(current) = ancestor {
             let record = self.computed_group_sets.assigned_style_record(current)?;
@@ -2805,14 +2806,7 @@ impl RetainedState {
                 return None;
             }
             if !display.is_contents() {
-                return Some(
-                    u32::from(display.tag)
-                        | u32::from(display.outside) << 8
-                        | u32::from(display.inside) << 16
-                        | u32::from(display.internal) << 24
-                        | u32::from(display.list_item) << 3
-                        | u32::from(display.box_value) << 4,
-                );
+                return Some(display.is_grid_inside() || display.is_flex_inside());
             }
             ancestor = self.tree.inheritance_parent(current);
         }
@@ -4491,7 +4485,7 @@ struct ColdRecordParent {
     inherited_groups: u32,
     environment: u64,
     dependency_flags: u8,
-    parent_display: u32,
+    parent_blockifies: bool,
 }
 
 /// What a warm record is derived from: the record it replaces, the winner state, the element
@@ -4910,7 +4904,7 @@ pub(super) struct PseudoCohortKey {
     /// ancestor it inherits from.
     highlight_parent_record: u64,
     inherited_groups: u32,
-    parent_display: u32,
+    parent_blockifies: bool,
     dependency_flags: u8,
     environment: u64,
     kind: u8,

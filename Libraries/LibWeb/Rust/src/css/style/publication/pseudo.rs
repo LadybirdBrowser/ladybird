@@ -441,11 +441,11 @@ impl RetainedState {
             let key = self
                 .computed_group_sets
                 .node_inherited_groups_identity(node)
-                // NB: The pseudo-elements of a display:none element are derived here like any others, so the
-                //     element's display keys them as well.
-                .zip(self.box_type_parent_display(node, UnderDisplayNone::Keyed))
+                // NB: The pseudo-elements of a display:none element are derived here like any others. The
+                //     element's dependency flags key that it is display:none.
+                .zip(self.box_type_parent_blockifies(node, UnderDisplayNone::Keyed))
                 .filter(|_| !element_alone && !has_registered_declarations)
-                .map(|(inherited_groups, parent_display)| PseudoCohortKey {
+                .map(|(inherited_groups, parent_blockifies)| PseudoCohortKey {
                     monospace_recascaded_font_size: state.map_or(0, |state| self.monospace_cohort_key(target, state)),
                     parent_record: if pseudo_kind::is_highlight(kind)
                         || kind == BACKDROP
@@ -459,7 +459,7 @@ impl RetainedState {
                     },
                     highlight_parent_record: highlight_parent_record.map_or(0, computed::FinalStyleRecordID::raw),
                     inherited_groups,
-                    parent_display,
+                    parent_blockifies,
                     dependency_flags: new_view_dependency_flags,
                     environment,
                     kind,
