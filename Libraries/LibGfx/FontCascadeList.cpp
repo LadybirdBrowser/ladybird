@@ -439,6 +439,7 @@ struct FfiCascadeSnapshotRange {
 
 extern "C" {
 void const* ladybird_gfx_font_cascade_list_font_for_code_point(void const*, u32, bool, bool);
+void const* ladybird_gfx_font_cascade_list_first(void const*);
 void ladybird_gfx_font_cascade_list_ref(void const*);
 void ladybird_gfx_font_cascade_list_unref(void const*);
 bool ladybird_gfx_font_cascade_list_equals(void const*, void const*);
@@ -459,6 +460,12 @@ extern "C" void const* ladybird_gfx_font_cascade_list_font_for_code_point(void c
         code_point,
         { emoji_presentation ? Gfx::EmojiPresentation::Emoji : Gfx::EmojiPresentation::Text,
             forced_presentation ? Gfx::ForcedPresentation::Yes : Gfx::ForcedPresentation::No });
+}
+
+extern "C" void const* ladybird_gfx_font_cascade_list_first(void const* list)
+{
+    VERIFY(list);
+    return &static_cast<Gfx::FontCascadeList const*>(list)->first();
 }
 
 extern "C" void ladybird_gfx_font_cascade_list_ref(void const* list)

@@ -13,6 +13,7 @@ unsafe extern "C" {
     fn ladybird_gfx_font_glyph_id(font: *const c_void, code_point: u32) -> u32;
     fn ladybird_gfx_font_contains_glyph(font: *const c_void, code_point: u32) -> bool;
     fn ladybird_gfx_font_is_emoji_font(font: *const c_void) -> bool;
+    fn ladybird_gfx_font_is_invisible(font: *const c_void) -> bool;
     fn ladybird_gfx_font_measure_text_width(
         font: *const c_void,
         text_utf16: *const u16,
@@ -24,6 +25,7 @@ unsafe extern "C" {
         emoji_presentation: bool,
         forced_presentation: bool,
     ) -> *const c_void;
+    fn ladybird_gfx_font_cascade_list_first(list: *const c_void) -> *const c_void;
     fn ladybird_gfx_font_ref(font: *const c_void);
     fn ladybird_gfx_font_unref(font: *const c_void);
     fn ladybird_gfx_font_cascade_list_ref(list: *const c_void);
@@ -147,6 +149,12 @@ impl FontHandle {
         unsafe { ladybird_gfx_font_is_emoji_font(self.as_raw()) }
     }
 
+    /// Whether the font stands in for one that is still loading, whose glyphs draw nothing.
+    pub fn is_invisible(&self) -> bool {
+        // SAFETY: The entry's retained reference keeps the font live.
+        unsafe { ladybird_gfx_font_is_invisible(self.as_raw()) }
+    }
+
     pub fn glyph_width(&self, code_point: u32) -> f32 {
         let mut utf16 = [0u16; 2];
         let encoded = char::from_u32(code_point)
@@ -267,6 +275,13 @@ impl FontCascadeListHandle {
         );
         // SAFETY: Both handles keep their lists live.
         unsafe { ladybird_gfx_font_cascade_list_equals(self.pointer, other.pointer) }
+    }
+
+    /// The first font of the cascade, or its last resort font if it has none, as Gfx::FontCascadeList::first().
+    pub fn first(&self) -> FontHandle {
+        assert!(!self.pointer.is_null(), "Gfx::FontCascadeList pointer must not be null");
+        // SAFETY: This handle keeps the list live, and the list keeps its fonts live for the call.
+        unsafe { FontHandle::intern(ladybird_gfx_font_cascade_list_first(self.pointer)) }
     }
 
     pub fn font_for_code_point(
