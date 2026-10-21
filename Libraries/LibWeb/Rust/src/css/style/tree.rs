@@ -773,7 +773,7 @@ impl StyleNodeTree {
         tree
     }
 
-    /// Connected styleable elements, which is the count the document memory budget is written in.
+    /// Connected styleable elements, which is the count the journal's entry limit is written in.
     #[must_use]
     pub fn connected_element_count(&self) -> u32 {
         self.connected_element_count
@@ -2845,7 +2845,7 @@ mod tests {
     #[test]
     fn per_node_relation_state_fits_the_mandatory_budget() {
         // Rust stores four relation columns, depth, and the style-record handle per node. The DOM
-        // owns the style-node identity mapping counted by the documented surface budget.
+        // owns the style-node identity mapping.
         const STYLE_RECORD_ID_BYTES: usize = 4;
         const STYLE_NODE_ID_BYTES: usize = 4;
         let required = 4 * size_of::<Option<StyleNodeID>>() + size_of::<u32>() + STYLE_RECORD_ID_BYTES;

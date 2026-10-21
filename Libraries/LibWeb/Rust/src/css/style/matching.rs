@@ -218,13 +218,11 @@ impl RetainedState {
     pub(super) fn discard_published_match_answers(&mut self) {
         if let Some(traversal) = self.batch_matching_traversal.as_mut() {
             let effects = std::mem::take(&mut traversal.answer_effects);
-            effects.install_observations(&mut self.published_match_answers);
             effects.release_pending_all(&mut self.match_answers, &mut self.winner_groups);
             traversal.pending_published.clear();
         }
         let mut published = std::mem::take(&mut self.published_match_answers);
         let effects = std::mem::take(&mut published.answer_effects);
-        effects.install_observations(&mut published);
         effects.release_pending_all(&mut self.match_answers, &mut self.winner_groups);
         verify_published_style_transaction(self, |_| {
             assert!(
@@ -288,9 +286,7 @@ impl RetainedState {
     }
 
     pub(super) fn retain_prefix_states(&mut self) {
-        if !self.prefix_caches.borrow_mut().states.retain() {
-            self.prefix_caches.borrow_mut().states.release_transition_states();
-        }
+        self.prefix_caches.borrow_mut().states.retain();
     }
 
     pub(super) fn take_prepared_batch_matching_traversal(
@@ -323,13 +319,6 @@ impl RetainedState {
         prefer_complete_batch: bool,
     ) {
         debug_assert!(self.batch_matching_traversal.is_none());
-        // Each completion batch may ask for exact answers again after a quota boundary reopened
-        // retained-answer admission.
-        self.completion_exactness = if true {
-            CompletionExactness::Exact
-        } else {
-            CompletionExactness::AllowPruning
-        };
         let materialize_timer = flush::PassTimer::start();
         let batch = prefer_complete_batch
             .then(|| {
@@ -426,20 +415,13 @@ impl RetainedState {
         // The batch extended states describing this transaction's facts, so retain their shared
         // owner instead of discarding them: the next flush's walk completes over
         // warm spines. The sparse origin flag keeps that walk from letting the cache speak for
-        // nodes the batch never visited. Unlike the walk's bootstrap retention, this is an
-        // opportunistic give-back. If admission already closed, both scratch caches are released.
+        // nodes the batch never visited.
         {
             let mut caches = self.prefix_caches.borrow_mut();
             caches.states.mark_sparse();
-            if caches.states.retain() {
-                caches.states.mark_current();
-                if !caches.answers.retain() {
-                    caches.answers.release(&mut self.match_answers);
-                }
-            } else {
-                caches.states.release_transition_states();
-                caches.answers.release(&mut self.match_answers);
-            }
+            caches.states.retain();
+            caches.states.mark_current();
+            caches.answers.retain();
         }
 
         self.forget_custom_property_environments_by_answer();
@@ -497,8 +479,8 @@ impl RetainedState {
     /// Materialize the document's facts once for a synchronous broad style traversal.
     ///
     /// The caller brackets one traversal explicitly, so engine mutations cannot leave a retained
-    /// answer stale. If the batch exceeds the document's Tier-4 budget, drop it and let each
-    /// element use the ordinary exact batch path.
+    /// answer stale. If the batch cannot be materialized, let each element use the ordinary exact
+    /// batch path.
     pub fn begin_cold_matching_batch(&mut self, root: StyleNodeID) -> bool {
         self.end_cold_matching_batch();
 
@@ -657,13 +639,8 @@ impl RetainedState {
                 .install(&mut self.prefix_caches.borrow_mut().states);
             self.retain_prefix_states();
             let mut caches = self.prefix_caches.borrow_mut();
-            let retained_prefix_states = caches.states.is_retained();
-            if retained_prefix_states {
-                caches.states.mark_full();
-            }
-            if !retained_prefix_states || !caches.answers.retain() {
-                caches.answers.release(&mut self.match_answers);
-            }
+            caches.states.mark_full();
+            caches.answers.retain();
             drop(caches);
             self.forget_custom_property_environments_by_answer();
             self.match_answers.sweep_unreferenced();
@@ -1392,14 +1369,7 @@ impl RetainedState {
                 WitnessEffect::Clear(key) => self.relational_witnesses.clear(key),
             }
         }
-
-        self.settle_relational_witness_memory();
     }
-
-    /// Keep the retained-witness charge in step with the table. Capacity is already committed
-    /// at this boundary, so pressure keeps the table usable for this period and schedules the whole
-    /// category for eviction at the next boundary.
-    pub(super) fn settle_relational_witness_memory(&mut self) {}
 
     /// Return the retained witness proving that this anchor's Boolean cannot have flipped.
     ///
@@ -1679,14 +1649,7 @@ impl RetainedState {
         node: StyleNodeID,
         identity: MatchAnswerID,
     ) -> bool {
-        let Some(index) = node.element_index().map(|index| index as usize) else {
-            return false;
-        };
-        // NB: Column growth is deferred to installation. During an admitting batch,
-        //     a pending exact answer can be reused before that growth has happened.
-        if (index >= self.retained_match_answers.column.capacity() && !true)
-            || self.match_answers.answer(identity).is_none()
-        {
+        if node.element_index().is_none() || self.match_answers.answer(identity).is_none() {
             return false;
         }
         if effects.answer_identity(&self.retained_match_answers, node) == Some(identity) {
@@ -1702,7 +1665,6 @@ impl RetainedState {
 
     pub(super) fn install_answer_effects(&mut self, mut effects: AnswerEffects) {
         self.install_winner_effects(std::mem::take(&mut effects.winners));
-        effects.install_observations(&mut self.published_match_answers);
         effects.install(
             &mut self.retained_match_answers,
             &mut self.match_answers,
@@ -1830,18 +1792,12 @@ impl RetainedState {
                 Counter::SelectorTruthDerivedAnswerMisses
             });
         }
-        if node.element_index().is_some()
-            && (effects.answer_identity(&self.retained_match_answers, node).is_some() || true)
-        {
-            let identity = self.match_answers.intern_prepared(answer, &self.programs);
-            if effects.answer_identity(&self.retained_match_answers, node) != Some(identity) {
-                effects.remember_identity(node, identity, &mut self.match_answers);
-            }
+        if node.element_index().is_none() {
             return;
         }
-        if effects.answer_identity(&self.retained_match_answers, node).is_none() {
-            self.counters.bump(Counter::RetainedMatchAnswerRefusals);
-            if self.counters.get(Counter::Tier3RefusalRetainedMatchAnswerBytes) == 0 {}
+        let identity = self.match_answers.intern_prepared(answer, &self.programs);
+        if effects.answer_identity(&self.retained_match_answers, node) != Some(identity) {
+            effects.remember_identity(node, identity, &mut self.match_answers);
         }
     }
 
@@ -1878,7 +1834,7 @@ impl RetainedState {
         }
         incidences.sort_unstable();
         incidences.dedup();
-        self.retained_selector_incidences.remember(program, incidences)
+        Some(self.retained_selector_incidences.remember(program, incidences))
     }
 
     /// Materialize several active programs' selector incidences in one retained-answer pass.
@@ -2039,7 +1995,7 @@ impl RetainedState {
         }
         incidences.truncate(selected_count);
         incidences.sort_unstable();
-        self.retained_selector_incidences.remember(program, incidences)
+        Some(self.retained_selector_incidences.remember(program, incidences))
     }
 
     /// Read one selector entry's pre-transaction truth from the retained exact answer.
@@ -3429,16 +3385,13 @@ impl RetainedState {
                 self.counters.bump(Counter::RetainedMatchAnswerReuses);
                 (answer, cascade_winners_are_complete, None)
             } else {
-                // Exactness is selected before the batch. Allocation by an earlier node
-                // cannot change the matching discipline of a later node in this loop.
-                let completion_exactness = self.completion_exactness;
                 let mut compact_answer = None;
                 let mut cascade_winners_are_complete = false;
                 let answer = self.match_element_in_traversal(
                     effects,
                     node,
                     true,
-                    completion_exactness,
+                    CompletionExactness::Exact,
                     traversal,
                     Some(&mut compact_answer),
                     Some(&mut cascade_winners_are_complete),
@@ -3452,7 +3405,6 @@ impl RetainedState {
             cascade_input,
             matches: compact_answer.is_none().then(|| matches.into_boxed_slice()),
             cascade_winners_are_complete,
-            observed: false,
         })
     }
 
@@ -3489,7 +3441,6 @@ impl RetainedState {
                 cascade_input: None,
                 matches: None,
                 cascade_winners_are_complete: false,
-                observed: false,
             });
         };
         self.match_answers.answer(cascade_input)?;
@@ -3507,7 +3458,6 @@ impl RetainedState {
             cascade_input: Some(cascade_input),
             matches: None,
             cascade_winners_are_complete,
-            observed: false,
         })
     }
 
@@ -3537,7 +3487,6 @@ impl RetainedState {
             cascade_input: Some(cascade_input),
             matches: None,
             cascade_winners_are_complete,
-            observed: false,
         })
     }
 
@@ -3823,7 +3772,6 @@ impl RetainedState {
                         cascade_input: Some(cascade_input),
                         matches: None,
                         cascade_winners_are_complete: false,
-                        observed: false,
                     }
                 } else {
                     self.complete_published_match_answer_in_traversal(
@@ -3907,7 +3855,7 @@ impl RetainedState {
     }
 
     /// Publish new winners from the retained selector answer, matching from published facts when
-    /// that answer has been evicted. `None` when neither can say what the node matches; else
+    /// there is none. `None` when neither can say what the node matches; else
     /// whether the winners are complete.
     pub(super) fn republish_winners_from_answer(
         &mut self,
@@ -3937,7 +3885,6 @@ impl RetainedState {
                     cascade_input: None,
                     matches: Some(matches.into_boxed_slice()),
                     cascade_winners_are_complete: complete,
-                    observed: false,
                 },
                 &self.counters,
             );
@@ -4080,14 +4027,6 @@ impl RetainedState {
         published.lookup(node).map(|answer| (published, answer))
     }
 
-    pub(super) fn mark_published_answer_observed(&mut self, node: StyleNodeID) {
-        if let Some(traversal) = self.batch_matching_traversal.as_mut() {
-            traversal.answer_effects.mark_observed(node);
-        } else {
-            self.published_match_answers.answer_effects.mark_observed(node);
-        }
-    }
-
     pub(super) fn consume_published_match_answer_in_traversal(
         &mut self,
         effects: &mut AnswerEffects,
@@ -4125,7 +4064,6 @@ impl RetainedState {
             }
         }
         if let Some(mut matches) = matches {
-            effects.mark_observed(node);
             for entry in &mut matches {
                 entry.node = node;
             }
@@ -4167,9 +4105,9 @@ impl RetainedState {
         }
         let generation = winner_groups.generation();
         // A held pseudo style the engine has no record of cannot be vouched for: winner rows and
-        // computed cascade records are the only witnesses the two arms below can judge, and a
-        // Tier-3 eviction can strip both while the consumer still holds the computed style. With
-        // no witness the answer must be a recompute, never a vacuous pass.
+        // computed cascade records are the only witnesses the two arms below can judge, and the
+        // consumer can hold a computed style with neither. With no witness the answer must be a
+        // recompute, never a vacuous pass.
         let held_kinds_are_witnessed = self.computed_group_sets.assigned_pseudo_kinds(node).all(|kind| {
             self.computed_group_sets
                 .pseudo_retained_cascade_state(node, kind)

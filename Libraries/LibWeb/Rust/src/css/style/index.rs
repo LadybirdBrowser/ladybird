@@ -731,20 +731,6 @@ impl StyleNodeFacts {
         }
     }
 
-    fn live_nodes(&self) -> impl Iterator<Item = StyleNodeID> + '_ {
-        (0..self.row_count()).filter_map(|row| {
-            let node = if self.primary {
-                if row == 0 || !self.resident.contains(row) {
-                    return None;
-                }
-                StyleNodeID::element(u32::try_from(row).expect("element fact row exceeds u32"))
-            } else {
-                self.nodes[row]
-            };
-            (self.row_of(node) == u32::try_from(row).ok()).then_some(node)
-        })
-    }
-
     #[must_use]
     pub fn live_row_count(&self) -> usize {
         self.live_rows
@@ -1487,17 +1473,15 @@ pub type PostingKey = FeatureKey;
 
 /// Candidate sets for observed element features.
 ///
-/// This is acceleration and nothing more. Evicting a posting never changes which transpose entry
+/// This is acceleration and nothing more. A missing posting never changes which transpose entry
 /// points run and never changes an answer: the routed program reads authoritative DOM facts or runs
 /// an exact scope batch instead. Fact setters populate postings eagerly, independent of which
-/// selector programs are attached, and they remain until their facts disappear or eviction removes
-/// them. This global arrangement avoids program-lifetime registration and first-use fact scans;
-/// per-key missing coverage confines eviction fallout to the acceleration that was actually
-/// removed.
+/// selector programs are attached, and they remain until their facts disappear. A selector
+/// posting that outgrows its cardinality limit is dropped and stays missing for its key. This
+/// global arrangement avoids program-lifetime registration and first-use fact scans.
 #[derive(Clone)]
 pub struct FeaturePostings {
     postings: HashMap<PostingKey, Posting>,
-    missing: HashSet<PostingKey>,
     cardinality_limited: HashSet<PostingKey>,
     grown_selector_postings: HashSet<PostingKey>,
     selector_posting_limit: usize,
@@ -1508,7 +1492,6 @@ impl Default for FeaturePostings {
         Self {
             postings: HashMap::default(),
 
-            missing: HashSet::default(),
             cardinality_limited: HashSet::default(),
             grown_selector_postings: HashSet::default(),
             selector_posting_limit: usize::MAX,
@@ -1518,15 +1501,14 @@ impl Default for FeaturePostings {
 
 impl FeaturePostings {
     #[must_use]
+    #[cfg(test)]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Add `node` to a feature's candidate set. Once quota pressure closes admission, existing
-    /// postings continue to accept members so they remain exact, while new posting keys stay
-    /// missing until the next quota period.
+    /// Add `node` to a feature's candidate set. A key whose posting outgrew its limit stays missing.
     pub fn insert(&mut self, key: PostingKey, node: StyleNodeID) -> bool {
-        if self.missing.contains(&key) || self.cardinality_limited.contains(&key) {
+        if self.cardinality_limited.contains(&key) {
             return false;
         }
         let posting = self.postings.entry(key).or_default();
@@ -1557,19 +1539,19 @@ impl FeaturePostings {
 
     /// Look up one feature's complete candidate set.
     ///
-    /// An absent key is known empty unless that exact posting was evicted or refused.
+    /// An absent key is known empty unless that exact posting outgrew its limit.
     #[must_use]
     pub(super) fn lookup(&self, key: PostingKey) -> Lookup<&Posting, PostingKey> {
         match self.postings.get(&key) {
             Some(posting) => Lookup::Known(posting),
-            None if self.missing.contains(&key) || self.cardinality_limited.contains(&key) => Lookup::Missing(key),
+            None if self.cardinality_limited.contains(&key) => Lookup::Missing(key),
             None => Lookup::KnownAbsent,
         }
     }
 
     #[cfg(test)]
-    pub(crate) fn evict(&mut self, key: PostingKey) {
-        self.missing.insert(key);
+    pub(crate) fn drop_posting(&mut self, key: PostingKey) {
+        self.cardinality_limited.insert(key);
         self.remove_posting(key);
     }
 
@@ -1626,27 +1608,6 @@ impl FeaturePostings {
     }
 
     #[must_use]
-    fn is_incomplete(&self) -> bool {
-        !self.missing.is_empty()
-    }
-
-    fn take_rebuilt(&mut self, mut rebuilt: FeaturePostings) {
-        debug_assert!(rebuilt.missing.is_empty());
-
-        rebuilt.grown_selector_postings = HashSet::default();
-
-        self.postings.extend(rebuilt.postings.drain());
-
-        rebuilt.postings = HashMap::default();
-
-        self.cardinality_limited.extend(rebuilt.cardinality_limited.drain());
-
-        rebuilt.cardinality_limited = HashSet::default();
-
-        self.missing = HashSet::default();
-    }
-
-    #[must_use]
     #[cfg(test)]
     pub fn feature_count(&self) -> usize {
         self.postings.len()
@@ -1659,8 +1620,6 @@ impl FeaturePostings {
             self.postings = HashMap::default();
         }
 
-        self.missing
-            .retain(|key| !key.atom().is_some_and(|atom| atoms.contains(&atom)));
         self.cardinality_limited
             .retain(|key| !key.atom().is_some_and(|atom| atoms.contains(&atom)));
         self.grown_selector_postings
@@ -2047,8 +2006,8 @@ fn dispatch_atom_bucket_key(kind: usize, atom: usize) -> DispatchKey {
 ///
 /// A candidate probes only the buckets its own facts name, plus the universal bucket, so a document
 /// full of `.item` elements never considers a rule whose subject compound requires `#header`. This
-/// is program-derived dispatch rather than acceleration over elements: it is Tier 2, it is rebuilt
-/// with the program, and it is never evicted independently of it.
+/// is program-derived dispatch rather than acceleration over elements: it is rebuilt with the
+/// program and never dropped independently of it.
 #[derive(Default)]
 pub(super) struct AncestorDispatchTopology {
     key_indices: HashMap<DispatchKey, u32>,
@@ -2489,7 +2448,7 @@ impl RuleDispatch {
 
     /// Assign a dense rank to the static cascade priority of every selector entry.
     ///
-    /// The dispatch is Tier 2 program data, so a rule or ordering change rebuilds these ranks along
+    /// The dispatch is program data, so a rule or ordering change rebuilds these ranks along
     /// with the buckets. Dynamic `@scope` proximity is deliberately absent and makes the consumer
     /// fall back to constructing the complete priority.
     ///
@@ -3154,9 +3113,8 @@ pub struct ElementFactStore {
     /// Candidate sets over the same facts. A rule arriving needs to find the elements it could
     /// match without walking the document, and this is what answers that.
     postings: crate::fork::ForkShared<FeaturePostings>,
-    /// Tier-3 headroom when admission last closed during a full rebuild. Until more headroom
-    /// appears, another scan can only reach the same closure.
-    memory_dirty: bool,
+    /// Whether fact staging holds edits `apply_staged` has not committed yet.
+    staging_dirty: bool,
     /// One entry per distinct set of declared custom property names, and the sets each name is in.
     /// A theme is one set however many elements it decides for, which is what keeps the index
     /// proportional to the stylesheet rather than to the document times the stylesheet.
@@ -3434,7 +3392,7 @@ impl Default for ElementFactStore {
             metadata: Column::default(),
             postings: Default::default(),
 
-            memory_dirty: false,
+            staging_dirty: false,
             custom_property_name_sets: super::intern_table::InternTable::default(),
             custom_property_name_set_vacancies: Vec::new(),
             custom_property_set_ids_by_name: PagedOwnedColumn::default(),
@@ -3646,112 +3604,6 @@ impl ElementFactStore {
         &self.postings
     }
 
-    fn rebuild_missing_posting(&self, rebuilt: &mut FeaturePostings, key: PostingKey, node: StyleNodeID) -> bool {
-        !self.postings.missing.contains(&key) || rebuilt.insert(key, node) || rebuilt.cardinality_limited.contains(&key)
-    }
-
-    fn build_missing_postings(&self) -> Option<FeaturePostings> {
-        let mut rebuilt = FeaturePostings::new();
-        rebuilt.selector_posting_limit = self.postings.selector_posting_limit;
-        for node in self.rows.live_nodes() {
-            let row = self.rows.row_of(node).expect("a live node must have a fact row");
-            for (atom, key) in [
-                (
-                    self.rows.tag_of(row),
-                    SelectorPostingKey::TagName(self.rows.tag_of(row)),
-                ),
-                (
-                    self.rows.folded_tag_of(row),
-                    SelectorPostingKey::TagName(self.rows.folded_tag_of(row)),
-                ),
-                (self.rows.id_of(row), SelectorPostingKey::Id(self.rows.id_of(row))),
-                (
-                    self.rows.directionality_of(row),
-                    SelectorPostingKey::Directionality(self.rows.directionality_of(row)),
-                ),
-            ] {
-                if atom.is_none() {
-                    continue;
-                }
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
-                    return None;
-                }
-            }
-            for &part in self.rows.parts_of(row) {
-                let key = SelectorPostingKey::Part(part);
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
-                    return None;
-                }
-            }
-            for &state in self.rows.custom_states_of(row) {
-                let key = SelectorPostingKey::CustomState(state);
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
-                    return None;
-                }
-            }
-            for state in self
-                .rows
-                .states_of(row)
-                .facts()
-                .filter(|state| state.has_selector_posting())
-            {
-                let key = SelectorPostingKey::State(state);
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
-                    return None;
-                }
-            }
-            for &class in self.rows.classes_of(row) {
-                let key = SelectorPostingKey::Class(class);
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
-                    return None;
-                }
-            }
-            for attribute in self.rows.attributes_of(row) {
-                for name in self.attribute_name_keys(attribute.name) {
-                    let key = SelectorPostingKey::AttributeName(name);
-                    if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
-                        return None;
-                    }
-                }
-            }
-            if let Some(metadata) = self.metadata_of(node) {
-                for &name in &metadata.animation_names {
-                    let key = DependencyPostingKey::AnimationName(name);
-                    if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
-                        return None;
-                    }
-                }
-                if metadata.custom_property_set != 0 {
-                    let key = DependencyPostingKey::CustomPropertySet(metadata.custom_property_set);
-                    if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
-                        return None;
-                    }
-                }
-                for (uses, key) in [
-                    (
-                        metadata.uses_unnamed_custom_properties,
-                        DependencyPostingKey::AnyCustomProperty,
-                    ),
-                    (metadata.uses_custom_functions, DependencyPostingKey::AnyCustomFunction),
-                ] {
-                    if uses && !self.rebuild_missing_posting(&mut rebuilt, key, node) {
-                        return None;
-                    }
-                }
-            }
-        }
-        Some(rebuilt)
-    }
-
-    fn rebuild_missing_postings(&mut self) {
-        if !self.postings.is_incomplete() {
-            return;
-        }
-        if let Some(rebuilt) = self.build_missing_postings() {
-            self.postings.take_rebuilt(rebuilt);
-        }
-    }
-
     #[must_use]
     pub fn primary(&self) -> &StyleNodeFacts {
         assert!(
@@ -3805,7 +3657,7 @@ impl ElementFactStore {
     }
 
     fn metadata_mut(&mut self, node: StyleNodeID) -> &mut ElementFactMetadata {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         let index = node.element_index().expect("only elements carry element facts") as usize;
         self.metadata
             .entry(index)
@@ -3842,7 +3694,7 @@ impl ElementFactStore {
     }
 
     fn edit_staged_row<R>(&mut self, node: StyleNodeID, edit: impl FnOnce(&mut StagedFactRow) -> R) -> R {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         if !self.staging.contains(node) {
             let before = self.rows.row_of(node).map(|row| self.rows.primary_snapshot(row));
             let row = before.map_or_else(StagedFactRow::default, |snapshot| {
@@ -3861,7 +3713,7 @@ impl ElementFactStore {
     /// that lands there - asks for a row that never arrives and the whole match gives up.
     pub fn ensure_row(&mut self, node: StyleNodeID) {
         if self.rows.row_of(node).is_none() && !self.staging.contains(node) {
-            self.memory_dirty = true;
+            self.staging_dirty = true;
             self.staging.insert(node, StagedFactRow::default(), None);
         }
     }
@@ -4055,7 +3907,7 @@ impl ElementFactStore {
     /// An element's heading level follows from what it is, so it is published as it arrives and
     /// whenever an `aria-level` that overrides it moves.
     pub fn set_is_slot(&mut self, node: StyleNodeID, is_slot: bool) {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         if is_slot {
             self.metadata_mut(node).is_slot = true;
         } else if let Some(metadata) = node
@@ -4093,7 +3945,7 @@ impl ElementFactStore {
         {
             return;
         }
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         self.attribute_catalogs_mut()
             .language_texts
             .insert(index, Some(text.into()));
@@ -4236,7 +4088,7 @@ impl ElementFactStore {
     /// per element is millions of entries for one answer. The set is stored once, the element
     /// names it by identity, and a registration asks which sets hold its name.
     pub fn set_custom_property_names(&mut self, node: StyleNodeID, names: &[StyleAtomID]) {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         // The caller hands these sorted and deduplicated, worked out once for the environment the
         // element resolved to.
         debug_assert!(names.windows(2).all(|pair| pair[0].0 < pair[1].0));
@@ -4369,7 +4221,7 @@ impl ElementFactStore {
         kind: ElementDeclarationKind,
         declarations: Vec<(DeclaredProperty, RetainedStyleValueData)>,
     ) {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         self.element_declared_properties.set(node, kind, declarations);
     }
 
@@ -4380,7 +4232,7 @@ impl ElementFactStore {
         node: StyleNodeID,
         custom_declarations: Vec<(CustomDeclaration, RetainedStyleValueData)>,
     ) {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         self.element_declared_properties.set_custom(node, custom_declarations);
     }
 
@@ -4403,7 +4255,7 @@ impl ElementFactStore {
             rows.rows_with_custom_declarations -= 1;
         }
         rows.payload_bytes = rows.payload_bytes - before + row.storage_bytes();
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         Some(hidden)
     }
 
@@ -4425,7 +4277,7 @@ impl ElementFactStore {
             rows.rows_with_custom_declarations += 1;
         }
         rows.payload_bytes = rows.payload_bytes - before + row.storage_bytes();
-        self.memory_dirty = true;
+        self.staging_dirty = true;
     }
 
     /// The custom properties the node's inline style declares, in declaration order.
@@ -4471,13 +4323,13 @@ impl ElementFactStore {
     /// idempotent and total: every attribute name goes through it, including one in no namespace,
     /// whose local form is still an atom of its own.
     pub fn note_attribute_name_forms(&mut self, name: StyleAtomID, forms: AttributeNameForms) {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         self.attribute_catalogs_mut().name_forms.insert(name.0 as usize, forms);
     }
 
     /// Record the local name an `attr()` reads the attribute `name` by, which is in no namespace.
     pub fn note_attribute_substitution_name(&mut self, name: StyleAtomID, local_name: &[u16]) {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         self.attribute_catalogs_mut()
             .substitution_names
             .insert(name.0 as usize, Some(local_name.into()));
@@ -4523,7 +4375,7 @@ impl ElementFactStore {
         {
             return;
         }
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         self.attribute_catalogs_mut()
             .value_texts
             .insert(index, Some(text.into()));
@@ -4592,7 +4444,7 @@ impl ElementFactStore {
     }
 
     pub fn forget(&mut self, node: StyleNodeID) {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         self.element_declared_properties.remove(node);
         self.staging.remove(node);
         let Some(row) = self.rows.row_of(node) else {
@@ -4678,7 +4530,7 @@ impl ElementFactStore {
     /// NB: A retained traversal or a fork of the store may share the primary rows. The sweep writes only the store's
     ///     own catalogs, and `prepare_attribute_catalogs` copies the rows where they are shared.
     pub(super) fn sweep_auxiliary_catalogs_without_sync(&mut self) {
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         let attribute_catalogs = Arc::make_mut(&mut self.attribute_catalogs);
         // Language spellings and attribute-name forms are retained until their atom is reclaimed;
         // forget_atoms clears them at that authoritative boundary so a reused identity can publish
@@ -4723,7 +4575,7 @@ impl ElementFactStore {
         if atoms.is_empty() {
             return;
         }
-        self.memory_dirty = true;
+        self.staging_dirty = true;
         let atoms = atoms.iter().copied().collect::<HashSet<_>>();
         let catalogs = Arc::make_mut(&mut self.attribute_catalogs);
         for atom in &atoms {
@@ -4804,8 +4656,7 @@ impl ElementFactStore {
 
     /// Commit every fact-staging edit to the authoritative arrangement.
     pub fn apply_staged(&mut self) {
-        if !self.memory_dirty {
-            self.rebuild_missing_postings();
+        if !self.staging_dirty {
             return;
         }
         self.prepare_attribute_catalogs();
@@ -4825,8 +4676,7 @@ impl ElementFactStore {
         self.staging = staging;
         self.postings.update_selector_posting_limit(self.rows.live_row_count());
 
-        self.memory_dirty = false;
-        self.rebuild_missing_postings();
+        self.staging_dirty = false;
     }
 
     /// Snapshot the committed rows which staged local facts will replace at the barrier.
@@ -5383,7 +5233,7 @@ mod tests {
         let absent = SelectorPostingKey::Class(StyleAtomID(2));
         postings.insert(evicted, StyleNodeID::element(1));
 
-        postings.evict(evicted);
+        postings.drop_posting(evicted);
 
         assert!(matches!(postings.lookup(evicted), Lookup::Missing(gap) if gap == evicted));
         assert!(matches!(postings.lookup(absent), Lookup::KnownAbsent));

@@ -4039,9 +4039,9 @@ fn state_is_published_on_arrival(fact: StateFact) -> bool {
 
 /// Maps each semantic input key to the canonical transpose routes that mention it.
 ///
-/// This is required program state, not an evictable view. Scanning every selector header for every
+/// This is required program state, not an optional view. Scanning every selector header for every
 /// ordinary mutation would change the hot path's asymptotics, so routing has to be an index.
-/// Feature postings may accelerate subject enumeration on top of it, but evicting a posting never
+/// Feature postings may accelerate subject enumeration on top of it, but a missing posting never
 /// changes which routes run.
 const LIVENESS_LOCK: &str = "the routing liveness view is never held across a panic";
 

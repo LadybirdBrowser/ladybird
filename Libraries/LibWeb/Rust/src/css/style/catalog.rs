@@ -428,7 +428,7 @@ impl MatchAnswerCatalog {
             .map(|entry| &entry.answer)
     }
 
-    pub(super) fn evict_retained(&mut self) {
+    pub(super) fn release_all_retained(&mut self) {
         for index in 0..self.answers.len() {
             let Some(entry) = self.answers[index].as_mut() else {
                 continue;
@@ -739,16 +739,8 @@ impl PrefixAnswerCache {
         self.retained = false;
     }
 
-    pub(super) fn retain(&mut self) -> bool {
-        if self.retained {
-            return true;
-        }
-        if !true {
-            return false;
-        }
-
+    pub(super) fn retain(&mut self) {
         self.retained = true;
-        true
     }
 
     pub(super) fn make_scratch(&mut self) {
@@ -771,8 +763,8 @@ impl PrefixAnswerCache {
                 .is_some_and(|by_match_set| !by_match_set.is_empty())
         {
             // Canonical contributions are shared across programs. Dropping only this program's
-            // lookup entries would leave unreachable contributions behind, so release the small,
-            // evictable cache as one coherent unit.
+            // lookup entries would leave unreachable contributions behind, so release the small
+            // cache as one coherent unit.
             self.release(catalog);
         }
     }
@@ -793,9 +785,8 @@ impl PrefixAnswerCache {
 /// Exact selector answers retained as the old side of a later plan.
 ///
 /// Cascade compaction is declaration-dependent, so the answer catalog keeps this stable selector
-/// payload and restores the current cascade rank when reading it. The per-node retained coverage is
-/// Tier-3: losing it turns the next declaration edit into an ordinary cold match without changing
-/// semantics.
+/// payload and restores the current cascade rank when reading it. A node without retained coverage
+/// turns the next declaration edit into an ordinary cold match without changing semantics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(super) struct RetainedRuleMatch {
     pub(super) rule: RuleID,
@@ -893,7 +884,6 @@ pub(super) fn merge_retained_match_answers(answer: &mut Vec<RetainedRuleMatch>, 
 #[derive(Clone, Default)]
 pub(super) struct PendingAnswer {
     published_index: Option<usize>,
-    observed: bool,
     pub(super) identity: Option<Option<MatchAnswerID>>,
     pub(super) cascade_input: Option<Option<MatchAnswerID>>,
 }
@@ -910,7 +900,6 @@ pub(super) struct AnswerEffects {
     by_node: PooledStampedIndex,
     exact_answers: Vec<(OwnedPrefixAnswerKey, MatchAnswerID)>,
     by_content: HashMap<u64, SmallVec<[usize; 1]>>,
-    nested_bytes: usize,
 }
 
 impl AnswerEffects {
@@ -926,18 +915,6 @@ impl AnswerEffects {
 
     pub(super) fn note_published(&mut self, node: StyleNodeID, index: usize) {
         self.entry(node).published_index = Some(index);
-    }
-
-    pub(super) fn mark_observed(&mut self, node: StyleNodeID) {
-        self.entry(node).observed = true;
-    }
-
-    pub(super) fn install_observations(&self, published: &mut PublishedMatchAnswers) {
-        for &(node, ref entry) in &self.entries {
-            if entry.observed {
-                published.mark_observed(node);
-            }
-        }
     }
 
     pub(super) fn lookup(&self, node: StyleNodeID) -> Option<&PendingAnswer> {
@@ -1033,18 +1010,7 @@ impl AnswerEffects {
     ) {
         catalog.retain_pending(identity);
         let bucket = self.by_content.entry(key.hash()).or_default();
-        let old_bytes = if bucket.spilled() {
-            bucket.capacity() * size_of::<usize>()
-        } else {
-            0
-        };
         bucket.push(self.exact_answers.len());
-        let new_bytes = if bucket.spilled() {
-            bucket.capacity() * size_of::<usize>()
-        } else {
-            0
-        };
-        self.nested_bytes += new_bytes - old_bytes + size_of_val(key.non_prefix_matches);
         self.exact_answers.push((key.into_owned(), identity));
     }
 
@@ -1115,8 +1081,6 @@ impl AnswerEffects {
         for (key, identity) in self.exact_answers {
             cache.install_exact_answer(catalog, key, identity);
         }
-
-        if !cache.retained {}
     }
 }
 
@@ -1130,8 +1094,8 @@ pub(super) struct RetainedMatchAnswers {
 ///
 /// Active match answers normally discard a rule when its condition becomes false. This inverse
 /// relation preserves the selector side of that join, so a later condition flip can route through
-/// exact selector truth without evaluating the selector again. It is Tier-3 state: incomplete
-/// retained coverage or closed admission simply leaves program routing on its cold path.
+/// exact selector truth without evaluating the selector again. Incomplete retained coverage simply
+/// leaves program routing on its cold path.
 #[derive(Clone, Default)]
 pub(super) struct RetainedSelectorIncidences {
     by_program: Vec<Option<Arc<[RetainedSelectorIncidence]>>>,
@@ -1152,18 +1116,14 @@ impl RetainedSelectorIncidences {
         &mut self,
         program: SelectorProgramID,
         incidences: Vec<RetainedSelectorIncidence>,
-    ) -> Option<Arc<[RetainedSelectorIncidence]>> {
-        if self.by_program.get(program.0 as usize).is_none_or(Option::is_none) && !true {
-            return None;
-        }
+    ) -> Arc<[RetainedSelectorIncidence]> {
         let required_len = program.0 as usize + 1;
         let incidences: Arc<[RetainedSelectorIncidence]> = incidences.into();
         if self.by_program.len() < required_len {
             self.by_program.resize(required_len, None);
         }
         self.by_program[program.0 as usize] = Some(Arc::clone(&incidences));
-
-        Some(incidences)
+        incidences
     }
 
     pub(super) fn clear(&mut self) {
@@ -1306,7 +1266,7 @@ impl RetainedMatchAnswers {
         answer: Vec<RetainedRuleMatch>,
         programs: &SelectorPrograms,
     ) -> Result<(), Vec<RetainedRuleMatch>> {
-        if node.element_index().is_none() || (self.answer_identity(node).is_none() && !true) {
+        if node.element_index().is_none() {
             return Err(answer);
         }
         let identity = catalog.intern_prepared(answer, programs);
@@ -1406,8 +1366,8 @@ impl RetainedMatchAnswers {
         self.forget_cascade_input(catalog, node);
     }
 
-    pub(super) fn evict(&mut self, catalog: &mut MatchAnswerCatalog) {
-        catalog.evict_retained();
+    pub(super) fn clear(&mut self, catalog: &mut MatchAnswerCatalog) {
+        catalog.release_all_retained();
         self.column = Vec::new();
     }
 }
@@ -1484,7 +1444,6 @@ pub(super) struct PublishedMatchAnswer {
     pub(super) cascade_input: Option<MatchAnswerID>,
     pub(super) matches: Option<Box<[RuleMatch]>>,
     pub(super) cascade_winners_are_complete: bool,
-    pub(super) observed: bool,
 }
 
 #[derive(Clone, Default)]
@@ -1551,13 +1510,6 @@ impl PublishedMatchAnswers {
     pub(super) fn lookup(&self, node: StyleNodeID) -> Option<&PublishedMatchAnswer> {
         let index = self.entries.binary_search_by_key(&node, |entry| entry.node).ok()?;
         self.entries.get(index)
-    }
-
-    pub(super) fn mark_observed(&mut self, node: StyleNodeID) {
-        let Ok(index) = self.entries.binary_search_by_key(&node, |entry| entry.node) else {
-            return;
-        };
-        self.entries[index].observed = true;
     }
 
     pub(super) fn matches_for<'a>(&'a self, answer: &'a PublishedMatchAnswer) -> Option<&'a [RuleMatch]> {

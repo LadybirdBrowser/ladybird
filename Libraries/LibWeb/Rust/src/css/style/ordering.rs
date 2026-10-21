@@ -120,7 +120,6 @@ struct RememberedCompactions {
     /// The hashes of the lists compacted once since the table was last cleared.
     seen: HashSet<u64>,
     by_matches: hashbrown::HashTable<RememberedCompaction>,
-    nested_bytes: usize,
 }
 
 impl RememberedCompactions {
@@ -143,7 +142,6 @@ impl RememberedCompactions {
 
     fn clear(&mut self) {
         self.by_matches.clear();
-        self.nested_bytes = 0;
     }
 
     fn get(&self, hash: u64, matches: &[CompactionKeyPart]) -> Option<&RememberedCompaction> {
@@ -176,13 +174,6 @@ impl RememberedCompactions {
             states: states.into(),
             keep: keep.map(Into::into),
         };
-        self.nested_bytes += size_of_val(remembered.matches.as_ref())
-            + keep.map_or(0, size_of_val)
-            + if remembered.states.spilled() {
-                size_of_val(states)
-            } else {
-                0
-            };
         self.by_matches
             .insert_unique(hash, remembered, |remembered| remembered.hash);
     }
@@ -984,9 +975,10 @@ impl RetainedState {
         // from the answer again (`winner_below_substitution`), so a match declaring such a
         // property is kept whatever else it loses.
         if keep.iter().any(|kept| !kept) {
-            let may_substitute_revert = |value| match self.specified_values.value(value) {
-                Lookup::Known(value) => custom_property_cascade::value_may_substitute_revert(value),
-                _ => false,
+            let may_substitute_revert = |value| {
+                self.specified_values
+                    .value(value)
+                    .is_some_and(custom_property_cascade::value_may_substitute_revert)
             };
             let mut substituted: SmallVec<[(Option<tree::PseudoElementTarget>, u16); 4]> = SmallVec::new();
             let top_1_winners = top_1.unordered_winners().map(|winner| (winner.key, winner.payload));
@@ -1119,10 +1111,9 @@ impl RetainedState {
     /// name.
     fn state_may_substitute_revert(&self, state: CascadeStateID) -> bool {
         self.winner_groups.winners_in_state(state).any(|winner| {
-            matches!(
-                self.specified_values.value(winner.key.value),
-                Lookup::Known(value) if custom_property_cascade::value_may_substitute_revert(value)
-            )
+            self.specified_values
+                .value(winner.key.value)
+                .is_some_and(custom_property_cascade::value_may_substitute_revert)
         })
     }
 
@@ -2272,9 +2263,9 @@ impl StyleEngine {
         }
     }
 
-    /// The document budget is written in connected elements, so it has to follow the live element
-    /// count rather than a high-water mark.
-    pub(super) fn publish_budget_inputs(&mut self) {
+    /// The journal's entry limit is written in connected elements, so it has to follow the live
+    /// element count rather than a high-water mark.
+    pub(super) fn update_journal_entry_limit(&mut self) {
         self.host
             .journal
             .set_document_entry_limit(self.retained.tree.connected_element_count());

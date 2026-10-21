@@ -330,9 +330,9 @@ impl RetainedState {
                 .any(|kind| reads(self.computed_group_sets.pseudo_style_record(node, kind)))
     }
 
-    pub(super) fn prepare_topology_for_matching(&mut self, root: StyleNodeID, regions: &mut ImpactRegions) -> bool {
+    pub(super) fn prepare_topology_for_matching(&mut self, root: StyleNodeID, regions: &mut ImpactRegions) {
         let Some(topology) = regions.take_topology() else {
-            return false;
+            return;
         };
         match &mut self.prepared_batch_matching_traversal {
             Some(prepared) => {
@@ -345,7 +345,6 @@ impl RetainedState {
                 self.prepared_batch_matching_traversal = Some(prepared);
             }
         }
-        true
     }
 
     /// The feature the input is about, when the changed node is the one that carries it.
@@ -629,7 +628,7 @@ impl StyleEngine {
             self.discard_retained_prefix_caches();
             self.retained
                 .retained_match_answers
-                .evict(&mut self.retained.match_answers);
+                .clear(&mut self.retained.match_answers);
             self.release_transaction_and_sweep_atoms(transaction);
             routing_setup_timer.stop(Counter::RoutingSetupMicroseconds, &self.retained.counters);
             clock.enter(Counter::TransactionRemainderMicroseconds, &self.retained.counters);
@@ -639,7 +638,7 @@ impl StyleEngine {
         // A preorder pass takes a step per element of the document, where a tree-shaped question
         // walks the mandatory relation columns along a node's ancestors, and a transaction asks a
         // few of them per input. A transaction this wide against its document amortizes the pass.
-        // Keep the coordinates in Tier-4 scratch and let narrower updates walk the columns.
+        // Keep the coordinates in transaction scratch and let narrower updates walk the columns.
         let mut regions =
             if transaction.inputs.len().saturating_mul(16) >= self.retained.tree.connected_element_count() as usize {
                 ImpactRegions::with_topology(&self.retained.tree, root)
@@ -1661,7 +1660,6 @@ impl StyleEngine {
                                 cascade_input: Some(answer.cascade_input),
                                 matches: answer.matches.take(),
                                 cascade_winners_are_complete: answer.cascade_winners_are_complete,
-                                observed: false,
                             }
                         })
                         .or_else(|| {
@@ -2064,7 +2062,7 @@ impl StyleEngine {
                     self.retained.prepared_batch_matching_traversal = Some(prepared);
                 }
             }
-            if !self.prepare_topology_for_matching(root, &mut regions) {}
+            self.prepare_topology_for_matching(root, &mut regions);
         }
         !publish_document_root_arrival && !plan_is_broad
     }
@@ -2585,8 +2583,6 @@ impl StyleEngine {
                         }
                     }
                 }
-                // NB: Sample scratch coexistence without scanning its containers per element.
-                if (published_index + 1).is_multiple_of(256) {}
             }
             if suspended_on_font {
                 let request = pass.scratch.font_drive.take_suspended_request();
