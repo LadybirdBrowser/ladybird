@@ -96,6 +96,8 @@ def rust_to_idl_value(
         return f'to_float(vm, {value}, "{identifier}")'
     if name == "unrestricted float":
         return f"to_unrestricted_float(vm, {value})"
+    if name == "double":
+        return f'to_double(vm, {value}, "{identifier}")'
     if name == "unrestricted double":
         return f"to_unrestricted_double(vm, {value})"
     if name in TYPED_ARRAY_NAMES:
