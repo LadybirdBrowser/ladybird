@@ -28,6 +28,7 @@ mod rust_panic;
     reason = "the generated bindings use only the conversions their interfaces need"
 )]
 pub(crate) mod bindings;
+pub(crate) mod canvas_2d;
 #[cfg_attr(
     not(web_idl_bindings),
     allow(dead_code, reason = "only the generated bindings use the interfaces")

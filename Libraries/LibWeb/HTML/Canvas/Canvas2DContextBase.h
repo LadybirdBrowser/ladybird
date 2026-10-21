@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibCompositing/Types.h>
@@ -82,7 +83,7 @@ public:
     virtual WebIDL::ExceptionOr<GC::Ptr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<Bindings::ImageDataSettings> const& settings = {}) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y) override;
     virtual WebIDL::ExceptionOr<void> put_image_data(ImageData&, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height) override;
-    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Gfx::CanvasCommandList&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
+    WebIDL::ExceptionOr<void> put_pixels_from_an_image_data_onto_a_bitmap(ImageData&, Canvas2DRecorder&, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height);
 
     virtual void reset_to_default_state() override;
 
@@ -140,7 +141,7 @@ protected:
     virtual size_t external_memory_size() const override;
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
-    [[nodiscard]] Gfx::CanvasCommandList* canvas_command_list() override;
+    [[nodiscard]] Canvas2DRecorder* canvas_recorder() override;
     JS::Realm& my_realm() override { return realm(); }
     JS::Realm& realm() const { return *m_realm; }
     Gfx::Path& mutable_path() override { return path(); }
@@ -162,6 +163,8 @@ protected:
     [[nodiscard]] Gfx::Path text_path(Utf16View, float x, float y, Optional<double> max_width);
 
     Gfx::Color clear_color() const;
+    // How a draw composites under the current drawing state.
+    Canvas2DCompositing compositing_for_drawing_state() const;
 
     void stroke_internal(Gfx::Path);
     void fill_internal(Gfx::Path, Gfx::WindingRule);
@@ -171,9 +174,9 @@ protected:
 
     bool ensure_remote_canvas_context();
 
-    bool has_backing_storage() const { return m_transport != nullptr; }
+    bool has_backing_storage() const { return m_recorder != nullptr; }
 
-    RefPtr<RemoteCanvas2DTransport> m_transport;
+    OwnPtr<Canvas2DRecorder> m_recorder;
     RefPtr<Gfx::Bitmap> m_cached_readback;
     Gfx::IntRect m_cached_readback_rect;
 

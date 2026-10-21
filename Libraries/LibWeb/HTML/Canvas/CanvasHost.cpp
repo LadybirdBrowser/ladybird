@@ -5,8 +5,8 @@
  */
 
 #include <AK/Checked.h>
+#include <LibCompositing/CanvasSize.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
 #include <LibWeb/HTML/Canvas/CanvasHost.h>
@@ -28,7 +28,7 @@ Gfx::IntSize CanvasHost::bitmap_size_for_dimensions(u64 width, u64 height)
         dbgln("Refusing to create {}x{} canvas (overflow)", width, height);
         return {};
     }
-    if (area.value() > static_cast<u64>(Gfx::max_canvas_area)) {
+    if (area.value() > static_cast<u64>(Compositing::max_canvas_area)) {
         dbgln("Refusing to create {}x{} canvas (exceeds maximum size)", width, height);
         return {};
     }

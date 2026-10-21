@@ -11,7 +11,6 @@
 #include <LibCompositing/WebGL/ImageSourceFrame.h>
 #include <LibCompositing/WebGL/Types.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
@@ -42,8 +41,8 @@ endpoint CompositorWebContentServer
     reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
     create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha) =|
     // The segments draw with the fonts of the previous batch named in kept_font_ids, and with added_fonts. The other
-    // fonts of the previous batch are released.
-    update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::FontResourceId> kept_font_ids, Vector<Compositing::DisplayListFontResource> added_fonts) =|
+    // fonts of the previous batch are released. The image frames are those that the segments draw.
+    update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::FontResourceId> kept_font_ids, Vector<Compositing::DisplayListFontResource> added_fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames) =|
     destroy_canvas_context(Compositing::CanvasId canvas_id) =|
     get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type) => (Gfx::ShareableBitmap pixels)
 

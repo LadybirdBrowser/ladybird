@@ -4,15 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
+#include <Compositor/Canvas2DCommandPlayer.h>
 #include <Compositor/CanvasHost.h>
 #include <Compositor/HostWebGLContext.h>
 #include <Compositor/VideoFrameHolds.h>
 #include <Compositor/VideoFrameSkia.h>
+#include <LibCompositing/CanvasSize.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/CanvasCommandPlayer.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
@@ -44,9 +46,9 @@ CanvasHost::~CanvasHost()
         m_canvas_surface_registry.remove_canvas_surface(canvas_id);
 }
 
-OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize size, bool alpha)
+OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize size, bool alpha)
 {
-    if (!Gfx::is_valid_canvas_2d_size(size))
+    if (!Compositing::is_valid_canvas_2d_size(size))
         return nullptr;
 
     auto format = alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
@@ -67,10 +69,22 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
             return nullptr;
         return &m_text_resources.font(Compositing::FontResourceId { font_id });
     };
-    auto player = make<Gfx::CanvasCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied, move(canvas_surface_resolver), move(font_resolver));
-    player->set_video_frame_image_resolver([this](u64 video_sink_handle, u64 generation) {
+    auto image_frame_resolver = [this](u64 frame_id) -> Gfx::DecodedImageFrame const* {
+        auto it = m_image_frames_of_batch.find(frame_id);
+        if (it == m_image_frames_of_batch.end())
+            return nullptr;
+        return &it->value;
+    };
+    auto video_frame_image_resolver = [this](u64 video_sink_handle, u64 generation) {
         return held_video_frame_image(Media::VideoSinkHandle { video_sink_handle }, generation);
-    });
+    };
+    auto player = make<Canvas2DCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied,
+        Canvas2DCommandPlayer::Resolvers {
+            .canvas_surface = move(canvas_surface_resolver),
+            .font = move(font_resolver),
+            .image_frame = move(image_frame_resolver),
+            .video_frame_image = move(video_frame_image_resolver),
+        });
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
     // "Thus, the bitmap of such a context starts off as opaque black instead of transparent black"
@@ -158,7 +172,7 @@ void CanvasHost::present_canvas_2d_context(Compositing::CanvasId canvas_id, Canv
     context.has_uncommitted_commands = false;
 }
 
-void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::FontResourceId> const& kept_font_ids, Vector<Compositing::DisplayListFontResource> const& added_fonts)
+void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::FontResourceId> const& kept_font_ids, Vector<Compositing::DisplayListFontResource> const& added_fonts, Vector<Compositing::DisplayListImageFrameResource> const& image_frames)
 {
     Compositing::DisplayListResourceSet resources;
     for (auto font_id : kept_font_ids)
@@ -170,6 +184,9 @@ void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStr
         resources.fonts.set(font.id);
     }
     m_text_resources.retain_only(resources);
+    for (auto const& image_frame : image_frames)
+        m_image_frames_of_batch.set(image_frame.id.value(), image_frame.frame);
+    ScopeGuard forget_image_frames_of_batch = [&] { m_image_frames_of_batch.clear(); };
     Vector<NonnullRefPtr<Gfx::PaintingSurface>> surfaces_that_sample_video_frames;
     for (auto const& segment : segments) {
         // The canvas may have been destroyed while this segment was pending in
@@ -179,9 +196,9 @@ void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStr
         if (!canvas_context)
             continue;
 
-        if (!segment.commands.is_empty()) {
+        if (!segment.tape.is_empty()) {
             m_drew_video_frame_in_segment = false;
-            canvas_context->command_player->play(segment.commands);
+            canvas_context->command_player->play(segment.tape);
             canvas_context->has_uncommitted_commands = true;
             if (m_drew_video_frame_in_segment && !surfaces_that_sample_video_frames.contains_slow(canvas_context->command_player->surface()))
                 surfaces_that_sample_video_frames.append(canvas_context->command_player->surface());

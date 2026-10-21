@@ -5,8 +5,8 @@
  */
 
 #include <AK/Utf16View.h>
-#include <LibGfx/CanvasCommandList.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Canvas/Canvas2DRecorder.h>
 #include <LibWeb/HTML/Canvas/CanvasHost.h>
 #include <LibWeb/HTML/Canvas/DrawingState.h>
 
@@ -21,7 +21,8 @@ protected:
     virtual DrawingState const& drawing_state() const = 0;
     virtual JS::Realm& my_realm() = 0;
     virtual Gfx::Path& mutable_path() = 0;
-    virtual Gfx::CanvasCommandList* canvas_command_list() = 0;
+    // The recorder of the canvas, ready to record, or null if the canvas cannot draw.
+    virtual Canvas2DRecorder* canvas_recorder() = 0;
     virtual CSS::ComputationContext computation_context_for_drawing_state() const = 0;
     virtual void set_font(Utf16View font) = 0;
     virtual float resolved_letter_spacing() const = 0;

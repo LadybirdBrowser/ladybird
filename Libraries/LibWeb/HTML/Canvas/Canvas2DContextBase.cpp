@@ -13,9 +13,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/OwnPtr.h>
 #include <AK/Utf16StringBuilder.h>
-#include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Rect.h>
@@ -58,9 +56,6 @@
 #include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
-
-// Keep bitmap-heavy recorded command lists small enough to send to the Compositor without exceeding IPC attachment limits.
-static constexpr size_t max_pending_canvas_commands = 64;
 
 Canvas2DContextBase::Canvas2DContextBase(JS::Realm& realm, Gfx::IntSize initial_size, Bindings::CanvasRenderingContext2DSettings context_attributes)
     : CanvasPath(static_cast<CanvasState const&>(*this))
@@ -138,9 +133,9 @@ void Canvas2DContextBase::clear_rect(float x, float y, float width, float height
     if (!isfinite(x) || !isfinite(y) || !isfinite(width) || !isfinite(height))
         return;
 
-    if (auto* canvas_command_list = this->canvas_command_list()) {
+    if (auto* recorder = canvas_recorder()) {
         auto rect = Gfx::FloatRect(x, y, width, height);
-        canvas_command_list->append(Gfx::CanvasCommands::ClearRect { .rect = rect, .color = clear_color() });
+        recorder->clear_rect(rect, clear_color());
         did_draw(rect);
     }
 }
@@ -216,19 +211,11 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::draw_image_internal(CanvasImageSo
     }
 
     auto draw_canvas_by_id = [&](Compositing::CanvasId source_canvas_id, bool source_is_2d) {
-        if (auto* canvas_command_list = this->canvas_command_list()) {
-            canvas_command_list->append(Gfx::CanvasCommands::DrawCanvas {
-                .source_canvas_id = source_canvas_id.value(),
-                .dst_rect = destination_rect,
-                .src_rect = source_rect.to_rounded<int>(),
-                .scaling_mode = scaling_mode,
-                .filter = drawing_state().filter,
-                .global_alpha = drawing_state().global_alpha,
-                .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
-            });
+        if (auto* recorder = canvas_recorder()) {
+            recorder->draw_canvas(source_canvas_id, destination_rect, source_rect.to_rounded<int>(), scaling_mode, compositing_for_drawing_state());
             did_draw(destination_rect);
             if (!source_is_2d)
-                m_transport->flush_shared_stream();
+                recorder->flush();
         }
 
         // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
@@ -267,18 +254,8 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::draw_image_internal(CanvasImageSo
         auto captured_frame = (*source_video)->capture_current_video_frame();
         if (!captured_frame.has_value())
             return {};
-        if (auto* canvas_command_list = this->canvas_command_list()) {
-            canvas_command_list->append(Gfx::CanvasCommands::DrawVideoFrame {
-                .video_sink_handle = captured_frame->sink_handle.value(),
-                .generation = captured_frame->generation,
-                .dst_rect = destination_rect,
-                .src_rect = source_rect.to_rounded<int>(),
-                .scaling_mode = scaling_mode,
-                .filter = drawing_state().filter,
-                .global_alpha = drawing_state().global_alpha,
-                .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
-            });
-            m_transport->shared_stream().retain_video_frame_hold(*captured_frame->hold);
+        if (auto* recorder = canvas_recorder()) {
+            recorder->draw_video_frame(*captured_frame, destination_rect, source_rect.to_rounded<int>(), scaling_mode, compositing_for_drawing_state());
             did_draw(destination_rect);
         }
         if (image_is_not_origin_clean(image))
@@ -291,17 +268,9 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::draw_image_internal(CanvasImageSo
         return {};
 
     // NOTE: The readback fallback inside canvas_image_source_frame() may flush the
-    //       shared command stream, so the command list is fetched only afterwards.
-    if (auto* canvas_command_list = this->canvas_command_list()) {
-        canvas_command_list->append(Gfx::CanvasCommands::DrawBitmap {
-            .frame = *frame,
-            .dst_rect = destination_rect,
-            .src_rect = source_rect.to_rounded<int>(),
-            .scaling_mode = scaling_mode,
-            .filter = drawing_state().filter,
-            .global_alpha = drawing_state().global_alpha,
-            .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
-        });
+    //       shared command stream, so the recorder is readied only afterwards.
+    if (auto* recorder = canvas_recorder()) {
+        recorder->draw_image_frame(*frame, destination_rect, source_rect.to_rounded<int>(), scaling_mode, compositing_for_drawing_state());
         did_draw(destination_rect);
     }
 
@@ -319,22 +288,20 @@ void Canvas2DContextBase::did_draw(Gfx::FloatRect const&)
     canvas_host().did_change_canvas_content();
 }
 
-Gfx::CanvasCommandList* Canvas2DContextBase::canvas_command_list()
+Canvas2DRecorder* Canvas2DContextBase::canvas_recorder()
 {
     if (is_context_lost())
         return nullptr;
     ensure_backing_storage();
     if (!has_backing_storage())
         return nullptr;
-    auto& stream = m_transport->shared_stream();
-    if (stream.total_command_count() >= max_pending_canvas_commands)
-        m_transport->flush_shared_stream();
-    return &stream.commands_for(*m_transport->canvas_id());
+    m_recorder->prepare_to_record();
+    return m_recorder.ptr();
 }
 
 bool Canvas2DContextBase::ensure_remote_canvas_context()
 {
-    if (m_transport)
+    if (m_recorder)
         return true;
 
     auto& page = canvas_host().canvas_page();
@@ -348,9 +315,10 @@ bool Canvas2DContextBase::ensure_remote_canvas_context()
     // FIXME: implement context attribute .color_type
     // FIXME: implement context attribute .desynchronized
     // FIXME: implement context attribute .will_read_frequently
-    if (!transport->create_context(m_size, m_context_attributes.alpha))
+    auto recorder = Canvas2DRecorder::create(transport.release_nonnull());
+    if (!recorder->create_context(m_size, m_context_attributes.alpha))
         return false;
-    m_transport = move(transport);
+    m_recorder = move(recorder);
     return true;
 }
 
@@ -364,8 +332,8 @@ RefPtr<Gfx::Bitmap> Canvas2DContextBase::read_pixels(Gfx::IntRect const& rect, G
     if (m_cached_readback && m_cached_readback_rect == rect && m_cached_readback->alpha_type() == alpha_type)
         return m_cached_readback;
 
-    m_transport->flush_shared_stream();
-    auto pixels = m_transport->read_back_pixels(rect, alpha_type);
+    m_recorder->flush();
+    auto pixels = m_recorder->read_back_pixels(rect, alpha_type);
     if (pixels) {
         m_cached_readback = pixels;
         m_cached_readback_rect = rect;
@@ -385,14 +353,14 @@ void Canvas2DContextBase::prepare_for_compositing()
 {
     if (!has_backing_storage())
         return;
-    m_transport->shared_stream().record_present(*m_transport->canvas_id());
+    m_recorder->present();
 }
 
 Optional<Compositing::CanvasId> Canvas2DContextBase::canvas_id() const
 {
-    if (!m_transport)
+    if (!m_recorder)
         return {};
-    return m_transport->canvas_id();
+    return m_recorder->canvas_id();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#context-loss
@@ -457,13 +425,13 @@ void Canvas2DContextBase::ensure_backing_storage()
 void Canvas2DContextBase::discard_backing_storage()
 {
     m_cached_readback = nullptr;
-    if (m_transport) {
+    if (m_recorder) {
         // Flush the shared stream before destroying the context: it may still
         // hold commands targeting this canvas, and DrawCanvas commands from
         // other canvases referencing it, which must replay while it is alive.
-        m_transport->flush_shared_stream();
-        m_transport->destroy_context();
-        m_transport = nullptr;
+        m_recorder->flush();
+        m_recorder->destroy_context();
+        m_recorder = nullptr;
     }
 }
 
@@ -582,30 +550,21 @@ void Canvas2DContextBase::fill_text(Utf16View text, float x, float y, Optional<d
         return;
     }
 
-    auto* command_list = canvas_command_list();
-    if (!command_list)
+    auto* recorder = canvas_recorder();
+    if (!recorder)
         return;
     auto paint_style = state.fill_style.to_gfx_paint_style();
     if (!paint_style->is_visible() && state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::SourceOver)
         return;
     auto const& glyph_run = glyph_runs.first();
-    Vector<Gfx::CanvasGlyph> glyphs;
+    Vector<Compositing::DisplayListGlyph> glyphs;
     glyphs.ensure_capacity(glyph_run->glyphs().size());
     for (auto const& glyph : glyph_run->glyphs()) {
         if (glyph.should_paint)
             glyphs.unchecked_append({ .position = glyph.position, .glyph_id = glyph.glyph_id });
     }
-    auto font_id = m_transport->shared_stream().add_font(glyph_run->font());
     auto translation = text_transform(glyph_run->width(), {}).map(Gfx::FloatPoint { x, y });
-    command_list->append(Gfx::CanvasCommands::DrawGlyphRun {
-        .font_id = font_id.value(),
-        .glyphs = move(glyphs),
-        .translation = translation,
-        .style = Gfx::to_canvas_paint_style(*paint_style),
-        .filter = state.filter,
-        .global_alpha = state.global_alpha,
-        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
-    });
+    recorder->draw_glyph_run(glyph_run->font(), glyphs, translation, *paint_style, compositing_for_drawing_state());
     did_draw({});
 }
 
@@ -663,10 +622,20 @@ Gfx::Color Canvas2DContextBase::clear_color() const
     return m_context_attributes.alpha ? Gfx::Color::Transparent : Gfx::Color::Black;
 }
 
+Canvas2DCompositing Canvas2DContextBase::compositing_for_drawing_state() const
+{
+    auto const& state = drawing_state();
+    return {
+        .filter = state.filter.has_value() ? &state.filter.value() : nullptr,
+        .global_alpha = state.global_alpha,
+        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
+    };
+}
+
 void Canvas2DContextBase::stroke_internal(Gfx::Path path)
 {
-    auto* canvas_command_list = this->canvas_command_list();
-    if (!canvas_command_list)
+    auto* recorder = canvas_recorder();
+    if (!recorder)
         return;
 
     auto& state = drawing_state();
@@ -685,19 +654,16 @@ void Canvas2DContextBase::stroke_internal(Gfx::Path path)
     }
     paint_shadow_for_stroke_internal(path, line_cap, line_join, dash_array);
     auto bounding_box = path.bounding_box();
-    canvas_command_list->append(Gfx::CanvasCommands::StrokePath {
-        .path = move(path),
-        .style = Gfx::to_canvas_paint_style(*paint_style),
-        .thickness = state.line_width,
-        .cap_style = line_cap,
-        .join_style = line_join,
-        .miter_limit = state.miter_limit,
-        .dash_array = move(dash_array),
-        .dash_offset = state.line_dash_offset,
-        .filter = state.filter,
-        .global_alpha = state.global_alpha,
-        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
-    });
+    recorder->stroke_path(path, *paint_style,
+        {
+            .thickness = state.line_width,
+            .cap_style = line_cap,
+            .join_style = line_join,
+            .miter_limit = state.miter_limit,
+            .dash_array = dash_array,
+            .dash_offset = state.line_dash_offset,
+        },
+        compositing_for_drawing_state());
 
     did_draw(bounding_box);
 }
@@ -725,8 +691,8 @@ static constexpr Gfx::WindingRule bindings_to_gfx_fill_rule(Bindings::CanvasFill
 
 void Canvas2DContextBase::fill_internal(Gfx::Path path, Gfx::WindingRule winding_rule)
 {
-    auto* canvas_command_list = this->canvas_command_list();
-    if (!canvas_command_list)
+    auto* recorder = canvas_recorder();
+    if (!recorder)
         return;
 
     auto& state = this->drawing_state();
@@ -737,14 +703,7 @@ void Canvas2DContextBase::fill_internal(Gfx::Path path, Gfx::WindingRule winding
     paint_shadow_for_fill_internal(path, winding_rule);
 
     auto bounding_box = path.bounding_box();
-    canvas_command_list->append(Gfx::CanvasCommands::FillPath {
-        .path = move(path),
-        .style = Gfx::to_canvas_paint_style(*paint_style),
-        .winding_rule = winding_rule,
-        .filter = state.filter,
-        .global_alpha = state.global_alpha,
-        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
-    });
+    recorder->fill_path(path, *paint_style, winding_rule, compositing_for_drawing_state());
 
     did_draw(bounding_box);
 }
@@ -859,8 +818,8 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_d
 {
     // The putImageData(imageData, dx, dy) method steps are to put pixels from an ImageData onto a bitmap,
     // given imageData, this's output bitmap, dx, dy, 0, 0, imageData's width, and imageData's height.
-    if (auto* canvas_command_list = this->canvas_command_list())
-        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *canvas_command_list, dx, dy, 0, 0, image_data.width(), image_data.height()));
+    if (auto* recorder = canvas_recorder())
+        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *recorder, dx, dy, 0, 0, image_data.width(), image_data.height()));
 
     return {};
 }
@@ -871,14 +830,14 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_d
     // The putImageData(imageData, dx, dy, dirtyX, dirtyY, dirtyWidth, dirtyHeight) method steps are to put pixels
     // from an ImageData onto a bitmap, given imageData, this's output bitmap, dx, dy, dirtyX, dirtyY, dirtyWidth, and
     // dirtyHeight.
-    if (auto* canvas_command_list = this->canvas_command_list())
-        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *canvas_command_list, x, y, dirty_x, dirty_y, dirty_width, dirty_height));
+    if (auto* recorder = canvas_recorder())
+        TRY(put_pixels_from_an_image_data_onto_a_bitmap(image_data, *recorder, x, y, dirty_x, dirty_y, dirty_width, dirty_height));
 
     return {};
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context2d-putimagedata-common
-WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_onto_a_bitmap(ImageData& image_data, Gfx::CanvasCommandList& canvas_command_list, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
+WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_onto_a_bitmap(ImageData& image_data, Canvas2DRecorder& recorder, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
 {
     // 1. Let buffer be imageData's data attribute value's [[ViewedArrayBuffer]] internal slot.
     auto* buffer = image_data.data()->viewed_array_buffer();
@@ -945,19 +904,14 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_ont
     auto bitmap_snapshot = MUST(Gfx::Bitmap::create_shareable(source_bitmap->format(), source_bitmap->alpha_type(), source_rect.size()));
     for (int y = 0; y < source_rect.height(); ++y)
         __builtin_memcpy(bitmap_snapshot->scanline(y), source_bitmap->scanline(source_rect.y() + y) + source_rect.x(), static_cast<size_t>(source_rect.width()) * sizeof(Gfx::RawPixel));
-    canvas_command_list.append(Gfx::CanvasCommands::Save {});
-    canvas_command_list.append(Gfx::CanvasCommands::SetTransform { .transform = {} });
+    recorder.save();
+    recorder.set_transform({});
     // NB: Step 7 sets each destination pixel to the source pixel: putImageData replaces the pixels (including their
     //     alpha), rather than compositing them. Use the Copy operator — so a transparent source pixel overwrites an
     //     opaque destination pixel, rather than leaving it unchanged.
-    canvas_command_list.append(Gfx::CanvasCommands::DrawBitmap {
-        .frame = Gfx::DecodedImageFrame { *bitmap_snapshot, Gfx::AlphaType::Unpremultiplied },
-        .dst_rect = dst_rect,
-        .src_rect = bitmap_snapshot->rect(),
-        .filter = {},
-        .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Copy,
-    });
-    canvas_command_list.append(Gfx::CanvasCommands::Restore {});
+    recorder.draw_image_frame(Gfx::DecodedImageFrame { *bitmap_snapshot, Gfx::AlphaType::Unpremultiplied }, dst_rect, bitmap_snapshot->rect(), Gfx::ScalingMode::NearestNeighbor,
+        { .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Copy });
+    recorder.restore();
 
     did_draw(dst_rect);
 
@@ -967,11 +921,11 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_ont
 // https://html.spec.whatwg.org/multipage/canvas.html#reset-the-rendering-context-to-its-default-state
 void Canvas2DContextBase::reset_to_default_state()
 {
-    auto* canvas_command_list = has_backing_storage() ? this->canvas_command_list() : nullptr;
+    auto* recorder = has_backing_storage() ? canvas_recorder() : nullptr;
 
     // 1. Clear canvas's bitmap to transparent black.
-    if (canvas_command_list)
-        canvas_command_list->append(Gfx::CanvasCommands::ClearRect { .rect = Gfx::FloatRect { {}, m_size.to_type<float>() }, .color = clear_color() });
+    if (recorder)
+        recorder->clear_rect(Gfx::FloatRect { {}, m_size.to_type<float>() }, clear_color());
 
     // 2. Empty the list of subpaths in context's current default path.
     path().clear();
@@ -982,8 +936,8 @@ void Canvas2DContextBase::reset_to_default_state()
     // 4. Reset everything that drawing state consists of to their initial values.
     reset_drawing_state();
 
-    if (canvas_command_list) {
-        canvas_command_list->append(Gfx::CanvasCommands::Reset {});
+    if (recorder) {
+        recorder->reset();
         did_draw(Gfx::FloatRect { {}, m_size.to_type<float>() });
     }
 }
@@ -1135,11 +1089,11 @@ Canvas2DContextBase::PreparedText Canvas2DContextBase::prepare_text(Utf16View te
 
 void Canvas2DContextBase::clip_internal(Gfx::Path& path, Gfx::WindingRule winding_rule)
 {
-    auto* canvas_command_list = this->canvas_command_list();
-    if (!canvas_command_list)
+    auto* recorder = canvas_recorder();
+    if (!recorder)
         return;
 
-    canvas_command_list->append(Gfx::CanvasCommands::ClipPath { .path = path.clone(), .winding_rule = winding_rule });
+    recorder->clip_path(path, winding_rule);
 }
 
 void Canvas2DContextBase::clip(Bindings::CanvasFillRule fill_rule)
@@ -1439,10 +1393,20 @@ void Canvas2DContextBase::set_shadow_color(Utf16View color)
     // 4. Set this's shadow color to parsedValue.
     drawing_state().shadow_color = parsed_value.value();
 }
+// A shadow is drawn through the filter with its operator, but without the global alpha, which its color holds.
+static Canvas2DCompositing shadow_compositing(DrawingState const& state)
+{
+    return {
+        .filter = state.filter.has_value() ? &state.filter.value() : nullptr,
+        .global_alpha = 1,
+        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
+    };
+}
+
 void Canvas2DContextBase::paint_shadow_for_fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
 {
-    auto* canvas_command_list = this->canvas_command_list();
-    if (!canvas_command_list)
+    auto* recorder = canvas_recorder();
+    if (!recorder)
         return;
 
     auto& state = this->drawing_state();
@@ -1459,30 +1423,23 @@ void Canvas2DContextBase::paint_shadow_for_fill_internal(Gfx::Path const& path, 
     if (alpha == 0.0f)
         return;
 
-    canvas_command_list->append(Gfx::CanvasCommands::Save {});
+    recorder->save();
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     transform.multiply(state.transform);
-    canvas_command_list->append(Gfx::CanvasCommands::SetTransform { .transform = transform });
-    canvas_command_list->append(Gfx::CanvasCommands::FillPath {
-        .path = path.clone(),
-        .style = state.shadow_color.with_opacity(alpha),
-        .winding_rule = winding_rule,
-        .blur_radius = state.shadow_blur,
-        .filter = state.filter,
-        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
-    });
+    recorder->set_transform(transform);
+    recorder->fill_path_shadow(path, state.shadow_color.with_opacity(alpha), winding_rule, state.shadow_blur, shadow_compositing(state));
 
-    canvas_command_list->append(Gfx::CanvasCommands::Restore {});
+    recorder->restore();
 
     did_draw(path.bounding_box());
 }
 
 void Canvas2DContextBase::paint_shadow_for_stroke_internal(Gfx::Path const& path, Gfx::Path::CapStyle line_cap, Gfx::Path::JoinStyle line_join, Vector<float> const& dash_array)
 {
-    auto* canvas_command_list = this->canvas_command_list();
-    if (!canvas_command_list)
+    auto* recorder = canvas_recorder();
+    if (!recorder)
         return;
 
     auto& state = drawing_state();
@@ -1500,27 +1457,24 @@ void Canvas2DContextBase::paint_shadow_for_stroke_internal(Gfx::Path const& path
     if (alpha == 0.0f)
         return;
 
-    canvas_command_list->append(Gfx::CanvasCommands::Save {});
+    recorder->save();
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     transform.multiply(state.transform);
-    canvas_command_list->append(Gfx::CanvasCommands::SetTransform { .transform = transform });
-    canvas_command_list->append(Gfx::CanvasCommands::StrokePath {
-        .path = path.clone(),
-        .style = state.shadow_color.with_opacity(alpha),
-        .thickness = state.line_width,
-        .cap_style = line_cap,
-        .join_style = line_join,
-        .miter_limit = state.miter_limit,
-        .dash_array = dash_array,
-        .dash_offset = state.line_dash_offset,
-        .blur_radius = state.shadow_blur,
-        .filter = state.filter,
-        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
-    });
+    recorder->set_transform(transform);
+    recorder->stroke_path_shadow(path, state.shadow_color.with_opacity(alpha),
+        {
+            .thickness = state.line_width,
+            .cap_style = line_cap,
+            .join_style = line_join,
+            .miter_limit = state.miter_limit,
+            .dash_array = dash_array,
+            .dash_offset = state.line_dash_offset,
+        },
+        state.shadow_blur, shadow_compositing(state));
 
-    canvas_command_list->append(Gfx::CanvasCommands::Restore {});
+    recorder->restore();
 
     did_draw(path.bounding_box());
 }

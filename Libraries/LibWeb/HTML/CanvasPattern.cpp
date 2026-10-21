@@ -6,14 +6,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibGC/Heap.h>
-#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
+#include <LibWeb/HTML/Canvas/Canvas2DRecorder.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
@@ -43,26 +42,17 @@ static Optional<Gfx::DecodedImageFrame> read_back_current_video_frame(HTMLVideoE
     auto transport = page.compositor_host().create_canvas_2d_transport();
     if (!transport)
         return {};
+    auto recorder = Canvas2DRecorder::create(transport.release_nonnull());
 
     Gfx::IntRect frame_rect { 0, 0, static_cast<int>(video.video_width()), static_cast<int>(video.video_height()) };
-    if (frame_rect.is_empty() || !transport->create_context(frame_rect.size(), true))
+    if (frame_rect.is_empty() || !recorder->create_context(frame_rect.size(), true))
         return {};
 
-    auto& stream = transport->shared_stream();
-    stream.commands_for(transport->canvas_id().value()).append(Gfx::CanvasCommands::DrawVideoFrame {
-        .video_sink_handle = captured_frame->sink_handle.value(),
-        .generation = captured_frame->generation,
-        .dst_rect = frame_rect.to_type<float>(),
-        .src_rect = frame_rect,
-        .scaling_mode = Gfx::ScalingMode::NearestNeighbor,
-        .filter = {},
-        .global_alpha = 1,
-        .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Copy,
-    });
-    stream.retain_video_frame_hold(*captured_frame->hold);
-    transport->flush_shared_stream();
-    auto bitmap = transport->read_back_pixels(frame_rect, Gfx::AlphaType::Premultiplied);
-    transport->destroy_context();
+    recorder->draw_video_frame(*captured_frame, frame_rect.to_type<float>(), frame_rect, Gfx::ScalingMode::NearestNeighbor,
+        { .compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::Copy });
+    recorder->flush();
+    auto bitmap = recorder->read_back_pixels(frame_rect, Gfx::AlphaType::Premultiplied);
+    recorder->destroy_context();
     if (!bitmap)
         return {};
     return Gfx::DecodedImageFrame { NonnullRefPtr<Gfx::Bitmap const> { bitmap.release_nonnull() } };

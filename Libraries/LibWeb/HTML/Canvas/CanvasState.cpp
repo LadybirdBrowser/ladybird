@@ -21,8 +21,8 @@ void CanvasState::save()
     // The save() method steps are to push a copy of the current drawing state onto the drawing state stack.
     m_drawing_state_stack.append(m_drawing_state);
 
-    if (auto* canvas_command_list = this->canvas_command_list())
-        canvas_command_list->append(Gfx::CanvasCommands::Save {});
+    if (auto* recorder = canvas_recorder())
+        recorder->save();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-restore
@@ -33,8 +33,8 @@ void CanvasState::restore()
         return;
     m_drawing_state = m_drawing_state_stack.take_last();
 
-    if (auto* canvas_command_list = this->canvas_command_list())
-        canvas_command_list->append(Gfx::CanvasCommands::Restore {});
+    if (auto* recorder = canvas_recorder())
+        recorder->restore();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-reset

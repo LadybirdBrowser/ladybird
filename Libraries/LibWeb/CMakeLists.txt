@@ -441,6 +441,7 @@ set(SOURCES
     HTML/BrowsingContext.cpp
     HTML/Canvas/AbstractCanvasMixin.cpp
     HTML/Canvas/Canvas2DContextBase.cpp
+    HTML/Canvas/Canvas2DRecorder.cpp
     HTML/Canvas/CanvasHost.cpp
     HTML/Canvas/CanvasDrawImage.cpp
     HTML/Canvas/CanvasFillStrokeStyles.cpp
@@ -448,6 +449,7 @@ set(SOURCES
     HTML/Canvas/CanvasState.cpp
     HTML/Canvas/CanvasTextDrawingStyles.cpp
     HTML/Canvas/DrawingState.cpp
+    HTML/Canvas/RemoteCanvas2DTransportFFI.cpp
     HTML/Canvas/SerializeBitmap.cpp
     HTML/CanvasGradient.cpp
     HTML/CanvasPattern.cpp

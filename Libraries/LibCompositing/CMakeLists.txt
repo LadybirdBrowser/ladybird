@@ -3,6 +3,7 @@ include(libcompositing_generators)
 set(SOURCES
     DisplayList/AccumulatedVisualContext.cpp
     DisplayList/Canvas2DCommandStream.cpp
+    DisplayList/Canvas2DTape.cpp
     DisplayList/DisplayList.cpp
     DisplayList/DisplayListDamage.cpp
     DisplayList/DisplayListResourceStorage.cpp

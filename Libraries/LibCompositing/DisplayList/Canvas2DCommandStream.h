@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
@@ -13,14 +14,15 @@
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
-#include <LibGfx/CanvasCommandList.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibIPC/Forward.h>
 
 namespace Compositing {
 
+// The records of one canvas, on the display list tape (see Rust/src/display_list/canvas_2d.rs).
 struct COMPOSITING_API Canvas2DCommandStreamSegment {
     CanvasId canvas_id;
-    Gfx::CanvasCommandList commands;
+    ByteBuffer tape;
     bool present { false };
 };
 
@@ -30,18 +32,17 @@ struct COMPOSITING_API Canvas2DCommandStreamSegment {
 // commands without requiring an eager flush at record time.
 class COMPOSITING_API Canvas2DCommandStream : public RefCounted<Canvas2DCommandStream> {
 public:
-    // The returned reference is invalidated by any subsequent stream mutation
-    // (recording for another canvas, a present marker, or a flush) — do not
-    // hold it across calls that may touch the stream.
-    Gfx::CanvasCommandList& commands_for(CanvasId);
+    void append_command(CanvasId, ReadonlyBytes record);
     void record_present(CanvasId);
 
     bool is_empty() const { return m_segments.is_empty(); }
-    size_t total_command_count() const;
+    size_t total_command_count() const { return m_total_command_count; }
 
     Vector<Canvas2DCommandStreamSegment> take_segments();
     FontResourceId add_font(Gfx::Font const&);
     Vector<DisplayListFontResource> take_fonts();
+    ImageFrameResourceId add_image_frame(Gfx::DecodedImageFrame const&);
+    Vector<DisplayListImageFrameResource> take_image_frames();
 
     void retain_video_frame_hold(NonnullRefPtr<VideoFrameHold>);
     Vector<NonnullRefPtr<VideoFrameHold>> take_video_frame_holds() { return move(m_video_frame_holds); }
@@ -51,10 +52,9 @@ private:
 
     Vector<Canvas2DCommandStreamSegment> m_segments;
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
+    HashMap<u64, Gfx::DecodedImageFrame> m_image_frames;
     Vector<NonnullRefPtr<VideoFrameHold>> m_video_frame_holds;
-    // The tail segment grows through the reference commands_for() hands out,
-    // so its command count is only known at query time.
-    size_t m_command_count_excluding_tail { 0 };
+    size_t m_total_command_count { 0 };
 };
 
 }
