@@ -152,7 +152,7 @@ URL::URL ViewImplementation::url() const
 {
     if (!m_top_level_traversable)
         return URL::about_blank();
-    return m_top_level_traversable->active_session_history_entry()->url;
+    return m_top_level_traversable->active_document_url();
 }
 
 void ViewImplementation::did_update_url()

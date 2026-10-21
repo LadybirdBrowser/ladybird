@@ -42,7 +42,6 @@ struct ReplicatedContainerState {
 // What the process hosting a navigable's active document reports of it to the UI process, which composes the
 // navigable's replicated state from this and the session history, browsing contexts and documents it holds.
 struct HostedNavigableState {
-    URL::URL active_document_url;
     bool active_document_is_fully_active { false };
     bool is_closing { false };
     ReplicatedContainerState container;

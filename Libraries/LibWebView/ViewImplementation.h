@@ -127,7 +127,7 @@ public:
     void did_change_active_document(Badge<CanonicalTraversable>);
 
     void set_text_fragment_indication_visibility(Badge<WebContentPage>, bool);
-    // The URL of the tab's active session history entry.
+    // The URL of the tab's active document.
     URL::URL url() const;
     URL::URL const& displayed_url() const { return m_displayed_url; }
 

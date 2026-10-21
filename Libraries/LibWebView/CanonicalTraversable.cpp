@@ -751,7 +751,6 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
     traversable->set_active_session_history_entry(history_entry);
     // NB: The initial document is active from the traversable's creation, before a process hosts it.
     traversable->set_hosted_state({
-        .active_document_url = initial_history_entry.url,
         .active_document_is_fully_active = true,
         .is_closing = false,
         .container = {},
@@ -2272,6 +2271,7 @@ void CanonicalTraversable::finalize_a_same_document_navigation(HistoryOperation&
     m_session_history.update_directive_state_value(target_entry->directive_state_id, target_entry->directive_state_value);
 
     target_navigable->set_active_session_history_entry(target_entry);
+    target_navigable->send_replicated_state();
 
     // 6. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
     apply_the_push_or_replace_history_step(operation, *target_step, request.history_handling, request.user_involvement);
