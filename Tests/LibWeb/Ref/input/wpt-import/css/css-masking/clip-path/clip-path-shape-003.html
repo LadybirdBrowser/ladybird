@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSS Masking: Test clip-path property and shape function with nonzero fill</title>
+  <link rel="help" href="https://drafts.csswg.org/css-shapes-2/#funcdef-shape">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/reference/clip-path-shape-003-ref.html">
+  <meta name="assert" content="The clip-path property takes the basic shape
+	'shape()' for clipping. Test curves.">
+</head>
+<style>
+  #rect {
+    width: 100px;
+    height: 100px;
+    background-color: green;
+    clip-path: shape(nonzero from 10px 10px,
+                     curve to 60px 20% with 40px 0,
+                     smooth to 90px 0,
+                     curve by -20px 60% with 10% 40px / 20% 20px,
+                     smooth by -40% -10px with -10px 70px);
+  }
+</style>
+<body>
+  <div id="rect"></div>
+</body>
+</html>

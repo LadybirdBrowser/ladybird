@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSS Masking: Test clip-path property and shape function with single-value arc radius</title>
+  <link rel="help" href="https://drafts.csswg.org/css-shapes-2/#funcdef-shape">
+</head>
+<style>
+#shape {
+  /* 500/sqrt(2) ~= 353 */
+  width: 353px;
+  height: 353px;
+  background: green;
+  clip-path: shape(
+    from 0px 100px,
+    arc to 20px 100px of 10% large cw,
+    arc to 100px 20px of 5% small,
+    arc to 0 100px of calc(10px + 15%)
+    rotate 30deg);
+}
+</style>
+
+<body>
+  <div id="shape"></div>
+</body>
+</html>

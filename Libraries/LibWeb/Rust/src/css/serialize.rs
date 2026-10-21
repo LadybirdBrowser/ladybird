@@ -1659,8 +1659,9 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 fill_rule,
                 points,
                 path,
+                commands,
             } = shape.as_ref();
-            // BasicShape kinds: inset 0, xywh 1, rect 2, circle 3, ellipse 4, polygon 5, path 6;
+            // BasicShape kinds: inset 0, xywh 1, rect 2, circle 3, ellipse 4, polygon 5, path 6, shape 7;
             // fill rules follow Gfx::WindingRule (Nonzero 0, EvenOdd 1).
             let round_clause = |sink: &mut TextSink, radius: &crate::css::style_value::RetainedStyleValueData| {
                 let mut radius_sink = TextSink::new();
@@ -1730,6 +1731,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     }
                     sink.push_ascii(")");
                 }
+                7 => serialize_shape_function(sink, *fill_rule, points.as_slice(), commands.as_slice(), mode),
                 _ => {
                     sink.push_ascii("path(");
                     if !(mode.is_resolved() && *fill_rule == 0) {
@@ -3238,6 +3240,104 @@ pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: 
     let mut sink = TextSink::new();
     serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode));
     sink_into_raw(sink)
+}
+
+// https://drafts.csswg.org/css-shapes-1/#shape-function
+fn serialize_shape_function(
+    sink: &mut TextSink,
+    fill_rule: u8,
+    points: &[crate::css::style_value::RetainedShapePoint],
+    commands: &[crate::css::style_value::ShapeCommand],
+    mode: SerializationMode,
+) {
+    use crate::css::style_value::{ShapeCommandKind, ShapeControlPointAnchor};
+    let push_point = |sink: &mut TextSink, point: &crate::css::style_value::RetainedShapePoint| {
+        let [x, y] = point.values();
+        serialize_style_value(sink, x.data(), mode);
+        sink.push_ascii(" ");
+        serialize_style_value(sink, y.data(), mode);
+    };
+    sink.push_ascii("shape(");
+    if fill_rule == 1 {
+        sink.push_ascii("evenodd ");
+    }
+    let mut points = points.iter();
+    for (index, command) in commands.iter().enumerate() {
+        if index > 0 {
+            sink.push_ascii(", ");
+        }
+        let to_or_by = if command.relative { "by " } else { "to " };
+        match command.kind {
+            ShapeCommandKind::From => {
+                sink.push_ascii("from ");
+                push_point(sink, points.next().unwrap());
+            }
+            ShapeCommandKind::Close => sink.push_ascii("close"),
+            ShapeCommandKind::Move | ShapeCommandKind::Line => {
+                sink.push_ascii(if command.kind == ShapeCommandKind::Move {
+                    "move "
+                } else {
+                    "line "
+                });
+                sink.push_ascii(to_or_by);
+                push_point(sink, points.next().unwrap());
+            }
+            ShapeCommandKind::HorizontalLine | ShapeCommandKind::VerticalLine => {
+                let horizontal = command.kind == ShapeCommandKind::HorizontalLine;
+                sink.push_ascii(if horizontal { "hline " } else { "vline " });
+                sink.push_ascii(to_or_by);
+                let [x, y] = points.next().unwrap().values();
+                serialize_style_value(sink, if horizontal { x.data() } else { y.data() }, mode);
+            }
+            ShapeCommandKind::Curve | ShapeCommandKind::Smooth => {
+                sink.push_ascii(if command.kind == ShapeCommandKind::Curve {
+                    "curve "
+                } else {
+                    "smooth "
+                });
+                sink.push_ascii(to_or_by);
+                push_point(sink, points.next().unwrap());
+                for control_point in 0..usize::from(command.control_point_count) {
+                    sink.push_ascii(if control_point == 0 { " with " } else { " / " });
+                    push_point(sink, points.next().unwrap());
+                    // A control point is relative to the start of a relative command, and to the origin of an
+                    // absolute one, unless it says otherwise.
+                    match command.control_points[control_point] {
+                        ShapeControlPointAnchor::Start if !command.relative => sink.push_ascii(" from start"),
+                        ShapeControlPointAnchor::End => sink.push_ascii(" from end"),
+                        ShapeControlPointAnchor::Origin if command.relative => sink.push_ascii(" from origin"),
+                        ShapeControlPointAnchor::Start | ShapeControlPointAnchor::Origin => {}
+                    }
+                }
+            }
+            ShapeCommandKind::Arc => {
+                sink.push_ascii("arc ");
+                sink.push_ascii(to_or_by);
+                push_point(sink, points.next().unwrap());
+                sink.push_ascii(" of ");
+                let radii = points.next().unwrap();
+                if command.arc_has_one_radius {
+                    serialize_style_value(sink, radii.values()[0].data(), mode);
+                } else {
+                    push_point(sink, radii);
+                }
+                if command.arc_clockwise {
+                    sink.push_ascii(" cw");
+                }
+                if command.arc_large {
+                    sink.push_ascii(" large");
+                }
+                let rotation = points.next().unwrap();
+                let rotation_is_zero =
+                    matches!(rotation.values()[0].data(), StyleValueData::Angle { value, .. } if *value == 0.0);
+                if command.arc_has_rotation && !rotation_is_zero {
+                    sink.push_ascii(" rotate ");
+                    serialize_style_value(sink, rotation.values()[0].data(), mode);
+                }
+            }
+        }
+    }
+    sink.push_ascii(")");
 }
 
 #[cfg(test)]

@@ -2401,6 +2401,7 @@ fn interpolate_basic_shape(
                     fill_rule: 0,
                     points: empty_shape_points(),
                     path: crate::css::css_path::CssPath::none(),
+                    commands: crate::css::style_value::ShapeCommands::default(),
                 }),
             })
         }
@@ -2440,6 +2441,7 @@ fn interpolate_basic_shape(
                     fill_rule: 0,
                     points: empty_shape_points(),
                     path: crate::css::css_path::CssPath::none(),
+                    commands: crate::css::style_value::ShapeCommands::default(),
                 }),
             })
         }
@@ -2473,6 +2475,7 @@ fn interpolate_basic_shape(
                     fill_rule: *from_fill_rule,
                     points: RetainedShapePointList::from_retained_points(points),
                     path: crate::css::css_path::CssPath::none(),
+                    commands: crate::css::style_value::ShapeCommands::default(),
                 }),
             })
         }
@@ -2590,6 +2593,7 @@ fn composite_basic_shape(
                 fill_rule: 0,
                 points: empty_shape_points(),
                 path: crate::css::css_path::CssPath::none(),
+                commands: crate::css::style_value::ShapeCommands::default(),
             }),
         }),
         BASIC_SHAPE_CIRCLE | BASIC_SHAPE_ELLIPSE => {
@@ -2624,6 +2628,7 @@ fn composite_basic_shape(
                     fill_rule: 0,
                     points: empty_shape_points(),
                     path: crate::css::css_path::CssPath::none(),
+                    commands: crate::css::style_value::ShapeCommands::default(),
                 }),
             })
         }
@@ -2657,6 +2662,7 @@ fn composite_basic_shape(
                     fill_rule: *underlying_fill_rule,
                     points: RetainedShapePointList::from_retained_points(points),
                     path: crate::css::css_path::CssPath::none(),
+                    commands: crate::css::style_value::ShapeCommands::default(),
                 }),
             })
         }

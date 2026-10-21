@@ -1587,6 +1587,99 @@ pub struct BasicShapeData {
     pub(crate) v4: RetainedStyleValueData,
     pub(crate) points: RetainedShapePointList,
     pub(crate) path: crate::css::css_path::CssPath,
+    /// The commands of a shape(), whose coordinates are `points` in order.
+    pub(crate) commands: ShapeCommands,
+}
+
+/// https://drafts.csswg.org/css-shapes-1/#shape-function
+/// One command of a shape(). Its points, in order, are its end point, then its control points, or its arc's
+/// radii and rotation. Each point holds two length-percentages, the two edges of a position, or a keyword.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ShapeCommand {
+    pub(crate) kind: ShapeCommandKind,
+    /// Whether the end point is given with `by`, relative to the command's starting point.
+    pub(crate) relative: bool,
+    /// What each control point is relative to.
+    pub(crate) control_points: [ShapeControlPointAnchor; 2],
+    pub(crate) control_point_count: u8,
+    /// Whether an arc's single radius applies to both axes.
+    pub(crate) arc_has_one_radius: bool,
+    pub(crate) arc_clockwise: bool,
+    pub(crate) arc_large: bool,
+    /// Whether an arc's rotation was given. Arcs hold their rotation angle as a third point either way.
+    pub(crate) arc_has_rotation: bool,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShapeCommandKind {
+    From,
+    Move,
+    Line,
+    HorizontalLine,
+    VerticalLine,
+    Curve,
+    Smooth,
+    Arc,
+    Close,
+}
+
+/// What a shape() control point is relative to: the command's start or end point, or the reference box.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShapeControlPointAnchor {
+    Start,
+    End,
+    Origin,
+}
+
+impl ShapeCommand {
+    pub(crate) fn new(kind: ShapeCommandKind, relative: bool) -> Self {
+        Self {
+            kind,
+            relative,
+            control_points: [ShapeControlPointAnchor::Start; 2],
+            control_point_count: 0,
+            arc_has_one_radius: false,
+            arc_clockwise: false,
+            arc_large: false,
+            arc_has_rotation: false,
+        }
+    }
+}
+
+/// The commands of a shape().
+#[repr(C)]
+pub struct ShapeCommands {
+    pointer: *mut ShapeCommand,
+    length: usize,
+}
+
+retained_list!(ShapeCommands, ShapeCommand, native);
+retained_list_as_slice!(ShapeCommands, ShapeCommand);
+retained_list_from_vec!(ShapeCommands, ShapeCommand);
+retained_list_send_sync!(ShapeCommands, ShapeCommand);
+
+impl ShapeCommands {
+    pub(crate) fn new(commands: Vec<ShapeCommand>) -> Self {
+        Self::from_retained_elements(commands)
+    }
+}
+
+impl Default for ShapeCommands {
+    fn default() -> Self {
+        Self {
+            pointer: std::ptr::null_mut(),
+            length: 0,
+        }
+    }
+}
+
+impl PartialEq for ShapeCommands {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
 }
 
 /// A Rust-owned shape allocation with an explicit pointer layout for C++ bindings.
@@ -2312,8 +2405,10 @@ impl StyleValueData {
                     fill_rule,
                     points: _,
                     path,
+                    commands,
                 } = shape.as_ref();
                 hasher.write_u8(*kind);
+                hasher.write_usize(commands.as_slice().len());
                 write_value(hasher, v0);
                 write_value(hasher, v1);
                 write_value(hasher, v2);

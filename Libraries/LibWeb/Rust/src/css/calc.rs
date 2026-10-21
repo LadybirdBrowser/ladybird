@@ -1799,7 +1799,7 @@ impl CalcNumericType {
 }
 
 /// The canonical unit code of each dimension: the index whose ratio is one.
-fn canonical_unit_code(ratios: &[f64]) -> u8 {
+pub(crate) fn canonical_unit_code(ratios: &[f64]) -> u8 {
     ratios
         .iter()
         .position(|&ratio| ratio == 1.0)
