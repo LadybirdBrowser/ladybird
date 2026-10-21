@@ -8,7 +8,7 @@
 //! with the interpreter (see `tests/harness/script.rs`).
 //!
 //! ```text
-//! spec_check [--verbose] [--stress-registers] [--no-licm] [--gvn] DIRECTORY|SCRIPT.json...
+//! spec_check [--verbose] [--stress-registers] [--no-licm] [--gvn] [--runtime] DIRECTORY|SCRIPT.json...
 //! ```
 
 #[path = "../tests/harness/mod.rs"]
@@ -16,6 +16,7 @@ mod harness;
 
 fn main() {
     let mut verbose = false;
+    let mut runtime = false;
     let mut paths = Vec::new();
     let mut options = libwasm_jit::Options {
         verify_ir: true,
@@ -27,10 +28,15 @@ fn main() {
             "--stress-registers" => options.stress_registers = true,
             "--no-licm" => options.no_licm = true,
             "--gvn" => options.gvn = true,
+            "--runtime" => runtime = true,
             _ => paths.push(argument),
         }
     }
-    let totals = harness::script::run(&paths, verbose, options);
+    if runtime && std::env::var_os("LIBWASM_JIT").is_none() {
+        // SAFETY: Nothing else runs yet.
+        unsafe { std::env::set_var("LIBWASM_JIT", "eager") };
+    }
+    let totals = harness::script::run(&paths, verbose, options, runtime);
     println!(
         "{} scripts, {} modules, {} functions: {} compiled, {} runnable, {} exercised; {} cases, {} failures, {} reached uncompiled code",
         totals.scripts,

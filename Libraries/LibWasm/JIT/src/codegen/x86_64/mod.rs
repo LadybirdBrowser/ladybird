@@ -636,7 +636,13 @@ impl<'a> CodeGenerator<'a> {
         let node = self.func.node(value);
         match node.op {
             op if op.is_terminator() => self.lower_terminator(value),
-            Op::Load | Op::Store | Op::GlobalGet | Op::GlobalSet | Op::InstanceField | Op::LoadPointer => {
+            Op::Load
+            | Op::Store
+            | Op::GlobalGet
+            | Op::GlobalSet
+            | Op::InstanceField
+            | Op::LoadPointer
+            | Op::FrameLoad => {
                 self.lower_memory(value);
             }
             Op::Call | Op::CallResult => self.lower_call(value),

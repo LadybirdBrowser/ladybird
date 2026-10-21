@@ -128,6 +128,7 @@ fn timed_compile(module: &Arc<libwasm_engine::Module>, functions: &[u32], thread
                             break;
                         };
                         let request = CompileRequest {
+                            osr: None,
                             module: module.clone(),
                             function,
                             runtime: RUNTIME,
@@ -173,6 +174,7 @@ fn main() {
             options.dump_ir = !arguments.quiet;
             options.stats = true;
             let request = CompileRequest {
+                osr: None,
                 module: module.clone(),
                 function,
                 runtime: RUNTIME,
@@ -207,6 +209,7 @@ fn main() {
         let mut failures: BTreeMap<&'static str, usize> = BTreeMap::new();
         for index in 0..module.code.len() as u32 {
             let request = CompileRequest {
+                osr: None,
                 module: module.clone(),
                 function: first + index,
                 runtime: RUNTIME,
@@ -234,6 +237,7 @@ fn main() {
         for run in 0..arguments.runs.max(1) {
             for (position, &function) in compiled.iter().enumerate() {
                 let request = CompileRequest {
+                    osr: None,
                     module: module.clone(),
                     function,
                     runtime: RUNTIME,

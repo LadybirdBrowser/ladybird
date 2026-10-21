@@ -78,6 +78,9 @@ pub struct CompileRequest {
     pub function: u32,
     pub runtime: RuntimeInfo,
     pub options: Options,
+    /// For an OSR compile, the module offset of the outermost loop that it continues an interpreter frame at. Its
+    /// code takes the frame's fp as its only argument and returns the function's results.
+    pub osr: Option<u32>,
 }
 
 /// The reusable state of one compile thread: every phase's storage, cleared between compiles.
@@ -148,7 +151,23 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
             last = now;
         }
     };
-    context.builder.build(module, request.function, &mut context.func)?;
+    match request.osr {
+        None => context.builder.build(module, request.function, &mut context.func)?,
+        Some(pc) => {
+            let Some(stack_types) = context
+                .builder
+                .probe_osr(module, request.function, pc, &mut context.func)?
+            else {
+                return Err(CompileFailure::Unsupported {
+                    pc,
+                    what: "OSR at a loop that is unreachable or in another loop",
+                });
+            };
+            context
+                .builder
+                .build_osr(module, request.function, pc, stack_types, &mut context.func)?;
+        }
+    }
     lap(0, &mut stats);
     if request.options.verify_ir
         && let Err(errors) = ir::verify::verify(&context.func, &|_| false, false)
@@ -160,7 +179,9 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
         );
     }
     passes::cleanup::cleanup(&mut context.func, &mut context.liveliness);
-    if request.options.no_licm {
+    // NB: The loop an OSR compile enters has two ways in, so it has no preheader to hoist into.
+    let no_licm = request.options.no_licm || request.osr.is_some();
+    if no_licm {
         context.licm.home.clear();
         context.licm.home.resize(context.func.nodes.len(), ir::NONE);
     } else {
@@ -217,11 +238,7 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
     stats.nodes = context.func.nodes.len() as u32;
     stats.slots = context.allocation.slot_count;
     stats.moves = context.allocation.moves.len() as u32;
-    stats.hoisted = if request.options.no_licm {
-        0
-    } else {
-        context.licm.hoisted
-    };
+    stats.hoisted = if no_licm { 0 } else { context.licm.hoisted };
     stats.eliminated = if request.options.gvn { context.gvn.eliminated } else { 0 };
     let mut compiled = CompiledFunction {
         code: generated.code,

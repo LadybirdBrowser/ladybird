@@ -32,10 +32,12 @@
 
 use std::mem::offset_of;
 
-/// The frame header. All fields are 8 bytes, at `fp + FRAME_*`.
-pub const FRAME_SAVED_FP: isize = -8;
+/// The frame header. All fields are 8 bytes, at `fp + FRAME_*`. Its first two words are where a native call and
+/// `push fp` leave the return address and the caller's fp, so that compiled frames have the same header.
+///
 /// The caller's instruction pointer after its call instruction.
-pub const FRAME_RETURN_IP: isize = -16;
+pub const FRAME_RETURN_IP: isize = -8;
+pub const FRAME_SAVED_FP: isize = -16;
 pub const FRAME_SAVED_STP: isize = -24;
 /// The `FunctionHeader` of the function running in the frame.
 pub const FRAME_FUNCTION: isize = -32;
@@ -58,6 +60,14 @@ pub const FUNCTION_KIND_WASM: u32 = 0;
 pub const FUNCTION_KIND_HOST: u32 = 1;
 /// A WebAssembly function with v128 parameters or locals, whose frame has storage for them.
 pub const FUNCTION_KIND_WASM_VECTOR: u32 = 2;
+/// A WebAssembly function with compiled code, which runs at its `native_entry`.
+pub const FUNCTION_KIND_COMPILED: u32 = 3;
+
+/// What a call costs of the callee's tier-up budget.
+pub const TIER_UP_CALL_COST: u32 = 10;
+
+/// The pseudo-instruction compiled code traps through, with the trap code in the context's first argument.
+pub const OPCODE_TRAP_FROM_NATIVE: u8 = 0xef;
 
 /// One function, as the interpreter sees it. Function references point at these.
 #[repr(C)]
@@ -75,8 +85,9 @@ pub struct FunctionHeader {
     pub local_count: u32,
     /// The bytes of locals above fp, 16-byte aligned.
     pub locals_size: u32,
-    /// The padding that keeps the pointers below aligned.
-    pub reserved: u32,
+    /// What the function may still run before the runtime is asked to compile it: calls cost TIER_UP_CALL_COST, loop
+    /// entries and back edges 1. The runtime gets the call or loop that would take it below zero.
+    pub tier_up_budget: u32,
     /// The bytes below fp the frame needs, operand stack and red zone included.
     pub frame_size: u32,
     /// The store-wide identity of the function's type, equal exactly for equal types.
@@ -266,6 +277,8 @@ pub fn layout_constants() -> String {
     constant("FUNCTION_KIND_WASM", FUNCTION_KIND_WASM as usize);
     constant("FUNCTION_KIND_HOST", FUNCTION_KIND_HOST as usize);
     constant("FUNCTION_KIND_WASM_VECTOR", FUNCTION_KIND_WASM_VECTOR as usize);
+    constant("FUNCTION_KIND_COMPILED", FUNCTION_KIND_COMPILED as usize);
+    constant("TIER_UP_CALL_COST", TIER_UP_CALL_COST as usize);
     macro_rules! field {
         ($name:literal, $type:ty, $field:ident) => {
             constant($name, offset_of!($type, $field));
@@ -282,6 +295,7 @@ pub fn layout_constants() -> String {
     field!("FUNCTION_LOCALS_SIZE", FunctionHeader, locals_size);
     field!("FUNCTION_VECTOR_STORAGE", FunctionHeader, vector_storage);
     field!("FUNCTION_NATIVE_ENTRY", FunctionHeader, native_entry);
+    field!("FUNCTION_TIER_UP_BUDGET", FunctionHeader, tier_up_budget);
     field!("FUNCTION_FRAME_SIZE", FunctionHeader, frame_size);
     field!("FUNCTION_TYPE_IDENTITY", FunctionHeader, type_identity);
     field!("FUNCTION_HOST", FunctionHeader, host);

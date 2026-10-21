@@ -526,6 +526,9 @@ ops! {
 
     /// args: pointer, byte offset. The address that far from the pointer.
     Offset: Fixed(1), Pure, "offset";
+    /// args: an interpreter frame's fp, byte offset (a signed 32-bit value); flags: 1 for a v128 local, whose slot
+    /// has the address of its storage. A local or operand stack value of the frame an OSR compile continues.
+    FrameLoad: Fixed(1), Read, "frame_load";
     /// args: pointer, byte offset; flags: the bytes it reads, 4 or 8. A field of runtime data that may change, like
     /// the size of a memory or table, read where it is.
     ReadField: Fixed(1), Read, "read_field";

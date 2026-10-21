@@ -5,9 +5,11 @@ compiler's structure updates it. Where it and the code disagree, one of them has
 
 The compiler is the `libwasm_jit` crate (`Libraries/LibWasm/JIT`). It is a pure compiler: it takes
 one function of a validated module and returns machine code, touching no heap and no store, so it
-runs on any thread. Besides the compiler, the crate has what compiled code calls at run time: the
-functions for bulk operations (`runtime.rs`) and the host stubs (`stubs.rs`). The runtime side
-(tier-up, installing code, entering it) is not written yet.
+runs on any thread. It depends on the module format (`libwasm_module`, whose sources are the
+engine's), not on the engine, which depends on it. Besides the compiler, the crate has what compiled
+code calls at run time: the functions for bulk operations (`runtime.rs`), and the stubs the runtime
+enters and leaves compiled code through (`stubs.rs`). The engine's side is `runtime/jit.rs` (section
+10).
 
 ## 1. Overview
 
@@ -227,7 +229,7 @@ target's state, with phis replaced by their inputs.
   are; every i32 operation is a 32-bit instruction, which zero-extends its result.
 
 A compiled frame has fp = the caller's rsp at the call: the return address at fp - 8, the caller's
-fp at fp - 16 (the order the interpreter's frame headers will take, design section 6), the instance
+fp at fp - 16 (the order of the interpreter's frame headers too), the instance
 at `FRAME_INSTANCE`, then the spill slots, and the outgoing area at rsp. After a call, rsp is
 recomputed from fp, which also undoes whatever a callee's tail calls did to it.
 
@@ -280,7 +282,30 @@ there; a phi in a register with a slot is stored where its block starts.
   it, both reached rip-relative, so the code is position independent. The runtime is reached
   through absolute addresses.
 
-## 10. Testing
+## 10. The runtime
+
+The engine's `runtime/jit.rs` decides what is compiled, installs it, and connects compiled code with
+the interpreter and the host. `LIBWASM_JIT` configures it: `eager` compiles every function when its
+module is instantiated, `perf-map` writes `/tmp/perf-PID.map`. It is off otherwise for now.
+
+- **Installing** a function's code stores it in its header: `native_entry`, and the kind
+  `FUNCTION_KIND_COMPILED`. Code is per module function, so each store compiles a module's function
+  once for all its instances. Each store has its own code space of executable chunks.
+- **Interpreter to compiled.** The interpreter's `call_function` hands a compiled callee to the
+  runtime helper `wasm_runtime_call_compiled`, which reads the arguments off the operand stack and
+  calls the code through the entry trampoline (a `NativeCall`: registers, and an image of the home
+  slots and result area), then puts the results where the arguments were.
+- **Compiled to the rest.** Every other function's native entry is the runtime adapter, which saves
+  the argument registers and calls `wasm_runtime_call_from_native`. That runs the callee through
+  `Store::invoke` (a nested interpreter entry, or the host function) and puts the results into the
+  saved registers and result area, or returns a trap code, keeping the trap in the store.
+- **Traps.** The trap exit stores the code in the context's first argument and the context in the
+  trapping frame's header, then continues at the interpreter's TrapFromNative pseudo-instruction
+  (opcode 0xEF), which traps like the interpreter does: out of the innermost interpreter entry,
+  past the compiled frames and the helpers' frames. Memory faults in compiled code go to the trap
+  exit too: the fault handler knows the code spaces from a lock-free range set (`CODE_RANGES`).
+
+## 11. Testing
 
 - `cargo test -p libwasm_jit`: unit tests, and the decoder and execution tests over the spec
   testsuite's modules when the build directory has them.
@@ -290,7 +315,10 @@ there; a phi in a register with a slot is stored where its block starts.
   the interpreter's. `tests/harness` has a session per thread: a code space whose start is the trap
   exit, a trampoline per signature, host stubs, and a stub for functions that did not compile, which
   traps with a code of its own; binding a module's instance points the engine's function headers at
-  the code.
+  the code. With `--runtime`, the script calls go through `Store::invoke` instead, and the runtime
+  compiles what `LIBWASM_JIT` says (`eager` by default).
+- `examples/bench_check.rs` runs a module's entry in an interpreted store and a compiled one, with
+  deterministic imports, and compares results, exit codes, memories, tables and globals.
 - `examples/smith_check.rs` does the same for random modules from `wasm-tools smith` in the subset
   the JIT compiles, calling every exported function with random arguments.
 - `examples/run_kernel.rs` times calls of one function, compiled or interpreted, for the run time

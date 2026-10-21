@@ -258,6 +258,7 @@ fn check_types(func: &Func, value: Value, error: &mut impl FnMut(String)) {
         | Op::GlobalGet
         | Op::GlobalSet
         | Op::Offset
+        | Op::FrameLoad
         | Op::ReadField
         | Op::WriteField => input_type(0) == Type::Pointer,
         Op::TableElement => input_type(0) == Type::Pointer && node.ty == Type::Ref,

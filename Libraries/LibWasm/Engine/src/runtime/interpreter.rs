@@ -58,6 +58,12 @@ fn interpreter_code_range() -> (usize, usize) {
     )
 }
 
+/// The handler of a primary opcode.
+#[cfg(wasm_interpreter)]
+pub fn dispatch_table_entry(opcode: u8) -> usize {
+    unsafe { wasm_interpreter_dispatch_table[usize::from(opcode)] }
+}
+
 #[cfg(wasm_interpreter)]
 fn memory_fault_handler() -> usize {
     unsafe { wasm_interpreter_dispatch_table[MEMORY_FAULT_OPCODE] }
@@ -235,6 +241,9 @@ mod fault {
                 // The handlers keep their frame in the pinned registers, so the trap handler can find the
                 // execution context of the access from the frame pointer.
                 *pc = memory_fault_handler();
+                return;
+            }
+            if is_in_any_reservation(address) && crate::runtime::jit::redirect_fault(context) {
                 return;
             }
             forward(signal, info, context);

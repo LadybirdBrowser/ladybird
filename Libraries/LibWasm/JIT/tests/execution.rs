@@ -28,7 +28,7 @@ fn spec_scripts_run_the_same_compiled() {
             stress_registers,
             ..Default::default()
         };
-        let totals = harness::script::run(&[directory.to_string_lossy().into_owned()], false, options);
+        let totals = harness::script::run(&[directory.to_string_lossy().into_owned()], false, options, false);
         assert!(totals.cases > 10_000, "only {} cases ran compiled", totals.cases);
         assert_eq!(totals.failures, 0);
     }

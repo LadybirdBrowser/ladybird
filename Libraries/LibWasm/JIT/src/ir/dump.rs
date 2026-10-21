@@ -64,6 +64,7 @@ pub fn node_text(func: &Func, value: Value) -> String {
             write!(text, " function {}", node.args[2]).unwrap();
         }
         Op::Offset | Op::ReadField => write!(text, " +{}", node.args[1]).unwrap(),
+        Op::FrameLoad => write!(text, " {:+}", node.args[1] as i32).unwrap(),
         Op::WriteField => write!(text, " +{}", node.args[2]).unwrap(),
         Op::Helper => write!(text, " {}", crate::ir::Helper::from_index(node.args[2]).name()).unwrap(),
         Op::CallResult => write!(text, " v{} #{}", node.args[0], node.args[1]).unwrap(),
