@@ -20,6 +20,7 @@ pub(crate) mod generated;
 pub(crate) mod interface;
 pub(crate) mod realm_data;
 pub(crate) mod services;
+pub(crate) mod structured_data;
 
 use core::ptr::NonNull;
 

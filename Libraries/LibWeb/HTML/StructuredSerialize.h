@@ -228,13 +228,19 @@ WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_inte
 
 namespace Web::Bindings {
 
+class RustInterfaceCell;
 class Serializable;
 class Transferable;
 
+// A platform object that is a serializable object: an implementation object of an interface implemented in C++, or
+// the cell of an object of an interface implemented in Rust, whose steps the Rust bindings run.
 struct SerializablePlatformObject {
     Serializable* serializable { nullptr };
+    GC::Ptr<RustInterfaceCell> rust_object { nullptr };
     InterfaceName interface_name;
     GC::Ptr<JS::Realm> realm;
+
+    WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) const;
 };
 
 WEB_API Transferable* transferable_from_object(JS::Object&);
@@ -242,5 +248,10 @@ WEB_API Optional<SerializablePlatformObject> serializable_from_object(JS::Object
 WEB_API bool is_platform_object(JS::Object const&);
 WEB_API GC::Ref<JS::HostObject> create_serialized_platform_object(InterfaceName, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create_transferred_platform_object(HTML::TransferType, JS::Realm&, HTML::TransferDataDecoder&);
+
+// The deserialization steps of an interface implemented in Rust create its object from what they read, rather than
+// fill in an object that was created before them.
+WEB_API bool serializable_interface_is_implemented_in_rust(InterfaceName);
+WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName, JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&);
 
 }
