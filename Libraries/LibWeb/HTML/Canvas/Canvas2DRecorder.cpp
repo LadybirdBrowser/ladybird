@@ -5,7 +5,6 @@
  */
 
 #include <AK/Noncopyable.h>
-#include <AK/TypeCasts.h>
 #include <AK/Vector.h>
 #include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
 #include <LibCompositing/RustFFI.h>
@@ -13,7 +12,6 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/PaintStyle.h>
 #include <LibWeb/HTML/Canvas/Canvas2DRecorder.h>
 #include <LibWeb/HTML/Canvas/DrawingState.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
@@ -27,11 +25,6 @@ using Compositing::RustFFI::FfiCanvas2DStroke;
 // NB: `AlphaType` of display_list/canvas_2d_recorder.rs is a u8 with the values of Gfx::AlphaType.
 static_assert(to_underlying(Gfx::AlphaType::Premultiplied) == 0);
 static_assert(to_underlying(Gfx::AlphaType::Unpremultiplied) == 1);
-
-static_assert(to_underlying(Compositing::Canvas2DPatternRepetition::Repeat) == to_underlying(Gfx::CanvasPatternPaintStyle::Repetition::Repeat));
-static_assert(to_underlying(Compositing::Canvas2DPatternRepetition::RepeatX) == to_underlying(Gfx::CanvasPatternPaintStyle::Repetition::RepeatX));
-static_assert(to_underlying(Compositing::Canvas2DPatternRepetition::RepeatY) == to_underlying(Gfx::CanvasPatternPaintStyle::Repetition::RepeatY));
-static_assert(to_underlying(Compositing::Canvas2DPatternRepetition::NoRepeat) == to_underlying(Gfx::CanvasPatternPaintStyle::Repetition::NoRepeat));
 
 // The C ABI of Libraries/LibWeb/Bindings/Rust/src/canvas_2d/exports.rs.
 extern "C" {
@@ -60,12 +53,13 @@ void web_canvas_2d_recorder_clear_canvas(RustCanvas2DRecorder*, Gfx::Color);
 
 // Defined in Bindings/Rust/src/html/exports.rs.
 void web_canvas_gradient_lend_paint(void* gradient, FfiCanvas2DPaint* out_paint);
+void web_canvas_pattern_lend_paint(void* pattern, FfiCanvas2DPaint* out_paint);
 }
 
 namespace {
 
-// A fill or stroke style as the recorder borrows it, with the pattern image it lends kept alive. A gradient lends its
-// color stops, which do not change while the recorder borrows them.
+// A fill or stroke style as the recorder borrows it. A gradient lends its color stops and a pattern its image, which
+// stay as they are while the recorder borrows them.
 class LentPaint {
     AK_MAKE_NONCOPYABLE(LentPaint);
     AK_MAKE_NONMOVABLE(LentPaint);
@@ -87,18 +81,8 @@ public:
             [&](GC::Ref<CanvasGradient> gradient) {
                 web_canvas_gradient_lend_paint(gradient.ptr(), &m_paint);
             },
-            [&](GC::Ref<CanvasPattern> canvas_pattern) {
-                auto paint_style = canvas_pattern->to_gfx_paint_style();
-                auto const& pattern = as<Gfx::CanvasPatternPaintStyle>(*paint_style);
-                m_paint.kind = Compositing::Canvas2DPaintKind::Pattern;
-                m_paint.pattern_repetition = static_cast<Compositing::Canvas2DPatternRepetition>(to_underlying(pattern.repetition()));
-                m_pattern_image = pattern.image();
-                if (m_pattern_image.has_value())
-                    m_paint.pattern_image = &m_pattern_image.value();
-                if (auto const& transform = pattern.transform(); transform.has_value()) {
-                    m_paint.has_pattern_transform = true;
-                    m_paint.pattern_transform = *transform;
-                }
+            [&](GC::Ref<CanvasPattern> pattern) {
+                web_canvas_pattern_lend_paint(pattern.ptr(), &m_paint);
             });
     }
 
@@ -120,7 +104,6 @@ private:
         .pattern_image = nullptr,
         .pattern_transform = {},
     };
-    Optional<Gfx::DecodedImageFrame> m_pattern_image;
 };
 
 }

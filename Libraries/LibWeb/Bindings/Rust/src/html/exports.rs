@@ -12,10 +12,12 @@ use core::ffi::c_void;
 
 use libcompositing_rust::display_list::canvas_2d::Paint;
 use libcompositing_rust::display_list::canvas_2d_recorder::FfiCanvas2DPaint;
-use libcompositing_rust::display_list::commands::Canvas2DPaintKind;
+use libcompositing_rust::display_list::commands::{Canvas2DPaintKind, Canvas2DPatternRepetition};
+use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::Vm;
 
 use super::canvas_gradient::CanvasGradient;
+use super::canvas_pattern::CanvasPattern;
 use super::text_metrics::{TextMeasurements, TextMetrics};
 use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi};
 
@@ -170,4 +172,40 @@ pub unsafe extern "C" fn web_text_metrics_create(vm: *mut c_void, measurements: 
     // SAFETY: The caller passes the live VM.
     let vm = unsafe { vm_from_abi(vm) };
     cell_into_abi(TextMetrics::create(vm, *measurements))
+}
+
+/// `frame` is a Gfx::DecodedImageFrame that the caller lends for the call, which the pattern keeps a copy of, or null.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `frame` a live frame or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_pattern_create(
+    vm: *mut c_void,
+    frame: *const c_void,
+    repetition: Canvas2DPatternRepetition,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM.
+    let vm = unsafe { vm_from_abi(vm) };
+    // SAFETY: The caller passes a live frame.
+    let image = (!frame.is_null()).then(|| unsafe { ImageFrameHandle::retain(frame) });
+    cell_into_abi(CanvasPattern::create(vm, image, repetition))
+}
+
+/// Lends the recorder the image, the repetition and the transformation matrix of the pattern.
+///
+/// # Safety
+///
+/// `pattern` must be a live cell, which outlives the use of the paint.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_canvas_pattern_lend_paint(pattern: *mut c_void, out_paint: &mut FfiCanvas2DPaint<'_>) {
+    // SAFETY: The caller passes a live cell, which keeps the image alive while the paint is in use.
+    let pattern: &CanvasPattern = unsafe { object_from_abi(pattern) };
+    out_paint.kind = Canvas2DPaintKind::Pattern;
+    out_paint.pattern_repetition = pattern.repetition();
+    out_paint.pattern_image = pattern.image().map_or(core::ptr::null(), ImageFrameHandle::as_raw);
+    if let Some(transform) = pattern.transform() {
+        out_paint.has_pattern_transform = true;
+        out_paint.pattern_transform = transform;
+    }
 }

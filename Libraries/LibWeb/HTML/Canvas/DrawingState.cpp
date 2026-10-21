@@ -13,7 +13,7 @@ bool FillOrStrokeStyle::is_visible() const
     return m_fill_or_stroke_style.visit(
         [](Gfx::Color color) { return color.alpha() > 0; },
         [](GC::Ref<CanvasGradient> gradient) { return gradient->is_visible(); },
-        [](GC::Ref<CanvasPattern> pattern) { return pattern->to_gfx_paint_style()->is_visible(); });
+        [](GC::Ref<CanvasPattern>) { return true; });
 }
 
 Gfx::Color FillOrStrokeStyle::to_color_but_fixme_should_accept_any_paint_style() const
