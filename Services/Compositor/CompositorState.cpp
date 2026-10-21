@@ -10,6 +10,7 @@
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CompositorState.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/StatsLog.h>
 #include <LibCore/Timer.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 
@@ -1233,6 +1234,17 @@ void CompositorState::deliver_rendered_frame(PendingAsyncPresent& pending_presen
     context->presenter().did_finish_gpu_present(pending_present.bitmap_id);
     if (context->presents_to_client()) {
         VERIFY(m_client);
+        if (auto* log = Core::StatsLog::the(); log && context->page_id().has_value()) {
+            auto const& damage = pending_present.damage_rect;
+            JsonObject data;
+            data.set("page_id"sv, *context->page_id());
+            data.set("changed"sv, !damage.is_empty());
+            data.set("damage_x"sv, damage.x());
+            data.set("damage_y"sv, damage.y());
+            data.set("damage_width"sv, damage.width());
+            data.set("damage_height"sv, damage.height());
+            log->event("frame"sv, move(data));
+        }
         m_client->did_present_frame(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.bitmap_id, pending_present.device_pixel_ratio);
     }
     resize_backing_stores_if_needed(context_id, *context);
