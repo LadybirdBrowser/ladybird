@@ -75,21 +75,16 @@ pub struct RustFfiPreloadScannerEntry {
 /// Scan pending parser input for resources the speculative HTML parser can fetch.
 ///
 /// # Safety
-/// `input` must point to `input_len` valid UTF-8 bytes. `callback` must not retain pointers
-/// from the provided entry beyond the callback invocation.
+/// `input` must be valid UTF-8. `callback` must not retain pointers from the provided entry beyond the callback
+/// invocation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_preload_scanner_scan(
-    input: *const u8,
-    input_len: usize,
+    input: ak::Span<'_, u8>,
     scripting_enabled: bool,
     ctx: *mut c_void,
     callback: unsafe extern "C" fn(ctx: *mut c_void, entry: *const RustFfiPreloadScannerEntry) -> bool,
 ) {
-    let input = if input.is_null() || input_len == 0 {
-        &[]
-    } else {
-        unsafe { ak::slice_from_raw_parts(input, input_len) }
-    };
+    let input = input.as_slice();
 
     scan(input, scripting_enabled, |entry| unsafe {
         callback(ctx, &raw const *entry)
@@ -99,21 +94,15 @@ pub unsafe extern "C" fn rust_html_preload_scanner_scan(
 /// Scan pending UTF-16 parser input for resources the speculative HTML parser can fetch.
 ///
 /// # Safety
-/// `input` must point to `input_len` UTF-16 code units. `callback` must not retain
-/// pointers from the provided entry beyond the callback invocation.
+/// `callback` must not retain pointers from the provided entry beyond the callback invocation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_html_preload_scanner_scan_utf16(
-    input: *const u16,
-    input_len: usize,
+    input: ak::Span<'_, u16>,
     scripting_enabled: bool,
     ctx: *mut c_void,
     callback: unsafe extern "C" fn(ctx: *mut c_void, entry: *const RustFfiPreloadScannerEntry) -> bool,
 ) {
-    let input = if input.is_null() || input_len == 0 {
-        &[]
-    } else {
-        unsafe { ak::slice_from_raw_parts(input, input_len) }
-    };
+    let input = input.as_slice();
 
     scan_utf16(input, scripting_enabled, |entry| unsafe {
         callback(ctx, &raw const *entry)
