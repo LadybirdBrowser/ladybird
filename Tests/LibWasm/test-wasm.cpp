@@ -6,6 +6,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <LibCore/File.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
@@ -24,6 +25,7 @@
 #include <LibTest/JavaScriptTestHost.h>
 #include <LibWasm/Runtime/Runtime.h>
 #include <string.h>
+#include <sys/resource.h>
 
 TEST_ROOT("Libraries/LibWasm/Tests");
 
@@ -107,17 +109,33 @@ public:
     static Wasm::Runtime::Store& store()
     {
         if (!s_store)
-            s_store = make<Wasm::Runtime::Store>();
+            s_store = new Wasm::Runtime::Store(GC::Heap::the());
         return *s_store;
     }
 
     static void reset_store()
     {
         s_spec_test_namespace.clear();
+        roots().clear();
+        delete s_store;
         s_store = nullptr;
     }
 
-    u32 instance() const { return m_instance; }
+    Wasm::Runtime::Entity instance() const { return m_instance; }
+
+    // Keep an entity of the current file alive, since the tests refer to entities by number.
+    static Wasm::Runtime::Entity keep(Wasm::Runtime::Entity entity)
+    {
+        roots().append(GC::Root<GC::ForeignCell> { entity });
+        return entity;
+    }
+
+    // NB: Like the last store, the last roots are left for the process to reclaim, since the heap is gone at exit.
+    static Vector<GC::Root<GC::ForeignCell>>& roots()
+    {
+        static NeverDestroyed<Vector<GC::Root<GC::ForeignCell>>> roots;
+        return *roots;
+    }
 
     static JS::ThrowCompletionOr<GC::Ref<JS::HostObject>> create(JS::Realm& realm, NonnullRefPtr<Wasm::Runtime::Module> module, HashMap<ImportName, Wasm::Runtime::Extern> const& registered)
     {
@@ -143,7 +161,7 @@ public:
 
         auto instance = realm.create<WebAssemblyModule>();
         instance->m_module = move(module);
-        instance->m_instance = result.value();
+        instance->m_instance = keep(result.value());
         auto object = JS::HostObject::create(realm, web_assembly_module_host_class, realm.intrinsics().object_prototype(), {}, instance);
         object->define_native_function(realm, "getExport"_utf16_fly_string, get_export, 1, JS::default_attributes);
         object->define_native_function(realm, "invoke"_utf16_fly_string, wasm_invoke, 1, JS::default_attributes);
@@ -153,6 +171,12 @@ public:
     ~WebAssemblyModule() override = default;
 
 private:
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_instance);
+    }
+
     JS_DECLARE_NATIVE_FUNCTION(get_export);
     JS_DECLARE_NATIVE_FUNCTION(wasm_invoke);
 
@@ -163,10 +187,10 @@ private:
             return s_spec_test_namespace;
 
         auto add_print = [](StringView name, Vector<ValueType> parameters) {
-            auto address = store().allocate_host_function({ move(parameters), {} }, [](auto&, auto, auto) -> ErrorOr<void, ByteString> {
+            auto address = keep(store().allocate_host_function({ move(parameters), {} }, [](auto&, auto, auto) -> ErrorOr<void, Wasm::Runtime::HostError> {
                 // Noop, this just needs to exist.
                 return {};
-            });
+            }));
             s_spec_test_namespace.set({ "spectest", name }, { ExternKind::Function, address });
         };
         auto i32 = ValueType::scalar(ValueKind::I32);
@@ -183,30 +207,31 @@ private:
 
         auto funcref = ValueType::reference(HeapKind::Function);
         auto table = store().allocate_table(funcref, { 10, 20, true, false, false }, 0);
-        s_spec_test_namespace.set({ "spectest", "table" }, { ExternKind::Table, table });
+        s_spec_test_namespace.set({ "spectest", "table" }, { ExternKind::Table, keep(table.value()) });
         auto table64 = store().allocate_table(funcref, { 10, 20, true, true, false }, 0);
-        s_spec_test_namespace.set({ "spectest", "table64" }, { ExternKind::Table, table64 });
+        s_spec_test_namespace.set({ "spectest", "table64" }, { ExternKind::Table, keep(table64.value()) });
 
         auto memory = store().allocate_memory({ 1, 2, true, false, false });
-        s_spec_test_namespace.set({ "spectest", "memory" }, { ExternKind::Memory, memory.value() });
+        s_spec_test_namespace.set({ "spectest", "memory" }, { ExternKind::Memory, keep(memory.value()) });
 
-        s_spec_test_namespace.set({ "spectest", "global_i32" }, { ExternKind::Global, store().allocate_global(i32, false, Value::from_i32(666)) });
-        s_spec_test_namespace.set({ "spectest", "global_i64" }, { ExternKind::Global, store().allocate_global(i64, false, Value::from_i64(666)) });
-        s_spec_test_namespace.set({ "spectest", "global_f32" }, { ExternKind::Global, store().allocate_global(f32, false, Value::from_f32(666.6f)) });
-        s_spec_test_namespace.set({ "spectest", "global_f64" }, { ExternKind::Global, store().allocate_global(f64, false, Value::from_f64(666.6)) });
+        s_spec_test_namespace.set({ "spectest", "global_i32" }, { ExternKind::Global, keep(store().allocate_global(i32, false, Value::from_i32(666))) });
+        s_spec_test_namespace.set({ "spectest", "global_i64" }, { ExternKind::Global, keep(store().allocate_global(i64, false, Value::from_i64(666))) });
+        s_spec_test_namespace.set({ "spectest", "global_f32" }, { ExternKind::Global, keep(store().allocate_global(f32, false, Value::from_f32(666.6f))) });
+        s_spec_test_namespace.set({ "spectest", "global_f64" }, { ExternKind::Global, keep(store().allocate_global(f64, false, Value::from_f64(666.6))) });
 
         return s_spec_test_namespace;
     }
 
     static HashMap<ImportName, Wasm::Runtime::Extern> s_spec_test_namespace;
-    static OwnPtr<Wasm::Runtime::Store> s_store;
+    // NB: The last store is left for the process to reclaim, since the heap it roots its cells in is gone at exit.
+    static Wasm::Runtime::Store* s_store;
     RefPtr<Wasm::Runtime::Module> m_module;
-    u32 m_instance { 0 };
+    Wasm::Runtime::Entity m_instance { nullptr };
 };
 
 GC_DEFINE_ALLOCATOR(WebAssemblyModule);
 
-OwnPtr<Wasm::Runtime::Store> WebAssemblyModule::s_store;
+Wasm::Runtime::Store* WebAssemblyModule::s_store;
 HashMap<ImportName, Wasm::Runtime::Extern> WebAssemblyModule::s_spec_test_namespace;
 
 }
@@ -274,6 +299,19 @@ TESTJS_GLOBAL_FUNCTION(is_cranelift_compiled, isCraneliftCompiled)
 TESTJS_GLOBAL_FUNCTION(is_cranelift_eligible, isCraneliftEligible)
 {
     return JS::Value(false);
+}
+
+// The most memory the process has had resident, in bytes.
+TESTJS_GLOBAL_FUNCTION(peak_resident_memory_size, peakResidentMemorySize)
+{
+    struct rusage usage {};
+    if (getrusage(RUSAGE_SELF, &usage) != 0)
+        return vm.throw_completion<JS::TypeError>("getrusage failed"_utf16);
+#if defined(AK_OS_MACOS)
+    return JS::Value(static_cast<double>(usage.ru_maxrss));
+#else
+    return JS::Value(static_cast<double>(usage.ru_maxrss) * 1024);
+#endif
 }
 
 TESTJS_GLOBAL_FUNCTION(compare_typed_arrays, compareTypedArrays)
@@ -382,7 +420,8 @@ TESTJS_GLOBAL_FUNCTION(is_valid_funcref_in, isValidFuncrefIn)
     auto module_object = TRY(vm.argument(1).to_object(vm));
     if (!WebAssemblyModule::from_object(*module_object))
         return vm.throw_completion<JS::TypeError>("Expected a WebAssemblyModule"_utf16);
-    return JS::Value(value < NumericLimits<u32>::max());
+    // NB: A function reference surfaces as its function's address, which is never zero.
+    return JS::Value(value != 0);
 }
 
 static JS::Value reference_to_js_value(Wasm::Runtime::Value value, Wasm::Runtime::ValueType type)
@@ -396,8 +435,7 @@ static JS::Value reference_to_js_value(Wasm::Runtime::Value value, Wasm::Runtime
     if ((bits & 1) != 0)
         return JS::Value(static_cast<double>(static_cast<i32>(bits) >> 1));
     if (type.heap == HeapKind::Function || type.heap == HeapKind::NoFunction || type.heap == HeapKind::Concrete) {
-        if (auto function = WebAssemblyModule::store().function_from_reference(bits); function.has_value())
-            return JS::Value(static_cast<double>(*function));
+        return JS::Value(static_cast<double>(bit_cast<FlatPtr>(WebAssemblyModule::store().function_from_reference(bits))));
     }
     return JS::js_undefined();
 }
@@ -426,6 +464,11 @@ static JS::ThrowCompletionOr<JS::Value> to_js_value(JS::VM& vm, Wasm::Runtime::V
     VERIFY_NOT_REACHED();
 }
 
+static Wasm::Runtime::Entity function_entity(double number)
+{
+    return bit_cast<GC::ForeignCell*>(static_cast<FlatPtr>(number));
+}
+
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
 {
     using namespace Wasm::Runtime;
@@ -437,12 +480,13 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
     auto value = store().find_export(instance->instance(), name);
     if (!value.has_value())
         return vm.throw_completion<JS::TypeError>(Utf16String::formatted("'{}' could not be found", name));
+    // NB: A function is its entity's address, which a double holds exactly.
     if (value->kind == ExternKind::Function)
-        return JS::Value(static_cast<double>(value->address));
+        return JS::Value(static_cast<double>(bit_cast<FlatPtr>(value->entity)));
     if (value->kind == ExternKind::Global) {
         bool is_mutable = false;
-        auto type = store().global_type(value->address, is_mutable);
-        auto global = store().global_get(value->address);
+        auto type = store().global_type(value->entity, is_mutable);
+        auto global = store().global_get(value->entity);
         switch (type.kind) {
         case ValueKind::I32:
             return JS::Value(static_cast<double>(global.to_i32()));
@@ -466,7 +510,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
 {
     using namespace Wasm::Runtime;
-    auto address = static_cast<u32>(TRY(vm.argument(0).to_double(vm)));
+    auto address = function_entity(TRY(vm.argument(0).to_double(vm)));
     auto type = store().function_type(address);
 
     Vector<Value> arguments;
@@ -517,7 +561,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             }
             switch (parameter.heap) {
             case HeapKind::Function:
-                arguments.append(Value::from_reference(store().function_reference(static_cast<u32>(double_value))));
+                arguments.append(Value::from_reference(store().function_reference(function_entity(double_value))));
                 break;
             case HeapKind::Extern:
             case HeapKind::Any:
@@ -532,7 +576,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
 
     auto result = store().invoke(address, arguments);
     if (result.is_error())
-        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Execution trapped: {}", result.error()));
+        return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Execution trapped: {}", result.error().message));
 
     auto& values = result.value();
     if (values.is_empty())

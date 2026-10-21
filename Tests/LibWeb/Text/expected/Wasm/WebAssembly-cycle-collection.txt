@@ -1,0 +1,5 @@
+struct field after collection: boxed object
+table element after collection: 42
+global after collection: a string
+frame object is held by wasm: true
+frame object collected with its frame: true

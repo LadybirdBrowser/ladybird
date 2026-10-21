@@ -20,6 +20,23 @@ namespace Web::WebAssembly {
 
 GC_DEFINE_ALLOCATOR(Module);
 
+static Optional<Bindings::ImportExportKind> import_export_kind(Wasm::Runtime::ExternKind kind)
+{
+    switch (kind) {
+    case Wasm::Runtime::ExternKind::Function:
+        return Bindings::ImportExportKind::Function;
+    case Wasm::Runtime::ExternKind::Table:
+        return Bindings::ImportExportKind::Table;
+    case Wasm::Runtime::ExternKind::Memory:
+        return Bindings::ImportExportKind::Memory;
+    case Wasm::Runtime::ExternKind::Global:
+        return Bindings::ImportExportKind::Global;
+    case Wasm::Runtime::ExternKind::Tag:
+        return {};
+    }
+    VERIFY_NOT_REACHED();
+}
+
 GC::Ref<Module> Module::create()
 {
     return GC::Heap::the().allocate<Module>();
@@ -54,33 +71,29 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleImportDescriptor>> Module::imports(GC
     Vector<Bindings::ModuleImportDescriptor> import_objects;
 
     // 3. For each (moduleName, name, type) of module_imports(module),
-    auto& imports = module_object->m_compiled_module->module->import_section().imports();
-    import_objects.ensure_capacity(imports.size());
-    for (auto& import : imports) {
-        if (import.description().has<Wasm::TagType>()) {
+    auto& module = *module_object->m_compiled_module->module;
+    auto import_count = module.import_count();
+    import_objects.ensure_capacity(import_count);
+    for (size_t index = 0; index < import_count; ++index) {
+        auto import = module.import(index);
+        // 3.1. Let kind be the string value of the extern type type.
+        auto kind = import_export_kind(import.type.kind);
+        if (!kind.has_value()) {
             dbgln("Not yet implemented: importing tags");
             continue;
         }
 
-        // 3.1. Let kind be the string value of the extern type type.
-        auto const kind = import.description().visit(
-            [](Wasm::TypeIndex) { return Bindings::ImportExportKind::Function; },
-            [](Wasm::TableType) { return Bindings::ImportExportKind::Table; },
-            [](Wasm::MemoryType) { return Bindings::ImportExportKind::Memory; },
-            [](Wasm::GlobalType) { return Bindings::ImportExportKind::Global; },
-            [](Wasm::FunctionType) { return Bindings::ImportExportKind::Function; },
-            [](Wasm::TagType) -> Bindings::ImportExportKind { TODO(); });
-
         // 3.2. Let obj be «[ "module" → moduleName, "name" → name, "kind" → kind ]».
         Bindings::ModuleImportDescriptor descriptor {
-            .kind = kind,
-            .module = Utf16String::from_utf8(import.module()),
-            .name = Utf16String::from_utf8(import.name()),
+            .kind = *kind,
+            .module = Utf16String::from_utf8(import.module),
+            .name = Utf16String::from_utf8(import.name),
         };
 
         // 3.3. Append obj to imports.
         import_objects.append(move(descriptor));
     }
+
     // 4. Return imports.
     return import_objects;
 }
@@ -93,29 +106,28 @@ WebIDL::ExceptionOr<Vector<Bindings::ModuleExportDescriptor>> Module::exports(GC
     Vector<Bindings::ModuleExportDescriptor> export_objects;
 
     // 3. For each (name, type) of module_exports(module),
-    auto& exports = module_object->m_compiled_module->module->export_section().entries();
-    export_objects.ensure_capacity(exports.size());
-    for (auto& entry : exports) {
-        if (entry.description().has<Wasm::TagIndex>()) {
+    auto& module = *module_object->m_compiled_module->module;
+    auto export_count = module.export_count();
+    export_objects.ensure_capacity(export_count);
+    for (size_t index = 0; index < export_count; ++index) {
+        auto entry = module.module_export(index);
+        // 3.1. Let kind be the string value of the extern type type.
+        auto kind = import_export_kind(entry.type.kind);
+        if (!kind.has_value()) {
             dbgln("Not yet implemented: exporting tags");
             continue;
         }
 
-        // 3.1. Let kind be the string value of the extern type type.
-        auto const kind = entry.description().visit(
-            [](Wasm::FunctionIndex) { return Bindings::ImportExportKind::Function; },
-            [](Wasm::TableIndex) { return Bindings::ImportExportKind::Table; },
-            [](Wasm::MemoryIndex) { return Bindings::ImportExportKind::Memory; },
-            [](Wasm::GlobalIndex) { return Bindings::ImportExportKind::Global; },
-            [](Wasm::TagIndex) -> Bindings::ImportExportKind { TODO(); });
         // 3.2. Let obj be «[ "name" → name, "kind" → kind ]».
         Bindings::ModuleExportDescriptor descriptor {
-            .kind = kind,
-            .name = Utf16String::from_utf8(entry.name()),
+            .kind = *kind,
+            .name = Utf16String::from_utf8(entry.name),
         };
+
         // 3.3. Append obj to exports.
         export_objects.append(move(descriptor));
     }
+
     // 4. Return exports.
     return export_objects;
 }
@@ -124,11 +136,12 @@ WebIDL::ExceptionOr<Vector<ByteBuffer>> Module::custom_sections(GC::Ref<Module> 
 {
     Vector<ByteBuffer> matching_sections;
 
-    auto& custom_sections = module_object->m_compiled_module->module->custom_sections();
-    for (auto& section : custom_sections) {
-        auto name = Utf16String::from_utf8(section.name());
+    auto& module = *module_object->m_compiled_module->module;
+    for (size_t index = 0; index < module.custom_section_count(); ++index) {
+        auto section = module.custom_section(index);
+        auto name = Utf16String::from_utf8(section.name);
         if (section_name == name)
-            matching_sections.append(MUST(ByteBuffer::copy(section.contents())));
+            matching_sections.append(MUST(ByteBuffer::copy(section.contents)));
     }
 
     return matching_sections;

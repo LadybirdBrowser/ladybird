@@ -10,7 +10,6 @@
 #include <AK/Optional.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -23,22 +22,19 @@ class Instance : public Bindings::GCAllocatedWrappable {
 
 public:
     static WebIDL::ExceptionOr<GC::Ref<Instance>> create(JS::Realm&, Module& module, GC::Ptr<JS::Object> import_object);
-    static GC::Ref<Instance> create(NonnullRefPtr<Detail::WebAssemblyCache>, NonnullRefPtr<Wasm::ModuleInstance>);
+    static GC::Ref<Instance> create(Wasm::Runtime::Entity instance);
 
-    Wasm::ModuleInstance const* module_instance() const { return m_module_instance.ptr(); }
-    GC::Ref<Global> global_instance(Wasm::GlobalAddress);
-    GC::Ref<Memory> memory_instance(Wasm::MemoryAddress);
-    GC::Ref<Table> table_instance(Wasm::TableAddress);
-    Detail::WebAssemblyCache& cache() { return *m_cache; }
-    Detail::WebAssemblyCache& cache() const { return *m_cache; }
+    Wasm::Runtime::Entity instance_address() const { return m_instance; }
+    GC::Ref<Global> global_instance(Wasm::Runtime::Entity);
+    GC::Ref<Memory> memory_instance(Wasm::Runtime::Entity);
+    GC::Ref<Table> table_instance(Wasm::Runtime::Entity);
 
 private:
-    Instance(NonnullRefPtr<Detail::WebAssemblyCache>, NonnullRefPtr<Wasm::ModuleInstance>);
+    explicit Instance(Wasm::Runtime::Entity instance);
 
     virtual void visit_edges(Visitor&) override;
 
-    NonnullRefPtr<Detail::WebAssemblyCache> m_cache;
-    NonnullRefPtr<Wasm::ModuleInstance> m_module_instance;
+    Wasm::Runtime::Entity m_instance { nullptr };
 };
 
 }

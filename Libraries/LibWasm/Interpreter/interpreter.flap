@@ -927,13 +927,14 @@ handler Select() @opcode(0x1b) {
 
 handler SelectTyped() @opcode(0x1c) {
     let bytes = immediates();
-    let type_byte: u64 = alias(bytes[1]);
+    # The count of types, which is 1, may take more than one byte.
     let length = leb_length(bytes);
+    let type_byte: u64 = alias(bytes[length]);
     let current: u64 = ip;
     let mut type_length: u64 = 1;
     if type_byte >= 0x63 @cold {
         if type_byte <= 0x64 {
-            let heap_bytes: Sequence<u8> = alias(current + 3);
+            let heap_bytes: Sequence<u8> = alias(current + 2 + length);
             let heap_length = leb_length(heap_bytes);
             type_length = heap_length + 1;
         }
@@ -1767,6 +1768,136 @@ handler I64Const() @opcode(0x42) {
     let [value, length] = read_signed_leb(immediates());
     push(value);
     advance(length + 1);
+}
+
+# Constants quickened into fixed-width forms (rule 3 in quickening.rs): the value is in the bytes after the opcode,
+# sign-extended from their width.
+
+inline fn sign_extended(value: u64, bits: u64) -> u64 {
+    let width: u64 = 64;
+    let shift = width - bits;
+    let moved = value << shift;
+    let signed = signed64(moved);
+    let extended = signed >> signed64(shift);
+    let result: u64 = alias(extended);
+    result
+}
+
+inline fn push_i32(value: u64) {
+    let narrow = u32(value);
+    let wide: u64 = alias(narrow);
+    push(wide);
+}
+
+# A 5- to 7-byte value: its low 4 bytes, and the rest from 4 bytes that end where it does.
+inline fn fixed_value_over_4(length: u64) -> u64 {
+    let current: u64 = ip;
+    let mut low: u64;
+    load32(low, [current, 1]);
+    let end_word = current + length - 3;
+    let mut high: u64;
+    load32(high, [end_word, 0]);
+    let word: u64 = 8;
+    let unused = (word - length) << 3;
+    let rest = high >> unused;
+    let value = low | (rest << 32);
+    sign_extended(value, length << 3)
+}
+
+handler I32ConstFixed2() @opcode(0xe0) {
+    let current: u64 = ip;
+    let mut value: u64;
+    load16(value, [current, 1]);
+    push_i32(sign_extended(value, 16));
+    advance(3);
+}
+
+handler I32ConstFixed3() @opcode(0xe1) {
+    # The byte after the value belongs to the next instruction, which a function body always has.
+    let current: u64 = ip;
+    let mut value: u64;
+    load32(value, [current, 1]);
+    push_i32(sign_extended(value, 24));
+    advance(4);
+}
+
+handler I32ConstFixed4() @opcode(0xe2) {
+    let current: u64 = ip;
+    let mut value: u64;
+    load32(value, [current, 1]);
+    push(value);
+    advance(5);
+}
+
+handler I32ConstFixed5() @opcode(0xe3) {
+    let current: u64 = ip;
+    let mut value: u64;
+    load32(value, [current, 1]);
+    push(value);
+    advance(6);
+}
+
+handler I64ConstFixed2() @opcode(0xe4) {
+    let current: u64 = ip;
+    let mut value: u64;
+    load16(value, [current, 1]);
+    push(sign_extended(value, 16));
+    advance(3);
+}
+
+handler I64ConstFixed3() @opcode(0xe5) {
+    let current: u64 = ip;
+    let mut value: u64;
+    load32(value, [current, 1]);
+    push(sign_extended(value, 24));
+    advance(4);
+}
+
+handler I64ConstFixed4() @opcode(0xe6) {
+    let current: u64 = ip;
+    let mut value: u64;
+    load32(value, [current, 1]);
+    push(sign_extended(value, 32));
+    advance(5);
+}
+
+handler I64ConstFixed5() @opcode(0xe7) {
+    push(fixed_value_over_4(5));
+    advance(6);
+}
+
+handler I64ConstFixed6() @opcode(0xe8) {
+    push(fixed_value_over_4(6));
+    advance(7);
+}
+
+handler I64ConstFixed7() @opcode(0xe9) {
+    push(fixed_value_over_4(7));
+    advance(8);
+}
+
+handler I64ConstFixed8() @opcode(0xea) {
+    let current: u64 = ip;
+    let mut value: u64;
+    load64(value, [current, 1]);
+    push(value);
+    advance(9);
+}
+
+handler I64ConstFixed9() @opcode(0xeb) {
+    let current: u64 = ip;
+    let mut value: u64;
+    load64(value, [current, 1]);
+    push(value);
+    advance(10);
+}
+
+handler I64ConstFixed10() @opcode(0xec) {
+    let current: u64 = ip;
+    let mut value: u64;
+    load64(value, [current, 1]);
+    push(value);
+    advance(11);
 }
 
 handler F32Const() @opcode(0x43) {
@@ -3177,9 +3308,13 @@ inline fn three_operands() -> (u64, u64, u64) {
     (first, second, third)
 }
 
-# Trap unless `count` items from `start` are within `size`.
+# Trap unless `count` items from `start` are within `size`. The operands of memory64 and table64 operations are 64-bit,
+# so the end can wrap around.
 inline fn check_range(start: u64, count: u64, size: u64, code: u64) {
     let end = start + count;
+    guard end >= start else @cold {
+        trap(code);
+    };
     guard end <= size else @cold {
         trap(code);
     };
@@ -6841,11 +6976,12 @@ inline fn identity_of_type(type_index: u64) -> u64 {
     identity
 }
 
-# Allocate a zeroed object of `size` bytes whose type is `rtt`.
-inline fn allocate_object(rtt: u64, size: u64) -> u64 {
+# Allocate an object whose type is `rtt`, with `size` bytes of zeroed data and, for an array, `length` elements.
+inline fn allocate_object(rtt: u64, size: u64, length: u64) -> u64 {
     let context_pointer = context();
     store64([context_pointer, CONTEXT_ARGUMENTS], rtt);
     store64([context_pointer, CONTEXT_ARGUMENT_1], size);
+    store64([context_pointer, CONTEXT_ARGUMENT_2], length);
     let object: u64 = call_helper(wasm_runtime_allocate, context_pointer);
     guard object != 0 else @cold {
         trap(TRAP_RUNTIME);
@@ -7012,8 +7148,14 @@ inline fn non_null(reference: u64) -> u64 {
 
 inline fn array_length(array: u64) -> u64 {
     let mut length: u64;
-    load64(length, [array, 8]);
+    load64(length, [array, OBJECT_LENGTH_OFFSET]);
     length
+}
+
+inline fn object_data(object: u64) -> u64 {
+    let mut data: u64;
+    load64(data, [object, OBJECT_DATA_OFFSET]);
+    data
 }
 
 inline fn array_element_kind(array: u64) -> u64 {
@@ -7028,6 +7170,9 @@ inline fn array_element_kind(array: u64) -> u64 {
 
 inline fn check_array_range(start: u64, count: u64, length: u64) {
     let end = start + count;
+    guard end >= start else @cold {
+        trap(TRAP_ARRAY_OUT_OF_BOUNDS);
+    };
     guard end <= length else @cold {
         trap(TRAP_ARRAY_OUT_OF_BOUNDS);
     };
@@ -7035,7 +7180,8 @@ inline fn check_array_range(start: u64, count: u64, length: u64) {
 
 inline fn element_address(array: u64, index: u64, kind: u64) -> u64 {
     let size = storage_size(kind);
-    array + ARRAY_ELEMENTS_OFFSET + (index * size)
+    let data = object_data(array);
+    data + (index * size)
 }
 
 # The two LEB128 immediates of a GC instruction, and the length of the instruction.
@@ -7059,7 +7205,8 @@ handler StructNew() @opcode(0xfb, 0x0) {
     let rtt = rtt_of_type(type_index);
     let mut size: u64;
     load32(size, [rtt, RTT_SIZE]);
-    let object = allocate_object(rtt, size);
+    let object = allocate_object(rtt, size, 0);
+    let data = object_data(object);
     let mut field_count: u64;
     load32(field_count, [rtt, RTT_FIELD_COUNT]);
     let mut offsets_pointer: u64;
@@ -7074,7 +7221,7 @@ handler StructNew() @opcode(0xfb, 0x0) {
         index = index - 1;
         let offset: u64 = alias(offsets[index]);
         let kind: u64 = alias(kinds[index]);
-        pop_into_storage(object + offset, kind);
+        pop_into_storage(data + offset, kind);
     }
     push(object);
     advance(length);
@@ -7085,7 +7232,7 @@ handler StructNewDefault() @opcode(0xfb, 0x1) {
     let rtt = rtt_of_type(type_index);
     let mut size: u64;
     load32(size, [rtt, RTT_SIZE]);
-    let object = allocate_object(rtt, size);
+    let object = allocate_object(rtt, size, 0);
     push(object);
     advance(length);
 }
@@ -7101,7 +7248,8 @@ inline fn field_of(object: u64, type_index: u64, field_index: u64) -> (u64, u64)
     let kinds: Sequence<u8> = alias(kinds_pointer);
     let offset: u64 = alias(offsets[field_index]);
     let kind: u64 = alias(kinds[field_index]);
-    (object + offset, kind)
+    let data = object_data(object);
+    (data + offset, kind)
 }
 
 handler StructGet() @opcode(0xfb, 0x2) {
@@ -7152,10 +7300,8 @@ inline fn allocate_array(type_index: u64, count: u64) -> u64 {
     let rtt = rtt_of_type(type_index);
     let mut element_size: u64;
     load32(element_size, [rtt, RTT_SIZE]);
-    let size = (count * element_size) + ARRAY_ELEMENTS_OFFSET;
-    let array = allocate_object(rtt, size);
-    store64([array, 8], count);
-    array
+    let size = count * element_size;
+    allocate_object(rtt, size, count)
 }
 
 handler ArrayNew() @opcode(0xfb, 0x6) {
@@ -7218,7 +7364,7 @@ handler ArrayNewData() @opcode(0xfb, 0x9) {
     let array = allocate_array(type_index, wide_count);
     let mut contents: u64;
     load64(contents, [segment, SEGMENT_CONTENTS]);
-    copy_data_elements(array + ARRAY_ELEMENTS_OFFSET, contents + wide_source, wide_count, kind);
+    copy_data_elements(object_data(array), contents + wide_source, wide_count, kind);
     push(array);
     advance(length);
 }
@@ -7236,7 +7382,7 @@ handler ArrayNewElem() @opcode(0xfb, 0xa) {
     let array = allocate_array(type_index, wide_count);
     let mut contents: u64;
     load64(contents, [segment, SEGMENT_CONTENTS]);
-    copy_elements(array + ARRAY_ELEMENTS_OFFSET, contents + (wide_source << 3), wide_count);
+    copy_elements(object_data(array), contents + (wide_source << 3), wide_count);
     push(array);
     advance(length);
 }
@@ -7592,12 +7738,13 @@ handler PrefixFE() @opcode(0xfe) {
 # The memory, address of a `size`-byte atomic access, and length of the instruction.
 inline fn atomic_access(address_operand: u64, size: u64) -> (u64, u64, u64) {
     let [bytes, prefix_length] = prefixed_immediates();
-    let flags: u64 = alias(bytes[0]);
-    let alignment_length = leb_length(bytes);
+    # The flags may take more than one byte; their bit 6 says a memory index follows.
+    let [flags, alignment_length] = read_leb(bytes);
     let start: u64 = alias(bytes);
     let mut memory_index: u64 = 0;
     let mut index_length: u64 = 0;
-    if flags >= 0x40 {
+    let has_memory_index = flags & 0x40;
+    if has_memory_index != 0 {
         let index_bytes: Sequence<u8> = alias(start + alignment_length);
         let [decoded_index, decoded_length] = read_leb(index_bytes);
         memory_index = decoded_index;

@@ -11,7 +11,6 @@
 #include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWasm/Types.h>
 #include <LibWeb/Bindings/Module.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>

@@ -182,7 +182,7 @@ fn catches_exceptions_from_webassembly_and_host_functions() {
             let Value::I32(value) = arguments[0] else {
                 unreachable!();
             };
-            let exception = store.allocate_exception(tag, Box::new([u64::from((value * 2) as u32)]));
+            let exception = store.allocate_exception(tag, &[u64::from((value * 2) as u32)]);
             Err(Trap::UncaughtException(exception))
         }),
     );
@@ -206,7 +206,7 @@ fn catches_exceptions_from_webassembly_and_host_functions() {
         panic!("the exception should leave the interpreter");
     };
     assert_eq!(store.exception(exception).tag, tag);
-    assert_eq!(&*store.exception(exception).payload, &[5]);
+    assert_eq!(store.exception(exception).payload, &[5]);
 }
 
 #[test]
@@ -244,5 +244,42 @@ fn waits_on_shared_memory() {
     assert_eq!(
         call(&mut store, instance, "or", &[Value::I32(8), Value::I32(9)]),
         Ok(vec![Value::I32(6)])
+    );
+}
+
+#[test]
+fn traps_on_ranges_that_wrap_around() {
+    let mut store = Store::new();
+    let instance = instantiate(&mut store, "wrapping_ranges.wasm");
+    let wrapping_start = Value::I64(-256);
+    assert_eq!(
+        call(&mut store, instance, "fill", &[wrapping_start, Value::I64(512)]),
+        Err(Trap::MemoryOutOfBounds)
+    );
+    assert_eq!(
+        call(
+            &mut store,
+            instance,
+            "copy",
+            &[wrapping_start, Value::I64(0), Value::I64(512)]
+        ),
+        Err(Trap::MemoryOutOfBounds)
+    );
+    assert_eq!(
+        call(
+            &mut store,
+            instance,
+            "copy",
+            &[Value::I64(0), wrapping_start, Value::I64(512)]
+        ),
+        Err(Trap::MemoryOutOfBounds)
+    );
+    assert_eq!(
+        call(&mut store, instance, "table_fill", &[Value::I64(-2), Value::I64(4)]),
+        Err(Trap::TableOutOfBounds)
+    );
+    assert_eq!(
+        call(&mut store, instance, "fill", &[Value::I64(16), Value::I64(16)]),
+        Ok(vec![])
     );
 }

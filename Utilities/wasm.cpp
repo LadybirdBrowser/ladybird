@@ -1,51 +1,44 @@
 /*
  * Copyright (c) 2021, Ali Mohammad Pur <mpfard@serenityos.org>
  * Copyright (c) 2022, the SerenityOS developers.
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/GenericLexer.h>
 #include <AK/Hex.h>
+#include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
-#include <AK/MemoryStream.h>
 #include <AK/ScopeGuard.h>
-#include <AK/StackInfo.h>
+#include <AK/UFixedBigInt.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibGC/Root.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/BigInt.h>
+#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
-#if defined(AK_OS_WINDOWS)
-#    include <AK/Windows.h>
-#endif
 #include <LibMain/Main.h>
-#include <LibWasm/AbstractMachine/AbstractMachine.h>
-#include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
-#include <LibWasm/AbstractMachine/Validator.h>
-#include <LibWasm/Printer/Printer.h>
-#include <LibWasm/Types.h>
-#if !defined(AK_OS_WINDOWS)
-#    include <LibWasm/Wasi.h>
-#endif
-#include <LibCore/Process.h>
+#include <LibWasm/Runtime/Runtime.h>
 #include <math.h>
-#if !defined(AK_OS_WINDOWS)
-#    include <unistd.h>
-#endif
 
-static OwnPtr<Stream> g_stdout {};
-static OwnPtr<Wasm::Printer> g_printer {};
+using Wasm::Runtime::Entity;
+using Wasm::Runtime::ExternKind;
+using Wasm::Runtime::HeapKind;
+using Wasm::Runtime::HostError;
+using Wasm::Runtime::ValueKind;
+using Wasm::Runtime::ValueType;
+using WasmValue = Wasm::Runtime::Value;
 
 struct BenchmarkTimings {
     JsonArray parse;
@@ -65,12 +58,22 @@ struct BenchmarkTimings {
         return json;
     }
 };
-static StackInfo g_stack_info;
-static Wasm::BytecodeInterpreter g_interpreter(g_stack_info);
 
 struct ParsedValue {
-    Wasm::Value value;
-    Wasm::ValueType type;
+    WasmValue value;
+    ValueType type;
+};
+
+struct ImportName {
+    ByteString module;
+    ByteString name;
+
+    bool operator==(ImportName const&) const = default;
+};
+
+template<>
+struct AK::Traits<ImportName> : public DefaultTraits<ImportName> {
+    static unsigned hash(ImportName const& name) { return pair_int_hash(name.module.hash(), name.name.hash()); }
 };
 
 static Optional<u128> convert_to_uint(StringView string)
@@ -79,14 +82,11 @@ static Optional<u128> convert_to_uint(StringView string)
         return {};
 
     u128 value = 0;
-    auto const characters = string.characters_without_null_termination();
-
-    for (size_t i = 0; i < string.length(); i++) {
-        if (characters[i] < '0' || characters[i] > '9')
+    for (auto character : string) {
+        if (character < '0' || character > '9')
             return {};
-
         value *= 10;
-        value += u128 { static_cast<u64>(characters[i] - '0'), 0 };
+        value += u128 { static_cast<u64>(character - '0'), 0 };
     }
     return value;
 }
@@ -97,534 +97,413 @@ static Optional<u128> convert_to_uint_from_hex(StringView string)
         return {};
 
     u128 value = 0;
-    auto const count = string.length();
-    auto const upper_bound = NumericLimits<u128>::max();
-
-    for (size_t i = 0; i < count; i++) {
-        char digit = string[i];
-        if (value > (upper_bound >> 4))
+    for (auto digit : string) {
+        if (value > (NumericLimits<u128>::max() >> 4))
             return {};
-
-        auto digit_val = decode_hex_digit(digit);
-        if (digit_val == 255)
+        auto digit_value = decode_hex_digit(digit);
+        if (digit_value == 255)
             return {};
-
-        value = (value << 4) + digit_val;
+        value = (value << 4) + digit_value;
     }
     return value;
 }
 
+static WasmValue v128_value(u128 value)
+{
+    return WasmValue::from_v128(value.low(), value.high());
+}
+
 static ErrorOr<ParsedValue> parse_value(StringView spec)
 {
-    constexpr auto is_sep = [](char c) { return is_ascii_space(c) || c == ':'; };
+    constexpr auto is_separator = [](char c) { return is_ascii_space(c) || c == ':'; };
+
     // Scalar: 'T.const[:\s]v' (i32.const 42)
-    auto parse_scalar = []<typename T>(StringView text) -> ErrorOr<Wasm::Value> {
-        if constexpr (IsFloatingPoint<T>) {
-            if (text.trim_whitespace().equals_ignoring_ascii_case("nan"sv)) {
-                if constexpr (IsSame<T, float>)
-                    return Wasm::Value { nanf("") };
-                else
-                    return Wasm::Value { nan("") };
-            }
-            if (text.trim_whitespace().equals_ignoring_ascii_case("inf"sv)) {
-                if constexpr (IsSame<T, float>)
-                    return Wasm::Value { HUGE_VALF };
-                else
-                    return Wasm::Value { HUGE_VAL };
-            }
-        }
-        if (auto v = text.to_number<T>(); v.has_value())
-            return Wasm::Value { *v };
+    auto parse_integer = []<typename T>(StringView text) -> ErrorOr<T> {
+        if (auto value = text.to_number<T>(); value.has_value())
+            return *value;
         return Error::from_string_literal("Invalid scalar value");
     };
-    // Vector: 'v128.const[:\s]v' (v128.const 0x01000000020000000300000004000000) or 'v(T.const[:\s]v, ...)' (v(i32.const 1, i32.const 2, i32.const 3, i32.const 4))
-    auto parse_u128 = [](StringView text) -> ErrorOr<Wasm::Value> {
-        u128 value;
-        if (text.starts_with("0x"sv)) {
-            if (auto v = convert_to_uint_from_hex(text); v.has_value())
-                value = *v;
-            else
-                return Error::from_string_literal("Invalid hex v128 value");
-        } else {
-            if (auto v = convert_to_uint(text); v.has_value())
-                value = *v;
-            else
-                return Error::from_string_literal("Invalid v128 value");
-        }
+    auto parse_float = []<typename T>(StringView text) -> ErrorOr<T> {
+        if (text.trim_whitespace().equals_ignoring_ascii_case("nan"sv))
+            return static_cast<T>(NAN);
+        if (text.trim_whitespace().equals_ignoring_ascii_case("inf"sv))
+            return static_cast<T>(INFINITY);
+        if (auto value = text.to_number<T>(); value.has_value())
+            return *value;
+        return Error::from_string_literal("Invalid scalar value");
+    };
 
-        return Wasm::Value { value };
+    // Vector: 'v128.const[:\s]v' (v128.const 0x01000000020000000300000004000000) or 'v(T.const[:\s]v, ...)'.
+    auto parse_u128 = [](StringView text) -> ErrorOr<u128> {
+        auto value = text.starts_with("0x"sv) ? convert_to_uint_from_hex(text.substring_view(2)) : convert_to_uint(text);
+        if (!value.has_value())
+            return Error::from_string_literal("Invalid v128 value");
+        return *value;
     };
 
     GenericLexer lexer(spec);
-    if (lexer.consume_specific("v128.const"sv)) {
-        lexer.ignore_while(is_sep);
-        // The rest of the string is the value
-        auto text = lexer.consume_all();
-        return ParsedValue {
-            .value = TRY(parse_u128(text)),
-            .type = Wasm::ValueType(Wasm::ValueType::Kind::V128)
-        };
-    }
-
-    if (lexer.consume_specific("i8.const"sv)) {
-        lexer.ignore_while(is_sep);
-        auto text = lexer.consume_all();
-        return ParsedValue {
-            .value = TRY(parse_scalar.operator()<i8>(text)),
-            .type = Wasm::ValueType(Wasm::ValueType::Kind::I32)
-        };
-    }
-    if (lexer.consume_specific("i16.const"sv)) {
-        lexer.ignore_while(is_sep);
-        auto text = lexer.consume_all();
-        return ParsedValue {
-            .value = TRY(parse_scalar.operator()<i16>(text)),
-            .type = Wasm::ValueType(Wasm::ValueType::Kind::I32)
-        };
-    }
-    if (lexer.consume_specific("i32.const"sv)) {
-        lexer.ignore_while(is_sep);
-        auto text = lexer.consume_all();
-        return ParsedValue {
-            .value = TRY(parse_scalar.operator()<i32>(text)),
-            .type = Wasm::ValueType(Wasm::ValueType::Kind::I32)
-        };
-    }
-    if (lexer.consume_specific("i64.const"sv)) {
-        lexer.ignore_while(is_sep);
-        auto text = lexer.consume_all();
-        return ParsedValue {
-            .value = TRY(parse_scalar.operator()<i64>(text)),
-            .type = Wasm::ValueType(Wasm::ValueType::Kind::I64)
-        };
-    }
-    if (lexer.consume_specific("f32.const"sv)) {
-        lexer.ignore_while(is_sep);
-        auto text = lexer.consume_all();
-        return ParsedValue {
-            .value = TRY(parse_scalar.operator()<float>(text)),
-            .type = Wasm::ValueType(Wasm::ValueType::Kind::F32)
-        };
-    }
-    if (lexer.consume_specific("f64.const"sv)) {
-        lexer.ignore_while(is_sep);
-        auto text = lexer.consume_all();
-        return ParsedValue {
-            .value = TRY(parse_scalar.operator()<double>(text)),
-            .type = Wasm::ValueType(Wasm::ValueType::Kind::F64)
-        };
-    }
+    auto rest = [&] {
+        lexer.ignore_while(is_separator);
+        return lexer.consume_all();
+    };
+    if (lexer.consume_specific("v128.const"sv))
+        return ParsedValue { v128_value(TRY(parse_u128(rest()))), ValueType::scalar(ValueKind::V128) };
+    if (lexer.consume_specific("i8.const"sv))
+        return ParsedValue { WasmValue::from_i32(TRY(parse_integer.operator()<i8>(rest()))), ValueType::scalar(ValueKind::I32) };
+    if (lexer.consume_specific("i16.const"sv))
+        return ParsedValue { WasmValue::from_i32(TRY(parse_integer.operator()<i16>(rest()))), ValueType::scalar(ValueKind::I32) };
+    if (lexer.consume_specific("i32.const"sv))
+        return ParsedValue { WasmValue::from_i32(TRY(parse_integer.operator()<i32>(rest()))), ValueType::scalar(ValueKind::I32) };
+    if (lexer.consume_specific("i64.const"sv))
+        return ParsedValue { WasmValue::from_i64(TRY(parse_integer.operator()<i64>(rest()))), ValueType::scalar(ValueKind::I64) };
+    if (lexer.consume_specific("f32.const"sv))
+        return ParsedValue { WasmValue::from_f32(TRY(parse_float.operator()<float>(rest()))), ValueType::scalar(ValueKind::F32) };
+    if (lexer.consume_specific("f64.const"sv))
+        return ParsedValue { WasmValue::from_f64(TRY(parse_float.operator()<double>(rest()))), ValueType::scalar(ValueKind::F64) };
 
     if (lexer.consume_specific("v("sv)) {
         Vector<ParsedValue> values;
         for (;;) {
-            lexer.ignore_while(is_sep);
+            lexer.ignore_while(is_separator);
             if (lexer.consume_specific(")"sv))
                 break;
             if (lexer.is_eof()) {
                 warnln("Expected ')' to close vector");
                 break;
             }
-            auto value = parse_value(lexer.consume_until(is_any_of(",)"sv)));
-            if (value.is_error())
-                return value.release_error();
+            values.append(TRY(parse_value(lexer.consume_until(is_any_of(",)"sv)))));
             lexer.consume_specific(',');
-            values.append(value.release_value());
         }
-
         if (values.is_empty())
             return Error::from_string_literal("Empty vector");
 
-        auto element_type = values.first().type;
-        for (auto& value : values) {
-            if (value.type != element_type)
-                return Error::from_string_literal("Mixed types in vector");
+        auto element_kind = values.first().type.kind;
+        unsigned width = 0;
+        switch (element_kind) {
+        case ValueKind::I32:
+        case ValueKind::F32:
+            width = 32;
+            break;
+        case ValueKind::I64:
+        case ValueKind::F64:
+            width = 64;
+            break;
+        default:
+            return Error::from_string_literal("Invalid vector element");
         }
 
-        unsigned total_size = 0;
-        unsigned width = 0;
         u128 result = 0;
         u128 last_value = 0;
+        unsigned total_size = 0;
         for (auto& parsed : values) {
+            if (parsed.type.kind != element_kind)
+                return Error::from_string_literal("Mixed types in vector");
             if (total_size >= 128)
                 return Error::from_string_literal("Vector too large");
-
-            switch (parsed.type.kind()) {
-            case Wasm::ValueType::F32:
-            case Wasm::ValueType::I32:
-                width = sizeof(u32);
-                break;
-            case Wasm::ValueType::F64:
-            case Wasm::ValueType::I64:
-                width = sizeof(u64);
-                break;
-            case Wasm::ValueType::V128:
-            case Wasm::ValueType::I8:
-            case Wasm::ValueType::I16:
-            case Wasm::ValueType::FunctionReference:
-            case Wasm::ValueType::NoFunctionReference:
-            case Wasm::ValueType::ExternReference:
-            case Wasm::ValueType::NoExternReference:
-            case Wasm::ValueType::ExceptionReference:
-            case Wasm::ValueType::NoExceptionReference:
-            case Wasm::ValueType::AnyReference:
-            case Wasm::ValueType::EqReference:
-            case Wasm::ValueType::I31Reference:
-            case Wasm::ValueType::StructReference:
-            case Wasm::ValueType::ArrayReference:
-            case Wasm::ValueType::NoneReference:
-            case Wasm::ValueType::TypeUseReference:
-                VERIFY_NOT_REACHED();
-            }
-            last_value = parsed.value.value();
-
+            last_value = width == 32 ? u128 { parsed.value.low & 0xffff'ffff, 0 } : u128 { parsed.value.low, 0 };
             result |= last_value << total_size;
-            total_size += width * 8;
+            total_size += width;
         }
-
         if (total_size < 128)
-            warnln("Vector value '{}' is only {} bytes wide, repeating last element", spec, total_size);
+            warnln("Vector value '{}' is only {} bytes wide, repeating last element", spec, total_size / 8);
         while (total_size < 128) {
-            // Repeat the last value until we fill the 128 bits
             result |= last_value << total_size;
-            total_size += width * 8;
+            total_size += width;
         }
-
-        return ParsedValue {
-            .value = Wasm::Value { result },
-            .type = Wasm::ValueType(Wasm::ValueType::Kind::V128)
-        };
+        return ParsedValue { v128_value(result), ValueType::scalar(ValueKind::V128) };
     }
 
     return Error::from_string_literal("Invalid value");
 }
 
-static RefPtr<Wasm::Module> parse(StringView filename)
+static RefPtr<Wasm::Runtime::Module> compile(StringView filename)
 {
-    auto result = Core::MappedFile::map(filename);
-    if (result.is_error()) {
-        warnln("Failed to open {}: {}", filename, result.error());
+    auto file = Core::MappedFile::map(filename);
+    if (file.is_error()) {
+        warnln("Failed to open {}: {}", filename, file.error());
         return {};
     }
-
-    auto parse_result = Wasm::Module::parse(*result.value());
-    if (parse_result.is_error()) {
-        warnln("Something went wrong, either the file is invalid, or there's a bug with LibWasm!");
-        warnln("The parse error was {}", Wasm::parse_error_to_byte_string(parse_result.error()));
+    auto module = Wasm::Runtime::Module::compile(file.value()->bytes());
+    if (module.is_error()) {
+        warnln("Failed to compile {}: {}", filename, module.error());
         return {};
     }
-    return parse_result.release_value();
+    return module.release_value();
 }
 
-static void print_link_error(Wasm::LinkError const& error)
+static ByteString format_value(WasmValue value, ValueType type)
 {
-    for (auto const& missing : error.missing_imports)
-        warnln("Missing import '{}'", missing);
+    switch (type.kind) {
+    case ValueKind::I32:
+        return ByteString::formatted("{}", value.to_i32());
+    case ValueKind::I64:
+        return ByteString::formatted("{}", value.to_i64());
+    case ValueKind::F32:
+        return ByteString::formatted("{}", value.to_f32());
+    case ValueKind::F64:
+        return ByteString::formatted("{}", value.to_f64());
+    case ValueKind::V128:
+        return ByteString::formatted("v128({:x})", u128 { value.low, value.high });
+    case ValueKind::Reference:
+        if (value.is_null_reference())
+            return "addr(null)";
+        return ByteString::formatted("addr({:#x})", value.reference_bits());
+    }
+    VERIFY_NOT_REACHED();
 }
 
-template<typename T>
-static ErrorOr<T, Wasm::Result> trap_for_js_exception(JS::VM& vm, JS::ThrowCompletionOr<T> const& result)
+static Optional<ValueKind> consume_scalar_type(GenericLexer& lexer)
 {
-    if (!result.is_error())
-        return result.value();
-
-    auto const& completion = result.error();
-    auto& exception = completion.value();
-    warnln("JS exception: {}", MUST(exception.to_utf16_string(vm)));
-    return Wasm::Trap { ByteString("JS exception") };
+    if (lexer.consume_specific("i32"sv))
+        return ValueKind::I32;
+    if (lexer.consume_specific("i64"sv))
+        return ValueKind::I64;
+    if (lexer.consume_specific("f32"sv))
+        return ValueKind::F32;
+    if (lexer.consume_specific("f64"sv))
+        return ValueKind::F64;
+    if (lexer.consume_specific("v128"sv))
+        return ValueKind::V128;
+    return {};
 }
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     StringView filename;
-    bool print = false;
-    bool print_compiled = false;
-    bool dump_native = false;
     bool attempt_instantiate = false;
     bool export_all_imports = false;
     bool benchmark_timings = false;
-    [[maybe_unused]] bool wasi = false;
-    Optional<u64> specific_function_address;
+    bool wasi = false;
     ByteString exported_function_to_execute;
     Vector<ParsedValue> values_to_push;
     Vector<ByteString> modules_to_link_in;
     Vector<StringView> args_if_wasi;
     Vector<StringView> wasi_preopened_mappings;
-    HashMap<Wasm::Linker::Name, Wasm::ExternValue> js_exports;
+    HashMap<ImportName, Wasm::Runtime::Extern> js_exports;
 
-    IGNORE_USE_IN_ESCAPING_LAMBDA Wasm::AbstractMachine machine;
     auto vm = JS::VM::create();
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
     auto& realm = *root_execution_context->realm;
-    IGNORE_USE_IN_ESCAPING_LAMBDA Wasm::ModuleInstance* reentry_instance = nullptr;
+    Wasm::Runtime::Store store { vm->heap() };
+    // NB: The entities the utility allocates live until it exits.
+    Vector<GC::Root<GC::ForeignCell>> roots;
+    auto keep = [&](Entity entity) {
+        roots.append(GC::Root<GC::ForeignCell> { entity });
+        return entity;
+    };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Entity main_instance = nullptr;
 
     Core::ArgsParser parser;
-    parser.add_positional_argument(filename, "File name to parse", "file");
-    parser.add_option(print, "Print the parsed module", "print", 'p');
-    parser.add_option(print_compiled, "Print the compiled module", "print-compiled");
-    parser.add_option(dump_native, "Disassemble Cranelift-compiled native code for each function", "dump-native");
-    parser.add_option(specific_function_address, "Optional compiled function address to print", "print-function", 'f', "address");
+    parser.add_positional_argument(filename, "File name to run", "file");
     parser.add_option(attempt_instantiate, "Attempt to instantiate the module", "instantiate", 'i');
     parser.add_option(exported_function_to_execute, "Attempt to execute the named exported function from the module (implies -i)", "execute", 'e', "name");
     parser.add_option(export_all_imports, "Export noop functions corresponding to imports", "export-noop");
     parser.add_option(benchmark_timings, "Emit machine-readable Wasm phase timings to stderr", "benchmark-timings");
-#if !defined(AK_OS_WINDOWS)
     parser.add_option(wasi, "Enable WASI", "wasi", 'w');
-#endif
     parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Export js `function(arg...) { source }` returning T as [module].[function]",
         .long_name = "export-js",
         .short_name = 0,
         .value_name = "module.function(arg:T...):T=source",
-        .accept_value = [&](StringView str) {
-            GenericLexer lexer(str);
+        .accept_value = [&](StringView text) {
+            GenericLexer lexer(text);
             // [module] <.> [function] <(> {[name] <:> [type]} <)> (<:> [type])? <=> [text]
             auto module = lexer.consume_until('.');
             if (!lexer.consume_specific('.')) {
-                warnln("Invalid JS export module in '{}'", str);
+                warnln("Invalid JS export module in '{}'", text);
                 return false;
             }
-            auto fn_name = lexer.consume_until(is_any_of("(=:"sv));
-            struct Arg {
-                Wasm::ValueType type;
+            auto function_name = lexer.consume_until(is_any_of("(=:"sv));
+            struct Parameter {
+                ValueKind kind;
                 StringView name;
             };
-            Vector<Arg> formal_params;
+            Vector<Parameter> parameters;
             if (lexer.consume_specific('(')) {
                 while (!lexer.consume_specific(')')) {
                     auto name = lexer.consume_until(is_any_of(",:)"sv));
                     if (name.is_empty()) {
-                        warnln("Invalid JS export argument name in '{}'", str);
+                        warnln("Invalid JS export argument name in '{}'", text);
                         return false;
                     }
-                    auto type_kind = Wasm::ValueType::I32;
+                    auto kind = ValueKind::I32;
                     if (lexer.consume_specific(':')) {
-                        if (lexer.consume_specific("i32"sv)) {
-                            type_kind = Wasm::ValueType::I32;
-                        } else if (lexer.consume_specific("i64"sv)) {
-                            type_kind = Wasm::ValueType::I64;
-                        } else if (lexer.consume_specific("f32"sv)) {
-                            type_kind = Wasm::ValueType::F32;
-                        } else if (lexer.consume_specific("f64"sv)) {
-                            type_kind = Wasm::ValueType::F64;
-                        } else if (lexer.consume_specific("v128"sv)) {
-                            type_kind = Wasm::ValueType::V128;
-                        } else {
-                            warnln("Invalid JS export argument type in '{}'", str);
+                        auto type = consume_scalar_type(lexer);
+                        if (!type.has_value()) {
+                            warnln("Invalid JS export argument type in '{}'", text);
                             return false;
                         }
+                        kind = *type;
                     }
-                    formal_params.append(Arg { Wasm::ValueType(type_kind), name });
+                    parameters.append({ kind, name });
                     lexer.consume_specific(',');
                 }
             }
-            Vector<Wasm::ValueType::Kind> returns;
+            Optional<ValueKind> result_kind;
             if (lexer.consume_specific(':')) {
-                if (lexer.consume_specific("i32"sv)) {
-                    returns.append(Wasm::ValueType::I32);
-                } else if (lexer.consume_specific("i64"sv)) {
-                    returns.append(Wasm::ValueType::I64);
-                } else if (lexer.consume_specific("f32"sv)) {
-                    returns.append(Wasm::ValueType::F32);
-                } else if (lexer.consume_specific("f64"sv)) {
-                    returns.append(Wasm::ValueType::F64);
-                } else if (lexer.consume_specific("v128"sv)) {
-                    returns.append(Wasm::ValueType::V128);
-                } else {
-                    warnln("Invalid JS export return type in '{}'", str);
+                result_kind = consume_scalar_type(lexer);
+                if (!result_kind.has_value()) {
+                    warnln("Invalid JS export return type in '{}'", text);
                     return false;
                 }
             }
-
             if (!lexer.consume_specific('=') || lexer.is_eof()) {
-                warnln("Invalid JS export source in '{}'", str);
+                warnln("Invalid JS export source in '{}'", text);
                 return false;
             }
 
-            auto source_text = lexer.consume_all().trim_whitespace();
             Utf16StringBuilder builder;
             builder.append_ascii("(function ("sv);
-            auto first = true;
-            for (auto& arg : formal_params) {
-                if (!first)
+            for (size_t index = 0; index < parameters.size(); ++index) {
+                if (index != 0)
                     builder.append_ascii(", "sv);
-                first = false;
-                auto argument_name = Utf16String::from_utf8(arg.name);
-                builder.append(argument_name.utf16_view());
+                auto parameter_name = Utf16String::from_utf8(parameters[index].name);
+                builder.append(parameter_name.utf16_view());
             }
             builder.append_ascii(") { return ("sv);
-            auto source_text_utf16 = Utf16String::from_utf8(source_text);
-            builder.append(source_text_utf16.utf16_view());
+            auto source = Utf16String::from_utf8(lexer.consume_all().trim_whitespace());
+            builder.append(source.utf16_view());
             builder.append_ascii("); })"sv);
-            auto js_function = builder.to_string();
-            auto name = ByteString::formatted("{}.{}", module, fn_name);
-            auto script = JS::Script::parse(js_function, realm, name);
+            auto name = ByteString::formatted("{}.{}", module, function_name);
+            auto script = JS::Script::parse(builder.to_string(), realm, name);
             if (script.is_error()) {
-                warnln("Failed to parse JS export source '{}':", js_function);
+                warnln("Failed to parse JS export source of '{}'", name);
                 return false;
             }
-
-            auto js_script = script.release_value();
-            auto maybe_function = vm->run(*js_script);
-            if (maybe_function.is_error()) {
-                warnln("Failed to run JS export source '{}'", js_function);
+            auto function_value = vm->run(*script.release_value());
+            if (function_value.is_error() || !function_value.value().is_function()) {
+                warnln("JS export source of '{}' did not evaluate to a function", name);
                 return false;
             }
-            auto function_val = maybe_function.release_value();
-            if (!function_val.is_function()) {
-                warnln("JS export source '{}' did not parse as a function", js_function);
-                return false;
-            }
+            auto function = function_value.value();
 
-            auto& function = function_val.as_function();
+            Wasm::Runtime::FunctionType function_type;
+            for (auto& parameter : parameters)
+                function_type.parameters.append(ValueType::scalar(parameter.kind));
+            if (result_kind.has_value())
+                function_type.results.append(ValueType::scalar(*result_kind));
 
-            Vector<Wasm::ValueType> results;
-            Vector<Wasm::ValueType> params;
-            for (auto& type : returns)
-                results.append(Wasm::ValueType(type));
-            for (auto& arg : formal_params)
-                params.append(Wasm::ValueType(arg.type));
-
-            Wasm::FunctionType function_type = { move(params), move(results) };
-            auto host_function = Wasm::HostFunction {
-                [&vm, &function, &machine, &realm, &reentry_instance, formal_params, returns, name](Wasm::Configuration&, Span<Wasm::Value> args) mutable -> Wasm::Result {
-                    Vector<JS::Value> js_args;
-                    js_args.ensure_capacity(args.size());
-                    for (size_t i = 0; i < formal_params.size(); ++i) {
-                        auto type = formal_params[i].type;
-                        if (i >= args.size()) {
-                            warnln("Not enough arguments provided to JS export function '{}'", name);
-                            return Wasm::Trap { ByteString("Not enough arguments") };
-                        }
-                        auto& arg = args[i];
-                        switch (type.kind()) {
-                        case Wasm::ValueType::I32:
-                            js_args.append(JS::Value(arg.to<u32>()));
-                            break;
-                        case Wasm::ValueType::I64:
-                            js_args.append(JS::Value(arg.to<u64>()));
-                            break;
-                        case Wasm::ValueType::F32:
-                            js_args.append(JS::Value(arg.to<f32>()));
-                            break;
-                        case Wasm::ValueType::F64:
-                            js_args.append(JS::Value(arg.to<f64>()));
-                            break;
-                        case Wasm::ValueType::V128: {
-                            auto value = arg.to<u128>();
-                            ReadonlyBytes data { bit_cast<u8 const*>(&value), sizeof(u128) };
-                            js_args.append(JS::BigInt::create(*vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { data } }));
-                            break;
-                        }
-                        default:
-                            warnln("Unsupported argument type '{}' for JS export function '{}'", type.kind_name(), name);
-                            return Wasm::Trap { ByteString("Unsupported argument type") };
-                        }
+            auto host_function = store.allocate_host_function(function_type, [&vm, &realm, function, &store, &main_instance, function_type, name](Wasm::Runtime::Store&, ReadonlySpan<WasmValue> arguments, Span<WasmValue> results) mutable -> ErrorOr<void, HostError> {
+                GC::RootVector<JS::Value> js_arguments;
+                for (size_t index = 0; index < arguments.size(); ++index) {
+                    auto argument = arguments[index];
+                    switch (function_type.parameters[index].kind) {
+                    case ValueKind::I32:
+                        js_arguments.append(JS::Value(static_cast<u32>(argument.to_i32())));
+                        break;
+                    case ValueKind::I64:
+                        js_arguments.append(JS::Value(static_cast<double>(static_cast<u64>(argument.to_i64()))));
+                        break;
+                    case ValueKind::F32:
+                        js_arguments.append(JS::Value(static_cast<double>(argument.to_f32())));
+                        break;
+                    case ValueKind::F64:
+                        js_arguments.append(JS::Value(argument.to_f64()));
+                        break;
+                    case ValueKind::V128: {
+                        u64 halves[2] = { argument.low, argument.high };
+                        js_arguments.append(JS::BigInt::create(*vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger::import_data({ reinterpret_cast<u8 const*>(halves), sizeof(halves) }) }));
+                        break;
                     }
-                    auto reentry_this = JS::Object::create(realm, realm.intrinsics().object_prototype());
-                    auto invoke = JS::NativeFunction::create(
-                        realm, [&machine, &reentry_instance](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-                            if (!reentry_instance)
-                                return vm.throw_completion<JS::TypeError>("wasm reentry: instance not ready yet"_utf16);
-                            auto export_name = TRY(vm.argument(0).to_utf16_string(vm)).to_byte_string();
-                            Optional<Wasm::FunctionAddress> address;
-                            for (auto& entry : reentry_instance->exports()) {
-                                if (entry.name() == export_name) {
-                                    if (auto* addr = entry.value().get_pointer<Wasm::FunctionAddress>())
-                                        address = *addr;
-                                }
-                            }
-                            if (!address.has_value())
-                                return vm.throw_completion<JS::TypeError>(Utf16String::formatted("wasm reentry: no exported function '{}'"sv, export_name));
-                            auto* callee = machine.store().get(*address);
-                            if (!callee || !callee->has<Wasm::WasmFunction>())
-                                return vm.throw_completion<JS::TypeError>("wasm reentry: target is not a wasm function"_utf16);
-                            auto const& type = callee->get<Wasm::WasmFunction>().type();
-                            Vector<Wasm::Value> wasm_args;
-                            for (size_t i = 0; i < type.parameters().size(); ++i) {
-                                auto value = vm.argument(i + 1);
-                                switch (type.parameters()[i].kind()) {
-                                case Wasm::ValueType::I32:
-                                    wasm_args.append(Wasm::Value(TRY(value.to_u32(vm))));
-                                    break;
-                                case Wasm::ValueType::I64:
-                                    wasm_args.append(Wasm::Value(TRY(value.to_bigint_uint64(vm))));
-                                    break;
-                                case Wasm::ValueType::F32:
-                                    wasm_args.append(Wasm::Value(static_cast<f32>(TRY(value.to_double(vm)))));
-                                    break;
-                                case Wasm::ValueType::F64:
-                                    wasm_args.append(Wasm::Value(TRY(value.to_double(vm))));
-                                    break;
-                                default:
-                                    return vm.throw_completion<JS::TypeError>("wasm reentry: unsupported parameter type"_utf16);
-                                }
-                            }
-                            auto result = machine.invoke(g_interpreter, *address, move(wasm_args));
-                            if (result.is_trap())
-                                return vm.throw_completion<JS::TypeError>(Utf16String::formatted("wasm reentry trapped: {}"sv, result.trap().format()));
-                            if (result.values().is_empty() || type.results().is_empty())
-                                return JS::js_undefined();
-                            if (type.results().size() > 1)
-                                return vm.throw_completion<JS::TypeError>("wasm reentry: multi-value results are not yet supported"_utf16);
-                            auto const& returned = result.values().first();
-                            switch (type.results()[0].kind()) {
-                            case Wasm::ValueType::I32:
-                                return JS::Value(returned.to<i32>());
-                            case Wasm::ValueType::I64:
-                                return JS::Value(static_cast<double>(returned.to<i64>()));
-                            case Wasm::ValueType::F32:
-                                return JS::Value(static_cast<double>(returned.to<f32>()));
-                            case Wasm::ValueType::F64:
-                                return JS::Value(returned.to<f64>());
+                    case ValueKind::Reference:
+                        return HostError { "Unsupported argument type" };
+                    }
+                }
+
+                // The function's `this` can call back into the main instance's exports.
+                auto reentry_this = JS::Object::create(realm, realm.intrinsics().object_prototype());
+                auto invoke = JS::NativeFunction::create(
+                    realm, [&store, &main_instance](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+                        if (!main_instance)
+                            return vm.throw_completion<JS::TypeError>("wasm reentry: instance not ready yet"_utf16);
+                        auto export_name = TRY(vm.argument(0).to_utf16_string(vm)).to_byte_string();
+                        auto callee = store.find_export(main_instance, export_name);
+                        if (!callee.has_value() || callee->kind != ExternKind::Function)
+                            return vm.throw_completion<JS::TypeError>(Utf16String::formatted("wasm reentry: no exported function '{}'", export_name));
+                        auto type = store.function_type(callee->entity);
+                        Wasm::Runtime::Values wasm_arguments;
+                        for (size_t index = 0; index < type.parameters.size(); ++index) {
+                            auto value = vm.argument(index + 1);
+                            switch (type.parameters[index].kind) {
+                            case ValueKind::I32:
+                                wasm_arguments.append(WasmValue::from_i32(static_cast<i32>(TRY(value.to_u32(vm)))));
+                                break;
+                            case ValueKind::I64:
+                                wasm_arguments.append(WasmValue::from_i64(static_cast<i64>(TRY(value.to_bigint_uint64(vm)))));
+                                break;
+                            case ValueKind::F32:
+                                wasm_arguments.append(WasmValue::from_f32(static_cast<float>(TRY(value.to_double(vm)))));
+                                break;
+                            case ValueKind::F64:
+                                wasm_arguments.append(WasmValue::from_f64(TRY(value.to_double(vm))));
+                                break;
                             default:
-                                return JS::js_undefined();
+                                return vm.throw_completion<JS::TypeError>("wasm reentry: unsupported parameter type"_utf16);
                             }
-                        },
-                        1, "invoke"_utf16);
-                    reentry_this->define_direct_property("invoke"_utf16, invoke, JS::default_attributes);
-
-                    auto result = TRY(trap_for_js_exception(vm, JS::call(vm, function, reentry_this, js_args.span())));
-                    if (returns.is_empty())
-                        return Wasm::Result { Vector<Wasm::Value> {} };
-
-                    if (returns.size() != 1)
-                        return Wasm::Trap { ByteString("NYI") };
-
-                    switch (returns[0]) {
-                    case Wasm::ValueType::I32:
-                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { TRY(trap_for_js_exception(*vm, result.to_u32(vm))) } } };
-                    case Wasm::ValueType::I64:
-                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { TRY(trap_for_js_exception(*vm, result.to_bigint_uint64(vm))) } } };
-                    case Wasm::ValueType::F32:
-                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { static_cast<f32>(TRY(trap_for_js_exception(*vm, result.to_double(vm)))) } } };
-                    case Wasm::ValueType::F64:
-                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { TRY(trap_for_js_exception(*vm, result.to_double(vm))) } } };
-                    case Wasm::ValueType::V128: {
-                        auto value = TRY(trap_for_js_exception(*vm, result.to_bigint(vm)));
-                        u128 out {};
-                        Bytes data { bit_cast<u8*>(&out), sizeof(u128) };
-                        if (value->big_integer().unsigned_value().export_data(data).size() != data.size()) {
-                            dbgln("JS export function '{}' returned a v128 value that is not 128 bits wide", name);
-                            return Wasm::Trap { ByteString("Invalid v128 value") };
                         }
-                        return Wasm::Result { Vector<Wasm::Value> { Wasm::Value { out } } };
+                        auto result = store.invoke(callee->entity, wasm_arguments);
+                        if (result.is_error())
+                            return vm.throw_completion<JS::TypeError>(Utf16String::formatted("wasm reentry trapped: {}", result.error().message));
+                        if (result.value().is_empty())
+                            return JS::js_undefined();
+                        if (type.results.size() > 1)
+                            return vm.throw_completion<JS::TypeError>("wasm reentry: multi-value results are not yet supported"_utf16);
+                        auto returned = result.value().first();
+                        switch (type.results.first().kind) {
+                        case ValueKind::I32:
+                            return JS::Value(returned.to_i32());
+                        case ValueKind::I64:
+                            return JS::Value(static_cast<double>(returned.to_i64()));
+                        case ValueKind::F32:
+                            return JS::Value(static_cast<double>(returned.to_f32()));
+                        case ValueKind::F64:
+                            return JS::Value(returned.to_f64());
+                        default:
+                            return JS::js_undefined();
+                        }
+                    },
+                    1, "invoke"_utf16);
+                reentry_this->define_direct_property("invoke"_utf16, invoke, JS::default_attributes);
+
+                auto result = JS::call(*vm, function, reentry_this, js_arguments.span());
+                if (result.is_error()) {
+                    warnln("JS exception: {}", MUST(result.error_value().to_utf16_string(*vm)));
+                    return HostError { "JS exception" };
+                }
+                if (function_type.results.is_empty())
+                    return {};
+
+                auto value = result.value();
+                auto converted = [&]() -> JS::ThrowCompletionOr<WasmValue> {
+                    switch (function_type.results.first().kind) {
+                    case ValueKind::I32:
+                        return WasmValue::from_i32(static_cast<i32>(TRY(value.to_u32(*vm))));
+                    case ValueKind::I64:
+                        return WasmValue::from_i64(static_cast<i64>(TRY(value.to_bigint_uint64(*vm))));
+                    case ValueKind::F32:
+                        return WasmValue::from_f32(static_cast<float>(TRY(value.to_double(*vm))));
+                    case ValueKind::F64:
+                        return WasmValue::from_f64(TRY(value.to_double(*vm)));
+                    case ValueKind::V128: {
+                        auto bigint = TRY(value.to_bigint(*vm));
+                        u64 halves[2] = {};
+                        (void)bigint->big_integer().unsigned_value().export_data({ reinterpret_cast<u8*>(halves), sizeof(halves) });
+                        return WasmValue::from_v128(halves[0], halves[1]);
                     }
-                    default:
-                        warnln("Unsupported return type for JS export function '{}'", name);
-                        return Wasm::Trap { ByteString("Unsupported return type") };
+                    case ValueKind::Reference:
+                        break;
                     }
-                },
-                function_type,
-                name,
-            };
-            auto host_function_instance = machine.store().allocate(move(host_function));
-            if (!host_function_instance.has_value()) {
-                warnln("Failed to allocate host function instance for '{}'", name);
-                return false;
-            }
-            js_exports.set({ .module = module, .name = fn_name, .type = function_type }, *host_function_instance);
+                    VERIFY_NOT_REACHED();
+                }();
+                if (converted.is_error()) {
+                    warnln("JS export function '{}' returned a value of the wrong type", name);
+                    return HostError { "JS exception" };
+                }
+                results[0] = converted.release_value();
+                return {};
+            });
+            js_exports.set({ module, function_name }, { ExternKind::Function, keep(host_function) });
             return true;
         },
     });
@@ -634,12 +513,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         .long_name = "wasi-map-dir",
         .short_name = 0,
         .value_name = "path[:path]",
-        .accept_value = [&](StringView str) {
-            if (!str.is_empty()) {
-                wasi_preopened_mappings.append(str);
-                return true;
-            }
-            return false;
+        .accept_value = [&](StringView text) {
+            if (text.is_empty())
+                return false;
+            wasi_preopened_mappings.append(text);
+            return true;
         },
     });
     parser.add_option(Core::ArgsParser::Option {
@@ -648,12 +526,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         .long_name = "link",
         .short_name = 'l',
         .value_name = "file",
-        .accept_value = [&](StringView str) {
-            if (!str.is_empty()) {
-                modules_to_link_in.append(str);
-                return true;
-            }
-            return false;
+        .accept_value = [&](StringView text) {
+            if (text.is_empty())
+                return false;
+            modules_to_link_in.append(text);
+            return true;
         },
     });
     parser.add_option(Core::ArgsParser::Option {
@@ -662,8 +539,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         .long_name = "arg",
         .short_name = 0,
         .value_name = "value",
-        .accept_value = [&](StringView str) -> bool {
-            auto result = parse_value(str);
+        .accept_value = [&](StringView text) -> bool {
+            auto result = parse_value(text);
             if (result.is_error()) {
                 warnln("Failed to parse value: {}", result.error());
                 return false;
@@ -677,587 +554,180 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     BenchmarkTimings timings;
     ScopeGuard dump_benchmark_timings = [&] {
-        if (!benchmark_timings)
-            return;
-        warnln("wasm-benchmark-timings: {}", timings.to_json().serialized());
+        if (benchmark_timings)
+            warnln("wasm-benchmark-timings: {}", timings.to_json().serialized());
+    };
+    auto timed = [&](JsonArray& phase, auto&& callback) {
+        auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+        auto result = callback();
+        if (benchmark_timings)
+            phase.must_append(timer.elapsed_time().to_seconds_f64());
+        return result;
     };
 
     if (!exported_function_to_execute.is_empty())
         attempt_instantiate = true;
 
-    Optional<Core::ElapsedTimer> parse_timer;
-    if (benchmark_timings)
-        parse_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-    auto parse_result = parse(filename);
-
-    if (benchmark_timings)
-        timings.parse.must_append(parse_timer->elapsed_time().to_seconds_f64());
-
-    if (parse_result.is_null())
+    // NB: Compiling a module parses and validates it.
+    auto module = timed(timings.parse, [&] { return compile(filename); });
+    if (!module)
         return 1;
+    if (!attempt_instantiate)
+        return 0;
 
-    g_stdout = TRY(Core::File::standard_output());
-    g_printer = TRY(try_make<Wasm::Printer>(*g_stdout));
+    Core::EventLoop::initialize_for_current_thread();
 
-    if (print && !attempt_instantiate) {
-        Wasm::Printer printer(*g_stdout);
-        printer.print(*parse_result);
+    OwnPtr<Wasm::Runtime::Wasi> wasi_implementation;
+    if (wasi) {
+        Vector<ByteString> wasi_arguments;
+        for (auto argument : args_if_wasi)
+            wasi_arguments.append(argument);
+        Vector<Wasm::Runtime::Wasi::Preopen> preopens;
+        for (auto mapping : wasi_preopened_mappings) {
+            auto split_index = mapping.find(':');
+            auto host_path = split_index.has_value() ? mapping.substring_view(0, *split_index) : mapping;
+            auto guest_path = split_index.has_value() ? mapping.substring_view(*split_index + 1) : mapping;
+            preopens.append({ TRY(FileSystem::real_path(host_path)), guest_path });
+        }
+        wasi_implementation = make<Wasm::Runtime::Wasi>(wasi_arguments, ReadonlySpan<ByteString> {}, preopens);
     }
 
-    if (attempt_instantiate || print_compiled || dump_native) {
-#if !defined(AK_OS_WINDOWS)
-        Optional<Wasm::Wasi::Implementation> wasi_impl;
-
-        if (wasi) {
-            wasi_impl.emplace(Wasm::Wasi::Implementation::Details {
-                .provide_arguments = [&] {
-                    Vector<String> strings;
-                    for (auto& string : args_if_wasi)
-                        strings.append(String::from_utf8(string).release_value_but_fixme_should_propagate_errors());
-                    return strings; },
-                .provide_environment = {},
-                .provide_preopened_directories = [&] {
-                    Vector<Wasm::Wasi::Implementation::MappedPath> paths;
-                    for (auto& string : wasi_preopened_mappings) {
-                        auto split_index = string.find(':');
-                        if (split_index.has_value()) {
-                            LexicalPath host_path { FileSystem::real_path(string.substring_view(0, *split_index)).release_value_but_fixme_should_propagate_errors() };
-                            LexicalPath mapped_path { string.substring_view(*split_index + 1) };
-                            paths.append({move(host_path), move(mapped_path)});
-                        } else {
-                            LexicalPath host_path { FileSystem::real_path(string).release_value_but_fixme_should_propagate_errors() };
-                            LexicalPath mapped_path { string };
-                            paths.append({move(host_path), move(mapped_path)});
-                        }
-                    }
-                    return paths; },
-            });
-        }
-#endif
-
-        Core::EventLoop::initialize_for_current_thread();
-        auto prepare_module = [&](Wasm::Module& module) -> ErrorOr<void, Wasm::ValidationError> {
-            if (!benchmark_timings)
-                return {};
-
-            auto validation_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-            auto validation_result = machine.validate(module, {}, Wasm::CompileToNative::No);
-            timings.validation.must_append(validation_timer.elapsed_time().to_seconds_f64());
-            if (validation_result.is_error())
-                return validation_result.release_error();
-
-            auto compilation_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-            Wasm::start_cranelift_compilation(module);
-            timings.native_compilation.must_append(compilation_timer.elapsed_time().to_seconds_f64());
-            return {};
-        };
-
-        if (auto preparation_result = prepare_module(*parse_result); preparation_result.is_error()) {
-            warnln("Validation failed: {}", preparation_result.error());
-            return 1;
-        }
-
-        // First, resolve the linked modules
-        Vector<NonnullRefPtr<Wasm::ModuleInstance>> linked_instances;
-        Vector<NonnullRefPtr<Wasm::Module>> linked_modules;
-        for (auto& name : modules_to_link_in) {
-            Optional<Core::ElapsedTimer> linked_module_parse_timer;
-            if (benchmark_timings)
-                linked_module_parse_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-            auto linked_module = parse(name);
-
-            if (benchmark_timings)
-                timings.parse.must_append(linked_module_parse_timer->elapsed_time().to_seconds_f64());
-
-            if (linked_module.is_null()) {
-                warnln("Failed to parse linked module '{}'", name);
-                return 1;
+    // Each linked module's exports resolve the imports of the ones after it, and of the main module, by name.
+    HashMap<ByteString, Wasm::Runtime::Extern> linked_exports;
+    auto resolve_imports = [&](Wasm::Runtime::Module const& module_to_link) -> Optional<Vector<Wasm::Runtime::Extern>> {
+        Vector<Wasm::Runtime::Extern> imports;
+        bool missing = false;
+        for (size_t index = 0; index < module_to_link.import_count(); ++index) {
+            auto import = module_to_link.import(index);
+            if (auto value = linked_exports.get(import.name); value.has_value()) {
+                imports.append(*value);
+                continue;
             }
-            if (auto preparation_result = prepare_module(*linked_module); preparation_result.is_error()) {
-                warnln("Validation of imported module '{}' failed: {}", name, preparation_result.error());
-                return 1;
-            }
-            linked_modules.append(linked_module.release_nonnull());
-            Wasm::Linker linker { linked_modules.last() };
-            for (auto& instance : linked_instances)
-                linker.link(*instance);
-            auto link_result = linker.finish();
-            if (link_result.is_error()) {
-                warnln("Linking imported module '{}' failed", name);
-                print_link_error(link_result.error());
-                return 1;
-            }
-            Optional<Core::ElapsedTimer> instantiation_timer;
-            if (benchmark_timings)
-                instantiation_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-            auto instantiation_result = machine.instantiate(linked_modules.last(), link_result.release_value());
-
-            if (benchmark_timings)
-                timings.instantiation.must_append(instantiation_timer->elapsed_time().to_seconds_f64());
-
-            if (instantiation_result.is_error()) {
-                warnln("Instantiation of imported module '{}' failed: {}", name, instantiation_result.error().error);
-                return 1;
-            }
-            linked_instances.append(instantiation_result.release_value());
-        }
-
-        Wasm::Linker linker { *parse_result };
-        for (auto& instance : linked_instances)
-            linker.link(*instance);
-
-#if !defined(AK_OS_WINDOWS)
-        if (wasi) {
-            HashMap<Wasm::Linker::Name, Wasm::ExternValue> wasi_exports;
-            for (auto& entry : linker.unresolved_imports()) {
-                if (entry.module != "wasi_snapshot_preview1"sv)
-                    continue;
-                auto function = wasi_impl->function_by_name(entry.name);
-                if (function.is_error()) {
-                    dbgln("wasi function {} not implemented :(", entry.name);
+            if (wasi_implementation && import.module == Wasm::Runtime::Wasi::module_name) {
+                if (auto function = wasi_implementation->allocate_function(store, import.name); function.has_value()) {
+                    imports.append({ ExternKind::Function, keep(*function) });
                     continue;
                 }
-                auto address = machine.store().allocate(function.release_value());
-                wasi_exports.set(entry, *address);
+                dbgln("wasi function {} not implemented :(", import.name);
             }
-
-            linker.link(wasi_exports);
-        }
-#endif
-
-        linker.link(js_exports);
-
-        if (export_all_imports) {
-            HashMap<Wasm::Linker::Name, Wasm::ExternValue> exports;
-
-            auto allocate_function_stub = [&](Wasm::FunctionType const& func, ByteString const& name) {
-                return *machine.store().allocate(Wasm::HostFunction(
-                    [name, func](auto&, auto arguments) -> Wasm::Result {
-                        StringBuilder argument_builder;
-                        bool first = true;
-                        size_t index = 0;
-                        for (auto& argument : arguments) {
-                            AllocatingMemoryStream stream;
-                            auto value_type = func.parameters()[index];
-                            Wasm::Printer { stream }.print(argument, value_type);
-                            if (first)
-                                first = false;
-                            else
-                                argument_builder.append(", "sv);
-                            auto buffer = ByteBuffer::create_uninitialized(stream.used_buffer_size()).release_value_but_fixme_should_propagate_errors();
-                            stream.read_until_filled(buffer).release_value_but_fixme_should_propagate_errors();
-                            argument_builder.append(StringView(buffer).trim_whitespace());
-                            ++index;
+            if (auto value = js_exports.get({ import.module, import.name }); value.has_value()) {
+                imports.append(*value);
+                continue;
+            }
+            if (export_all_imports) {
+                Optional<Entity> stub;
+                switch (import.type.kind) {
+                case ExternKind::Function: {
+                    auto type = module_to_link.function_type(import.type.type_index);
+                    if (!type.has_value())
+                        break;
+                    stub = store.allocate_host_function(*type, [name = ByteString(import.name), type = *type](auto&, ReadonlySpan<WasmValue> stub_arguments, Span<WasmValue>) -> ErrorOr<void, HostError> {
+                        StringBuilder builder;
+                        for (size_t argument = 0; argument < stub_arguments.size(); ++argument) {
+                            if (argument != 0)
+                                builder.append(", "sv);
+                            builder.append(format_value(stub_arguments[argument], type.parameters[argument]));
                         }
-                        dbgln("[wasm runtime] Stub function {} was called with the following arguments: {}", name, argument_builder.to_byte_string());
-                        Vector<Wasm::Value> result;
-                        result.ensure_capacity(func.results().size());
-                        for (auto expect_result : func.results())
-                            result.append(Wasm::Value(expect_result));
-                        return Wasm::Result { move(result) };
-                    },
-                    func,
-                    name));
-            };
-
-            for (auto& entry : linker.unresolved_imports()) {
-                Optional<Wasm::ExternValue> address;
-                entry.type.visit(
-                    [&](Wasm::TypeIndex const& type_index) {
-                        auto& type = parse_result->type_section().types()[type_index.value()];
-                        if (!type.is_function()) {
-                            dbgln("[wasm runtime] Cannot stub import {}::{} of non-function {}", entry.module, entry.name, type.name());
-                            return;
-                        }
-                        address = allocate_function_stub(type.function(), entry.name);
-                    },
-                    [&](Wasm::FunctionType const& func) {
-                        address = allocate_function_stub(func, entry.name);
-                    },
-                    [&](Wasm::TableType const& table_type) {
-                        address = *machine.store().allocate(table_type);
-                    },
-                    [&](Wasm::MemoryType const& memory_type) {
-                        address = *machine.store().allocate(memory_type);
-                    },
-                    [&](Wasm::GlobalType const& global_type) {
-                        address = *machine.store().allocate(global_type, Wasm::Value(global_type.type()));
-                    },
-                    [&](Wasm::TagType const& tag_type) {
-                        auto& type = parse_result->type_section().types()[tag_type.type().value()];
-                        if (!type.is_function()) {
-                            dbgln("[wasm runtime] Cannot stub tag import {}::{}: type is not a function", entry.module, entry.name);
-                            return;
-                        }
-                        // The module is not yet validated here, so its canonical types may not be known.
-                        address = *machine.store().allocate(type.function(), nullptr, tag_type.flags());
+                        dbgln("[wasm runtime] Stub function {} was called with the following arguments: {}", name, builder.string_view());
+                        return {};
                     });
-
-                if (address.has_value())
-                    exports.set(entry, address.release_value());
+                    break;
+                }
+                case ExternKind::Table:
+                    stub = store.allocate_table(import.type.value_type, import.type.limits, 0);
+                    break;
+                case ExternKind::Memory:
+                    stub = store.allocate_memory(import.type.limits);
+                    break;
+                case ExternKind::Global:
+                    stub = store.allocate_global(import.type.value_type, import.type.is_mutable, WasmValue::default_for(import.type.value_type));
+                    break;
+                case ExternKind::Tag:
+                    break;
+                }
+                if (stub.has_value()) {
+                    imports.append({ import.type.kind, keep(*stub) });
+                    continue;
+                }
             }
-
-            linker.link(exports);
+            warnln("Missing import '{}::{}'", import.module, import.name);
+            missing = true;
         }
+        if (missing)
+            return {};
+        return imports;
+    };
+    auto instantiate = [&](Wasm::Runtime::Module const& module_to_instantiate, StringView name) -> Optional<Entity> {
+        auto imports = resolve_imports(module_to_instantiate);
+        if (!imports.has_value()) {
+            warnln("Linking {} failed", name);
+            return {};
+        }
+        auto instance = timed(timings.instantiation, [&] { return store.instantiate(module_to_instantiate, *imports); });
+        if (instance.is_error()) {
+            warnln("Instantiation of {} failed: {}", name, instance.error().message);
+            return {};
+        }
+        return keep(instance.value());
+    };
 
-        auto link_result = linker.finish();
-        if (link_result.is_error()) {
-            warnln("Linking main module failed");
-            print_link_error(link_result.error());
+    for (auto& name : modules_to_link_in) {
+        auto linked_module = timed(timings.parse, [&] { return compile(name); });
+        if (!linked_module) {
+            warnln("Failed to compile linked module '{}'", name);
             return 1;
         }
-
-        Optional<Core::ElapsedTimer> instantiation_timer;
-        if (benchmark_timings)
-            instantiation_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-        auto instantiation_result = machine.instantiate(*parse_result, link_result.release_value());
-
-        if (benchmark_timings)
-            timings.instantiation.must_append(instantiation_timer->elapsed_time().to_seconds_f64());
-
-        if (instantiation_result.is_error()) {
-            warnln("Module instantiation failed: {}", instantiation_result.error().error);
+        auto instance = instantiate(*linked_module, name);
+        if (!instance.has_value())
             return 1;
-        }
-        auto module_instance = instantiation_result.release_value();
-        reentry_instance = module_instance.ptr();
+        for (auto& entry : store.instance_exports(*instance))
+            linked_exports.set(entry.name, entry.value);
+    }
 
-        if (print_compiled) {
-            Span<Wasm::FunctionAddress const> functions = module_instance->functions();
-            Wasm::FunctionAddress spec = specific_function_address.value_or(0);
+    auto instance = instantiate(*module, filename);
+    if (!instance.has_value())
+        return 1;
+    main_instance = *instance;
+    if (wasi_implementation) {
+        if (auto memory = store.find_export(main_instance, "memory"sv); memory.has_value() && memory->kind == ExternKind::Memory)
+            wasi_implementation->set_memory(memory->entity);
+    }
 
-            if (specific_function_address.has_value())
-                functions = { &spec, 1 };
-            for (auto address : functions) {
-                auto function = machine.store().get(address)->get_pointer<Wasm::WasmFunction>();
-                if (!function)
-                    continue;
-                auto& expression = function->code().func().body();
-                if (expression.compiled_instructions.dispatches.is_empty())
-                    continue;
+    if (exported_function_to_execute.is_empty())
+        return 0;
 
-                ByteString export_name;
-                for (auto& entry : function->module().exports()) {
-                    if (entry.value() == address) {
-                        export_name = ByteString::formatted(" '{}'", entry.name());
-                        break;
-                    }
-                }
+    auto function = store.find_export(main_instance, exported_function_to_execute);
+    if (!function.has_value() || function->kind != ExternKind::Function) {
+        warnln("No such exported function, sorry :(");
+        return 1;
+    }
 
-                TRY(g_stdout->write_until_depleted(ByteString::formatted("Function #{}{} (stack usage = {}):\n", address.value(), export_name, expression.stack_usage_hint())));
-
-                Wasm::Printer printer { *g_stdout, 1 };
-                for (size_t ip = 0; ip < expression.compiled_instructions.dispatches.size(); ++ip) {
-                    auto& dispatch = expression.compiled_instructions.dispatches[ip];
-                    auto& addresses = expression.compiled_instructions.src_dst_mappings[ip];
-                    ByteString regs;
-                    auto first = true;
-                    ssize_t in_count = 0;
-                    ssize_t out_count = 0;
-#define M(name, _, ins, outs)              \
-    case Wasm::Instructions::name.value(): \
-        in_count = ins;                    \
-        out_count = outs;                  \
-        break;
-                    switch (dispatch.instruction->opcode().value()) {
-                        ENUMERATE_WASM_OPCODES(M)
-                    }
-#undef M
-                    constexpr auto reg_name = [](Wasm::Dispatch::RegisterOrStack reg) -> ByteString {
-                        if (reg == Wasm::Dispatch::RegisterOrStack::Stack)
-                            return "stack"sv;
-                        if (reg >= Wasm::Dispatch::RegisterOrStack::CallRecord)
-                            return ByteString::formatted("cr{}", to_underlying(reg) - to_underlying(Wasm::Dispatch::RegisterOrStack::CallRecord));
-                        return ByteString::formatted("reg{}", to_underlying(reg));
-                    };
-                    if (in_count > -1) {
-                        for (ssize_t index = 0; index < in_count; ++index) {
-                            if (first)
-                                regs = ByteString::formatted("{} ({}", regs, reg_name(addresses.sources[index]));
-                            else
-                                regs = ByteString::formatted("{}, {}", regs, reg_name(addresses.sources[index]));
-                            first = false;
-                        }
-                        if (out_count > 0) {
-                            if (first)
-                                regs = ByteString::formatted(" () -> {}", reg_name(addresses.destination));
-                            else
-                                regs = ByteString::formatted("{}) -> {}", regs, reg_name(addresses.destination));
-                        } else if (out_count == 0) {
-                            if (first)
-                                regs = ByteString::formatted(" () -x");
-                            else
-                                regs = ByteString::formatted("{}) -x", regs);
-                        } else {
-                            if (first)
-                                regs = ByteString::formatted(" () -?");
-                            else
-                                regs = ByteString::formatted("{}) -?", regs);
-                        }
-                    } else if (dispatch.instruction->opcode() == Wasm::Instructions::call || dispatch.instruction->opcode() == Wasm::Instructions::call_indirect) {
-                        if (addresses.destination != Wasm::Dispatch::RegisterOrStack::Stack)
-                            regs = ByteString::formatted("(?) -> {}", reg_name(addresses.destination));
-                    }
-
-                    if (regs.is_empty())
-                        regs = ByteString::formatted(" {{{:-<34}}}", regs);
-                    else
-                        regs = ByteString::formatted(" {{{: <33} }}", regs);
-
-                    TRY(g_stdout->write_until_depleted(ByteString::formatted("  [{:>03}]", ip)));
-                    TRY(g_stdout->write_until_depleted(regs.bytes()));
-                    printer.print(*dispatch.instruction);
-                }
-
-                TRY(g_stdout->write_until_depleted("\n"sv.bytes()));
-            }
-        }
-
-        if (dump_native) {
-            Span<Wasm::FunctionAddress const> functions = module_instance->functions();
-            Wasm::FunctionAddress spec = specific_function_address.value_or(0);
-
-            if (specific_function_address.has_value())
-                functions = { &spec, 1 };
-            for (auto address : functions) {
-                auto* function = machine.store().get(address)->get_pointer<Wasm::WasmFunction>();
-                if (!function)
-                    continue;
-                auto& ci = function->code().func().body().compiled_instructions;
-                if (!ci.cranelift_compiled || ci.cranelift_code_size == 0)
-                    continue;
-
-                ByteString export_name;
-                for (auto& entry : function->module().exports()) {
-                    if (entry.value() == address) {
-                        export_name = ByteString::formatted(" '{}'", entry.name());
-                        break;
-                    }
-                }
-
-                auto const* code_ptr = bit_cast<u8 const*>(Wasm::cranelift_entry_acquire(ci));
-                auto code_size = ci.cranelift_code_size;
-
-#if defined(AK_OS_WINDOWS)
-                char tmp_path[MAX_PATH];
-                {
-                    char tmp_dir[MAX_PATH];
-                    GetTempPathA(MAX_PATH, tmp_dir);
-                    GetTempFileNameA(tmp_dir, "wn", 0, tmp_path);
-                }
-                {
-                    auto tmp_file = Core::File::open(StringView { tmp_path, strlen(tmp_path) }, Core::File::OpenMode::Write);
-                    if (tmp_file.is_error()) {
-                        warnln("Failed to create temp file for function #{}", address.value());
-                        continue;
-                    }
-                    (void)tmp_file.value()->write_until_depleted({ code_ptr, code_size });
-                }
-#else
-                char tmp_path[] = "/tmp/wasm-native-XXXXXX";
-                int fd = mkstemp(tmp_path);
-                if (fd < 0) {
-                    warnln("Failed to create temp file for function #{}", address.value());
-                    continue;
-                }
-
-                {
-                    auto tmp_file = MUST(Core::File::adopt_fd(fd, Core::File::OpenMode::Write));
-
-#    if ARCH(AARCH64) && defined(AK_OS_MACOS)
-                    // Write a minimal Mach-O object file so objdump can disassemble it.
-                    struct [[gnu::packed]] {
-                        u32 magic = 0xFEEDFACF;
-                        u32 cputype = 0x0100000C; // CPU_TYPE_ARM64
-                        u32 cpusubtype = 0;
-                        u32 filetype = 1; // MH_OBJECT
-                        u32 ncmds = 1;
-                        u32 sizeofcmds = 72 + 80; // segment + section
-                        u32 flags = 0;
-                        u32 reserved = 0;
-                    } mach_header;
-
-                    struct [[gnu::packed]] {
-                        u32 cmd = 0x19; // LC_SEGMENT_64
-                        u32 cmdsize = 72 + 80;
-                        char segname[16] = {};
-                        u64 vmaddr = 0;
-                        u64 vmsize;
-                        u64 fileoff;
-                        u64 filesize;
-                        u32 maxprot = 7;
-                        u32 initprot = 7;
-                        u32 nsects = 1;
-                        u32 flags = 0;
-                    } segment;
-                    segment.vmsize = code_size;
-                    segment.fileoff = sizeof(mach_header) + sizeof(segment) + 80;
-                    segment.filesize = code_size;
-
-                    struct [[gnu::packed]] {
-                        char sectname[16] = "__text";
-                        char segname[16] = "__TEXT";
-                        u64 addr = 0;
-                        u64 size;
-                        u32 offset;
-                        u32 align = 2;
-                        u32 reloff = 0;
-                        u32 nreloc = 0;
-                        u32 flags = 0x80000400; // S_REGULAR | S_ATTR_PURE_INSTRUCTIONS
-                        u32 reserved1 = 0;
-                        u32 reserved2 = 0;
-                        u32 reserved3 = 0;
-                    } section;
-                    static_assert(sizeof(section) == 80);
-                    section.size = code_size;
-                    section.offset = static_cast<u32>(segment.fileoff);
-
-                    (void)tmp_file->write_until_depleted({ &mach_header, sizeof(mach_header) });
-                    (void)tmp_file->write_until_depleted({ &segment, sizeof(segment) });
-                    (void)tmp_file->write_until_depleted({ &section, sizeof(section) });
-#    endif
-                    (void)tmp_file->write_until_depleted({ code_ptr, code_size });
-                }
-#endif
-
-                outln("Function #{}{} ({} bytes):", address.value(), export_name, code_size);
-                fflush(stdout);
-
-#if defined(AK_OS_WINDOWS)
-                auto result = Core::Process::spawn({
-                    .name = "ndisasm"sv,
-                    .executable = "ndisasm"sv,
-                    .search_for_executable_in_path = true,
-                    .arguments = Vector<ByteString> { "-b"sv, (sizeof(void*) == sizeof(u64) ? "64"sv : "32"sv), tmp_path },
-                });
-#elif defined(AK_OS_MACOS)
-                auto cmd = ByteString::formatted("/usr/bin/objdump -d {} | tail -n +7", tmp_path);
-                auto result = Core::Process::spawn({
-                    .name = "sh"sv,
-                    .executable = "/bin/sh"sv,
-                    .arguments = Vector<ByteString> { "-c"sv, cmd },
-                });
-#else
-#    if ARCH(X86_64)
-                auto cmd = ByteString::formatted("/usr/bin/objdump -D -b binary -m i386:x86-64 {} | tail -n +8", tmp_path);
-#    elif ARCH(AARCH64)
-                auto cmd = ByteString::formatted("/usr/bin/objdump -D -b binary -m aarch64 {} | tail -n +8", tmp_path);
-#    else
-                auto cmd = ByteString::formatted("/usr/bin/objdump -D -b binary {} | tail -n +8", tmp_path);
-#    endif
-                auto result = Core::Process::spawn({
-                    .name = "sh"sv,
-                    .executable = "/bin/sh"sv,
-                    .arguments = Vector<ByteString> { "-c"sv, cmd },
-                });
-#endif
-                if (!result.is_error())
-                    (void)result.release_value().wait_for_termination();
-                else
-                    warnln("Failed to run disassembler: {}", result.error());
-
-#if defined(AK_OS_WINDOWS)
-                DeleteFileA(tmp_path);
-#else
-                unlink(tmp_path);
-#endif
-                outln();
-            }
-        }
-
-        auto print_func = [&](auto const& address) {
-            Wasm::FunctionInstance* fn = machine.store().get(address);
-            g_stdout->write_until_depleted(ByteString::formatted("- Function with address {}, ptr = {}\n", address.value(), fn)).release_value_but_fixme_should_propagate_errors();
-            if (fn) {
-                g_stdout->write_until_depleted(ByteString::formatted("    wasm function? {}\n", fn->has<Wasm::WasmFunction>())).release_value_but_fixme_should_propagate_errors();
-                fn->visit(
-                    [&](Wasm::WasmFunction const& func) {
-                        Wasm::Printer printer { *g_stdout, 3 };
-                        g_stdout->write_until_depleted("    type:\n"sv).release_value_but_fixme_should_propagate_errors();
-                        printer.print(func.type());
-                        g_stdout->write_until_depleted("    code:\n"sv).release_value_but_fixme_should_propagate_errors();
-                        printer.print(func.code());
-                    },
-                    [](Wasm::HostFunction const&) { });
-            }
-        };
-        if (print) {
-            // Now, let's dump the functions!
-            for (auto& address : module_instance->functions()) {
-                print_func(address);
-            }
-        }
-
-        if (!exported_function_to_execute.is_empty()) {
-            Optional<Wasm::FunctionAddress> run_address;
-            Vector<Wasm::Value> values;
-            for (auto& entry : module_instance->exports()) {
-                if (entry.name() == exported_function_to_execute) {
-                    if (auto addr = entry.value().get_pointer<Wasm::FunctionAddress>())
-                        run_address = *addr;
-                }
-            }
-            if (!run_address.has_value()) {
-                warnln("No such exported function, sorry :(");
-                return 1;
-            }
-
-            auto instance = machine.store().get(*run_address);
-            VERIFY(instance);
-
-            if (instance->has<Wasm::HostFunction>()) {
-                warnln("Exported function is a host function, cannot run that yet");
-                return 1;
-            }
-
-            for (auto& param : instance->get<Wasm::WasmFunction>().type().parameters()) {
-                if (values_to_push.is_empty()) {
-                    values.append(Wasm::Value(param));
-                } else if (param == values_to_push.last().type) {
-                    values.append(values_to_push.take_last().value);
-                } else {
-                    warnln("Type mismatch in argument: expected {}, but got {}", param.kind_name(), values_to_push.last().type.kind_name());
-                    return 1;
-                }
-            }
-
-            if (print) {
-                outln("Executing ");
-                print_func(*run_address);
-                outln();
-            }
-
-            Optional<Core::ElapsedTimer> execution_timer;
-            if (benchmark_timings)
-                execution_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-            auto execution_result = machine.invoke(g_interpreter, run_address.value(), move(values));
-
-            if (benchmark_timings)
-                timings.execution.must_append(execution_timer->elapsed_time().to_seconds_f64());
-
-            if (execution_result.is_trap()) {
-                auto trap_reason = execution_result.trap().format();
-                if (trap_reason.starts_with("exit:"sv))
-                    return -trap_reason.substring_view(5).to_number<i32>().value_or(-1);
-                warnln("Execution trapped: {}", trap_reason);
-            } else {
-                if (!execution_result.values().is_empty())
-                    warnln("Returned:");
-                auto result_type = instance->get<Wasm::WasmFunction>().type().results();
-                size_t index = 0;
-                for (auto& value : execution_result.values()) {
-                    g_stdout->write_until_depleted("  -> "sv.bytes()).release_value_but_fixme_should_propagate_errors();
-                    g_printer->print(value, result_type[index]);
-                    ++index;
-                }
-            }
+    auto type = store.function_type(function->entity);
+    Wasm::Runtime::Values values;
+    for (auto& parameter : type.parameters) {
+        if (values_to_push.is_empty()) {
+            values.append(WasmValue::default_for(parameter));
+        } else if (parameter.kind == values_to_push.last().type.kind) {
+            values.append(values_to_push.take_last().value);
+        } else {
+            warnln("Type mismatch in argument");
+            return 1;
         }
     }
 
+    auto result = timed(timings.execution, [&] { return store.invoke(function->entity, values); });
+    if (result.is_error()) {
+        if (wasi_implementation) {
+            if (auto exit_code = wasi_implementation->exit_code(); exit_code.has_value())
+                return *exit_code;
+        }
+        warnln("Execution trapped: {}", result.error().message);
+        return 0;
+    }
+
+    if (!result.value().is_empty())
+        warnln("Returned:");
+    for (size_t index = 0; index < result.value().size(); ++index)
+        outln("  -> {}", format_value(result.value()[index], type.results[index]));
     return 0;
 }

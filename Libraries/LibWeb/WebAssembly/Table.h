@@ -9,7 +9,6 @@
 
 #include <AK/Optional.h>
 #include <LibGC/Ptr.h>
-#include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -21,28 +20,26 @@ class Table : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(Table);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<Table>> create(NonnullRefPtr<Detail::WebAssemblyCache>, Wasm::ValueType, Wasm::AddressType, u64 initial, Optional<u64> maximum, Wasm::Reference);
+    // A table's elements are references, as their bits.
+    static WebIDL::ExceptionOr<GC::Ref<Table>> create(Wasm::Runtime::ValueType element_type, bool address64, u64 initial, Optional<u64> maximum, u64 reference);
+    static GC::Ref<Table> create(Wasm::Runtime::Entity table);
 
-    WebIDL::ExceptionOr<u64> grow(u64 delta, Wasm::Reference);
+    WebIDL::ExceptionOr<u64> grow(u64 delta, u64 reference);
+    WebIDL::ExceptionOr<u64> get(u64 index) const;
+    WebIDL::ExceptionOr<void> set(u64 index, u64 reference);
+    u64 length() const;
+    bool is_address64() const;
+    Wasm::Runtime::ValueType element_type() const;
 
-    WebIDL::ExceptionOr<Wasm::Reference> get(u64 index) const;
-    WebIDL::ExceptionOr<void> set(u64 index, Wasm::Reference);
-
-    WebIDL::ExceptionOr<u64> length() const;
-    WebIDL::ExceptionOr<Wasm::AddressType> address_type() const;
-    WebIDL::ExceptionOr<Wasm::ValueType> element_type() const;
-
-    Wasm::TableAddress address() const { return m_address; }
-    Detail::WebAssemblyCache& cache() { return *m_cache; }
-    Detail::WebAssemblyCache& cache() const { return *m_cache; }
+    Wasm::Runtime::Entity address() const { return m_table; }
+    static Detail::WebAssemblyCache& cache() { return Detail::WebAssemblyCache::the(); }
 
 private:
-    Table(NonnullRefPtr<Detail::WebAssemblyCache>, Wasm::TableAddress);
+    explicit Table(Wasm::Runtime::Entity table);
 
     virtual void visit_edges(Visitor&) override;
 
-    NonnullRefPtr<Detail::WebAssemblyCache> m_cache;
-    Wasm::TableAddress m_address;
+    Wasm::Runtime::Entity m_table { nullptr };
 };
 
 }

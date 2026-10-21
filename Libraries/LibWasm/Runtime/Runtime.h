@@ -16,12 +16,16 @@
 #include <AK/Span.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibGC/ConservativeVector.h>
+#include <LibGC/Forward.h>
+#include <LibGC/PrimitiveStorage.h>
 #include <LibWasm/Runtime/Export.h>
 
 namespace Wasm::FFI {
 
 struct WasmModule;
 struct WasmStore;
+struct WasmWasi;
 
 }
 
@@ -103,10 +107,15 @@ enum class ExternKind : u8 {
     Tag,
 };
 
-// A function, table, memory, or global of a store, by its address.
+// A function, table, memory, global, tag, or instance: an entity of the store, which is a cell of the store's heap.
+// The store keeps no entity alive: an entity lives while something visits or roots its cell, or while another
+// entity that refers to it lives (an instance refers to what it defines and imports, a function to its instance).
+// Embedders pass the store only entities it made, or the runtime aborts.
+using Entity = GC::ForeignCell*;
+
 struct Extern {
     ExternKind kind { ExternKind::Function };
-    u32 address { 0 };
+    Entity entity { nullptr };
 };
 
 struct Limits {
@@ -150,6 +159,14 @@ struct InstanceExport {
     Extern value;
 };
 
+struct CustomSection {
+    StringView name;
+    ReadonlyBytes contents;
+};
+
+// Values that may be references to cells, which the garbage collector finds while the vector lives.
+using Values = GC::ConservativeVector<Value, 8>;
+
 // A compiled module, which can be shared across threads and instantiated in any store.
 class WASMRUNTIME_API Module : public AtomicRefCounted<Module> {
 public:
@@ -161,6 +178,8 @@ public:
     size_t export_count() const;
     ModuleExport module_export(size_t index) const;
     Optional<FunctionType> function_type(u32 type_index) const;
+    size_t custom_section_count() const;
+    CustomSection custom_section(size_t index) const;
 
     FFI::WasmModule const* handle() const { return m_module; }
 
@@ -176,62 +195,132 @@ private:
 enum class FailureKind : u8 {
     LinkError,
     Trap,
+    // An exception was thrown and not caught: `exception` refers to it.
+    Exception,
+    StackExhausted,
 };
 
 struct Failure {
     FailureKind kind { FailureKind::Trap };
     ByteString message;
+    u64 exception { 0 };
 };
 
-// Functions, tables, memories, globals, and instances, all of one thread.
+// How a host function fails: it traps with a message, or throws an exception, which WebAssembly code can catch.
+struct HostError {
+    HostError(ByteString message)
+        : message(move(message))
+    {
+    }
+
+    static HostError exception(u64 reference)
+    {
+        HostError error { ByteString {} };
+        error.thrown_exception = reference;
+        return error;
+    }
+
+    ByteString message;
+    Optional<u64> thrown_exception;
+};
+
+// What the entities of one thread share: their heap, types, and the interpreter's state. One store serves a whole
+// agent.
 class WASMRUNTIME_API Store {
     AK_MAKE_NONCOPYABLE(Store);
     AK_MAKE_NONMOVABLE(Store);
     AK_ALLOC_WITH_KMALLOC;
 
 public:
-    Store();
+    // Entities and GC objects live in the heap, and memories in LibGC's primitive storage.
+    explicit Store(GC::Heap&);
     ~Store();
 
-    // A host function writes one result for each result of its type, or returns an error to trap.
-    using HostFunction = Function<ErrorOr<void, ByteString>(Store&, ReadonlySpan<Value> arguments, Span<Value> results)>;
+    // A host function writes one result for each result of its type, or returns an error to trap or throw. Its
+    // function visits the cells it captures, so it must not capture roots.
+    using HostFunction = Function<ErrorOr<void, HostError>(Store&, ReadonlySpan<Value> arguments, Span<Value> results)>;
 
-    u32 allocate_host_function(FunctionType const&, HostFunction);
-    Optional<u32> allocate_memory(Limits);
-    u32 allocate_table(ValueType element, Limits, u64 initial);
-    u32 allocate_global(ValueType, bool is_mutable, Value);
+    Entity allocate_host_function(FunctionType const&, HostFunction);
+    Optional<Entity> allocate_memory(Limits);
+    Optional<Entity> allocate_table(ValueType element, Limits, u64 initial);
+    Entity allocate_global(ValueType, bool is_mutable, Value);
 
-    ErrorOr<u32, Failure> instantiate(Module const&, ReadonlySpan<Extern> imports);
-    Vector<InstanceExport> instance_exports(u32 instance);
-    Optional<Extern> find_export(u32 instance, StringView name);
+    // Returns the instance.
+    ErrorOr<Entity, Failure> instantiate(Module const&, ReadonlySpan<Extern> imports);
+    Vector<InstanceExport> instance_exports(Entity instance);
+    Optional<Extern> find_export(Entity instance, StringView name);
 
-    FunctionType function_type(u32 function);
-    ErrorOr<Vector<Value>, ByteString> invoke(u32 function, ReadonlySpan<Value> arguments);
-    u64 function_reference(u32 function);
-    Optional<u32> function_from_reference(u64 reference);
+    FunctionType function_type(Entity function);
+    ErrorOr<Values, Failure> invoke(Entity function, ReadonlySpan<Value> arguments);
+    u64 function_reference(Entity function);
+    // The function a non-null function reference refers to.
+    Entity function_from_reference(u64 reference);
+    // The index of a WebAssembly function in the function index space of the module that defines it, or nothing for
+    // a host function.
+    Optional<u32> function_index(Entity function);
+
+    Entity allocate_tag(ReadonlySpan<ValueType> parameters);
+    Vector<ValueType> tag_parameters(Entity tag);
+    // An exception is a cell of the heap, which keeps it while something refers to it.
+    u64 allocate_exception(Entity tag, ReadonlySpan<Value> values);
+    Entity exception_tag(u64 exception);
+    Values exception_values(u64 exception);
 
     // The bytes of a memory move when it grows.
-    Bytes memory(u32 memory);
+    Bytes memory(Entity memory);
     // The previous size in pages, or -1 if the memory cannot grow.
-    i64 grow_memory(u32 memory, u64 delta);
-    Limits memory_limits(u32 memory);
+    i64 grow_memory(Entity memory, u64 delta);
+    Limits memory_limits(Entity memory);
+    GC::PrimitiveStorageHandle memory_primitive_storage_handle(Entity memory);
+    // Runs after each memory.grow instruction that grows a memory, but not after grow_memory().
+    void set_memory_grow_callback(Function<void(Entity memory)>);
 
-    u64 table_size(u32 table);
-    ValueType table_element_type(u32 table);
-    Limits table_limits(u32 table);
-    Optional<u64> table_get(u32 table, u64 index);
-    bool table_set(u32 table, u64 index, u64 value);
+    u64 table_size(Entity table);
+    ValueType table_element_type(Entity table);
+    Limits table_limits(Entity table);
+    Optional<u64> table_get(Entity table, u64 index);
+    bool table_set(Entity table, u64 index, u64 value);
     // The previous size, or -1 if the table cannot grow.
-    i64 grow_table(u32 table, u64 delta, u64 initial);
+    i64 grow_table(Entity table, u64 delta, u64 initial);
 
-    ValueType global_type(u32 global, bool& is_mutable);
-    Value global_get(u32 global);
-    void global_set(u32 global, Value);
+    ValueType global_type(Entity global, bool& is_mutable);
+    Value global_get(Entity global);
+    void global_set(Entity global, Value);
 
     FFI::WasmStore* handle() { return m_store; }
 
 private:
     FFI::WasmStore* m_store { nullptr };
+    Function<void(Entity)> m_memory_grow_callback;
+};
+
+// The state of a WASI (wasi_snapshot_preview1) command. Its functions only work on Unix hosts.
+class WASMRUNTIME_API Wasi {
+    AK_MAKE_NONCOPYABLE(Wasi);
+    AK_MAKE_NONMOVABLE(Wasi);
+    AK_ALLOC_WITH_KMALLOC;
+
+public:
+    struct Preopen {
+        ByteString host_path;
+        ByteString guest_path;
+    };
+
+    // The environment is a list of NAME=value strings.
+    Wasi(ReadonlySpan<ByteString> arguments, ReadonlySpan<ByteString> environment, ReadonlySpan<Preopen> preopens);
+    ~Wasi();
+
+    static constexpr StringView module_name = "wasi_snapshot_preview1"sv;
+
+    // Add the WASI function `name` to the store, if there is one.
+    Optional<Entity> allocate_function(Store&, StringView name);
+    // Have the functions work on `memory`, usually the one the command exports.
+    void set_memory(Entity memory);
+    // The code the command passed to proc_exit, if it called it.
+    Optional<i32> exit_code() const;
+
+private:
+    FFI::WasmWasi* m_wasi { nullptr };
 };
 
 }

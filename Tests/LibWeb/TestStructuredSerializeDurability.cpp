@@ -579,8 +579,8 @@ TEST_CASE(webassembly_module_decodes_from_frozen_bytes)
     auto module = GC::Ref { unwrap_wrappable<Web::WebAssembly::Module>(value) };
 
     auto compiled_module = module->compiled_module();
-    EXPECT(compiled_module->module->import_section().imports().is_empty());
-    EXPECT(compiled_module->module->export_section().entries().is_empty());
+    EXPECT_EQ(compiled_module->module->import_count(), 0u);
+    EXPECT_EQ(compiled_module->module->export_count(), 0u);
 }
 
 TEST_CASE(crypto_key_algorithm_variants_decode_from_frozen_bytes)

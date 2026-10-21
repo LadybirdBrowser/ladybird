@@ -1,0 +1,10 @@
+(module
+  (memory i64 1)
+  (table i64 4 funcref)
+  (memory $other 1)
+  (func (export "fill") (param i64 i64)
+    (memory.fill (local.get 0) (i32.const 0x55) (local.get 1)))
+  (func (export "copy") (param i64 i64 i64)
+    (memory.copy (local.get 0) (local.get 1) (local.get 2)))
+  (func (export "table_fill") (param i64 i64)
+    (table.fill (local.get 0) (ref.null func) (local.get 1))))

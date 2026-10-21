@@ -11,11 +11,11 @@
 //! belongs to one thread. Addresses index the store's functions, tables, memories, globals, and instances.
 
 use crate::module::{ExternalKind, ImportDescription, Module};
-use crate::runtime::{
-    ExternValue, FunctionAddress, GlobalAddress, InstanceAddress, InstantiationError, MemoryAddress, Store,
-    TableAddress, TagAddress, Trap, Value,
-};
+use crate::runtime::entity::{Entity, Handle};
+use crate::runtime::heap::{GcInterface, Visitor};
+use crate::runtime::{ExternValue, FunctionKind, HostFunction, InstantiationError, MemoryAddress, Store, Trap, Value};
 use crate::types::{AddressType, FuncType, GlobalType, HeapType, Limits, MemoryType, RefType, TableType, ValType};
+use core::ffi::c_void;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -256,28 +256,29 @@ impl WasmExternKind {
 #[derive(Debug, Clone, Copy)]
 pub struct WasmExtern {
     pub kind: WasmExternKind,
-    pub address: u32,
+    /// The entity's cell.
+    pub entity: *mut c_void,
 }
 
 impl WasmExtern {
     fn of(value: ExternValue) -> Self {
-        let (kind, address) = match value {
-            ExternValue::Function(address) => (WasmExternKind::Function, address.0),
-            ExternValue::Table(address) => (WasmExternKind::Table, address.0),
-            ExternValue::Memory(address) => (WasmExternKind::Memory, address.0),
-            ExternValue::Global(address) => (WasmExternKind::Global, address.0),
-            ExternValue::Tag(address) => (WasmExternKind::Tag, address.0),
+        let (kind, entity) = match value {
+            ExternValue::Function(address) => (WasmExternKind::Function, address.cell().cast()),
+            ExternValue::Table(address) => (WasmExternKind::Table, address.cell().cast()),
+            ExternValue::Memory(address) => (WasmExternKind::Memory, address.cell().cast()),
+            ExternValue::Global(address) => (WasmExternKind::Global, address.cell().cast()),
+            ExternValue::Tag(address) => (WasmExternKind::Tag, address.cell().cast()),
         };
-        Self { kind, address }
+        Self { kind, entity }
     }
 
     fn to_extern_value(self) -> ExternValue {
         match self.kind {
-            WasmExternKind::Function => ExternValue::Function(FunctionAddress(self.address)),
-            WasmExternKind::Table => ExternValue::Table(TableAddress(self.address)),
-            WasmExternKind::Memory => ExternValue::Memory(MemoryAddress(self.address)),
-            WasmExternKind::Global => ExternValue::Global(GlobalAddress(self.address)),
-            WasmExternKind::Tag => ExternValue::Tag(TagAddress(self.address)),
+            WasmExternKind::Function => ExternValue::Function(entity(self.entity)),
+            WasmExternKind::Table => ExternValue::Table(entity(self.entity)),
+            WasmExternKind::Memory => ExternValue::Memory(entity(self.entity)),
+            WasmExternKind::Global => ExternValue::Global(entity(self.entity)),
+            WasmExternKind::Tag => ExternValue::Tag(entity(self.entity)),
         }
     }
 }
@@ -523,9 +524,13 @@ pub unsafe extern "C" fn wasm_module_function_type_values(
     unsafe { write_function_type(function, parameters, results) };
 }
 
+/// Write the parameter and result types of `function`; a null `results` skips the results.
 unsafe fn write_function_type(function: &FuncType, parameters: *mut WasmValueType, results: *mut WasmValueType) {
     for (index, &ty) in function.params.iter().enumerate() {
         unsafe { *parameters.add(index) = WasmValueType::of(ty) };
+    }
+    if results.is_null() {
+        return;
     }
     for (index, &ty) in function.results.iter().enumerate() {
         unsafe { *results.add(index) = WasmValueType::of(ty) };
@@ -537,10 +542,20 @@ unsafe fn write_function_type(function: &FuncType, parameters: *mut WasmValueTyp
 /// A store, which belongs to the thread that created it.
 pub struct WasmStore(Store);
 
-/// Create a store for the current thread.
+/// Create a store for the current thread, whose entities, GC objects, and memories live in the LibGC heap and
+/// primitive storage of `interface`. The store keeps no entity alive: its embedder visits or roots the cells of those
+/// it uses (see `WasmExtern`).
+///
+/// # Safety
+///
+/// `interface` must hold the functions of LibGC's C interface and a heap of the current thread, which outlives the
+/// store.
 #[unsafe(no_mangle)]
-pub extern "C" fn wasm_store_create() -> *mut WasmStore {
-    Box::into_raw(Box::new(WasmStore(Store::new())))
+pub unsafe extern "C" fn wasm_store_create(interface: *const GcInterface) -> *mut WasmStore {
+    let interface = unsafe { *interface };
+    let store = Box::into_raw(Box::new(WasmStore(Store::with_heap(Some(interface)))));
+    unsafe { (*store).0.attach_to_heap() };
+    store
 }
 
 /// # Safety
@@ -549,6 +564,11 @@ pub extern "C" fn wasm_store_create() -> *mut WasmStore {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_destroy(store: *mut WasmStore) {
     unsafe { drop(Box::from_raw(store)) };
+}
+
+/// The entity of a cell an embedder passed in. Panics if the cell is not a live entity of the kind.
+fn entity<T: Entity>(cell: *mut c_void) -> Handle<T> {
+    unsafe { Handle::from_cell(cell) }.expect("the embedder passes a live entity of the right kind")
 }
 
 fn store_of<'a>(store: *mut WasmStore) -> &'a mut Store {
@@ -563,10 +583,38 @@ pub enum WasmStatus {
     LinkError,
     /// Execution trapped.
     Trap,
+    /// An exception was thrown and not caught.
+    Exception,
+    /// Execution ran out of stack.
+    StackExhausted,
+}
+
+impl WasmStatus {
+    /// The status of a trap, with what the embedder needs to know of it in `error` and `exception`.
+    fn of_trap(trap: &Trap, error: *mut WasmString, exception: *mut u64) -> Self {
+        match trap {
+            Trap::UncaughtException(reference) => {
+                if !exception.is_null() {
+                    unsafe { *exception = *reference };
+                }
+                write_string(error, &trap.message());
+                Self::Exception
+            }
+            Trap::StackExhausted => {
+                write_string(error, &trap.message());
+                Self::StackExhausted
+            }
+            _ => {
+                write_string(error, &trap.message());
+                Self::Trap
+            }
+        }
+    }
 }
 
 /// A function the embedder implements. It reads the arguments and writes the results, in the order of the function
-/// type, and returns false with a message in `error` to trap.
+/// type, and returns `Ok`. It traps by returning `Trap` with a message in `error`, and throws an exception by
+/// returning `Exception` with the exception's reference in `exception`.
 pub type WasmHostCallback = unsafe extern "C" fn(
     user_data: *mut std::ffi::c_void,
     store: *mut WasmStore,
@@ -575,15 +623,23 @@ pub type WasmHostCallback = unsafe extern "C" fn(
     results: *mut WasmValue,
     result_count: usize,
     error: *mut WasmString,
-) -> bool;
+    exception: *mut u64,
+) -> WasmStatus;
 
-/// Releases the user data of a host function when the store is destroyed.
+/// Visits the cells the user data of a host function refers to, with a LibGC visitor.
+pub type WasmVisitCallback = unsafe extern "C" fn(user_data: *mut std::ffi::c_void, visitor: *mut std::ffi::c_void);
+
+/// Releases the user data of a host function when its function goes away.
 pub type WasmReleaseCallback = unsafe extern "C" fn(user_data: *mut std::ffi::c_void);
 
 struct HostFunctionData {
     callback: WasmHostCallback,
-    user_data: *mut std::ffi::c_void,
+    visit: WasmVisitCallback,
     release: WasmReleaseCallback,
+    user_data: *mut std::ffi::c_void,
+    /// The store the function belongs to, which its calls get.
+    store: *mut WasmStore,
+    result_count: usize,
 }
 
 impl Drop for HostFunctionData {
@@ -592,7 +648,56 @@ impl Drop for HostFunctionData {
     }
 }
 
-/// Add a host function of the given type to the store, and return its address.
+impl HostFunction for HostFunctionData {
+    fn call(&self, _: &mut Store, arguments: &[Value]) -> Result<Vec<Value>, Trap> {
+        let arguments: Vec<WasmValue> = arguments.iter().map(|&value| WasmValue::of(value)).collect();
+        let mut results = vec![
+            WasmValue {
+                kind: WasmValueKind::I32,
+                low: 0,
+                high: 0,
+            };
+            self.result_count
+        ];
+        let mut error = WasmString {
+            data: std::ptr::null_mut(),
+            length: 0,
+        };
+        let mut exception = 0u64;
+        let status = unsafe {
+            (self.callback)(
+                self.user_data,
+                self.store,
+                arguments.as_ptr(),
+                arguments.len(),
+                results.as_mut_ptr(),
+                results.len(),
+                &raw mut error,
+                &raw mut exception,
+            )
+        };
+        let message = if error.data.is_null() {
+            String::new()
+        } else {
+            let bytes = unsafe { ak::slice_from_raw_parts(error.data, error.length) };
+            let message = String::from_utf8_lossy(bytes).into_owned();
+            unsafe { wasm_string_release(error) };
+            message
+        };
+        match status {
+            WasmStatus::Ok => Ok(results.into_iter().map(WasmValue::to_value).collect()),
+            WasmStatus::Exception => Err(Trap::UncaughtException(exception)),
+            _ => Err(Trap::Host(message)),
+        }
+    }
+
+    fn visit_edges(&self, visitor: &Visitor) {
+        unsafe { (self.visit)(self.user_data, visitor.raw()) };
+    }
+}
+
+/// Add a host function of the given type to the store, and return its cell. The function visits what its user data
+/// refers to with `visit`, and releases the user data with `release` when it goes away.
 ///
 /// # Safety
 ///
@@ -605,9 +710,10 @@ pub unsafe extern "C" fn wasm_store_allocate_host_function(
     results: *const WasmValueType,
     result_count: usize,
     callback: WasmHostCallback,
-    user_data: *mut std::ffi::c_void,
+    visit: WasmVisitCallback,
     release: WasmReleaseCallback,
-) -> u32 {
+    user_data: *mut std::ffi::c_void,
+) -> *mut c_void {
     let to_types = |types: *const WasmValueType, count: usize| -> Vec<ValType> {
         unsafe { ak::slice_from_raw_parts(types, count) }
             .iter()
@@ -618,56 +724,15 @@ pub unsafe extern "C" fn wasm_store_allocate_host_function(
         params: to_types(parameters, parameter_count),
         results: to_types(results, result_count),
     };
-    let wasm_store = store;
     let data = Rc::new(HostFunctionData {
         callback,
-        user_data,
+        visit,
         release,
+        user_data,
+        store,
+        result_count: ty.results.len(),
     });
-    let result_count = ty.results.len();
-    let address = store_of(store).allocate_host_function(
-        ty,
-        // The callback gets the store it runs in, which is this one.
-        Rc::new(move |_: &mut Store, arguments: &[Value]| {
-            let arguments: Vec<WasmValue> = arguments.iter().map(|&value| WasmValue::of(value)).collect();
-            let mut results = vec![
-                WasmValue {
-                    kind: WasmValueKind::I32,
-                    low: 0,
-                    high: 0,
-                };
-                result_count
-            ];
-            let mut error = WasmString {
-                data: std::ptr::null_mut(),
-                length: 0,
-            };
-            let succeeded = unsafe {
-                (data.callback)(
-                    data.user_data,
-                    wasm_store,
-                    arguments.as_ptr(),
-                    arguments.len(),
-                    results.as_mut_ptr(),
-                    results.len(),
-                    &raw mut error,
-                )
-            };
-            if !succeeded {
-                let message = if error.data.is_null() {
-                    String::new()
-                } else {
-                    let bytes = unsafe { ak::slice_from_raw_parts(error.data, error.length) };
-                    let message = String::from_utf8_lossy(bytes).into_owned();
-                    unsafe { wasm_string_release(error) };
-                    message
-                };
-                return Err(Trap::Host(message));
-            }
-            Ok(results.into_iter().map(WasmValue::to_value).collect())
-        }),
-    );
-    address.0
+    store_of(store).allocate_host_function(ty, data).cell().cast()
 }
 
 /// Add a memory to the store. Returns false if it cannot be allocated.
@@ -679,41 +744,44 @@ pub unsafe extern "C" fn wasm_store_allocate_host_function(
 pub unsafe extern "C" fn wasm_store_allocate_memory(
     store: *mut WasmStore,
     limits: WasmLimits,
-    address: *mut u32,
+    address: *mut *mut c_void,
 ) -> bool {
     let Some(allocated) = store_of(store).allocate_memory(MemoryType {
         limits: limits.to_limits(),
     }) else {
         return false;
     };
-    unsafe { *address = allocated.0 };
+    unsafe { *address = allocated.cell().cast() };
     true
 }
 
-/// Add a table to the store, with every element set to `initial`.
+/// Add a table to the store, with every element set to `initial`. Returns false if it would be too large.
 ///
 /// # Safety
 ///
-/// `store` must be a live store.
+/// `store` must be a live store, and `address` writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_allocate_table(
     store: *mut WasmStore,
     element: WasmValueType,
     limits: WasmLimits,
     initial: u64,
-) -> u32 {
+    address: *mut *mut c_void,
+) -> bool {
     let ValType::Ref(element) = element.to_value_type() else {
         panic!("table elements are references");
     };
-    store_of(store)
-        .allocate_table(
-            TableType {
-                element,
-                limits: limits.to_limits(),
-            },
-            initial,
-        )
-        .0
+    let Some(allocated) = store_of(store).allocate_table(
+        TableType {
+            element,
+            limits: limits.to_limits(),
+        },
+        initial,
+    ) else {
+        return false;
+    };
+    unsafe { *address = allocated.cell().cast() };
+    true
 }
 
 /// Add a global to the store.
@@ -727,7 +795,7 @@ pub unsafe extern "C" fn wasm_store_allocate_global(
     ty: WasmValueType,
     mutable: bool,
     value: WasmValue,
-) -> u32 {
+) -> *mut c_void {
     store_of(store)
         .allocate_global(
             GlobalType {
@@ -736,7 +804,8 @@ pub unsafe extern "C" fn wasm_store_allocate_global(
             },
             value.to_value(),
         )
-        .0
+        .cell()
+        .cast()
 }
 
 /// Instantiate `module` with `imports`, one for each of its imports in order. On success, writes the instance's
@@ -745,15 +814,16 @@ pub unsafe extern "C" fn wasm_store_allocate_global(
 /// # Safety
 ///
 /// `store` and `module` must be live, `imports` must hold `import_count` externs, and the out parameters must be
-/// writable (`error` may be null).
+/// writable (`error` and `exception` may be null).
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_instantiate(
     store: *mut WasmStore,
     module: *const WasmModule,
     imports: *const WasmExtern,
     import_count: usize,
-    instance: *mut u32,
+    instance: *mut *mut c_void,
     error: *mut WasmString,
+    exception: *mut u64,
 ) -> WasmStatus {
     let mut values = Vec::with_capacity(import_count);
     for import in unsafe { ak::slice_from_raw_parts(imports, import_count) } {
@@ -762,17 +832,14 @@ pub unsafe extern "C" fn wasm_store_instantiate(
     let module = unsafe { (*module).0.clone() };
     match store_of(store).instantiate(module, &values) {
         Ok(address) => {
-            unsafe { *instance = address.0 };
+            unsafe { *instance = address.cell().cast() };
             WasmStatus::Ok
         }
         Err(InstantiationError::Link(message)) => {
             write_string(error, &message);
             WasmStatus::LinkError
         }
-        Err(InstantiationError::Trap(trap)) => {
-            write_string(error, &trap.message());
-            WasmStatus::Trap
-        }
+        Err(InstantiationError::Trap(trap)) => WasmStatus::of_trap(&trap, error, exception),
     }
 }
 
@@ -782,8 +849,8 @@ pub unsafe extern "C" fn wasm_store_instantiate(
 ///
 /// `store` must be a live store with an instance at `instance`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_instance_export_count(store: *mut WasmStore, instance: u32) -> usize {
-    store_of(store).instance(InstanceAddress(instance)).module.exports.len()
+pub unsafe extern "C" fn wasm_store_instance_export_count(store: *mut WasmStore, instance: *mut c_void) -> usize {
+    store_of(store).instance(entity(instance)).module.exports.len()
 }
 
 /// The name and value of an instance's export, in the module's order.
@@ -795,12 +862,12 @@ pub unsafe extern "C" fn wasm_store_instance_export_count(store: *mut WasmStore,
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_instance_export(
     store: *mut WasmStore,
-    instance: u32,
+    instance: *mut c_void,
     index: usize,
     name: *mut WasmStringView,
     value: *mut WasmExtern,
 ) -> bool {
-    let instance = store_of(store).instance(InstanceAddress(instance));
+    let instance = store_of(store).instance(entity(instance));
     let export = &instance.module.exports[index];
     unsafe { *name = WasmStringView::of(&export.name) };
     let Some(extern_value) = instance.export(&export.name) else {
@@ -819,7 +886,7 @@ pub unsafe extern "C" fn wasm_store_instance_export(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_instance_find_export(
     store: *mut WasmStore,
-    instance: u32,
+    instance: *mut c_void,
     name: *const u8,
     length: usize,
     value: *mut WasmExtern,
@@ -828,7 +895,7 @@ pub unsafe extern "C" fn wasm_store_instance_find_export(
     let Ok(name) = std::str::from_utf8(name) else {
         return false;
     };
-    let Some(extern_value) = store_of(store).instance(InstanceAddress(instance)).export(name) else {
+    let Some(extern_value) = store_of(store).instance(entity(instance)).export(name) else {
         return false;
     };
     unsafe { *value = WasmExtern::of(extern_value) };
@@ -843,11 +910,11 @@ pub unsafe extern "C" fn wasm_store_instance_find_export(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_function_type(
     store: *mut WasmStore,
-    function: u32,
+    function: *mut c_void,
     parameter_count: *mut usize,
     result_count: *mut usize,
 ) {
-    let ty = &store_of(store).function(FunctionAddress(function)).ty;
+    let ty = &store_of(store).function(entity(function)).ty;
     unsafe {
         *parameter_count = ty.params.len();
         *result_count = ty.results.len();
@@ -863,11 +930,11 @@ pub unsafe extern "C" fn wasm_store_function_type(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_function_type_values(
     store: *mut WasmStore,
-    function: u32,
+    function: *mut c_void,
     parameters: *mut WasmValueType,
     results: *mut WasmValueType,
 ) {
-    let ty = &store_of(store).function(FunctionAddress(function)).ty;
+    let ty = &store_of(store).function(entity(function)).ty;
     unsafe { write_function_type(ty, parameters, results) };
 }
 
@@ -876,32 +943,30 @@ pub unsafe extern "C" fn wasm_store_function_type_values(
 /// # Safety
 ///
 /// `store` must be a live store with a function at `function`, `arguments` must hold one value for each parameter,
-/// `results` must have room for one value for each result, and `error` must be null or writable.
+/// `results` must have room for one value for each result, and `error` and `exception` must be null or writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_invoke(
     store: *mut WasmStore,
-    function: u32,
+    function: *mut c_void,
     arguments: *const WasmValue,
     argument_count: usize,
     results: *mut WasmValue,
     result_count: usize,
     error: *mut WasmString,
+    exception: *mut u64,
 ) -> WasmStatus {
     let arguments: Vec<Value> = unsafe { ak::slice_from_raw_parts(arguments, argument_count) }
         .iter()
         .map(|value| value.to_value())
         .collect();
-    match store_of(store).invoke(FunctionAddress(function), &arguments) {
+    match store_of(store).invoke(entity(function), &arguments) {
         Ok(values) => {
             for (index, value) in values.into_iter().take(result_count).enumerate() {
                 unsafe { *results.add(index) = WasmValue::of(value) };
             }
             WasmStatus::Ok
         }
-        Err(trap) => {
-            write_string(error, &trap.message());
-            WasmStatus::Trap
-        }
+        Err(trap) => WasmStatus::of_trap(&trap, error, exception),
     }
 }
 
@@ -911,8 +976,8 @@ pub unsafe extern "C" fn wasm_store_invoke(
 ///
 /// `store` must be a live store with a function at `function`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_function_reference(store: *mut WasmStore, function: u32) -> u64 {
-    store_of(store).function_reference(FunctionAddress(function))
+pub unsafe extern "C" fn wasm_store_function_reference(store: *mut WasmStore, function: *mut c_void) -> u64 {
+    store_of(store).function_reference(entity(function))
 }
 
 /// The function a function reference refers to. Returns false for null.
@@ -924,12 +989,12 @@ pub unsafe extern "C" fn wasm_store_function_reference(store: *mut WasmStore, fu
 pub unsafe extern "C" fn wasm_store_function_from_reference(
     store: *mut WasmStore,
     reference: u64,
-    function: *mut u32,
+    function: *mut *mut c_void,
 ) -> bool {
     let Some(address) = store_of(store).function_from_reference(reference) else {
         return false;
     };
-    unsafe { *function = address.0 };
+    unsafe { *function = address.cell().cast() };
     true
 }
 
@@ -939,8 +1004,12 @@ pub unsafe extern "C" fn wasm_store_function_from_reference(
 ///
 /// `store` must be a live store with a memory at `memory`, and `size` writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_memory_data(store: *mut WasmStore, memory: u32, size: *mut usize) -> *mut u8 {
-    let memory = store_of(store).memory_mut(MemoryAddress(memory));
+pub unsafe extern "C" fn wasm_store_memory_data(
+    store: *mut WasmStore,
+    memory: *mut c_void,
+    size: *mut usize,
+) -> *mut u8 {
+    let memory = store_of(store).memory_mut(entity(memory));
     unsafe { *size = memory.size() };
     memory.bytes_mut().as_mut_ptr()
 }
@@ -951,9 +1020,9 @@ pub unsafe extern "C" fn wasm_store_memory_data(store: *mut WasmStore, memory: u
 ///
 /// `store` must be a live store with a memory at `memory`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_memory_grow(store: *mut WasmStore, memory: u32, delta: u64) -> i64 {
+pub unsafe extern "C" fn wasm_store_memory_grow(store: *mut WasmStore, memory: *mut c_void, delta: u64) -> i64 {
     store_of(store)
-        .memory_mut(MemoryAddress(memory))
+        .memory_mut(entity(memory))
         .grow(delta)
         .map_or(-1, |previous| previous as i64)
 }
@@ -964,16 +1033,16 @@ pub unsafe extern "C" fn wasm_store_memory_grow(store: *mut WasmStore, memory: u
 ///
 /// `store` must be a live store with a memory at `memory`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_memory_limits(store: *mut WasmStore, memory: u32) -> WasmLimits {
-    WasmLimits::of(&store_of(store).memory(MemoryAddress(memory)).ty.limits)
+pub unsafe extern "C" fn wasm_store_memory_limits(store: *mut WasmStore, memory: *mut c_void) -> WasmLimits {
+    WasmLimits::of(&store_of(store).memory(entity(memory)).ty.limits)
 }
 
 /// # Safety
 ///
 /// `store` must be a live store with a table at `table`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_table_size(store: *mut WasmStore, table: u32) -> u64 {
-    store_of(store).table(TableAddress(table)).elements.len() as u64
+pub unsafe extern "C" fn wasm_store_table_size(store: *mut WasmStore, table: *mut c_void) -> u64 {
+    store_of(store).table(entity(table)).elements.len() as u64
 }
 
 /// The element type and limits a table was created with.
@@ -984,11 +1053,11 @@ pub unsafe extern "C" fn wasm_store_table_size(store: *mut WasmStore, table: u32
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_table_type(
     store: *mut WasmStore,
-    table: u32,
+    table: *mut c_void,
     element: *mut WasmValueType,
     limits: *mut WasmLimits,
 ) {
-    let table = store_of(store).table(TableAddress(table));
+    let table = store_of(store).table(entity(table));
     unsafe {
         *element = WasmValueType::of(ValType::Ref(table.ty.element));
         *limits = WasmLimits::of(&table.ty.limits);
@@ -1001,8 +1070,13 @@ pub unsafe extern "C" fn wasm_store_table_type(
 ///
 /// `store` must be a live store with a table at `table`, and `value` writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_table_get(store: *mut WasmStore, table: u32, index: u64, value: *mut u64) -> bool {
-    let Some(&element) = store_of(store).table(TableAddress(table)).elements.get(index as usize) else {
+pub unsafe extern "C" fn wasm_store_table_get(
+    store: *mut WasmStore,
+    table: *mut c_void,
+    index: u64,
+    value: *mut u64,
+) -> bool {
+    let Some(&element) = store_of(store).table(entity(table)).elements.get(index as usize) else {
         return false;
     };
     unsafe { *value = element };
@@ -1015,9 +1089,14 @@ pub unsafe extern "C" fn wasm_store_table_get(store: *mut WasmStore, table: u32,
 ///
 /// `store` must be a live store with a table at `table`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_table_set(store: *mut WasmStore, table: u32, index: u64, value: u64) -> bool {
+pub unsafe extern "C" fn wasm_store_table_set(
+    store: *mut WasmStore,
+    table: *mut c_void,
+    index: u64,
+    value: u64,
+) -> bool {
     let Some(element) = store_of(store)
-        .table_mut(TableAddress(table))
+        .table_mut(entity(table))
         .elements
         .get_mut(index as usize)
     else {
@@ -1033,9 +1112,14 @@ pub unsafe extern "C" fn wasm_store_table_set(store: *mut WasmStore, table: u32,
 ///
 /// `store` must be a live store with a table at `table`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_table_grow(store: *mut WasmStore, table: u32, delta: u64, initial: u64) -> i64 {
+pub unsafe extern "C" fn wasm_store_table_grow(
+    store: *mut WasmStore,
+    table: *mut c_void,
+    delta: u64,
+    initial: u64,
+) -> i64 {
     store_of(store)
-        .table_mut(TableAddress(table))
+        .table_mut(entity(table))
         .grow(delta, initial)
         .map_or(-1, |previous| previous as i64)
 }
@@ -1048,10 +1132,10 @@ pub unsafe extern "C" fn wasm_store_table_grow(store: *mut WasmStore, table: u32
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_global_type(
     store: *mut WasmStore,
-    global: u32,
+    global: *mut c_void,
     mutable: *mut bool,
 ) -> WasmValueType {
-    let ty = store_of(store).global(GlobalAddress(global)).ty;
+    let ty = store_of(store).global(entity(global)).ty;
     unsafe { *mutable = ty.mutable };
     WasmValueType::of(ty.value)
 }
@@ -1060,14 +1144,312 @@ pub unsafe extern "C" fn wasm_store_global_type(
 ///
 /// `store` must be a live store with a global at `global`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_global_get(store: *mut WasmStore, global: u32) -> WasmValue {
-    WasmValue::of(store_of(store).global(GlobalAddress(global)).get())
+pub unsafe extern "C" fn wasm_store_global_get(store: *mut WasmStore, global: *mut c_void) -> WasmValue {
+    WasmValue::of(store_of(store).global(entity(global)).get())
 }
 
 /// # Safety
 ///
 /// `store` must be a live store with a global at `global`, and `value` must have the global's type.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_store_global_set(store: *mut WasmStore, global: u32, value: WasmValue) {
-    store_of(store).global_mut(GlobalAddress(global)).set(value.to_value());
+pub unsafe extern "C" fn wasm_store_global_set(store: *mut WasmStore, global: *mut c_void, value: WasmValue) {
+    store_of(store).global_mut(entity(global)).set(value.to_value());
+}
+
+// Custom sections.
+
+/// The number of custom sections of a module.
+///
+/// # Safety
+///
+/// `module` must be a live module.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_module_custom_section_count(module: *const WasmModule) -> usize {
+    module_of(module).custom_sections.len()
+}
+
+/// The name and contents of a module's custom section, in the order of the binary.
+///
+/// # Safety
+///
+/// `module` must be a live module with a custom section at `index`, and the out parameters must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_module_custom_section(
+    module: *const WasmModule,
+    index: usize,
+    name: *mut WasmStringView,
+    contents: *mut WasmStringView,
+) {
+    let module = module_of(module);
+    let section = &module.custom_sections[index];
+    let bytes = &module.bytes[section.contents.start as usize..section.contents.end as usize];
+    unsafe {
+        *name = WasmStringView::of(&section.name);
+        *contents = WasmStringView {
+            data: bytes.as_ptr(),
+            length: bytes.len(),
+        };
+    }
+}
+
+// Tags and exceptions.
+
+/// Add a tag for exceptions that carry values of the given types, and return its address.
+///
+/// # Safety
+///
+/// `store` must be a live store, and `parameters` must hold `parameter_count` types.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_allocate_tag(
+    store: *mut WasmStore,
+    parameters: *const WasmValueType,
+    parameter_count: usize,
+) -> *mut c_void {
+    let params = unsafe { ak::slice_from_raw_parts(parameters, parameter_count) }
+        .iter()
+        .map(|ty| ty.to_value_type())
+        .collect();
+    store_of(store)
+        .allocate_tag(FuncType {
+            params,
+            results: Vec::new(),
+        })
+        .cell()
+        .cast()
+}
+
+/// The number of values an exception with the tag carries.
+///
+/// # Safety
+///
+/// `store` must be a live store with a tag at `tag`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_tag_parameter_count(store: *mut WasmStore, tag: *mut c_void) -> usize {
+    store_of(store).tag(entity(tag)).ty.params.len()
+}
+
+/// The types of the values an exception with the tag carries.
+///
+/// # Safety
+///
+/// `store` must be a live store with a tag at `tag`, and `parameters` must have room for its parameter count.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_tag_parameters(
+    store: *mut WasmStore,
+    tag: *mut c_void,
+    parameters: *mut WasmValueType,
+) {
+    let ty = &store_of(store).tag(entity(tag)).ty;
+    unsafe { write_function_type(ty, parameters, std::ptr::null_mut()) };
+}
+
+/// Create an exception with the tag, carrying `values`, and return its reference. The exception is a cell of the
+/// store's heap, which keeps it while something refers to it.
+///
+/// # Safety
+///
+/// `store` must be a live store with a tag at `tag`, and `values` must hold one value of each of its parameter types.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_allocate_exception(
+    store: *mut WasmStore,
+    tag: *mut c_void,
+    values: *const WasmValue,
+    value_count: usize,
+) -> u64 {
+    let values: Vec<Value> = unsafe { ak::slice_from_raw_parts(values, value_count) }
+        .iter()
+        .map(|value| value.to_value())
+        .collect();
+    store_of(store).allocate_exception_with_values(entity(tag), &values)
+}
+
+/// The tag of an exception.
+///
+/// # Safety
+///
+/// `store` must be a live store, and `exception` a reference to one of its exceptions.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_exception_tag(store: *mut WasmStore, exception: u64) -> *mut c_void {
+    store_of(store).exception(exception).tag.cell().cast()
+}
+
+/// The values an exception carries.
+///
+/// # Safety
+///
+/// `store` must be a live store, `exception` a reference to one of its exceptions, and `values` must have room for
+/// the parameter count of its tag.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_exception_values(store: *mut WasmStore, exception: u64, values: *mut WasmValue) {
+    for (index, value) in store_of(store).exception_values(exception).into_iter().enumerate() {
+        unsafe { *values.add(index) = WasmValue::of(value) };
+    }
+}
+
+// Functions, memories.
+
+/// The index of a WebAssembly function in the function index space of the module that defines it. Returns false for a
+/// host function.
+///
+/// # Safety
+///
+/// `store` must be a live store with a function at `function`, and `index` writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_function_index(
+    store: *mut WasmStore,
+    function: *mut c_void,
+    index: *mut u32,
+) -> bool {
+    let FunctionKind::Wasm {
+        index: function_index, ..
+    } = store_of(store).function(entity(function)).kind
+    else {
+        return false;
+    };
+    unsafe { *index = function_index };
+    true
+}
+
+/// The handle of the LibGC primitive storage a memory lives in, or zero if the store has no heap.
+///
+/// # Safety
+///
+/// `store` must be a live store with a memory at `memory`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_memory_primitive_storage_handle(store: *mut WasmStore, memory: *mut c_void) -> u64 {
+    store_of(store).memory(entity(memory)).primitive_storage_handle()
+}
+
+/// Called with a memory's address after `memory.grow` grows it.
+pub type WasmMemoryGrowCallback = unsafe extern "C" fn(user_data: *mut std::ffi::c_void, memory: *mut c_void);
+
+/// Have `callback` run with `user_data` after each `memory.grow` that grows a memory of the store, but not after
+/// `wasm_store_memory_grow()`.
+///
+/// # Safety
+///
+/// `store` must be a live store, and `user_data` must stay valid until the callback is cleared or the store is
+/// destroyed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_set_memory_grow_callback(
+    store: *mut WasmStore,
+    callback: WasmMemoryGrowCallback,
+    user_data: *mut std::ffi::c_void,
+) {
+    store_of(store).memory_grow_callback = Some(Rc::new(move |memory: MemoryAddress| unsafe {
+        callback(user_data, memory.cell().cast());
+    }));
+}
+
+/// Remove the callback `wasm_store_set_memory_grow_callback()` set.
+///
+/// # Safety
+///
+/// `store` must be a live store.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_clear_memory_grow_callback(store: *mut WasmStore) {
+    store_of(store).memory_grow_callback = None;
+}
+
+// WASI.
+
+/// The state of a WASI command, whose functions a store gets with `wasm_wasi_allocate_function()`.
+pub struct WasmWasi(Rc<crate::wasi::Wasi>);
+
+fn strings_of(strings: *const WasmStringView, count: usize) -> Vec<String> {
+    if count == 0 {
+        return Vec::new();
+    }
+    unsafe { ak::slice_from_raw_parts(strings, count) }
+        .iter()
+        .map(|string| {
+            String::from_utf8_lossy(unsafe { ak::slice_from_raw_parts(string.data, string.length) }).into_owned()
+        })
+        .collect()
+}
+
+/// Create the state of a WASI command with its arguments, its environment (as `NAME=value` strings), and the host
+/// directories it sees at the guest paths of the same index.
+///
+/// # Safety
+///
+/// Each array must hold its count of strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_wasi_create(
+    arguments: *const WasmStringView,
+    argument_count: usize,
+    environment: *const WasmStringView,
+    environment_count: usize,
+    host_paths: *const WasmStringView,
+    guest_paths: *const WasmStringView,
+    preopen_count: usize,
+) -> *mut WasmWasi {
+    let preopens = strings_of(host_paths, preopen_count)
+        .into_iter()
+        .zip(strings_of(guest_paths, preopen_count))
+        .map(|(host, guest)| crate::wasi::Preopen::new(host, guest))
+        .collect();
+    let wasi = crate::wasi::Wasi::new(
+        strings_of(arguments, argument_count),
+        strings_of(environment, environment_count),
+        preopens,
+    );
+    Box::into_raw(Box::new(WasmWasi(Rc::new(wasi))))
+}
+
+/// # Safety
+///
+/// `wasi` must come from `wasm_wasi_create()`. The functions made from it keep what they need.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_wasi_destroy(wasi: *mut WasmWasi) {
+    unsafe { drop(Box::from_raw(wasi)) };
+}
+
+/// Add the WASI function `name` (of `wasi_snapshot_preview1`) to the store, and write its cell to `function`.
+/// Returns false if there is no such function.
+///
+/// # Safety
+///
+/// `store` and `wasi` must be live, `name` must hold `length` bytes, and `function` must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_wasi_allocate_function(
+    store: *mut WasmStore,
+    wasi: *mut WasmWasi,
+    name: *const u8,
+    length: usize,
+    function: *mut *mut c_void,
+) -> bool {
+    let Ok(name) = std::str::from_utf8(unsafe { ak::slice_from_raw_parts(name, length) }) else {
+        return false;
+    };
+    let Some(address) = unsafe { &(*wasi).0 }.allocate_function(store_of(store), name) else {
+        return false;
+    };
+    unsafe { *function = address.cell().cast() };
+    true
+}
+
+/// Have the WASI functions work on `memory`, which is usually the memory the command exports. The memory must live
+/// while they run, as the command's instance makes it.
+///
+/// # Safety
+///
+/// `wasi` must be live, and `memory` a memory's cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_wasi_set_memory(wasi: *mut WasmWasi, memory: *mut c_void) {
+    unsafe { &(*wasi).0 }.set_memory(entity(memory));
+}
+
+/// Whether the command called proc_exit, and with which code.
+///
+/// # Safety
+///
+/// `wasi` must be live, and `code` writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_wasi_exit_code(wasi: *mut WasmWasi, code: *mut i32) -> bool {
+    let Some(exit_code) = unsafe { &(*wasi).0 }.exit_code() else {
+        return false;
+    };
+    unsafe { *code = exit_code };
+    true
 }

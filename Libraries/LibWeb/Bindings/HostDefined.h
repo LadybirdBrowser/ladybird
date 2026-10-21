@@ -37,9 +37,6 @@ public:
     // Principal realms point this at themselves via PrincipalHostDefined's construction path. Non-principal realms must
     // point at an already-created principal realm with a PrincipalHostDefined.
     GC::Ref<JS::Realm> principal_realm;
-    // Created on demand by WebAssembly::Detail::get_cache(). The realm is the only owner that traces it, so the wrapper
-    // maps are visited exactly once per collection no matter how many WebAssembly objects are live.
-    RefPtr<WebAssembly::Detail::WebAssemblyCache> wasm_cache;
 
 protected:
     HostDefined(GC::Ref<Intrinsics> intrinsics, GC::Ref<WrapperWorld> wrapper_world, GC::Ref<JS::Realm> principal_realm, PrincipalRealmUnderConstruction principal_realm_under_construction = PrincipalRealmUnderConstruction::No);
