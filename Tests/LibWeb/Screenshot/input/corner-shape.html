@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+body { margin: 10px; background: white; }
+.row { display: flex; gap: 12px; margin-bottom: 12px; }
+.b { width: 90px; height: 70px; background: #fc6; border: 6px solid #333; border-radius: 24px; }
+.round { corner-shape: round; }
+.squircle { corner-shape: squircle; }
+.bevel { corner-shape: bevel; }
+.notch { corner-shape: notch; }
+.scoop { corner-shape: scoop; }
+.mixed { corner-shape: bevel squircle scoop notch; }
+.colors { border-color: red green blue orange; }
+.pill { width: 200px; height: 40px; border-radius: 1000px; corner-shape: squircle; background: #cfc; border: 1px solid #393; }
+.clip { width: 120px; height: 80px; border-radius: 30px; corner-shape: squircle; overflow: hidden; border: 2px solid #333; }
+.clip div { width: 200px; height: 200px; background: repeating-linear-gradient(45deg, #39f 0 10px, #fff 10px 20px); }
+.padclip { background-clip: padding-box; border-color: rgba(0,0,0,.3); }
+</style>
+<div class="row"><div class="b round"></div><div class="b squircle"></div><div class="b bevel"></div><div class="b notch"></div><div class="b scoop"></div></div>
+<div class="row"><div class="b mixed"></div><div class="b bevel colors"></div><div class="b squircle colors"></div><div class="b bevel padclip"></div></div>
+<div class="row"><div class="pill"></div><div class="clip"><div></div></div></div>

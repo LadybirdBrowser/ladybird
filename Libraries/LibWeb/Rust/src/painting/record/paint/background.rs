@@ -13,6 +13,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
+use crate::painting::corner_shape::{CornerShapes, Insets, border_contour_path};
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::Repeat;
 use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_INDEX};
@@ -27,7 +28,9 @@ use crate::painting::record::paint::background_resolution::{
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
 use crate::painting::record::paint::table_backgrounds;
 use crate::painting::visual_context::SpatialData;
-use libgfx_rust::{CompositingAndBlendingOperator, FloatRect, FloatSize, IntRect, IntSize, MaskKind, ScalingMode};
+use libgfx_rust::{
+    CompositingAndBlendingOperator, FloatRect, FloatSize, IntRect, IntSize, MaskKind, ScalingMode, WindingRule,
+};
 
 const MAX_DIRECT_GRADIENT_TILES: f64 = 1000.0;
 
@@ -195,6 +198,29 @@ fn paint_background_layers<O: Observer>(
     let padding = crate::painting::paintable_geometry::committed_padding(recorder.source, paintable);
     let border = crate::painting::paintable_geometry::committed_border_box_edges(recorder.source, paintable);
 
+    // https://drafts.csswg.org/css-borders-4/#corner-shape-rendering
+    // Shaped corners clip each background box to the border contour path inset to that box.
+    let border_box_device_rect = converter.rounded_device_rect(border_box.rect).to_float();
+    let border_box_corner_radii = border_box.radii.as_corners(&converter);
+    let corner_shapes = recorder
+        .source
+        .node_style_if_live(paintable)
+        .map(CornerShapes::of)
+        .filter(|shapes| !is_root_element && shapes.needs_contour(border_box_corner_radii));
+    let contour_clip = |css_rect: CssPixelRect| {
+        corner_shapes.map(|shapes| {
+            let rect = converter.rounded_device_rect(css_rect).to_float();
+            let insets = Insets {
+                top: f64::from(rect.y - border_box_device_rect.y),
+                right: f64::from((border_box_device_rect.x + border_box_device_rect.width) - (rect.x + rect.width)),
+                bottom: f64::from((border_box_device_rect.y + border_box_device_rect.height) - (rect.y + rect.height)),
+                left: f64::from(rect.x - border_box_device_rect.x),
+            };
+            let contour = border_contour_path(border_box_device_rect, border_box_corner_radii, shapes, insets);
+            PendingInlineClip::intersecting_path(&contour, WindingRule::Nonzero)
+        })
+    };
+
     if is_root_element {
         recorder.recorder.fill_animated_background_color(
             converter.enclosing_device_rect(color_box.rect),
@@ -203,6 +229,16 @@ fn paint_background_layers<O: Observer>(
             background_color_animation_effect,
             ForceDarkRole::Background,
         );
+    } else if let Some(clip) = contour_clip(color_box.rect) {
+        recorder.recorder.record_with_inline_clips(&[clip], |painter| {
+            painter.fill_animated_background_color(
+                converter.rounded_device_rect(color_box.rect),
+                color,
+                libgfx_rust::CornerRadii::default(),
+                background_color_animation_effect,
+                ForceDarkRole::Background,
+            );
+        });
     } else {
         recorder.recorder.fill_animated_background_color(
             converter.rounded_device_rect(color_box.rect),
@@ -329,7 +365,9 @@ fn paint_background_layers<O: Observer>(
             let unshrunken_clip_float_rect = unshrunken_clip_rect.to_float();
             let corner_radii = clip_box.radii.corners_unconditionally(&converter);
             let mut layer_inline_clips = Vec::new();
-            if corner_radii.has_any_radius() {
+            if let Some(clip) = contour_clip(css_clip_rect) {
+                layer_inline_clips.push(clip);
+            } else if corner_radii.has_any_radius() {
                 layer_inline_clips.push(PendingInlineClip::intersecting_rounded_rect(
                     unshrunken_clip_float_rect,
                     corner_radii,
