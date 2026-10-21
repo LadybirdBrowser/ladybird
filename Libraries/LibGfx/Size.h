@@ -9,7 +9,6 @@
 #include <AK/Format.h>
 #include <LibGfx/Orientation.h>
 #include <LibGfx/Point.h>
-#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -202,15 +201,7 @@ struct Formatter<Gfx::Size<T>> : Formatter<FormatString> {
 
 }
 
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder&, Gfx::IntSize const&);
-
-template<>
-ErrorOr<Gfx::IntSize> decode(Decoder&);
-
-}
+#include <LibGfx/SizeCodecs.h>
 
 template<typename T>
 struct AK::Traits<Gfx::Size<T>> : public AK::DefaultTraits<Gfx::Size<T>> {

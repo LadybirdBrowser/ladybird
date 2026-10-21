@@ -1,0 +1,9 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <LibGfx/Size.h>
+
+[ExistingCpp, Accessors]
+struct Gfx::IntSize {
+    i32 width;
+    i32 height;
+}
