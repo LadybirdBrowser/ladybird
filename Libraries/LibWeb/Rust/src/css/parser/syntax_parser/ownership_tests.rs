@@ -483,11 +483,10 @@ fn worker_selector_normalization_survives_publication() {
     use crate::css::selector_parser::*;
     use crate::css::selector_serialization::serialize_selector_without_namespaces;
     fn text(parsed: &RustParsedSelectorList) -> Vec<u16> {
-        unsafe {
-            assert_eq!(rust_parsed_selector_list_length(parsed), 1);
-            let selector = Box::from_raw(rust_parsed_selector_list_selector(parsed, 0));
-            serialize_selector_without_namespaces(&selector)
-        }
+        assert_eq!(rust_parsed_selector_list_length(parsed), 1);
+        // SAFETY: The selector is a new one, which the test owns.
+        let selector = unsafe { Box::from_raw(rust_parsed_selector_list_selector(parsed, 0)) };
+        serialize_selector_without_namespaces(&selector)
     }
     fn visit(rule: &super::ParsedRule, selectors: &mut Vec<Vec<u16>>, scopes: &mut Vec<Vec<u16>>) {
         for child in &rule.children {
@@ -806,25 +805,21 @@ fn independent_workers_read_the_same_immutable_graph() {
             ));
             assert_eq!(serialize_style_value_to_utf16(&expected_value), utf16("13px"));
             assert_eq!(sheet.rules.len(), 4);
-            unsafe {
-                assert_eq!(
-                    rust_parsed_selector_list_length(Arc::as_ptr(sheet.rules[0].selector_list.as_ref().unwrap())),
-                    1
-                );
-                assert_eq!(
-                    css_query_evaluate_supports(sheet.rules[1].supports_condition.as_deref()),
-                    1
-                );
-            }
+            assert_eq!(
+                rust_parsed_selector_list_length(sheet.rules[0].selector_list.as_ref().unwrap()),
+                1
+            );
+            assert_eq!(
+                css_query_evaluate_supports(sheet.rules[1].supports_condition.as_deref()),
+                1
+            );
             let ParsedRuleChild::Rule(nested) = &sheet.rules[1].children[0] else {
                 panic!()
             };
-            unsafe {
-                assert_eq!(
-                    rust_parsed_selector_list_length(Arc::as_ptr(nested.selector_list.as_ref().unwrap())),
-                    1
-                )
-            };
+            assert_eq!(
+                rust_parsed_selector_list_length(nested.selector_list.as_ref().unwrap()),
+                1
+            );
             assert_eq!(
                 *sheet.rules[2].property_rule.as_ref().unwrap().syntax,
                 SyntaxNode::Type(SyntaxType::Length)
@@ -862,17 +857,15 @@ fn scope_presence_and_native_selector_names_survive_worker_exit() {
                 (scope.start.as_ref().unwrap(), "親"),
                 (scope.end.as_ref().unwrap(), "限界"),
             ] {
-                unsafe {
-                    assert_eq!(rust_parsed_selector_list_length(Arc::as_ptr(selectors)), 1);
-                    let selector = &selectors.selectors()[0].compound_selectors[0].simple_selectors[0];
-                    let crate::css::selector::SimpleSelector::Class(name) = selector else {
-                        panic!("expected class selector")
-                    };
-                    assert_eq!(
-                        name.name,
-                        crate::css::retained_fly_string::RetainedUtf16FlyString::from_utf16(&utf16(expected))
-                    );
-                }
+                assert_eq!(rust_parsed_selector_list_length(selectors), 1);
+                let selector = &selectors.selectors()[0].compound_selectors[0].simple_selectors[0];
+                let crate::css::selector::SimpleSelector::Class(name) = selector else {
+                    panic!("expected class selector")
+                };
+                assert_eq!(
+                    name.name,
+                    crate::css::retained_fly_string::RetainedUtf16FlyString::from_utf16(&utf16(expected))
+                );
             }
         }
     }
@@ -928,7 +921,7 @@ fn container_conditions_own_names_and_queries_after_the_sheet_is_dropped() {
     assert!(entries[2].name.is_none());
     assert!(entries[0].query.is_some());
     unsafe {
-        let query = Arc::as_ptr(entries[2].query.as_ref().unwrap());
+        let query = entries[2].query.as_deref();
         let mut text = Vec::<u16>::new();
         assert!(css_query_serialize_condition(
             query,

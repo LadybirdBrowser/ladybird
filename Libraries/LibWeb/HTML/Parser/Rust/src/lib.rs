@@ -429,26 +429,18 @@ pub unsafe extern "C" fn rust_html_tokenizer_append_ascii_input(
 }
 
 /// Get the tokenizer input that has not been consumed yet.
-///
-/// # Safety
-/// `handle`, `out_ptr`, and `out_len` must be valid pointers.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_unparsed_input(
+pub extern "C" fn rust_html_tokenizer_unparsed_input(
     handle: Option<&mut RustFfiTokenizerHandle>,
-    out_ptr: *mut *const u16,
-    out_len: *mut usize,
+    out_ptr: Option<&mut *const u16>,
+    out_len: Option<&mut usize>,
 ) {
-    let Some(handle) = handle else {
+    let (Some(handle), Some(out_ptr), Some(out_len)) = (handle, out_ptr, out_len) else {
         return;
     };
-    if out_ptr.is_null() || out_len.is_null() {
-        return;
-    }
     handle.last_unparsed_input = handle.tokenizer.unparsed_input().encode_utf16().collect();
-    unsafe {
-        *out_ptr = handle.last_unparsed_input.as_ptr();
-        *out_len = handle.last_unparsed_input.len();
-    }
+    *out_ptr = handle.last_unparsed_input.as_ptr();
+    *out_len = handle.last_unparsed_input.len();
 }
 
 /// Compact already-tokenized input after the parser has consumed a chunk.
