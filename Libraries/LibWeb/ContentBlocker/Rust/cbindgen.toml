@@ -11,6 +11,7 @@ line_length  = 120
 tab_width = 4
 no_includes = true
 sys_includes = ["stdint.h", "stddef.h"]
+includes = ["AK/Span.h"]
 usize_is_size_t = true
 
 [parse]
@@ -21,6 +22,13 @@ all_features = false
 
 [export]
 include = ["ContentBlockerString"]
+# Opaque to C++, which names it by a void pointer (see below).
+exclude = ["ContentBlockerEngine"]
+
+[export.rename]
+# An engine is opaque to C++, which holds it by pointer.
+"ContentBlockerEngine" = "void"
+"Span" = "AK::ReadonlySpan"
 
 [export.mangle]
 rename_types = "PascalCase"

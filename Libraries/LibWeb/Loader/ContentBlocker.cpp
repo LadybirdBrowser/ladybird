@@ -161,9 +161,7 @@ ErrorOr<void> ContentBlocker::set_rules_from_bytes(ReadonlyBytes rules_bytes)
         return {};
     }
 
-    auto* engine = ContentBlocking::FFI::rust_content_blocker_create(
-        rules_bytes.data(),
-        rules_bytes.size());
+    auto* engine = ContentBlocking::FFI::rust_content_blocker_create(rules_bytes);
     if (!engine)
         return Error::from_string_literal("Failed to create content blocker");
 
@@ -200,12 +198,9 @@ bool ContentBlocker::is_filtered(URL::URL const& url, URL::URL const& source_url
 
     return ContentBlocking::FFI::rust_content_blocker_matches(
         m_engine,
-        reinterpret_cast<u8 const*>(url_string.characters()),
-        url_string.length(),
-        reinterpret_cast<u8 const*>(source_url_string.characters()),
-        source_url_string.length(),
-        reinterpret_cast<u8 const*>(request_type.characters_without_null_termination()),
-        request_type.length());
+        url_string.bytes(),
+        source_url_string.bytes(),
+        request_type.bytes());
 }
 
 Utf16String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url) const
@@ -232,12 +227,9 @@ Utf16String ContentBlocker::cosmetic_style_sheet_for_url(URL::URL const& url, Re
 
     return take_rust_utf16_string(ContentBlocking::FFI::rust_content_blocker_cosmetic_css(
         m_engine,
-        reinterpret_cast<u8 const*>(url_string.characters()),
-        url_string.length(),
-        reinterpret_cast<u8 const*>(classes_bytes.characters_without_null_termination()),
-        classes_bytes.length(),
-        reinterpret_cast<u8 const*>(ids_bytes.characters_without_null_termination()),
-        ids_bytes.length()));
+        url_string.bytes(),
+        classes_bytes.bytes(),
+        ids_bytes.bytes()));
 }
 
 bool ContentBlocker::has_generic_cosmetic_selectors_for_url(URL::URL const& url, ReadonlySpan<Utf16FlyString> classes, ReadonlySpan<Utf16FlyString> ids) const
@@ -259,12 +251,9 @@ bool ContentBlocker::has_generic_cosmetic_selectors_for_url(URL::URL const& url,
 
     return ContentBlocking::FFI::rust_content_blocker_has_generic_cosmetic_selectors(
         m_engine,
-        reinterpret_cast<u8 const*>(url_string.characters()),
-        url_string.length(),
-        reinterpret_cast<u8 const*>(classes_bytes.characters_without_null_termination()),
-        classes_bytes.length(),
-        reinterpret_cast<u8 const*>(ids_bytes.characters_without_null_termination()),
-        ids_bytes.length());
+        url_string.bytes(),
+        classes_bytes.bytes(),
+        ids_bytes.bytes());
 }
 
 ContentBlocker::ResourceType ContentBlocker::resource_type_from_fetch_metadata(Optional<Fetch::Infrastructure::Request::Destination> const& destination, Optional<Fetch::Infrastructure::Request::InitiatorType> const& initiator_type, Fetch::Infrastructure::Request::Mode mode)
