@@ -983,7 +983,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
         // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
         auto identity_transform_algorithm = GC::create_function(GC::Heap::the(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-            MUST(Streams::transform_stream_default_controller_enqueue(realm, *transform_stream->controller(), chunk));
+            if (auto result = Streams::transform_stream_default_controller_enqueue(realm, *transform_stream->controller(), chunk); result.is_error())
+                return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
+
             return WebIDL::create_resolved_promise(realm, JS::js_undefined());
         });
 
