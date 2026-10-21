@@ -61,11 +61,6 @@ struct RustContextAttributes {
     bool xr_compatible { false };
 };
 
-struct ByteSpan {
-    u8 const* data { nullptr };
-    size_t size { 0 };
-};
-
 // `ContextCreationArguments` of Bindings/Rust/src/web_gl/exports.rs.
 struct ContextCreationArguments {
     void* transport { nullptr };
@@ -75,8 +70,7 @@ struct ContextCreationArguments {
     void* canvas_host { nullptr };
     bool canvas_is_offscreen { false };
     RustContextAttributes context_attributes;
-    ByteSpan const* supported_extensions { nullptr };
-    size_t supported_extension_count { 0 };
+    ReadonlySpan<ReadonlyBytes> supported_extensions;
 };
 
 // `TexImageSourceKind` and `TexImageSourceResult` of Bindings/Rust/src/web_gl/canvas.rs.
@@ -125,7 +119,7 @@ bool web_webgl_context_mark_lost(void* context);
 void web_webgl_context_set_restore_requested(void* context, bool requested);
 bool web_webgl_context_wants_restoring(void* context);
 void web_webgl_context_actual_context_parameters(void* context, RustContextAttributes* out_context_attributes);
-void web_webgl_context_restore(void* context, void* transport, ByteSpan const* supported_extensions, size_t supported_extension_count);
+void web_webgl_context_restore(void* context, void* transport, ReadonlySpan<ReadonlyBytes> supported_extensions);
 bool web_webgl_context_xr_compatible(void* context);
 void web_webgl_context_set_xr_compatible(void* context, bool xr_compatible);
 
@@ -216,12 +210,12 @@ struct RemoteWebGLContext {
     NonnullRefPtr<RemoteWebGLTransport> transport;
     Vector<String> supported_extensions;
 
-    Vector<ByteSpan> supported_extension_spans() const
+    Vector<ReadonlyBytes> supported_extension_spans() const
     {
-        Vector<ByteSpan> spans;
+        Vector<ReadonlyBytes> spans;
         spans.ensure_capacity(supported_extensions.size());
         for (auto const& extension : supported_extensions)
-            spans.unchecked_append({ extension.bytes().data(), extension.bytes().size() });
+            spans.unchecked_append(extension.bytes());
         return spans;
     }
 };
@@ -269,8 +263,7 @@ JS::ThrowCompletionOr<WebGLRenderingContextBase*> WebGLRenderingContextBase::cre
         .canvas_host = &canvas_host,
         .canvas_is_offscreen = canvas.has<GC::Ref<HTML::OffscreenCanvas>>(),
         .context_attributes = to_rust_context_attributes(context_attributes),
-        .supported_extensions = supported_extensions.data(),
-        .supported_extension_count = supported_extensions.size(),
+        .supported_extensions = supported_extensions.span(),
     };
     return static_cast<WebGLRenderingContextBase*>(web_webgl_context_create(JS::HostABI::vm_to_abi(realm.vm()), &arguments));
 }
@@ -353,7 +346,7 @@ void WebGLRenderingContextBase::restore_context_after_compositor_reconnect()
         return;
 
     auto supported_extensions = remote->supported_extension_spans();
-    web_webgl_context_restore(this, &remote->transport.leak_ref(), supported_extensions.data(), supported_extensions.size());
+    web_webgl_context_restore(this, &remote->transport.leak_ref(), supported_extensions.span());
 
     HTML::queue_a_task(HTML::Task::Source::WebGL, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
         fire_webgl_context_event(canvas_host(), EventNames::webglcontextrestored);

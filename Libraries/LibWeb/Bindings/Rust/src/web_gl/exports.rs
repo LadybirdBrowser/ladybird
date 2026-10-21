@@ -23,31 +23,9 @@ use super::web_gl_rendering_context::WebGLPowerPreference;
 use super::web_gl_rendering_context_base::WebGLContextAttributes;
 use crate::bindings::interface::{Interface, allocate, cell_into_abi, realm_arguments};
 
-#[repr(C)]
-pub struct ByteSpan {
-    data: *const u8,
-    size: usize,
-}
-
-/// # Safety
-///
-/// The spans are live, and each is the bytes of a string.
-unsafe fn extension_names(names: *const ByteSpan, name_count: usize) -> Vec<Vec<u8>> {
-    if name_count == 0 {
-        return Vec::new();
-    }
-    // SAFETY: The caller passes `name_count` live spans.
-    let names = unsafe { ak::slice_from_raw_parts(names, name_count) };
-    names
-        .iter()
-        .map(|name| {
-            if name.size == 0 {
-                return Vec::new();
-            }
-            // SAFETY: The caller passes the bytes of a string.
-            unsafe { ak::slice_from_raw_parts(name.data, name.size) }.to_vec()
-        })
-        .collect()
+/// The bytes of the names of the extensions C++ lends.
+fn extension_names(names: ak::Span<'_, ak::Span<'_, u8>>) -> Vec<Vec<u8>> {
+    names.as_slice().iter().map(|name| name.as_slice().to_vec()).collect()
 }
 
 /// Mirrors `Web::WebGL::RustContextAttributes`.
@@ -112,7 +90,7 @@ impl From<WebGLContextAttributes> for ContextAttributes {
 
 /// Mirrors `Web::WebGL::ContextCreationArguments`.
 #[repr(C)]
-pub struct ContextCreationArguments {
+pub struct ContextCreationArguments<'a> {
     /// A RemoteWebGLTransport that has created its context, with a reference that the new context takes over.
     transport: *mut c_void,
     is_webgl2: bool,
@@ -121,8 +99,7 @@ pub struct ContextCreationArguments {
     canvas_host: *mut c_void,
     canvas_is_offscreen: bool,
     context_attributes: ContextAttributes,
-    supported_extensions: *const ByteSpan,
-    supported_extension_count: usize,
+    supported_extensions: ak::Span<'a, ak::Span<'a, u8>>,
 }
 
 /// The cell of a WebGLRenderingContext or of a WebGL2RenderingContext, which only C++ lends out, for as long as the
@@ -155,7 +132,7 @@ fn with_context<R>(context: &ContextCell, function: impl FnOnce(&ContextState) -
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_webgl_context_create(
     vm: *mut c_void,
-    arguments: &ContextCreationArguments,
+    arguments: &ContextCreationArguments<'_>,
 ) -> *mut c_void {
     // SAFETY: The caller passes the live VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, arguments.realm) };
@@ -179,10 +156,7 @@ pub unsafe extern "C" fn web_webgl_context_create(
         realm,
         canvas,
         context_attributes: arguments.context_attributes.into(),
-        // SAFETY: The caller passes live names.
-        supported_opengl_extensions: unsafe {
-            extension_names(arguments.supported_extensions, arguments.supported_extension_count)
-        },
+        supported_opengl_extensions: extension_names(arguments.supported_extensions),
     });
     match version {
         WebGLVersion::WebGL1 => {
@@ -294,22 +268,20 @@ pub extern "C" fn web_webgl_context_actual_context_parameters(
 ///
 /// # Safety
 ///
-/// `transport` is a RemoteWebGLTransport that has created its context, and the spans are live.
+/// `transport` is a RemoteWebGLTransport that has created its context.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_webgl_context_restore(
     context: &ContextCell,
     transport: *mut c_void,
-    supported_extensions: *const ByteSpan,
-    supported_extension_count: usize,
+    supported_extensions: ak::Span<'_, ak::Span<'_, u8>>,
 ) {
     let transport = NonNull::new(transport).expect("C++ passes the transport");
-    // SAFETY: The caller passes the transport with a reference, and live names.
-    unsafe {
-        let supported_opengl_extensions = extension_names(supported_extensions, supported_extension_count);
-        with_context(context, |context| {
-            context.restore(CppTransport::from_raw(transport), supported_opengl_extensions);
-        });
-    }
+    // SAFETY: The caller hands over a reference to the transport.
+    let transport = unsafe { CppTransport::from_raw(transport) };
+    let supported_opengl_extensions = extension_names(supported_extensions);
+    with_context(context, |context| {
+        context.restore(transport, supported_opengl_extensions);
+    });
 }
 
 #[unsafe(no_mangle)]
