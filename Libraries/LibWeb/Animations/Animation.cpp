@@ -204,13 +204,22 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
     // If from finite timeline and previous progress is resolved,
     else if (from_finite_timeline && previous_progress.has_value()) {
         // Run the procedure to set the current time to previous progress * end time.
-        // NB: We know that the time we are passing is valid so we can wrap this in a MUST() to avoid error handling
-        MUST(set_current_time_for_bindings(previous_progress_multiplied_by_end_time().as_css_numberish()));
+        // NB: We know that the time we are passing is valid so we can wrap this in a MUST() to avoid error handling.
+        //     This is the procedure itself, not script setting the current time of a CSS animation. Until it is done,
+        //     the start time is still in the units of the old timeline.
+        MUST(Animation::set_current_time_for_bindings(previous_progress_multiplied_by_end_time().as_css_numberish()));
     }
 
     // 10. If the start time of animation is resolved, make animation’s hold time unresolved.
-    if (m_start_time.has_value())
+    if (m_start_time.has_value()) {
+        // AD-HOC: A finished animation holds a time beside its start time, and setting its current time as it leaves a
+        //         finite timeline sets the hold time alone, which leaves the start time in the units of the old
+        //         timeline. See https://github.com/w3c/csswg-drafts/issues/11761. Like WebKit, the start time takes
+        //         the hold time.
+        if (m_hold_time.has_value() && m_hold_time->type != m_start_time->type)
+            m_start_time = m_hold_time;
         m_hold_time = {};
+    }
 
     // 11. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
     //    and the synchronously notify flag set to false.
