@@ -262,6 +262,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     ffi_config.namespaces = Some(vec!["Compositing".to_string(), "RustFFI".to_string()]);
     expose_css_pixel_types_as_web_types(&mut ffi_config);
     expose_shared_abi_types_as_cpp_types(&mut ffi_config);
+    // An ak::Span is laid out as an AK ReadonlySpan, which C++ passes it as.
+    ffi_config
+        .export
+        .rename
+        .insert("Span".to_string(), "AK::ReadonlySpan".to_string());
+    ffi_config.includes.push("AK/Span.h".to_string());
     // The values WebContent's own entry points take and return, which its headers refer to here.
     ffi_config.export.include = [
         "NodeSlotId",
@@ -293,6 +299,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/visual_context/ffi_types.rs"),
             manifest_dir.join("src/host/replay.rs"),
             manifest_dir.join("src/display_list/storage.rs"),
+            manifest_dir.join("src/display_list/canvas_2d.rs"),
             manifest_dir.join("src/ffi.rs"),
         ],
         &out_dir,

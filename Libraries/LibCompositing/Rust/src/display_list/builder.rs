@@ -480,6 +480,22 @@ impl DisplayListBuilder {
     }
 }
 
+/// Appends one record, with neither inline clips nor an inline transform, to a tape without a run table, which the
+/// tape of a 2D canvas is.
+pub fn append_record<C: DisplayListCommand>(bytes: &mut Vec<u8>, command: &C, inline_data: &[u8]) {
+    debug_assert_eq!(bytes.len() % COMMAND_ALIGNMENT, 0);
+    let padded_record_size =
+        (HEADER_SIZE + std::mem::size_of::<C>() + inline_data.len()).next_multiple_of(COMMAND_ALIGNMENT);
+    let header = DisplayListBuilder::header_for(command, &[], None, padded_record_size - HEADER_SIZE);
+    let start = bytes.len();
+    bytes.resize(start + padded_record_size, 0);
+    header.write_ffi_bytes(&mut bytes[start..start + HEADER_SIZE]);
+    let payload_start = start + HEADER_SIZE;
+    command.write_ffi_bytes(&mut bytes[payload_start..payload_start + std::mem::size_of::<C>()]);
+    let inline_start = payload_start + std::mem::size_of::<C>();
+    bytes[inline_start..inline_start + inline_data.len()].copy_from_slice(inline_data);
+}
+
 fn push_or_merge_run(runs: &mut Vec<DisplayListCommandRun>, run: DisplayListCommandRun) {
     if let Some(last) = runs.last_mut()
         && last.context == run.context
