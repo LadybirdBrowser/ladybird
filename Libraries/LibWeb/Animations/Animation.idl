@@ -10,6 +10,8 @@ interface Animation : EventTarget {
     [ImplementedAs=start_time_for_bindings] attribute CSSNumberish? startTime;
     [ImplementedAs=current_time_for_bindings] attribute CSSNumberish? currentTime;
     attribute double playbackRate;
+    [ImplementedAs=range_start_for_bindings] attribute (TimelineRangeOffset or CSSNumericValue or CSSKeywordValue or DOMString) rangeStart;
+    [ImplementedAs=range_end_for_bindings] attribute (TimelineRangeOffset or CSSNumericValue or CSSKeywordValue or DOMString) rangeEnd;
     [ImplementedAs=play_state_for_bindings] readonly attribute AnimationPlayState playState;
     readonly attribute AnimationReplaceState replaceState;
     [ImplementedAs=pending_for_bindings] readonly attribute boolean pending;
@@ -28,6 +30,12 @@ interface Animation : EventTarget {
     undefined reverse();
     undefined persist();
     [FIXME, CEReactions] undefined commitStyles();
+};
+
+// https://drafts.csswg.org/web-animations-2/#dictdef-timelinerangeoffset
+dictionary TimelineRangeOffset {
+    CSSOMString? rangeName;
+    CSSNumericValue offset;
 };
 
 // https://drafts.csswg.org/web-animations-1/#the-animationplaystate-enumeration

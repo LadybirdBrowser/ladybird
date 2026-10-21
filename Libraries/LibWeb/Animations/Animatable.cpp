@@ -96,7 +96,23 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Vector<BaseKeyframe>
 
 WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(JS::Realm& realm, GC::Ptr<JS::Object> keyframes, Variant<double, Bindings::KeyframeAnimationOptions> const& options)
 {
-    auto animation = TRY(animate(TRY(process_keyframes(realm, keyframes)), TRY(keyframe_animation_options_from_bindings(options))));
+    auto processed_keyframes = TRY(process_keyframes(realm, keyframes));
+
+    // https://drafts.csswg.org/web-animations-2/#dom-keyframeanimationoptions-rangestart
+    // https://drafts.csswg.org/web-animations-2/#dom-keyframeanimationoptions-rangeend
+    // INTEROP: Like Chrome, the keyframes are processed before the range is parsed, so the keyframes' getters run first.
+    Optional<AnimationAttachmentRange> range;
+    if (auto const* animation_options = options.get_pointer<Bindings::KeyframeAnimationOptions>()) {
+        auto& document = static_cast<DOM::Element*>(this)->document();
+        range = AnimationAttachmentRange {
+            .start = TRY(parse_timeline_range_edge(document, animation_options->range_start, TimelineRangeEdgeSide::Start)),
+            .end = TRY(parse_timeline_range_edge(document, animation_options->range_end, TimelineRangeEdgeSide::End)),
+        };
+    }
+
+    auto animation = TRY(animate(move(processed_keyframes), TRY(keyframe_animation_options_from_bindings(options))));
+    if (range.has_value())
+        animation->set_range(*range);
 
     return animation;
 }

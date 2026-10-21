@@ -192,7 +192,13 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
         HTML::TemporaryExecutionContext context(relevant_settings_object());
         set_timeline(materialize_timeline(animation_properties.timeline, timeline_target));
     }
-    set_range(animation_properties.range);
+    // NB: An edge of the range that script set is no longer the style's to change.
+    auto range = animation_properties.range;
+    if (m_ignored_css_properties.contains(PropertyID::AnimationRangeStart))
+        range.start = this->range().start;
+    if (m_ignored_css_properties.contains(PropertyID::AnimationRangeEnd))
+        range.end = this->range().end;
+    set_range(range);
 
     effect.set_specified_iteration_duration(animation_properties.duration);
     effect.set_specified_start_delay(animation_properties.delay);
@@ -305,6 +311,22 @@ WebIDL::ExceptionOr<void> CSSAnimation::reverse()
     if (!result.is_error() && previous_play_state != play_state())
         mark_script_play_state_override();
     return result;
+}
+
+// AD-HOC: Like the timeline, a range edge script sets takes precedence over the animation-range-start or
+//         animation-range-end property from then on, as WPT expects (scroll-animations/css/animation-range-ignored.html).
+WebIDL::ExceptionOr<void> CSSAnimation::set_range_start_for_bindings(Animations::TimelineRangeBindingValue const& value)
+{
+    TRY(Animations::Animation::set_range_start_for_bindings(value));
+    m_ignored_css_properties.set(PropertyID::AnimationRangeStart);
+    return {};
+}
+
+WebIDL::ExceptionOr<void> CSSAnimation::set_range_end_for_bindings(Animations::TimelineRangeBindingValue const& value)
+{
+    TRY(Animations::Animation::set_range_end_for_bindings(value));
+    m_ignored_css_properties.set(PropertyID::AnimationRangeEnd);
+    return {};
 }
 
 void CSSAnimation::set_timeline_for_bindings(GC::Ptr<Animations::AnimationTimeline> timeline)

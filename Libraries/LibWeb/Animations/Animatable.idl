@@ -8,6 +8,11 @@ interface mixin Animatable {
 dictionary KeyframeAnimationOptions : KeyframeEffectOptions {
     [FlyString] DOMString id = "";
     AnimationTimeline? timeline;
+
+    // https://drafts.csswg.org/web-animations-2/#dom-keyframeanimationoptions-rangestart
+    (TimelineRangeOffset or CSSNumericValue or CSSKeywordValue or DOMString) rangeStart = "normal";
+    // https://drafts.csswg.org/web-animations-2/#dom-keyframeanimationoptions-rangeend
+    (TimelineRangeOffset or CSSNumericValue or CSSKeywordValue or DOMString) rangeEnd = "normal";
 };
 
 // https://drafts.csswg.org/web-animations-1/#dictdef-getanimationsoptions

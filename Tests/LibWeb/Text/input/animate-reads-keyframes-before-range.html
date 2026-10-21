@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="target"></div>
+<script>
+    // animate() processes its keyframes before it parses the range, as Chrome does, so the keyframe getters run
+    // before an invalid range throws.
+    test(() => {
+        const log = [];
+        try {
+            document.getElementById("target").animate({
+                get opacity() {
+                    log.push("keyframes");
+                    return [0, 1];
+                },
+            }, { duration: 1, rangeStart: "bogus" });
+        } catch (error) {
+            log.push(error.name);
+        }
+        println(log.join(", "));
+    });
+</script>

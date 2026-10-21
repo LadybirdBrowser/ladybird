@@ -36,6 +36,8 @@ public:
     EasingFunction const& default_easing() const { return m_default_easing; }
 
     virtual void set_timeline_for_bindings(GC::Ptr<Animations::AnimationTimeline> timeline) override;
+    virtual WebIDL::ExceptionOr<void> set_range_start_for_bindings(Animations::TimelineRangeBindingValue const&) override;
+    virtual WebIDL::ExceptionOr<void> set_range_end_for_bindings(Animations::TimelineRangeBindingValue const&) override;
 
     virtual WebIDL::ExceptionOr<void> set_start_time_for_bindings(Animations::NullableCSSNumberish const&) override;
     virtual WebIDL::ExceptionOr<void> set_current_time_for_bindings(Animations::NullableCSSNumberish const&) override;

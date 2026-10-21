@@ -31,6 +31,16 @@ using AnimationReplaceState = Bindings::AnimationReplaceState;
 using AnimationPlayState = Bindings::AnimationPlayState;
 
 // https://www.w3.org/TR/web-animations-1/#the-animation-interface
+// (TimelineRangeOffset or CSSNumericValue or CSSKeywordValue or DOMString)
+using TimelineRangeBindingValue = Variant<Bindings::TimelineRangeOffset, GC::Ref<CSS::CSSNumericValue>, GC::Ref<CSS::CSSKeywordValue>, Utf16String>;
+
+// Parses an attachment range edge script gives, as KeyframeAnimationOptions's rangeStart and rangeEnd take it.
+enum class TimelineRangeEdgeSide : u8 {
+    Start,
+    End,
+};
+WebIDL::ExceptionOr<TimelineRangeEdge> parse_timeline_range_edge(DOM::Document&, TimelineRangeBindingValue const&, TimelineRangeEdgeSide);
+
 class Animation : public DOM::EventTarget {
     WEB_WRAPPABLE(Animation, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Animation);
@@ -72,6 +82,13 @@ public:
     // https://drafts.csswg.org/scroll-animations-1/#animation-attachment-range
     AnimationAttachmentRange const& range() const { return m_range; }
     void set_range(AnimationAttachmentRange const&);
+
+    // https://drafts.csswg.org/web-animations-2/#dom-animation-rangestart
+    TimelineRangeBindingValue range_start_for_bindings() const;
+    virtual WebIDL::ExceptionOr<void> set_range_start_for_bindings(TimelineRangeBindingValue const&);
+    // https://drafts.csswg.org/web-animations-2/#dom-animation-rangeend
+    TimelineRangeBindingValue range_end_for_bindings() const;
+    virtual WebIDL::ExceptionOr<void> set_range_end_for_bindings(TimelineRangeBindingValue const&);
     // The start and the end of the attachment range on a progress-based timeline, as timeline times.
     Optional<AttachmentInterval> attachment_interval() const;
 

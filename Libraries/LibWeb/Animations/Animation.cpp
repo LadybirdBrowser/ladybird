@@ -6,6 +6,7 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Animations/Animation.h>
@@ -17,9 +18,13 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSAnimation.h>
+#include <LibWeb/CSS/CSSKeywordValue.h>
+#include <LibWeb/CSS/CSSMathSum.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSTransition.h>
+#include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/Length.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -406,6 +411,95 @@ void Animation::calculate_auto_aligned_start_time()
 
     // 8. Clear hold time.
     m_hold_time = {};
+}
+
+// https://drafts.csswg.org/web-animations-2/#dom-keyframeanimationoptions-rangestart
+WebIDL::ExceptionOr<TimelineRangeEdge> parse_timeline_range_edge(DOM::Document& document, TimelineRangeBindingValue const& value, TimelineRangeEdgeSide side)
+{
+    auto property = side == TimelineRangeEdgeSide::Start ? CSS::PropertyID::AnimationRangeStart : CSS::PropertyID::AnimationRangeEnd;
+    // A DOMString value is parsed as an 'animation-range-start' (or 'animation-range-end') value to yield a
+    // TimelineRangeOffset rangeName and offset or alternatively a CSSKeywordValue with the value of "normal"; a
+    // CSSNumericValue is interpreted as a TimelineRangeOffset with that offset and a null rangeName.
+    auto parse = [&](Utf16String const& string) -> WebIDL::ExceptionOr<TimelineRangeEdge> {
+        auto parsed = parse_css_value(CSS::Parser::ParsingParams { document }, string, property);
+        // NB: Arbitrary substitution functions and CSS-wide keywords have nothing to substitute or inherit from here.
+        if (!parsed || parsed->is_css_wide_keyword() || parsed->is_unresolved() || parsed->is_pending_substitution())
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid timeline range"_utf16 };
+        auto computed = parsed->absolutized(CSS::ComputationContext { .length_resolution_context = CSS::Length::ResolutionContext::for_document(document) });
+        CSS::ComputedValuesFFI::FfiAnimationRangeEdge edge {};
+        if (!CSS::ComputedValuesFFI::rust_animation_range_edge(computed->rust_style_value_data(), side == TimelineRangeEdgeSide::End, &edge))
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid timeline range"_utf16 };
+        return TimelineRangeEdge { static_cast<TimelineRangeName>(edge.name), edge.offset_px, edge.offset_percentage };
+    };
+    return value.visit(
+        [&](Bindings::TimelineRangeOffset const& offset) -> WebIDL::ExceptionOr<TimelineRangeEdge> {
+            Utf16StringBuilder builder;
+            if (offset.range_name.has_value() && offset.range_name->has_value())
+                builder.append(**offset.range_name);
+            if (offset.offset) {
+                builder.append_ascii(' ');
+                builder.append(offset.offset->to_string({}));
+            }
+            // NB: A TimelineRangeOffset that gives neither a range name nor an offset is the default edge.
+            if (builder.is_empty())
+                return parse("normal"_utf16);
+            return parse(builder.to_string());
+        },
+        [&](GC::Ref<CSS::CSSNumericValue> const& offset) { return parse(offset->to_string({})); },
+        // Passing a CSSKeywordValue with a value other than "normal" as the rangeStart or rangeEnd value to any API
+        // defined to accept KeyframeAnimationOptions throws a TypeError.
+        [&](GC::Ref<CSS::CSSKeywordValue> const& keyword) -> WebIDL::ExceptionOr<TimelineRangeEdge> {
+            if (!keyword->value().equals_ignoring_ascii_case("normal"sv))
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid timeline range"_utf16 };
+            return parse("normal"_utf16);
+        },
+        [&](Utf16String const& string) { return parse(string); });
+}
+
+// When reading the attribute, the returned value is either a TimelineRangeOffset or the DOMString "normal".
+static TimelineRangeBindingValue timeline_range_edge_to_bindings(TimelineRangeEdge const& edge, TimelineRangeEdge const& normal)
+{
+    if (edge == normal)
+        return "normal"_utf16;
+
+    auto px = CSS::CSSUnitValue::create(edge.offset_px, "px"_utf16_fly_string);
+    auto percentage = CSS::CSSUnitValue::create(edge.offset_percentage, "percent"_utf16_fly_string);
+    GC::Ref<CSS::CSSNumericValue> offset = edge.offset_px == 0 ? GC::Ref<CSS::CSSNumericValue> { percentage } : GC::Ref<CSS::CSSNumericValue> { px };
+    if (edge.offset_px != 0 && edge.offset_percentage != 0)
+        offset = MUST(CSS::CSSMathSum::create_for_constructor(Vector<CSS::CSSNumberish> { GC::Ref<CSS::CSSNumericValue> { px }, GC::Ref<CSS::CSSNumericValue> { percentage } }));
+
+    Bindings::TimelineRangeOffset range_offset {};
+    range_offset.range_name = edge.name == TimelineRangeName::None ? Optional<Utf16String> {} : Utf16String::from_utf8_without_validation(timeline_range_name_to_string(edge.name).bytes());
+    range_offset.offset = offset;
+    return range_offset;
+}
+
+TimelineRangeBindingValue Animation::range_start_for_bindings() const
+{
+    update_style_if_needed();
+    return timeline_range_edge_to_bindings(m_range.start, AnimationAttachmentRange {}.start);
+}
+
+TimelineRangeBindingValue Animation::range_end_for_bindings() const
+{
+    update_style_if_needed();
+    return timeline_range_edge_to_bindings(m_range.end, AnimationAttachmentRange {}.end);
+}
+
+WebIDL::ExceptionOr<void> Animation::set_range_start_for_bindings(TimelineRangeBindingValue const& value)
+{
+    auto range = m_range;
+    range.start = TRY(parse_timeline_range_edge(HTML::relevant_window(relevant_global_object()).associated_document(), value, TimelineRangeEdgeSide::Start));
+    set_range(range);
+    return {};
+}
+
+WebIDL::ExceptionOr<void> Animation::set_range_end_for_bindings(TimelineRangeBindingValue const& value)
+{
+    auto range = m_range;
+    range.end = TRY(parse_timeline_range_edge(HTML::relevant_window(relevant_global_object()).associated_document(), value, TimelineRangeEdgeSide::End));
+    set_range(range);
+    return {};
 }
 
 void Animation::set_range(AnimationAttachmentRange const& range)

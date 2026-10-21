@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="target"></div>
+<script>
+    // `scroll` is a named timeline range, for animation-range and for the range of an animation from script.
+    test(() => {
+        const target = document.getElementById("target");
+        println(`supports: ${CSS.supports("animation-range", "scroll 10% scroll 90%")}`);
+        target.style.animationRange = "scroll 10% scroll 90%";
+        println(`computed: ${getComputedStyle(target).animationRange}`);
+        const animation = target.animate(null, { duration: 1000, rangeStart: "scroll 20%" });
+        println(`rangeStart: ${animation.rangeStart.rangeName} ${animation.rangeStart.offset}`);
+    });
+</script>
