@@ -146,8 +146,7 @@ impl RenderState {
     /// Applies `changes`, writes the host queued, in the order the host made them.
     fn apply(&mut self, changes: impl IntoIterator<Item = ArenaChange>) {
         for change in changes {
-            // SAFETY: The state is borrowed mutably, and so is the engine its arena links.
-            unsafe { change.apply(self.arena.arena_mut(), self.engine, &mut self.owed) };
+            change.apply(self);
         }
     }
 
@@ -364,15 +363,10 @@ impl ArenaChange {
 }
 
 impl ArenaChange {
-    /// # Safety
-    ///
-    /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
-    unsafe fn apply(
-        self,
-        arena: &mut crate::layout::LayoutNodeArena,
-        engine: StyleEngineHandle,
-        owed: &mut Vec<crate::layout::tree_mutation::HostWorkDue>,
-    ) {
+    /// Applies the change to `state`. A style change reaches the engine only through the state's own borrow of it.
+    fn apply(self, state: &mut RenderState) {
+        let arena = state.arena.arena_mut();
+        let owed = &mut state.owed;
         match self {
             Self::Layout(change) => {
                 let host_work = change.apply_owing(arena);
@@ -397,12 +391,9 @@ impl ArenaChange {
             }
             Self::RemoveBox(removal) => removal.apply(arena, owed),
             Self::Paint(change) => change.apply(arena),
-            // SAFETY: Guaranteed by the caller. A style change reaches the engine only through this borrow.
-            Self::Style(change) => change.apply(unsafe { engine.get_mut() }),
-            // SAFETY: As above.
-            Self::Engine(write) => write.apply(unsafe { engine.get_mut() }),
-            // SAFETY: As above.
-            Self::Rule(write) => write.apply(unsafe { engine.get_mut() }),
+            Self::Style(change) => change.apply(state.engine_mut()),
+            Self::Engine(write) => write.apply(state.engine_mut()),
+            Self::Rule(write) => write.apply(state.engine_mut()),
         }
     }
 

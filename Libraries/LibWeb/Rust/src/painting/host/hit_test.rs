@@ -19,7 +19,7 @@ pub struct FfiHitTestQueryCallbacks {
     pub has_chrome_metrics: bool,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     /// Private: reached only through the method below, which takes the main thread token.
-    contains: unsafe extern "C" fn(*mut c_void, FfiNodeIdentity, FfiNodeIdentity) -> bool,
+    contains: extern "C" fn(*mut c_void, FfiNodeIdentity, FfiNodeIdentity) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
@@ -31,7 +31,7 @@ impl FfiHitTestQueryCallbacks {
         scroll_offsets: &[libgfx_rust::FloatPoint],
         chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     ) -> Self {
-        unsafe extern "C" fn no_contains(_: *mut c_void, _: FfiNodeIdentity, _: FfiNodeIdentity) -> bool {
+        extern "C" fn no_contains(_: *mut c_void, _: FfiNodeIdentity, _: FfiNodeIdentity) -> bool {
             panic!("a point query on the render owner asks the host nothing of the DOM");
         }
         Self {
@@ -52,8 +52,7 @@ impl FfiHitTestQueryCallbacks {
         ancestor: FfiNodeIdentity,
         node: FfiNodeIdentity,
     ) -> bool {
-        // SAFETY: The C++ host answers synchronously.
-        unsafe { (self.contains)(self.context, ancestor, node) }
+        (self.contains)(self.context, ancestor, node)
     }
     pub(crate) fn scroll_offsets(&self) -> &[libgfx_rust::FloatPoint] {
         if self.scroll_offsets.is_null() {

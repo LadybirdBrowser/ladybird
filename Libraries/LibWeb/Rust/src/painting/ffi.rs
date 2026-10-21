@@ -537,16 +537,13 @@ pub struct FfiImageMapArea {
     pub coords_count: u32,
 }
 
-/// # Safety
-///
-/// `sink` must be the pointer handed to the callback, used synchronously.
+/// Adds a color stop to `sink`, the paint server handed to the callback.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paint_push_color_stop(
-    sink: *mut c_void,
+pub extern "C" fn layout_arena_paint_push_color_stop(
+    sink: &mut crate::painting::svg_paint_resources::PublishedSvgPaintServer,
     color: libgfx_rust::Color,
     position: f32,
 ) {
-    let sink = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgPaintServer>() };
     if let crate::painting::svg_paint_resources::PublishedSvgPaintServer::Gradient(gradient) = sink {
         gradient
             .stops
@@ -554,19 +551,15 @@ pub unsafe extern "C" fn layout_arena_paint_push_color_stop(
     }
 }
 
-/// # Safety
-///
-/// `sink` must be the pointer handed to the callback, used synchronously, and `description`
-/// must be readable.
+/// Makes `sink`, the paint server handed to the callback, the gradient `description` describes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_gradient(
-    sink: *mut c_void,
-    description: *const crate::painting::host::FfiSvgGradientDescription,
+pub extern "C" fn layout_arena_svg_paint_resources_push_gradient(
+    sink: &mut crate::painting::svg_paint_resources::PublishedSvgPaintServer,
+    description: &crate::painting::host::FfiSvgGradientDescription,
 ) {
-    let sink = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgPaintServer>() };
     *sink = crate::painting::svg_paint_resources::PublishedSvgPaintServer::Gradient(
         crate::painting::svg_paint_resources::PublishedSvgGradient {
-            description: unsafe { *description },
+            description: *description,
             stops: Vec::new(),
         },
     );
@@ -574,20 +567,18 @@ pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_gradient(
 
 /// # Safety
 ///
-/// `sink` must be the pointer handed to the callback, used synchronously, `description` must be
-/// readable, and `css_transform_entries` must point at `css_transform_count` readable
-/// `ComputedResolvedTransform` values of a live computed style.
+/// `css_transform_entries` must point at `css_transform_count` readable `ComputedResolvedTransform` values of a live
+/// computed style.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_pattern(
-    sink: *mut c_void,
-    description: *const crate::painting::host::FfiSvgPatternDescription,
+    sink: &mut crate::painting::svg_paint_resources::PublishedSvgPaintServer,
+    description: &crate::painting::host::FfiSvgPatternDescription,
     css_transform_entries: *const c_void,
     css_transform_count: usize,
 ) {
-    let sink = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgPaintServer>() };
     *sink = crate::painting::svg_paint_resources::PublishedSvgPaintServer::Pattern(
         crate::painting::svg_paint_resources::PublishedSvgPattern {
-            description: unsafe { *description },
+            description: *description,
             css_transform: unsafe {
                 ak::slice_from_raw_parts(
                     css_transform_entries.cast::<crate::css::computed_value_types::ComputedResolvedTransform>(),
