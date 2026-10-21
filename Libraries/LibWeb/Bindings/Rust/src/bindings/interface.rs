@@ -23,8 +23,8 @@ use core::ptr::NonNull;
 use ak::Utf16FlyString;
 use libjs_rust::api::{
     Attribute, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, FunctionObject, Gc, HostObject,
-    JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey, RawNativeFunctionPointer, Realm, Throw,
-    ThrowCompletionOr, Trace, Value, Vm, get_function_realm, host_data_of, is_host_instance_of,
+    JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey, RawNativeFunction, RawNativeFunctionPointer,
+    Realm, Throw, ThrowCompletionOr, Trace, Value, Vm, get_function_realm, host_data_of, is_host_instance_of,
 };
 
 use crate::bindings::CallContext;
@@ -387,6 +387,28 @@ pub(crate) fn define_attribute(
         getter,
         setter,
         PropertyAttributes::new(Attribute::ENUMERABLE | Attribute::CONFIGURABLE),
+    );
+}
+
+/// Defines a regular attribute that is read only and [CachedAccessor] on the interface prototype object: its getter
+/// returns the same value for as long as the object lives, so the engine keeps the value on the object after the first
+/// get and does not call the getter again, as LibWeb's C++ bindings define such an attribute.
+pub(crate) fn define_cached_attribute(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    prototype: Gc<Object>,
+    name: &str,
+    getter: RawNativeFunctionPointer,
+) {
+    let property_key = PropertyKey::from_utf8(name);
+    let getter = RawNativeFunction::create(vm, getter, 0, &property_key, Some(realm), Some("get"), None);
+    prototype.define_direct_cached_accessor(
+        vm,
+        &property_key,
+        Some(getter.upcast()),
+        None,
+        PropertyAttributes::new(Attribute::ENUMERABLE | Attribute::CONFIGURABLE),
+        true,
     );
 }
 
