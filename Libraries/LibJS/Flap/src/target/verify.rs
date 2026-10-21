@@ -388,17 +388,6 @@ mod tests {
             ],
         );
         assert_invalid_arity(
-            Architecture::X86_64,
-            Operation::IntegerBinary {
-                operation: IntegerBinaryOperation::Binary(BinaryOperation::And),
-                width: IntegerWidth::U64,
-            },
-            vec![
-                Operand::PhysicalRegister(x86_64::RDX),
-                Operand::Immediate(0x3_ffff_ffff),
-            ],
-        );
-        assert_invalid_arity(
             Architecture::Aarch64,
             Operation::load_pair(PairWidth::DoubleWord),
             vec![

@@ -60,3 +60,19 @@ impl HandlerId {
         self.0 as usize
     }
 }
+
+/// The handlers one prefix opcode dispatches to on its sub-opcode.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SecondaryDispatchTable {
+    pub(crate) prefix: u8,
+    pub(crate) handlers: Vec<Option<HandlerId>>,
+}
+
+/// The dispatch tables a program has beyond its primary opcode table.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct DispatchLayout {
+    pub(crate) secondary: Vec<SecondaryDispatchTable>,
+    /// The handler that runs opcodes nothing else handles. Without one, they
+    /// go to the profile's built-in fallback stub.
+    pub(crate) fallback: Option<HandlerId>,
+}

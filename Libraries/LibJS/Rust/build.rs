@@ -298,6 +298,7 @@ fn interpreter_compiler(target: &Target, profiling: bool) -> flapc::Compiler {
         has_jscvt: target.is_apple && matches!(target.architecture, flapc::Architecture::Aarch64),
         enable_assertions: true,
         profiling,
+        profile: flapc::Profile::JavaScript,
     })
 }
 

@@ -9,6 +9,7 @@
 use super::Opcode;
 use crate::frontend::layout::KnownLayoutConstant;
 use crate::low_ir::Label;
+use crate::profile::ProgramCounterAddressing;
 use crate::runtime_interface::{RawNativeReturnConvention, raw_native_return_convention};
 use crate::target::backend::{Backend, X86_64Backend};
 use crate::target::description::ArchitectureOpcode;
@@ -383,7 +384,7 @@ pub(crate) fn store(
             MemoryWidth::HalfWord => (value as u16).into(),
             MemoryWidth::Word => (value as u32).into(),
             MemoryWidth::DoubleWord => value,
-            MemoryWidth::Float => {
+            MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector => {
                 unreachable!("floating immediate store was validated")
             }
         }),
@@ -1113,6 +1114,16 @@ fn push_stack_adjustment(emit: &mut Emit<'_>, operation: super::AluOperation, va
 fn dispatch_from_instruction_pointer(emit: &mut Emit<'_>, opcode_scratch: PhysicalRegister) {
     use crate::target::registers::x86_64::{R12, R13, R14};
 
+    if emit.profile.program_counter_addressing() == ProgramCounterAddressing::Absolute {
+        emit!(emit.output, X86_64;
+            Opcode::Load {
+                width: MemoryWidth::Byte,
+                signed: false,
+            } => [register opcode_scratch, address MachineMemoryAddress::offset(R13, 0)];
+            Opcode::JumpMemory => [address MachineMemoryAddress::scaled(R12, opcode_scratch, 8, 0)];
+        );
+        return;
+    }
     emit!(emit.output, X86_64;
         Opcode::Load {
             width: MemoryWidth::Byte,
@@ -1120,6 +1131,15 @@ fn dispatch_from_instruction_pointer(emit: &mut Emit<'_>, opcode_scratch: Physic
         } => [register opcode_scratch, address MachineMemoryAddress::indexed(R14, R13)];
         Opcode::JumpMemory => [address MachineMemoryAddress::scaled(R12, opcode_scratch, 8, 0)];
     );
+}
+
+/// The width of the pinned program counter: a 32-bit offset from the program
+/// base, or a pointer.
+fn program_counter_width(emit: &Emit<'_>) -> IntegerWidth {
+    match emit.profile.program_counter_addressing() {
+        ProgramCounterAddressing::BaseRelative => IntegerWidth::U32,
+        ProgramCounterAddressing::Absolute => IntegerWidth::U64,
+    }
 }
 
 impl Backend for X86_64Backend {
@@ -1280,7 +1300,8 @@ impl Backend for X86_64Backend {
     fn helper_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation, argument_count: usize) {
         use crate::target::registers::x86_64::{RCX, RDI, RDX, RSI};
 
-        if emit.object_format != ObjectFormat::Coff {
+        // The WebAssembly runtime's functions use the System V calling convention on Windows too.
+        if emit.object_format != ObjectFormat::Coff || emit.profile == crate::Profile::WebAssembly {
             emit!(emit.output, X86_64; Opcode::Move64Register => [register RDI, register RCX];);
             if argument_count == 2 {
                 emit!(emit.output, X86_64; Opcode::Move64Register => [register RSI, register RDX];);
@@ -1470,7 +1491,7 @@ impl Backend for X86_64Backend {
         emit!(emit.output, X86_64;
             Opcode::AluRegister {
             operation: super::AluOperation::Add,
-            width: IntegerWidth::U32,
+            width: program_counter_width(emit),
         } => [register R13, register size];
         );
         dispatch_from_instruction_pointer(emit, opcode_scratch);
@@ -1489,7 +1510,7 @@ impl Backend for X86_64Backend {
         emit!(emit.output, X86_64;
             Opcode::AluImmediate {
             operation: super::AluOperation::Add,
-            width: IntegerWidth::U32,
+            width: program_counter_width(emit),
         } => [register R13, immediate size.into()];
         );
         dispatch_from_instruction_pointer(emit, opcode_scratch);
@@ -1737,12 +1758,30 @@ impl Backend for X86_64Backend {
         Ok(())
     }
 
+    fn dispatch_secondary(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
+        let prefix = operands.immediate(0);
+        let index = operands.physical_register(1);
+        let scratch = operands.physical_register(2);
+        let Ok(prefix) = u8::try_from(prefix) else {
+            return finalize_error(emit.handler, "a secondary dispatch table prefix must be a byte");
+        };
+        emit!(emit.output, X86_64;
+            Opcode::LoadSecondaryDispatchTable(prefix) => [register scratch];
+            Opcode::JumpMemory => [address MachineMemoryAddress::scaled(scratch, index, 8, 0)];
+        );
+        Ok(())
+    }
+
     fn goto_handler(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
         let [target, opcode_scratch] = [operands.physical_register(0), operands.physical_register(1)];
         use crate::target::registers::x86_64::R13;
 
         if target != R13 {
-            emit!(emit.output, X86_64; Opcode::Move32Register => [register R13, register target];);
+            if program_counter_width(emit) == IntegerWidth::U64 {
+                emit!(emit.output, X86_64; Opcode::Move64Register => [register R13, register target];);
+            } else {
+                emit!(emit.output, X86_64; Opcode::Move32Register => [register R13, register target];);
+            }
         }
         dispatch_from_instruction_pointer(emit, opcode_scratch);
         Ok(())
@@ -1967,6 +2006,30 @@ impl Backend for X86_64Backend {
         width: IntegerWidth,
         operands: &[AllocatedOperand],
     ) -> Result<(), CompileError> {
+        if operation == BinaryOperation::Multiply && width == IntegerWidth::U32 {
+            let [destination, lhs, rhs] = operands else {
+                unreachable!("allocated operation and operands were verified");
+            };
+            let destination = verified_register(destination);
+            let lhs = verified_register(lhs);
+            match rhs {
+                AllocatedOperand::Immediate(value) => {
+                    emit!(emit.output, X86_64; Opcode::Multiply32Immediate => [register destination, register lhs, immediate *value];);
+                }
+                rhs => {
+                    let rhs = verified_register(rhs);
+                    if destination == lhs {
+                        emit!(emit.output, X86_64; Opcode::Multiply32 => [register destination, register rhs];);
+                    } else if destination == rhs {
+                        emit!(emit.output, X86_64; Opcode::Multiply32 => [register destination, register lhs];);
+                    } else {
+                        push_move_register(emit, destination, lhs, IntegerWidth::U32);
+                        emit!(emit.output, X86_64; Opcode::Multiply32 => [register destination, register rhs];);
+                    }
+                }
+            }
+            return Ok(());
+        }
         if operation == BinaryOperation::Multiply {
             return multiply(emit, width, operands);
         }
@@ -1974,24 +2037,11 @@ impl Backend for X86_64Backend {
         let alu_operation =
             super::AluOperation::from_binary(operation).expect("allocated x86-64 ALU operation was verified");
         match (operation, width, operands) {
-            (BinaryOperation::And, IntegerWidth::U64, [destination, rhs, scratch, _reserved_scratch]) => {
+            (BinaryOperation::And, IntegerWidth::U64, [destination, AllocatedOperand::Immediate(value)])
+                if *value as u64 == 0xffff_ffff =>
+            {
                 let destination = verified_register(destination);
-                let scratch = verified_register(scratch);
-                match rhs {
-                    AllocatedOperand::Immediate(value) if *value as u64 == 0xffff_ffff => {
-                        push_move_register(emit, destination, destination, IntegerWidth::U32);
-                    }
-                    AllocatedOperand::Immediate(value) if i32::try_from(*value).is_ok() => {
-                        push_alu_immediate(emit, alu_operation, width, destination, *value);
-                    }
-                    AllocatedOperand::Immediate(value) => {
-                        emit!(emit.output, X86_64; Opcode::MoveAbsolute64Immediate => [register scratch, immediate *value];);
-                        push_alu_register(emit, alu_operation, width, destination, scratch);
-                    }
-                    rhs => {
-                        push_alu_register(emit, alu_operation, width, destination, verified_register(rhs));
-                    }
-                }
+                push_move_register(emit, destination, destination, IntegerWidth::U32);
             }
             (
                 BinaryOperation::And | BinaryOperation::Or | BinaryOperation::Xor,
@@ -2013,7 +2063,29 @@ impl Backend for X86_64Backend {
                 }
             }
             (
-                BinaryOperation::And | BinaryOperation::Or | BinaryOperation::Xor,
+                BinaryOperation::Subtract,
+                IntegerWidth::U32,
+                [destination, lhs, AllocatedOperand::PhysicalRegister(rhs)],
+            ) if destination.physical_register() == Some(*rhs)
+                && destination.physical_register() != lhs.physical_register() =>
+            {
+                // destination = lhs - destination
+                let destination = verified_register(destination);
+                emit!(emit.output, X86_64; Opcode::Negate32Register => [register destination];);
+                push_alu_register(
+                    emit,
+                    super::AluOperation::Add,
+                    IntegerWidth::U32,
+                    destination,
+                    verified_register(lhs),
+                );
+            }
+            (
+                BinaryOperation::And
+                | BinaryOperation::Or
+                | BinaryOperation::Xor
+                | BinaryOperation::Add
+                | BinaryOperation::Subtract,
                 IntegerWidth::U32,
                 [destination, lhs, rhs],
             ) => {
@@ -2205,6 +2277,227 @@ impl Backend for X86_64Backend {
             }
             _ => unreachable!("allocated operation and operands were verified"),
         }
+    }
+
+    fn branch_ordered_float(
+        &self,
+        emit: &mut Emit<'_>,
+        lhs: PhysicalRegister,
+        rhs: PhysicalRegister,
+        comparison: crate::intrinsic::OrderedFloatComparison,
+        target: &Label,
+    ) -> Result<(), CompileError> {
+        use super::Condition;
+        use crate::intrinsic::OrderedFloatComparison::*;
+        // ucomisd reports an unordered comparison as "equal and below", so the relations are tested through the
+        // "above" conditions, which an unordered comparison never satisfies.
+        let (first, second, condition) = match comparison {
+            Less => (rhs, lhs, Condition::UnsignedGreater),
+            LessOrEqual => (rhs, lhs, Condition::UnsignedGreaterOrEqual),
+            Greater => (lhs, rhs, Condition::UnsignedGreater),
+            GreaterOrEqual => (lhs, rhs, Condition::UnsignedGreaterOrEqual),
+            Equal | NotEqual => (lhs, rhs, Condition::Equal),
+        };
+        emit!(emit.output, X86_64; Opcode::CompareDouble => [register first, register second];);
+        match comparison {
+            Equal => {
+                let unordered = emit.unique_label("unordered");
+                emit!(emit.output, X86_64;
+                    Opcode::JumpCondition(Condition::FloatUnordered) => [label unordered.clone()];
+                    Opcode::JumpCondition(Condition::Equal) => [label target.clone()];
+                    Opcode::Label => [label unordered];
+                );
+            }
+            NotEqual => {
+                emit!(emit.output, X86_64;
+                    Opcode::JumpCondition(Condition::FloatUnordered) => [label target.clone()];
+                    Opcode::JumpCondition(Condition::NotEqual) => [label target.clone()];
+                );
+            }
+            _ => {
+                emit!(emit.output, X86_64; Opcode::JumpCondition(condition) => [label target.clone()];);
+            }
+        }
+        Ok(())
+    }
+
+    fn finalize_atomic(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: crate::intrinsic::AtomicOperation,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError> {
+        match operation.kind() {
+            crate::intrinsic::AtomicOperationKind::Fence => {
+                emit!(emit.output, X86_64; Opcode::MemoryFence => [];);
+                return Ok(());
+            }
+            // Plain loads are sequentially consistent with the locked read-modify-write instructions.
+            crate::intrinsic::AtomicOperationKind::Load => {
+                let destination = operands.physical_register(0);
+                let address = machine_address(operands.operand(1));
+                let width = match operation.width() {
+                    IntegerWidth::U8 => MemoryWidth::Byte,
+                    IntegerWidth::U16 => MemoryWidth::HalfWord,
+                    IntegerWidth::U32 => MemoryWidth::Word,
+                    IntegerWidth::U64 => MemoryWidth::DoubleWord,
+                };
+                emit!(emit.output, X86_64; Opcode::Load { width, signed: false } => [register destination, address address];);
+                return Ok(());
+            }
+            _ => {}
+        }
+        let destination = operands.physical_register(0);
+        let address = machine_address(operands.operand(1));
+        if operation.kind() == crate::intrinsic::AtomicOperationKind::CompareExchange {
+            let replacement = operands.physical_register(2);
+            emit!(emit.output, X86_64; Opcode::AtomicCompareExchange(operation) => [register destination, address address, register replacement];);
+        } else {
+            emit!(emit.output, X86_64; Opcode::AtomicUpdate(operation) => [register destination, address address];);
+        }
+        // Narrow operations leave the register's upper bits as they were.
+        match operation.width() {
+            IntegerWidth::U8 | IntegerWidth::U16 => {
+                emit!(emit.output, X86_64; Opcode::ZeroExtend(operation.width()) => [register destination];);
+            }
+            IntegerWidth::U32 => push_move_register(emit, destination, destination, IntegerWidth::U32),
+            IntegerWidth::U64 => {}
+        }
+        Ok(())
+    }
+
+    fn finalize_vector(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: crate::intrinsic::VectorOperation,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError> {
+        use crate::intrinsic::VectorOperationKind;
+        match operation.kind() {
+            VectorOperationKind::FromU64Pair => {
+                let [destination, low, high] = operands.physical_registers();
+                emit!(emit.output, X86_64;
+                    Opcode::MoveGprToFpr64 => [register destination, register low];
+                    Opcode::InsertHigh64 => [register destination, register high];
+                );
+            }
+            VectorOperationKind::Binary => {
+                let [destination, rhs] = operands.physical_registers();
+                emit!(emit.output, X86_64; Opcode::VectorBinary(operation) => [register destination, register rhs];);
+            }
+            VectorOperationKind::Unary => {
+                let [destination, source] = operands.physical_registers();
+                emit!(emit.output, X86_64; Opcode::VectorUnary(operation) => [register destination, register source];);
+            }
+            VectorOperationKind::ToGeneralPurpose | VectorOperationKind::ToGeneralPurpose32 => {
+                let [destination, source] = operands.physical_registers();
+                emit!(emit.output, X86_64; Opcode::VectorToGeneralPurpose(operation) => [register destination, register source];);
+            }
+        }
+        Ok(())
+    }
+
+    fn finalize_numeric(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: crate::intrinsic::NumericOperation,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError> {
+        use crate::intrinsic::NumericOperation::*;
+        use crate::target::registers::x86_64::{RAX, RDX};
+        let width = match operation {
+            DivideSigned32 | DivideUnsigned32 | RemainderSigned32 | RemainderUnsigned32 | CountLeadingZeros32
+            | CountTrailingZeros32 | PopulationCount32 | RotateLeft32 | RotateRight32 => IntegerWidth::U32,
+            _ => IntegerWidth::U64,
+        };
+        match operation {
+            DivideSigned32 | DivideUnsigned32 | RemainderSigned32 | RemainderUnsigned32 | DivideSigned64
+            | DivideUnsigned64 | RemainderSigned64 | RemainderUnsigned64 => {
+                let [_, dividend, divisor, _] = operands.physical_registers();
+                let signed = matches!(
+                    operation,
+                    DivideSigned32 | RemainderSigned32 | DivideSigned64 | RemainderSigned64
+                );
+                if dividend != RAX {
+                    push_move_register(emit, RAX, dividend, width);
+                }
+                if signed {
+                    if width == IntegerWidth::U32 {
+                        emit!(emit.output, X86_64; Opcode::SignExtendEaxToEdx => []; Opcode::SignedDivide32Register => [register divisor];);
+                    } else {
+                        emit!(emit.output, X86_64; Opcode::SignExtendRaxToRdx => []; Opcode::SignedDivide64Register => [register divisor];);
+                    }
+                } else {
+                    push_alu_register(emit, super::AluOperation::Xor, IntegerWidth::U32, RDX, RDX);
+                    emit!(emit.output, X86_64; Opcode::UnsignedDivide(width) => [register divisor];);
+                }
+            }
+            CountLeadingZeros32 | CountLeadingZeros64 => {
+                let [destination, source] = operands.physical_registers();
+                emit!(emit.output, X86_64; Opcode::CountLeadingZeros(width) => [register destination, register source];);
+            }
+            CountTrailingZeros32 | CountTrailingZeros64 => {
+                let [destination, source] = operands.physical_registers();
+                emit!(emit.output, X86_64; Opcode::CountTrailingZeros(width) => [register destination, register source];);
+            }
+            PopulationCount32 | PopulationCount64 => {
+                let [destination, source] = operands.physical_registers();
+                emit!(emit.output, X86_64; Opcode::PopulationCount(width) => [register destination, register source];);
+            }
+            RotateLeft32 | RotateLeft64 => {
+                let [destination, _] = operands.physical_registers();
+                emit!(emit.output, X86_64; Opcode::RotateLeft(width) => [register destination];);
+            }
+            RotateRight32 | RotateRight64 => {
+                let [destination, _] = operands.physical_registers();
+                emit!(emit.output, X86_64; Opcode::RotateRight(width) => [register destination];);
+            }
+            Float64FromBits
+            | Float32FromBits
+            | Float64ToBits
+            | Float32ToBits
+            | TruncateFloat64ToSigned64
+            | ConvertSigned64ToFloat32
+            | ConvertSigned64ToFloat64
+            | RoundFloat64ToZero
+            | RoundFloat64ToNearest
+            | RoundFloat64Up
+            | RoundFloat64Down
+            | SquareRootFloat64
+            | SquareRootFloat32
+            | PromoteFloat32
+            | DemoteFloat64
+            | AddFloat32
+            | SubtractFloat32
+            | MultiplyFloat32
+            | DivideFloat32 => {
+                let [destination, source] = operands.physical_registers();
+                let opcode = match operation {
+                    Float64FromBits => Opcode::MoveGprToFpr64,
+                    Float32FromBits => Opcode::MoveGprToFpr32,
+                    Float64ToBits => Opcode::MoveFprToGpr64,
+                    Float32ToBits => Opcode::MoveFprToGpr32,
+                    TruncateFloat64ToSigned64 => Opcode::TruncateDoubleToSigned64,
+                    ConvertSigned64ToFloat32 => Opcode::ConvertSigned64ToSingle,
+                    ConvertSigned64ToFloat64 => Opcode::ConvertSigned64ToDouble,
+                    RoundFloat64ToNearest => Opcode::RoundDouble(0),
+                    RoundFloat64Down => Opcode::RoundDouble(1),
+                    RoundFloat64Up => Opcode::RoundDouble(2),
+                    RoundFloat64ToZero => Opcode::RoundDouble(3),
+                    SquareRootFloat64 => Opcode::SquareRootDouble,
+                    SquareRootFloat32 => Opcode::SquareRootSingle,
+                    PromoteFloat32 => Opcode::SingleToDouble,
+                    DemoteFloat64 => Opcode::DoubleToSingle,
+                    AddFloat32 => Opcode::SingleArithmetic(crate::intrinsic::FloatBinaryOperation::Add),
+                    SubtractFloat32 => Opcode::SingleArithmetic(crate::intrinsic::FloatBinaryOperation::Subtract),
+                    MultiplyFloat32 => Opcode::SingleArithmetic(crate::intrinsic::FloatBinaryOperation::Multiply),
+                    DivideFloat32 => Opcode::SingleArithmetic(crate::intrinsic::FloatBinaryOperation::Divide),
+                    _ => unreachable!(),
+                };
+                emit!(emit.output, X86_64; opcode => [register destination, register source];);
+            }
+        }
+        Ok(())
     }
 
     fn finalize_divide(&self, emit: &mut Emit<'_>, width: IntegerWidth, operands: &[AllocatedOperand]) {

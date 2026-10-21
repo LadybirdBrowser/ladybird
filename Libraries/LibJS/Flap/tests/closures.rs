@@ -15,6 +15,7 @@ fn compile(source: &str, architecture: Architecture) -> Result<String, String> {
         has_jscvt: false,
         enable_assertions: true,
         profiling: false,
+        profile: flapc::Profile::JavaScript,
     })
     .compile(CompilationUnit {
         source: SourceInput {

@@ -401,6 +401,9 @@ pub(crate) struct Function {
     pub(crate) instructions: Vec<Instruction>,
     pub(crate) values: Vec<Value>,
     pub(crate) entry: BlockId,
+    /// Whether u32 additions, subtractions, and multiplications wrap to 32 bits in their results, as the
+    /// WebAssembly profile requires. Without it, only their low 32 bits are meaningful.
+    pub(crate) exact_u32_arithmetic: bool,
     constant_values: HashMap<(Type, Constant), ValueId>,
 }
 
@@ -434,6 +437,7 @@ impl Function {
             instructions: Vec::new(),
             values,
             entry: BlockId(0),
+            exact_u32_arithmetic: false,
             constant_values: HashMap::default(),
         }
     }

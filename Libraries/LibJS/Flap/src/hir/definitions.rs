@@ -174,6 +174,12 @@ pub(crate) enum Condition {
         relation: ComparisonRelation,
         signed: bool,
     },
+    /// A comparison of two f64s with IEEE semantics: false if either is NaN, except for inequality.
+    FloatComparison {
+        lhs: Value,
+        rhs: Value,
+        comparison: crate::intrinsic::OrderedFloatComparison,
+    },
     BitTest {
         value: Value,
         mask: Value,

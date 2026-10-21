@@ -91,6 +91,14 @@ impl PhysicalRegister {
         format!("s{}", self.number)
     }
 
+    /// The name of the whole 128-bit register: q0 on AArch64, and the native name on x86-64.
+    pub(crate) fn quad_name(self) -> String {
+        match self.architecture {
+            Architecture::Aarch64 => format!("q{}", self.number),
+            Architecture::X86_64 => self.name.to_string(),
+        }
+    }
+
     pub(crate) fn integer_name(self, width: IntegerWidth) -> String {
         match (self.architecture, width) {
             (_, IntegerWidth::U64) => self.as_str().to_string(),
@@ -228,6 +236,9 @@ pub(crate) mod aarch64 {
         D7 = fpr("d7", 7);
         D8 = fpr("d8", 8);
         D16 = fpr("d16", 16);
+        D17 = fpr("d17", 17);
+        D18 = fpr("d18", 18);
+        D19 = fpr("d19", 19);
     }
 }
 
@@ -237,6 +248,13 @@ pub(crate) mod aarch64 {
 /// x86-64, rbx holds `values`, r15 holds the heap region base, and `exec_ctx`
 /// is derived by subtracting the fixed execution-context size. AArch64 keeps
 /// the heap region base in x24.
+///
+/// The WebAssembly profile reuses the same callee-saved registers under its
+/// own names: r13 holds the instruction pointer `ip`, r14 the side-table
+/// pointer `stp`, rbx the value stack pointer `vsp`, r15 the base of memory 0,
+/// and rbp the frame pointer `fp` of the running function. On AArch64, x21
+/// holds `ip`, x26 `stp`, x27 `vsp`, x28 the base of memory 0, and x29 `fp`;
+/// v16 to v19 are scratch for the vector operations' expansions.
 ///
 /// `temporaries` and `fp_temporaries` are the allocatable register pools.
 /// Registers used as hidden instruction-expansion scratch are deliberately
@@ -270,6 +288,10 @@ pub(crate) const X86_64_REGS: TargetRegisterInfo = TargetRegisterInfo {
         Some(x86_64::R15),
         Some(x86_64::RSP),
         Some(x86_64::RBP),
+        Some(x86_64::R13),
+        Some(x86_64::R14),
+        Some(x86_64::RBX),
+        Some(x86_64::R15),
     ],
     temporaries: &[
         x86_64::RAX,
@@ -314,6 +336,10 @@ pub(crate) const AARCH64_REGS: TargetRegisterInfo = TargetRegisterInfo {
         Some(aarch64::X24),
         Some(aarch64::SP),
         Some(aarch64::X29),
+        Some(aarch64::X21),
+        Some(aarch64::X26),
+        Some(aarch64::X27),
+        Some(aarch64::X28),
     ],
     // x9 and x10 are reserved as instruction-expansion scratch, and x16 and
     // x17 are the procedure call standard's veneer registers, which the

@@ -17,5 +17,6 @@ pub(crate) mod ir;
 pub(crate) mod machine_verify;
 pub(crate) mod registers;
 pub(crate) mod selection;
+pub(crate) mod spill;
 pub(crate) mod verify;
 pub(crate) mod x86_64;

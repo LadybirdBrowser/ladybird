@@ -1167,11 +1167,15 @@ fn instruction_is_globally_movable(instruction: &super::Instruction) -> bool {
             | Operation::Intrinsic(Intrinsic::FloatingPoint(_))
             | Operation::Intrinsic(Intrinsic::IntegerBinary(_))
             | Operation::Intrinsic(Intrinsic::IntegerComparison(_))
-            | Operation::Intrinsic(Intrinsic::Operand(_)) => true,
+            | Operation::Intrinsic(Intrinsic::Operand(_))
+            | Operation::Intrinsic(Intrinsic::Vector(_)) => true,
             Operation::Intrinsic(Intrinsic::Value(operation)) => {
                 *operation != ValueOperation::Reuse && !operation.is_rematerialized()
             }
-            Operation::Intrinsic(Intrinsic::Aggregate(_))
+            // Divisions must stay behind the checks that guard them against trapping.
+            Operation::Intrinsic(Intrinsic::Numeric(_))
+            | Operation::Intrinsic(Intrinsic::Atomic(_))
+            | Operation::Intrinsic(Intrinsic::Aggregate(_))
             | Operation::Intrinsic(Intrinsic::Assertion(_))
             | Operation::Intrinsic(Intrinsic::Branch(_))
             | Operation::Intrinsic(Intrinsic::Bytecode(_))

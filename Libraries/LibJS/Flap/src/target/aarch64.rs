@@ -14,7 +14,7 @@ use super::description::{
 };
 use super::emitter::{
     SimpleInstruction, SimpleOperand, emit_file_header, emit_handlers, emit_label, emit_program,
-    emit_simple_instruction, integer, native, pair, simple, single, w, word,
+    emit_simple_instruction, integer, native, pair, quad, simple, single, vector, w, word,
 };
 use super::ir::{
     MachineCondition as Condition, MachineFunction as Handler, MachineInstruction, MachineMemoryAddress,
@@ -28,6 +28,7 @@ use crate::{Architecture, CompileOptions, ObjectFormat};
 use std::fmt::Write;
 
 pub(crate) mod finalize;
+mod wasm;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum AddSubtractOperation {
@@ -102,7 +103,7 @@ impl AddressIndexShift {
         match (width, scale) {
             (MemoryWidth::HalfWord, 2) => Some(Self::One),
             (MemoryWidth::Word | MemoryWidth::Float, 4) => Some(Self::Two),
-            (MemoryWidth::DoubleWord, 8) => Some(Self::Three),
+            (MemoryWidth::DoubleWord | MemoryWidth::Double, 8) => Some(Self::Three),
             _ => None,
         }
     }
@@ -115,6 +116,40 @@ pub(crate) enum MemoryAddressing {
     UnscaledImmediate,
     Register,
     ShiftedRegister(AddressIndexShift),
+}
+
+/// One operand of a generic instruction, which the WebAssembly profile's numeric, vector, and atomic operations
+/// expand into. Registers and immediates take the instruction's operands in order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum Slot {
+    /// A register's number between a prefix and a suffix, like `w` and `` for w0, or `v` and `.4s` for v0.4s.
+    Register(&'static str, &'static str),
+    Immediate,
+    HexImmediate,
+    Literal(&'static str),
+}
+
+fn generic_instruction(mnemonic: &'static str, slots: [Option<Slot>; 4]) -> SimpleInstruction {
+    let mut operands = [None; 4];
+    let mut index = 0;
+    for (operand, slot) in operands.iter_mut().zip(slots) {
+        *operand = slot.map(|slot| match slot {
+            Slot::Register(prefix, suffix) => {
+                index += 1;
+                SimpleOperand::Register(index - 1, super::emitter::SimpleRegister::Numbered(prefix, suffix))
+            }
+            Slot::Immediate => {
+                index += 1;
+                SimpleOperand::HashImmediate(index - 1, false)
+            }
+            Slot::HexImmediate => {
+                index += 1;
+                SimpleOperand::HashImmediate(index - 1, true)
+            }
+            Slot::Literal(text) => SimpleOperand::Literal(text),
+        });
+    }
+    (mnemonic, operands)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -144,7 +179,11 @@ pub(crate) enum FloatConversion {
 fn load_instruction(width: MemoryWidth, signed: bool, addressing: MemoryAddressing) -> SimpleInstruction {
     let mnemonic = match (width, signed, addressing) {
         (
-            MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Word,
+            MemoryWidth::DoubleWord
+            | MemoryWidth::Float
+            | MemoryWidth::Double
+            | MemoryWidth::Vector
+            | MemoryWidth::Word,
             false,
             MemoryAddressing::UnscaledImmediate,
         ) => "ldur",
@@ -153,19 +192,29 @@ fn load_instruction(width: MemoryWidth, signed: bool, addressing: MemoryAddressi
         (MemoryWidth::HalfWord, true, MemoryAddressing::UnscaledImmediate) => "ldursh",
         (MemoryWidth::Byte, false, MemoryAddressing::UnscaledImmediate) => "ldurb",
         (MemoryWidth::Byte, true, MemoryAddressing::UnscaledImmediate) => "ldursb",
-        (MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Word, false, _) => "ldr",
+        (
+            MemoryWidth::DoubleWord
+            | MemoryWidth::Float
+            | MemoryWidth::Double
+            | MemoryWidth::Vector
+            | MemoryWidth::Word,
+            false,
+            _,
+        ) => "ldr",
         (MemoryWidth::Word, true, _) => "ldrsw",
         (MemoryWidth::HalfWord, false, _) => "ldrh",
         (MemoryWidth::HalfWord, true, _) => "ldrsh",
         (MemoryWidth::Byte, false, _) => "ldrb",
         (MemoryWidth::Byte, true, _) => "ldrsb",
-        (MemoryWidth::DoubleWord | MemoryWidth::Float, true, _) => {
+        (MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector, true, _) => {
             unreachable!("unsupported finalized AArch64 signed load")
         }
     };
     let destination = match width {
         MemoryWidth::DoubleWord => native(0),
         MemoryWidth::Float => single(0),
+        MemoryWidth::Double => native(0),
+        MemoryWidth::Vector => quad(0),
         MemoryWidth::Word if signed => native(0),
         MemoryWidth::Word | MemoryWidth::HalfWord | MemoryWidth::Byte => word(0),
     };
@@ -174,18 +223,32 @@ fn load_instruction(width: MemoryWidth, signed: bool, addressing: MemoryAddressi
 
 fn store_instruction(width: MemoryWidth, addressing: MemoryAddressing) -> SimpleInstruction {
     let mnemonic = match (width, addressing) {
-        (MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Word, MemoryAddressing::UnscaledImmediate) => {
-            "stur"
-        }
+        (
+            MemoryWidth::DoubleWord
+            | MemoryWidth::Float
+            | MemoryWidth::Double
+            | MemoryWidth::Vector
+            | MemoryWidth::Word,
+            MemoryAddressing::UnscaledImmediate,
+        ) => "stur",
         (MemoryWidth::HalfWord, MemoryAddressing::UnscaledImmediate) => "sturh",
         (MemoryWidth::Byte, MemoryAddressing::UnscaledImmediate) => "sturb",
-        (MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Word, _) => "str",
+        (
+            MemoryWidth::DoubleWord
+            | MemoryWidth::Float
+            | MemoryWidth::Double
+            | MemoryWidth::Vector
+            | MemoryWidth::Word,
+            _,
+        ) => "str",
         (MemoryWidth::HalfWord, _) => "strh",
         (MemoryWidth::Byte, _) => "strb",
     };
     let source = match width {
         MemoryWidth::DoubleWord => native(1),
         MemoryWidth::Float => single(1),
+        MemoryWidth::Double => native(1),
+        MemoryWidth::Vector => quad(1),
         MemoryWidth::Word | MemoryWidth::HalfWord | MemoryWidth::Byte => word(1),
     };
     simple!(mnemonic; source, SimpleOperand::Resolved(0, ""))
@@ -242,19 +305,19 @@ define_machine_opcodes! {
     [AdvanceInstructionPointer] => Self::AdvanceInstructionPointer => [[R]] printing simple!("add"; SimpleOperand::Literal("x21"), SimpleOperand::Literal("x21"), word(0), SimpleOperand::Literal("uxtw"));
     [Load { width: MemoryWidth, signed: bool, addressing: MemoryAddressing }] => opcode @ Self::Load { width, signed, addressing } => {
         match opcode {
-            Self::Load { width: MemoryWidth::Float, .. } => operands_match(operands, &[FR, A]),
+            Self::Load { width: MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector, .. } => operands_match(operands, &[FR, A]),
             _ => operands_match(operands, &[R, A]),
         }
     } encoding {
         let Self::Load { width, signed, addressing } = opcode else { unreachable!() };
-        (!signed || !matches!(width, MemoryWidth::DoubleWord | MemoryWidth::Float))
+        (!signed || !matches!(width, MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector))
             && address(1).is_some_and(|address| {
                 memory_address_is_encodable(width, addressing, address)
             })
     } printing load_instruction(width, signed, addressing);
     [Store { width: MemoryWidth, addressing: MemoryAddressing }] => opcode @ Self::Store { width, addressing } => {
         match opcode {
-            Self::Store { width: MemoryWidth::Float, .. } => operands_match(operands, &[A, FR]),
+            Self::Store { width: MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector, .. } => operands_match(operands, &[A, FR]),
             _ => operands_match(operands, &[A, R]),
         }
     } encoding {
@@ -317,6 +380,7 @@ define_machine_opcodes! {
     [BranchCondition(Condition)] => Self::BranchCondition(condition) => [[L]] printing simple!(condition.aarch64_mnemonic(); SimpleOperand::Label(0));
     [Break] => Self::Break => [[]] printing simple!("brk"; SimpleOperand::Literal("#0"));
     [MoveFloatBits64] => Self::MoveFloatBits64 => [[AR, AR]] printing simple!("fmov"; native(0), native(1));
+    [MoveVector] => Self::MoveVector => [[FR, FR]] printing simple!("mov"; vector(0, "16b"), vector(1, "16b"));
     [CompareDouble] => Self::CompareDouble => [[FR, FR]] printing simple!("fcmp"; native(0), native(1));
     [FloatArithmetic(FloatBinaryOperation)] => Self::FloatArithmetic(operation) => [[FR, FR, FR]] printing simple!(match operation {
         FloatBinaryOperation::Add => "fadd",
@@ -404,6 +468,7 @@ define_machine_opcodes! {
     [MultiplySubtract64] => Self::MultiplySubtract64 => [[R, R, R, R]] printing simple!("msub"; native(0), native(1), native(2), native(3));
     [SignedDivide32] => Self::SignedDivide32 => [[R, R, R]] printing simple!("sdiv"; word(0), word(1), word(2));
     [MultiplySubtract32] => Self::MultiplySubtract32 => [[R, R, R, R]] printing simple!("msub"; word(0), word(1), word(2), word(3));
+    [Generic(&'static str, [Option<Slot>; 4])] => Self::Generic(mnemonic, slots) => any printing generic_instruction(mnemonic, slots);
 }
 
 pub(crate) struct ImmediateMove {
@@ -514,7 +579,8 @@ pub(crate) fn unsigned_memory_offset_fits(width: MemoryWidth, offset: i64) -> bo
         MemoryWidth::Byte => (0..=4095).contains(&offset),
         MemoryWidth::HalfWord => (0..=8190).contains(&offset) && offset % 2 == 0,
         MemoryWidth::Word | MemoryWidth::Float => (0..=16380).contains(&offset) && offset % 4 == 0,
-        MemoryWidth::DoubleWord => (0..=32760).contains(&offset) && offset % 8 == 0,
+        MemoryWidth::DoubleWord | MemoryWidth::Double => (0..=32760).contains(&offset) && offset % 8 == 0,
+        MemoryWidth::Vector => (0..=65520).contains(&offset) && offset % 16 == 0,
     }
 }
 
@@ -624,7 +690,13 @@ impl Opcode {
                     }
                     _ => false,
                 };
-                if operands.iter().any(is_floating_point) {
+                let is_vector = |operand: &super::ir::Operand| {
+                    matches!(operand, super::ir::Operand::VirtualRegister(register)
+                        if register.class() == crate::types::RegisterClass::Vector)
+                };
+                if operands.iter().any(is_vector) {
+                    Self::MoveVector
+                } else if operands.iter().any(is_floating_point) {
                     Self::MoveFloatBits64
                 } else {
                     Self::MoveRegister(IntegerWidth::U64)
@@ -769,6 +841,29 @@ pub(crate) fn generate(program: &Program, options: &CompileOptions) -> String {
 
     emit_file_header(&mut out, "//", false);
 
+    if program.profile == crate::Profile::WebAssembly {
+        // The atomic operations use the large system extensions, which the runtime checks for.
+        w!(out, ".arch_extension lse");
+        return emit_program(
+            out,
+            program,
+            "    ",
+            |out| generate_wasm_entry_point(out, program, object_format),
+            |_| {},
+            |out| {
+                emit_handlers(
+                    out,
+                    program,
+                    "//",
+                    |out, _| emit_handler_alignment(out, object_format),
+                    emit_instruction,
+                    |_| {},
+                )
+            },
+            |out| generate_wasm_exit_point(out, object_format),
+        );
+    }
+
     emit_program(
         out,
         program,
@@ -799,6 +894,83 @@ fn generate_exit_point(out: &mut String, fmt: ObjectFormat) {
     if matches!(fmt, ObjectFormat::Coff) {
         w!(out, "    .seh_startepilogue");
     }
+    emit_saved_register_pairs(out, fmt, FrameAction::Restore);
+    w!(out, "    ldr d8, [sp, #96]");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore d8");
+    } else if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_freg d8, 96");
+    }
+    w!(out, "    ldp x29, x30, [sp], #{frame_size}");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore x29");
+        w!(out, "    .cfi_restore x30");
+        w!(out, "    .cfi_def_cfa sp, 0");
+    } else if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_fplr_x {frame_size}");
+        w!(out, "    .seh_endepilogue");
+    }
+    w!(out, "    ret");
+    w!(out);
+}
+
+/// The entry point of the WebAssembly interpreter:
+/// `void wasm_interpreter(u8 const* ip, u64 argument)`.
+///
+/// It saves the callee-saved registers in a frame whose base becomes `fp` (x29), loads `ip` (x21) and the dispatch
+/// table (x19), hands `argument` to the first handler in `vsp` (x27), and dispatches. Handlers build the frames of
+/// WebAssembly functions below it and must restore `fp` to this frame before they `exit`. If the runtime has a spill
+/// area, the frame keeps it free above the stack pointer, for the first handler to spill to before it moves the
+/// stack pointer.
+fn generate_wasm_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) {
+    let frame_size = frame_size_for_format(fmt);
+    w!(out, "    stp x29, x30, [sp, #-{frame_size}]!");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_fplr_x {frame_size}");
+    } else {
+        w!(out, "    .cfi_def_cfa_offset {frame_size}");
+        w!(out, "    .cfi_offset x29, {}", cfi_offset(fmt, 0));
+        w!(out, "    .cfi_offset x30, {}", cfi_offset(fmt, 8));
+    }
+    w!(out, "    mov x29, sp");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_set_fp");
+    } else {
+        w!(out, "    .cfi_def_cfa_register x29");
+    }
+    emit_saved_register_pairs(out, fmt, FrameAction::Save);
+    w!(out, "    str d8, [sp, #96]");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_save_freg d8, 96");
+        w!(out, "    .seh_endprologue");
+    } else {
+        w!(out, "    .cfi_offset d8, {}", cfi_offset(fmt, 96));
+    }
+    let spill_area = match (
+        runtime(program).get(KnownLayoutConstant::SpillAreaOffset),
+        runtime(program).get(KnownLayoutConstant::SpillAreaSlots),
+    ) {
+        (Some(offset), Some(slots)) => (offset + slots * 8 + 15) & !15,
+        _ => 0,
+    };
+    if spill_area != 0 {
+        emit_add_imm(out, "sp", "sp", -spill_area);
+    }
+    w!(out, "    mov x21, x0              // ip");
+    w!(out, "    mov x27, x1              // vsp = argument");
+    emit_symbol_addr(out, "x19", "asm_dispatch_table", fmt);
+    w!(out, "    ldrb w9, [x21]");
+    emit_dispatch_tail(out);
+    w!(out);
+}
+
+fn generate_wasm_exit_point(out: &mut String, fmt: ObjectFormat) {
+    let frame_size = frame_size_for_format(fmt);
+    w!(out, ".Lexit:");
+    if matches!(fmt, ObjectFormat::Coff) {
+        w!(out, "    .seh_startepilogue");
+    }
+    w!(out, "    mov sp, x29");
     emit_saved_register_pairs(out, fmt, FrameAction::Restore);
     w!(out, "    ldr d8, [sp, #96]");
     if matches!(fmt, ObjectFormat::Elf) {
@@ -1260,6 +1432,7 @@ mod tests {
             has_jscvt: false,
             enable_assertions: false,
             profiling: false,
+            profile: crate::Profile::JavaScript,
         }
     }
 
@@ -1304,6 +1477,7 @@ mod tests {
                 instructions,
             }],
             dispatch_handlers: vec![Some(crate::identity::HandlerId::new(0))],
+            dispatch: Default::default(),
         }
     }
 

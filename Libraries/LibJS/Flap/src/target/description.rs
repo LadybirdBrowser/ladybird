@@ -179,6 +179,9 @@ pub(crate) enum Operation {
     ToggleBit,
     ClearBit,
     Float(FloatingPointOperation),
+    Numeric(crate::intrinsic::NumericOperation),
+    Vector(crate::intrinsic::VectorOperation),
+    Atomic(crate::intrinsic::AtomicOperation),
     FloatMove,
     Branch(BranchOperation),
     AssertNonzero,
@@ -759,6 +762,44 @@ use x86_64::{R11, RAX, RCX, RDX, XMM3};
 const X86_64_LARGE_IMMEDIATE_STORE_DESCRIPTION: InstructionDescription =
     plain(&[Memory, GprInOrImm]).scratches(&[R11], &[]);
 
+fn numeric_description(operation: crate::intrinsic::NumericOperation) -> &'static InstructionDescription {
+    use crate::intrinsic::NumericOperation::*;
+    match operation {
+        DivideSigned32 | DivideUnsigned32 | DivideSigned64 | DivideUnsigned64 => {
+            &const {
+                plain(&[GprOut, GprIn, GprIn])
+                    .x86_64(spec().outputs(&[RAX]).fixed(&[(0, RAX)]).scratches(&[RDX]))
+                    .aarch64(spec().scratches(&[X9]))
+            }
+        }
+        RemainderSigned32 | RemainderUnsigned32 | RemainderSigned64 | RemainderUnsigned64 => {
+            &const {
+                plain(&[GprOut, GprIn, GprIn])
+                    .x86_64(spec().outputs(&[RDX]).fixed(&[(0, RDX)]).scratches(&[RAX]))
+                    .aarch64(spec().scratches(&[X9]))
+            }
+        }
+        CountLeadingZeros32 | CountTrailingZeros32 | PopulationCount32 | CountLeadingZeros64 | CountTrailingZeros64
+        | PopulationCount64 => &const { plain(&[GprOut, GprIn]) },
+        RotateLeft32 | RotateRight32 | RotateLeft64 | RotateRight64 => {
+            &const { plain(&[GprInOut, GprIn]).x86_64(spec().fixed(&[(1, RCX)])) }
+        }
+        Float64FromBits | Float32FromBits | ConvertSigned64ToFloat32 | ConvertSigned64ToFloat64 => {
+            &const { plain(&[FprOut, GprIn]) }
+        }
+        Float64ToBits | Float32ToBits | TruncateFloat64ToSigned64 => &const { plain(&[GprOut, FprIn]) },
+        RoundFloat64ToZero
+        | RoundFloat64ToNearest
+        | RoundFloat64Up
+        | RoundFloat64Down
+        | SquareRootFloat64
+        | SquareRootFloat32
+        | PromoteFloat32
+        | DemoteFloat64 => &const { plain(&[FprOut, FprIn]) },
+        AddFloat32 | SubtractFloat32 | MultiplyFloat32 | DivideFloat32 => &const { plain(&[FprInOut, FprIn]) },
+    }
+}
+
 fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
     use BinaryOperation::*;
     use IntegerWidth::*;
@@ -773,6 +814,9 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
         Operation::Control(ControlOperation::Exit) => &const { plain(&[]).terminal() },
         Operation::Control(ControlOperation::DispatchNext | ControlOperation::Dispatch) => {
             &const { plain(&[]).terminal().scratches(&[RAX], &[X9, X10]) }
+        }
+        Operation::Control(ControlOperation::DispatchSecondary) => {
+            &const { plain(&[Imm, GprIn]).terminal().scratches(&[RAX], &[X9, X10]) }
         }
         Operation::Control(ControlOperation::DispatchVariable | ControlOperation::GotoHandler) => {
             &const { plain(&[GprIn]).terminal().scratches(&[RAX], &[X9, X10]) }
@@ -865,12 +909,13 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
         }
         Operation::LoadLabel => &const { plain(&[GprOut, Imm]).scratches(&[], &[X9]) },
         Operation::Memory(MemoryOperation::Load {
-            width: MemoryWidth::Word | MemoryWidth::DoubleWord | MemoryWidth::Float,
+            width:
+                MemoryWidth::Word | MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector,
             signed: true,
             ..
         }) => unreachable!("unsupported signed load width"),
         Operation::Memory(MemoryOperation::Load {
-            width: MemoryWidth::Float,
+            width: MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector,
             signed: false,
         }) => &const { plain(&[FprOut, Memory]).pre_scratches(&[], &[X9]) },
         Operation::Memory(MemoryOperation::Load { .. }) => {
@@ -881,7 +926,7 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
         )) => &const { plain(&[Memory, GprInOrImm]).pre_scratches(&[], &[X9, X10]) },
         Operation::StoreExecutionContext => &const { plain(&[Memory]).pre_scratches(&[R11], &[X9, X10]) },
         Operation::Store64IndexedOffset => &const { plain(&[GprIn, GprIn, Imm, Imm, GprIn]).pre_scratches(&[], &[X9]) },
-        Operation::Memory(MemoryOperation::Store(MemoryWidth::Float)) => {
+        Operation::Memory(MemoryOperation::Store(MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector)) => {
             &const { plain(&[Memory, FprIn]).pre_scratches(&[], &[X9, X10]) }
         }
         Operation::Memory(MemoryOperation::LoadPair(_)) => {
@@ -944,15 +989,25 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
         Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(And),
             width: U64,
-        } => &const { plain(&[GprInOut, GprInOrImm]).scratches(&[RAX, R11], &[X9]) },
+        } => &const { plain(&[GprInOut, GprInOrImm]).scratches(&[], &[X9]) },
         Operation::IntegerBinary {
-            operation: IntegerBinaryOperation::Binary(And | Or | Xor),
+            operation: IntegerBinaryOperation::Binary(And | Or | Xor | Add | Multiply),
             width: U32,
         } => {
             &const {
                 plain(&[GprOut, GprIn, GprInOrImm])
                     .scratches(&[], &[X9])
                     .coalesces(&[(0, 1), (0, 2)])
+            }
+        }
+        Operation::IntegerBinary {
+            operation: IntegerBinaryOperation::Binary(Subtract),
+            width: U32,
+        } => {
+            &const {
+                plain(&[GprOut, GprIn, GprInOrImm])
+                    .scratches(&[], &[X9])
+                    .coalesces(&[(0, 1)])
             }
         }
         Operation::Or32Branch(_) => {
@@ -976,6 +1031,30 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
                     .coalesces(&[(0, 1)])
             }
         }
+        Operation::Numeric(operation) => numeric_description(operation),
+        Operation::Atomic(operation) => match operation.kind() {
+            crate::intrinsic::AtomicOperationKind::CompareExchange => {
+                &const {
+                    plain(&[GprInOut, Memory, GprIn])
+                        .x86_64(spec().fixed(&[(0, RAX)]))
+                        .aarch64(spec().scratches(&[X9, X10]))
+                }
+            }
+            crate::intrinsic::AtomicOperationKind::Exchange | crate::intrinsic::AtomicOperationKind::FetchAdd => {
+                &const { plain(&[GprInOut, Memory]).aarch64(spec().scratches(&[X9, X10])) }
+            }
+            crate::intrinsic::AtomicOperationKind::Load => {
+                &const { plain(&[GprOut, Memory]).aarch64(spec().scratches(&[X9, X10])) }
+            }
+            crate::intrinsic::AtomicOperationKind::Fence => &const { plain(&[]) },
+        },
+        Operation::Vector(operation) => match operation.kind() {
+            crate::intrinsic::VectorOperationKind::FromU64Pair => &const { plain(&[FprOut, GprIn, GprIn]) },
+            crate::intrinsic::VectorOperationKind::Binary => &const { plain(&[FprInOut, FprIn]) },
+            crate::intrinsic::VectorOperationKind::Unary => &const { plain(&[FprOut, FprIn]) },
+            crate::intrinsic::VectorOperationKind::ToGeneralPurpose
+            | crate::intrinsic::VectorOperationKind::ToGeneralPurpose32 => &const { plain(&[GprOut, FprIn]) },
+        },
         Operation::Modulo(_) => {
             &const {
                 plain(&[GprOut, GprIn, GprIn])
@@ -1071,7 +1150,9 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
                     .pre_scratches(&[], &[X9])
             }
         }
-        Operation::Branch(BranchOperation::Float(_)) => &const { plain(&[FprIn, FprIn, Label]) },
+        Operation::Branch(BranchOperation::Float(_) | BranchOperation::OrderedFloat(_)) => {
+            &const { plain(&[FprIn, FprIn, Label]) }
+        }
         Operation::AssertNonzero => &const { plain(&[GprIn]) },
         Operation::StorePairIndexed(PairWidth::Word) => unreachable!("indexed 32-bit pair stores are unsupported"),
         Operation::Memory(
@@ -1100,12 +1181,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn and_declares_x86_large_immediate_scratch_operands() {
+    fn and_needs_no_x86_scratch_registers() {
         let info = lookup_operation(Operation::IntegerBinary {
             operation: IntegerBinaryOperation::Binary(BinaryOperation::And),
             width: IntegerWidth::U64,
         });
-        assert_eq!(info.x86_64.trailing_scratch_registers, &[RAX, R11]);
+        assert!(info.x86_64.trailing_scratch_registers.is_empty());
     }
 
     #[test]

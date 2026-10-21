@@ -115,6 +115,7 @@ fn intrinsic_value_type(ty: IntrinsicValueType) -> Type {
         IntrinsicValueType::BytecodeOffset => Type::BytecodeOffset,
         IntrinsicValueType::F32 => Type::F32,
         IntrinsicValueType::F64 => Type::F64,
+        IntrinsicValueType::V128 => Type::V128,
         IntrinsicValueType::FunctionSymbol => Type::FunctionSymbol,
         IntrinsicValueType::I32 => Type::I32,
         IntrinsicValueType::I64 => Type::I64,

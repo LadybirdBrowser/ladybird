@@ -77,6 +77,8 @@ define_known_layout_constants! {
     SizeOfExecutionContext => "SIZEOF_EXECUTION_CONTEXT";
     CanonicalNanBits => "CANON_NAN_BITS";
     HeapRegionOffsetMask => "HEAP_REGION_OFFSET_MASK";
+    SpillAreaOffset => "SPILL_AREA_OFFSET";
+    SpillAreaSlots => "SPILL_AREA_SLOTS";
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

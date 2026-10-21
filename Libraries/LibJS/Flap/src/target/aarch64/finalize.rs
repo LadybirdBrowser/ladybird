@@ -1829,7 +1829,10 @@ impl Backend for Aarch64Backend {
         let [opcode_scratch, target_scratch] = scratches.physical_registers();
         use crate::target::registers::aarch64::X25;
 
-        emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register X25];);
+        // An absolute instruction pointer is already in x21.
+        if emit.profile.program_counter_addressing() == crate::profile::ProgramCounterAddressing::BaseRelative {
+            emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register X25];);
+        }
         dispatch_from_instruction_pointer(emit, opcode_scratch, target_scratch)
             .map_err(|error| memory_address_compile_error(emit.handler, error))
     }
@@ -1841,7 +1844,16 @@ impl Backend for Aarch64Backend {
         scratches: &[AllocatedOperand],
     ) -> Result<(), CompileError> {
         let [opcode_scratch, target_scratch] = scratches.physical_registers();
-        emit!(emit.output, Aarch64; Opcode::AdvanceInstructionPointer => [register size];);
+        if emit.profile.program_counter_addressing() == crate::profile::ProgramCounterAddressing::Absolute {
+            emit!(emit.output, Aarch64;
+                Opcode::AddSubtractRegister {
+                    operation: AddSubtractOperation::Add,
+                    flags: FlagUpdate::Preserve,
+                } => [register X21, register X21, register size];
+            );
+        } else {
+            emit!(emit.output, Aarch64; Opcode::AdvanceInstructionPointer => [register size];);
+        }
         dispatch_from_instruction_pointer(emit, opcode_scratch, target_scratch)
             .map_err(|error| memory_address_compile_error(emit.handler, error))
     }
@@ -2209,7 +2221,13 @@ impl Backend for Aarch64Backend {
 
     fn goto_handler(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
         let [target, opcode_scratch, target_scratch] = operands.physical_registers();
-        emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register target];);
+        if emit.profile.program_counter_addressing() == crate::profile::ProgramCounterAddressing::Absolute {
+            if target != X21 {
+                emit!(emit.output, Aarch64; Opcode::MoveRegister(IntegerWidth::U64) => [register X21, register target];);
+            }
+        } else {
+            emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register target];);
+        }
         dispatch_from_instruction_pointer(emit, opcode_scratch, target_scratch)
             .map_err(|error| memory_address_compile_error(emit.handler, error))
     }
@@ -2511,6 +2529,49 @@ impl Backend for Aarch64Backend {
         Ok(())
     }
 
+    fn branch_ordered_float(
+        &self,
+        emit: &mut Emit<'_>,
+        lhs: PhysicalRegister,
+        rhs: PhysicalRegister,
+        comparison: crate::intrinsic::OrderedFloatComparison,
+        target: &Label,
+    ) -> Result<(), CompileError> {
+        super::wasm::branch_ordered_float(emit, lhs, rhs, comparison, target);
+        Ok(())
+    }
+
+    fn dispatch_secondary(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
+        super::wasm::dispatch_secondary(emit, operands)
+    }
+
+    fn finalize_numeric(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: crate::intrinsic::NumericOperation,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError> {
+        super::wasm::finalize_numeric(emit, operation, operands)
+    }
+
+    fn finalize_atomic(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: crate::intrinsic::AtomicOperation,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError> {
+        super::wasm::finalize_atomic(emit, operation, operands)
+    }
+
+    fn finalize_vector(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: crate::intrinsic::VectorOperation,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError> {
+        super::wasm::finalize_vector(emit, operation, operands)
+    }
+
     fn finalize_binary_operation(
         &self,
         emit: &mut Emit<'_>,
@@ -2518,6 +2579,15 @@ impl Backend for Aarch64Backend {
         width: IntegerWidth,
         operands: &[AllocatedOperand],
     ) -> Result<(), CompileError> {
+        if width == IntegerWidth::U32
+            && matches!(
+                operation,
+                BinaryOperation::Add | BinaryOperation::Subtract | BinaryOperation::Multiply
+            )
+        {
+            super::wasm::arithmetic32(emit, operation, operands);
+            return Ok(());
+        }
         if operation == BinaryOperation::Multiply {
             multiply(emit, width, operands);
             return Ok(());

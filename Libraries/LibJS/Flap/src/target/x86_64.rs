@@ -24,6 +24,7 @@ use super::ir::{
 };
 use super::machine_verify::{define_machine_opcodes, operands_match};
 use crate::frontend::layout::KnownLayoutConstant;
+use crate::intrinsic::{AtomicOperation, VectorOperation};
 use crate::runtime_interface::{BREAKPOINT_CHECK, FALLBACK_HANDLER};
 use crate::{Architecture, CompileOptions, ObjectFormat};
 use std::fmt::Write;
@@ -81,6 +82,19 @@ pub(crate) enum FloatConversion {
     DoubleToSigned64Truncate,
 }
 
+fn atomic_size_prefix(width: IntegerWidth) -> &'static str {
+    match width {
+        IntegerWidth::U8 => "BYTE PTR ",
+        IntegerWidth::U16 => "WORD PTR ",
+        IntegerWidth::U32 => "DWORD PTR ",
+        IntegerWidth::U64 => "QWORD PTR ",
+    }
+}
+
+fn is_vector_register(operand: &super::ir::Operand) -> bool {
+    matches!(operand, super::ir::Operand::VirtualRegister(register) if register.class() == crate::types::RegisterClass::Vector)
+}
+
 fn load_instruction(width: MemoryWidth, signed: bool) -> SimpleInstruction {
     match (width, signed) {
         (MemoryWidth::DoubleWord, false) => {
@@ -88,6 +102,12 @@ fn load_instruction(width: MemoryWidth, signed: bool) -> SimpleInstruction {
         }
         (MemoryWidth::Float, false) => {
             simple!("movss"; native(0), SimpleOperand::Resolved(1, "DWORD PTR "))
+        }
+        (MemoryWidth::Double, false) => {
+            simple!("movsd"; native(0), SimpleOperand::Resolved(1, "QWORD PTR "))
+        }
+        (MemoryWidth::Vector, false) => {
+            simple!("movdqu"; native(0), SimpleOperand::Resolved(1, "XMMWORD PTR "))
         }
         (MemoryWidth::Word, false) => {
             simple!("mov"; word(0), SimpleOperand::Resolved(1, "DWORD PTR "))
@@ -104,7 +124,14 @@ fn load_instruction(width: MemoryWidth, signed: bool) -> SimpleInstruction {
         (MemoryWidth::Byte, true) => {
             simple!("movsx"; word(0), SimpleOperand::Resolved(1, "BYTE PTR "))
         }
-        (MemoryWidth::Word | MemoryWidth::DoubleWord | MemoryWidth::Float, true) => {
+        (
+            MemoryWidth::Word
+            | MemoryWidth::DoubleWord
+            | MemoryWidth::Float
+            | MemoryWidth::Double
+            | MemoryWidth::Vector,
+            true,
+        ) => {
             unreachable!("unsupported finalized x86-64 signed load")
         }
     }
@@ -135,6 +162,12 @@ fn store_instruction(width: MemoryWidth) -> SimpleInstruction {
         MemoryWidth::Float => {
             simple!("movss"; SimpleOperand::Resolved(0, "DWORD PTR "), native(1))
         }
+        MemoryWidth::Double => {
+            simple!("movsd"; SimpleOperand::Resolved(0, "QWORD PTR "), native(1))
+        }
+        MemoryWidth::Vector => {
+            simple!("movdqu"; SimpleOperand::Resolved(0, "XMMWORD PTR "), native(1))
+        }
     }
 }
 
@@ -161,7 +194,7 @@ define_machine_opcodes! {
     [LoadValuesAddress] => Self::LoadValuesAddress => [[R, A]];
     [Load { width: MemoryWidth, signed: bool }] => opcode @ Self::Load { width, signed } => {
         match opcode {
-            Self::Load { width: MemoryWidth::Float, .. } => operands_match(operands, &[FR, A]),
+            Self::Load { width: MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector, .. } => operands_match(operands, &[FR, A]),
             _ => operands_match(operands, &[R, A]),
         }
     } encoding {
@@ -170,13 +203,13 @@ define_machine_opcodes! {
     } printing load_instruction(width, signed);
     [LoadExecutionContext { width: MemoryWidth, signed: bool }] => opcode @ Self::LoadExecutionContext { .. } => {
         match opcode {
-            Self::LoadExecutionContext { width: MemoryWidth::Float, .. } => operands_match(operands, &[FR, A]),
+            Self::LoadExecutionContext { width: MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector, .. } => operands_match(operands, &[FR, A]),
             _ => operands_match(operands, &[R, A]),
         }
     };
     [LoadAdditiveDisplacement { width: MemoryWidth, signed: bool }] => opcode @ Self::LoadAdditiveDisplacement { width, signed } => {
         match opcode {
-            Self::LoadAdditiveDisplacement { width: MemoryWidth::Float, .. } => operands_match(operands, &[FR, A]),
+            Self::LoadAdditiveDisplacement { width: MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector, .. } => operands_match(operands, &[FR, A]),
             _ => operands_match(operands, &[R, A]),
         }
     } encoding {
@@ -186,13 +219,13 @@ define_machine_opcodes! {
     [StoreLargeImmediate(MemoryWidth)] => Self::StoreLargeImmediate(_) => any;
     [Store(MemoryWidth)] => opcode @ Self::Store(width) => {
         match opcode {
-            Self::Store(MemoryWidth::Float) => operands_match(operands, &[A, FR]),
+            Self::Store(MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector) => operands_match(operands, &[A, FR]),
             _ => operands_match(operands, &[A, RI]),
         }
     } printing store_instruction(width);
     [StoreAdditiveDisplacement(MemoryWidth)] => opcode @ Self::StoreAdditiveDisplacement(width) => {
         match opcode {
-            Self::StoreAdditiveDisplacement(MemoryWidth::Float) => operands_match(operands, &[A, FR]),
+            Self::StoreAdditiveDisplacement(MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector) => operands_match(operands, &[A, FR]),
             _ => operands_match(operands, &[A, RI]),
         }
     } printing store_instruction(width);
@@ -207,7 +240,7 @@ define_machine_opcodes! {
     } printing match width {
         MemoryWidth::Byte => simple!(operation.mnemonic(); SimpleOperand::Resolved(0, "BYTE PTR "), SimpleOperand::ResolvedInteger(1, IntegerWidth::U8)),
         MemoryWidth::Word => simple!(operation.mnemonic(); SimpleOperand::Resolved(0, "DWORD PTR "), SimpleOperand::ResolvedInteger(1, IntegerWidth::U32)),
-        MemoryWidth::HalfWord | MemoryWidth::DoubleWord | MemoryWidth::Float => unreachable!("unsupported x86-64 memory update width"),
+        MemoryWidth::HalfWord | MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector => unreachable!("unsupported x86-64 memory update width"),
     };
     [SignExtend32To64] => Self::SignExtend32To64 => [[R, R]] printing simple!("movsxd"; native(0), integer(1, IntegerWidth::U32));
     [Move64Register] => Self::Move64Register => [[R, R]] printing simple!("mov"; native(0), native(1));
@@ -234,6 +267,9 @@ define_machine_opcodes! {
     [Multiply64Register] => Self::Multiply64Register => [[R, R]] printing simple!("imul"; native(0), native(1));
     [Multiply64Immediate] => Self::Multiply64Immediate => [[R, R, RI]] printing simple!("imul"; native(0), native(1), SimpleOperand::Resolved(2, ""));
     [Multiply32] => Self::Multiply32 => [[R, R]] printing simple!("imul"; integer(0, IntegerWidth::U32), integer(1, IntegerWidth::U32));
+    [Multiply32Immediate] => Self::Multiply32Immediate => [[R, R, I]] encoding {
+        immediate(2).is_some_and(|value| i32::try_from(value).is_ok())
+    } printing simple!("imul"; integer(0, IntegerWidth::U32), integer(1, IntegerWidth::U32), SimpleOperand::Immediate(2));
     [Increment32Register] => Self::Increment32Register => [[R]] printing simple!("inc"; integer(0, IntegerWidth::U32));
     [Decrement32Register] => Self::Decrement32Register => [[R]] printing simple!("dec"; integer(0, IntegerWidth::U32));
     [Negate32Register] => Self::Negate32Register => [[R]] printing simple!("neg"; integer(0, IntegerWidth::U32));
@@ -271,7 +307,7 @@ define_machine_opcodes! {
             })
     } printing match width {
         MemoryWidth::Byte => simple!("test"; SimpleOperand::Resolved(0, "BYTE PTR "), SimpleOperand::Immediate(1)),
-        MemoryWidth::HalfWord | MemoryWidth::Word | MemoryWidth::DoubleWord | MemoryWidth::Float => unreachable!("unsupported finalized x86-64 immediate memory test width"),
+        MemoryWidth::HalfWord | MemoryWidth::Word | MemoryWidth::DoubleWord | MemoryWidth::Float | MemoryWidth::Double | MemoryWidth::Vector => unreachable!("unsupported finalized x86-64 immediate memory test width"),
     };
     [BitTest64Immediate] => Self::BitTest64Immediate => [[R, I]] encoding {
         immediate(1).is_some_and(|value| (0..64).contains(&value))
@@ -279,6 +315,25 @@ define_machine_opcodes! {
     [JumpCondition(Condition)] => Self::JumpCondition(condition) => [[L]] printing simple!(condition.x86_64_mnemonic(); SimpleOperand::Label(0));
     [UndefinedInstruction] => Self::UndefinedInstruction => [[]] printing simple!("ud2");
     [MoveFloatBits64] => Self::MoveFloatBits64 => [[AR, AR]] printing simple!("movq"; native(0), native(1));
+    [MoveVector] => Self::MoveVector => [[FR, FR]] printing simple!("movaps"; native(0), native(1));
+    [VectorBinary(VectorOperation)] => Self::VectorBinary(operation) => [[FR, FR]] printing simple!(operation.x86_64_mnemonic(); native(0), native(1));
+    [VectorUnary(VectorOperation)] => Self::VectorUnary(operation) => [[FR, FR]] printing match operation.x86_64_immediate() {
+        Some(immediate) => simple!(operation.x86_64_mnemonic(); native(0), native(1), SimpleOperand::Value(immediate)),
+        None => simple!(operation.x86_64_mnemonic(); native(0), native(1)),
+    };
+    [VectorToGeneralPurpose(VectorOperation)] => Self::VectorToGeneralPurpose(operation) => [[R, FR]] printing match (operation.kind(), operation.x86_64_immediate()) {
+        (crate::intrinsic::VectorOperationKind::ToGeneralPurpose32, _) => simple!(operation.x86_64_mnemonic(); word(0), native(1)),
+        (_, Some(immediate)) => simple!(operation.x86_64_mnemonic(); native(0), native(1), SimpleOperand::Value(immediate)),
+        (_, None) => simple!(operation.x86_64_mnemonic(); native(0), native(1)),
+    };
+    [AtomicUpdate(AtomicOperation)] => Self::AtomicUpdate(operation) => [[R, A]] printing match operation.kind() {
+        crate::intrinsic::AtomicOperationKind::Exchange => simple!("xchg"; SimpleOperand::Resolved(1, atomic_size_prefix(operation.width())), integer(0, operation.width())),
+        _ => simple!("lock xadd"; SimpleOperand::Resolved(1, atomic_size_prefix(operation.width())), integer(0, operation.width())),
+    };
+    [MemoryFence] => Self::MemoryFence => [[]] printing simple!("mfence");
+    [AtomicCompareExchange(AtomicOperation)] => Self::AtomicCompareExchange(operation) => [[R, A, R]] printing simple!("lock cmpxchg"; SimpleOperand::Resolved(1, atomic_size_prefix(operation.width())), integer(2, operation.width()));
+    [ZeroExtend(IntegerWidth)] => Self::ZeroExtend(width) => [[R]] printing simple!("movzx"; word(0), integer(0, width));
+    [InsertHigh64] => Self::InsertHigh64 => [[FR, R]] printing simple!("pinsrq"; native(0), native(1), SimpleOperand::Value(1));
     [CompareDouble] => Self::CompareDouble => [[FR, FR]] printing simple!("ucomisd"; native(0), native(1));
     [JumpParity] => Self::JumpParity => [[L]] printing simple!("jp"; SimpleOperand::Label(0));
     [FloatArithmetic(FloatBinaryOperation)] => Self::FloatArithmetic(operation) => [[FR, FR]] printing simple!(float_arithmetic_mnemonic(operation); native(0), native(1));
@@ -321,6 +376,38 @@ define_machine_opcodes! {
     [SignExtendRaxToRdx] => Self::SignExtendRaxToRdx => [[]] printing simple!("cqo");
     [SignedDivide64Register] => Self::SignedDivide64Register => [[R]] printing simple!("idiv"; native(0));
     [SignedDivide32Register] => Self::SignedDivide32Register => [[R]] printing simple!("idiv"; integer(0, IntegerWidth::U32));
+    [LoadSecondaryDispatchTable(u8)] => Self::LoadSecondaryDispatchTable(prefix) => [[R]] printing simple!("lea"; native(0), SimpleOperand::Literal(match prefix {
+        0xfb => "[rip + asm_dispatch_table_fb]",
+        0xfc => "[rip + asm_dispatch_table_fc]",
+        0xfd => "[rip + asm_dispatch_table_fd]",
+        0xfe => "[rip + asm_dispatch_table_fe]",
+        0xff => "[rip + asm_dispatch_table_ff]",
+        _ => unreachable!("secondary dispatch tables only exist for the 0xfb to 0xff prefixes"),
+    }));
+    [UnsignedDivide(IntegerWidth)] => Self::UnsignedDivide(width) => [[R]] printing simple!("div"; integer(0, width));
+    [CountLeadingZeros(IntegerWidth)] => Self::CountLeadingZeros(width) => [[R, R]] printing simple!("lzcnt"; integer(0, width), integer(1, width));
+    [CountTrailingZeros(IntegerWidth)] => Self::CountTrailingZeros(width) => [[R, R]] printing simple!("tzcnt"; integer(0, width), integer(1, width));
+    [PopulationCount(IntegerWidth)] => Self::PopulationCount(width) => [[R, R]] printing simple!("popcnt"; integer(0, width), integer(1, width));
+    [RotateLeft(IntegerWidth)] => Self::RotateLeft(width) => [[R]] printing simple!("rol"; integer(0, width), SimpleOperand::Literal("cl"));
+    [RotateRight(IntegerWidth)] => Self::RotateRight(width) => [[R]] printing simple!("ror"; integer(0, width), SimpleOperand::Literal("cl"));
+    [MoveGprToFpr64] => Self::MoveGprToFpr64 => [[FR, R]] printing simple!("movq"; native(0), native(1));
+    [MoveFprToGpr64] => Self::MoveFprToGpr64 => [[R, FR]] printing simple!("movq"; native(0), native(1));
+    [MoveGprToFpr32] => Self::MoveGprToFpr32 => [[FR, R]] printing simple!("movd"; native(0), word(1));
+    [MoveFprToGpr32] => Self::MoveFprToGpr32 => [[R, FR]] printing simple!("movd"; word(0), native(1));
+    [TruncateDoubleToSigned64] => Self::TruncateDoubleToSigned64 => [[R, FR]] printing simple!("cvttsd2si"; native(0), native(1));
+    [ConvertSigned64ToSingle] => Self::ConvertSigned64ToSingle => [[FR, R]] printing simple!("cvtsi2ss"; native(0), native(1));
+    [ConvertSigned64ToDouble] => Self::ConvertSigned64ToDouble => [[FR, R]] printing simple!("cvtsi2sd"; native(0), native(1));
+    [RoundDouble(i64)] => Self::RoundDouble(mode) => [[FR, FR]] printing simple!("roundsd"; native(0), native(1), SimpleOperand::Value(mode));
+    [SquareRootDouble] => Self::SquareRootDouble => [[FR, FR]] printing simple!("sqrtsd"; native(0), native(1));
+    [SquareRootSingle] => Self::SquareRootSingle => [[FR, FR]] printing simple!("sqrtss"; native(0), native(1));
+    [SingleToDouble] => Self::SingleToDouble => [[FR, FR]] printing simple!("cvtss2sd"; native(0), native(1));
+    [DoubleToSingle] => Self::DoubleToSingle => [[FR, FR]] printing simple!("cvtsd2ss"; native(0), native(1));
+    [SingleArithmetic(FloatBinaryOperation)] => Self::SingleArithmetic(operation) => [[FR, FR]] printing simple!(match operation {
+        FloatBinaryOperation::Add => "addss",
+        FloatBinaryOperation::Subtract => "subss",
+        FloatBinaryOperation::Multiply => "mulss",
+        FloatBinaryOperation::Divide => "divss",
+    }; native(0), native(1));
 }
 
 impl Opcode {
@@ -407,6 +494,7 @@ impl Opcode {
                     Self::Move32Register
                 }
             }
+            Operation::FloatMove if operands.iter().any(is_vector_register) => Self::MoveVector,
             Operation::FloatMove => Self::MoveFloatBits64,
             Operation::Float(operation) => match operation {
                 FloatingPointOperation::Binary(operation) => Self::FloatArithmetic(operation),
@@ -543,6 +631,27 @@ pub(crate) fn generate(program: &Program, options: &CompileOptions) -> String {
 
     emit_file_header(&mut out, "#", true);
 
+    if program.profile == crate::Profile::WebAssembly {
+        return emit_program(
+            out,
+            program,
+            "",
+            |out| generate_wasm_entry_point(out, program, object_format),
+            |_| {},
+            |out| {
+                emit_handlers(
+                    out,
+                    program,
+                    "#",
+                    |out, cold| w!(out, "{}", if cold { ".p2align 4" } else { ".p2align 6" }),
+                    |out, instruction, handler| emit_instruction(out, instruction, handler, program),
+                    |_| {},
+                )
+            },
+            |out| generate_wasm_exit_point(out, object_format),
+        );
+    }
+
     emit_program(
         out,
         program,
@@ -576,6 +685,72 @@ fn generate_exit_point(out: &mut String, fmt: ObjectFormat, abi: X86_64Abi) {
         w!(out, "    add rsp, 8");
     }
     emit_restored_registers(out, fmt, abi);
+    w!(out, "    pop rbp");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore rbp");
+        w!(out, "    .cfi_def_cfa rsp, 8");
+    }
+    w!(out, "    ret");
+    w!(out);
+}
+
+/// The entry point of the WebAssembly interpreter:
+/// `void wasm_interpreter(u8 const* ip, u64 argument)`.
+///
+/// It saves the callee-saved registers in a frame whose base becomes `fp`,
+/// loads `ip` and the dispatch table, hands `argument` to the first handler in
+/// `vsp`, and dispatches. Handlers build the frames of WebAssembly functions
+/// below it and must restore `fp` to this frame before they `exit`. If the
+/// runtime has a spill area, the frame keeps it free above the stack pointer,
+/// for the first handler to spill to before it moves the stack pointer.
+///
+/// The interpreter and the runtime functions its handlers call use the System V
+/// calling convention on Windows too, so that calls need no shadow space below
+/// the spill area.
+fn generate_wasm_entry_point(out: &mut String, program: &Program, object_format: ObjectFormat) {
+    let coff = object_format == ObjectFormat::Coff;
+    w!(out, "    push rbp");
+    if coff {
+        w!(out, "    .seh_pushreg rbp");
+    } else {
+        w!(out, "    .cfi_def_cfa_offset 16");
+        w!(out, "    .cfi_offset rbp, -16");
+    }
+    w!(out, "    mov rbp, rsp");
+    if coff {
+        w!(out, "    .seh_setframe rbp, 0");
+        for (register, _) in SYSV_SAVED_REGISTERS {
+            w!(out, "    push {register}");
+            w!(out, "    .seh_pushreg {register}");
+        }
+    } else {
+        w!(out, "    .cfi_def_cfa_register rbp");
+        emit_saved_registers(out, X86_64Abi::SysV);
+    }
+    let spill_area = match (
+        runtime(program).get(KnownLayoutConstant::SpillAreaOffset),
+        runtime(program).get(KnownLayoutConstant::SpillAreaSlots),
+    ) {
+        (Some(offset), Some(slots)) => (offset + slots * 8 + 15) & !15,
+        _ => 0,
+    };
+    w!(out, "    sub rsp, {}", 8 + spill_area);
+    if coff {
+        w!(out, "    .seh_stackalloc {}", 8 + spill_area);
+        w!(out, "    .seh_endprologue");
+    }
+    w!(out, "    mov r13, rdi                  # ip");
+    w!(out, "    mov rbx, rsi                  # vsp = argument");
+    w!(out, "    lea r12, [rip + asm_dispatch_table]");
+    w!(out, "    movzx eax, BYTE PTR [r13]");
+    w!(out, "    jmp [r12 + rax * 8]");
+    w!(out);
+}
+
+fn generate_wasm_exit_point(out: &mut String, fmt: ObjectFormat) {
+    w!(out, ".Lexit:");
+    w!(out, "    lea rsp, [rbp - 40]");
+    emit_restored_registers(out, fmt, X86_64Abi::SysV);
     w!(out, "    pop rbp");
     if matches!(fmt, ObjectFormat::Elf) {
         w!(out, "    .cfi_restore rbp");
@@ -853,11 +1028,13 @@ mod tests {
                 (KnownLayoutConstant::SizeOfExecutionContext, 120),
             ]),
             dispatch_handlers: Vec::new(),
+            dispatch: Default::default(),
             target: crate::Target {
                 architecture: Architecture::X86_64,
                 object_format: ObjectFormat::MachO,
             },
             functions: Vec::new(),
+            profile: crate::Profile::JavaScript,
             profiling: false,
         }
     }

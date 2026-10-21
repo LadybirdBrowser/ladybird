@@ -191,6 +191,10 @@ pub(crate) trait Backend: Sync {
 
     fn goto_handler(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
 
+    /// Jump to the handler a prefix opcode's secondary table holds for a sub-opcode. The caller checks that the
+    /// sub-opcode is in the table's range.
+    fn dispatch_secondary(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
+
     fn goto_bytecode_target(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
 
     fn finalize_execution_context_store(
@@ -282,6 +286,36 @@ pub(crate) trait Backend: Sync {
     );
 
     fn finalize_divide(&self, emit: &mut Emit<'_>, width: IntegerWidth, operands: &[AllocatedOperand]);
+
+    fn branch_ordered_float(
+        &self,
+        emit: &mut Emit<'_>,
+        lhs: PhysicalRegister,
+        rhs: PhysicalRegister,
+        comparison: crate::intrinsic::OrderedFloatComparison,
+        target: &Label,
+    ) -> Result<(), CompileError>;
+
+    fn finalize_numeric(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: crate::intrinsic::NumericOperation,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError>;
+
+    fn finalize_vector(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: crate::intrinsic::VectorOperation,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError>;
+
+    fn finalize_atomic(
+        &self,
+        emit: &mut Emit<'_>,
+        operation: crate::intrinsic::AtomicOperation,
+        operands: &[AllocatedOperand],
+    ) -> Result<(), CompileError>;
 }
 
 pub(crate) struct X86_64Backend;
