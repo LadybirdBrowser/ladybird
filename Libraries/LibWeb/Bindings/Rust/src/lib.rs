@@ -22,6 +22,8 @@ mod rust_demangle;
 #[path = "../../../../RustPanic.rs"]
 mod rust_panic;
 
+pub(crate) mod ak_format;
+
 #[cfg(not(test))]
 #[allow(
     dead_code,
