@@ -942,7 +942,7 @@ struct ASFResolutionContext<'a> {
     uses_attr_tainted_url: bool,
     custom_functions: Option<&'a CustomFunctionRegistry>,
     parse_context: Option<&'a ParseContext>,
-    media_environment: Option<&'a FfiMediaEnvironment>,
+    media_environment: Option<&'a FfiMediaEnvironment<'a>>,
     /// What lengths in a style query resolve against: the element's last computed style.
     style_query_length_resolution_context: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
     /// What colors in a style query resolve against, where the queried element's are known.
@@ -2516,7 +2516,7 @@ fn evaluate_if_condition(
                 return ConditionEvaluation::NotHandled;
             };
             let source = serialize_tokens(&test[1..close]);
-            return match unsafe { parse_and_evaluate_media_if_condition(&source, environment) } {
+            return match parse_and_evaluate_media_if_condition(&source, environment) {
                 Some(MatchResult::True) => ConditionEvaluation::Match(true),
                 Some(MatchResult::False | MatchResult::Unknown) => ConditionEvaluation::Match(false),
                 None => ConditionEvaluation::Invalid,
@@ -3369,7 +3369,7 @@ pub(crate) struct VarResolutionInputs<'a> {
     pub(crate) inheritance_store: Option<&'a CustomPropertyStore>,
     pub(crate) registry: Option<&'a CustomPropertyRegistry>,
     pub(crate) parse_context: Option<&'a ParseContext>,
-    pub(crate) media_environment: Option<&'a FfiMediaEnvironment>,
+    pub(crate) media_environment: Option<&'a FfiMediaEnvironment<'a>>,
     pub(crate) attribute_names_are_ascii_case_insensitive: bool,
     pub(crate) style_query_inputs: Option<&'a crate::css::cascaded_properties::FfiStyleQueryInputs>,
 }

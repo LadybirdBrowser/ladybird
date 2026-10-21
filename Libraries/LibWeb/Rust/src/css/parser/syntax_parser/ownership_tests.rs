@@ -1120,7 +1120,10 @@ fn media_mutation_preserves_live_owners_and_shared_snapshots() {
     let retained = media.clone();
     unsafe {
         let shared = Box::from_raw(rust_media_list_share(&media));
-        assert!(rust_media_list_evaluate(&media, std::mem::zeroed()));
+        assert!(rust_media_list_evaluate(
+            &media,
+            crate::css::parser::query_parser::FfiMediaEnvironment::new(&[], None)
+        ));
         assert!(rust_media_list_matches(&retained));
         assert!(!rust_media_list_matches(&shared));
         assert!(matches!(

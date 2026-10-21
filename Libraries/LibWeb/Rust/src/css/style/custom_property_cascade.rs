@@ -83,15 +83,8 @@ impl DocumentMediaSnapshot {
     }
 
     /// The snapshot as the resolver reads a media environment, borrowing from it.
-    fn environment(&self) -> crate::css::parser::query_parser::FfiMediaEnvironment {
-        crate::css::parser::query_parser::FfiMediaEnvironment {
-            values: self.values.as_ptr(),
-            value_count: self.values.len(),
-            length_resolution_context: self
-                .length
-                .as_ref()
-                .map_or(std::ptr::null(), |length| std::ptr::from_ref(length).cast()),
-        }
+    fn environment(&self) -> crate::css::parser::query_parser::FfiMediaEnvironment<'_> {
+        crate::css::parser::query_parser::FfiMediaEnvironment::new(&self.values, self.length.as_ref())
     }
 
     /// What lengths resolve against for a document without styled elements.
@@ -225,7 +218,7 @@ impl DocumentFunctionSnapshot {
         inputs.custom_function_count = 0;
         let media_environment = media.environment();
         // SAFETY: The environment points into the media snapshot, which outlives the evaluation.
-        let media_environment = unsafe { media_environment.borrow() };
+        let media_environment = media_environment.borrow();
         for &caller_scope in self.caller_scopes.values() {
             if self.scope_functions.contains_key(&caller_scope) {
                 continue;
@@ -349,7 +342,7 @@ fn engine_resolution_context<'a>(
     inheritance_store: Option<&'a CustomPropertyStore>,
     registry: &'a crate::css::custom_properties::CustomPropertyRegistry,
     attributes: Option<&'a SubstitutionAttributes<'a>>,
-    media_environment: &'a crate::css::parser::query_parser::FfiMediaEnvironment,
+    media_environment: &'a crate::css::parser::query_parser::FfiMediaEnvironment<'a>,
     style_query: Option<&'a crate::css::cascaded_properties::FfiStyleQueryInputs>,
     style_query_references: Option<&'a mut Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
     functions: Option<&'a PreparedCustomFunctions>,

@@ -312,13 +312,13 @@ pub(crate) unsafe fn style_sheet_visit_compilation(
     rule_identity: u64,
     purpose: NativeCompilationPurpose,
     source: *const c_void,
-    environment: FfiMediaEnvironment,
+    environment: FfiMediaEnvironment<'_>,
     callbacks: &NativeCompilationCallbacks,
 ) {
     // SAFETY: Guaranteed by the caller.
     let (host, source) = unsafe { CompilationHost::new(callbacks, source) };
     // SAFETY: Guaranteed by the caller.
-    let environment = unsafe { environment.borrow() };
+    let environment = environment.borrow();
     visit_compilation(sheet, rule_identity, purpose, source, environment, host, None);
 }
 
@@ -334,7 +334,7 @@ pub unsafe extern "C" fn rust_style_sheet_compile(
     sheet: &NativeStyleSheet,
     rule_identity: u64,
     source: *const c_void,
-    environment: FfiMediaEnvironment,
+    environment: FfiMediaEnvironment<'_>,
     callbacks: &NativeCompilationCallbacks,
     publication: &NativeStylePublication,
 ) {
@@ -343,7 +343,7 @@ pub unsafe extern "C" fn rust_style_sheet_compile(
     // SAFETY: Guaranteed by the caller.
     let (host, source) = unsafe { CompilationHost::new(callbacks, source) };
     // SAFETY: Guaranteed by the caller.
-    let environment = unsafe { environment.borrow() };
+    let environment = environment.borrow();
     visit_compilation(
         sheet,
         rule_identity,
@@ -365,11 +365,11 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
     sheet: &NativeStyleSheet,
     rule_identity: u64,
     source: *const c_void,
-    environment: FfiMediaEnvironment,
+    environment: FfiMediaEnvironment<'_>,
     callbacks: &NativeCompilationCallbacks,
     publication: &NativeStylePublication,
 ) {
-    let environment = unsafe { environment.borrow() };
+    let environment = environment.borrow();
     // SAFETY: Guaranteed by the caller.
     let publisher = unsafe { Publisher::new(publication) };
     // SAFETY: Guaranteed by the caller.
@@ -623,12 +623,8 @@ mod tests {
         ];
         values[id].kind = FfiMediaFeatureValueKind::Length;
         values[id].value = width;
-        let environment = FfiMediaEnvironment {
-            values: values.as_ptr(),
-            value_count: values.len(),
-            length_resolution_context: std::ptr::null(),
-        };
-        visit(unsafe { environment.borrow() })
+        let environment = FfiMediaEnvironment::new(&values, None);
+        visit(environment.borrow())
     }
 
     fn media_at(sheet: &NativeStyleSheet, path: &[usize]) -> MediaList {
@@ -1149,15 +1145,11 @@ mod tests {
         let mut images = 0_usize;
         unsafe { rust_rule_list_visit_images(rules, (&raw mut images).cast(), image) };
         assert_eq!(images, 1);
-        let environment = FfiMediaEnvironment {
-            values: std::ptr::null(),
-            value_count: 0,
-            length_resolution_context: std::ptr::null(),
-        };
+        let environment = FfiMediaEnvironment::new(&[], None);
         let mut media_state = crate::css::style_sheet::NativeMediaEvaluationState::default();
         assert!(
             !source
-                .evaluate_media_queries(unsafe { environment.borrow() }, &mut media_state, &mut |_, _| {})
+                .evaluate_media_queries(environment.borrow(), &mut media_state, &mut |_, _| {})
                 .any_changed
         );
         assert!(rules.rules.borrow().is_none());
@@ -1181,7 +1173,7 @@ mod tests {
         });
         assert!(
             !source
-                .evaluate_media_queries(unsafe { environment.borrow() }, &mut media_state, &mut |_, _| {})
+                .evaluate_media_queries(environment.borrow(), &mut media_state, &mut |_, _| {})
                 .any_changed
         );
     }
@@ -1290,12 +1282,8 @@ mod tests {
             sheet: compiled_sheet,
             before: 0,
         };
-        let environment = FfiMediaEnvironment {
-            values: std::ptr::null(),
-            value_count: 0,
-            length_resolution_context: std::ptr::null(),
-        };
-        let borrowed_environment = unsafe { environment.borrow() };
+        let environment = FfiMediaEnvironment::new(&[], None);
+        let borrowed_environment = environment.borrow();
         let mut media_state = crate::css::style_sheet::NativeMediaEvaluationState::default();
         assert!(
             !source
@@ -1333,7 +1321,7 @@ mod tests {
             );
         }
         assert_eq!(compiled.get(), 9);
-        unsafe { crate::css::style_sheet::rust_style_sheet_publish_conditions(&source, host.host(), environment) };
+        crate::css::style_sheet::rust_style_sheet_publish_conditions(&source, host.host(), environment);
         unsafe extern "C" fn prepare(_: *mut c_void) {}
         let sheets = [Rc::as_ptr(&source)];
         assert!(unsafe {
@@ -1714,11 +1702,7 @@ mod tests {
             implicit_scope_root: root,
             visit_rule: visit,
         };
-        let environment = FfiMediaEnvironment {
-            values: std::ptr::null(),
-            value_count: 0,
-            length_resolution_context: std::ptr::null(),
-        };
+        let environment = FfiMediaEnvironment::new(&[], None);
         unsafe {
             style_sheet_visit_compilation(
                 sheet,

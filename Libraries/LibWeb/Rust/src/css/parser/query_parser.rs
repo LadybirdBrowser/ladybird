@@ -27,6 +27,7 @@ use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier, seri
 use crate::css::style_compute::{FfiLengthResolutionContext, LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::StyleValueData;
 use std::ffi::c_void;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 include!(concat!(env!("OUT_DIR"), "/media_features_generated.rs"));
@@ -185,12 +186,17 @@ pub struct FfiMediaFeatureValue {
     pub second_value: f64,
 }
 
+/// The media feature values and length resolution context media queries evaluate against, borrowed for `'a`.
+///
+/// Rust builds one only from borrowed values, and C++ hands one over under the same contract: `values` identifies
+/// `value_count` values, and a non-null `length_resolution_context` a context, which stay readable for `'a`.
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiMediaEnvironment {
-    pub values: *const FfiMediaFeatureValue,
-    pub value_count: usize,
-    pub length_resolution_context: *const c_void,
+pub struct FfiMediaEnvironment<'a> {
+    values: *const FfiMediaFeatureValue,
+    value_count: usize,
+    length_resolution_context: *const c_void,
+    lent: PhantomData<(&'a [FfiMediaFeatureValue], Option<&'a FfiLengthResolutionContext>)>,
 }
 
 #[derive(Clone, Copy)]
@@ -199,14 +205,37 @@ pub(crate) struct MediaEnvironment<'a> {
     length_context: Option<&'a FfiLengthResolutionContext>,
 }
 
-impl FfiMediaEnvironment {
-    /// # Safety
-    /// The feature values and optional length context must remain readable while borrowed.
-    pub(crate) unsafe fn borrow(&self) -> MediaEnvironment<'_> {
-        let data = unsafe { ffi_media_environment(self) };
+impl<'a> FfiMediaEnvironment<'a> {
+    pub(crate) fn new(values: &'a [FfiMediaFeatureValue], length: Option<&'a FfiLengthResolutionContext>) -> Self {
+        Self {
+            values: values.as_ptr(),
+            value_count: values.len(),
+            length_resolution_context: length.map_or(std::ptr::null(), |length| std::ptr::from_ref(length).cast()),
+            lent: PhantomData,
+        }
+    }
+
+    pub(crate) fn borrow(&self) -> MediaEnvironment<'a> {
+        let data = self.parts();
         MediaEnvironment {
             values: data.map(|(values, _)| values),
             length_context: data.and_then(|(_, context)| context),
+        }
+    }
+
+    /// The feature values and the length context, or none for an environment that names values it has no storage for.
+    fn parts(&self) -> Option<(&'a [FfiMediaFeatureValue], Option<&'a FfiLengthResolutionContext>)> {
+        if self.value_count != 0 && self.values.is_null() {
+            return None;
+        }
+        // SAFETY: The environment is readable for 'a, as the type says.
+        unsafe {
+            Some((
+                ak::slice_from_raw_parts(self.values, self.value_count),
+                self.length_resolution_context
+                    .cast::<FfiLengthResolutionContext>()
+                    .as_ref(),
+            ))
         }
     }
 }
@@ -2414,29 +2443,9 @@ fn evaluate_supports_expression(expression: &Expression) -> MatchResult {
     }
 }
 
-unsafe fn ffi_media_environment(
-    environment: &FfiMediaEnvironment,
-) -> Option<(&[FfiMediaFeatureValue], Option<&FfiLengthResolutionContext>)> {
-    let values = if environment.value_count == 0 {
-        &[]
-    } else {
-        if environment.values.is_null() {
-            return None;
-        }
-        unsafe { ak::slice_from_raw_parts(environment.values, environment.value_count) }
-    };
-    let length_context = unsafe {
-        environment
-            .length_resolution_context
-            .cast::<FfiLengthResolutionContext>()
-            .as_ref()
-    };
-    Some((values, length_context))
-}
-
-pub(crate) unsafe fn parse_and_evaluate_media_if_condition(
+pub(crate) fn parse_and_evaluate_media_if_condition(
     source: &[u16],
-    environment: &FfiMediaEnvironment,
+    environment: &FfiMediaEnvironment<'_>,
 ) -> Option<MatchResult> {
     // NB: Mirrors the media arm of evaluate_condition_for_substitution, which this series removed
     //     from Libraries/LibWeb/CSS/StyleComputer.cpp. Try a standalone media feature first, then
@@ -2445,7 +2454,7 @@ pub(crate) unsafe fn parse_and_evaluate_media_if_condition(
         let values = components_from_source(source)?;
         parse_media_condition(&values, &resolve_query_feature)
     })?;
-    let (values, length_context) = unsafe { ffi_media_environment(environment) }?;
+    let (values, length_context) = environment.parts()?;
     Some(evaluate_media_expression(&expression, values, length_context))
 }
 
@@ -2912,7 +2921,7 @@ fn parse_sizes_attribute(
 pub unsafe extern "C" fn rust_parse_sizes_attribute(
     source: FfiUtf16View,
     context: Option<&ParseContext>,
-    media_environment: Option<&FfiMediaEnvironment>,
+    media_environment: Option<&FfiMediaEnvironment<'_>>,
     img_auto_width: Option<&f64>,
 ) -> *const c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SizesAttributeParseEntry);
@@ -2922,7 +2931,7 @@ pub unsafe extern "C" fn rust_parse_sizes_attribute(
     let Some(context) = context else {
         return std::ptr::null();
     };
-    let media_environment = media_environment.and_then(|environment| unsafe { ffi_media_environment(environment) });
+    let media_environment = media_environment.and_then(FfiMediaEnvironment::parts);
     let img_auto_width = img_auto_width.copied();
     Arc::into_raw(Arc::new(parse_sizes_attribute(
         context,
