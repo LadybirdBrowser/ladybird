@@ -5,9 +5,7 @@
  */
 
 use super::Rule;
-use crate::css::style::capacity::ShallowCapacityBytes;
 use crate::css::style::fast_hash::fast_hasher;
-use crate::css::style::memory::{MemoryCategory, MemoryController, MemoryLease};
 use crate::css::style::weak_pool::WeakPool;
 use std::hash::{Hash, Hasher};
 use std::ops::{Index, IndexMut};
@@ -18,17 +16,13 @@ const RULE_RECORDS_PER_PAGE: usize = 128;
 struct RuleRecordPage {
     values: [Option<Rule>; RULE_RECORDS_PER_PAGE],
     shared_hash: Option<u64>,
-    _memory: MemoryLease,
 }
 
 impl RuleRecordPage {
-    fn new(values: [Option<Rule>; RULE_RECORDS_PER_PAGE], memory_controller: &mut MemoryController) -> Self {
-        let mut memory = MemoryLease::new(MemoryCategory::RuleProgram);
-        memory.resize_required_to(memory_controller, size_of::<Self>() as u64);
+    fn new(values: [Option<Rule>; RULE_RECORDS_PER_PAGE]) -> Self {
         Self {
             values,
             shared_hash: None,
-            _memory: memory,
         }
     }
 }
@@ -56,10 +50,8 @@ impl RuleRecordTable {
 
     pub(super) fn push(&mut self, value: Rule) {
         if self.len.is_multiple_of(RULE_RECORDS_PER_PAGE) {
-            self.pages.push(Arc::new(RuleRecordPage::new(
-                std::array::from_fn(|_| None),
-                &mut rule_record_pages().memory,
-            )));
+            self.pages
+                .push(Arc::new(RuleRecordPage::new(std::array::from_fn(|_| None))));
         }
         let index = self.len;
         self.len = self.len.checked_add(1).expect("rule record space exhausted");
@@ -72,9 +64,7 @@ impl RuleRecordTable {
         self.needs_sharing = true;
         let page = &mut self.pages[index / RULE_RECORDS_PER_PAGE];
         if Arc::get_mut(page).is_none() {
-            rule_record_pages().make_private(page.shared_hash, page, |page, memory| {
-                RuleRecordPage::new(page.values.clone(), memory)
-            });
+            rule_record_pages().make_private(page.shared_hash, page, |page| RuleRecordPage::new(page.values.clone()));
         }
         let page = Arc::get_mut(page).expect("a private page has one owner");
         page.shared_hash = None;
@@ -112,7 +102,7 @@ impl RuleRecordTable {
             // A clone of the table, as a fork of the style engine, holds the unpublished page too, and publishes a
             // copy of its own.
             if Arc::get_mut(page).is_none() {
-                *page = Arc::new(RuleRecordPage::new(page.values.clone(), &mut pool.memory));
+                *page = Arc::new(RuleRecordPage::new(page.values.clone()));
             }
             Arc::get_mut(page).expect("a private page has one owner").shared_hash = Some(hash);
             pool.insert(hash, page);
@@ -137,13 +127,6 @@ impl IndexMut<usize> for RuleRecordTable {
         self.page_mut(index).values[index % RULE_RECORDS_PER_PAGE]
             .as_mut()
             .expect("a live rule slot has a record")
-    }
-}
-
-impl ShallowCapacityBytes for RuleRecordTable {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        // Page allocations are charged to the pool's ledger, including private pages.
-        self.pages.shallow_capacity_bytes()
     }
 }
 

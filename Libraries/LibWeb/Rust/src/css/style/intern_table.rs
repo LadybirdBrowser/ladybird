@@ -12,7 +12,6 @@ use std::hash::Hasher;
 use std::ops::Index;
 use std::ops::IndexMut;
 
-use super::capacity::ShallowCapacityBytes;
 use super::fast_hash::fast_hasher;
 
 pub(super) fn content_hash(content: impl Hash) -> u64 {
@@ -119,17 +118,6 @@ impl<Identity: InternIdentity, Payload> InternTable<Identity, Payload> {
     pub(super) fn live_is_empty(&self) -> bool {
         self.identities.is_empty()
     }
-
-    #[cfg(test)]
-    pub(super) fn reserve(&mut self, additional: usize) {
-        self.entries.reserve(additional);
-        self.identities.reserve(additional, |candidate| candidate.hash);
-    }
-
-    #[cfg(test)]
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        ShallowCapacityBytes::shallow_capacity_bytes(self)
-    }
 }
 
 impl<Identity: InternIdentity> InternTable<Identity, ()> {
@@ -155,14 +143,6 @@ impl<Identity: InternIdentity + PartialEq, Payload> InternTable<Identity, Payloa
     pub(super) fn retire_identity(&mut self, hash: u64, identity: Identity) {
         self.remove_identity(hash, identity);
         self.free_identities.push(identity);
-    }
-}
-
-impl<Identity: InternIdentity, Payload> ShallowCapacityBytes for InternTable<Identity, Payload> {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        self.entries.shallow_capacity_bytes()
-            + (self.identities.capacity() * (size_of::<HashedIdentity<Identity>>() + 1)) as u64
-            + self.free_identities.shallow_capacity_bytes()
     }
 }
 

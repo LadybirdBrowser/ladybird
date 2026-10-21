@@ -110,13 +110,6 @@ impl WinnerStore {
         }
     }
 
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        (size_of::<Self>()
-            + 2 * size_of::<usize>()
-            + self.declarations.capacity() * size_of::<WinnerDeclaration>()
-            + self.by_property.capacity() * size_of::<u16>()) as u64
-    }
-
     /// NB: Compare the resolved declarations while retaining context-dependent computation guards.
     pub(super) fn environment_value_delta(&self, other: &Self, engine: &RetainedState) -> Option<SmallVec<[u16; 8]>> {
         if self.reads_sibling_position || other.reads_sibling_position {

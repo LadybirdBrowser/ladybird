@@ -11,15 +11,12 @@
 
 use super::fast_hash::FastMap as HashMap;
 
-use super::capacity::capacity_bytes;
 use super::index::FeatureValue;
 use super::index::LocalFeatureKey;
 use super::index::StyleAtomID;
 use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
-use super::memory::MemoryCategory;
-use super::memory::MemoryController;
 use super::program::ActivationPredicateID;
 use super::program::CascadeLayerID;
 use super::program::DeclarationBlockID;
@@ -398,7 +395,6 @@ pub struct StyleTransaction {
     pub rule_declaration_changes: Vec<RuleDeclarationChange>,
     pub program_base_version: Option<ProgramVersion>,
     pub(crate) before_facts: Option<StyleNodeFacts>,
-    charged_bytes: u64,
 }
 
 impl StyleTransaction {
@@ -413,56 +409,26 @@ impl StyleTransaction {
         self.markers.iter().any(|marker| marker.kind != InputKind::Environment)
     }
 
-    pub fn install_program_joins(&mut self, joins: Vec<ProgramJoinDelta>, memory: &mut MemoryController) {
+    pub fn install_program_joins(&mut self, joins: Vec<ProgramJoinDelta>) {
         debug_assert!(self.program_joins.is_empty());
-        let bytes = (joins.capacity() * size_of::<ProgramJoinDelta>()) as u64;
-        memory.reserve_required(MemoryCategory::NormalizationJournal, bytes);
-        self.charged_bytes = self
-            .charged_bytes
-            .checked_add(bytes)
-            .expect("transaction memory charge overflow");
+
         self.program_joins = joins;
     }
 
-    pub fn install_rule_declaration_changes(
-        &mut self,
-        changes: Vec<RuleDeclarationChange>,
-        memory: &mut MemoryController,
-    ) {
+    pub fn install_rule_declaration_changes(&mut self, changes: Vec<RuleDeclarationChange>) {
         debug_assert!(self.rule_declaration_changes.is_empty());
-        let bytes = (changes.capacity() * size_of::<RuleDeclarationChange>()
-            + changes
-                .iter()
-                .map(|change| (change.old_properties.capacity() + change.new_properties.capacity()) * size_of::<u16>())
-                .sum::<usize>()) as u64;
-        memory.reserve_required(MemoryCategory::NormalizationJournal, bytes);
-        self.charged_bytes = self
-            .charged_bytes
-            .checked_add(bytes)
-            .expect("transaction memory charge overflow");
+
         self.rule_declaration_changes = changes;
     }
 
-    pub fn install_before_facts(&mut self, before_facts: StyleNodeFacts, memory: &mut MemoryController) {
+    pub fn install_before_facts(&mut self, before_facts: StyleNodeFacts) {
         debug_assert!(self.before_facts.is_none());
-        let bytes = before_facts.capacity_bytes();
-        memory.reserve_required(MemoryCategory::NormalizationJournal, bytes);
-        self.charged_bytes = self
-            .charged_bytes
-            .checked_add(bytes)
-            .expect("transaction memory charge overflow");
+
         self.before_facts = Some(before_facts);
     }
 
-    pub fn take_before_facts(&mut self, memory: &mut MemoryController) -> Option<StyleNodeFacts> {
-        let before_facts = self.before_facts.take();
-        let bytes = before_facts.as_ref().map_or(0, StyleNodeFacts::capacity_bytes);
-        memory.release(MemoryCategory::NormalizationJournal, bytes);
-        self.charged_bytes = self
-            .charged_bytes
-            .checked_sub(bytes)
-            .expect("transaction fact snapshot charge underflow");
-        before_facts
+    pub fn take_before_facts(&mut self) -> Option<StyleNodeFacts> {
+        self.before_facts.take()
     }
 
     #[must_use]
@@ -473,9 +439,7 @@ impl StyleTransaction {
     }
 
     /// Release the transaction's scratch charge. Called once the transaction has been consumed.
-    pub fn release(self, memory: &mut MemoryController) {
-        memory.release(MemoryCategory::NormalizationJournal, self.charged_bytes);
-    }
+    pub fn release(self) {}
 }
 
 /// Accumulates pending input changes and normalizes them at a transaction boundary.
@@ -492,16 +456,14 @@ pub struct NormalizationJournal {
     entries: HashMap<InputKey, (InputValue, InputValue)>,
     markers: Vec<CompleteScopeMarker>,
     covered: [bool; INPUT_KIND_COUNT],
-    charged_bytes: u32,
-    document_capacity_limit: u32,
+    document_entry_limit: usize,
     #[cfg(test)]
-    capacity_limit_override: Option<u64>,
+    entry_limit_override: Option<usize>,
 }
 
-const JOURNAL_ENTRY_BYTES: usize = size_of::<InputKey>() + 2 * size_of::<InputValue>() + 1;
-const JOURNAL_ENTRIES_PER_CONNECTED_ELEMENT: u64 = 4;
-const MIN_JOURNAL_CAPACITY_LIMIT: u64 = 4 * 1024 * 1024;
-const MAX_JOURNAL_CAPACITY_LIMIT: u64 = 32 * 1024 * 1024;
+const JOURNAL_ENTRIES_PER_CONNECTED_ELEMENT: usize = 4;
+const MIN_JOURNAL_ENTRY_LIMIT: usize = 64 * 1024;
+const MAX_JOURNAL_ENTRY_LIMIT: usize = 512 * 1024;
 /// Fold a newer value for a key into its pending `(old, new)` entry, and return whether the
 /// pending change now cancels out against the pre-transaction value. An element style input
 /// accumulates every reaction requested for it instead.
@@ -562,13 +524,12 @@ impl NormalizationJournal {
     /// Fold a newer journal into this one without counting its already-recorded inputs a second
     /// time. This retains the original value before either journal and the final value after both.
     /// A complete-scope marker of either journal covers the entries of its kind from both.
-    pub(super) fn absorb_newer(&mut self, newer: &mut Self, memory: &mut MemoryController, counters: &Counters) {
+    pub(super) fn absorb_newer(&mut self, newer: &mut Self, counters: &Counters) {
         for marker in std::mem::take(&mut newer.markers) {
-            self.install_marker(marker.kind, memory);
+            self.install_marker(marker.kind);
         }
         let newer_entries = std::mem::take(&mut newer.entries);
-        memory.release(MemoryCategory::NormalizationJournal, u64::from(newer.charged_bytes));
-        newer.charged_bytes = 0;
+
         newer.covered = [false; INPUT_KIND_COUNT];
 
         for (key, (old, new)) in newer_entries {
@@ -582,13 +543,11 @@ impl NormalizationJournal {
                 }
                 continue;
             }
-            if old == new || !self.make_room_for_one(key.kind(), memory, counters) {
+            if old == new || !self.make_room_for_one(key.kind(), counters) {
                 continue;
             }
             self.entries.insert(key, (old, new));
-            self.settle(memory);
         }
-        self.settle(memory);
     }
 
     #[must_use]
@@ -601,27 +560,19 @@ impl NormalizationJournal {
                 .all(|key| matches!(key, InputKey::ElementStyleInput(..)))
     }
 
-    #[must_use]
-    #[cfg(test)]
-    pub fn charged_bytes(&self) -> u64 {
-        u64::from(self.charged_bytes)
-    }
-
     #[inline(never)]
-    fn capacity_limit(&self) -> u64 {
+    fn entry_limit(&self) -> usize {
         #[cfg(test)]
-        if let Some(limit) = self.capacity_limit_override {
+        if let Some(limit) = self.entry_limit_override {
             return limit;
         }
-        u64::from(self.document_capacity_limit.max(MIN_JOURNAL_CAPACITY_LIMIT as u32))
+        self.document_entry_limit.max(MIN_JOURNAL_ENTRY_LIMIT)
     }
 
-    pub(super) fn set_document_capacity_limit(&mut self, connected_element_count: u32) {
-        let limit = (JOURNAL_ENTRY_BYTES as u64)
-            .saturating_mul(JOURNAL_ENTRIES_PER_CONNECTED_ELEMENT)
-            .saturating_mul(u64::from(connected_element_count))
-            .clamp(MIN_JOURNAL_CAPACITY_LIMIT, MAX_JOURNAL_CAPACITY_LIMIT);
-        self.document_capacity_limit = u32::try_from(limit).expect("normalization journal limit exceeds u32");
+    pub(super) fn set_document_entry_limit(&mut self, connected_element_count: u32) {
+        self.document_entry_limit = JOURNAL_ENTRIES_PER_CONNECTED_ELEMENT
+            .saturating_mul(connected_element_count as usize)
+            .clamp(MIN_JOURNAL_ENTRY_LIMIT, MAX_JOURNAL_ENTRY_LIMIT);
     }
 
     /// The pre-transaction value already journalled for `key`, if anything has been recorded for it.
@@ -636,22 +587,14 @@ impl NormalizationJournal {
 
     /// A demand for one node's record has answered that node's inputs. Every other entry stays
     /// for the next transaction, including entries of the same input kind.
-    pub(super) fn acknowledge_node(&mut self, node: StyleNodeID, memory: &mut MemoryController) {
+    pub(super) fn acknowledge_node(&mut self, node: StyleNodeID) {
         self.entries.retain(|key, _| key.style_node() != Some(node));
-        self.settle(memory);
     }
 
     /// Record one input change. `old` is the value before this mutation and is kept only if this is
     /// the first record for `key`; `new` replaces any previously pending value.
     #[inline]
-    pub fn record(
-        &mut self,
-        key: InputKey,
-        old: InputValue,
-        new: InputValue,
-        memory: &mut MemoryController,
-        counters: &Counters,
-    ) {
+    pub fn record(&mut self, key: InputKey, old: InputValue, new: InputValue, counters: &Counters) {
         let kind = key.kind();
         assert_eq!(old.kind(), kind, "journal value does not match its key");
         assert_eq!(new.kind(), kind, "journal value does not match its key");
@@ -679,30 +622,24 @@ impl NormalizationJournal {
         if old == new {
             return;
         }
-        if !self.make_room_for_one(kind, memory, counters) {
+        if !self.make_room_for_one(kind, counters) {
             return;
         }
         self.entries.insert(key, (old, new));
-        self.settle(memory);
     }
 
     /// Record one input action whose semantic scope is already the complete document.
-    pub fn record_complete_scope_action(
-        &mut self,
-        kind: InputKind,
-        memory: &mut MemoryController,
-        counters: &Counters,
-    ) {
+    pub fn record_complete_scope_action(&mut self, kind: InputKind, counters: &Counters) {
         counters.bump(Counter::RawMutationRecords);
         if let Some(counter) = kind.counter() {
             counters.bump(counter);
         }
-        self.install_marker(kind, memory);
+        self.install_marker(kind);
     }
 
     /// Normalize and drain. The result is sorted by key so that downstream planning is
     /// deterministic regardless of mutation arrival order.
-    pub fn take_transaction(&mut self, memory: &mut MemoryController, counters: &Counters) -> StyleTransaction {
+    pub fn take_transaction(&mut self, counters: &Counters) -> StyleTransaction {
         let mut inputs: Vec<NormalizedInput> = self
             .entries
             .drain()
@@ -755,15 +692,6 @@ impl NormalizationJournal {
         self.covered = [false; INPUT_KIND_COUNT];
         self.entries.shrink_to_fit();
 
-        // The scratch charge moves to the transaction, which now owns the drained storage. Both
-        // sides stay accounted across the handover.
-        memory.release(MemoryCategory::NormalizationJournal, u64::from(self.charged_bytes));
-        self.charged_bytes = 0;
-        let charged_bytes = (inputs.capacity() * size_of::<NormalizedInput>()
-            + markers.capacity() * size_of::<CompleteScopeMarker>()) as u64;
-        memory.reserve_required(MemoryCategory::NormalizationJournal, charged_bytes);
-        self.settle(memory);
-
         StyleTransaction {
             inputs,
             markers,
@@ -771,42 +699,32 @@ impl NormalizationJournal {
             rule_declaration_changes: Vec::new(),
             program_base_version: None,
             before_facts: None,
-            charged_bytes,
-        }
-    }
-
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.entries, self.markers];
-            cached [];
-            nested [];
-            skip [self.covered, self.charged_bytes, self.document_capacity_limit];
         }
     }
 
     /// Ensure one more fine-grained entry may be inserted, coarsening until it fits. Returns false
     /// when the entry must not be journalled at all, in which case its kind has been marked.
-    fn make_room_for_one(&mut self, kind: InputKind, memory: &mut MemoryController, counters: &Counters) -> bool {
+    fn make_room_for_one(&mut self, kind: InputKind, counters: &Counters) -> bool {
         if self.entries.len() < self.entries.capacity() {
             return true;
         }
-        self.make_room_for_one_slow(kind, memory, counters)
+        self.make_room_for_one_slow(kind, counters)
     }
 
     #[cold]
     #[inline(never)]
-    fn make_room_for_one_slow(&mut self, kind: InputKind, memory: &mut MemoryController, counters: &Counters) -> bool {
+    fn make_room_for_one_slow(&mut self, kind: InputKind, counters: &Counters) -> bool {
         while self.entries.len() >= self.entries.capacity() {
-            let growth = (JOURNAL_ENTRY_BYTES * self.entries.capacity().max(4)) as u64;
-            if u64::from(self.charged_bytes).saturating_add(growth) <= self.capacity_limit() {
+            let grown_capacity = self.entries.capacity() + self.entries.capacity().max(4);
+            if grown_capacity <= self.entry_limit() {
                 return true;
             }
-            if !self.coarsen_largest_kind(memory, counters) {
+            if !self.coarsen_largest_kind(counters) {
                 if kind == InputKind::ElementStyleInput {
                     return true;
                 }
                 // Nothing left to coarsen: mark this kind's scope rather than journalling it.
-                if self.install_marker(kind, memory) {
+                if self.install_marker(kind) {
                     counters.bump(Counter::CoarsenedScopeMarkers);
                 }
                 return false;
@@ -821,7 +739,7 @@ impl NormalizationJournal {
     /// Replace every fine-grained entry of the most numerous remaining kind with one typed
     /// complete-scope marker. Coarsening the largest kind first keeps a burst of class mutations
     /// from also coarsening unrelated tree relations.
-    fn coarsen_largest_kind(&mut self, memory: &mut MemoryController, counters: &Counters) -> bool {
+    fn coarsen_largest_kind(&mut self, counters: &Counters) -> bool {
         let mut counts = [0_usize; INPUT_KIND_COUNT];
         for key in self.entries.keys() {
             counts[key.kind().index()] += 1;
@@ -836,13 +754,13 @@ impl NormalizationJournal {
         else {
             return false;
         };
-        if self.install_marker(INPUT_KIND_VALUES[index], memory) {
+        if self.install_marker(INPUT_KIND_VALUES[index]) {
             counters.bump(Counter::CoarsenedScopeMarkers);
         }
         true
     }
 
-    fn install_marker(&mut self, kind: InputKind, memory: &mut MemoryController) -> bool {
+    fn install_marker(&mut self, kind: InputKind) -> bool {
         if self.covered[kind.index()] {
             return false;
         }
@@ -850,35 +768,18 @@ impl NormalizationJournal {
         self.entries.retain(|key, _| key.kind() != kind);
         self.entries.shrink_to_fit();
         self.markers.push(CompleteScopeMarker { kind });
-        self.settle(memory);
         true
-    }
-
-    /// Reconcile the charge with the containers' actual capacity. Growth is already committed by
-    /// the time it can be measured, so Tier 4 reports it rather than refusing it. Capacity growth
-    /// is checked against the document-shaped cap before insertion.
-    fn settle(&mut self, memory: &mut MemoryController) {
-        let current = self.capacity_bytes();
-        let charged_bytes = u64::from(self.charged_bytes);
-        if current > charged_bytes {
-            memory.reserve_required(MemoryCategory::NormalizationJournal, current - charged_bytes);
-        } else if charged_bytes > current {
-            memory.release(MemoryCategory::NormalizationJournal, charged_bytes - current);
-        }
-        self.charged_bytes = u32::try_from(current).expect("normalization journal charge exceeds u32");
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::index::StyleAtomID;
-    use super::super::memory::Tier;
     use super::*;
 
     // -- Normalization journal ---------------------------------------------------------------
 
     struct JournalFixture {
-        memory: MemoryController,
         counters: Counters,
         journal: NormalizationJournal,
     }
@@ -886,20 +787,19 @@ mod tests {
     impl JournalFixture {
         fn new() -> Self {
             Self {
-                memory: MemoryController::new(),
                 counters: Counters::new(),
                 journal: NormalizationJournal::new(),
             }
         }
 
-        fn with_journal_cap(bytes: u64) -> Self {
+        fn with_journal_entry_limit(entries: usize) -> Self {
             let mut fixture = Self::new();
-            fixture.journal.capacity_limit_override = Some(bytes);
+            fixture.journal.entry_limit_override = Some(entries);
             fixture
         }
 
         fn record(&mut self, key: InputKey, old: InputValue, new: InputValue) {
-            self.journal.record(key, old, new, &mut self.memory, &self.counters);
+            self.journal.record(key, old, new, &self.counters);
         }
 
         fn class(&mut self, node: u32, class: u32, old: bool, new: bool) {
@@ -932,7 +832,7 @@ mod tests {
         }
 
         fn take(&mut self) -> StyleTransaction {
-            self.journal.take_transaction(&mut self.memory, &self.counters)
+            self.journal.take_transaction(&self.counters)
         }
     }
 
@@ -957,7 +857,7 @@ mod tests {
         let transaction = fixture.take();
         assert!(transaction.is_empty());
         assert_eq!(fixture.counters.get(Counter::NormalizedUniqueKeys), 0);
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
@@ -997,7 +897,7 @@ mod tests {
                 },
             }]
         );
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
@@ -1006,11 +906,9 @@ mod tests {
         fixture.class(1, 10, false, true);
 
         let mut newer = NormalizationJournal::new();
-        newer.record_complete_scope_action(InputKind::LocalFeature, &mut fixture.memory, &fixture.counters);
+        newer.record_complete_scope_action(InputKind::LocalFeature, &fixture.counters);
 
-        fixture
-            .journal
-            .absorb_newer(&mut newer, &mut fixture.memory, &fixture.counters);
+        fixture.journal.absorb_newer(&mut newer, &fixture.counters);
         assert!(newer.is_empty());
 
         let transaction = fixture.take();
@@ -1021,7 +919,7 @@ mod tests {
                 kind: InputKind::LocalFeature
             }]
         );
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
@@ -1035,17 +933,9 @@ mod tests {
         fixture.record(key, value(0), value(STYLE_REACTION_RECOMPUTE_STYLE));
 
         let mut newer = NormalizationJournal::new();
-        newer.record(
-            key,
-            value(0),
-            value(STYLE_REACTION_INHERITED_STYLE),
-            &mut fixture.memory,
-            &fixture.counters,
-        );
+        newer.record(key, value(0), value(STYLE_REACTION_INHERITED_STYLE), &fixture.counters);
 
-        fixture
-            .journal
-            .absorb_newer(&mut newer, &mut fixture.memory, &fixture.counters);
+        fixture.journal.absorb_newer(&mut newer, &fixture.counters);
 
         let transaction = fixture.take();
         assert_eq!(
@@ -1056,7 +946,7 @@ mod tests {
                 new: value(STYLE_REACTION_RECOMPUTE_STYLE | STYLE_REACTION_INHERITED_STYLE),
             }]
         );
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
@@ -1075,13 +965,10 @@ mod tests {
                 reaction: STYLE_REACTION_RECOMPUTE_STYLE,
                 inherited_style_groups: 0,
             },
-            &mut fixture.memory,
             &fixture.counters,
         );
 
-        fixture
-            .journal
-            .absorb_newer(&mut newer, &mut fixture.memory, &fixture.counters);
+        fixture.journal.absorb_newer(&mut newer, &fixture.counters);
         assert!(newer.is_empty());
 
         let transaction = fixture.take();
@@ -1098,7 +985,7 @@ mod tests {
                 .iter()
                 .any(|input| matches!(input.key, InputKey::ElementStyleInput(..)))
         );
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
@@ -1122,7 +1009,7 @@ mod tests {
                 new: block(4),
             }]
         );
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
@@ -1137,7 +1024,7 @@ mod tests {
         assert_eq!(transaction.inputs.len(), 1);
         assert_eq!(transaction.inputs[0].old, relations(1));
         assert_eq!(transaction.inputs[0].new, relations(3));
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
@@ -1174,7 +1061,7 @@ mod tests {
                 && input.new == InputValue::Feature(FeatureValue::Present)
         }));
         assert_eq!(fixture.counters.get(Counter::ArrivingNodeFactsFolded), 3);
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
@@ -1199,7 +1086,7 @@ mod tests {
             .map(|input| input.key.style_node().unwrap().raw())
             .collect();
         assert_eq!(nodes, vec![2, 4, 7, 9]);
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
@@ -1207,7 +1094,7 @@ mod tests {
         let mut fixture = JournalFixture::new();
         fixture
             .journal
-            .record_complete_scope_action(InputKind::Environment, &mut fixture.memory, &fixture.counters);
+            .record_complete_scope_action(InputKind::Environment, &fixture.counters);
 
         assert_eq!(fixture.counters.get(Counter::RawMutationRecords), 1);
         assert_eq!(fixture.counters.get(Counter::EnvironmentDeltas), 1);
@@ -1220,12 +1107,12 @@ mod tests {
                 kind: InputKind::Environment
             }]
         );
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
     fn journal_overflow_coarsens_the_largest_kind_into_a_typed_marker() {
-        let mut fixture = JournalFixture::with_journal_cap(4096);
+        let mut fixture = JournalFixture::with_journal_entry_limit(64);
         fixture.record(
             InputKey::TreeRelations(StyleNodeID::element(1)),
             relations(1),
@@ -1262,12 +1149,12 @@ mod tests {
                 .all(|input| input.key.kind() == InputKind::TreeRelations)
         );
         assert_eq!(transaction.inputs.len(), 2);
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
     fn element_style_actions_remain_exact_without_scratch_headroom() {
-        let mut fixture = JournalFixture::with_journal_cap(0);
+        let mut fixture = JournalFixture::with_journal_entry_limit(0);
         fixture.element_style_input(10);
         fixture.element_style_input(20);
 
@@ -1297,45 +1184,24 @@ mod tests {
                 InputKey::ElementStyleInput(StyleNodeID::element(200)),
             ]
         );
-        transaction.release(&mut fixture.memory);
+        transaction.release();
     }
 
     #[test]
     fn a_coarsened_kind_absorbs_further_records_without_growing() {
-        let mut fixture = JournalFixture::with_journal_cap(512);
+        let mut fixture = JournalFixture::with_journal_entry_limit(8);
         for node in 10..200_u32 {
             fixture.class(node, 1, false, true);
         }
-        let bytes_after_coarsening = fixture.journal.charged_bytes();
 
         for node in 200..4000_u32 {
             fixture.class(node, 1, false, true);
         }
-        assert_eq!(fixture.journal.charged_bytes(), bytes_after_coarsening);
         assert_eq!(fixture.journal.len(), 0);
         assert_eq!(
             fixture.counters.get(Counter::RawMutationRecords),
             3990,
             "every raw mutation is still counted"
-        );
-    }
-
-    #[test]
-    fn draining_hands_the_scratch_charge_over_and_releasing_gives_it_back() {
-        let mut fixture = JournalFixture::new();
-        for node in 1..50_u32 {
-            fixture.class(node, 1, false, true);
-        }
-        assert!(fixture.memory.bytes_in_tier(Tier::Scratch) > 0);
-
-        let transaction = fixture.take();
-        assert_eq!(transaction.inputs.len(), 49);
-        assert!(fixture.memory.bytes_in_tier(Tier::Scratch) > 0);
-
-        transaction.release(&mut fixture.memory);
-        assert_eq!(
-            fixture.memory.bytes_in_tier(Tier::Scratch),
-            fixture.journal.charged_bytes()
         );
     }
 }

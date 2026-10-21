@@ -130,7 +130,7 @@ impl RetainedState {
 
     /// Intern one immutable specified value into the rule program's dense value table.
     pub fn intern_specified_value(&mut self, value: &Arc<StyleValueData>) -> SpecifiedValueID {
-        let (id, lookup) = self.specified_values.intern(value, &mut self.memory);
+        let (id, lookup) = self.specified_values.intern(value);
         match lookup {
             Lookup::Known(()) => self.counters.bump(Counter::SpecifiedValuesReused),
             Lookup::KnownAbsent | Lookup::Missing(_) => {}
@@ -140,7 +140,7 @@ impl RetainedState {
 
     /// Register an authored spelling as an alias of its context-free canonical value.
     pub fn alias_specified_value(&mut self, value: &Arc<StyleValueData>, id: SpecifiedValueID) {
-        self.specified_values.alias(value, id, &mut self.memory);
+        self.specified_values.alias(value, id);
     }
 
     /// Make every concrete scope resolve its ranked program again. Programs whose sheet and layer
@@ -206,9 +206,7 @@ impl RetainedState {
         }
     }
 
-    pub(super) fn settle_program(&mut self) {
-        self.program.settle_memory(&mut self.memory);
-    }
+    pub(super) fn settle_program(&mut self) {}
 
     #[must_use]
     pub(super) fn fact_value_is_reconstructible(key: LocalFeatureKey, value: FeatureValue) -> bool {
@@ -380,16 +378,10 @@ impl RetainedState {
         root: StyleNodeID,
         arrival_regions: &ImpactRegions,
     ) -> TransactionFactView {
-        // Old-side workspace answers cached while planning an earlier transaction describe that
-        // transaction's before state. This transaction has a different before state, so stale
-        // old-side answers would let exact planning compare wrong old positions and miss changes.
-        let workspace_before = self.match_workspace.capacity_bytes();
         self.match_workspace.clear_old_evaluation_sides();
-        let workspace_after = self.match_workspace.capacity_bytes();
-        self.memory
-            .release(MemoryCategory::BatchScratch, workspace_before - workspace_after);
+
         let classification = self.classify_transaction_facts(transaction, arrival_regions);
-        let before_facts = transaction.take_before_facts(&mut self.memory);
+        let before_facts = transaction.take_before_facts();
         let before = (!transaction.has_coarsened_markers()).then_some(before_facts).flatten();
         TransactionFactView {
             root,
@@ -1172,7 +1164,7 @@ impl StyleEngine {
             .iter()
             .any(|&removed| self.current_rule_version(removed).selector_program.is_some());
         for &id in &removed {
-            self.retained.native_rules.remove(id, &mut self.retained.memory);
+            self.retained.native_rules.remove(id);
             self.stage_rule_liveness(id, false);
             self.record_rule_existence(id, true, false);
         }
@@ -1270,7 +1262,7 @@ impl StyleEngine {
         self.discard_prepared_batch_matching_traversal();
         self.discard_published_match_answers();
         // Published matching scratch is the last owner that may name a retired identity.
-        self.retained.tree.release_retired_identities(&mut self.retained.memory)
+        self.retained.tree.release_retired_identities()
     }
 }
 

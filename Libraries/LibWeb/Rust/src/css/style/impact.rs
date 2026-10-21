@@ -20,7 +20,6 @@
 //! that relation rather than flattening both into a node set, because the relation is what a later
 //! stage needs in order to enumerate the region without materializing it.
 
-use super::capacity::capacity_bytes;
 use super::column::BitColumn;
 use super::column::PagedColumn;
 use super::column::PagedColumnPage;
@@ -540,10 +539,6 @@ impl RegionKindPages {
             page.kinds.fill(0);
         }
     }
-
-    fn capacity_bytes(&self) -> u64 {
-        self.0.capacity_bytes()
-    }
 }
 
 #[derive(Default)]
@@ -609,10 +604,6 @@ impl ImpactRegionIndex {
         self.tree_scopes.clear();
         self.document = false;
     }
-
-    fn capacity_bytes(&self) -> u64 {
-        self.tree_scopes.capacity_bytes() + self.element_kinds.capacity_bytes()
-    }
 }
 
 /// A region union compiled for repeated iteration and membership tests.
@@ -635,14 +626,6 @@ impl ImpactRegionBatch {
                 .map(|interval| (interval.end - interval.start) as usize)
                 .sum(),
             ImpactRegionBatchStorage::Nodes(nodes) => nodes.len(),
-        }
-    }
-
-    #[must_use]
-    pub(super) fn storage_bytes(&self) -> usize {
-        match &self.0 {
-            ImpactRegionBatchStorage::PreorderIntervals(intervals) => size_of_val(intervals.as_ref()),
-            ImpactRegionBatchStorage::Nodes(nodes) => size_of_val(nodes.as_ref()),
         }
     }
 
@@ -883,16 +866,6 @@ impl TransactionTopology {
     }
 
     #[must_use]
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.nodes, self.preorder_by_element_index, self.subtree_end_by_element_index];
-            cached [];
-            nested [];
-            skip [];
-        }
-    }
-
-    #[must_use]
     fn node_count(&self) -> usize {
         self.nodes.len()
     }
@@ -971,26 +944,6 @@ impl ImpactRegions {
         Self {
             topology: Some(TransactionTopology::new(tree, root)),
             ..Self::new()
-        }
-    }
-
-    #[must_use]
-    pub fn topology_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [];
-            nested [self.topology.as_ref().map_or(0, TransactionTopology::capacity_bytes)];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub fn region_index_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [self.region_index.capacity_bytes()];
-            nested [];
-            skip [];
         }
     }
 
@@ -1693,7 +1646,6 @@ pub fn choose_plan(region_nodes: usize, candidate_cardinality: Option<usize>, ex
 
 #[cfg(test)]
 mod tests {
-    use super::super::memory::MemoryController;
     use super::*;
 
     /// `root > [a > [a1, a2], b > b1, c > c1]`
@@ -1705,9 +1657,8 @@ mod tests {
 
     impl Fixture {
         fn new() -> Self {
-            let mut memory = MemoryController::new();
-            let mut tree = StyleNodeTree::new(&mut memory);
-            let nodes: Vec<StyleNodeID> = (0..8).map(|_| tree.allocate_element(&mut memory)).collect();
+            let mut tree = StyleNodeTree::new();
+            let nodes: Vec<StyleNodeID> = (0..8).map(|_| tree.allocate_element()).collect();
             // root=0, children a=1, b=2, c=3; a's children a1=4, a2=5
             tree.set_first_element_child(nodes[0], Some(nodes[1]));
             for index in 1..4 {
@@ -1767,20 +1718,19 @@ mod tests {
 
     #[test]
     fn a_document_region_includes_shadow_tree_scopes() {
-        let mut memory = MemoryController::new();
-        let mut tree = StyleNodeTree::new(&mut memory);
-        let document_root = tree.allocate_element(&mut memory);
-        let host = tree.allocate_element(&mut memory);
-        let shadow_root = tree.allocate_element(&mut memory);
-        let shadow_child = tree.allocate_element(&mut memory);
+        let mut tree = StyleNodeTree::new();
+        let document_root = tree.allocate_element();
+        let host = tree.allocate_element();
+        let shadow_root = tree.allocate_element();
+        let shadow_child = tree.allocate_element();
         tree.set_first_element_child(document_root, Some(host));
         tree.set_parent(host, Some(document_root));
         tree.set_first_element_child(shadow_root, Some(shadow_child));
         tree.set_parent(shadow_child, Some(shadow_root));
-        tree.enable_tree_scopes(&mut memory);
+        tree.enable_tree_scopes();
         tree.set_tree_scope(shadow_root, TreeScopeID(1));
         tree.set_tree_scope(shadow_child, TreeScopeID(1));
-        tree.set_shadow_root(host, shadow_root, &mut memory);
+        tree.set_shadow_root(host, shadow_root);
 
         let mut visited = Vec::new();
         ImpactRegion::Document.for_each(&tree, |node| visited.push(node));
@@ -1957,10 +1907,6 @@ mod tests {
         assert!(!index.insert(ImpactRegion::Node(element)));
         assert!(index.contains(ImpactRegion::Node(element)));
         assert!(index.contains(ImpactRegion::Subtree(element)));
-        assert!(
-            index.capacity_bytes() < 64 * 1024,
-            "a sparse high identity must allocate one data page, not one row per preceding identity"
-        );
     }
 
     #[test]
@@ -2148,7 +2094,6 @@ mod tests {
 
         assert_eq!(batch.interval_count(), Some(1));
         assert_eq!(batch.node_count(), 7);
-        assert_eq!(batch.storage_bytes(), size_of::<PreorderInterval>());
 
         let mut actual = Vec::new();
         plan.for_each_batch(&batch, |node| actual.push(node));
@@ -2243,17 +2188,16 @@ mod tests {
 
     #[test]
     fn patch_attributions_are_indexed_without_preorder_coordinates() {
-        let mut memory = MemoryController::new();
-        let mut tree = StyleNodeTree::new(&mut memory);
-        let root = tree.allocate_element(&mut memory);
-        let host = tree.allocate_element(&mut memory);
-        let shadow_root = tree.allocate_element(&mut memory);
+        let mut tree = StyleNodeTree::new();
+        let root = tree.allocate_element();
+        let host = tree.allocate_element();
+        let shadow_root = tree.allocate_element();
         tree.set_first_element_child(root, Some(host));
         tree.set_parent(host, Some(root));
-        tree.enable_tree_scopes(&mut memory);
+        tree.enable_tree_scopes();
         tree.set_tree_scope(shadow_root, TreeScopeID(1));
-        tree.set_shadow_root(host, shadow_root, &mut memory);
-        let nodes: Vec<_> = (0..128).map(|_| tree.allocate_element(&mut memory)).collect();
+        tree.set_shadow_root(host, shadow_root);
+        let nodes: Vec<_> = (0..128).map(|_| tree.allocate_element()).collect();
         tree.set_first_element_child(shadow_root, Some(nodes[0]));
         for (index, &node) in nodes.iter().enumerate() {
             tree.set_parent(node, Some(shadow_root));
@@ -2263,7 +2207,7 @@ mod tests {
         let descendants: Vec<_> = nodes
             .iter()
             .map(|&node| {
-                let child = tree.allocate_element(&mut memory);
+                let child = tree.allocate_element();
                 tree.set_parent(child, Some(node));
                 tree.set_tree_scope(child, TreeScopeID(1));
                 tree.set_first_element_child(node, Some(child));

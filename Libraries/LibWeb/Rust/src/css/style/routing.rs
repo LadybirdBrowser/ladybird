@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::capacity::ShallowCapacityBytes;
 use super::column::advance_epoch;
 use super::prefix::PrefixTransitionContext;
 use super::sorted_merge::{SortedMergeEntry, merge_sorted_by};
@@ -494,14 +493,11 @@ impl RetainedState {
             if let Some(parent) = relations.parent {
                 if crossed_a_parent || place_moved {
                     let change = sequences.get_or_insert_with(parent, || {
-                        let workspace_before = self.match_workspace.capacity_bytes();
                         let children: Vec<StyleNodeID> = self.tree.children(parent).collect();
                         let (children, _, _) = self
                             .match_workspace
                             .publish_sibling_sequence(children, MatchEvaluationSide::Current);
-                        let workspace_after = self.match_workspace.capacity_bytes();
-                        self.memory
-                            .reserve_required(MemoryCategory::BatchScratch, workspace_after - workspace_before);
+
                         SequenceChange::new(children)
                     });
                     let tag = self.facts.tag_of_node(node);
@@ -1316,9 +1312,7 @@ impl RetainedState {
         if entries.is_empty() {
             return DeferredSequenceRoutes::default();
         }
-        let entry_scratch_bytes = (entries.capacity() * size_of::<SequenceEntry>()) as u64;
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, entry_scratch_bytes);
+
         // An entry the automaton answers exactly waits for the convergence walk: when the walk
         // re-compares every member of every touched sequence, its exact diffs subsume this
         // route's generic narrowing entirely, so routing it here would only be discarded. Shadow-
@@ -1334,21 +1328,18 @@ impl RetainedState {
                 sequences_are_document_scoped && dispatch.prefixes().contains_entry(routing.route(entry.route).entry)
             })
             .collect();
-        let mask_bytes = deferred_mask.capacity() as u64;
-        self.memory.reserve_required(MemoryCategory::BatchScratch, mask_bytes);
+
         let any_deferred = deferred_mask.iter().any(|&deferred| deferred);
         let any_immediate = deferred_mask.iter().any(|&deferred| !deferred);
         if any_immediate {
             let mut cached_entry_index = use_cached_index.then(|| routing.live_sequence_index(&self.program));
             let mut owned_entry_index = (!use_cached_index).then(|| SequenceEntryIndex::build(&entries, &routing));
-            let entry_index_bytes = owned_entry_index.as_ref().map_or(0, SequenceEntryIndex::capacity_bytes);
             let entry_index = match (&mut cached_entry_index, &mut owned_entry_index) {
                 (Some(cached), None) => &mut **cached,
                 (None, Some(owned)) => owned,
                 _ => unreachable!(),
             };
-            self.memory
-                .reserve_required(MemoryCategory::BatchScratch, entry_index_bytes);
+
             self.route_sequence_entries(
                 sequences,
                 &entries,
@@ -1360,20 +1351,14 @@ impl RetainedState {
                 regions,
                 workspace,
             );
-            self.memory.release(MemoryCategory::BatchScratch, entry_index_bytes);
         }
-        // The held entries and mask move onto the deferred lease, which charges them again.
-        self.memory.release(MemoryCategory::BatchScratch, mask_bytes);
-        self.memory.release(MemoryCategory::BatchScratch, entry_scratch_bytes);
+
         let mut deferred = DeferredSequenceRoutes::default();
         if any_deferred {
             deferred.entries = entries;
             deferred.deferred = deferred_mask;
         }
-        let deferred_header_bytes = deferred.capacity_bytes();
-        deferred
-            .memory
-            .resize_required_to(&mut self.memory, deferred_header_bytes);
+
         deferred
     }
 
@@ -1395,9 +1380,7 @@ impl RetainedState {
             .iter()
             .any(|&empty_index| selection.selects(empty_index));
         let mut pending_regions: Vec<Vec<ImpactRegion>> = (0..entries.len()).map(|_| Vec::new()).collect();
-        let pending_outer_bytes = (pending_regions.capacity() * size_of::<Vec<ImpactRegion>>()) as u64;
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, pending_outer_bytes);
+
         for (parent, change) in sequences.iter() {
             // The parent's own emptiness moved with the child count, and nothing else about it
             // did, so it is named only when something asks, attributed to the asking rules so a
@@ -1423,20 +1406,16 @@ impl RetainedState {
                 regions,
             );
         }
-        let mut pending_inner_bytes = 0_u64;
         for (entry, routed_regions) in entries.iter().zip(&mut pending_regions) {
             if routed_regions.is_empty() {
                 continue;
             }
             routed_regions.sort_unstable();
             routed_regions.dedup();
-            pending_inner_bytes += (routed_regions.capacity() * size_of::<ImpactRegion>()) as u64;
             let site = entry.site(&routing);
             self.discard_regions_covered_by_subtree(routed_regions, &site, regions);
             self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace);
         }
-        self.memory
-            .release(MemoryCategory::BatchScratch, pending_outer_bytes + pending_inner_bytes);
     }
 
     /// Flush the sequence routes held back for the convergence walk: drop them when the walk's
@@ -1458,9 +1437,7 @@ impl RetainedState {
         }
         let routing = Arc::clone(&self.routing);
         let mut entry_index = SequenceEntryIndex::build(&entries, &routing);
-        let entry_index_bytes = entry_index.capacity_bytes();
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, entry_index_bytes);
+
         self.route_sequence_entries(
             sequences,
             &entries,
@@ -1472,7 +1449,6 @@ impl RetainedState {
             regions,
             workspace,
         );
-        self.memory.release(MemoryCategory::BatchScratch, entry_index_bytes);
     }
 
     /// Whether an of-type position kept the same truth across this transaction.
@@ -1538,9 +1514,7 @@ impl RetainedState {
         const PARENT_ADMITS: u8 = 1;
         const PARENT_REJECTS: u8 = 2;
         let mut parent_verdicts = vec![PARENT_UNDECIDED; entries.len()];
-        let parent_verdict_bytes = (parent_verdicts.capacity() * size_of::<u8>()) as u64;
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, parent_verdict_bytes);
+
         // Where in the sequence the earliest and the latest change happened. A change nobody could
         // place leaves the whole sequence moved, because that is all that is still provable.
         let (first_moved, last_moved) = match change.span {
@@ -1809,13 +1783,8 @@ impl RetainedState {
             }
         }
         drop(parent_verdicts);
-        self.memory.release(MemoryCategory::BatchScratch, parent_verdict_bytes);
-        let sequence_match_workspace_bytes = sequence_match_workspace.capacity_bytes();
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, sequence_match_workspace_bytes);
+
         drop(sequence_match_workspace);
-        self.memory
-            .release(MemoryCategory::BatchScratch, sequence_match_workspace_bytes);
     }
 
     /// Route a possible relational witness through the anchors whose truth it can flip.
@@ -2401,7 +2370,7 @@ impl RetainedState {
             let batch = Arc::new(plan.compile_union(routed_regions, &self.tree, None));
             self.record_compiled_region_batch(&batch);
             workspace.insert_batch(routed_regions, Arc::clone(&batch));
-            workspace.settle_memory(&mut self.memory);
+
             return batch;
         }
 
@@ -2431,7 +2400,6 @@ impl RetainedState {
             return false;
         }
 
-        let batch_is_cached = workspace.is_some();
         let batch = compiled_batch.unwrap_or_else(|| self.compile_region_batch(routed_regions, regions, workspace));
         let mut candidates = Vec::new();
         let attributed_rule = site.attribution();
@@ -2452,13 +2420,6 @@ impl RetainedState {
             }
             candidates.push(candidate);
         });
-        let charged_bytes = if batch_is_cached {
-            (candidates.capacity() * size_of::<StyleNodeID>()) as u64
-        } else {
-            (batch.storage_bytes() + candidates.capacity() * size_of::<StyleNodeID>()) as u64
-        };
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, charged_bytes);
 
         let (rule, entry_id) = site.exact_entry.unwrap();
         let (program, entry) = self.programs.entry_location(entry_id);
@@ -2476,7 +2437,7 @@ impl RetainedState {
                 self.record_selector_truth_refresh(candidate, attributed_rule);
                 regions.add(ImpactRegion::Node(candidate));
             }
-            self.memory.release(MemoryCategory::BatchScratch, charged_bytes);
+
             return true;
         }
 
@@ -2490,11 +2451,9 @@ impl RetainedState {
             }
         });
         if candidates.is_empty() {
-            self.memory.release(MemoryCategory::BatchScratch, charged_bytes);
             return true;
         }
 
-        let workspace_before = self.match_workspace.capacity_bytes();
         for candidate in candidates {
             if let Some(exact_tree_evaluation) = site.exact_tree_evaluation {
                 let change = self.candidate_changes_exact_tree(candidate, program, entry, exact_tree_evaluation);
@@ -2511,10 +2470,7 @@ impl RetainedState {
                 regions.add(ImpactRegion::Node(candidate));
             }
         }
-        let workspace_after = self.match_workspace.capacity_bytes();
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, workspace_after - workspace_before);
-        self.memory.release(MemoryCategory::BatchScratch, charged_bytes);
+
         true
     }
 
@@ -2629,7 +2585,7 @@ impl RetainedState {
         let mut candidates = Vec::new();
         let mut pruned_nodes = Vec::new();
         for &posting in site.subject {
-            let Ok((_, reused, copied, inspected, _)) = workspace.extend_remaining_posting(
+            let Ok((reused, copied, inspected, _)) = workspace.extend_remaining_posting(
                 posting,
                 self.facts.postings(),
                 regions,
@@ -2638,7 +2594,7 @@ impl RetainedState {
             ) else {
                 unreachable!("the cardinality lookup proved every selective posting present")
             };
-            workspace.settle_memory(&mut self.memory);
+
             self.counters.bump(match reused {
                 true => Counter::RemainingPostingReuses,
                 false => Counter::RemainingPostingBuilds,
@@ -2691,7 +2647,7 @@ impl RetainedState {
         }
         candidates.sort_unstable();
         candidates.dedup();
-        let workspace_before = self.match_workspace.capacity_bytes();
+
         for candidate in candidates {
             let candidate_is_in_routed_regions = compiled_regions.as_ref().map_or_else(
                 || regions.union_contains_node(routed_regions, candidate, &self.tree),
@@ -2708,9 +2664,6 @@ impl RetainedState {
                 }
             }
         }
-        let workspace_after = self.match_workspace.capacity_bytes();
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, workspace_after - workspace_before);
     }
 
     /// Narrow a union of exact-node regions from the nodes themselves.
@@ -2735,7 +2688,7 @@ impl RetainedState {
         candidates.dedup();
 
         let mut already_planned = Vec::new();
-        let workspace_before = self.match_workspace.capacity_bytes();
+
         for candidate in candidates {
             if !self.node_carries_any(site.subject, candidate, site.in_flux) {
                 continue;
@@ -2754,9 +2707,6 @@ impl RetainedState {
                 }
             }
         }
-        let workspace_after = self.match_workspace.capacity_bytes();
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, workspace_after - workspace_before);
 
         if already_planned.is_empty() || !self.selector_truth_changes_active {
             return;
@@ -2921,11 +2871,7 @@ impl RetainedState {
                 changed_routing_keys.dedup();
             }
             let mut cascade_relevance: HashMap<EntryID, Option<bool>> = HashMap::default();
-            let mut scratch_bytes = changed_routing_keys.shallow_capacity_bytes()
-                + workspace.capacity_bytes()
-                + old_workspace.capacity_bytes();
-            self.memory
-                .reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
+
             let mut cascade_stops = 0;
             for (node, old, new) in &relation.changed_answers {
                 let mut has_active_change = false;
@@ -2935,7 +2881,7 @@ impl RetainedState {
                         SortedMergeEntry::Left(&entry) | SortedMergeEntry::Right(&entry) => entry,
                         SortedMergeEntry::Both(_, _) => continue,
                     };
-                    let before = cascade_relevance.shallow_capacity_bytes();
+
                     let relevance = *cascade_relevance.entry(entry).or_insert_with(|| {
                         let mut active = false;
                         for candidate in dispatch.entries_for_identity(entry) {
@@ -2961,9 +2907,7 @@ impl RetainedState {
                             None
                         }
                     });
-                    let added_bytes = cascade_relevance.shallow_capacity_bytes() - before;
-                    self.memory.reserve_required(MemoryCategory::BatchScratch, added_bytes);
-                    scratch_bytes += added_bytes;
+
                     has_active_change |= relevance.is_some();
                     may_change_cascade |= relevance == Some(true);
                     if may_change_cascade {
@@ -2997,7 +2941,7 @@ impl RetainedState {
                 }
             }
             self.counters.add(Counter::PrefixRelationCascadeStops, cascade_stops);
-            self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
+
             let mut caches = self.prefix_caches.borrow_mut();
             let states = caches.states.prepare_program(scope_program);
             relation.install_answers(states);
@@ -3008,7 +2952,7 @@ impl RetainedState {
             self.counters.bump(Counter::PrefixConvergencePasses);
             caches.states.mark_full();
             caches.states.mark_current();
-            caches.states.settle_memory(&mut self.memory);
+
             // The relation answers for the document tree alone. A route reaching into another tree
             // scope keeps those regions for its own program to route.
             let mut released_route_bytes = 0;
@@ -3023,7 +2967,7 @@ impl RetainedState {
                 released_route_bytes += (routed_regions.capacity() * size_of::<ImpactRegion>()) as u64;
                 false
             });
-            self.memory.release(MemoryCategory::BatchScratch, released_route_bytes);
+
             return PrefixConvergenceOutcome {
                 sibling_routes_are_covered: pending.is_empty()
                     && tree_relations_changed
@@ -3201,9 +3145,7 @@ impl RetainedState {
             }
             changed_routing_keys.sort_unstable();
             changed_routing_keys.dedup();
-            let changed_key_bytes = (changed_routing_keys.capacity() * size_of::<RoutingKey>()) as u64;
-            self.memory
-                .reserve_required(MemoryCategory::BatchScratch, changed_key_bytes);
+
             let before = pending.len();
             let mut released_route_bytes = 0;
             let mut inexact_answer_regions = Vec::new();
@@ -3222,19 +3164,14 @@ impl RetainedState {
                 }
                 keep
             });
-            self.memory.release(MemoryCategory::BatchScratch, changed_key_bytes);
-            self.memory.release(MemoryCategory::BatchScratch, released_route_bytes);
-            let inexact_answer_region_bytes = (inexact_answer_regions.capacity() * size_of::<ImpactRegion>()) as u64;
-            self.memory
-                .reserve_required(MemoryCategory::BatchScratch, inexact_answer_region_bytes);
+
             if self.selector_truth_changes_active {
                 let refreshes = &mut self.selector_truth_changes.refreshes;
                 regions.for_each_union(&inexact_answer_regions, &self.tree, Some(root), |node| {
                     refreshes.push(SelectorTruthRefresh { node, rule: None });
                 });
             }
-            self.memory
-                .release(MemoryCategory::BatchScratch, inexact_answer_region_bytes);
+
             self.counters.add(
                 Counter::SelectorRoutesRejectedByCascade,
                 before.saturating_sub(pending.len()) as u64,
@@ -3341,10 +3278,6 @@ impl RetainedState {
                 producers.dedup_by_key(|producer| producer.step);
             }
         }
-        let selection_bytes = selection.capacity_bytes()
-            + (local_prefix_producers.capacity() * (size_of::<StyleNodeID>() + size_of::<Vec<PrefixProducer>>() + 1)
-                + local_prefix_producers.values().map(Vec::capacity).sum::<usize>() * size_of::<PrefixProducer>())
-                as u64;
 
         if had_retained_prefix_states {
             let prefix_caches = std::sync::Arc::clone(&self.prefix_caches);
@@ -3354,8 +3287,8 @@ impl RetainedState {
                 answers,
             } = &mut *caches;
             let cache_is_batch_sparse = retained.is_sparse();
-            retained.make_scratch(&mut self.memory);
-            retained.prepare_to_mutate(&mut self.memory);
+            retained.make_scratch();
+            retained.prepare_to_mutate();
             // NB: An incomplete cache under departures used to refuse reuse outright, which
             //     released the cache and stranded every later flush on the from-scratch compare
             //     loop, since nothing reseeds the retained states between full batches. The walk
@@ -3413,30 +3346,7 @@ impl RetainedState {
                     None,
                     None,
                 );
-                let workspace_bytes = |pending_node_capacity: usize,
-                                       visited_capacity: usize,
-                                       changed_node_capacity: usize,
-                                       delta_capacity_bytes: u64,
-                                       match_capacity_bytes: u64| {
-                    (pending_node_capacity * size_of::<PendingPrefixNode>()) as u64
-                        + (local_fact_changes.capacity() * size_of::<StyleNodeID>()) as u64
-                        + visited_capacity.div_ceil(8) as u64
-                        + (changed_node_capacity * size_of::<StyleNodeID>()) as u64
-                        + selection_bytes
-                        + delta_capacity_bytes
-                        + match_capacity_bytes
-                };
-                let mut charged_bytes = workspace_bytes(
-                    pending_nodes.capacity(),
-                    visited.capacity(),
-                    changed_nodes.capacity(),
-                    prefix_delta_arena.capacity_bytes(),
-                    new_evaluation.match_scratch_capacity_bytes()
-                        + old_evaluation.match_scratch_capacity_bytes()
-                        + prefix_context.capacity_bytes(),
-                );
-                self.memory
-                    .reserve_required(MemoryCategory::BatchScratch, charged_bytes);
+
                 let mut complete = true;
                 let mut prefix_completion_budget = PREFIX_TRANSITION_CACHE_COMPLETION_BUDGET;
                 let mut sibling_walk_abandoned = false;
@@ -3615,27 +3525,12 @@ impl RetainedState {
                         } else {
                             self.counters.bump(Counter::PrefixConvergenceStops);
                         }
-
-                        let current_bytes = workspace_bytes(
-                            pending_prefix_nodes.capacity(),
-                            visited.capacity(),
-                            changed_nodes.capacity(),
-                            prefix_delta_arena.capacity_bytes(),
-                            new_evaluation.match_scratch_capacity_bytes()
-                                + old_evaluation.match_scratch_capacity_bytes()
-                                + prefix_context.capacity_bytes(),
-                        );
-                        if current_bytes > charged_bytes {
-                            self.memory
-                                .reserve_required(MemoryCategory::BatchScratch, current_bytes - charged_bytes);
-                            charged_bytes = current_bytes;
-                        }
                     }
                 }
                 if complete && let Lookup::Known(states) = retained.lookup_mut(scope_program) {
                     states.install_prefix_effects(&mut prefix_context.effects);
                 }
-                retained.settle_memory(&mut self.memory);
+
                 if complete {
                     {
                         let states = match retained.lookup_mut(scope_program) {
@@ -3685,10 +3580,9 @@ impl RetainedState {
                             }
                             keep
                         });
-                        self.memory.release(MemoryCategory::BatchScratch, released_route_bytes);
                     }
                     self.counters.bump(Counter::PrefixConvergencePasses);
-                    self.memory.release(MemoryCategory::BatchScratch, charged_bytes);
+
                     // The walk refreshed only the nodes it visited, so a batch-sparse cache
                     // stays sparse until a completing full-batch retention says otherwise.
                     retained.mark_current();
@@ -3701,7 +3595,7 @@ impl RetainedState {
                             && tree_relations_changed,
                     };
                 }
-                self.memory.release(MemoryCategory::BatchScratch, charged_bytes);
+
                 retained.release();
                 if sibling_walk_abandoned {
                     // The abandoned walk already drained part of the pending stack, so the
@@ -4019,20 +3913,11 @@ impl RetainedState {
                 Counter::GroupedExactSelectorRoutes,
                 end.saturating_sub(first + 1) as u64,
             );
-            let original_region_capacity = pending.entries[first..end]
-                .iter()
-                .map(|entry| entry.regions.capacity())
-                .sum::<usize>();
             let mut merged_regions = std::mem::take(&mut pending.entries[first].regions);
             for entry in &mut pending.entries[first + 1..end] {
                 merged_regions.extend(std::mem::take(&mut entry.regions));
             }
-            let additional_region_bytes = merged_regions
-                .capacity()
-                .saturating_sub(original_region_capacity)
-                .saturating_mul(size_of::<ImpactRegion>()) as u64;
-            self.memory
-                .reserve_required(MemoryCategory::BatchScratch, additional_region_bytes);
+
             let routed_regions = &mut merged_regions;
             let route = key.route;
             routed_regions.sort_unstable();
@@ -4056,8 +3941,7 @@ impl RetainedState {
             };
             self.discard_regions_covered_by_subtree(routed_regions, &site, regions);
             self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace);
-            self.memory
-                .release(MemoryCategory::BatchScratch, additional_region_bytes);
+
             first = end;
         }
         prefix_convergence
@@ -4082,7 +3966,6 @@ impl RetainedState {
                 }
                 keep
             });
-            self.memory.release(MemoryCategory::BatchScratch, released_route_bytes);
         }
         let routing = Arc::clone(&self.routing);
         for (key, routed_regions) in pending.iter_mut() {
@@ -4238,12 +4121,10 @@ impl RetainedState {
                     }
                     named.push_back(child);
                 }
-                let named_bytes = (named.capacity() * size_of::<StyleNodeID>()) as u64;
-                self.memory.reserve_required(MemoryCategory::BatchScratch, named_bytes);
+
                 for child in named {
                     self.add_narrowed_region(ImpactRegion::Node(child), &unbounded, regions);
                 }
-                self.memory.release(MemoryCategory::BatchScratch, named_bytes);
             } else {
                 let mut next = self.tree.first_element_child(parent);
                 for _ in 0..bound {

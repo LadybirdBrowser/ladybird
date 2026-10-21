@@ -20,8 +20,6 @@
 //! and only for the attributes an attached program actually mentions.
 
 use super::AncestorDispatchShape;
-use super::capacity::ShallowCapacityBytes;
-use super::capacity::capacity_bytes;
 use super::column::BitColumn;
 use super::column::Column;
 use super::column::EpochColumn;
@@ -37,13 +35,7 @@ use crate::css::style_value::RetainedStyleValueData;
 use std::cmp::Reverse;
 use std::num::NonZeroU32;
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::Ordering;
 
-use super::memory::MemoryCategory;
-use super::memory::MemoryController;
-use super::memory::MemoryLease;
-use super::memory::Tier;
 use super::partial_view::Lookup;
 use super::prefix::PrefixAutomaton;
 use super::program::CustomDeclaration;
@@ -239,12 +231,6 @@ impl<T: Copy + Default> PagedCopyColumn<T> {
     }
 }
 
-impl<T: Copy + Default> ShallowCapacityBytes for PagedCopyColumn<T> {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        self.values.capacity_bytes() + self.indices.shallow_capacity_bytes()
-    }
-}
-
 #[derive(Clone)]
 struct PagedOwnedColumn<T: Clone + Default> {
     handles: PagedColumn<PagedValuePage<u32>>,
@@ -291,6 +277,7 @@ impl<T: Clone + Default> PagedOwnedColumn<T> {
         *self.entry(index) = value;
     }
 
+    #[cfg(test)]
     fn iter(&self) -> impl Iterator<Item = &T> {
         self.values.iter()
     }
@@ -301,12 +288,6 @@ impl<T: Clone + Default> PagedOwnedColumn<T> {
 
     fn indexed_iter_mut(&mut self) -> impl Iterator<Item = (usize, &mut T)> {
         self.indices.iter().copied().zip(self.values.iter_mut())
-    }
-}
-
-impl<T: Clone + Default> ShallowCapacityBytes for PagedOwnedColumn<T> {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        self.handles.capacity_bytes() + self.values.shallow_capacity_bytes() + self.indices.shallow_capacity_bytes()
     }
 }
 
@@ -435,6 +416,9 @@ pub struct StyleNodeFacts {
     /// element to a freshly packed row when its facts move; the old row stays as garbage until
     /// its measured carrying cost makes one rebuild cheaper than retaining it.
     stale_rows: u32,
+    /// Payload bytes no live primary row references any more. Replacing or forgetting a row leaves
+    /// its old payload in the shared payload arrays until enough of it is stale to repack them.
+    stale_payload_bytes: u64,
     live_rows: usize,
     /// Names this batch's row space. Consumers holding row indices across calls compare it:
     /// clearing a batch renumbers every row, so anything indexed by row is stale the moment the
@@ -484,27 +468,15 @@ pub struct StyleNodeFacts {
 
 pub(super) struct MatchingFactBatch {
     facts: Arc<StyleNodeFacts>,
-    charged_bytes: u64,
 }
 
 impl MatchingFactBatch {
     fn owned(facts: StyleNodeFacts) -> Self {
-        let charged_bytes = facts.capacity_bytes();
-        Self {
-            facts: Arc::new(facts),
-            charged_bytes,
-        }
+        Self { facts: Arc::new(facts) }
     }
 
     fn primary_view(facts: Arc<StyleNodeFacts>) -> Self {
-        Self {
-            facts,
-            charged_bytes: 0,
-        }
-    }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        self.charged_bytes
+        Self { facts }
     }
 }
 
@@ -716,6 +688,7 @@ impl StyleNodeFacts {
             if !self.resident.contains(index as usize) {
                 return;
             }
+            self.stale_payload_bytes += self.payload_bytes_of_row(index);
             self.resident.set(index as usize, false);
             self.live_rows -= 1;
             self.rare_facts.remove(index as usize);
@@ -777,7 +750,7 @@ impl StyleNodeFacts {
         self.live_rows
     }
 
-    fn set_primary_row(&mut self, node: StyleNodeID, facts: &StagedFactRow) -> u64 {
+    fn set_primary_row(&mut self, node: StyleNodeID, facts: &StagedFactRow) {
         assert!(self.primary, "cannot index a primary row in a batch");
         let row = node.element_index().expect("fact row must be an element") as usize;
         let was_resident = self.resident.contains(row);
@@ -882,7 +855,7 @@ impl StyleNodeFacts {
         }
         self.resident.set(row, true);
         self.dispatch_bloom[row] = self.compute_dispatch_bloom_of(row as u32);
-        stale_payload_bytes
+        self.stale_payload_bytes += stale_payload_bytes;
     }
 
     /// Record the folded name of the row just pushed. Only a name that is not already lowercase
@@ -1202,24 +1175,6 @@ impl StyleNodeFacts {
             .insert(name.0 as usize, forms);
     }
 
-    /// Logical bytes occupied by one packed row, excluding the dense directory shared by all rows.
-    /// This measures both fixed columns and variable payload so a large stale row can trigger
-    /// compaction without waiting for the same fraction of small rows to become stale.
-    fn logical_bytes_of_row(&self, row: u32) -> u64 {
-        let fixed = size_of::<StyleNodeID>()
-            + 7 * size_of::<StyleAtomID>()
-            + size_of::<StateSet>()
-            + size_of::<bool>()
-            + size_of::<(u32, u32)>()
-            + size_of::<u8>()
-            + 4 * size_of::<u32>();
-        (fixed
-            + size_of_val(self.custom_states_of(row))
-            + size_of_val(self.parts_of(row))
-            + size_of_val(self.classes_of(row))
-            + size_of_val(self.attributes_of(row))) as u64
-    }
-
     fn payload_bytes_of_row(&self, row: u32) -> u64 {
         (size_of_val(self.custom_states_of(row))
             + size_of_val(self.parts_of(row))
@@ -1227,8 +1182,20 @@ impl StyleNodeFacts {
             + size_of_val(self.attributes_of(row))) as u64
     }
 
+    /// Repack the payload arrays once more of them is stale than live.
+    fn compact_primary_payloads_if_mostly_stale(&mut self) {
+        let payload_bytes = size_of_val(self.custom_states.as_slice())
+            + size_of_val(self.parts.as_slice())
+            + size_of_val(self.classes.as_slice())
+            + size_of_val(self.attributes.as_slice());
+        if self.stale_payload_bytes * 2 > payload_bytes as u64 {
+            self.compact_primary_payloads();
+        }
+    }
+
     fn compact_primary_payloads(&mut self) {
         assert!(self.primary);
+        self.stale_payload_bytes = 0;
         let mut custom_states = Vec::new();
         let mut parts = Vec::new();
         let mut classes = Vec::new();
@@ -1295,41 +1262,6 @@ impl StyleNodeFacts {
         self.attributes.clear();
         self.attribute_handles.clear();
         self.text.clear();
-    }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.resident,
-                self.nodes,
-                self.row_by_element_index,
-                self.dispatch_bloom,
-                self.tag,
-                self.folded_tag,
-                self.id,
-                self.states,
-                self.directionality,
-                self.heading_level,
-                self.language,
-                self.language_text,
-                self.has_text_content,
-                self.namespace,
-                self.custom_state_handles,
-                self.custom_states,
-                self.parts,
-                self.part_handles,
-                self.part_exposure,
-                self.class_handles,
-                self.classes,
-                self.attribute_handles,
-                self.attributes,
-                self.text,
-            ];
-            cached [self.rare_facts.capacity_bytes()];
-            nested [];
-            skip [self.primary, self.stale_rows, self.live_rows, self.generation, self.attribute_catalogs];
-        }
     }
 }
 
@@ -1460,19 +1392,6 @@ impl Posting {
         }
         self.chunks[self.chunk_for(node)].binary_search(&node).is_ok()
     }
-
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.chunks];
-            cached [];
-            nested [self
-                .chunks
-                .iter()
-                .map(|chunk| chunk.capacity() * size_of::<StyleNodeID>())
-                .sum::<usize>()];
-            skip [self.length];
-        }
-    }
 }
 
 /// One compact key for selector routing, dispatch, and postings.
@@ -1578,31 +1497,21 @@ pub type PostingKey = FeatureKey;
 #[derive(Clone)]
 pub struct FeaturePostings {
     postings: HashMap<PostingKey, Posting>,
-    residency: MemoryLease,
     missing: HashSet<PostingKey>,
     cardinality_limited: HashSet<PostingKey>,
     grown_selector_postings: HashSet<PostingKey>,
     selector_posting_limit: usize,
-    /// Posting-benefit observations: hits in the high half, misses in the low half of one word.
-    /// Packed and atomic rather than two `Cell`s because the fact store is on the read side an
-    /// evaluation step borrows, which has to be `Sync`; relaxed, because this is a memory-policy
-    /// ratio and no semantic decision reads it.
-    benefit_lookups: crate::fork::ForkCopied<AtomicU64>,
 }
-
-/// Mask of the miss half of `FeaturePostings::benefit_lookups`.
-const BENEFIT_HALF_MASK: u64 = 0xffff_ffff;
 
 impl Default for FeaturePostings {
     fn default() -> Self {
         Self {
             postings: HashMap::default(),
-            residency: MemoryLease::new(MemoryCategory::FeaturePosting),
+
             missing: HashSet::default(),
             cardinality_limited: HashSet::default(),
             grown_selector_postings: HashSet::default(),
             selector_posting_limit: usize::MAX,
-            benefit_lookups: crate::fork::ForkCopied::new(AtomicU64::new(0)),
         }
     }
 }
@@ -1616,26 +1525,15 @@ impl FeaturePostings {
     /// Add `node` to a feature's candidate set. Once quota pressure closes admission, existing
     /// postings continue to accept members so they remain exact, while new posting keys stay
     /// missing until the next quota period.
-    pub fn insert(&mut self, key: PostingKey, node: StyleNodeID, memory: &mut MemoryController) -> bool {
+    pub fn insert(&mut self, key: PostingKey, node: StyleNodeID) -> bool {
         if self.missing.contains(&key) || self.cardinality_limited.contains(&key) {
             return false;
         }
-        if !memory.is_tier3_admitting(MemoryCategory::FeaturePosting) && !self.postings.contains_key(&key) {
-            self.remember_missing(key);
-            return false;
-        }
-        let postings_capacity_before = self.postings_capacity_bytes();
         let posting = self.postings.entry(key).or_default();
-        let Some(posting_growth) = posting.insert(node) else {
+        if posting.insert(node).is_none() {
             return true;
-        };
-        let posting_length = posting.length;
-        let postings_growth = self.postings_capacity_bytes() - postings_capacity_before;
-        let growth = posting_growth + postings_growth;
-        if growth != 0 {
-            self.residency
-                .reconcile_committed(memory, self.residency.bytes() + growth);
         }
+        let posting_length = posting.length;
         if key.has_selector_posting() && posting_length > 4096 {
             self.remember_grown_selector_posting(key);
         }
@@ -1650,9 +1548,7 @@ impl FeaturePostings {
 
     pub fn remove(&mut self, key: PostingKey, node: StyleNodeID) {
         if let Some(posting) = self.postings.get_mut(&key) {
-            if let Some(released) = posting.remove(node) {
-                self.residency.shrink_to(self.residency.bytes() - released);
-            }
+            posting.remove(node);
             if posting.length == 0 {
                 self.remove_posting(key);
             }
@@ -1664,79 +1560,34 @@ impl FeaturePostings {
     /// An absent key is known empty unless that exact posting was evicted or refused.
     #[must_use]
     pub(super) fn lookup(&self, key: PostingKey) -> Lookup<&Posting, PostingKey> {
-        let result = match self.postings.get(&key) {
+        match self.postings.get(&key) {
             Some(posting) => Lookup::Known(posting),
             None if self.missing.contains(&key) || self.cardinality_limited.contains(&key) => Lookup::Missing(key),
             None => Lookup::KnownAbsent,
-        };
-        self.record_benefit_lookup(!matches!(result, Lookup::Missing(_)));
-        result
+        }
     }
 
     #[cfg(test)]
     pub(crate) fn evict(&mut self, key: PostingKey) {
-        self.remember_missing(key);
+        self.missing.insert(key);
         self.remove_posting(key);
     }
 
-    fn missing_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.missing];
-            cached [];
-            nested [];
-            skip [];
-        }
-    }
-
-    fn cardinality_limited_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.cardinality_limited];
-            cached [];
-            nested [];
-            skip [];
-        }
-    }
-
-    fn postings_capacity_bytes(&self) -> u64 {
-        self.postings.shallow_capacity_bytes()
-    }
-
-    fn grown_selector_postings_capacity_bytes(&self) -> u64 {
-        self.grown_selector_postings.shallow_capacity_bytes()
-    }
-
-    fn remember_missing(&mut self, key: PostingKey) {
-        let before = self.missing_capacity_bytes();
-        self.missing.insert(key);
-        let after = self.missing_capacity_bytes();
-        self.residency.grow_committed(after - before);
-    }
-
     fn remove_posting(&mut self, key: PostingKey) {
-        let Some(posting) = self.postings.remove(&key) else {
+        if self.postings.remove(&key).is_none() {
             return;
-        };
-        self.residency
-            .shrink_to(self.residency.bytes() - posting.capacity_bytes());
+        }
         if self.postings.is_empty() {
-            let released = self.postings_capacity_bytes();
             self.postings = HashMap::default();
-            self.residency.shrink_to(self.residency.bytes() - released);
         }
     }
 
     fn remember_cardinality_limited(&mut self, key: PostingKey) {
-        let before = self.cardinality_limited_capacity_bytes();
         self.cardinality_limited.insert(key);
-        let after = self.cardinality_limited_capacity_bytes();
-        self.residency.grow_committed(after - before);
     }
 
     fn remember_grown_selector_posting(&mut self, key: PostingKey) {
-        let before = self.grown_selector_postings_capacity_bytes();
         self.grown_selector_postings.insert(key);
-        let after = self.grown_selector_postings_capacity_bytes();
-        self.residency.grow_committed(after - before);
     }
 
     fn set_selector_posting_limit(&mut self, maximum_candidates: usize) {
@@ -1774,18 +1625,6 @@ impl FeaturePostings {
         self.grown_selector_postings = grown;
     }
 
-    /// Discard every posting. Memory pressure reduces retained acceleration, never correctness.
-    pub fn evict_all(&mut self) {
-        let missing_before = self.missing_capacity_bytes();
-        self.missing.extend(self.postings.keys().copied());
-        self.residency
-            .grow_committed(self.missing_capacity_bytes() - missing_before);
-        let released =
-            self.postings.values().map(Posting::capacity_bytes).sum::<u64>() + self.postings_capacity_bytes();
-        self.residency.shrink_to(self.residency.bytes() - released);
-        self.postings = HashMap::default();
-    }
-
     #[must_use]
     fn is_incomplete(&self) -> bool {
         !self.missing.is_empty()
@@ -1793,32 +1632,18 @@ impl FeaturePostings {
 
     fn take_rebuilt(&mut self, mut rebuilt: FeaturePostings) {
         debug_assert!(rebuilt.missing.is_empty());
-        let rebuilt_grown_bytes = rebuilt.grown_selector_postings_capacity_bytes();
+
         rebuilt.grown_selector_postings = HashSet::default();
-        rebuilt.residency.shrink_committed(rebuilt_grown_bytes);
 
-        let postings_before = self.postings_capacity_bytes();
         self.postings.extend(rebuilt.postings.drain());
-        let postings_growth = self.postings_capacity_bytes() - postings_before;
-        let rebuilt_postings_bytes = rebuilt.postings_capacity_bytes();
+
         rebuilt.postings = HashMap::default();
-        rebuilt.residency.shrink_committed(rebuilt_postings_bytes);
 
-        let cardinality_before = self.cardinality_limited_capacity_bytes();
         self.cardinality_limited.extend(rebuilt.cardinality_limited.drain());
-        let cardinality_growth = self.cardinality_limited_capacity_bytes() - cardinality_before;
-        let rebuilt_cardinality_bytes = rebuilt.cardinality_limited_capacity_bytes();
+
         rebuilt.cardinality_limited = HashSet::default();
-        rebuilt.residency.shrink_committed(rebuilt_cardinality_bytes);
 
-        let rebuilt_bytes = rebuilt.residency.bytes();
-        rebuilt.residency.release();
-        self.residency
-            .grow_committed(rebuilt_bytes + postings_growth + cardinality_growth);
-
-        let released = self.missing_capacity_bytes();
         self.missing = HashSet::default();
-        self.residency.shrink_to(self.residency.bytes() - released);
     }
 
     #[must_use]
@@ -1827,58 +1652,13 @@ impl FeaturePostings {
         self.postings.len()
     }
 
-    #[cfg(test)]
-    fn retained_capacity_bytes(&self) -> u64 {
-        self.postings_capacity_bytes()
-            + self.postings.values().map(Posting::capacity_bytes).sum::<u64>()
-            + self.missing_capacity_bytes()
-            + self.cardinality_limited_capacity_bytes()
-            + self.grown_selector_postings_capacity_bytes()
-    }
-
-    fn record_benefit_lookup(&self, hit: bool) {
-        let mut current = self.benefit_lookups.load(Ordering::Relaxed);
-        loop {
-            let mut hits = current >> 32;
-            let mut misses = current & BENEFIT_HALF_MASK;
-            if hits + misses >= 4096 {
-                hits /= 2;
-                misses /= 2;
-            }
-            match hit {
-                true => hits += 1,
-                false => misses += 1,
-            }
-            let updated = (hits << 32) | misses;
-            match self
-                .benefit_lookups
-                .compare_exchange_weak(current, updated, Ordering::Relaxed, Ordering::Relaxed)
-            {
-                Ok(_) => return,
-                Err(observed) => current = observed,
-            }
-        }
-    }
-
-    pub(super) fn take_benefit_lookups(&self) -> (u64, u64) {
-        let observations = self.benefit_lookups.swap(0, Ordering::Relaxed);
-        (observations >> 32, observations & BENEFIT_HALF_MASK)
-    }
-
     fn forget_atoms(&mut self, atoms: &HashSet<StyleAtomID>) {
-        let mut released = 0;
-        self.postings.retain(|key, posting| {
-            let keep = !key.atom().is_some_and(|atom| atoms.contains(&atom));
-            if !keep {
-                released += posting.capacity_bytes();
-            }
-            keep
-        });
+        self.postings
+            .retain(|key, _| !key.atom().is_some_and(|atom| atoms.contains(&atom)));
         if self.postings.is_empty() {
-            released += self.postings_capacity_bytes();
             self.postings = HashMap::default();
         }
-        self.residency.shrink_to(self.residency.bytes() - released);
+
         self.missing
             .retain(|key| !key.atom().is_some_and(|atom| atoms.contains(&atom)));
         self.cardinality_limited
@@ -1977,12 +1757,12 @@ struct DispatchEntryBinding {
     cascade_order_index: u32,
 }
 
+#[derive(Default)]
 struct RuleDispatchEntries {
     rows: Vec<DispatchEntryMetadata>,
     entry_heads: Vec<Option<NonZeroU32>>,
     // Only construction appends to these chains. Rebuild their tails when extending a template.
     entry_tails: Vec<Option<NonZeroU32>>,
-    residency: MemoryLease,
 }
 
 impl Clone for RuleDispatchEntries {
@@ -1991,18 +1771,6 @@ impl Clone for RuleDispatchEntries {
             rows: self.rows.clone(),
             entry_heads: self.entry_heads.clone(),
             entry_tails: self.entry_tails.clone(),
-            residency: MemoryLease::new(MemoryCategory::RuleProgram),
-        }
-    }
-}
-
-impl Default for RuleDispatchEntries {
-    fn default() -> Self {
-        Self {
-            rows: Vec::new(),
-            entry_heads: Vec::new(),
-            entry_tails: Vec::new(),
-            residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
 }
@@ -2019,15 +1787,6 @@ impl RuleDispatchEntries {
                 self.entry_tails[row.identity.0 as usize] =
                     NonZeroU32::new(index.checked_add(1).expect("dispatch row space exhausted"));
             }
-        }
-    }
-
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.rows, self.entry_heads, self.entry_tails];
-            cached [];
-            nested [];
-            skip [self.residency];
         }
     }
 }
@@ -2095,16 +1854,6 @@ impl DispatchCandidateWorkspace {
     fn admit(&mut self, id: DispatchRow) -> bool {
         self.seen_at_epoch.mark(id.index(), self.epoch)
     }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.seen_at_epoch, self.candidates, self.cascade_sort];
-            cached [];
-            nested [];
-            skip [self.epoch];
-        }
-    }
 }
 
 /// What exact parent facts candidate dispatch can consult.
@@ -2161,10 +1910,6 @@ impl SegmentedDispatchBucketDirectory {
 
     fn insert(&mut self, index: usize, range: DispatchBucketRange) {
         self.ranges.insert(index, range);
-    }
-
-    fn capacity_bytes(&self) -> u64 {
-        self.ranges.shallow_capacity_bytes()
     }
 }
 
@@ -2269,15 +2014,6 @@ impl DispatchBucketDirectory {
         let start = range.start as usize;
         &self.rows[start..start + range.length as usize]
     }
-
-    fn capacity_bytes(&self) -> u64 {
-        self.atoms
-            .iter()
-            .map(SegmentedDispatchBucketDirectory::capacity_bytes)
-            .sum::<u64>()
-            + (self.states.capacity() * size_of::<DispatchBucketRange>()) as u64
-            + (self.rows.capacity() * size_of::<DispatchRow>()) as u64
-    }
 }
 
 fn dispatch_atom_bucket(key: DispatchKey) -> Option<(usize, usize)> {
@@ -2313,9 +2049,9 @@ fn dispatch_atom_bucket_key(kind: usize, atom: usize) -> DispatchKey {
 /// full of `.item` elements never considers a rule whose subject compound requires `#header`. This
 /// is program-derived dispatch rather than acceleration over elements: it is Tier 2, it is rebuilt
 /// with the program, and it is never evicted independently of it.
+#[derive(Default)]
 pub(super) struct AncestorDispatchTopology {
     key_indices: HashMap<DispatchKey, u32>,
-    residency: MemoryLease,
 }
 
 impl AncestorDispatchTopology {
@@ -2332,16 +2068,6 @@ impl Clone for AncestorDispatchTopology {
     fn clone(&self) -> Self {
         Self {
             key_indices: self.key_indices.clone(),
-            residency: MemoryLease::new(MemoryCategory::RuleProgram),
-        }
-    }
-}
-
-impl Default for AncestorDispatchTopology {
-    fn default() -> Self {
-        Self {
-            key_indices: HashMap::default(),
-            residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
 }
@@ -2366,7 +2092,6 @@ struct RuleDispatchTopology {
     finalized: bool,
     ancestors: Arc<AncestorDispatchTopology>,
     prefixes: PrefixAutomaton,
-    residency: MemoryLease,
 }
 
 impl Default for RuleDispatchTopology {
@@ -2385,7 +2110,6 @@ impl Default for RuleDispatchTopology {
             finalized: false,
             ancestors: Arc::new(AncestorDispatchTopology::default()),
             prefixes: PrefixAutomaton::default(),
-            residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
 }
@@ -2399,6 +2123,7 @@ impl Default for RuleDispatchTopology {
 pub(super) struct AncestorDispatchTopologyID(usize);
 
 /// The pools for the rule bindings and cascade projections of dispatches.
+#[derive(Default)]
 pub(super) struct DispatchStoragePools {
     cascade_rule_pages: SharedVectorPool<CascadeOrderRule>,
     dispatch_bindings: SharedVectorPool<DispatchEntryBinding>,
@@ -2406,19 +2131,6 @@ pub(super) struct DispatchStoragePools {
     cascade_properties: SharedVectorPool<u16>,
     cascade_entries: SharedVectorPool<CascadeEntryData>,
     pub(super) prefixes: super::prefix::PrefixPools,
-}
-
-impl Default for DispatchStoragePools {
-    fn default() -> Self {
-        Self {
-            cascade_rule_pages: SharedVectorPool::new(MemoryCategory::RuleProgram),
-            dispatch_bindings: SharedVectorPool::new(MemoryCategory::RuleProgram),
-            cascade_orders: SharedVectorPool::new(MemoryCategory::RuleProgram),
-            cascade_properties: SharedVectorPool::new(MemoryCategory::RuleProgram),
-            cascade_entries: SharedVectorPool::new(MemoryCategory::RuleProgram),
-            prefixes: super::prefix::PrefixPools::default(),
-        }
-    }
 }
 
 pub struct RuleDispatch {
@@ -2433,7 +2145,6 @@ pub struct RuleDispatch {
     cascade_properties: SharedVector<u16>,
     cascade_entries: SharedVector<CascadeEntryData>,
     topology: Arc<RuleDispatchTopology>,
-    residency: MemoryLease,
 }
 
 /// Weak references to the actual shared storage, independent of a particular scope wrapper.
@@ -2456,7 +2167,6 @@ impl WeakRuleDispatch {
             cascade_orders_by_rule_entry: SharedVector::default(),
             cascade_properties: SharedVector::default(),
             cascade_entries: SharedVector::default(),
-            residency: MemoryLease::new(MemoryCategory::RuleProgram),
         })
     }
 }
@@ -2471,7 +2181,6 @@ impl Default for RuleDispatch {
             cascade_properties: SharedVector::default(),
             cascade_entries: SharedVector::default(),
             topology: Arc::new(RuleDispatchTopology::default()),
-            residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
 }
@@ -2557,7 +2266,6 @@ impl RuleDispatch {
             cascade_properties: SharedVector::default(),
             cascade_entries: SharedVector::default(),
             topology: Arc::clone(&template.topology),
-            residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
 
@@ -2584,7 +2292,6 @@ impl RuleDispatch {
             finalized: false,
             ancestors: Arc::new((*topology.ancestors).clone()),
             prefixes: topology.prefixes.clone(),
-            residency: MemoryLease::new(MemoryCategory::RuleProgram),
         });
         dispatch.topology_mut().prefixes.prepare_to_extend();
         dispatch
@@ -3155,101 +2862,6 @@ impl RuleDispatch {
         }
         workspace.candidates.iter().map(|&id| self.entry(id))
     }
-
-    fn scope_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.entry_bindings,
-                self.cascade_order_rule_pages,
-                self.cascade_orders_by_rule_entry,
-                self.cascade_properties,
-                self.cascade_entries,
-            ];
-            cached [];
-            nested [
-                self
-                    .cascade_order_rule_pages
-                    .iter()
-                    .flatten()
-                    .map(ShallowCapacityBytes::shallow_capacity_bytes)
-                    .sum::<u64>(),
-            ];
-            skip [self.entries, self.residency];
-        }
-    }
-
-    fn topology_capacity_bytes(topology: &RuleDispatchTopology) -> u64 {
-        capacity_bytes! {
-            shallow [
-                topology.buckets,
-                topology.universal_without_parent_filter,
-                topology.universal_by_parent,
-                topology.universal_with_parent_filter,
-                topology.non_prefix_universal_without_parent_filter,
-                topology.non_prefix_universal_with_parent_filter,
-            ];
-            cached [];
-            nested [
-                topology
-                    .buckets
-                    .values()
-                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
-                .sum::<usize>(),
-                topology
-                    .universal_by_parent
-                .values()
-                .map(|bucket| bucket.capacity() * size_of::<DispatchRow>())
-                .sum::<usize>(),
-                topology.bucket_directory.capacity_bytes(),
-                topology.non_prefix_bucket_directory.capacity_bytes(),
-                topology.universal_parent_directory.capacity_bytes(),
-                topology.non_prefix_universal_parent_directory.capacity_bytes(),
-                topology.prefixes.capacity_bytes(),
-            ];
-            skip [topology.ancestors, topology.finalized, topology.residency];
-        }
-    }
-
-    fn ancestor_capacity_bytes(ancestors: &AncestorDispatchTopology) -> u64 {
-        capacity_bytes! {
-            shallow [ancestors.key_indices];
-            cached [];
-            nested [];
-            skip [ancestors.residency];
-        }
-    }
-
-    pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
-        self.residency.resize_required_to(memory, self.scope_capacity_bytes());
-        self.settle_topology_memory(memory);
-    }
-
-    pub(super) fn settle_topology_memory(&mut self, memory: &mut MemoryController) {
-        if let Some(entries) = Arc::get_mut(&mut self.entries) {
-            entries.residency.resize_required_to(memory, entries.capacity_bytes());
-        }
-        let Some(topology) = Arc::get_mut(&mut self.topology) else {
-            return;
-        };
-        topology
-            .residency
-            .resize_required_to(memory, Self::topology_capacity_bytes(topology));
-        let Some(ancestors) = Arc::get_mut(&mut topology.ancestors) else {
-            return;
-        };
-        ancestors
-            .residency
-            .resize_required_to(memory, Self::ancestor_capacity_bytes(ancestors));
-    }
-
-    #[must_use]
-    #[cfg(test)]
-    pub fn capacity_bytes(&self) -> u64 {
-        self.scope_capacity_bytes()
-            + self.entries.capacity_bytes()
-            + Self::topology_capacity_bytes(&self.topology)
-            + Self::ancestor_capacity_bytes(&self.topology.ancestors)
-    }
 }
 
 /// One kind of an element's own declarations: what each covers, the value it was written with,
@@ -3510,15 +3122,6 @@ impl ElementDeclarationRows {
         }
         self.payload_bytes -= row.storage_bytes();
     }
-
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.rows];
-            cached [self.payload_bytes];
-            nested [];
-            skip [];
-        }
-    }
 }
 
 define_id! { struct CustomPropertyNameSetID(); }
@@ -3548,18 +3151,12 @@ pub struct ElementFactStore {
     staging: FactStaging,
     metadata: Column<Option<ElementFactMetadata>>,
     /// Logical bytes reachable through live primary handles.
-    primary_live_bytes: u64,
-    primary_live_payload_bytes: u64,
-    primary_stale_payload_bytes: u64,
     /// Candidate sets over the same facts. A rule arriving needs to find the elements it could
     /// match without walking the document, and this is what answers that.
     postings: crate::fork::ForkShared<FeaturePostings>,
     /// Tier-3 headroom when admission last closed during a full rebuild. Until more headroom
     /// appears, another scan can only reach the same closure.
-    posting_rebuild_closed_at_headroom: Option<u64>,
-    memory: MemoryLease,
     memory_dirty: bool,
-    settled_non_apply_capacity_bytes: u64,
     /// One entry per distinct set of declared custom property names, and the sets each name is in.
     /// A theme is one set however many elements it decides for, which is what keeps the index
     /// proportional to the stylesheet rather than to the document times the stylesheet.
@@ -3617,27 +3214,7 @@ struct StagedFactRow {
     attributes: Vec<(StyleAtomID, StyleAtomID)>,
 }
 
-impl StagedFactRow {
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.custom_states, self.parts, self.classes, self.attributes];
-            cached [];
-            nested [];
-            skip [
-                self.tag,
-                self.folded_tag,
-                self.id,
-                self.language,
-                self.namespace,
-                self.part_exposure,
-                self.directionality,
-                self.heading_level,
-                self.has_text_content,
-                self.states,
-            ];
-        }
-    }
-}
+impl StagedFactRow {}
 
 #[derive(Clone, Default)]
 struct FactStaging {
@@ -3647,7 +3224,6 @@ struct FactStaging {
     dirty: Vec<(StyleNodeID, u32)>,
     live_count: usize,
     dirty_count: usize,
-    capacity_bytes: u64,
 }
 
 const FACT_STAGING_PAGE_SHIFT: usize = 6;
@@ -3726,35 +3302,19 @@ impl FactStaging {
         let entry = self.rows.get(Self::index(node))? as usize;
         let pair = self.entries.get_mut(entry)?.as_mut()?;
         if !pair.dirty {
-            let previous_dirty_capacity = self.dirty.capacity();
             pair.dirty = true;
             self.dirty_count += 1;
             self.dirty.push((node, entry as u32));
-            self.capacity_bytes = self
-                .capacity_bytes
-                .checked_add(
-                    u64::try_from(self.dirty.capacity() - previous_dirty_capacity)
-                        .expect("fact staging dirty capacity exceeds u64")
-                        .checked_mul(size_of::<(StyleNodeID, u32)>() as u64)
-                        .expect("fact staging dirty byte count overflow"),
-                )
-                .expect("fact staging byte count overflow");
         }
-        let previous_payload_bytes = pair.after.capacity_bytes();
+
         let result = edit(&mut pair.after);
-        self.capacity_bytes = self
-            .capacity_bytes
-            .checked_sub(previous_payload_bytes)
-            .and_then(|bytes| bytes.checked_add(pair.after.capacity_bytes()))
-            .expect("fact staging byte count overflow");
         Some(result)
     }
 
     fn insert_pair(&mut self, node: StyleNodeID, after: StagedFactRow, before: Option<PrimaryFactSnapshot>) {
         let index = Self::index(node);
         assert!(self.rows.get(index).is_none());
-        let previous_storage_bytes = self.storage_capacity_bytes();
-        let payload_bytes = after.capacity_bytes();
+
         let entry = u32::try_from(self.entries.len()).expect("fact staging entry overflow");
         self.entries.push(Some(StagedFactRowPair {
             before,
@@ -3766,36 +3326,21 @@ impl FactStaging {
         self.dirty.push((node, entry));
         self.live_count += 1;
         self.dirty_count += 1;
-        self.capacity_bytes = self
-            .capacity_bytes
-            .checked_sub(previous_storage_bytes)
-            .and_then(|bytes| bytes.checked_add(self.storage_capacity_bytes()))
-            .and_then(|bytes| bytes.checked_add(payload_bytes))
-            .expect("fact staging byte count overflow");
     }
 
     fn insert(&mut self, node: StyleNodeID, row: StagedFactRow, before: Option<PrimaryFactSnapshot>) {
         let index = Self::index(node);
         if let Some(entry) = self.rows.get(index) {
-            let previous_storage_bytes = self.storage_capacity_bytes();
             let pair = self.entries[entry as usize]
                 .as_mut()
                 .expect("mapped fact staging entry must be live");
-            let previous_payload_bytes = pair.after.capacity_bytes();
-            let replacement_payload_bytes = row.capacity_bytes();
+
             pair.after = row;
             if !pair.dirty {
                 pair.dirty = true;
                 self.dirty_count += 1;
                 self.dirty.push((node, entry));
             }
-            self.capacity_bytes = self
-                .capacity_bytes
-                .checked_sub(previous_storage_bytes)
-                .and_then(|bytes| bytes.checked_add(self.storage_capacity_bytes()))
-                .and_then(|bytes| bytes.checked_sub(previous_payload_bytes))
-                .and_then(|bytes| bytes.checked_add(replacement_payload_bytes))
-                .expect("fact staging byte count overflow");
             return;
         }
         self.insert_pair(node, row, before);
@@ -3806,10 +3351,6 @@ impl FactStaging {
         let pair = self.entries.get_mut(entry)?.take()?;
         self.live_count -= 1;
         self.dirty_count -= usize::from(pair.dirty);
-        self.capacity_bytes = self
-            .capacity_bytes
-            .checked_sub(pair.after.capacity_bytes())
-            .expect("fact staging byte count underflow");
         Some(pair.after)
     }
 
@@ -3860,36 +3401,6 @@ impl FactStaging {
         self.dirty.clear();
         self.live_count = 0;
         self.dirty_count = 0;
-        self.capacity_bytes = self.storage_capacity_bytes();
-    }
-
-    fn capacity_bytes(&self) -> u64 {
-        self.capacity_bytes
-    }
-
-    fn storage_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.entries, self.touched, self.dirty];
-            cached [self.rows.capacity_bytes()];
-            nested [];
-            skip [self.live_count, self.dirty_count, self.capacity_bytes];
-        }
-    }
-
-    #[cfg(test)]
-    fn recomputed_capacity_bytes(&self) -> u64 {
-        self.storage_capacity_bytes()
-            + self
-                .touched
-                .iter()
-                .filter_map(|&(node, entry)| {
-                    if self.rows.get(Self::index(node)) != Some(entry) {
-                        return None;
-                    }
-                    self.entries.get(entry as usize)?.as_ref()
-                })
-                .map(|pair| pair.after.capacity_bytes())
-                .sum::<u64>()
     }
 }
 
@@ -3906,42 +3417,24 @@ struct ElementFactMetadata {
     is_slot: bool,
 }
 
-impl ElementFactMetadata {
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.animation_names];
-            cached [];
-            nested [];
-            skip [
-                self.custom_property_set,
-                self.uses_unnamed_custom_properties,
-                self.uses_custom_functions,
-                self.is_slot,
-            ];
-        }
-    }
-}
+impl ElementFactMetadata {}
 
 impl Default for ElementFactStore {
     fn default() -> Self {
         let attribute_catalogs = Arc::new(AttributeCatalogs::default());
         let mut rows = StyleNodeFacts::new_primary();
         rows.attribute_catalogs = Arc::clone(&attribute_catalogs);
-        let mut store = Self {
+
+        Self {
             rows: Arc::new(rows),
             attribute_catalogs,
             #[cfg(test)]
             attribute_catalog_copies: 0,
             staging: FactStaging::default(),
             metadata: Column::default(),
-            primary_live_bytes: 0,
-            primary_live_payload_bytes: 0,
-            primary_stale_payload_bytes: 0,
             postings: Default::default(),
-            posting_rebuild_closed_at_headroom: None,
-            memory: MemoryLease::new(MemoryCategory::StyleNodeMapping),
+
             memory_dirty: false,
-            settled_non_apply_capacity_bytes: 0,
             custom_property_name_sets: super::intern_table::InternTable::default(),
             custom_property_name_set_vacancies: Vec::new(),
             custom_property_set_ids_by_name: PagedOwnedColumn::default(),
@@ -3951,9 +3444,7 @@ impl Default for ElementFactStore {
             attribute_value_live_counts: PagedCopyColumn::default(),
             custom_property_set_live_counts: vec![0],
             element_declared_properties: Default::default(),
-        };
-        store.settled_non_apply_capacity_bytes = store.capacity_bytes() - store.apply_capacity_bytes();
-        store
+        }
     }
 }
 
@@ -4145,6 +3636,7 @@ impl ElementFactStore {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn postings_mut(&mut self) -> &mut FeaturePostings {
         &mut self.postings
     }
@@ -4154,19 +3646,11 @@ impl ElementFactStore {
         &self.postings
     }
 
-    fn rebuild_missing_posting(
-        &self,
-        rebuilt: &mut FeaturePostings,
-        key: PostingKey,
-        node: StyleNodeID,
-        memory: &mut MemoryController,
-    ) -> bool {
-        !self.postings.missing.contains(&key)
-            || rebuilt.insert(key, node, memory)
-            || rebuilt.cardinality_limited.contains(&key)
+    fn rebuild_missing_posting(&self, rebuilt: &mut FeaturePostings, key: PostingKey, node: StyleNodeID) -> bool {
+        !self.postings.missing.contains(&key) || rebuilt.insert(key, node) || rebuilt.cardinality_limited.contains(&key)
     }
 
-    fn build_missing_postings(&self, memory: &mut MemoryController) -> Option<FeaturePostings> {
+    fn build_missing_postings(&self) -> Option<FeaturePostings> {
         let mut rebuilt = FeaturePostings::new();
         rebuilt.selector_posting_limit = self.postings.selector_posting_limit;
         for node in self.rows.live_nodes() {
@@ -4189,19 +3673,19 @@ impl ElementFactStore {
                 if atom.is_none() {
                     continue;
                 }
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
                     return None;
                 }
             }
             for &part in self.rows.parts_of(row) {
                 let key = SelectorPostingKey::Part(part);
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
                     return None;
                 }
             }
             for &state in self.rows.custom_states_of(row) {
                 let key = SelectorPostingKey::CustomState(state);
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
                     return None;
                 }
             }
@@ -4212,20 +3696,20 @@ impl ElementFactStore {
                 .filter(|state| state.has_selector_posting())
             {
                 let key = SelectorPostingKey::State(state);
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
                     return None;
                 }
             }
             for &class in self.rows.classes_of(row) {
                 let key = SelectorPostingKey::Class(class);
-                if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
                     return None;
                 }
             }
             for attribute in self.rows.attributes_of(row) {
                 for name in self.attribute_name_keys(attribute.name) {
                     let key = SelectorPostingKey::AttributeName(name);
-                    if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                    if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
                         return None;
                     }
                 }
@@ -4233,13 +3717,13 @@ impl ElementFactStore {
             if let Some(metadata) = self.metadata_of(node) {
                 for &name in &metadata.animation_names {
                     let key = DependencyPostingKey::AnimationName(name);
-                    if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                    if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
                         return None;
                     }
                 }
                 if metadata.custom_property_set != 0 {
                     let key = DependencyPostingKey::CustomPropertySet(metadata.custom_property_set);
-                    if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                    if !self.rebuild_missing_posting(&mut rebuilt, key, node) {
                         return None;
                     }
                 }
@@ -4250,7 +3734,7 @@ impl ElementFactStore {
                     ),
                     (metadata.uses_custom_functions, DependencyPostingKey::AnyCustomFunction),
                 ] {
-                    if uses && !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
+                    if uses && !self.rebuild_missing_posting(&mut rebuilt, key, node) {
                         return None;
                     }
                 }
@@ -4259,37 +3743,13 @@ impl ElementFactStore {
         Some(rebuilt)
     }
 
-    fn posting_rebuild_headroom(memory: &MemoryController) -> u64 {
-        memory
-            .tier3_limit()
-            .saturating_sub(memory.bytes_in_tier(Tier::Acceleration))
-    }
-
-    fn rebuild_missing_postings(&mut self, memory: &mut MemoryController) {
+    fn rebuild_missing_postings(&mut self) {
         if !self.postings.is_incomplete() {
-            self.posting_rebuild_closed_at_headroom = None;
             return;
         }
-
-        let headroom = Self::posting_rebuild_headroom(memory);
-        if self
-            .posting_rebuild_closed_at_headroom
-            .is_some_and(|closed_at| headroom <= closed_at)
-        {
-            return;
+        if let Some(rebuilt) = self.build_missing_postings() {
+            self.postings.take_rebuilt(rebuilt);
         }
-
-        // NB: Rebuilding needs to admit new postings. Avoid scanning every fact each time
-        //     staged facts are applied while admission is closed, and retry once it reopens.
-        if !memory.is_tier3_admitting(MemoryCategory::FeaturePosting) {
-            return;
-        }
-        let Some(rebuilt) = self.build_missing_postings(memory) else {
-            self.posting_rebuild_closed_at_headroom = Some(Self::posting_rebuild_headroom(memory));
-            return;
-        };
-        self.postings.take_rebuilt(rebuilt);
-        self.posting_rebuild_closed_at_headroom = None;
     }
 
     #[must_use]
@@ -4406,14 +3866,14 @@ impl ElementFactStore {
         }
     }
 
-    pub fn set_tag(&mut self, node: StyleNodeID, tag: StyleAtomID, memory: &mut MemoryController) {
+    pub fn set_tag(&mut self, node: StyleNodeID, tag: StyleAtomID) {
         let previous = self.edit_staged_row(node, |facts| std::mem::replace(&mut facts.tag, tag));
         if previous != tag {
             if !previous.is_none() {
                 self.postings.remove(SelectorPostingKey::TagName(previous), node);
             }
             if !tag.is_none() {
-                self.postings.insert(SelectorPostingKey::TagName(tag), node, memory);
+                self.postings.insert(SelectorPostingKey::TagName(tag), node);
             }
         }
     }
@@ -4421,7 +3881,7 @@ impl ElementFactStore {
     /// Record the folded form of the element's name as a second name it is posted under. A folding
     /// equal to the name itself carries no information and is dropped, so the posting is never
     /// inserted twice for one element.
-    pub fn set_folded_tag(&mut self, node: StyleNodeID, folded: StyleAtomID, memory: &mut MemoryController) {
+    pub fn set_folded_tag(&mut self, node: StyleNodeID, folded: StyleAtomID) {
         let (previous, folded) = self.edit_staged_row(node, |facts| {
             let folded = if folded == facts.tag { StyleAtomID::NONE } else { folded };
             (std::mem::replace(&mut facts.folded_tag, folded), folded)
@@ -4431,19 +3891,19 @@ impl ElementFactStore {
                 self.postings.remove(SelectorPostingKey::TagName(previous), node);
             }
             if !folded.is_none() {
-                self.postings.insert(SelectorPostingKey::TagName(folded), node, memory);
+                self.postings.insert(SelectorPostingKey::TagName(folded), node);
             }
         }
     }
 
-    pub fn set_id(&mut self, node: StyleNodeID, id: StyleAtomID, memory: &mut MemoryController) {
+    pub fn set_id(&mut self, node: StyleNodeID, id: StyleAtomID) {
         let previous = self.edit_staged_row(node, |facts| std::mem::replace(&mut facts.id, id));
         if previous != id {
             if !previous.is_none() {
                 self.postings.remove(SelectorPostingKey::Id(previous), node);
             }
             if !id.is_none() {
-                self.postings.insert(SelectorPostingKey::Id(id), node, memory);
+                self.postings.insert(SelectorPostingKey::Id(id), node);
             }
         }
     }
@@ -4649,12 +4109,7 @@ impl ElementFactStore {
         self.edit_staged_row(node, |facts| facts.namespace = namespace);
     }
 
-    pub fn set_directionality(
-        &mut self,
-        node: StyleNodeID,
-        directionality: StyleAtomID,
-        memory: &mut MemoryController,
-    ) {
+    pub fn set_directionality(&mut self, node: StyleNodeID, directionality: StyleAtomID) {
         let previous = self.edit_staged_row(node, |facts| {
             std::mem::replace(&mut facts.directionality, directionality)
         });
@@ -4664,12 +4119,12 @@ impl ElementFactStore {
             }
             if !directionality.is_none() {
                 self.postings
-                    .insert(SelectorPostingKey::Directionality(directionality), node, memory);
+                    .insert(SelectorPostingKey::Directionality(directionality), node);
             }
         }
     }
 
-    pub fn set_class(&mut self, node: StyleNodeID, class: StyleAtomID, present: bool, memory: &mut MemoryController) {
+    pub fn set_class(&mut self, node: StyleNodeID, class: StyleAtomID, present: bool) {
         let changed = self.edit_staged_row(node, |facts| match (present, facts.classes.binary_search(&class)) {
             (true, Err(index)) => {
                 facts.classes.insert(index, class);
@@ -4683,7 +4138,7 @@ impl ElementFactStore {
         });
         if changed {
             if present {
-                self.postings.insert(SelectorPostingKey::Class(class), node, memory);
+                self.postings.insert(SelectorPostingKey::Class(class), node);
             } else {
                 self.postings.remove(SelectorPostingKey::Class(class), node);
             }
@@ -4694,7 +4149,7 @@ impl ElementFactStore {
     ///
     /// This arrives from computed style rather than from the DOM, so it is published as a set rather
     /// than one name at a time: an element's `animation-name` is recomputed whole.
-    pub fn set_animation_names(&mut self, node: StyleNodeID, names: &[StyleAtomID], memory: &mut MemoryController) {
+    pub fn set_animation_names(&mut self, node: StyleNodeID, names: &[StyleAtomID]) {
         let previous = self
             .metadata_of(node)
             .map_or(&[][..], |metadata| &metadata.animation_names);
@@ -4715,8 +4170,7 @@ impl ElementFactStore {
                     Self::decrement_atom_count(&mut self.atom_live_counts, name);
                 }
                 SortedMergeEntry::Right(&name) => {
-                    self.postings
-                        .insert(DependencyPostingKey::AnimationName(name), node, memory);
+                    self.postings.insert(DependencyPostingKey::AnimationName(name), node);
                     Self::increment_atom_count(&mut self.atom_live_counts, name);
                 }
                 SortedMergeEntry::Both(..) => {}
@@ -4732,7 +4186,7 @@ impl ElementFactStore {
     }
 
     /// Whether this element's style resolution called a custom function.
-    pub fn set_uses_custom_functions(&mut self, node: StyleNodeID, uses: bool, memory: &mut MemoryController) {
+    pub fn set_uses_custom_functions(&mut self, node: StyleNodeID, uses: bool) {
         if self
             .metadata_of(node)
             .is_some_and(|metadata| metadata.uses_custom_functions)
@@ -4742,9 +4196,7 @@ impl ElementFactStore {
         }
         self.metadata_mut(node).uses_custom_functions = uses;
         match uses {
-            true => self
-                .postings
-                .insert(DependencyPostingKey::AnyCustomFunction, node, memory),
+            true => self.postings.insert(DependencyPostingKey::AnyCustomFunction, node),
             false => {
                 self.postings.remove(DependencyPostingKey::AnyCustomFunction, node);
                 true
@@ -4758,7 +4210,7 @@ impl ElementFactStore {
             .is_some_and(|metadata| metadata.uses_unnamed_custom_properties)
     }
 
-    pub fn set_uses_unnamed_custom_properties(&mut self, node: StyleNodeID, uses: bool, memory: &mut MemoryController) {
+    pub fn set_uses_unnamed_custom_properties(&mut self, node: StyleNodeID, uses: bool) {
         if self
             .metadata_of(node)
             .is_some_and(|metadata| metadata.uses_unnamed_custom_properties)
@@ -4768,9 +4220,7 @@ impl ElementFactStore {
         }
         self.metadata_mut(node).uses_unnamed_custom_properties = uses;
         match uses {
-            true => self
-                .postings
-                .insert(DependencyPostingKey::AnyCustomProperty, node, memory),
+            true => self.postings.insert(DependencyPostingKey::AnyCustomProperty, node),
             false => {
                 self.postings.remove(DependencyPostingKey::AnyCustomProperty, node);
                 true
@@ -4785,12 +4235,7 @@ impl ElementFactStore {
     /// hands the same two thousand to every element it decides for, and one posting entry per name
     /// per element is millions of entries for one answer. The set is stored once, the element
     /// names it by identity, and a registration asks which sets hold its name.
-    pub fn set_custom_property_names(
-        &mut self,
-        node: StyleNodeID,
-        names: &[StyleAtomID],
-        memory: &mut MemoryController,
-    ) {
+    pub fn set_custom_property_names(&mut self, node: StyleNodeID, names: &[StyleAtomID]) {
         self.memory_dirty = true;
         // The caller hands these sorted and deduplicated, worked out once for the environment the
         // element resolved to.
@@ -4823,8 +4268,7 @@ impl ElementFactStore {
                 .remove(DependencyPostingKey::CustomPropertySet(previous), node);
         }
         if set != 0 {
-            self.postings
-                .insert(DependencyPostingKey::CustomPropertySet(set), node, memory);
+            self.postings.insert(DependencyPostingKey::CustomPropertySet(set), node);
         }
     }
 
@@ -4867,14 +4311,7 @@ impl ElementFactStore {
         Ok(nodes)
     }
 
-    pub fn set_attribute(
-        &mut self,
-        node: StyleNodeID,
-        name: StyleAtomID,
-        value: StyleAtomID,
-        present: bool,
-        memory: &mut MemoryController,
-    ) {
+    pub fn set_attribute(&mut self, node: StyleNodeID, name: StyleAtomID, value: StyleAtomID, present: bool) {
         // An attribute is one fact under one key, but it is indexed under every name a selector can
         // reach it by: its own, the any-namespace form `[*|x]` dispatches under, and the ASCII
         // foldings of both, which is how `[aB]` reaches an attribute written either way. The extra
@@ -4900,8 +4337,7 @@ impl ElementFactStore {
         });
         if changed && present {
             for key in self.attribute_name_keys(name) {
-                self.postings
-                    .insert(SelectorPostingKey::AttributeName(key), node, memory);
+                self.postings.insert(SelectorPostingKey::AttributeName(key), node);
             }
         } else if changed {
             // A shared name stays true of the element while another of its attributes still
@@ -5102,7 +4538,7 @@ impl ElementFactStore {
             .is_some_and(Option::is_some)
     }
 
-    pub fn set_state(&mut self, node: StyleNodeID, fact: StateFact, value: bool, memory: &mut MemoryController) {
+    pub fn set_state(&mut self, node: StyleNodeID, fact: StateFact, value: bool) {
         let changed = self.edit_staged_row(node, |facts| {
             if facts.states.contains(fact) == value {
                 return false;
@@ -5116,14 +4552,14 @@ impl ElementFactStore {
         });
         if changed && fact.has_selector_posting() {
             if value {
-                self.postings.insert(SelectorPostingKey::State(fact), node, memory);
+                self.postings.insert(SelectorPostingKey::State(fact), node);
             } else {
                 self.postings.remove(SelectorPostingKey::State(fact), node);
             }
         }
     }
 
-    pub fn set_parts(&mut self, node: StyleNodeID, parts: &[StyleAtomID], memory: &mut MemoryController) {
+    pub fn set_parts(&mut self, node: StyleNodeID, parts: &[StyleAtomID]) {
         let previous = self.staging.get(node).map_or_else(
             || self.rows.row_of(node).map_or(&[][..], |row| self.rows.parts_of(row)),
             |facts| facts.parts.as_slice(),
@@ -5132,12 +4568,12 @@ impl ElementFactStore {
             self.postings.remove(SelectorPostingKey::Part(part), node);
         }
         for &part in parts.iter().filter(|part| !previous.contains(part)) {
-            self.postings.insert(SelectorPostingKey::Part(part), node, memory);
+            self.postings.insert(SelectorPostingKey::Part(part), node);
         }
         self.edit_staged_row(node, |facts| parts.clone_into(&mut facts.parts));
     }
 
-    pub fn set_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID], memory: &mut MemoryController) {
+    pub fn set_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID]) {
         let previous = self.staging.get(node).map_or_else(
             || {
                 self.rows
@@ -5150,8 +4586,7 @@ impl ElementFactStore {
             self.postings.remove(SelectorPostingKey::CustomState(state), node);
         }
         for &state in states.iter().filter(|state| !previous.contains(state)) {
-            self.postings
-                .insert(SelectorPostingKey::CustomState(state), node, memory);
+            self.postings.insert(SelectorPostingKey::CustomState(state), node);
         }
         self.edit_staged_row(node, |facts| states.clone_into(&mut facts.custom_states));
     }
@@ -5163,8 +4598,6 @@ impl ElementFactStore {
         let Some(row) = self.rows.row_of(node) else {
             return;
         };
-        let row_bytes = self.rows.logical_bytes_of_row(row);
-        let payload_bytes = self.rows.payload_bytes_of_row(row);
         self.remove_row_catalog_references(row);
         let tag = self.rows.tag_of(row);
         if !tag.is_none() {
@@ -5206,18 +4639,6 @@ impl ElementFactStore {
             }
         }
         Arc::make_mut(&mut self.rows).forget_row(node);
-        self.primary_live_bytes = self
-            .primary_live_bytes
-            .checked_sub(row_bytes)
-            .expect("primary live fact byte count underflow");
-        self.primary_live_payload_bytes = self
-            .primary_live_payload_bytes
-            .checked_sub(payload_bytes)
-            .expect("primary live fact payload byte count underflow");
-        self.primary_stale_payload_bytes = self
-            .primary_stale_payload_bytes
-            .checked_add(payload_bytes)
-            .expect("primary stale fact payload byte count overflow");
         if let Some(metadata) = node
             .element_index()
             .and_then(|index| self.metadata.get_mut(index as usize))
@@ -5381,122 +4802,16 @@ impl ElementFactStore {
         batch.push_row_from(node, &self.rows, row);
     }
 
-    fn auxiliary_capacity_bytes(&self) -> u64 {
-        let metadata_payloads = self
-            .metadata
-            .iter()
-            .flatten()
-            .map(ElementFactMetadata::capacity_bytes)
-            .sum::<u64>();
-        let custom_property_name_payloads = self
-            .custom_property_name_sets
-            .iter()
-            .map(|names| size_of_val(names.as_ref()))
-            .sum::<usize>();
-        let custom_property_name_index_payloads = self
-            .custom_property_set_ids_by_name
-            .iter()
-            .map(|ids| ids.capacity() * size_of::<u32>())
-            .sum::<usize>();
-        let language_payloads = self
-            .attribute_catalogs
-            .language_texts
-            .iter()
-            .flatten()
-            .map(|text| text.len() * size_of::<u16>())
-            .sum::<usize>();
-        let attribute_value_payloads = self
-            .attribute_catalogs
-            .value_texts
-            .iter()
-            .flatten()
-            .map(|text| text.len() * size_of::<u16>())
-            .sum::<usize>();
-        let substitution_name_payloads = self
-            .attribute_catalogs
-            .substitution_names
-            .iter()
-            .flatten()
-            .map(|name| name.len() * size_of::<u16>())
-            .sum::<usize>();
-
-        capacity_bytes! {
-            shallow [
-                self.custom_property_name_sets,
-                self.custom_property_name_set_vacancies,
-                self.custom_property_set_ids_by_name,
-                self.atom_live_counts,
-                self.language_live_counts,
-                self.attribute_name_live_counts,
-                self.attribute_value_live_counts,
-                self.custom_property_set_live_counts,
-                self.attribute_catalogs.language_texts,
-                self.attribute_catalogs.value_texts,
-                self.attribute_catalogs.name_forms,
-                self.attribute_catalogs.substitution_names,
-            ];
-            cached [];
-            nested [
-                self.staging.capacity_bytes(),
-                metadata_payloads,
-                custom_property_name_payloads,
-                custom_property_name_index_payloads,
-                language_payloads,
-                attribute_value_payloads,
-                substitution_name_payloads,
-            ];
-            skip [];
-        }
-    }
-
-    fn apply_capacity_bytes(&self) -> u64 {
-        self.rows.capacity_bytes() + self.staging.capacity_bytes() + self.element_declared_properties.capacity_bytes()
-    }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.metadata];
-            cached [];
-            nested [
-                self.rows.capacity_bytes(),
-                self.auxiliary_capacity_bytes(),
-                self.element_declared_properties.capacity_bytes(),
-            ];
-            skip [
-                self.primary_live_bytes,
-                self.primary_live_payload_bytes,
-                self.primary_stale_payload_bytes,
-                self.postings,
-                self.posting_rebuild_closed_at_headroom,
-                self.attribute_catalogs,
-                self.memory,
-                self.memory_dirty,
-                self.staging,
-                self.custom_property_name_sets,
-                self.custom_property_name_set_vacancies,
-                self.custom_property_set_ids_by_name,
-                self.atom_live_counts,
-                self.language_live_counts,
-                self.attribute_name_live_counts,
-                self.attribute_value_live_counts,
-                self.custom_property_set_live_counts,
-            ];
-        }
-    }
-
     /// Commit every fact-staging edit to the authoritative arrangement.
-    pub fn apply_staged(&mut self, memory: &mut MemoryController) {
+    pub fn apply_staged(&mut self) {
         if !self.memory_dirty {
-            self.rebuild_missing_postings(memory);
+            self.rebuild_missing_postings();
             return;
         }
         self.prepare_attribute_catalogs();
         let mut staging = std::mem::take(&mut self.staging);
         for (node, facts) in staging.dirty_rows() {
             let previous = self.rows.row_of(node);
-            let replaced_bytes = previous.map_or(0, |row| self.rows.logical_bytes_of_row(row));
-            let replaced_payload_bytes = previous.map_or(0, |row| self.rows.payload_bytes_of_row(row));
             if let Some(previous) = previous {
                 self.remove_row_catalog_references(previous);
             }
@@ -5504,36 +4819,14 @@ impl ElementFactStore {
             // A selector-free transaction may retain the active traversal's immutable primary
             // view. Preserve that view while advancing the authoritative rows for the next
             // transaction.
-            let stale_payload_bytes = Arc::make_mut(&mut self.rows).set_primary_row(node, facts);
-            let row = self.rows.row_of(node).unwrap();
-            let replacement_bytes = self.rows.logical_bytes_of_row(row);
-            let replacement_payload_bytes = self.rows.payload_bytes_of_row(row);
-            self.primary_live_bytes = self
-                .primary_live_bytes
-                .checked_sub(replaced_bytes)
-                .and_then(|bytes| bytes.checked_add(replacement_bytes))
-                .expect("primary live fact byte count overflow");
-            self.primary_live_payload_bytes = self
-                .primary_live_payload_bytes
-                .checked_sub(replaced_payload_bytes)
-                .and_then(|bytes| bytes.checked_add(replacement_payload_bytes))
-                .expect("primary live fact payload byte count overflow");
-            self.primary_stale_payload_bytes = self
-                .primary_stale_payload_bytes
-                .checked_add(stale_payload_bytes)
-                .expect("primary stale fact payload byte count overflow");
+            Arc::make_mut(&mut self.rows).set_primary_row(node, facts);
         }
         staging.mark_applied();
         self.staging = staging;
         self.postings.update_selector_posting_limit(self.rows.live_row_count());
-        let apply_capacity_bytes = self.apply_capacity_bytes();
-        let current = self
-            .settled_non_apply_capacity_bytes
-            .checked_add(apply_capacity_bytes)
-            .expect("element fact byte count overflow");
-        self.memory.resize_required_to(memory, current);
+
         self.memory_dirty = false;
-        self.rebuild_missing_postings(memory);
+        self.rebuild_missing_postings();
     }
 
     /// Snapshot the committed rows which staged local facts will replace at the barrier.
@@ -5570,15 +4863,9 @@ impl ElementFactStore {
         before
     }
 
-    pub fn release_staging(&mut self, memory: &mut MemoryController) {
+    pub fn release_staging(&mut self) {
         self.staging.clear();
-        if self.primary_stale_payload_bytes > self.primary_live_payload_bytes {
-            Arc::make_mut(&mut self.rows).compact_primary_payloads();
-            self.primary_stale_payload_bytes = 0;
-        }
-        let current = self.capacity_bytes();
-        self.memory.resize_required_to(memory, current);
-        self.settled_non_apply_capacity_bytes = current - self.apply_capacity_bytes();
+        Arc::make_mut(&mut self.rows).compact_primary_payloads_if_mostly_stale();
     }
 }
 
@@ -5596,26 +4883,25 @@ mod tests {
 
     #[test]
     fn interaction_states_keep_a_posting() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
-        facts.set_state(node, StateFact::Focus, true, &mut memory);
-        facts.set_state(node, StateFact::Enabled, true, &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_state(node, StateFact::Focus, true);
+        facts.set_state(node, StateFact::Enabled, true);
+        facts.apply_staged();
         assert!(known_posting(facts.postings(), SelectorPostingKey::State(StateFact::Focus)).contains(node));
         assert!(matches!(
             facts.postings().lookup(SelectorPostingKey::State(StateFact::Enabled)),
             Lookup::KnownAbsent
         ));
 
-        facts.set_state(node, StateFact::Focus, false, &mut memory);
+        facts.set_state(node, StateFact::Focus, false);
         assert!(matches!(
             facts.postings().lookup(SelectorPostingKey::State(StateFact::Focus)),
             Lookup::KnownAbsent
         ));
 
-        facts.set_state(node, StateFact::Focus, true, &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_state(node, StateFact::Focus, true);
+        facts.apply_staged();
         facts.forget(node);
         assert!(matches!(
             facts.postings().lookup(SelectorPostingKey::State(StateFact::Focus)),
@@ -5625,20 +4911,19 @@ mod tests {
 
     #[test]
     fn a_posting_stays_sorted_across_chunk_splits() {
-        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let key = SelectorPostingKey::Class(StyleAtomID(1));
 
         // Insert in order and across enough members to force several append-only chunks.
         for index in 1..2000_u32 {
-            assert!(postings.insert(key, StyleNodeID::element(index), &mut memory));
+            assert!(postings.insert(key, StyleNodeID::element(index)));
         }
         // Rebuild the same posting out of order to exercise chunk splits as well.
         for index in 1..2000_u32 {
             postings.remove(key, StyleNodeID::element(index));
         }
         for index in (1..2000_u32).rev() {
-            assert!(postings.insert(key, StyleNodeID::element(index), &mut memory));
+            assert!(postings.insert(key, StyleNodeID::element(index)));
         }
         assert_eq!(known_posting(&postings, key).len(), 1999);
 
@@ -5649,32 +4934,28 @@ mod tests {
         assert!(!known_posting(&postings, key).contains(StyleNodeID::element(2500)));
 
         // Re-inserting a member changes nothing.
-        assert!(postings.insert(key, StyleNodeID::element(1000), &mut memory));
+        assert!(postings.insert(key, StyleNodeID::element(1000)));
         assert_eq!(known_posting(&postings, key).len(), 1999);
     }
 
     #[test]
     fn removing_the_last_member_reclaims_the_posting() {
-        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let key = SelectorPostingKey::Class(StyleAtomID(1));
         assert!(matches!(postings.lookup(key), Lookup::KnownAbsent));
         for index in 1..500_u32 {
-            postings.insert(key, StyleNodeID::element(index), &mut memory);
+            postings.insert(key, StyleNodeID::element(index));
         }
-        assert!(memory.bytes_in_category(MemoryCategory::FeaturePosting) > 0);
 
         for index in 1..500_u32 {
             postings.remove(key, StyleNodeID::element(index));
         }
         assert!(matches!(postings.lookup(key), Lookup::KnownAbsent));
         assert_eq!(postings.feature_count(), 0);
-        assert_eq!(memory.bytes_in_category(MemoryCategory::FeaturePosting), 0);
     }
 
     #[test]
     fn local_dispatch_keys_read_the_authoritative_element_row() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let tag = StyleAtomID(10);
@@ -5685,10 +4966,10 @@ mod tests {
         let local_attribute = StyleAtomID(41);
         let directionality = StyleAtomID(50);
 
-        facts.set_tag(node, tag, &mut memory);
-        facts.set_folded_tag(node, folded_tag, &mut memory);
-        facts.set_id(node, id, &mut memory);
-        facts.set_class(node, class, true, &mut memory);
+        facts.set_tag(node, tag);
+        facts.set_folded_tag(node, folded_tag);
+        facts.set_id(node, id);
+        facts.set_class(node, class, true);
         facts.note_attribute_name_forms(
             attribute,
             AttributeNameForms {
@@ -5696,9 +4977,9 @@ mod tests {
                 ..Default::default()
             },
         );
-        facts.set_attribute(node, attribute, StyleAtomID(42), true, &mut memory);
-        facts.set_directionality(node, directionality, &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_attribute(node, attribute, StyleAtomID(42), true);
+        facts.set_directionality(node, directionality);
+        facts.apply_staged();
 
         for key in [
             DispatchKey::TagName(tag),
@@ -5720,20 +5001,18 @@ mod tests {
 
     #[test]
     fn directionality_reads_include_pending_changes() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
 
-        facts.set_directionality(node, StyleAtomID(2), &mut memory);
-        facts.apply_staged(&mut memory);
-        facts.set_directionality(node, StyleAtomID(4), &mut memory);
+        facts.set_directionality(node, StyleAtomID(2));
+        facts.apply_staged();
+        facts.set_directionality(node, StyleAtomID(4));
 
         assert_eq!(facts.directionality_of(node), StyleAtomID(4));
     }
 
     #[test]
     fn forgetting_an_element_removes_every_owned_posting() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let name = StyleAtomID(10);
@@ -5745,10 +5024,10 @@ mod tests {
             folded_local: StyleAtomID(13),
         };
         facts.note_attribute_name_forms(name, forms);
-        facts.set_attribute(node, name, StyleAtomID(20), true, &mut memory);
-        facts.set_parts(node, &[part], &mut memory);
-        facts.set_custom_states(node, &[custom_state], &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_attribute(node, name, StyleAtomID(20), true);
+        facts.set_parts(node, &[part]);
+        facts.set_custom_states(node, &[custom_state]);
+        facts.apply_staged();
 
         for key in [name, forms.local, forms.folded_name, forms.folded_local] {
             assert!(known_posting(&facts.postings, SelectorPostingKey::AttributeName(key)).contains(node));
@@ -5776,14 +5055,13 @@ mod tests {
 
     #[test]
     fn resident_fact_rows_follow_dense_element_identity_slots() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let first = StyleNodeID::element(3);
         let later = StyleNodeID::element(64);
 
-        facts.set_tag(first, StyleAtomID(10), &mut memory);
-        facts.set_tag(later, StyleAtomID(20), &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_tag(first, StyleAtomID(10));
+        facts.set_tag(later, StyleAtomID(20));
+        facts.apply_staged();
         assert_eq!(facts.len(), 2);
         assert!(facts.rows.row_by_element_index.is_empty());
         assert_eq!(facts.rows.row_of(first), Some(3));
@@ -5795,14 +5073,13 @@ mod tests {
         assert_eq!(facts.len(), 1);
         assert!(!facts.covers(first));
         facts.ensure_row(first);
-        facts.apply_staged(&mut memory);
+        facts.apply_staged();
         assert_eq!(facts.len(), 2);
         assert_eq!(facts.tag_of_node(first), StyleAtomID::NONE);
     }
 
     #[test]
     fn primary_fact_rows_replace_element_slots_in_place() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(3);
         let first_class = StyleAtomID(20);
@@ -5810,20 +5087,20 @@ mod tests {
         let part = StyleAtomID(30);
         let custom_state = StyleAtomID(31);
 
-        facts.set_tag(node, StyleAtomID(10), &mut memory);
-        facts.set_class(node, first_class, true, &mut memory);
+        facts.set_tag(node, StyleAtomID(10));
+        facts.set_class(node, first_class, true);
         assert!(facts.has_dirty_staging());
-        facts.apply_staged(&mut memory);
+        facts.apply_staged();
         assert!(!facts.has_dirty_staging());
         let initial_generation = facts.primary().generation();
         assert_eq!(facts.primary().row_count(), 4);
         assert_eq!(facts.primary().stale_rows(), 0);
 
-        facts.set_class(node, second_class, true, &mut memory);
-        facts.set_state(node, StateFact::Hover, true, &mut memory);
-        facts.set_parts(node, &[part], &mut memory);
-        facts.set_custom_states(node, &[custom_state], &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_class(node, second_class, true);
+        facts.set_state(node, StateFact::Hover, true);
+        facts.set_parts(node, &[part]);
+        facts.set_custom_states(node, &[custom_state]);
+        facts.apply_staged();
         assert_eq!(facts.primary().generation(), initial_generation);
         assert_eq!(facts.primary().row_count(), 4);
         assert_eq!(facts.primary().stale_rows(), 0);
@@ -5832,8 +5109,8 @@ mod tests {
         assert_eq!(facts.primary().parts_of(row), &[part]);
         assert_eq!(facts.primary().custom_states_of(row), &[custom_state]);
 
-        facts.set_class(node, first_class, false, &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_class(node, first_class, false);
+        facts.apply_staged();
         assert_eq!(facts.primary().generation(), initial_generation);
         assert_eq!(facts.primary().row_count(), 4);
         assert_eq!(facts.primary().stale_rows(), 0);
@@ -5843,19 +5120,17 @@ mod tests {
 
     #[test]
     fn fixed_fact_changes_reuse_primary_payload_handles() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
-        facts.set_class(node, StyleAtomID(10), true, &mut memory);
-        facts.set_attribute(node, StyleAtomID(20), StyleAtomID(21), true, &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_class(node, StyleAtomID(10), true);
+        facts.set_attribute(node, StyleAtomID(20), StyleAtomID(21), true);
+        facts.apply_staged();
         let payload_lengths = (facts.rows.classes.len(), facts.rows.attributes.len());
 
-        facts.set_state(node, StateFact::Hover, true, &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_state(node, StateFact::Hover, true);
+        facts.apply_staged();
 
         assert_eq!((facts.rows.classes.len(), facts.rows.attributes.len()), payload_lengths);
-        assert_eq!(facts.primary_stale_payload_bytes, 0);
     }
 
     #[test]
@@ -5874,22 +5149,16 @@ mod tests {
 
     #[test]
     fn element_fact_capacity_includes_auxiliary_catalogs_and_staging() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(64);
-        let initial = facts.capacity_bytes();
 
-        facts.set_class(node, StyleAtomID(1), true, &mut memory);
-        facts.set_parts(node, &[StyleAtomID(2), StyleAtomID(3)], &mut memory);
-        facts.set_custom_states(node, &[StyleAtomID(4), StyleAtomID(5)], &mut memory);
-        facts.set_attribute(node, StyleAtomID(6), StyleAtomID(7), true, &mut memory);
-        assert!(facts.capacity_bytes() > initial);
+        facts.set_class(node, StyleAtomID(1), true);
+        facts.set_parts(node, &[StyleAtomID(2), StyleAtomID(3)]);
+        facts.set_custom_states(node, &[StyleAtomID(4), StyleAtomID(5)]);
+        facts.set_attribute(node, StyleAtomID(6), StyleAtomID(7), true);
 
-        let pending = facts.capacity_bytes();
-        facts.set_animation_names(node, &[StyleAtomID(8), StyleAtomID(9)], &mut memory);
-        assert!(facts.capacity_bytes() > pending);
+        facts.set_animation_names(node, &[StyleAtomID(8), StyleAtomID(9)]);
 
-        let metadata = facts.capacity_bytes();
         facts.set_language_text(StyleAtomID(10), &[1, 2, 3, 4]);
         facts.set_attribute_value_text(StyleAtomID(11), &[5, 6, 7, 8]);
         facts.note_attribute_name_forms(
@@ -5900,34 +5169,26 @@ mod tests {
                 folded_local: StyleAtomID(15),
             },
         );
-        assert!(facts.capacity_bytes() > metadata);
 
-        let text_catalogs = facts.capacity_bytes();
-        facts.set_custom_property_names(node, &[StyleAtomID(16), StyleAtomID(17)], &mut memory);
-        assert!(facts.capacity_bytes() > text_catalogs);
-        facts.apply_staged(&mut memory);
-        facts.release_staging(&mut memory);
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
-            facts.capacity_bytes()
-        );
+        facts.set_custom_property_names(node, &[StyleAtomID(16), StyleAtomID(17)]);
+        facts.apply_staged();
+        facts.release_staging();
     }
 
     #[test]
     fn live_fact_atom_roots_use_incremental_counts() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
-        facts.set_tag(node, StyleAtomID(1), &mut memory);
-        facts.set_folded_tag(node, StyleAtomID(2), &mut memory);
-        facts.set_id(node, StyleAtomID(3), &mut memory);
+        facts.set_tag(node, StyleAtomID(1));
+        facts.set_folded_tag(node, StyleAtomID(2));
+        facts.set_id(node, StyleAtomID(3));
         facts.set_language(node, StyleAtomID(4));
         facts.set_namespace(node, StyleAtomID(5));
         facts.set_part_exposure(node, StyleAtomID(6));
-        facts.set_directionality(node, StyleAtomID(7), &mut memory);
-        facts.set_custom_states(node, &[StyleAtomID(8)], &mut memory);
-        facts.set_parts(node, &[StyleAtomID(9)], &mut memory);
-        facts.set_class(node, StyleAtomID(10), true, &mut memory);
+        facts.set_directionality(node, StyleAtomID(7));
+        facts.set_custom_states(node, &[StyleAtomID(8)]);
+        facts.set_parts(node, &[StyleAtomID(9)]);
+        facts.set_class(node, StyleAtomID(10), true);
         facts.note_attribute_name_forms(
             StyleAtomID(11),
             AttributeNameForms {
@@ -5936,10 +5197,10 @@ mod tests {
                 folded_local: StyleAtomID(15),
             },
         );
-        facts.set_attribute(node, StyleAtomID(11), StyleAtomID(12), true, &mut memory);
-        facts.set_animation_names(node, &[StyleAtomID(16)], &mut memory);
-        facts.set_custom_property_names(node, &[StyleAtomID(17)], &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_attribute(node, StyleAtomID(11), StyleAtomID(12), true);
+        facts.set_animation_names(node, &[StyleAtomID(16)]);
+        facts.set_custom_property_names(node, &[StyleAtomID(17)]);
+        facts.apply_staged();
 
         let mut atoms = HashSet::default();
         let visited = facts.collect_atoms(&mut atoms);
@@ -5954,7 +5215,6 @@ mod tests {
 
     #[test]
     fn a_copy_of_the_store_sweeps_its_catalogs_apart_from_the_store() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let attribute_name = StyleAtomID(1);
@@ -5968,8 +5228,8 @@ mod tests {
             },
         );
         facts.set_attribute_value_text(attribute_value, &[1]);
-        facts.set_attribute(node, attribute_name, attribute_value, true, &mut memory);
-        facts.apply_staged(&mut memory);
+        facts.set_attribute(node, attribute_name, attribute_value, true);
+        facts.apply_staged();
 
         // A fork of the render state copies the store, which then shares the primary rows with it.
         let mut copy = facts.clone();
@@ -5989,7 +5249,6 @@ mod tests {
 
     #[test]
     fn detached_element_churn_reuses_reclaimable_auxiliary_catalog_storage() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
 
@@ -6007,9 +5266,9 @@ mod tests {
             facts.set_language(node, language);
             facts.note_attribute_name_forms(attribute_name, name_forms);
             facts.set_attribute_value_text(attribute_value, &[index as u16]);
-            facts.set_attribute(node, attribute_name, attribute_value, true, &mut memory);
-            facts.set_custom_property_names(node, &[custom_property], &mut memory);
-            facts.apply_staged(&mut memory);
+            facts.set_attribute(node, attribute_name, attribute_value, true);
+            facts.set_custom_property_names(node, &[custom_property]);
+            facts.apply_staged();
 
             facts.forget(node);
             facts.sweep_auxiliary_catalogs();
@@ -6032,7 +5291,6 @@ mod tests {
 
     #[test]
     fn element_declarations_follow_dense_element_identity_slots() {
-        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let first = StyleNodeID::element(3);
         let later = StyleNodeID::element(64);
@@ -6083,206 +5341,47 @@ mod tests {
             facts.element_declared_properties.get(later, svg),
             &[declared(4, false, 40)][..]
         );
-        facts.apply_staged(&mut memory);
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
-            facts.capacity_bytes()
-        );
-    }
-
-    #[test]
-    fn a_posting_that_crosses_the_limit_stays_exact_until_the_boundary() {
-        let mut memory = MemoryController::new();
-        memory.set_tier3_limit_for_test(0);
-        memory.begin_tier3_quota_period();
-        let mut postings = FeaturePostings::new();
-        let key = SelectorPostingKey::Class(StyleAtomID(1));
-
-        assert!(postings.insert(key, StyleNodeID::element(1), &mut memory));
-        assert_eq!(known_posting(&postings, key).length, 1);
-        assert!(memory.finish_tier3_quota_period()[MemoryCategory::FeaturePosting as usize]);
-        postings.evict_all();
-        assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
-    }
-
-    #[test]
-    fn closed_posting_admission_keeps_existing_postings_exact() {
-        let mut memory = MemoryController::new();
-        let mut postings = FeaturePostings::new();
-        let key = SelectorPostingKey::Class(StyleAtomID(1));
-        let missing_key = SelectorPostingKey::Class(StyleAtomID(2));
-
-        assert!(postings.insert(key, StyleNodeID::element(1), &mut memory));
-        let admitted_bytes = memory.bytes_in_category(MemoryCategory::FeaturePosting);
-        memory.set_tier3_limit_for_test(admitted_bytes);
-        for index in 2..512 {
-            assert!(postings.insert(key, StyleNodeID::element(index), &mut memory));
-        }
-
-        assert_eq!(known_posting(&postings, key).length, 511);
-        assert!(memory.is_tier3_admitting(MemoryCategory::FeaturePosting));
-        memory.finish_evaluation_loop();
-        assert!(!postings.insert(missing_key, StyleNodeID::element(1), &mut memory));
-        assert!(matches!(postings.lookup(missing_key), Lookup::Missing(gap) if gap == missing_key));
+        facts.apply_staged();
     }
 
     #[test]
     fn high_cardinality_caps_apply_only_to_selector_postings() {
-        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let selector = SelectorPostingKey::Class(StyleAtomID(1));
         let dependency = DependencyPostingKey::AnimationName(StyleAtomID(2));
         postings.set_selector_posting_limit(2);
         for index in 1..=3 {
             let node = StyleNodeID::element(index);
-            assert_eq!(postings.insert(selector, node, &mut memory), index <= 2);
-            assert!(postings.insert(dependency, node, &mut memory));
+            assert_eq!(postings.insert(selector, node), index <= 2);
+            assert!(postings.insert(dependency, node));
         }
 
         assert!(matches!(postings.lookup(selector), Lookup::Missing(gap) if gap == selector));
         assert_eq!(known_posting(&postings, dependency).length, 3);
-        assert!(!postings.insert(selector, StyleNodeID::element(4), &mut memory));
+        assert!(!postings.insert(selector, StyleNodeID::element(4)));
     }
 
     #[test]
     fn grown_postings_are_rechecked_against_the_fresh_limit() {
-        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let key = SelectorPostingKey::Class(StyleAtomID(1));
         postings.set_selector_posting_limit(5000);
         for index in 1..=4097 {
-            assert!(postings.insert(key, StyleNodeID::element(index), &mut memory));
+            assert!(postings.insert(key, StyleNodeID::element(index)));
         }
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::FeaturePosting),
-            postings.retained_capacity_bytes()
-        );
 
         postings.update_selector_posting_limit(1);
 
         assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
         assert!(postings.grown_selector_postings.is_empty());
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::FeaturePosting),
-            postings.retained_capacity_bytes()
-        );
-    }
-
-    #[test]
-    fn evicting_every_posting_retains_only_the_missing_key_charge() {
-        let mut memory = MemoryController::new();
-        let mut postings = FeaturePostings::new();
-        for feature in 1..20_u32 {
-            for index in 1..50_u32 {
-                postings.insert(
-                    SelectorPostingKey::Class(StyleAtomID(feature)),
-                    StyleNodeID::element(index),
-                    &mut memory,
-                );
-            }
-        }
-        assert!(memory.bytes_in_category(MemoryCategory::FeaturePosting) > 0);
-        postings.evict_all();
-        assert_eq!(postings.feature_count(), 0);
-        let key = SelectorPostingKey::Class(StyleAtomID(1));
-        assert!(matches!(postings.lookup(key), Lookup::Missing(gap) if gap == key));
-        assert!(matches!(
-            postings.lookup(SelectorPostingKey::Class(StyleAtomID(100))),
-            Lookup::KnownAbsent
-        ));
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::FeaturePosting),
-            postings.missing_capacity_bytes()
-        );
-    }
-
-    #[test]
-    fn applying_staged_facts_defers_posting_rebuilds_while_admission_is_closed() {
-        let mut memory = MemoryController::new();
-        let mut facts = ElementFactStore::new();
-        let node = StyleNodeID::element(1);
-        let class = StyleAtomID(1);
-        let key = SelectorPostingKey::Class(class);
-        facts.set_class(node, class, true, &mut memory);
-        facts.apply_staged(&mut memory);
-        facts.postings_mut().evict_all();
-        facts.set_class(node, class, false, &mut memory);
-
-        memory.set_tier3_limit_for_test(0);
-        let mut other_postings = FeaturePostings::new();
-        other_postings.insert(key, node, &mut memory);
-        memory.finish_evaluation_loop();
-        assert!(!memory.is_tier3_admitting(MemoryCategory::FeaturePosting));
-
-        for _ in 0..3 {
-            facts.apply_staged(&mut memory);
-            assert!(facts.classes_of_node(node).is_empty());
-            // NB: Even resolving an empty missing posting requires scanning the facts.
-            assert!(matches!(facts.postings().lookup(key), Lookup::Missing(gap) if gap == key));
-        }
-
-        memory.set_tier3_limit_for_test(u64::MAX);
-        memory.begin_tier3_quota_period();
-        facts.apply_staged(&mut memory);
-        assert!(matches!(facts.postings().lookup(key), Lookup::KnownAbsent));
-    }
-
-    #[test]
-    fn missing_postings_rebuild_from_mutated_authoritative_facts_when_budget_returns() {
-        let mut memory = MemoryController::new();
-        let mut facts = ElementFactStore::new();
-        let node = StyleNodeID::element(1);
-        let old_class = StyleAtomID(1);
-        let new_class = StyleAtomID(2);
-        let old_animation = StyleAtomID(3);
-        let new_animation = StyleAtomID(4);
-        facts.ensure_row(node);
-        facts.set_class(node, old_class, true, &mut memory);
-        facts.set_animation_names(node, &[old_animation], &mut memory);
-        facts.apply_staged(&mut memory);
-        facts.postings_mut().evict_all();
-
-        memory.set_tier3_limit_for_test(0);
-        facts.set_class(node, old_class, false, &mut memory);
-        facts.set_class(node, new_class, true, &mut memory);
-        facts.set_animation_names(node, &[new_animation], &mut memory);
-        facts.apply_staged(&mut memory);
-        let new_class_key = SelectorPostingKey::Class(new_class);
-        let new_animation_key = DependencyPostingKey::AnimationName(new_animation);
-        assert_eq!(known_posting(facts.postings(), new_class_key).length, 1);
-        assert_eq!(known_posting(facts.postings(), new_animation_key).length, 1);
-        memory.finish_evaluation_loop();
-        facts.postings_mut().evict(new_animation_key);
-        assert!(matches!(facts.postings().lookup(new_animation_key), Lookup::Missing(gap) if gap == new_animation_key));
-        assert_eq!(facts.posting_rebuild_closed_at_headroom, None);
-
-        // NB: Closed admission defers rebuilding without recording a failed attempt, so the same
-        //     headroom can fund a later rebuild once admission reopens.
-        facts.apply_staged(&mut memory);
-        assert_eq!(facts.posting_rebuild_closed_at_headroom, None);
-
-        memory.set_tier3_limit_for_test(u64::MAX);
-        memory.begin_tier3_quota_period();
-        facts.apply_staged(&mut memory);
-        assert_eq!(facts.posting_rebuild_closed_at_headroom, None);
-        let old_class_key = SelectorPostingKey::Class(old_class);
-        let old_animation_key = DependencyPostingKey::AnimationName(old_animation);
-        assert!(matches!(facts.postings().lookup(old_class_key), Lookup::KnownAbsent));
-        assert!(matches!(
-            facts.postings().lookup(old_animation_key),
-            Lookup::KnownAbsent
-        ));
-        assert!(known_posting(facts.postings(), new_class_key).contains(node));
-        assert!(known_posting(facts.postings(), new_animation_key).contains(node));
     }
 
     #[test]
     fn evicting_one_posting_preserves_exact_absence_for_other_keys() {
-        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let evicted = SelectorPostingKey::Class(StyleAtomID(1));
         let absent = SelectorPostingKey::Class(StyleAtomID(2));
-        postings.insert(evicted, StyleNodeID::element(1), &mut memory);
+        postings.insert(evicted, StyleNodeID::element(1));
 
         postings.evict(evicted);
 
@@ -6292,57 +5391,40 @@ mod tests {
 
     #[test]
     fn primary_fact_capacity_matches_its_columns() {
-        let mut memory = MemoryController::new();
         let mut store = ElementFactStore::new();
 
         // Grow: enough classes and attributes per row to force several reallocations.
         for index in 1..40_u32 {
             let node = StyleNodeID::element(index);
             for name in 1..12_u32 {
-                store.set_class(node, StyleAtomID(name), true, &mut memory);
-                store.set_attribute(node, StyleAtomID(name), StyleAtomID::NONE, true, &mut memory);
+                store.set_class(node, StyleAtomID(name), true);
+                store.set_attribute(node, StyleAtomID(name), StyleAtomID::NONE, true);
             }
-            store.apply_staged(&mut memory);
-            store.release_staging(&mut memory);
-            assert_eq!(
-                memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
-                store.capacity_bytes()
-            );
+            store.apply_staged();
+            store.release_staging();
         }
 
         // Shrink: removals leave capacity where it was, and forgetting a row gives it all back.
         for index in 1..40_u32 {
             let node = StyleNodeID::element(index);
             for name in 1..6_u32 {
-                store.set_class(node, StyleAtomID(name), false, &mut memory);
-                store.set_attribute(node, StyleAtomID(name), StyleAtomID::NONE, false, &mut memory);
+                store.set_class(node, StyleAtomID(name), false);
+                store.set_attribute(node, StyleAtomID(name), StyleAtomID::NONE, false);
             }
-            store.apply_staged(&mut memory);
-            store.release_staging(&mut memory);
-            assert_eq!(
-                memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
-                store.capacity_bytes()
-            );
+            store.apply_staged();
+            store.release_staging();
         }
 
         for index in 1..40_u32 {
             store.forget(StyleNodeID::element(index));
-            store.apply_staged(&mut memory);
-            store.release_staging(&mut memory);
-            assert_eq!(
-                memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
-                store.capacity_bytes()
-            );
+            store.apply_staged();
+            store.release_staging();
         }
         assert!(store.is_empty());
 
         // The retained column capacities remain charged after every live row is forgotten.
-        store.apply_staged(&mut memory);
-        store.release_staging(&mut memory);
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::StyleNodeMapping),
-            store.capacity_bytes()
-        );
+        store.apply_staged();
+        store.release_staging();
     }
 
     #[test]
@@ -6403,7 +5485,6 @@ mod tests {
 
     #[test]
     fn shared_dispatch_allocations_are_charged_once() {
-        let mut memory = MemoryController::new();
         let mut dispatch = RuleDispatch::new();
         dispatch.insert(
             DispatchKey::Class(StyleAtomID(10)),
@@ -6422,30 +5503,14 @@ mod tests {
                 multi_key: false,
             },
         );
-        dispatch.settle_memory(&mut memory);
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::RuleProgram),
-            dispatch.capacity_bytes()
-        );
 
-        let mut rebound = RuleDispatch::rebind_rules(&dispatch, &[RuleID(2)]);
-        rebound.settle_memory(&mut memory);
+        let rebound = RuleDispatch::rebind_rules(&dispatch, &[RuleID(2)]);
+
         assert!(dispatch.shares_entries_with(&rebound));
-        let shared_bytes = dispatch.entries.capacity_bytes()
-            + RuleDispatch::topology_capacity_bytes(&dispatch.topology)
-            + RuleDispatch::ancestor_capacity_bytes(&dispatch.topology.ancestors);
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::RuleProgram),
-            dispatch.scope_capacity_bytes() + rebound.scope_capacity_bytes() + shared_bytes
-        );
 
         drop(dispatch);
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::RuleProgram),
-            rebound.scope_capacity_bytes() + shared_bytes
-        );
+
         drop(rebound);
-        assert_eq!(memory.bytes_in_category(MemoryCategory::RuleProgram), 0);
     }
 
     #[test]
@@ -6769,9 +5834,8 @@ mod tests {
 
     #[test]
     fn pending_attribute_exposes_both_transaction_sides() {
-        let mut memory = MemoryController::new();
-        let mut tree = StyleNodeTree::new(&mut memory);
-        let node = tree.allocate_element(&mut memory);
+        let mut tree = StyleNodeTree::new();
+        let node = tree.allocate_element();
         let name = StyleAtomID(40);
         let old = StyleAtomID(50);
         let new = StyleAtomID(51);
@@ -6783,15 +5847,15 @@ mod tests {
         store.set_attribute_value_text(old, &old_text);
         store.set_attribute_value_text(new, &new_text);
         store.set_attribute_value_text(newest, &newest_text);
-        store.set_attribute(node, name, old, true, &mut memory);
-        store.apply_staged(&mut memory);
-        store.release_staging(&mut memory);
-        store.set_attribute(node, name, new, true, &mut memory);
-        store.apply_staged(&mut memory);
-        store.set_attribute(node, name, newest, true, &mut memory);
+        store.set_attribute(node, name, old, true);
+        store.apply_staged();
+        store.release_staging();
+        store.set_attribute(node, name, new, true);
+        store.apply_staged();
+        store.set_attribute(node, name, newest, true);
 
         let before = store.staged_before_facts();
-        store.apply_staged(&mut memory);
+        store.apply_staged();
         let after = store.primary();
         assert!(before.text.is_empty());
         assert!(after.text.is_empty());
@@ -6806,7 +5870,6 @@ mod tests {
 
     #[test]
     fn reclaimed_atoms_leave_no_catalog_or_posting_rows_for_reuse() {
-        let mut memory = MemoryController::new();
         let mut store = ElementFactStore::new();
         let atom = StyleAtomID(40);
         store.note_attribute_name_forms(
@@ -6822,7 +5885,7 @@ mod tests {
         store.set_language_text(atom, &[4, 5, 6]);
         store
             .postings
-            .insert(SelectorPostingKey::Class(atom), StyleNodeID::element(1), &mut memory);
+            .insert(SelectorPostingKey::Class(atom), StyleNodeID::element(1));
 
         store.forget_atoms(&[atom, StyleAtomID(42)]);
 
@@ -6891,26 +5954,23 @@ mod tests {
 
     #[test]
     fn a_primary_fact_view_is_immutable_and_uncharged() {
-        let mut memory = MemoryController::new();
-        let mut tree = StyleNodeTree::new(&mut memory);
-        let node = tree.allocate_element(&mut memory);
+        let mut tree = StyleNodeTree::new();
+        let node = tree.allocate_element();
         let mut store = ElementFactStore::new();
-        store.set_tag(node, StyleAtomID(1), &mut memory);
-        store.apply_staged(&mut memory);
-        store.release_staging(&mut memory);
+        store.set_tag(node, StyleAtomID(1));
+        store.apply_staged();
+        store.release_staging();
 
         let view = store.primary_view();
-        assert_eq!(view.capacity_bytes(), 0);
-        store.set_tag(node, StyleAtomID(2), &mut memory);
+        store.set_tag(node, StyleAtomID(2));
         assert_eq!(view.tag_of(view.row_of(node).unwrap()), StyleAtomID(1));
-        store.apply_staged(&mut memory);
+        store.apply_staged();
         assert_eq!(view.tag_of(view.row_of(node).unwrap()), StyleAtomID(1));
         assert_eq!(store.tag_of_node(node), StyleAtomID(2));
     }
 
     #[test]
     fn catalog_publication_does_not_copy_primary_fact_rows() {
-        let mut memory = MemoryController::new();
         let mut store = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let name = StyleAtomID(20);
@@ -6920,8 +5980,8 @@ mod tests {
             folded_local: StyleAtomID(23),
         };
         store.ensure_row(node);
-        store.apply_staged(&mut memory);
-        store.release_staging(&mut memory);
+        store.apply_staged();
+        store.release_staging();
 
         let primary_rows = Arc::as_ptr(&store.rows);
         let view = store.primary_view();
@@ -6937,14 +5997,13 @@ mod tests {
         );
 
         drop(view);
-        store.apply_staged(&mut memory);
+        store.apply_staged();
         assert_eq!(Arc::as_ptr(&store.rows), primary_rows);
         assert_eq!(store.primary().attribute_name_forms(name), forms);
     }
 
     #[test]
     fn catalog_synchronization_preserves_a_retained_primary_fact_view() {
-        let mut memory = MemoryController::new();
         let mut store = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let name = StyleAtomID(20);
@@ -6954,15 +6013,15 @@ mod tests {
             folded_local: StyleAtomID(23),
         };
         store.ensure_row(node);
-        store.apply_staged(&mut memory);
-        store.release_staging(&mut memory);
+        store.apply_staged();
+        store.release_staging();
 
         let view = store.primary_view();
         store.note_attribute_name_forms(name, forms);
-        store.set_tag(node, StyleAtomID(1), &mut memory);
+        store.set_tag(node, StyleAtomID(1));
 
         let before = store.staged_before_facts();
-        store.apply_staged(&mut memory);
+        store.apply_staged();
 
         assert_eq!(before.attribute_name_forms(name), forms);
         assert_eq!(store.primary().attribute_name_forms(name), forms);
@@ -7045,7 +6104,6 @@ mod tests {
         rows.insert(first, StagedFactRow::default(), None);
         assert_eq!(rows.keys().collect::<Vec<_>>(), vec![first]);
         assert_eq!(rows.dirty_rows().count(), 1);
-        assert_eq!(rows.capacity_bytes(), rows.recomputed_capacity_bytes());
 
         let directory_capacity = rows.rows.directory_capacity();
         let entry_capacity = rows.entries.capacity();
@@ -7069,7 +6127,6 @@ mod tests {
         rows.clear();
 
         assert!(rows.entries.capacity() < peak_capacity);
-        assert_eq!(rows.capacity_bytes(), rows.recomputed_capacity_bytes());
     }
 
     #[test]
@@ -7112,10 +6169,9 @@ mod tests {
                 &[],
             );
         }
-        let bytes = facts.capacity_bytes();
+
         facts.clear();
         assert_eq!(facts.row_count(), 0);
         assert_eq!(facts.row_of(StyleNodeID::element(5)), None);
-        assert_eq!(facts.capacity_bytes(), bytes);
     }
 }

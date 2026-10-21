@@ -1156,7 +1156,6 @@ impl RetainedState {
             environment,
             Some(counter_style_registry),
         );
-        self.settle_computed_memory();
         let Some(assembly) = assembly else {
             if let Some(detached) = detached_composition {
                 self.computed_group_sets.reattach_composition(node, detached);
@@ -1261,7 +1260,6 @@ impl RetainedState {
             },
             &mut substituted,
         )?;
-        scratch.store_capacity_bytes += store.capacity_bytes();
         if substituted {
             scratch.substituted_states.insert((state, environment));
         }
@@ -1553,7 +1551,6 @@ impl RetainedState {
                     store.as_ref().ok().map(|store| store.record_reads(self)),
                 );
                 let store = std::sync::Arc::new(store?);
-                scratch.store_capacity_bytes += store.capacity_bytes();
                 if !element_alone && !self.records_are_the_elements_alone(node) {
                     scratch.stores.insert((state, environment), store.clone());
                 }
@@ -1651,7 +1648,6 @@ impl RetainedState {
                     .or_refused()?;
                 self.computed_group_sets
                     .set_pending_cascade_state(target, cascade_state);
-                self.settle_computed_memory();
                 self.note_node_substitution(node, scratch, state, environment);
                 self.note_engine_computed_record(
                     node,
@@ -2447,7 +2443,6 @@ impl RetainedState {
             }
         }
         scratch.pseudo_deltas.clear();
-        self.settle_computed_memory();
     }
 
     /// Whether a node's winners hold gated rules, decided where they were published or left for
@@ -2481,7 +2476,6 @@ impl RetainedState {
             },
             &mut substituted,
         )?);
-        scratch.store_capacity_bytes += store.capacity_bytes();
         if !element_alone && !self.records_are_the_elements_alone(node) {
             scratch.stores.insert((state, environment), store.clone());
         }
@@ -3875,10 +3869,9 @@ impl RetainedState {
             computed::PendingRecordOwnership::default(),
             &mut scratch,
         );
-        let bytes = scratch.capacity_bytes();
-        self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
+
         drop(scratch);
-        self.memory.release(MemoryCategory::BatchScratch, bytes);
+
         publication
     }
 
@@ -3909,7 +3902,6 @@ impl RetainedState {
         } else {
             self.computed_group_sets.clear_cascade_state(target);
         }
-        self.settle_computed_memory();
         self.counters.add(Counter::ComputedGroupsReused, group_count as u64);
         self.note_identity_mints();
         self.counters.bump(Counter::ComputedGroupSetsReused);
@@ -4026,37 +4018,6 @@ impl RetainedState {
             .set(Counter::StyleRecordIdentitiesMinted, mints.style_records);
     }
 
-    pub(super) fn settle_computed_memory(&mut self) {
-        self.computed_group_sets.settle_nested_memory(&mut self.memory);
-        self.computed_group_set_memory.resize_required_to(
-            &mut self.memory,
-            self.computed_group_sets.group_set_header_capacity_bytes(),
-        );
-        self.custom_property_environment_memory.resize_required_to(
-            &mut self.memory,
-            self.computed_group_sets.custom_property_environment_capacity_bytes()
-                + self.custom_property_environments.capacity_bytes(),
-        );
-        self.computed_fixed_metadata_memory.resize_required_to(
-            &mut self.memory,
-            self.computed_group_sets.computed_fixed_metadata_capacity_bytes(),
-        );
-        self.computed_longhand_table_memory.resize_required_to(
-            &mut self.memory,
-            self.computed_group_sets.longhand_table_header_capacity_bytes(),
-        );
-        self.style_record_memory
-            .resize_required_to(&mut self.memory, self.computed_group_sets.style_record_capacity_bytes());
-        self.animation_overlay_memory.resize_required_to(
-            &mut self.memory,
-            self.computed_group_sets.animation_overlay_header_capacity_bytes(),
-        );
-        self.computed_pseudo_assignment_memory.resize_required_to(
-            &mut self.memory,
-            self.computed_group_sets.pseudo_assignment_header_capacity_bytes(),
-        );
-    }
-
     pub(crate) fn unpin_style_record(&mut self, style_record: u64) {
         self.computed_group_sets.unpin_style_record(style_record);
     }
@@ -4146,7 +4107,6 @@ impl RetainedState {
         } else if let Some(target) = target {
             self.computed_group_sets.clear_cascade_state(target);
         }
-        self.settle_computed_memory();
         self.counters.add(
             Counter::ComputedOutputGroupsCanonicalized,
             publication.canonical_output_groups_reused as u64,
@@ -4232,7 +4192,6 @@ impl RetainedState {
         let live_animation_overlays_before = self.computed_group_sets.live_animation_overlay_records();
         let removed_style_record = self.computed_group_sets.remove_pseudo(node, pseudo_kind);
         let live_animation_overlays_after = self.computed_group_sets.live_animation_overlay_records();
-        self.settle_computed_memory();
         let removed_style_record = removed_style_record?;
         self.counters.bump(Counter::ComputedPseudoAssignmentsRemoved);
         self.counters.bump(Counter::StyleRecordNodeHandlesPublished);
@@ -4249,22 +4208,15 @@ impl RetainedState {
 }
 
 impl StyleEngine {
-    pub(super) fn reclaim_computed_memory_if_needed(&mut self) {
-        self.reclaim_unreachable_computed_records();
-        self.settle_computed_memory();
-    }
-
     /// Frees what the engine kept for the leases of published frames, once none is held. The host calls it as it
     /// takes a recording in, so that a document that styles nothing more still frees what its recording kept.
     pub(crate) fn free_style_records_kept_for_leases(&mut self) {
         let freed_overlays = self.retained.computed_group_sets.free_retired_animation_overlays();
-        if self.reclaim_unreachable_computed_records() || freed_overlays {
-            self.settle_computed_memory();
-        }
+        if self.reclaim_unreachable_computed_records() || freed_overlays {}
     }
 
     /// Reclaims the unreachable computed records, if they are due and nothing views them, and answers whether it did.
-    fn reclaim_unreachable_computed_records(&mut self) -> bool {
+    pub(super) fn reclaim_unreachable_computed_records(&mut self) -> bool {
         let Some(retention) = self.retained.computed_group_sets.reclaim_unreachable_if_needed() else {
             return false;
         };
@@ -4333,7 +4285,6 @@ impl StyleEngine {
                     parent_in_display_none_subtree,
                 )
             })?;
-        self.settle_computed_memory();
         if publication.slot_allocated {
             self.retained.counters.bump(Counter::AnimationOverlaySlotsAllocated);
         }
@@ -4693,15 +4644,6 @@ pub(super) struct EngineComputabilityScratch {
 }
 
 impl EngineComputabilityScratch {
-    fn capacity_bytes(&self) -> u64 {
-        capacity::capacity_bytes! {
-            shallow [self.states];
-            cached [];
-            nested [];
-            skip [];
-        }
-    }
-
     fn remember(&mut self, key: (StyleNodeID, u64, CascadeStateID, u64, u64), admitted: Option<StateRecordReads>) {
         if self.states.len() >= COLD_RECORD_CACHE_LIMIT {
             self.states.clear();
@@ -4767,7 +4709,6 @@ pub(super) struct EngineComputedRecordScratch {
     pub(super) derived_child_inputs: column::PagedColumn<column::PagedValuePage<DerivedChildInputs>>,
     /// First records derived this flush, by what they were derived from.
     pub(super) cold_cohorts: HashMap<ColdRecordKey, ColdRecord>,
-    store_capacity_bytes: u64,
     pub(super) stores: HashMap<(CascadeStateID, u64), std::sync::Arc<WinnerStore>>,
     /// The states whose store, under an environment, substituted a custom property into a winner.
     pub(super) substituted_states: HashSet<(CascadeStateID, u64)>,
@@ -4896,18 +4837,6 @@ impl EngineComputedRecordScratch {
     /// record moves nothing they inherit.
     pub(super) fn forget_composed_by_the_host(&mut self, node: StyleNodeID) {
         self.nodes_composed_by_the_host.remove(&node);
-    }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        capacity::capacity_bytes! {
-            shallow [self.inherited_group_swaps, self.computability.states, self.cohorts, self.derived_child_inputs, self.cold_cohorts, self.stores,
-                self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
-                self.pseudo_deltas, self.substitution_effects, self.current_custom_property_environments];
-            cached [self.store_capacity_bytes, self.font_drive.capacity_bytes(),
-                self.prepared_root_font.as_ref().map_or(0, |(_, _, drive)| drive.capacity_bytes())];
-            nested [];
-            skip [];
-        }
     }
 }
 
@@ -5366,7 +5295,7 @@ mod tests {
         engine.tree.set_parent(parent, Some(root));
         engine.tree.set_parent(child, Some(parent));
         let retained = &mut engine.retained;
-        retained.tree.set_assigned_slot(child, Some(slot), &mut retained.memory);
+        retained.tree.set_assigned_slot(child, Some(slot));
         retained.tree.set_parent(slot, Some(root));
         let publish = |engine: &mut StyleEngine, node, pseudo_kind| {
             engine
@@ -5504,7 +5433,6 @@ mod tests {
                     cascade_winners_are_complete: true,
                     observed: false,
                 },
-                &mut engine.retained.memory,
                 &engine.retained.counters,
             );
         }
@@ -5883,7 +5811,7 @@ mod tests {
 impl StyleEngine {
     pub(crate) fn end_style_record_view_epoch(&mut self) {
         self.retained.computed_group_sets.end_style_record_view_epoch();
-        self.reclaim_computed_memory_if_needed();
+        self.reclaim_unreachable_computed_records();
     }
 }
 

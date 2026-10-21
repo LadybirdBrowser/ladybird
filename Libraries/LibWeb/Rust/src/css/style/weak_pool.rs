@@ -5,7 +5,6 @@
  */
 
 use super::fast_hash::FastMap as HashMap;
-use super::memory::MemoryController;
 use std::sync::{Arc, Weak};
 
 /// The smallest reference count a pool lets itself grow to before it first sweeps.
@@ -24,7 +23,6 @@ pub(super) struct WeakPool<T> {
     by_hash: HashMap<u64, Vec<Weak<T>>>,
     references: usize,
     sweep_threshold: usize,
-    pub(super) memory: MemoryController,
 }
 
 impl<T> Default for WeakPool<T> {
@@ -33,7 +31,6 @@ impl<T> Default for WeakPool<T> {
             by_hash: HashMap::default(),
             references: 0,
             sweep_threshold: MINIMUM_SWEEP_THRESHOLD,
-            memory: MemoryController::new(),
         }
     }
 }
@@ -66,13 +63,8 @@ impl<T> WeakPool<T> {
 
     /// Make `value`, which may have been published under `hash`, private to its owner. When the
     /// owner holds the only strong reference the pool just forgets it, so it can be edited in place;
-    /// otherwise `copy` makes a private value, charged to the pool's ledger.
-    pub(super) fn make_private(
-        &mut self,
-        hash: Option<u64>,
-        value: &mut Arc<T>,
-        copy: impl FnOnce(&T, &mut MemoryController) -> T,
-    ) {
+    /// otherwise `copy` makes a private value.
+    pub(super) fn make_private(&mut self, hash: Option<u64>, value: &mut Arc<T>, copy: impl FnOnce(&T) -> T) {
         // A pool reference is only upgraded under the pool's lock, so while it is held a value with
         // one strong reference cannot gain another.
         if Arc::strong_count(value) == 1
@@ -87,7 +79,7 @@ impl<T> WeakPool<T> {
             }
         }
         if Arc::get_mut(value).is_none() {
-            *value = Arc::new(copy(value, &mut self.memory));
+            *value = Arc::new(copy(value));
         }
     }
 
@@ -139,7 +131,7 @@ mod tests {
         let mut sole = Arc::new(1);
         pool.insert(1, &sole);
         let address = Arc::as_ptr(&sole);
-        pool.make_private(Some(1), &mut sole, |_, _| unreachable!("a sole owner is never copied"));
+        pool.make_private(Some(1), &mut sole, |_| unreachable!("a sole owner is never copied"));
         assert_eq!(Arc::as_ptr(&sole), address);
         assert!(Arc::get_mut(&mut sole).is_some());
         assert!(pool.find(1, |_| true).is_none());
@@ -147,7 +139,7 @@ mod tests {
         let mut shared = Arc::new(2);
         pool.insert(2, &shared);
         let other = Arc::clone(&shared);
-        pool.make_private(Some(2), &mut shared, |value, _| *value);
+        pool.make_private(Some(2), &mut shared, |value| *value);
         assert!(!Arc::ptr_eq(&shared, &other));
         assert!(Arc::get_mut(&mut shared).is_some());
         assert!(Arc::ptr_eq(&pool.find(2, |_| true).unwrap(), &other));

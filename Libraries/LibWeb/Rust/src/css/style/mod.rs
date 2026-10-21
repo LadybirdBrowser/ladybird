@@ -70,7 +70,6 @@ mod atoms;
 pub mod batch_matcher;
 pub(crate) mod boundary;
 pub mod bridge;
-mod capacity;
 pub mod cascade;
 mod catalog;
 mod child_reactions;
@@ -107,7 +106,6 @@ pub mod instrumentation;
 mod intern_table;
 pub(crate) mod layout_style;
 mod matching;
-pub mod memory;
 mod native_rules;
 pub mod order;
 mod ordering;
@@ -244,12 +242,6 @@ use index::RuleDispatch;
 use index::StyleAtomID;
 use index::StyleNodeFacts;
 use input_routing::routing_keys_for_input;
-use memory::AdmissionFacts;
-use memory::BudgetInputs;
-use memory::MemoryCategory;
-use memory::MemoryController;
-use memory::MemoryLease;
-use memory::TIER3_REFUSAL_CATEGORIES;
 use partial_view::Lookup;
 use prefix::PrefixDeltaArena;
 use prefix::PrefixEnteringDeltas;
@@ -771,12 +763,6 @@ pub(super) struct BatchCustomPropertyMatch {
 pub struct RetainedState {
     /// What the engine counts of its own decisions.
     counters: Counters,
-    memory: MemoryController,
-    /// The controller's Tier-3 admission facts, copied at the loop and quota boundaries that can
-    /// change them. A walk reads admission from here: a step may not reach the controller, whose
-    /// ledger is shared through an interior-mutable handle no worker owns a share of. The refresh
-    /// points are `refresh_admission_facts`'s callers.
-    admission: AdmissionFacts,
     deferred_pseudo_elements: u64,
     tree: crate::fork::ForkShared<StyleNodeTree>,
     /// Where the hover is.
@@ -801,7 +787,6 @@ pub struct RetainedState {
     /// Scratch for the fact rows one exact candidate evaluation covers, reused across candidates.
     exact_covered_scratch: Vec<StyleNodeID>,
     cascade_compaction_scratch: ordering::CascadeCompactionWorkspace,
-    cascade_compaction_scratch_memory: MemoryLease,
     /// Monotonic identity assigned to each non-empty normalized style transaction.
     next_style_transaction_version: StyleTransactionVersion,
     /// Latest document-wide scalar computation facts, copied at the transaction boundary. The host
@@ -983,13 +968,6 @@ pub struct RetainedState {
     engine_cold_record_cache: crate::fork::ForkShared<HashMap<publication::ColdRecordKey, publication::ColdRecord>>,
     engine_cold_record_donors:
         crate::fork::ForkShared<HashMap<publication::ColdRecordDonorKey, Vec<publication::ColdRecordDonor>>>,
-    computed_group_set_memory: MemoryLease,
-    custom_property_environment_memory: MemoryLease,
-    computed_fixed_metadata_memory: MemoryLease,
-    computed_longhand_table_memory: MemoryLease,
-    style_record_memory: MemoryLease,
-    animation_overlay_memory: MemoryLease,
-    computed_pseudo_assignment_memory: MemoryLease,
     style_invalidation_cache: HashMap<(u64, u64, bool, bool, bool), u32>,
 
     /// One identity per distinct match-answer factor, retained exact factor, or cascade input.
@@ -1060,8 +1038,6 @@ pub struct RetainedState {
     /// Previous completed matching outcomes, read by routing and installed at matching boundaries.
     relational_witnesses: RelationalWitnesses,
     pending_witness_effects: Vec<WitnessEffect>,
-    witness_effect_scratch: MemoryLease,
-    relational_witness_residency: MemoryLease,
     /// The node that owns each style scope, for the scopes that have one. The document's scope has
     /// no node, and a scope with no entry here is treated as the document's - which is the widest
     /// answer and therefore the safe one. Tree-scope identities are minted monotonically within one
@@ -1137,7 +1113,6 @@ pub struct HostState {
     deferred_element_style_inputs_are_pending: bool,
     /// The custom properties that changed between pairs of environments during this transaction.
     environment_move_changed_names: crate::fork::ForkReset<environment_move::ChangedCustomPropertyNames>,
-    deferred_element_style_input_memory: MemoryLease,
     /// Whether any tree input batch has crossed into the engine. A first batch consisting entirely
     /// of unique arrivals can install its final relation rows as one bulk load.
     initial_tree_batch_applied: bool,
@@ -1146,12 +1121,9 @@ pub struct HostState {
     /// Final relation rows staged until the next observation boundary. Moving one node updates its
     /// affected neighbours here, so those derived changes need no separate journal ingress.
     tree_staging: TreeRelationStaging,
-    tree_staging_memory: MemoryLease,
     /// Program-family before/after rows retained until the transaction is released.
     program_staging: ProgramStaging,
     sheet_occurrences: HashMap<TreeScopeID, sheet_occurrences::ScopeSheetOccurrences>,
-    sheet_occurrence_storage_bytes: u64,
-    sheet_occurrence_memory: MemoryLease,
     /// The old dense rule sequence while one sheet is synchronously reparsed.
     sheet_rule_replacement: Option<SheetRuleReplacement>,
     /// Identities released at transaction settlement. The FFI keeps this batch borrowed until C++

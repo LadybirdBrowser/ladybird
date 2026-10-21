@@ -129,13 +129,6 @@ impl FontDriveScratch {
             .take()
             .expect("a drive suspended on a font names its request")
     }
-
-    pub(in crate::css::style) fn capacity_bytes(&self) -> u64 {
-        self.pending
-            .as_ref()
-            .and_then(|pending| pending.progress.as_ref())
-            .map_or(0, |progress| progress.table.owned_capacity_bytes())
-    }
 }
 
 /// An element's record, computed while one of its pseudo-elements waits for a font, held for the

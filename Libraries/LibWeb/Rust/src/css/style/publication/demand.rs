@@ -302,13 +302,10 @@ impl StyleEngine {
                             cascade_winners_are_complete: answer.cascade_winners_are_complete,
                             observed: false,
                         },
-                        &mut self.retained.memory,
                         &self.retained.counters,
                     );
                     let index = traversal.pending_published.entries.len() - 1;
-                    traversal
-                        .answer_effects
-                        .note_published(node, index, &mut self.retained.memory);
+                    traversal.answer_effects.note_published(node, index);
                 }
                 Some((saves, batch_answers))
             }
@@ -368,7 +365,7 @@ impl StyleEngine {
                 .set_node_answer_incomplete(node, !complete);
             self.retained
                 .published_match_answers
-                .publish(answer, &mut self.retained.memory, &self.retained.counters);
+                .publish(answer, &self.retained.counters);
         }
         complete
     }
@@ -387,12 +384,12 @@ impl StyleEngine {
             inherited_style_groups: 0,
             display: targeted,
         };
-        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+
         let (_, record) = loop {
             match self.engine_computed_record_delta(node, complete, None, parent_inputs_moved, None, scratch) {
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
-                    suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
+
                     self.refill_font_request(node, request);
                 }
                 delta => break delta?,
@@ -414,7 +411,7 @@ impl StyleEngine {
             self.retained.note_what_installing_owes(node, &mut answered);
         }
         if !read_only {
-            self.host.journal.acknowledge_node(node, &mut self.retained.memory);
+            self.host.journal.acknowledge_node(node);
             self.consume_element_style_input_but_descendants(node);
         }
         Ok(RecordDemandAnswer::Record {
@@ -481,7 +478,7 @@ impl StyleEngine {
             PseudoSettlement::Read(kind)
         };
         let generation = self.retained.winner_groups.generation();
-        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+
         loop {
             match self.retained.settle_pseudo_records(
                 node,
@@ -496,7 +493,7 @@ impl StyleEngine {
                 Ok(()) => break,
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
-                    suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
+
                     self.refill_font_request(node, request);
                 }
                 Err(unanswered) => {
@@ -562,7 +559,7 @@ impl StyleEngine {
             facts: facts & !bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT,
         };
         let mut scratch = EngineComputedRecordScratch::default();
-        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+
         let mut awaits_registered_context = registered_declarations;
         let driven = loop {
             match self.retained.engine_full_drive(
@@ -576,7 +573,7 @@ impl StyleEngine {
             ) {
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
-                    suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
+
                     self.refill_font_request(subject, request);
                 }
                 // The registered custom properties compute against the font the drive settled,

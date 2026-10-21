@@ -5,9 +5,7 @@
  */
 
 use super::{CascadeLayerID, RuleID, RuleKind, RuleVersion, StyleScopeID};
-use crate::css::style::capacity::ShallowCapacityBytes;
 use crate::css::style::fast_hash::fast_hasher;
-use crate::css::style::memory::{MemoryCategory, MemoryController, MemoryLease};
 use crate::css::style::weak_pool::WeakPool;
 use std::hash::{Hash, Hasher};
 use std::ops::Index;
@@ -28,17 +26,13 @@ const EMPTY_VERSION: RuleVersion = RuleVersion {
 struct RuleVersionPage {
     values: [RuleVersion; RULE_VERSIONS_PER_PAGE],
     shared_hash: Option<u64>,
-    _memory: MemoryLease,
 }
 
 impl RuleVersionPage {
-    fn new(values: [RuleVersion; RULE_VERSIONS_PER_PAGE], memory_controller: &mut MemoryController) -> Self {
-        let mut memory = MemoryLease::new(MemoryCategory::RuleProgram);
-        memory.resize_required_to(memory_controller, size_of::<Self>() as u64);
+    fn new(values: [RuleVersion; RULE_VERSIONS_PER_PAGE]) -> Self {
         Self {
             values,
             shared_hash: None,
-            _memory: memory,
         }
     }
 }
@@ -66,10 +60,8 @@ impl RuleVersionTable {
 
     pub(super) fn push(&mut self, value: RuleVersion) {
         if self.len.is_multiple_of(RULE_VERSIONS_PER_PAGE) {
-            self.pages.push(Arc::new(RuleVersionPage::new(
-                [EMPTY_VERSION; RULE_VERSIONS_PER_PAGE],
-                &mut rule_version_pages().memory,
-            )));
+            self.pages
+                .push(Arc::new(RuleVersionPage::new([EMPTY_VERSION; RULE_VERSIONS_PER_PAGE])));
         }
         let index = self.len;
         self.len = self.len.checked_add(1).expect("rule version space exhausted");
@@ -84,9 +76,7 @@ impl RuleVersionTable {
         }
         let page = &mut self.pages[index / RULE_VERSIONS_PER_PAGE];
         if Arc::get_mut(page).is_none() {
-            rule_version_pages().make_private(page.shared_hash, page, |page, memory| {
-                RuleVersionPage::new(page.values, memory)
-            });
+            rule_version_pages().make_private(page.shared_hash, page, |page| RuleVersionPage::new(page.values));
         }
         let page = Arc::get_mut(page).expect("a private page has one owner");
         page.shared_hash = None;
@@ -113,7 +103,7 @@ impl RuleVersionTable {
             // A clone of the table, as a fork of the style engine, holds the unpublished page too, and publishes a
             // copy of its own.
             if Arc::get_mut(page).is_none() {
-                *page = Arc::new(RuleVersionPage::new(page.values, &mut pool.memory));
+                *page = Arc::new(RuleVersionPage::new(page.values));
             }
             Arc::get_mut(page).expect("a private page has one owner").shared_hash = Some(hash);
             pool.insert(hash, page);
@@ -128,13 +118,6 @@ impl Index<usize> for RuleVersionTable {
     fn index(&self, index: usize) -> &Self::Output {
         assert!(index < self.len);
         &self.pages[index / RULE_VERSIONS_PER_PAGE].values[index % RULE_VERSIONS_PER_PAGE]
-    }
-}
-
-impl ShallowCapacityBytes for RuleVersionTable {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        // Page allocations are charged to the pool's ledger, including private pages.
-        self.pages.shallow_capacity_bytes()
     }
 }
 

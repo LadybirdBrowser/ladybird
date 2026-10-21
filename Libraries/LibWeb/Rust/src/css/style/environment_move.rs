@@ -466,7 +466,7 @@ mod tests {
         for &node in nodes {
             retained.facts.ensure_row(node);
         }
-        retained.facts.apply_staged(&mut retained.memory);
+        retained.facts.apply_staged();
         for &node in nodes {
             engine.match_element_for_cascade(node).unwrap();
         }

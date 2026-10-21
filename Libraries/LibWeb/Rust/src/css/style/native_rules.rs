@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::capacity::ShallowCapacityBytes;
-use super::memory::{MemoryCategory, MemoryController, MemoryLease};
 use super::{RetainedState, RuleID};
 use crate::css::container_conditions::ContainerConditionsData;
 use crate::css::declaration_block::DeclarationBlockData;
@@ -32,22 +30,10 @@ struct NativeRuleConditions {
     containers: Box<[Arc<ContainerConditionsData>]>,
 }
 
-#[derive(Clone)]
-
+#[derive(Clone, Default)]
 pub(super) struct NativeRuleRegistry {
     pub targets: NativeRuleTargets,
     pub identities: NativeRuleIdentities,
-    memory: MemoryLease,
-}
-
-impl Default for NativeRuleRegistry {
-    fn default() -> Self {
-        Self {
-            targets: NativeRuleTargets::default(),
-            identities: NativeRuleIdentities::default(),
-            memory: MemoryLease::new(MemoryCategory::RuleProgram),
-        }
-    }
 }
 
 impl PartialEq for NativeRuleTarget {
@@ -92,15 +78,6 @@ impl Hash for NativeRuleTarget {
 }
 
 impl NativeRuleTarget {
-    fn owned_bytes(&self) -> u64 {
-        // The parsed graph is authoritative input. Charge only this owner's additional storage.
-        self.conditions.as_ref().map_or(0, |conditions| {
-            size_of::<NativeRuleConditions>() as u64
-                + conditions.layer_name.shallow_capacity_bytes()
-                + conditions.containers.shallow_capacity_bytes()
-        })
-    }
-
     pub fn layer_name(&self) -> &[u16] {
         self.conditions
             .as_ref()
@@ -115,22 +92,17 @@ impl NativeRuleTarget {
 }
 
 impl NativeRuleRegistry {
-    pub fn remove(&mut self, id: RuleID, memory: &mut MemoryController) {
+    pub fn remove(&mut self, id: RuleID) {
         if let Some(target) = self.targets.remove(&id) {
             let identity = target.identity.get();
             if self.identities.get(&identity) == Some(id) {
                 self.identities.remove(&identity);
             }
         }
-        self.reconcile_memory(memory);
+        self.reconcile_memory();
     }
 
-    fn reconcile_memory(&mut self, memory: &mut MemoryController) {
-        self.memory.resize_required_to(
-            memory,
-            self.targets.shallow_capacity_bytes() + self.identities.shallow_capacity_bytes(),
-        );
-    }
+    fn reconcile_memory(&mut self) {}
 }
 
 impl RetainedState {
@@ -158,7 +130,7 @@ impl RetainedState {
         // Whole-sheet replacement can reuse the semantic ID with a new native rule. Retire the
         // old reverse lookup before installing the replacement; detached CSSOM rules keep their
         // native identity but no longer name a rule in this engine.
-        self.native_rules.remove(id, &mut self.memory);
+        self.native_rules.remove(id);
         let target = NativeRuleTarget {
             identity: NonZeroU64::new(identity).expect("native rule identities are nonzero"),
             declarations,
@@ -172,7 +144,7 @@ impl RetainedState {
         };
         self.native_rules.identities.insert(identity, id);
         self.native_rules.targets.insert(id, target);
-        self.native_rules.reconcile_memory(&mut self.memory);
+        self.native_rules.reconcile_memory();
     }
 }
 
