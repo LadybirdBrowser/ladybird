@@ -112,14 +112,11 @@ pub unsafe extern "C" fn rust_compiled_function_release(function: *const Compile
     }
 }
 
-/// # Safety
-/// The function must be live and Arc-owned.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compiled_function_retain(function: *const CompiledFunction) -> *const CompiledFunction {
-    unsafe {
-        Arc::increment_strong_count(function);
-    }
-    function
+pub extern "C" fn rust_compiled_function_retain(
+    function: crate::css::ffi_support::ArcRef<'_, CompiledFunction>,
+) -> *const CompiledFunction {
+    Arc::into_raw(function.to_arc())
 }
 
 /// The functions a style sheet's top-level `@function` rules compile to, in order, with no rule

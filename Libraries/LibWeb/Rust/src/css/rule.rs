@@ -10,7 +10,7 @@ use crate::css::css_string::CssString;
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::declaration_block::{DeclarationBlock, visit_declaration_images};
 use crate::css::descriptor_block::FfiDescriptorBlock;
-use crate::css::ffi_support::FfiUtf16View;
+use crate::css::ffi_support::{ArcRef, FfiUtf16View, RcRef};
 use crate::css::font_feature_values::FontFeatureValuesRule;
 use crate::css::function_signature::FunctionSignature;
 use crate::css::import_rule::ImportRuleData;
@@ -776,14 +776,6 @@ fn reserve_rule_identities(count: u64) -> u64 {
         .expect("rule identity overflow")
 }
 
-unsafe fn retain_arc<T>(data: *const T) -> Arc<T> {
-    assert!(!data.is_null());
-    unsafe {
-        Arc::increment_strong_count(data);
-        Arc::from_raw(data)
-    }
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_nested_declarations_create(declarations: &DeclarationBlock) -> *const NativeRule {
     Rc::into_raw(NativeRule::new(
@@ -795,9 +787,8 @@ pub extern "C" fn rust_nested_declarations_create(declarations: &DeclarationBloc
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_retain(rule: *const NativeRule) -> *const NativeRule {
-    unsafe { Rc::increment_strong_count(rule) };
-    rule
+pub extern "C" fn rust_rule_retain(rule: RcRef<'_, NativeRule>) -> *const NativeRule {
+    Rc::into_raw(rule.to_rc())
 }
 
 #[unsafe(no_mangle)]
@@ -1034,11 +1025,11 @@ pub unsafe extern "C" fn rust_rule_payload(rule: &NativeRule) -> FfiRulePayload<
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_set_page_selectors(rule: &NativeRule, selectors: *const PageSelectorList) {
+pub extern "C" fn rust_rule_set_page_selectors(rule: &NativeRule, selectors: ArcRef<'_, PageSelectorList>) {
     let RulePayload::Page { selectors: current, .. } = &rule.payload else {
         unreachable!()
     };
-    *current.borrow_mut() = unsafe { retain_arc(selectors) };
+    *current.borrow_mut() = selectors.to_arc();
 }
 
 #[unsafe(no_mangle)]
@@ -1062,9 +1053,8 @@ pub extern "C" fn rust_rule_list_remove_imports(list: &NativeRuleList) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_list_retain(list: *const NativeRuleList) -> *const NativeRuleList {
-    unsafe { Rc::increment_strong_count(list) };
-    list
+pub extern "C" fn rust_rule_list_retain(list: RcRef<'_, NativeRuleList>) -> *const NativeRuleList {
+    Rc::into_raw(list.to_rc())
 }
 
 #[unsafe(no_mangle)]
@@ -1136,9 +1126,8 @@ pub extern "C" fn rust_rule_list_identity_at(list: &NativeRuleList, index: usize
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_list_insert(list: &NativeRuleList, index: usize, rule: *const NativeRule) {
-    unsafe { Rc::increment_strong_count(rule) };
-    list.insert(index, unsafe { Rc::from_raw(rule) });
+pub extern "C" fn rust_rule_list_insert(list: &NativeRuleList, index: usize, rule: RcRef<'_, NativeRule>) {
+    list.insert(index, rule.to_rc());
 }
 
 #[repr(u8)]
@@ -1151,18 +1140,14 @@ pub enum RuleInsertionResult {
 }
 
 /// https://drafts.csswg.org/cssom/#insert-a-css-rule
-///
-/// # Safety
-/// Rule must be a live Rc-owned native rule. Call on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_rule_list_insert_css_rule(
+pub extern "C" fn rust_rule_list_insert_css_rule(
     list: &NativeRuleList,
     index: usize,
-    rule: *const NativeRule,
+    rule: RcRef<'_, NativeRule>,
     nested: bool,
 ) -> RuleInsertionResult {
-    unsafe { Rc::increment_strong_count(rule) };
-    list.insert_css_rule(index, unsafe { Rc::from_raw(rule) }, nested)
+    list.insert_css_rule(index, rule.to_rc(), nested)
 }
 
 #[unsafe(no_mangle)]

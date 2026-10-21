@@ -497,17 +497,11 @@ pub extern "C" fn rust_declaration_block_snapshot(block: &DeclarationBlock) -> *
 }
 
 /// Retain an immutable declaration snapshot without creating a live declaration owner.
-///
-/// # Safety
-/// `data` must be a live, Arc-owned declaration snapshot.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_declaration_data_retain(
-    data: *const DeclarationBlockData,
+pub extern "C" fn rust_declaration_data_retain(
+    data: crate::css::ffi_support::ArcRef<'_, DeclarationBlockData>,
 ) -> *const DeclarationBlockData {
-    unsafe {
-        Arc::increment_strong_count(data);
-    }
-    data
+    Arc::into_raw(data.to_arc())
 }
 
 /// Release an immutable declaration snapshot returned by the style engine or retained from a view.

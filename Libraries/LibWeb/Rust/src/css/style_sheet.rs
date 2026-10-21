@@ -100,6 +100,11 @@ impl NativeStyleSheet {
         &self.rules
     }
 
+    #[cfg(test)]
+    pub(crate) fn shared_rules(&self) -> &Rc<NativeRuleList> {
+        &self.rules
+    }
+
     pub(super) fn imported_sheet(&self, identity: u64) -> Option<Rc<Self>> {
         self.imports.borrow().get(&identity).cloned()
     }
@@ -453,12 +458,11 @@ impl Drop for NativeStyleSheet {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_sheet_create(
-    rules: *const NativeRuleList,
+pub extern "C" fn rust_style_sheet_create(
+    rules: crate::css::ffi_support::RcRef<'_, NativeRuleList>,
     media: &MediaList,
 ) -> *const NativeStyleSheet {
-    unsafe { Rc::increment_strong_count(rules) };
-    Rc::into_raw(NativeStyleSheet::new(unsafe { Rc::from_raw(rules) }, media.clone()))
+    Rc::into_raw(NativeStyleSheet::new(rules.to_rc(), media.clone()))
 }
 
 #[unsafe(no_mangle)]

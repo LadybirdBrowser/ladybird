@@ -441,12 +441,9 @@ pub extern "C" fn rust_parse_syntax(source: FfiUtf16View, limit_ident_to_custom_
     Arc::into_raw(Arc::new(syntax)).cast()
 }
 
-/// # Safety
-/// `syntax` must be a live parsed-syntax handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_syntax_retain(syntax: *const c_void) -> *const c_void {
-    unsafe { Arc::increment_strong_count(syntax.cast::<SyntaxNode>()) };
-    syntax
+pub extern "C" fn rust_syntax_retain(syntax: crate::css::ffi_support::ArcRef<'_, SyntaxNode>) -> *const SyntaxNode {
+    Arc::into_raw(syntax.to_arc())
 }
 
 /// # Safety

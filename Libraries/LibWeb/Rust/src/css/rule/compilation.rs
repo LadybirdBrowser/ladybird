@@ -1251,7 +1251,7 @@ mod tests {
             };
             let child = unsafe {
                 Rc::from_raw(rust_style_sheet_create(
-                    std::ptr::from_ref(parsed_child.rules()),
+                    crate::css::ffi_support::RcRef::new(parsed_child.shared_rules()),
                     &media,
                 ))
             };
@@ -1589,8 +1589,8 @@ mod tests {
         let import = &rules[0];
         let namespace = &rules[1];
         let style = &rules[2];
-        let insert = |rule: &Rc<NativeRule>, index, nested| unsafe {
-            rust_rule_list_insert_css_rule(target.rules(), index, Rc::as_ptr(rule), nested)
+        let insert = |rule: &Rc<NativeRule>, index, nested| {
+            rust_rule_list_insert_css_rule(target.rules(), index, crate::css::ffi_support::RcRef::new(rule), nested)
         };
         assert_eq!(insert(style, 2, false), RuleInsertionResult::IndexSizeError);
         assert_eq!(insert(style, 0, false), RuleInsertionResult::HierarchyRequestError);

@@ -25,6 +25,56 @@ pub struct FfiStringView {
     pub length: usize,
 }
 
+/// An object C++ holds a strong reference to, through a pointer `Rc::into_raw()` gave it, lent for `'a`.
+///
+/// Only C++ makes one, and a test from a borrowed `Rc`, so it is never null.
+#[repr(transparent)]
+pub struct RcRef<'a, T> {
+    pointer: *const T,
+    lent: PhantomData<&'a std::rc::Rc<T>>,
+}
+
+#[cfg(test)]
+impl<'a, T> RcRef<'a, T> {
+    pub(crate) fn new(rc: &'a std::rc::Rc<T>) -> Self {
+        Self {
+            pointer: std::rc::Rc::as_ptr(rc),
+            lent: PhantomData,
+        }
+    }
+}
+
+impl<T> RcRef<'_, T> {
+    /// A strong reference of Rust's own to the object.
+    pub(crate) fn to_rc(&self) -> std::rc::Rc<T> {
+        assert!(!self.pointer.is_null(), "C++ lends a live object");
+        // SAFETY: The pointer comes from `Rc::into_raw()`, and the object is live for 'a.
+        unsafe {
+            std::rc::Rc::increment_strong_count(self.pointer);
+            std::rc::Rc::from_raw(self.pointer)
+        }
+    }
+}
+
+/// [`RcRef`] for an object C++ holds through a pointer `Arc::into_raw()` gave it, which only C++ makes.
+#[repr(transparent)]
+pub struct ArcRef<'a, T> {
+    pointer: *const T,
+    lent: PhantomData<&'a std::sync::Arc<T>>,
+}
+
+impl<T> ArcRef<'_, T> {
+    /// A strong reference of Rust's own to the object.
+    pub(crate) fn to_arc(&self) -> std::sync::Arc<T> {
+        assert!(!self.pointer.is_null(), "C++ lends a live object");
+        // SAFETY: The pointer comes from `Arc::into_raw()`, and the object is live while it is lent.
+        unsafe {
+            std::sync::Arc::increment_strong_count(self.pointer);
+            std::sync::Arc::from_raw(self.pointer)
+        }
+    }
+}
+
 /// Text borrowed for `'a`, as ASCII bytes or UTF-16 code units.
 ///
 /// Rust builds a view only from a borrowed slice, and C++ hands one over under the same contract: exactly one non-empty
