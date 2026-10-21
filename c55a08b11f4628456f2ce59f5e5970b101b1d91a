@@ -1,0 +1,15 @@
+Ladybird reads the composition offsets of version 0 Composition Offset
+(ctts) and Track Run (trun) boxes as signed.
+
+Blink does the same: Chromium demuxes progressive MP4 with FFmpeg,
+whose mov_read_ctts() reads every ctts offset into an int. And its MSE
+parser’s TrackFragmentRun::Parse() reads trun offsets with Read4s(),
+whatever the box version.
+
+So does Gecko: Its mp4parse crate’s read_ctts() reads either version as
+TimeOffsetVersion::Version1(be_i32(src)), citing buggy content that
+writes negative version 0 offsets. And its MoofParser reads trun
+offsets into an int32_t ctsOffset.
+
+WebKit has no MP4 sample-table parser of its own to compare: WebCore
+leaves demuxing MP4 to AVFoundation or GStreamer.
