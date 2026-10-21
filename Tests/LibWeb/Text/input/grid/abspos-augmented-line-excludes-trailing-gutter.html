@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .grid {
+        display: grid;
+        position: relative;
+        grid-template-columns: 100px 100px;
+        column-gap: 20px;
+        width: 400px;
+        height: 50px;
+    }
+    .grid > div {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 10px;
+    }
+</style>
+<!-- An area's end edge comes before the gutter that follows its last track, also when the other edge is
+     the augmented auto line. -->
+<div class="grid">
+    <div style="grid-column: auto / 2"></div>
+    <div style="grid-column: 1 / 2"></div>
+    <div style="grid-column: 2 / auto"></div>
+    <div style="grid-column: auto / 3"></div>
+</div>
+<script>
+    test(() => {
+        for (const item of document.querySelectorAll(".grid > div")) {
+            const rect = item.getBoundingClientRect();
+            println(`${item.style.gridColumn}: ${rect.left} ${rect.width}`);
+        }
+    });
+</script>

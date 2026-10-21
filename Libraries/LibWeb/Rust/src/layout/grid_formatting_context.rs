@@ -3456,8 +3456,9 @@ impl<'pass> GridFormattingContext<'pass> {
             return (self.track_sum(axis), padding_end);
         }
 
+        // The area runs from the start of its first track to the end of its last, without the gutter after it.
         let start = position.saturating_mul(2);
-        let end = start.saturating_add(span.saturating_mul(2) as i32);
+        let end = start.saturating_add((span.saturating_mul(2) as i32).saturating_sub(1));
         let container = self.grid_container_alignment_size(axis);
         let alignment = self.content_alignment(axis);
         let initial_offset = content_start_offset(alignment, container, self.track_sum(axis));
@@ -3507,7 +3508,9 @@ impl<'pass> GridFormattingContext<'pass> {
         // Instead of auto-placement, an auto value for a grid-placement property contributes a special line to the placement whose position
         // is that of the corresponding padding edge of the grid container (the padding edge of the scrollable area, if the grid container
         // overflows). These lines become the first and last lines (0th and -0th) of the augmented grid used for positioning absolutely-positioned items.
-        let explicit_line_position = |line: i32| {
+        // NB: A line between two tracks has a gutter in it. An area's start edge comes after the gutter, and its end edge
+        //     before it, as in axis_grid_area().
+        let explicit_line_position = |line: i32, is_end: bool| {
             let tracks = self.interleaved_tracks(axis);
             let alignment = self.content_alignment(axis);
             let mut offset = content_start_offset(
@@ -3515,7 +3518,12 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.axis_available(axis).to_px_or_zero(),
                 self.track_sum(axis),
             );
-            for track in tracks.iter().take(line.saturating_mul(2).max(0) as usize) {
+            let entries = if is_end {
+                line.saturating_mul(2).saturating_sub(1)
+            } else {
+                line.saturating_mul(2)
+            };
+            for track in tracks.iter().take(entries.max(0) as usize) {
                 offset += track.base_size;
             }
             offset
@@ -3535,12 +3543,12 @@ impl<'pass> GridFormattingContext<'pass> {
         let start_offset = if start_is_augmented {
             augmented_edge(true)
         } else {
-            explicit_line_position(resolved.start)
+            explicit_line_position(resolved.start, false)
         };
         let end_offset = if end_is_augmented {
             augmented_edge(false)
         } else {
-            explicit_line_position(resolved.end)
+            explicit_line_position(resolved.end, true)
         };
         rect = (start_offset, end_offset - start_offset);
         rect
