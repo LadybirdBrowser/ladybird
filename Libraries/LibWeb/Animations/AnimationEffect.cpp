@@ -123,8 +123,11 @@ Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
     update_style_if_needed();
 
     if (m_associated_animation) {
+        // NB: Observing the current time can ask for the phase of this effect, which must not read the time it observed
+        //     last.
+        auto observed_local_time = m_associated_animation->current_time_for_observation();
         m_has_local_time_override_for_observation = true;
-        m_local_time_override_for_observation = m_associated_animation->current_time_for_observation();
+        m_local_time_override_for_observation = observed_local_time;
     }
     ScopeGuard clear_local_time_override = [&] {
         m_has_local_time_override_for_observation = false;
