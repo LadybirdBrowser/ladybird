@@ -971,17 +971,11 @@ pub(crate) fn generate_a_counter_representation<'a>(
 // them to the layout node arena, and ask what a list marker shows.
 
 /// Takes another reference to a scope's registered counter styles.
-///
-/// # Safety
-///
-/// `styles` must be a live reference from `rust_counter_styles_resolve`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_counter_styles_retain(
-    styles: *const RegisteredCounterStyles,
+pub extern "C" fn rust_counter_styles_retain(
+    styles: crate::css::ffi_support::ArcRef<'_, RegisteredCounterStyles>,
 ) -> *const RegisteredCounterStyles {
-    // SAFETY: The caller holds a reference, so the allocation is live.
-    unsafe { Arc::increment_strong_count(styles) };
-    styles
+    Arc::into_raw(styles.to_arc())
 }
 
 /// # Safety
@@ -1053,7 +1047,10 @@ pub unsafe extern "C" fn render_state_publish_counter_styles(
         styles: if styles.is_null() {
             Arc::default()
         } else {
-            unsafe { Arc::from_raw(rust_counter_styles_retain(styles)) }
+            unsafe {
+                Arc::increment_strong_count(styles);
+                Arc::from_raw(styles)
+            }
         },
     };
     host.queue_change(crate::render_state::ArenaChange::Layout(

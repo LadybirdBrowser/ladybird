@@ -167,17 +167,14 @@ pub extern "C" fn rust_rule_view_import_media(view: &NativeRuleView<'_>) -> *mut
 /// Materialize a facade's import rule, including one first exposed after detachment.
 ///
 /// # Safety
-/// Identity must identify this import. Data must be Arc-owned; media must be its loading state.
+/// Identity must identify this import, and media must be its loading state.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_rule_materialize_import(
     identity: u64,
-    data: *const ImportRuleData,
+    data: crate::css::ffi_support::ArcRef<'_, ImportRuleData>,
     media: &MediaList,
 ) -> *const NativeRule {
-    unsafe {
-        Arc::increment_strong_count(data);
-    }
-    let data = unsafe { Arc::from_raw(data) };
+    let data = data.to_arc();
     let scope = data.scope.clone();
     std::rc::Rc::into_raw(NativeRule::with_identity(
         identity,

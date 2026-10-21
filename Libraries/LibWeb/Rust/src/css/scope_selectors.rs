@@ -19,10 +19,10 @@ const _: () = {
 };
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_scope_selectors_retain(selectors: *const ScopeSelectors) -> *const ScopeSelectors {
-    assert!(!selectors.is_null());
-    unsafe { Arc::increment_strong_count(selectors) };
-    selectors
+pub extern "C" fn rust_scope_selectors_retain(
+    selectors: crate::css::ffi_support::ArcRef<'_, ScopeSelectors>,
+) -> *const ScopeSelectors {
+    Arc::into_raw(selectors.to_arc())
 }
 
 #[unsafe(no_mangle)]

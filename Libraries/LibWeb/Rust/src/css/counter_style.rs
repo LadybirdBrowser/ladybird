@@ -531,7 +531,9 @@ pub unsafe extern "C" fn rust_counter_styles_resolve(
     let registered = RegisteredCounterStyles(registered);
     // SAFETY: Guaranteed by the caller.
     if unsafe { previous.as_ref() }.is_some_and(|previous| *previous == registered) {
-        return unsafe { crate::css::counter_representation::rust_counter_styles_retain(previous) };
+        // SAFETY: The caller holds a reference to the previous styles.
+        unsafe { Arc::increment_strong_count(previous) };
+        return previous;
     }
     Arc::into_raw(Arc::new(registered))
 }
