@@ -1,0 +1,4 @@
+height: 20px; width: 1px; min-width: fit-content: 10x20
+height: 20px; width: 100px; max-width: min-content: 10x20
+height: 20px; width: 1px; min-width: max-content: 10x20
+width: 1px; min-width: fit-content: 30x60

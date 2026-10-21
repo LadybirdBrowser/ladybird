@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<canvas width="30" height="60" style="height: 20px; width: 1px; min-width: fit-content"></canvas>
+<canvas width="30" height="60" style="height: 20px; width: 100px; max-width: min-content"></canvas>
+<canvas width="30" height="60" style="height: 20px; width: 1px; min-width: max-content"></canvas>
+<canvas width="30" height="60" style="width: 1px; min-width: fit-content"></canvas>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        for (const canvas of document.querySelectorAll("canvas"))
+            println(`${canvas.getAttribute("style")}: ${canvas.offsetWidth}x${canvas.offsetHeight}`);
+    });
+</script>

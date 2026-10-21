@@ -661,34 +661,54 @@ impl<'pass> SizingContext<'pass> {
                 && size.is_intrinsic_sizing_constraint()
                 && self.intrinsic_inline_sizes_are_transferred(node, constraints)
         };
+        // NB: The min-content and max-content inline sizes of a replaced element follow a non-automatic block size
+        //     through the aspect ratio.
+        let transferred_intrinsic_limit = |size: &ComputedSize| {
+            (size.is_intrinsic_sizing_constraint()
+                && self.facts(node).has_preferred_aspect_ratio()
+                && !self.preferred_block_size(node, constraints).is_auto()
+                && !self.should_treat_block_size_as_auto(node, available_space, constraints))
+            .then(|| {
+                let block_size = self.compute_block_size_for_replaced_element(node, available_space, constraints);
+                self.content_inline_size_from_aspect_ratio(node, block_size)
+            })
+        };
         // 2. If the tentative used width is greater than 'max-width', the rules above are applied again,
         //    but this time using the computed value of 'max-width' as the computed value for 'width'.
         if !self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints)
             && !is_transferred_intrinsic_limit(style.max_width())
         {
-            let max =
-                self.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints);
-            if used > max {
-                used = self.tentative_inline_size_for_replaced_element(
-                    node,
-                    style.max_width(),
-                    available_space,
-                    constraints,
-                );
+            if let Some(max) = transferred_intrinsic_limit(style.max_width()) {
+                used = used.min(max);
+            } else {
+                let max =
+                    self.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints);
+                if used > max {
+                    used = self.tentative_inline_size_for_replaced_element(
+                        node,
+                        style.max_width(),
+                        available_space,
+                        constraints,
+                    );
+                }
             }
         }
         // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
         //    but this time using the value of 'min-width' as the computed value for 'width'.
         if !style.min_width().is_auto() && !is_transferred_intrinsic_limit(style.min_width()) {
-            let min =
-                self.calculate_inner_inline_size(node, available_space.inline_size, style.min_width(), constraints);
-            if used < min {
-                used = self.tentative_inline_size_for_replaced_element(
-                    node,
-                    style.min_width(),
-                    available_space,
-                    constraints,
-                );
+            if let Some(min) = transferred_intrinsic_limit(style.min_width()) {
+                used = used.max(min);
+            } else {
+                let min =
+                    self.calculate_inner_inline_size(node, available_space.inline_size, style.min_width(), constraints);
+                if used < min {
+                    used = self.tentative_inline_size_for_replaced_element(
+                        node,
+                        style.min_width(),
+                        available_space,
+                        constraints,
+                    );
+                }
             }
         }
         used
