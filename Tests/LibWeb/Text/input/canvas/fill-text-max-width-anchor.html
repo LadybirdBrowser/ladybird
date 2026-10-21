@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Text that maxWidth condenses still starts at its x, rather than at x condensed towards the origin.
+    function columnsWithInk(context, from, to) {
+        const data = context.getImageData(from, 0, to - from, context.canvas.height).data;
+        const columns = new Set();
+        for (let i = 3; i < data.length; i += 4) {
+            if (data[i] !== 0)
+                columns.add(((i - 3) / 4) % (to - from));
+        }
+        return columns.size;
+    }
+
+    test(() => {
+        for (const [method, align] of [["fillText", "start"], ["strokeText", "start"], ["fillText", "center"]]) {
+            const canvas = document.createElement("canvas");
+            canvas.width = 300;
+            canvas.height = 100;
+            const context = canvas.getContext("2d");
+            context.font = "20px sans-serif";
+            context.textAlign = align;
+            context[method]("long text that is squeezed", 200, 50, 20);
+            const [left, right] = align === "center" ? [190, 210] : [200, 220];
+            println(
+                `${method}, ${align}: ink outside the box: ${columnsWithInk(context, 0, left - 1) + columnsWithInk(context, right + 1, 300) > 0}, ink inside the box: ${columnsWithInk(context, left, right) > 0}`
+            );
+        }
+    });
+</script>

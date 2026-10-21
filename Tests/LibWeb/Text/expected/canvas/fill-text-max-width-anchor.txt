@@ -1,0 +1,3 @@
+fillText, start: ink outside the box: false, ink inside the box: true
+strokeText, start: ink outside the box: false, ink inside the box: true
+fillText, center: ink outside the box: false, ink inside the box: true

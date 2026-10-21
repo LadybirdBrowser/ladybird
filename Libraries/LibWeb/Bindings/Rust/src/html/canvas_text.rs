@@ -34,7 +34,7 @@ impl ContextState {
         let runs = shape_text(&font.cascade, text, FloatPoint { x, y }, letter_spacing);
         let path = path_of_runs(&runs);
         let text_width: f32 = runs.iter().map(|run| run.width).sum();
-        let transform = text_transform(&self.drawing_state(), &font.cascade.first(), text_width, max_width);
+        let transform = text_transform(&self.drawing_state(), &font.cascade.first(), x, text_width, max_width);
         path.copy_transformed(transform.values)
     }
 }
@@ -105,7 +105,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             .collect();
         let first_font = font.cascade.first();
         let state = self.drawing_state();
-        let translation = text_transform(&state, &first_font, run.width, None).map_point(FloatPoint { x, y });
+        let translation = text_transform(&state, &first_font, x, run.width, None).map_point(FloatPoint { x, y });
         let lent_font = LentFont(NonNull::new(run.font.as_raw().cast_mut()).expect("a font has a font"));
         self.record(|recorder| {
             let paint = paint_of(recorder, &state.fill_style);
