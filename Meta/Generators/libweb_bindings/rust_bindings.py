@@ -66,9 +66,11 @@ SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {
     "LegacyNoInterfaceObject",
     "NavigatorCompatibilityMode",
     "SecureContext",
-    # NB: The implementation implements structured_data::Serializable, whose steps StructuredSerialize of LibWeb's C++
-    #     runs through the entry points that write_rust_structured_data_entry_points() writes.
+    # NB: The implementation implements structured_data::Serializable or structured_data::Transferable, whose steps
+    #     StructuredSerialize of LibWeb's C++ runs through the entry points that write_rust_structured_data_entry_points()
+    #     writes.
     "Serializable",
+    "Transferable",
 }
 
 
@@ -592,7 +594,7 @@ def write_rust_interface(
 
 def write_rust_structured_data_entry_points(out: TextIO, interface: Interface) -> None:
     """The entry points through which StructuredSerialize of LibWeb's C++ runs the steps of an interface that is
-    serializable, which Meta/Generators/libweb_bindings/structured_serialize.py declares."""
+    serializable or transferable, which Meta/Generators/libweb_bindings/structured_serialize.py declares."""
     if "Serializable" in interface.extended_attributes:
         out.write(
             f"""
@@ -626,6 +628,63 @@ def write_rust_structured_data_entry_points(out: TextIO, interface: Interface) -
     ) -> RawNativeFunctionResult {{
         // SAFETY: The caller passes live pointers.
         unsafe {{ structured_data::deserialization_steps::<Implementation>(vm, realm, serialized) }}
+    }}
+"""
+        )
+    if "Transferable" in interface.extended_attributes:
+        out.write(
+            f"""
+    /// The [[Detached]] internal slot of an object of the interface, for StructuredSerialize of LibWeb's C++.
+    ///
+    /// # Safety
+    ///
+    /// The cell must be the live cell of an object of the interface.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn {rust_entry_point_name(interface, "is_detached")}(cell: *mut c_void) -> bool {{
+        // SAFETY: The caller passes a live cell.
+        unsafe {{ structured_data::is_detached::<Implementation>(cell) }}
+    }}
+
+    /// Sets the [[Detached]] internal slot of an object of the interface to true.
+    ///
+    /// # Safety
+    ///
+    /// The cell must be the live cell of an object of the interface.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn {rust_entry_point_name(interface, "set_detached")}(cell: *mut c_void) {{
+        // SAFETY: The caller passes a live cell.
+        unsafe {{ structured_data::set_detached::<Implementation>(cell) }}
+    }}
+
+    /// The transfer steps of the interface.
+    ///
+    /// # Safety
+    ///
+    /// The pointers must be the VM, a live realm, the live cell of an object of the interface, and a lent data holder.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn {rust_entry_point_name(interface, "transfer_steps")}(
+        vm: *mut c_void,
+        realm: *mut c_void,
+        cell: *mut c_void,
+        data_holder: *mut c_void,
+    ) -> RawNativeFunctionResult {{
+        // SAFETY: The caller passes live pointers.
+        unsafe {{ structured_data::transfer_steps::<Implementation>(vm, realm, cell, data_holder) }}
+    }}
+
+    /// The transfer-receiving steps of the interface, which return the wrapper of the new object.
+    ///
+    /// # Safety
+    ///
+    /// The pointers must be the VM, a live realm, and a lent data holder.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn {rust_entry_point_name(interface, "transfer_receiving_steps")}(
+        vm: *mut c_void,
+        realm: *mut c_void,
+        data_holder: *mut c_void,
+    ) -> RawNativeFunctionResult {{
+        // SAFETY: The caller passes live pointers.
+        unsafe {{ structured_data::transfer_receiving_steps::<Implementation>(vm, realm, data_holder) }}
     }}
 """
         )

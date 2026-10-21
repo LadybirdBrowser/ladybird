@@ -21,10 +21,12 @@ SUPPORTED_TRANSFER_TYPES = (
 )
 
 
-def write_rust_entry_point_declarations(out: TextIO, serializable: List[Interface]) -> None:
-    """The entry points of the Rust bindings that run the steps of the serializable interfaces that are implemented in
-    Rust, which Libraries/LibWeb/Bindings/Rust/src/bindings/structured_data.rs describes."""
-    if not serializable:
+def write_rust_entry_point_declarations(
+    out: TextIO, serializable: List[Interface], transferable: List[Interface]
+) -> None:
+    """The entry points of the Rust bindings that run the steps of the serializable and transferable interfaces that
+    are implemented in Rust, which Libraries/LibWeb/Bindings/Rust/src/bindings/structured_data.rs describes."""
+    if not serializable and not transferable:
         return
     out.write('\nextern "C" {\n')
     for interface in serializable:
@@ -33,6 +35,16 @@ def write_rust_entry_point_declarations(out: TextIO, serializable: List[Interfac
 // The serialization steps and the deserialization steps of {interface.name}.
 JSCompletion {rust_entry_point_name(interface, "serialization_steps")}(JSVM*, void* realm, void* cell, RustSerializationWriter*, bool for_storage);
 JSCompletion {rust_entry_point_name(interface, "deserialization_steps")}(JSVM*, void* realm, RustSerializationReader*);
+"""
+        )
+    for interface in transferable:
+        out.write(
+            f"""
+// The [[Detached]] internal slot, the transfer steps and the transfer-receiving steps of {interface.name}.
+bool {rust_entry_point_name(interface, "is_detached")}(void* cell);
+void {rust_entry_point_name(interface, "set_detached")}(void* cell);
+JSCompletion {rust_entry_point_name(interface, "transfer_steps")}(JSVM*, void* realm, void* cell, RustTransferDataWriter*);
+JSCompletion {rust_entry_point_name(interface, "transfer_receiving_steps")}(JSVM*, void* realm, RustTransferDataReader*);
 """
         )
     out.write("\n}\n")
@@ -50,8 +62,9 @@ def write_structured_serialize_bindings_implementation(out: TextIO, interfaces: 
         key=lambda interface: interface.name,
     )
     # NB: The objects of an interface implemented in Rust are cells in the host data of their wrappers, whose steps
-    #     the Rust bindings run. Every other serializable interface is implemented in C++.
+    #     the Rust bindings run. Every other serializable or transferable interface is implemented in C++.
     rust_serializable = [interface for interface in serializable if is_implemented_in_rust(interface)]
+    rust_transferable = [interface for interface in transferable if is_implemented_in_rust(interface)]
 
     out.write(
         """#include <LibGC/Heap.h>
@@ -76,7 +89,7 @@ def write_structured_serialize_bindings_implementation(out: TextIO, interfaces: 
 namespace Web::Bindings {
 """
     )
-    write_rust_entry_point_declarations(out, rust_serializable)
+    write_rust_entry_point_declarations(out, rust_serializable, rust_transferable)
     out.write(
         """
 bool is_platform_object(JS::Object const& object)
@@ -84,13 +97,92 @@ bool is_platform_object(JS::Object const& object)
     return object.is_platform_object();
 }
 
-Transferable* transferable_from_object(JS::Object& object)
+Optional<TransferablePlatformObject> transferable_from_object(JS::Object& object)
 {
+"""
+    )
+    for interface in rust_transferable:
+        out.write(
+            f"""    if (auto* cell = Bindings::impl_from<{fully_qualified_name_for_interface(interface)}>(&object))
+        return TransferablePlatformObject {{ .rust_object = cell, .primary_interface = HTML::TransferType::{interface.name} }};
+"""
+        )
+    out.write(
+        """
     auto* wrappable = Bindings::wrappable_impl_from(&object);
     if (!wrappable)
-        return nullptr;
+        return {};
 
-    return as_if<Transferable>(*wrappable);
+    auto* transferable = as_if<Transferable>(*wrappable);
+    if (!transferable)
+        return {};
+
+    return TransferablePlatformObject { .transferable = transferable, .primary_interface = transferable->primary_interface() };
+}
+
+bool TransferablePlatformObject::is_detached() const
+{
+    if (transferable)
+        return transferable->is_detached();
+
+    switch (primary_interface) {
+"""
+    )
+    for interface in rust_transferable:
+        out.write(
+            f"""    case HTML::TransferType::{interface.name}:
+        return {rust_entry_point_name(interface, "is_detached")}(rust_object.ptr());
+"""
+        )
+    out.write(
+        """    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+void TransferablePlatformObject::set_detached() const
+{
+    if (transferable) {
+        transferable->set_detached(true);
+        return;
+    }
+
+    switch (primary_interface) {
+"""
+    )
+    for interface in rust_transferable:
+        out.write(
+            f"""    case HTML::TransferType::{interface.name}:
+        {rust_entry_point_name(interface, "set_detached")}(rust_object.ptr());
+        return;
+"""
+        )
+    out.write(
+        """    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+WebIDL::ExceptionOr<void> TransferablePlatformObject::transfer_steps(JS::Realm& realm, HTML::TransferDataEncoder& data_holder, [[maybe_unused]] HTML::ImageBitmapSharedPixels* image_bitmap_pixels) const
+{
+    if (transferable)
+        return transferable->transfer_steps(realm, data_holder);
+
+    [[maybe_unused]] RustTransferDataWriter writer { .realm = realm, .data_holder = data_holder, .image_bitmap_pixels = image_bitmap_pixels };
+    switch (primary_interface) {
+"""
+    )
+    for interface in rust_transferable:
+        out.write(
+            f"""    case HTML::TransferType::{interface.name}:
+        TRY(JS::HostABI::completion_from_abi<void>({rust_entry_point_name(interface, "transfer_steps")}(JS::HostABI::vm_to_abi(realm.vm()), &realm, rust_object.ptr(), &writer)));
+        return {{}};
+"""
+        )
+    out.write(
+        """    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object)
@@ -204,6 +296,15 @@ WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create_transferred_platform_object(
     )
     for interface in transferable:
         out.write(f"    case HTML::TransferType::{interface.name}: {{\n")
+        if is_implemented_in_rust(interface):
+            out.write(
+                f"""        RustTransferDataReader reader {{ .realm = target_realm, .data_holder = decoder }};
+        auto wrapper = TRY(JS::HostABI::completion_from_abi<JS::Value>({rust_entry_point_name(interface, "transfer_receiving_steps")}(JS::HostABI::vm_to_abi(target_realm.vm()), &target_realm, &reader)));
+        return GC::Ref {{ as<JS::HostObject>(wrapper.as_object()) }};
+    }}
+"""
+            )
+            continue
         if interface.name == "MessagePort":
             out.write("""        auto transferable = HTML::MessagePort::create(Bindings::impl_from<DOM::EventTarget>(target_realm.global_object()));
 """)
