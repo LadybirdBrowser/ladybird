@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/Debug.h>
 #include <LibCore/Directory.h>
 #include <LibCore/MimeData.h>
@@ -513,6 +514,17 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
     return protocol_request;
 }
 
+static NonnullRefPtr<HTTP::HeaderList const> headers_with_normalized_values(HTTP::HeaderList const& headers)
+{
+    if (all_of(headers, [](auto const& header) { return HTTP::is_header_value(header.value); }))
+        return headers;
+
+    auto normalized_headers = HTTP::HeaderList::create();
+    for (auto const& header : headers)
+        normalized_headers->append_with_normalized_name({ header.name, HTTP::normalize_header_value(header.value) });
+    return normalized_headers;
+}
+
 RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request, Requests::RequestClient::TransferLease transfer_lease)
 {
     // FIXME: We could put this request in a queue until the client connection is re-established.
@@ -527,7 +539,8 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     // NB: Workers have a Page shim without a navigable or a browser page ID. Their
     //     requests are attributed through the worker process's browser-level owners.
     auto originating_page_id = request.page() && request.page()->has_top_level_traversable() ? request.page()->client().id().value() : 0;
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id, request.network_isolation_key());
+    auto headers = headers_with_normalized_values(request.headers());
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), *headers, request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id, request.network_isolation_key());
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;
