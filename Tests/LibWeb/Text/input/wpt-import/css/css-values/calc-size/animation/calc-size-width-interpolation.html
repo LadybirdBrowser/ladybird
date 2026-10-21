@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>width: calc-size() animations</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<meta name="timeout" content="long">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  display: block;
+  width: 200px;
+}
+.target {
+  display: block;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 100px;
+}
+</style>
+
+<body>
+
+<script>
+  test_interpolation({
+    property: 'width',
+    from: 'calc-size(auto, size)',
+    to: 'calc-size(auto, size * 2)',
+  }, [
+    { at: -0.25, expect: '150px' },
+    { at: 0, expect: '200px' },
+    { at: 0.25, expect: '250px' },
+    { at: 0.5, expect: '300px' },
+    { at: 0.75, expect: '350px' },
+    { at: 1, expect: '400px' },
+    { at: 1.25, expect: '450px' },
+  ]);
+
+  test_interpolation({
+    property: 'width',
+    from: neutralKeyframe,
+    to: 'calc-size(auto, size * 2)',
+  }, [
+    { at: -0.25, expect: '150px' },
+    { at: 0, expect: '200px' },
+    { at: 0.25, expect: '250px' },
+    { at: 0.5, expect: '300px' },
+    { at: 0.75, expect: '350px' },
+    { at: 1, expect: '400px' },
+    { at: 1.25, expect: '450px' },
+  ]);
+
+  test_interpolation({
+    property: 'width',
+    from: 'calc-size(min-content, 0px)',
+    to: 'calc-size(min-content, size)',
+  }, [
+    { at: -0.25, expect: '0' },
+    { at: 0, expect: '0' },
+    { at: 0.25, expect: '25px' },
+    { at: 0.5, expect: '50px' },
+    { at: 0.75, expect: '75px' },
+    { at: 1, expect: '100px' },
+    { at: 1.25, expect: '125px' },
+  ]);
+
+  const KEYWORDS = {
+    "auto": 200,
+    "min-content": 100,
+    "fit-content": 100,
+    "max-content": 100,
+    "stretch": 200,
+  };
+
+  for (const keyword in KEYWORDS) {
+    let expected = KEYWORDS[keyword];
+    test_interpolation({
+      property: 'width',
+      from: keyword,
+      to: `calc-size(${keyword}, size * 2)`,
+    }, [
+      { at: -0.25, expect: `${expected * 0.75}px` },
+      { at: 0, expect: `${expected}px` },
+      { at: 0.75, expect: `${expected * 1.75}px` },
+      { at: 1, expect: `${expected * 2}px` },
+      { at: 1.25, expect: `${expected * 2.25}px` },
+    ]);
+
+    test_interpolation({
+      property: 'width',
+      from: keyword,
+      to: 'calc-size(any, 50px)',
+    }, [
+      { at: -0.25, expect: `${expected * 1.25 - 50 * 0.25}px` },
+      { at: 0, expect: `${expected}px` },
+      { at: 0.75, expect: `${expected * 0.25 + 50 * 0.75}px` },
+      { at: 1, expect: `50px` },
+      { at: 1.25, expect: `${50 * 1.25 - expected * 0.25}px` },
+    ]);
+
+    test_interpolation({
+      property: 'width',
+      from: 'calc-size(any, 50px)',
+      to: `calc-size(${keyword}, size * 2)`,
+    }, [
+      { at: -0.1, expect: `${50 * 1.1 - expected * 0.2}px` },
+      { at: 0, expect: "50px" },
+      { at: 0.75, expect: `${50 * 0.25 + expected * 1.5}px` },
+      { at: 1, expect: `${expected * 2}px` },
+      { at: 1.25, expect: `${expected * 2.5 - 50 * 0.25}px` },
+    ]);
+
+    test_interpolation({
+      property: 'width',
+      from: keyword,
+      to: 'calc-size(50px, size)',
+    }, [
+      { at: -0.25, expect: `${expected * 1.25 - 50 * 0.25}px` },
+      { at: 0, expect: `${expected}px` },
+      { at: 0.75, expect: `${expected * 0.25 + 50 * 0.75}px` },
+      { at: 1, expect: `50px` },
+      { at: 1.25, expect: `${50 * 1.25 - expected * 0.25}px` },
+    ]);
+  }
+
+  const KEYWORD_PAIRS = [
+    [ "auto", "fit-content" ],
+    [ "fit-content", "min-content" ],
+    [ "stretch", "auto" ],
+    [ "max-content", "stretch" ],
+  ];
+
+  for (const pair of KEYWORD_PAIRS) {
+    test_no_interpolation({
+      property: 'width',
+      from: pair[0],
+      to: `calc-size(${pair[1]}, size)`,
+    });
+  }
+
+  test_interpolation({
+    property: 'width',
+    from: 'calc-size(20px, size)',
+    to: 'calc-size(60px, size)',
+  }, [
+    { at: -0.25, expect: '10px' },
+    { at: 0, expect: '20px' },
+    { at: 0.75, expect: '50px' },
+    { at: 1, expect: '60px' },
+    { at: 1.25, expect: '70px' },
+  ]);
+
+  test_interpolation({
+    property: 'width',
+    from: 'calc-size(50%, size)', /* 100px */
+    to: 'calc-size(60px, size)',
+  }, [
+    { at: -0.25, expect: '110px' },
+    { at: 0, expect: '100px' },
+    { at: 0.75, expect: '70px' },
+    { at: 1, expect: '60px' },
+    { at: 1.25, expect: '50px' },
+  ]);
+
+  test_interpolation({
+    property: 'width',
+    from: 'calc-size(37px, 200px)',
+    to: `calc-size(37px, size * 2 + 7% + 12px)`, /* adds to 100px */
+  }, [
+    { at: -0.25, expect: '225px' },
+    { at: 0, expect: '200px' },
+    { at: 0.75, expect: '125px' },
+    { at: 1, expect: '100px' },
+    { at: 1.25, expect: '75px' },
+  ]);
+
+  let parent_auto_style = document.createElement("style");
+  parent_auto_style.innerText = `
+    body { width: 300px; }
+    .parent { width: auto; }
+  `;
+  document.head.append(parent_auto_style);
+
+  test_interpolation({
+    property: 'width',
+    from: 'inherit',
+    to: `calc-size(auto, size * 0.5)`,
+  }, [
+    { at: -0.25, expect: '337.5px' },
+    { at: 0, expect: '300px' },
+    { at: 0.75, expect: '187.5px' },
+    { at: 1, expect: '150px' },
+    { at: 1.25, expect: '112.5px' },
+  ]);
+
+  parent_auto_style.remove();
+
+
+</script>

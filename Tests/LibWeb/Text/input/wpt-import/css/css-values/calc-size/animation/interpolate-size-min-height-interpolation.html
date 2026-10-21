@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>min-height interpolation with interpolate-size: allow-keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-min-height">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+:root {
+  interpolate-size: allow-keywords;
+}
+.parent {
+  min-height: 30px;
+}
+.target {
+  width: 10px;
+  height: 0px;
+  min-height: 10px;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 100px;
+  height: 50px;
+}
+</style>
+
+<body></body>
+
+<script>
+
+test_interpolation({
+  property: 'min-height',
+  from: 'initial',
+  to: '20px',
+}, [
+  {at: -0.3, expect: 'calc-size(auto, -6px + size * 1.3)'},
+  {at: 0, expect: 'calc-size(auto, 0px + size * 1)'},
+  {at: 0.3, expect: 'calc-size(auto, 6px + size * 0.7)'},
+  {at: 0.6, expect: 'calc-size(auto, 12px + size * 0.4)'},
+  {at: 1, expect: 'calc-size(auto, 20px + size * 0)'},
+  {at: 1.5, expect: 'calc-size(auto, 30px + size * -0.5)'}
+]);
+
+test_interpolation({
+  property: 'min-height',
+  from: 'unset',
+  to: '20px',
+}, [
+  {at: -0.3, expect: 'calc-size(auto, -6px + size * 1.3)'},
+  {at: 0, expect: 'calc-size(auto, 0px + size * 1)'},
+  {at: 0.3, expect: 'calc-size(auto, 6px + size * 0.7)'},
+  {at: 0.6, expect: 'calc-size(auto, 12px + size * 0.4)'},
+  {at: 1, expect: 'calc-size(auto, 20px + size * 0)'},
+  {at: 1.5, expect: 'calc-size(auto, 30px + size * -0.5)'}
+]);
+
+test_interpolation({
+  property: 'min-height',
+  from: 'auto',
+  to: '20px',
+}, [
+  {at: -0.3, expect: 'calc-size(auto, -6px + size * 1.3)'},
+  {at: 0, expect: 'calc-size(auto, 0px + size * 1)'},
+  {at: 0.3, expect: 'calc-size(auto, 6px + size * 0.7)'},
+  {at: 0.6, expect: 'calc-size(auto, 12px + size * 0.4)'},
+  {at: 1, expect: 'calc-size(auto, 20px + size * 0)'},
+  {at: 1.5, expect: 'calc-size(auto, 30px + size * -0.5)'}
+]);
+
+test_interpolation({
+  property: 'min-height',
+  from: 'auto',
+  to: '0px',
+}, [
+  {at: -0.3, expect: 'calc-size(auto, 0px + size * 1.3)'},
+  {at: 0, expect: 'calc-size(auto, 0px + size * 1)'},
+  {at: 0.3, expect: 'calc-size(auto, 0px + size * 0.7)'},
+  {at: 0.6, expect: 'calc-size(auto, 0px + size * 0.4)'},
+  {at: 1, expect: 'calc-size(auto, 0px + size * 0)'},
+  {at: 1.5, expect: 'calc-size(auto, 0px + size * -0.5)'}
+]);
+
+test_no_interpolation({
+  property: 'min-height',
+  from: 'fit-content',
+  to: 'min-content',
+});
+
+test_no_interpolation({
+  property: 'min-height',
+  from: 'max-content',
+  to: 'stretch',
+});
+
+test_interpolation({
+  property: 'min-height',
+  from: 'fit-content',
+  to: neutralKeyframe, /* 10px */
+}, [
+  {at: -0.3, expect: 'calc-size(fit-content, -3px + size * 1.3)'},
+  {at: 0, expect: 'calc-size(fit-content, 0px + size * 1)'},
+  {at: 0.3, expect: 'calc-size(fit-content, 3px + size * 0.7)'},
+  {at: 0.6, expect: 'calc-size(fit-content, 6px + size * 0.4)'},
+  {at: 1, expect: 'calc-size(fit-content, 10px + size * 0)'},
+  {at: 1.5, expect: 'calc-size(fit-content, 15px + size * -0.5)'}
+]);
+
+test_interpolation({
+  property: 'min-height',
+  from: neutralKeyframe, /* 10px */
+  to: 'min-content',
+}, [
+  {at: -0.3, expect: 'calc-size(min-content, 13px + size * -0.3)'},
+  {at: 0, expect: 'calc-size(min-content, 10px + size * 0)'},
+  {at: 0.3, expect: 'calc-size(min-content, 7px + size * 0.3)'},
+  {at: 0.6, expect: 'calc-size(min-content, 4px + size * 0.6)'},
+  {at: 1, expect: 'calc-size(min-content, 0px + size * 1)'},
+  {at: 1.5, expect: 'calc-size(min-content, -5px + size * 1.5)'}
+]);
+
+</script>

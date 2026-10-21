@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>height: calc-size() animations</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+
+#parent {
+  height: 200px;
+}
+
+#test {
+}
+
+</style>
+
+<div id="parent">
+  <div id="test">
+  </div>
+</div>
+
+<script>
+
+/**
+ * This test tests the expansions needed to support interpolation of
+ * calc-size() values.  These cannot be tested through getComputedStyle
+ * so (as far as I can tell) the only web-exposed way to test them is
+ * through getComputedStyleMap.
+ *
+ * However, it's also likely that some of the details tested here are
+ * not fully specified.  Once we have multiple implementations that
+ * implement all of the necessary features for this test, we should
+ * probably look at improving that interoperability.
+ */
+
+var TESTS = [
+  {
+    property: "height",
+    start: "auto",
+    end: "calc-size(any, 0px)",
+    expected: {
+      0.75: "calc-size(auto, 0px + (0.25 * size))",
+    },
+  },
+  {
+    property: "height",
+    start: "0px",
+    end: "calc-size(calc-size(min-content, size + 20px), 2 * size)",
+    expected: {
+      0.75: "calc-size(calc-size(min-content, 20px + size), 0px + (1.5 * size))",
+    },
+  },
+  {
+    property: "height",
+    start: "calc-size(min-content, size * 4)",
+    end: "calc-size(calc-size(min-content, size + 20px), 2 * size)",
+    expected: {
+      0.75: "calc-size(min-content, size + (1.5 * (20px + size)))",
+    },
+  },
+  {
+    property: "width",
+    start: "calc-size(fit-content, 20px)",
+    end: "calc-size(calc-size(fit-content, 40px), size)",
+    expected: {
+      0.75: "calc-size(fit-content, 35px)",
+    },
+  },
+  {
+    // Check that we do expansion on one basis even when the other basis is 'any'.
+    property: "width",
+    start: "calc-size(any, 20px)",
+    end: "calc-size(calc-size(fit-content, 40px), size)",
+    expected: {
+      0.75: "calc-size(fit-content, 35px)",
+    },
+  },
+  {
+    property: "width",
+    start: "calc-size(calc-size(any, 30px), 20px)",
+    end: "calc-size(calc-size(fit-content, 40px), size)",
+    expected: {
+      0.75: "calc-size(fit-content, 35px)",
+    },
+  },
+  {
+    property: "width",
+    start: "calc-size(fit-content, 20px)",
+    end: "calc-size(calc-size(fit-content, 3 * size + 10px), min(size + 20px, 2 * size - 30px) + ((2 * size) + 80px))",
+    expected: {
+      0.75: "calc-size(fit-content, 5px + min(30px + (3 * size), 30px + (2 * 0.75 * (3 * size + 10px)) + (0.75 * 2 * (10px + (3 * size)))))",
+      0.75: "calc-size(fit-content, 5px + (0.75 * (80px + min(30px + (3 * size), -30px + (2 * (10px + (3 * size)))) + (2 * (10px + (3 * size))))))",
+    },
+  },
+  {
+    property: "width",
+    start: "calc-size(50%, size)",
+    end: "calc-size(calc-size(45%, (2 * size)), size + 20px)",
+    expected: {
+      0.75: "calc-size(100%, (0.125 * size) + (0.75 * (20px + (0.9 * size))))",
+    },
+  },
+  {
+    property: "width",
+    start: "calc-size(40%, size)",
+    end: "calc-size(calc-size(10px, (2 * size)), size + 20px)",
+    expected: {
+      0.75: "calc-size(100%, 30px + (0.1 * size))",
+    },
+  },
+  {
+    property: "width",
+    start: "calc-size(80px, size)",
+    end: "calc-size(calc-size(10px, (2 * size)), size + 20px)",
+    expected: {
+      0.75: "calc-size(any, 50px)",
+    },
+  },
+  {
+    property: "width",
+    start: "calc-size(80px, size)",
+    end: "calc-size(calc-size(any, 20px), size + 20px)",
+    expected: {
+      0.75: "calc-size(any, 50px)",
+    },
+  },
+];
+
+let e = document.getElementById("test");
+for (let test_item of TESTS) {
+  for (let progress in test_item.expected) {
+    test((t) => {
+      let expected_value = test_item.expected[progress];
+      let property = test_item.property;
+      e.style[property] = test_item.start;
+      let discard = e.computedStyleMap().get(property).toString();
+      e.style.transition = "all 1.0s linear";
+      e.style.transitionProperty = property;
+      e.style.transitionDelay = `${-progress}s`;
+      e.style[property] = test_item.end;
+      let actual_value = e.computedStyleMap().get(property).toString();
+      e.style.transition = "";
+      assert_equals(actual_value, expected_value);
+    }, `value at progress ${progress} in animation of "${test_item.property}" from "${test_item.start}" to "${test_item.end}"`);
+  }
+}
+
+</script>

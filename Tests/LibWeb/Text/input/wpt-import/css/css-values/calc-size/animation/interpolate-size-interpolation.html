@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>interpolate-size animations</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+<body>
+<script>
+  test_not_animatable({
+    property: 'interpolate-size',
+    from: 'numeric-only',
+    to: 'allow-keywords',
+    underlying: 'numeric-only',
+  });
+  test_not_animatable({
+    property: 'interpolate-size',
+    from: 'allow-keywords',
+    to: 'numeric-only',
+    underlying: 'numeric-only',
+  });
+</script>

@@ -542,6 +542,7 @@ TEST_CASE(rust_interpolates_font_style_values)
 
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = true,
+        .allow_keyword_size_interpolation = false,
         .current_color = nullptr,
         .has_length_resolution_context = false,
         .length_resolution_context = {},
@@ -567,6 +568,7 @@ TEST_CASE(rust_interpolates_visibility_values)
     auto collapse = KeywordStyleValue::create(Keyword::Collapse);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = false,
+        .allow_keyword_size_interpolation = false,
         .current_color = nullptr,
         .has_length_resolution_context = false,
         .length_resolution_context = {},
@@ -613,6 +615,7 @@ TEST_CASE(rust_interpolates_content_visibility_values)
     auto auto_value = KeywordStyleValue::create(Keyword::Auto);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = false,
+        .allow_keyword_size_interpolation = false,
         .current_color = nullptr,
         .has_length_resolution_context = false,
         .length_resolution_context = {},
@@ -662,6 +665,7 @@ TEST_CASE(rust_interpolates_display_values)
     auto inline_value = DisplayStyleValue::create(inline_display);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = false,
+        .allow_keyword_size_interpolation = false,
         .current_color = nullptr,
         .has_length_resolution_context = false,
         .length_resolution_context = {},
@@ -1052,6 +1056,7 @@ TEST_CASE(rust_interpolates_stroke_dasharray_values)
     auto none = KeywordStyleValue::create(Keyword::None);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = true,
+        .allow_keyword_size_interpolation = false,
         .current_color = nullptr,
         .has_length_resolution_context = false,
         .length_resolution_context = {},
@@ -1351,6 +1356,7 @@ TEST_CASE(rust_resolves_percentage_transforms_against_a_reference_box_snapshot)
         StyleValueList::Separator::Space);
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = false,
+        .allow_keyword_size_interpolation = false,
         .current_color = nullptr,
         .has_length_resolution_context = false,
         .length_resolution_context = {},
@@ -1403,6 +1409,7 @@ TEST_CASE(rust_handles_non_invertible_transform_matrices_without_a_value)
 
     StyleValueFFI::FfiAnimationContext context {
         .allow_discrete = true,
+        .allow_keyword_size_interpolation = false,
         .current_color = nullptr,
         .has_length_resolution_context = false,
         .length_resolution_context = {},

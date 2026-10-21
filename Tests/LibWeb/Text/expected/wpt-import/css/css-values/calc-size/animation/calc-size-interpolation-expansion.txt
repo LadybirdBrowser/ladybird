@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+7 Pass
+4 Fail
+Pass	value at progress 0.75 in animation of "height" from "auto" to "calc-size(any, 0px)"
+Fail	value at progress 0.75 in animation of "height" from "0px" to "calc-size(calc-size(min-content, size + 20px), 2 * size)"
+Fail	value at progress 0.75 in animation of "height" from "calc-size(min-content, size * 4)" to "calc-size(calc-size(min-content, size + 20px), 2 * size)"
+Pass	value at progress 0.75 in animation of "width" from "calc-size(fit-content, 20px)" to "calc-size(calc-size(fit-content, 40px), size)"
+Fail	value at progress 0.75 in animation of "width" from "calc-size(any, 20px)" to "calc-size(calc-size(fit-content, 40px), size)"
+Pass	value at progress 0.75 in animation of "width" from "calc-size(calc-size(any, 30px), 20px)" to "calc-size(calc-size(fit-content, 40px), size)"
+Pass	value at progress 0.75 in animation of "width" from "calc-size(fit-content, 20px)" to "calc-size(calc-size(fit-content, 3 * size + 10px), min(size + 20px, 2 * size - 30px) + ((2 * size) + 80px))"
+Pass	value at progress 0.75 in animation of "width" from "calc-size(50%, size)" to "calc-size(calc-size(45%, (2 * size)), size + 20px)"
+Pass	value at progress 0.75 in animation of "width" from "calc-size(40%, size)" to "calc-size(calc-size(10px, (2 * size)), size + 20px)"
+Fail	value at progress 0.75 in animation of "width" from "calc-size(80px, size)" to "calc-size(calc-size(10px, (2 * size)), size + 20px)"
+Pass	value at progress 0.75 in animation of "width" from "calc-size(80px, size)" to "calc-size(calc-size(any, 20px), size + 20px)"
