@@ -9,6 +9,7 @@ pub(crate) mod caret;
 pub(crate) mod chrome_geometry;
 pub(crate) mod client_rects;
 pub(crate) mod content_visibility;
+pub(crate) mod corner_shape;
 pub(crate) mod css_filter;
 mod devtools_layout;
 pub mod display_list;

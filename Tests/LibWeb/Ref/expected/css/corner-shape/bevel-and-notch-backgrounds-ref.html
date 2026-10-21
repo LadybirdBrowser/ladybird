@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 10px; }
+    div { width: 100px; height: 60px; margin-bottom: 10px; background: green; }
+    .bevel { clip-path: polygon(20px 0, 80px 0, 100px 20px, 100px 40px, 80px 60px, 20px 60px, 0 40px, 0 20px); }
+    .notch { clip-path: polygon(20px 0, 80px 0, 80px 20px, 100px 20px, 100px 40px, 80px 40px, 80px 60px, 20px 60px, 20px 40px, 0 40px, 0 20px, 20px 20px); }
+    .mixed { clip-path: polygon(20px 0, 100px 0, 100px 40px, 80px 40px, 80px 60px, 0 60px, 0 20px); }
+</style>
+<div class="bevel"></div>
+<div class="notch"></div>
+<div class="mixed"></div>
