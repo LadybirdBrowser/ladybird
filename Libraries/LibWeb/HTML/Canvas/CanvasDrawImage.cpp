@@ -98,7 +98,9 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
         // HTMLOrSVGImageElement
         [](GC::Ref<HTMLImageElement> image) {
             // image's current request's image data is CORS-cross-origin.
-            return image->current_request().image_data()->is_cors_cross_origin();
+            // NB: WebGL asks before it knows that the image has image data.
+            auto image_data = image->current_request().image_data();
+            return image_data && image_data->is_cors_cross_origin();
         },
         [](GC::Ref<SVG::SVGImageElement>) {
             // FIXME: image's current request's image data is CORS-cross-origin.

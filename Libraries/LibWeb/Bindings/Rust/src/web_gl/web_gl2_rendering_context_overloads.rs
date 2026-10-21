@@ -193,7 +193,7 @@ impl RenderingContext<WebGL2> {
         r#type: u32,
         source: TexImageSource,
     ) -> WebIdlResult<()> {
-        let Some((frame, upload)) = self.read_texture_image_source(&source, format, r#type) else {
+        let Some((frame, upload)) = self.read_texture_image_source(&source, format, r#type)? else {
             return Ok(());
         };
         self.proxy
@@ -221,7 +221,7 @@ impl RenderingContext<WebGL2> {
             return Ok(());
         }
 
-        let Some((frame, mut upload)) = self.read_texture_image_source(&source, format, r#type) else {
+        let Some((frame, mut upload)) = self.read_texture_image_source(&source, format, r#type)? else {
             return Ok(());
         };
         upload.destination_size = Some((width, height));
@@ -329,7 +329,7 @@ impl RenderingContext<WebGL2> {
         r#type: u32,
         source: TexImageSource,
     ) -> WebIdlResult<()> {
-        let Some((frame, upload)) = self.read_texture_image_source(&source, format, r#type) else {
+        let Some((frame, upload)) = self.read_texture_image_source(&source, format, r#type)? else {
             return Ok(());
         };
         self.proxy
@@ -350,7 +350,7 @@ impl RenderingContext<WebGL2> {
         r#type: u32,
         source: TexImageSource,
     ) -> WebIdlResult<()> {
-        let Some((frame, mut upload)) = self.read_texture_image_source(&source, format, r#type) else {
+        let Some((frame, mut upload)) = self.read_texture_image_source(&source, format, r#type)? else {
             return Ok(());
         };
         upload.destination_size = Some((width, height));
