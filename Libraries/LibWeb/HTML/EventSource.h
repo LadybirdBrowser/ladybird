@@ -106,6 +106,7 @@ private:
 
     GC::Ptr<Fetch::Infrastructure::FetchAlgorithms> m_fetch_algorithms;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Ptr<Platform::Timer> m_reconnection_timer;
     GC::Ref<DOM::EventTarget> m_global_object;
 };
 

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const streamURL = await server.createEcho("GET", "/event-source-reconnect-after-error-event-handlers", {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream", "Access-Control-Allow-Origin": "*" },
+            body: "retry: 0\ndata: one\n\n",
+        });
+        const scriptURL = await server.createEcho("GET", "/event-source-reconnect-after-error-event-handlers.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript", "Access-Control-Allow-Origin": "*" },
+            body: "",
+            delay_ms: 250,
+        });
+
+        const worker = new Worker(URL.createObjectURL(new Blob([`
+            const source = new EventSource(${JSON.stringify(streamURL)});
+            let opens = 0;
+            let errors = 0;
+            source.onopen = () => ++opens;
+            source.onerror = () => {
+                if (++errors !== 1)
+                    return;
+                importScripts(${JSON.stringify(scriptURL)});
+                source.close();
+                postMessage(opens);
+            };
+        `])));
+        const opens = await new Promise(resolve => (worker.onmessage = event => resolve(event.data)));
+        worker.terminate();
+        println(`opens before close: ${opens}`);
+    });
+</script>

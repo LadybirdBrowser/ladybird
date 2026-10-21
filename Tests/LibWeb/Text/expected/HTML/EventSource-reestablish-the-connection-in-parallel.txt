@@ -1,0 +1,3 @@
+message: one
+readyState: 0
+resource timing entries: 1

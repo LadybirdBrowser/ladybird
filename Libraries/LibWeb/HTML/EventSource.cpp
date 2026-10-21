@@ -28,6 +28,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Platform/Timer.h>
 
 namespace Web::HTML {
 
@@ -228,6 +229,7 @@ void EventSource::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_request);
     visitor.visit(m_fetch_algorithms);
     visitor.visit(m_fetch_controller);
+    visitor.visit(m_reconnection_timer);
     visitor.visit(m_global_object);
 }
 
@@ -275,6 +277,8 @@ void EventSource::close()
     auto& realm = HTML::relevant_realm(relevant_global_object());
     if (m_fetch_controller)
         m_fetch_controller->abort(realm, {});
+    if (m_reconnection_timer)
+        m_reconnection_timer->stop();
 
     m_ready_state = ReadyState::Closed;
 }
@@ -288,6 +292,8 @@ void EventSource::forcibly_close()
     auto& realm = HTML::relevant_realm(relevant_global_object());
     if (m_fetch_controller)
         m_fetch_controller->abort(realm, {});
+    if (m_reconnection_timer)
+        m_reconnection_timer->stop();
 
     m_ready_state = ReadyState::Closed;
 }
@@ -309,11 +315,20 @@ void EventSource::announce_the_connection()
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#reestablish-the-connection
 void EventSource::reestablish_the_connection()
 {
-    IGNORE_USE_IN_ESCAPING_LAMBDA bool initial_task_has_run { false };
+    // OPTIMIZATION: readyState never leaves CLOSED, so both tasks below would return without doing anything.
+    if (m_ready_state == ReadyState::Closed)
+        return;
+
+    auto end_of_delay = MonotonicTime::now() + m_reconnection_time;
 
     // 1. Queue a task to run the following steps:
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), [&]() {
-        ScopeGuard guard { [&]() { initial_task_has_run = true; } };
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this, end_of_delay]() {
+        // NB: Step 4 waits for this task to finish, and an error event handler can spin a nested event loop. So the
+        //     timer for the rest of the delay of step 2 starts only once this task has finished.
+        ScopeGuard start_the_reconnection_timer { [this, end_of_delay] {
+            if (m_ready_state != ReadyState::Closed)
+                m_reconnection_timer->start(max(end_of_delay - MonotonicTime::now(), AK::Duration::zero()));
+        } };
 
         // 1. If the readyState attribute is set to CLOSED, abort the task.
         if (m_ready_state == ReadyState::Closed)
@@ -327,41 +342,38 @@ void EventSource::reestablish_the_connection()
     }));
 
     // 2. Wait a delay equal to the reconnection time of the event source.
-    HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&, delay_start = MonotonicTime::now()]() {
-        return (MonotonicTime::now() - delay_start) >= m_reconnection_time;
-    }));
+    m_reconnection_timer = Platform::Timer::create_single_shot(GC::Heap::the(), m_reconnection_time, GC::create_function(GC::Heap::the(), [this]() {
+        // 3. Optionally, wait some more. In particular, if the previous attempt failed, then user agents might introduce
+        //    an exponential backoff delay to avoid overloading a potentially already overloaded server. Alternatively, if
+        //    the operating system has reported that there is no network connectivity, user agents might wait for the
+        //    operating system to announce that the network connection has returned before retrying.
 
-    // 3. Optionally, wait some more. In particular, if the previous attempt failed, then user agents might introduce
-    //    an exponential backoff delay to avoid overloading a potentially already overloaded server. Alternatively, if
-    //    the operating system has reported that there is no network connectivity, user agents might wait for the
-    //    operating system to announce that the network connection has returned before retrying.
+        // 4. Wait until the aforementioned task has run, if it has not yet run.
+        // NB: The timer starts only once that task has run. See step 1.
 
-    // 4. Wait until the aforementioned task has run, if it has not yet run.
-    if (!initial_task_has_run) {
-        HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&]() { return initial_task_has_run; }));
-    }
+        // 5. Queue a task to run the following steps:
+        HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
+            // 1. If the EventSource object's readyState attribute is not set to CONNECTING, then return.
+            if (m_ready_state != ReadyState::Connecting)
+                return;
 
-    // 5. Queue a task to run the following steps:
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this]() {
-        // 1. If the EventSource object's readyState attribute is not set to CONNECTING, then return.
-        if (m_ready_state != ReadyState::Connecting)
-            return;
+            // 2. Let request be the EventSource object's request.
+            GC::Ref request { *m_request };
 
-        // 2. Let request be the EventSource object's request.
-        GC::Ref request { *m_request };
+            // 3. If the EventSource object's last event ID string is not the empty string, then:
+            if (!m_last_event_id.is_empty()) {
+                // 1. Let lastEventIDValue be the EventSource object's last event ID string, encoded as UTF-8.
+                auto last_event_id_value = m_last_event_id.to_utf8();
+                // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
+                auto header = HTTP::Header::isomorphic_encode("Last-Event-ID"sv, last_event_id_value);
+                request->header_list()->set(move(header));
+            }
 
-        // 3. If the EventSource object's last event ID string is not the empty string, then:
-        if (!m_last_event_id.is_empty()) {
-            // 1. Let lastEventIDValue be the EventSource object's last event ID string, encoded as UTF-8.
-            auto last_event_id_value = m_last_event_id.to_utf8();
-            // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
-            auto header = HTTP::Header::isomorphic_encode("Last-Event-ID"sv, last_event_id_value);
-            request->header_list()->set(move(header));
-        }
-
-        // 4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this section.
-        auto& realm = HTML::relevant_realm(relevant_global_object());
-        m_fetch_controller = Fetch::Fetching::fetch(realm, request, *m_fetch_algorithms);
+            // 4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this
+            //    section.
+            auto& realm = HTML::relevant_realm(relevant_global_object());
+            m_fetch_controller = Fetch::Fetching::fetch(realm, request, *m_fetch_algorithms);
+        }));
     }));
 }
 
