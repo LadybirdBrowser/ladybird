@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/canvas.html#path2d
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface Path2D {
     constructor(optional (Path2D or DOMString) path);
 

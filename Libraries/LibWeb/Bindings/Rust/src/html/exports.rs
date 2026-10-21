@@ -22,6 +22,7 @@ use libjs_rust::api::Vm;
 use super::canvas_gradient::CanvasGradient;
 use super::canvas_path::{self, CanvasPathError, RoundRectRadius};
 use super::canvas_pattern::CanvasPattern;
+use super::path2d::Path2D;
 use super::text_metrics::{TextMeasurements, TextMetrics};
 use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi};
 
@@ -404,4 +405,17 @@ pub unsafe extern "C" fn web_canvas_path_ellipse(
         counterclockwise,
     )
     .into()
+}
+
+/// The Gfx::Path of the Path2D, which the caller borrows.
+///
+/// # Safety
+///
+/// `path` must be a live cell, which outlives the use of the Gfx::Path, and nothing may change the path meanwhile.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_path2d_path(path: *mut c_void) -> *const c_void {
+    // SAFETY: The caller passes a live cell.
+    let path: &Path2D = unsafe { object_from_abi(path) };
+    // SAFETY: The caller keeps the path from changing while it reads it.
+    unsafe { path.path_unguarded() }.as_raw()
 }

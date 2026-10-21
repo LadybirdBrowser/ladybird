@@ -1084,7 +1084,7 @@ Canvas2DContextBase::PreparedText Canvas2DContextBase::prepare_text(Utf16View te
     return prepared_text;
 }
 
-void Canvas2DContextBase::clip_internal(Gfx::Path& path, Gfx::WindingRule winding_rule)
+void Canvas2DContextBase::clip_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
 {
     auto* recorder = canvas_recorder();
     if (!recorder)

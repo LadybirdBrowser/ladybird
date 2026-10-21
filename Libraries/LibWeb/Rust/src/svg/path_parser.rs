@@ -855,6 +855,17 @@ pub(super) fn svg_input(view: FfiUtf16View<'_>) -> Option<Input<'_>> {
     })
 }
 
+/// The path that the path data describes, as SVG parses it, with its error recovery: what parsing a string of path
+/// data gives Path2D's constructor, which is an empty path where the data describes none.
+pub fn gfx_path_from_path_data(input: ak::Utf16StringUnits<'_>) -> OwnedPath {
+    let input = match input {
+        ak::Utf16StringUnits::Ascii(units) => Input::Ascii(units),
+        ak::Utf16StringUnits::Utf16(units) => Input::Utf16(units),
+    };
+    let instructions = Parser::new(input).parse(true).unwrap_or_default();
+    ParsedPath { instructions }.to_gfx_path()
+}
+
 /// The path `input` describes, as a new path C++ owns, or null where it describes none.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_parse_svg_path_data(input: FfiUtf16View<'_>) -> *mut ParsedPath {

@@ -15,6 +15,44 @@ use core::fmt::LowerExp;
 
 use libgfx_rust::{AffineTransform, FloatPoint, FloatSize};
 
+use crate::geometry::dom_point_read_only::DOMPointInit;
+
+/// The union (unrestricted double or DOMPointInit) of HTML/Canvas/CanvasPath.idl, a radius of roundRect(), whose
+/// members the bindings convert.
+pub(crate) enum UnrestrictedDoubleOrDOMPointInit {
+    UnrestrictedDouble(f64),
+    DOMPointInit(DOMPointInit),
+}
+
+/// The union (unrestricted double or DOMPointInit or sequence<(unrestricted double or DOMPointInit)>) of
+/// HTML/Canvas/CanvasPath.idl, the radii of roundRect(), whose members the bindings convert.
+pub(crate) enum UnrestrictedDoubleOrDOMPointInitOrUnrestrictedDoubleOrDOMPointInitSequence {
+    UnrestrictedDouble(f64),
+    DOMPointInit(DOMPointInit),
+    Sequence(Vec<UnrestrictedDoubleOrDOMPointInit>),
+}
+
+impl From<UnrestrictedDoubleOrDOMPointInit> for RoundRectRadius {
+    fn from(radius: UnrestrictedDoubleOrDOMPointInit) -> Self {
+        match radius {
+            UnrestrictedDoubleOrDOMPointInit::UnrestrictedDouble(radius) => Self { x: radius, y: radius },
+            UnrestrictedDoubleOrDOMPointInit::DOMPointInit(point) => Self { x: point.x, y: point.y },
+        }
+    }
+}
+
+/// The radii of roundRect() as a list, which step 2 of its steps makes of a single radius.
+pub(crate) fn round_rect_radii(
+    radii: UnrestrictedDoubleOrDOMPointInitOrUnrestrictedDoubleOrDOMPointInitSequence,
+) -> Vec<RoundRectRadius> {
+    use UnrestrictedDoubleOrDOMPointInitOrUnrestrictedDoubleOrDOMPointInitSequence as Radii;
+    match radii {
+        Radii::UnrestrictedDouble(radius) => vec![UnrestrictedDoubleOrDOMPointInit::UnrestrictedDouble(radius).into()],
+        Radii::DOMPointInit(point) => vec![UnrestrictedDoubleOrDOMPointInit::DOMPointInit(point).into()],
+        Radii::Sequence(radii) => radii.into_iter().map(RoundRectRadius::from).collect(),
+    }
+}
+
 /// What the operations build on, which is a Gfx::Path, or what the crate tests record.
 pub(crate) trait PathSink {
     /// Whether the path has no current point.
