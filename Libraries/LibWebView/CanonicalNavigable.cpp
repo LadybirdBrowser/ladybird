@@ -1334,6 +1334,7 @@ void CanonicalNavigable::set_the_ongoing_navigation(OngoingNavigation value)
 
     // 3. Set navigable's ongoing navigation to newValue.
     m_ongoing_navigation = move(value);
+    notify_view_of_ongoing_navigation();
 
     if (superseded_navigation && superseded_navigation->ends_when_superseded())
         end_navigation(*superseded_navigation);
@@ -1381,8 +1382,18 @@ void CanonicalNavigable::set_ongoing_navigation_to_traversal(Web::HTML::CrossPro
 
 void CanonicalNavigable::clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id)
 {
-    if (auto const* traversal = m_ongoing_navigation.get_pointer<Traversal>(); traversal && traversal->operation_id == operation_id)
+    if (auto const* traversal = m_ongoing_navigation.get_pointer<Traversal>(); traversal && traversal->operation_id == operation_id) {
         m_ongoing_navigation = Empty {};
+        notify_view_of_ongoing_navigation();
+    }
+}
+
+void CanonicalNavigable::notify_view_of_ongoing_navigation() const
+{
+    if (!is_top_level_traversable())
+        return;
+    if (auto view = top_level_traversable().view(); view.has_value())
+        view->did_change_ongoing_navigation({});
 }
 
 void CanonicalNavigable::clear_ongoing_navigation()
@@ -1392,8 +1403,10 @@ void CanonicalNavigable::clear_ongoing_navigation()
 
 void CanonicalNavigable::end_navigation(CanonicalNavigation& navigation)
 {
-    if (auto navigation_id = ongoing_navigation_id(); navigation_id.has_value() && *navigation_id == navigation.navigation_id)
+    if (auto navigation_id = ongoing_navigation_id(); navigation_id.has_value() && *navigation_id == navigation.navigation_id) {
         m_ongoing_navigation = Empty {};
+        notify_view_of_ongoing_navigation();
+    }
     auto index = m_navigations.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &navigation; });
     VERIFY(index.has_value());
     auto ended_navigation = m_navigations.take(*index);

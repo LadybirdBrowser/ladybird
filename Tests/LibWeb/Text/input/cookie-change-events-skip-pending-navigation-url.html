@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A document whose navigation has not committed yet only gets change events for the cookies of its own URL.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const cookieSite = uniqueLocalhostHostname("cookie-change-pending");
+        const token = `cookie-change-pending-${runId}`;
+
+        const onCookieSite = url => {
+            const result = new URL(url);
+            result.hostname = cookieSite;
+            return result.href;
+        };
+
+        const pendingURL = onCookieSite(
+            await server.createEcho("GET", `/cookie-change-pending/${runId}/pending/target.html`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                body: "<!DOCTYPE html>",
+                wait_for_unblock: token,
+            })
+        );
+        const pendingPath = new URL(pendingURL).pathname.replace(/target\.html$/, "");
+
+        const currentURL = onCookieSite(
+            await server.createEcho("GET", `/cookie-change-pending/${runId}/current/top-level.html`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                body: `<!DOCTYPE html><script>
+                cookieStore.addEventListener("change", event => {
+                    for (const cookie of event.changed)
+                        opener.postMessage({ changed: cookie.name }, "*");
+                });
+                window.addEventListener("message", event => {
+                    if (event.data === "navigate") {
+                        location.href = ${JSON.stringify(pendingURL)};
+                    } else if (event.data === "set-cookies") {
+                        document.cookie = "pending=1; path=${pendingPath}";
+                        document.cookie = "control=1; path=/";
+                    }
+                });
+                opener.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+
+        const nextMessage = predicate =>
+            new Promise(resolve => {
+                window.addEventListener("message", function listener(event) {
+                    if (!predicate(event.data))
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve(event.data);
+                });
+            });
+
+        let message = nextMessage(data => data === "ready");
+        const popup = window.open(currentURL);
+        await message;
+
+        const changes = [];
+        window.addEventListener("message", event => {
+            if (event.data?.changed)
+                changes.push(event.data.changed);
+        });
+
+        popup.postMessage("navigate", "*");
+        const recordedRequestHeadersURL = server.recordedRequestHeadersURL(pendingURL);
+        while (!(await fetch(recordedRequestHeadersURL)).ok) { }
+
+        message = nextMessage(data => data?.changed === "control");
+        popup.postMessage("set-cookies", "*");
+        await message;
+
+        println(`Changes seen by the document being navigated away from: ${changes.join(", ")}`);
+
+        await fetch(new URL(`/unblock/${token}`, server.baseURL));
+        popup.close();
+        done();
+    });
+</script>

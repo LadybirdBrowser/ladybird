@@ -123,10 +123,12 @@ public:
     void did_change_display_page(Badge<CanonicalNavigable>, RefPtr<WebContentPage> previous_page);
     void did_cancel_loading(Badge<CanonicalNavigable>, bool canceled_navigation);
     void did_stop_loading(Badge<CanonicalTraversable>, bool stopped_navigation);
+    void did_change_ongoing_navigation(Badge<CanonicalNavigable>);
+    void did_change_active_document(Badge<CanonicalTraversable>);
 
-    void set_url(Badge<WebContentPage>, URL::URL url) { set_url(move(url)); }
     void set_text_fragment_indication_visibility(Badge<WebContentPage>, bool);
-    URL::URL const& url() const { return m_url; }
+    // The URL of the tab's active session history entry.
+    URL::URL url() const;
     URL::URL const& displayed_url() const { return m_displayed_url; }
 
     void set_title(Badge<WebContentPage>, Utf16String title);
@@ -623,7 +625,8 @@ protected:
 
     void set_owner_view(ViewImplementation const& owner_view) { m_owner_view_id = owner_view.view_id(); }
 
-    void set_url(URL::URL);
+    void did_update_url();
+    Optional<URL::URL const&> browser_ui_load_url() const;
     void update_displayed_url();
     void did_start_navigation();
     void did_finish_navigation();
@@ -757,7 +760,12 @@ protected:
     IsPrivate m_is_private { IsPrivate::No };
     NonnullRefPtr<BrowsingSession> m_session;
 
-    URL::URL m_url { URL::about_blank() };
+    // A load the browser's UI started, whose URL the address bar shows while it is the ongoing navigation.
+    struct BrowserUILoad {
+        Utf16String navigation_id;
+        URL::URL url;
+    };
+    Optional<BrowserUILoad> m_browser_ui_load;
     URL::URL m_displayed_url { URL::about_blank() };
     bool m_text_fragment_indication_is_visible { false };
     Utf16String m_title;

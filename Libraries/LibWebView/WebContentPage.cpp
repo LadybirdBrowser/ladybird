@@ -447,7 +447,6 @@ void WebContentPage::begin_top_level_load(URL::URL const& url)
     view.m_history_visit_transition_for_next_load = HistoryVisitTransition::Link;
     view.did_start_navigation();
 
-    view.set_url({}, url);
     view.set_title({}, Utf16String::from_utf8(url.serialize()));
     view.set_favicon({}, {});
     view.set_editing_history_state(false, false);
