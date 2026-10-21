@@ -268,7 +268,6 @@ pub enum CascadeAttachment {
 pub enum CascadeContinuationCeiling {
     Origin {
         origin_group: u8,
-        important: bool,
     },
     Layer {
         origin: u8,
@@ -329,7 +328,6 @@ impl CascadeStratum {
         match operator {
             CascadeOperator::Revert => Some(CascadeContinuationCeiling::Origin {
                 origin_group: self.origin_group,
-                important: self.important,
             }),
             CascadeOperator::RevertLayer => Some(CascadeContinuationCeiling::Layer {
                 origin: self.origin,
@@ -345,10 +343,10 @@ impl CascadeStratum {
 
     pub(crate) fn is_below(self, ceiling: CascadeContinuationCeiling) -> bool {
         match ceiling {
-            CascadeContinuationCeiling::Origin {
-                origin_group,
-                important,
-            } => self.origin_group != origin_group || self.important != important,
+            // https://drafts.csswg.org/css-cascade-5/#valdef-all-revert
+            // The cascaded value rolls back as if no rules of the reverting declaration's origin were
+            // specified, important or not, and a user declaration also rolls back past the author's.
+            CascadeContinuationCeiling::Origin { origin_group } => self.origin_group < origin_group,
             CascadeContinuationCeiling::Layer {
                 origin,
                 important: _,

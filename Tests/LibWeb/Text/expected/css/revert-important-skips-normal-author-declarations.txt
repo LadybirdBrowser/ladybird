@@ -1,0 +1,3 @@
+important: max-width=none color=rgb(0, 128, 0)
+normal: max-width=none color=rgb(0, 128, 0)
+important-color: max-width=100% color=rgb(0, 0, 0)

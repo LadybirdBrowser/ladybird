@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div { max-width: 100%; color: green; }
+    .important { max-width: revert !important; }
+    .normal { max-width: 50px; }
+    .normal { max-width: revert; }
+    .important-color { color: revert !important; }
+</style>
+<!-- An important author `revert` rolls back past every author declaration, normal ones included. -->
+<div class="important"></div>
+<div class="normal"></div>
+<div class="important-color"></div>
+<script>
+    test(() => {
+        for (const div of document.querySelectorAll("div")) {
+            const style = getComputedStyle(div);
+            println(`${div.className}: max-width=${style.maxWidth} color=${style.color}`);
+        }
+    });
+</script>
