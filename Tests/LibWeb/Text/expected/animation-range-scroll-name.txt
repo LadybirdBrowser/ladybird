@@ -1,0 +1,3 @@
+supports: true
+computed: scroll 10% scroll 90%
+rangeStart: scroll 20%

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/StringView.h>
 #include <AK/Types.h>
 #include <LibWeb/Animations/TimeValue.h>
 
@@ -23,6 +24,30 @@ enum class TimelineRangeName : u8 {
     ExitCrossing,
     Scroll,
 };
+
+// https://drafts.csswg.org/scroll-animations-1/#typedef-timeline-range-name
+inline StringView timeline_range_name_to_string(TimelineRangeName name)
+{
+    switch (name) {
+    case TimelineRangeName::None:
+        return "normal"sv;
+    case TimelineRangeName::Cover:
+        return "cover"sv;
+    case TimelineRangeName::Contain:
+        return "contain"sv;
+    case TimelineRangeName::Entry:
+        return "entry"sv;
+    case TimelineRangeName::Exit:
+        return "exit"sv;
+    case TimelineRangeName::EntryCrossing:
+        return "entry-crossing"sv;
+    case TimelineRangeName::ExitCrossing:
+        return "exit-crossing"sv;
+    case TimelineRangeName::Scroll:
+        return "scroll"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
 
 // One edge of an animation attachment range: a point measured from the start of a named timeline range, as a length
 // plus a percentage of the range.

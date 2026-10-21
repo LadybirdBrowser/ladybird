@@ -4882,6 +4882,43 @@ fn animation_range_edge(value: &StyleValueData, default_percentage: f64) -> (u8,
     }
 }
 
+/// One edge of an animation attachment range, as `animation_range_edge` describes it.
+#[repr(C)]
+pub struct FfiAnimationRangeEdge {
+    pub name: u8,
+    pub offset_px: f64,
+    pub offset_percentage: f64,
+}
+
+/// The edge a computed `animation-range-start` or `animation-range-end` value with a single item describes, for a range
+/// script sets. Answers false where the value has more than one item.
+///
+/// # Safety
+/// `value` must point at live style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_animation_range_edge(
+    value: *const c_void,
+    is_end: bool,
+    out: &mut FfiAnimationRangeEdge,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    let item = match value {
+        StyleValueData::ValueList { values, separator, .. } if *separator == 1 => match values.as_slice() {
+            [item] => item.data(),
+            _ => return false,
+        },
+        value => value,
+    };
+    let (name, offset_px, offset_percentage) = animation_range_edge(item, if is_end { 100.0 } else { 0.0 });
+    *out = FfiAnimationRangeEdge {
+        name,
+        offset_px,
+        offset_percentage,
+    };
+    true
+}
+
 /// Which of an element's animation lists a computation belongs to, in the host's own numbering:
 /// zero for the element itself, and the pseudo-element's value plus one for each pseudo-element.
 fn animation_slot(pseudo_kind: u8) -> crate::css::style::animations::AnimationSlot {

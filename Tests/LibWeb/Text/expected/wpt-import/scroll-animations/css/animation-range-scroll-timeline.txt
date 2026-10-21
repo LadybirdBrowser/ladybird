@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
-Fail	The animation-range-start CSS property maps to Animation's 'rangeStart' property
-Fail	The animation-range-end CSS property maps to Animation's 'rangeEnd' property
+4 Pass
+Pass	The animation-range-start CSS property maps to Animation's 'rangeStart' property
+Pass	The animation-range-end CSS property maps to Animation's 'rangeEnd' property
 Pass	The auto-aligned start time accounts for the animation-range-start property
 Pass	The effect duration accounts for the animation-range-* properties
