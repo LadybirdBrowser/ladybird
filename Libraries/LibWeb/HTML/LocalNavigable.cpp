@@ -5133,7 +5133,7 @@ void LocalNavigable::note_user_scroll_gesture_phase(Web::ScrollGesturePhase phas
     case Web::ScrollGesturePhase::None:
         m_user_scroll_gesture_travels_under_momentum = false;
         reset_momentum_fling_state();
-        m_wheel_user_scroll_gesture_hold = nullptr;
+        release_wheel_user_scroll_gesture_hold();
         break;
     case Web::ScrollGesturePhase::Ongoing:
     case Web::ScrollGesturePhase::Momentum: {
@@ -5143,7 +5143,7 @@ void LocalNavigable::note_user_scroll_gesture_phase(Web::ScrollGesturePhase phas
             reset_momentum_fling_state();
 
         if (m_wheel_user_scroll_gesture_hold && m_user_scroll_gesture_travels_under_momentum != travels_under_momentum)
-            m_wheel_user_scroll_gesture_hold = nullptr;
+            release_wheel_user_scroll_gesture_hold();
         m_user_scroll_gesture_travels_under_momentum = travels_under_momentum;
 
         if (!m_wheel_user_scroll_gesture_hold)
@@ -5154,12 +5154,31 @@ void LocalNavigable::note_user_scroll_gesture_phase(Web::ScrollGesturePhase phas
         m_user_scroll_gesture_travels_under_momentum = false;
         reset_momentum_fling_state();
         if (m_wheel_user_scroll_gesture_hold) {
-            m_wheel_user_scroll_gesture_hold = nullptr;
+            release_wheel_user_scroll_gesture_hold();
             break;
         }
         settle_user_scroll_gesture();
         break;
     }
+}
+
+void LocalNavigable::did_handle_wheel_event()
+{
+    if (!m_wheel_user_scroll_gesture_hold)
+        return;
+    if (!m_wheel_user_scroll_gesture_hold_expiry_timer) {
+        m_wheel_user_scroll_gesture_hold_expiry_timer = Core::Timer::create_single_shot(Compositing::user_scroll_settle_delay, [this] {
+            m_wheel_user_scroll_gesture_hold = nullptr;
+        });
+    }
+    m_wheel_user_scroll_gesture_hold_expiry_timer->restart();
+}
+
+void LocalNavigable::release_wheel_user_scroll_gesture_hold()
+{
+    if (m_wheel_user_scroll_gesture_hold_expiry_timer)
+        m_wheel_user_scroll_gesture_hold_expiry_timer->stop();
+    m_wheel_user_scroll_gesture_hold = nullptr;
 }
 
 void LocalNavigable::reset_momentum_fling_state()
@@ -5291,7 +5310,7 @@ void LocalNavigable::cancel_user_scroll_settlement()
         m_user_scroll_settle_timer->stop();
     m_pending_user_scrollend_targets.clear();
     m_compositor_user_scroll_gesture_hold = nullptr;
-    m_wheel_user_scroll_gesture_hold = nullptr;
+    release_wheel_user_scroll_gesture_hold();
 }
 
 void LocalNavigable::begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>)

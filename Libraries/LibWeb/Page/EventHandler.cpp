@@ -955,6 +955,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     ScopeGuard measure_next_pause_from_end_of_handling = [this] {
         if (m_wheel_scroll_latch.has_value())
             m_wheel_scroll_latch->gesture.did_handle_event(MonotonicTime::now());
+        m_navigable->did_handle_wheel_event();
     };
 
     // A wheel step is routed against the offsets the compositor holds now, which a step it just took may

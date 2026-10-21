@@ -411,6 +411,7 @@ public:
     void note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type);
     RefPtr<Painting::Scrollbar> scrollbar_dragged_by_compositor(Layout::BegunRead const& read, Web::ScrollbarDraggedByCompositor const&);
     void note_user_scroll_gesture_phase(Web::ScrollGesturePhase);
+    void did_handle_wheel_event();
     void defer_user_scroll_settlement();
     void snap_user_scroll_gestures_that_awaited_layout();
     void begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
@@ -514,6 +515,7 @@ private:
     void abandon_snapping_of_user_scroll_gesture(Web::AsyncScrollNodeStableID);
     void settle_user_scroll_gesture();
     void settle_user_scroll_gesture_if_input_deadline_passed();
+    void release_wheel_user_scroll_gesture_hold();
     void reset_momentum_fling_state();
     // Which of the latched gestures a settlement is for: every gesture that ran out of input, or only those left
     // waiting for layout by an earlier settlement.
@@ -612,6 +614,7 @@ private:
     RefPtr<Core::Timer> m_user_scroll_settle_timer;
     OwnPtr<UserScrollGestureHold> m_compositor_user_scroll_gesture_hold;
     OwnPtr<UserScrollGestureHold> m_wheel_user_scroll_gesture_hold;
+    RefPtr<Core::Timer> m_wheel_user_scroll_gesture_hold_expiry_timer;
     size_t m_user_scroll_gesture_hold_count { 0 };
     Compositing::SnapSelectionStrategy::Type m_user_scroll_input_intent { Compositing::SnapSelectionStrategy::Type::EndPosition };
     bool m_user_scroll_gesture_travels_under_momentum { false };
