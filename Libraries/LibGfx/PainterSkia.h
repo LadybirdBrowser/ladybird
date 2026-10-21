@@ -15,12 +15,16 @@
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
+#include <LibGfx/Point.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/WindingRule.h>
 
 namespace Gfx {
 
-struct CanvasGlyph;
+struct CanvasGlyph {
+    FloatPoint position;
+    u32 glyph_id { 0 };
+};
 
 class PainterSkia final {
 public:

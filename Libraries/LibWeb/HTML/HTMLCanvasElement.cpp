@@ -9,7 +9,6 @@
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/SharedImage.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DSettings.h>
 #include <LibWeb/Bindings/WebGLRenderingContextBase.h>

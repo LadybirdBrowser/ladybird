@@ -12,7 +12,6 @@
 #include <AK/GenericShorthands.h>
 #include <AK/String.h>
 #include <AK/TypeCasts.h>
-#include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
