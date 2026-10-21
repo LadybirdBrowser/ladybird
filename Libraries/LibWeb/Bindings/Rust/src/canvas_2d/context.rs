@@ -463,10 +463,16 @@ impl ContextState {
         let has_recorder = self.has_backing_storage() && self.recorder_is_ready();
 
         // 1. Clear canvas's bitmap to transparent black.
+        // NB: The clear is recorded after the reset of the recorder, which happens in step 4. The recorded clear is
+        //     then not under the transformation matrix and the clipping region of the drawing state that is reset,
+        //     so it clears the whole bitmap.
         if has_recorder {
             let rect = self.full_rect();
             let color = self.clear_color();
-            self.record(|recorder| recorder.clear_rect(rect, color));
+            self.record(|recorder| {
+                recorder.reset();
+                recorder.clear_rect(rect, color);
+            });
         }
 
         // 2. Empty the list of subpaths in the context's current default path.
@@ -477,7 +483,6 @@ impl ContextState {
         self.states.replace(vec![DrawingState::default()]);
 
         if has_recorder {
-            self.record(CanvasRecorder::reset);
             self.did_draw();
         }
     }
