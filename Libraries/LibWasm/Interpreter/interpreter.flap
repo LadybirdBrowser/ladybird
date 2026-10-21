@@ -306,14 +306,23 @@ inline fn call_host_function(function: u64, return_ip: u64, context_pointer: u64
 }
 
 # Call a function with compiled code, with its arguments on top of the operand stack. The runtime runs it and replaces
-# the arguments with its results; a trap in it leaves the interpreter from the compiled code.
+# the arguments with its results; a trap in it leaves the interpreter from the compiled code. An exception it throws
+# continues at the call, as with host functions.
 inline fn call_compiled_function(function: u64, return_ip: u64, context_pointer: u64) {
     store64([context_pointer, CONTEXT_ARGUMENTS], function);
     let top: u64 = vsp;
     store64([context_pointer, CONTEXT_ARGUMENT_1], top);
+    store64([context_pointer, CONTEXT_ARGUMENT_2], return_ip);
+    store64([context_pointer, CONTEXT_ARGUMENT_3], fp);
     # The helper may clobber every allocatable register, so nothing but its result is kept across it.
     ip = return_ip;
     let new_top: u64 = call_helper(wasm_runtime_call_compiled, context_pointer);
+    guard new_top != 0 else @cold {
+        trap(TRAP_RUNTIME);
+    };
+    if new_top == 1 @cold {
+        resume_at_handler();
+    }
     vsp = new_top;
     dispatch;
 }
@@ -840,6 +849,12 @@ handler Loop() @opcode(0x03) {
         # The runtime may run the rest of the function compiled from here (OSR), leaving its results on the operand
         # stack.
         let results_top: u64 = call_helper(wasm_runtime_tier_up, context_pointer);
+        if results_top == 1 {
+            resume_at_handler();
+        }
+        if results_top == 2 {
+            trap(TRAP_RUNTIME);
+        }
         if results_top != 0 {
             vsp = results_top;
             return_from_function();

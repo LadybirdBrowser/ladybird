@@ -213,6 +213,7 @@ impl Builder {
             self.push(value);
         }
         self.call_epoch += 1;
+        self.check_exception(func, call);
         Ok(())
     }
 }

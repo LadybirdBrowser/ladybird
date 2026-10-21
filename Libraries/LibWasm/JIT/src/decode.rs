@@ -113,7 +113,8 @@ pub enum Instruction {
     BrOnNonNull(u32),
     /// A `0xFC` instruction. The decoder keeps its index immediates (see `Decoder::misc_indices()`).
     Misc(u32),
-    /// A `0xFB` instruction, its immediates skipped.
+    /// A `0xFB` instruction. The decoder keeps its immediates (see `Decoder::gc_indices()`, `gc_heap_types()` and
+    /// `gc_flags()`).
     Gc(u32),
     /// A `0xFD` instruction. `checked` for the bounds-checked forms of accesses. The decoder keeps its immediates
     /// (see `Decoder::simd_argument()`, `simd_lane()` and `simd_bytes()`).
@@ -121,7 +122,7 @@ pub enum Instruction {
         sub_opcode: u32,
         checked: bool,
     },
-    /// A `0xFE` instruction, its immediates skipped.
+    /// A `0xFE` instruction. The decoder keeps its memory immediate (see `Decoder::atomic_argument()`).
     Atomic(u32),
     /// A v128 form of `local.get`, `local.set`, `local.tee`, `global.get`, `global.set`, `drop` or `select`
     /// (quickening rule 2), and its index immediate if it has one.
@@ -144,6 +145,10 @@ pub struct Decoder<'a> {
     simd_lane: u8,
     simd_bytes: [u8; 16],
     misc_indices: [u32; 2],
+    gc_indices: [u32; 2],
+    gc_heap_types: [HeapType; 2],
+    gc_flags: u8,
+    atomic_argument: MemoryArgument,
 }
 
 impl<'a> Decoder<'a> {
@@ -158,6 +163,10 @@ impl<'a> Decoder<'a> {
             simd_lane: 0,
             simd_bytes: [0; 16],
             misc_indices: [0; 2],
+            gc_indices: [0; 2],
+            gc_heap_types: [HeapType::Any; 2],
+            gc_flags: 0,
+            atomic_argument: MemoryArgument { memory: 0, offset: 0 },
         }
     }
 
@@ -182,6 +191,12 @@ impl<'a> Decoder<'a> {
         &self.targets
     }
 
+    /// The catch clauses of the last `try_table`, as its encoding has them: the kind (0 for catch, 1 catch_ref, 2
+    /// catch_all, 3 catch_all_ref), the tag and the label of each.
+    pub fn catch_clauses(&self) -> impl Iterator<Item = [u32; 3]> + '_ {
+        self.targets.as_chunks::<3>().0.iter().copied()
+    }
+
     /// The memory immediate of the last SIMD load or store.
     pub fn simd_argument(&self) -> MemoryArgument {
         self.simd_argument
@@ -196,6 +211,30 @@ impl<'a> Decoder<'a> {
     /// memory.copy, table.init and table.copy.
     pub fn misc_indices(&self) -> [u32; 2] {
         self.misc_indices
+    }
+
+    /// The index immediates of the last `0xFB` instruction with any, in order: a type index, then a field index, a
+    /// count, or a data or element segment index; for `array.copy`, the two type indices; for `br_on_cast` and
+    /// `br_on_cast_fail`, the label first.
+    pub fn gc_indices(&self) -> [u32; 2] {
+        self.gc_indices
+    }
+
+    /// The heap types of the last `ref.test`, `ref.cast` (the first only), `br_on_cast` or `br_on_cast_fail` (source,
+    /// then target).
+    pub fn gc_heap_types(&self) -> [HeapType; 2] {
+        self.gc_heap_types
+    }
+
+    /// The flags byte of the last `br_on_cast` or `br_on_cast_fail`: bit 0 for a nullable source, bit 1 for a
+    /// nullable target.
+    pub fn gc_flags(&self) -> u8 {
+        self.gc_flags
+    }
+
+    /// The memory immediate of the last atomic access.
+    pub fn atomic_argument(&self) -> MemoryArgument {
+        self.atomic_argument
     }
 
     /// The 16 bytes of the last `v128.const` or `i8x16.shuffle`.
@@ -402,12 +441,12 @@ impl<'a> Decoder<'a> {
             opcode::TRY_TABLE => {
                 let block_type = self.block_type();
                 let count = self.u32();
+                self.targets.clear();
                 for _ in 0..count {
                     let kind = self.byte();
-                    if kind < 2 {
-                        self.u32();
-                    }
-                    self.u32();
+                    let tag = if kind < 2 { self.u32() } else { 0 };
+                    let label = self.u32();
+                    self.targets.extend_from_slice(&[u32::from(kind), tag, label]);
                 }
                 Instruction::TryTable(block_type)
             }
@@ -459,7 +498,7 @@ impl<'a> Decoder<'a> {
                         self.byte();
                     }
                     Some(_) => {
-                        self.memory_argument();
+                        self.atomic_argument = self.memory_argument();
                     }
                     None => unreachable!("validated code has no unknown atomic instructions"),
                 }
@@ -507,21 +546,19 @@ impl<'a> Decoder<'a> {
         match sub_opcode {
             STRUCT_NEW | STRUCT_NEW_DEFAULT | ARRAY_NEW | ARRAY_NEW_DEFAULT | ARRAY_GET | ARRAY_GET_S | ARRAY_GET_U
             | ARRAY_SET | ARRAY_FILL => {
-                self.u32();
+                self.gc_indices = [self.u32(), 0];
             }
             STRUCT_GET | STRUCT_GET_S | STRUCT_GET_U | STRUCT_SET | ARRAY_NEW_FIXED | ARRAY_NEW_DATA
             | ARRAY_NEW_ELEM | ARRAY_COPY | ARRAY_INIT_DATA | ARRAY_INIT_ELEM => {
-                self.u32();
-                self.u32();
+                self.gc_indices = [self.u32(), self.u32()];
             }
             REF_TEST | REF_TEST_NULL | REF_CAST | REF_CAST_NULL => {
-                self.heap_type();
+                self.gc_heap_types[0] = self.heap_type();
             }
             BR_ON_CAST | BR_ON_CAST_FAIL => {
-                self.byte();
-                self.u32();
-                self.heap_type();
-                self.heap_type();
+                self.gc_flags = self.byte();
+                self.gc_indices[0] = self.u32();
+                self.gc_heap_types = [self.heap_type(), self.heap_type()];
             }
             _ => {}
         }

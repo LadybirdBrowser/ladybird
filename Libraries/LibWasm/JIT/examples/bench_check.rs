@@ -9,9 +9,10 @@
 //! globals afterwards. The imports are deterministic: WASI, with `clock_time_get` and `random_get` replaced by
 //! counters, and any other function import returns a clock in milliseconds of its result type, 100 * calls^2, so that
 //! both stores see the same. A case that runs longer than `--timeout SECONDS` (300) ends the process with a failure.
+//! `--compiled-only` runs and times only the compiled store, for timing.
 //!
 //! ```text
-//! bench_check [--timeout SECONDS] MODULE ENTRY [MODULE ENTRY]...
+//! bench_check [--timeout SECONDS] [--compiled-only] MODULE ENTRY [MODULE ENTRY]...
 //! ```
 
 #[path = "../tests/harness/mod.rs"]
@@ -124,6 +125,11 @@ fn main() {
         timeout = arguments[1].parse().expect("--timeout SECONDS");
         arguments.drain(..2);
     }
+    // For timing: runs only the compiled store, and compares nothing.
+    let compiled_only = arguments.first().is_some_and(|argument| argument == "--compiled-only");
+    if compiled_only {
+        arguments.drain(..1);
+    }
     // A watchdog, so that a case that hangs cannot hold the machine.
     static DEADLINE: AtomicU64 = AtomicU64::new(u64::MAX);
     static CURRENT: Mutex<String> = Mutex::new(String::new());
@@ -160,6 +166,19 @@ fn main() {
             let outcome = outcome(instance.store.invoke(function, &[]));
             (outcome, start.elapsed())
         };
+        let name = std::path::Path::new(path)
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        if compiled_only {
+            let (actual, jit_time) = run(&mut jit);
+            println!(
+                "timed     {name} ({actual:?}; {:.3} s compiled)",
+                jit_time.as_secs_f64()
+            );
+            continue;
+        }
         let (expected, interpreted_time) = run(&mut interpreted);
         let (actual, jit_time) = run(&mut jit);
         let mut problems = Vec::new();
@@ -176,11 +195,6 @@ fn main() {
         if let Some(difference) = state_difference(&interpreted.store, interpreted.instance, &jit.store, jit.instance) {
             problems.push(difference);
         }
-        let name = std::path::Path::new(path)
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .into_owned();
         if problems.is_empty() {
             println!(
                 "same      {name} ({expected:?}, exit {:?}; {:.2} s interpreted, {:.2} s compiled)",

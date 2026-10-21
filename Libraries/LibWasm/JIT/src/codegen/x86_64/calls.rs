@@ -11,7 +11,7 @@
 use super::{CodeGenerator, FP, SCRATCH, SP, fpr, gpr, precision, width};
 use crate::asm::{Address, Gpr, Width};
 use crate::convention::{self, Place};
-use crate::ir::{Func, Op, Type, Value};
+use crate::ir::{FLAG_CHECKS_EXCEPTION, Func, Op, Type, Value};
 use libwasm_module::abi::FunctionHeader;
 use std::mem::offset_of;
 
@@ -40,6 +40,9 @@ impl CodeGenerator<'_> {
                 let callee = gpr(convention::CALLEE_REGISTER);
                 self.asm
                     .call_m(&Address::new(callee, offset_of!(FunctionHeader, native_entry) as i32));
+                if node.flags & FLAG_CHECKS_EXCEPTION != 0 {
+                    self.exception_sites.push(self.asm.offset() as u32);
+                }
                 self.asm
                     .lea(Width::W64, SP, &Address::new(FP, -(self.frame_size as i32)));
             }

@@ -31,9 +31,8 @@ register allocation (`regalloc/verify.rs`).
 
 The JIT is meant to compile every function that validates, of any size: a hot function that does
 not compile would run interpreted forever. Until the JIT gets there, functions that use something it
-does not compile yet fail with `CompileFailure::Unsupported` and stay interpreted: exceptions, GC,
-atomics, accesses of memories without guard pages, and the SIMD instructions outside the slice
-`builder/simd.rs` lists. Nothing fails for its size, depth, number of locals or
+does not compile yet fail with `CompileFailure::Unsupported` and stay interpreted: exceptions. Nothing
+fails for its size, depth, number of locals or
 register pressure.
 
 ## 2. Decoding
@@ -41,7 +40,9 @@ register pressure.
 `Decoder` reads one instruction at a time from a validated, quickened body
 (`libwasm_engine::quickening`): plain loads and stores access memory 0, which is a memory32 with
 guard pages, and the bounds-checked forms are `0xFF` instructions. It reads every instruction the
-engine validates, so that the builder can skip unreachable code of any kind.
+engine validates, so that the builder can skip unreachable code of any kind. Accesses of other memories
+and of memory64s are the bounds-checked `0xFF` forms (`CheckedAccess`); atomic accesses are never
+quickened.
 
 ## 3. The IR
 
@@ -85,8 +86,14 @@ truncations, unless their flags say they cannot), and are neither removed nor mo
 | ReadField, WriteField | Fields of runtime data that change, like the size of a memory or table, or a segment's length. |
 | TableElement, TableStore | A table's element, after checking the index against its size. |
 | GlobalGet, GlobalSet | A global's value, through its storage pointer. Gets of immutable globals are pure. |
-| Load, Store | Memory 0 at base + zero-extended index + offset; may trap. |
-| VectorUnary, VectorBinary, VectorTernary | SIMD operations, by their sub-opcode: splats, lane-wise arithmetic, comparisons, shifts by an i32, bitselect, and reductions to an i32. |
+| Load, Store | Memory 0 at base + zero-extended index + offset; may trap. With a pointer or a GC object as the base and a zero index, any other address, like a checked access's or a field's. |
+| CheckedAddress | The address of an access of a memory without guard pages, or an atomic access, after checking it against the memory's size (and for atomics, its alignment). |
+| AtomicRmw, AtomicCompareExchange, AtomicFence | Atomic read-modify-write operations at an address (add, sub, and, or, xor, exchange), compare-exchange, and `atomic.fence`. |
+| Rtt | The runtime type of one of the module's types. |
+| I31New, I31Get | `ref.i31`, and the value of an i31 reference. |
+| ElementAddress | The address of an array's element, after checking the array for null and the index against its length. |
+| RefTest | Whether a reference matches a heap type, or for casts, a check that traps where it does not. |
+| VectorUnary, VectorBinary, VectorTernary | SIMD operations, by their sub-opcode: splats, lane-wise arithmetic, comparisons, conversions, shifts by an i32, bitselect and the relaxed multiply-adds, and reductions to an i32. |
 | ExtractLane, ReplaceLane, Shuffle | Lane access, and `i8x16.shuffle`. |
 | VectorLoad | A SIMD load of memory 0, by its sub-opcode (whole, extending, splatting or zero-filling); may trap. |
 | CalleeInstance | The instance a call of a function passes: the header's, or the caller's for host functions. |
@@ -122,7 +129,12 @@ structured control flow:
 - After a loop, the code goes on in a block of its own, so that the loop's blocks end where it does.
 - The quickened v128 forms of `local.get` and the like (`0xF4` to `0xFA`) build like the plain ones,
   since values carry their types. SIMD instructions keep their sub-opcode in the IR
-  (`builder/simd.rs`), so that one node kind per shape carries all of them.
+  (`builder/simd.rs`), so that one node kind per shape carries all of them; the shape comes from the
+  module's `simd_kind()` table. Lane loads and stores become scalar loads and stores with lane
+  insertions and extractions. Accesses of other memories and of memory64s check their address as the
+  core ones do (`CheckedAddress`) and access it with a zero index. Relaxed instructions get the interpreter's semantics: all but the
+  multiply-adds and dot products become their deterministic counterparts. A shuffle that uses one
+  operand names it twice, with lanes 0 to 15, so the other one need not stay live.
 
 Nodes fold as they are created (`builder/fold.rs`): integer constant folding and algebraic
 identities, constants to the right, `eqz` of a comparison as the inverted comparison, and divisions
@@ -263,6 +275,36 @@ does not preserve, so values stay in rbx and r12 to r15 across them. Growing cal
 helpers; fill, copy and init of memories and tables call the JIT's (`runtime.rs`), which return 0 or
 the trap code.
 
+**Memories without guard pages and atomics** (`builder/memories.rs`). An access of a memory64, or of
+a memory other than memory 0, is a `CheckedAddress` and a `Load` or `Store` at it. `CheckedAddress`
+computes the end of the access, index + offset + size, in 64 bits, trapping where that wraps around
+(only a memory64's can), compares it with the memory's size, and returns base + end - size. Atomic
+accesses take the same path for every memory, and check the end for alignment too, after the bounds,
+as the interpreter does. Atomic loads are plain loads, and stores are exchanges, as in the
+interpreter's lowering: on x86-64 that makes both sequentially consistent. Add, sub and exchange are
+`lock xadd` and `xchg`; and, or and xor are `lock cmpxchg` loops. `atomic.fence` is `mfence`. Waiting
+and notifying call the runtime; whether the memory is shared is part of its type, so waiting on an
+unshared memory traps, and notifying one wakes nobody, without a call.
+
+**GC** (`builder/gc.rs`). Objects are cells of the runtime's heap: the Rtt first, the address of the
+data, an array's length, then the data inline if it has at most 4096 bytes. A struct's fields are at
+constant offsets (8 bytes each, 16 for v128, packed and 32-bit values zero-extended in their word), so
+`struct.get` is a null check and a load at the object plus the field's offset; a large struct's data
+is reached through its address first. `array.get` and `array.set` access the element at its
+`ElementAddress`. Allocation, filling, copying and initializing from segments call the runtime
+(`Helper`); the allocation traps with `TRAP_RUNTIME` where the runtime returns null. `ref.test`,
+`ref.cast`, `br_on_cast` and `br_on_cast_fail` are a `RefTest`: abstract heap types test the
+reference's bits (an i31 has bit 0 set, a host value bits 1:0 equal to 0b10, a GC object neither) and
+the kind of the object's Rtt; concrete types compare the type's identity with the actual type's
+display at the expected type's depth, which the module's subtype chain gives at compile time.
+
+GC references in compiled frames need nothing of their own: the collector scans the stack
+conservatively, recognizes pointers into cells (so tagged references keep their cells alive), and
+every allocation is a call of the runtime, around which values live in stack slots or callee-saved
+registers. The one hazard is a pointer to data outside the heap, which does not keep its object
+alive; `ReadField` and `ElementAddress` are not pure, so such pointers are computed where they are
+used, while the object is live.
+
 ## 9. Code generation
 
 `codegen/x86_64/` lowers the blocks in linear order with x86-64-v3 instructions (VEX three-operand
@@ -270,6 +312,15 @@ float arithmetic, BMI1/BMI2 shifts and rotates, lzcnt, tzcnt, popcnt, and AVX2 f
 libjs_jit's encoders and the additions in its `asm/x86_64/extended.rs`, whose `vex()` encodes any
 VEX instruction from its opcode (`codegen/x86_64/vector.rs` names the SIMD ones). After each node, a value with a slot is stored
 there; a phi in a register with a slot is stored where its block starts.
+
+- **Vectors.** A vector node's output register differs from its inputs and temps, so lowerings may
+  write it first; xmm15 is their scratch, and `vector_temps()` says which take an extra register.
+  Where the interpreter's instruction sequence decides bits the spec leaves open (NaN payloads of
+  min and max, relaxed instructions), the lowering is the same sequence, so both tiers agree bit for
+  bit. Shift counts that are constants use the immediate forms, v128 constants that are an
+  instruction's r/m operand stay in the constant pool (`vector_constant_inputs()`), and shuffles
+  become one `vpshufd`, `vpalignr`, `vpunpck*dq`, `vshufps`, `vpblendd` or `vpshufb` where they can,
+  else two `vpshufb` and an or.
 
 - **Edges.** A jump moves its values and jumps unless its target comes next. A two-way branch whose
   taken edge needs moves jumps to a stub that moves them; its other edge moves inline. Where the

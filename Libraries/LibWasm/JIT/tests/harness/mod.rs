@@ -133,11 +133,48 @@ fn trap_exit_code(state: *mut SessionState) -> Vec<u8> {
 
 /// The code of functions the JIT did not compile.
 fn not_compiled_code(trap_exit: u64) -> Vec<u8> {
+    trap_stub(trap_exit, TRAP_NOT_COMPILED)
+}
+
+/// Code that traps with `code`.
+fn trap_stub(trap_exit: u64, code: u32) -> Vec<u8> {
     let mut asm = Assembler::new();
-    asm.mov_ri32(Gpr(convention::RDI), TRAP_NOT_COMPILED);
+    asm.mov_ri32(Gpr(convention::RDI), code);
     asm.mov_ri(Gpr(convention::R11), trap_exit);
     asm.jmp_r(Gpr(convention::R11));
     asm.finish().unwrap()
+}
+
+/// `RuntimeInfo::throw` of the harness: unwinds the exception in `arguments[0]` from the compiled frame whose fp is
+/// `arguments[1]` to the first exception site its callers return to. An exception that leaves compiled code traps with
+/// TRAP_UNCAUGHT_EXCEPTION, as host functions that throw do here.
+unsafe extern "C" fn throw(context: *mut ExecutionContext) -> u64 {
+    unsafe {
+        let [exception, frame, ..] = (*context).arguments;
+        let read = |address: u64| *(address as *const u64);
+        with_session(|session| {
+            let mut callee = frame;
+            loop {
+                let return_address = read(callee - 8);
+                let caller = read(callee - 16);
+                if session.exception_sites.contains(&return_address) {
+                    (*context).exception = exception;
+                    (*context).resume = [callee, caller, return_address];
+                    break;
+                }
+                if !session
+                    .functions
+                    .iter()
+                    .any(|(start, end)| (*start..*end).contains(&return_address))
+                {
+                    (*context).resume = [callee, callee, session.uncaught];
+                    break;
+                }
+                callee = caller;
+            }
+        });
+        context as u64
+    }
 }
 
 fn restore_and_return(asm: &mut Assembler, status: u32) {
@@ -297,6 +334,11 @@ struct Session {
     state: Box<SessionState>,
     runtime: RuntimeInfo,
     not_compiled: u64,
+    /// The stub that traps with TRAP_UNCAUGHT_EXCEPTION, where an exception that leaves compiled code continues.
+    uncaught: u64,
+    /// The code of compiled functions, and their calls that handle exceptions.
+    functions: Vec<(u64, u64)>,
+    exception_sites: std::collections::HashSet<u64>,
     trampolines: HashMap<Signature, u64>,
     host_stubs: HashMap<Signature, u64>,
 }
@@ -309,6 +351,7 @@ impl Session {
         // Every code space starts with its trap exit, which the fault handler sends faults to.
         let trap_exit = space.add(&[&trap_exit_code(&raw mut *state)])[0];
         let not_compiled = space.add(&[&not_compiled_code(trap_exit)])[0];
+        let uncaught = space.add(&[&trap_stub(trap_exit, libwasm_engine::abi::TRAP_UNCAUGHT_EXCEPTION)])[0];
         CODE_RANGES
             .lock()
             .unwrap()
@@ -321,8 +364,16 @@ impl Session {
                 memory_grow: helpers::wasm_runtime_memory_grow as *const () as u64,
                 table_grow: helpers::wasm_runtime_table_grow as *const () as u64,
                 call_host: helpers::wasm_runtime_call_host as *const () as u64,
+                allocate: helpers::wasm_runtime_allocate as *const () as u64,
+                wait: helpers::wasm_runtime_wait as *const () as u64,
+                notify: helpers::wasm_runtime_notify as *const () as u64,
+                allocate_exception: libwasm_engine::runtime::jit::wasm_runtime_allocate_exception as *const () as u64,
+                throw: throw as *const () as u64,
             },
             not_compiled,
+            uncaught,
+            functions: Vec::new(),
+            exception_sites: std::collections::HashSet::new(),
             trampolines: HashMap::new(),
             host_stubs: HashMap::new(),
         }
@@ -400,13 +451,22 @@ impl CompiledModule {
                 options,
             };
             match libwasm_jit::compile(&mut context, &request) {
-                Ok(compiled) => codes.push((index, compiled.code)),
+                Ok(compiled) => codes.push((index, compiled.code, compiled.exception_sites)),
                 Err(failure) => *slot = Some(failure),
             }
         }
-        let slices = codes.iter().map(|(_, code)| code.as_slice()).collect::<Vec<_>>();
-        let addresses = with_session(|session| session.space.add(&slices));
-        for ((index, _), address) in codes.iter().zip(addresses) {
+        let slices = codes.iter().map(|(_, code, _)| code.as_slice()).collect::<Vec<_>>();
+        let addresses = with_session(|session| {
+            let addresses = session.space.add(&slices);
+            for ((_, code, sites), address) in codes.iter().zip(&addresses) {
+                session.functions.push((*address, *address + code.len() as u64));
+                session
+                    .exception_sites
+                    .extend(sites.iter().map(|offset| *address + u64::from(*offset)));
+            }
+            addresses
+        });
+        for ((index, _, _), address) in codes.iter().zip(addresses) {
             entries[*index] = address;
         }
         // A function runs compiled if it and every function it calls directly compiled.

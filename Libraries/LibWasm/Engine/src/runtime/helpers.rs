@@ -205,7 +205,13 @@ unsafe fn throw(context: *mut ExecutionContext) -> u64 {
 /// Find the handler of `exception`, thrown by the instruction at `pc` in the frame `frame`, in that frame or the ones
 /// it was called from, up to where the runtime entered the interpreter. If there is one, push what the handler
 /// receives and put where it continues into the context's arguments.
-unsafe fn unwind(context: *mut ExecutionContext, store: &Store, exception: u64, mut frame: u64, mut pc: u64) -> bool {
+pub(crate) unsafe fn unwind(
+    context: *mut ExecutionContext,
+    store: &Store,
+    exception: u64,
+    mut frame: u64,
+    mut pc: u64,
+) -> bool {
     let read = |address: u64| unsafe { *(address as *const u64) };
     let thrown_tag = store.exception(exception).tag;
     loop {

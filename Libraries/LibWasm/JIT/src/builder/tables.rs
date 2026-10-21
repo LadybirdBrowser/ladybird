@@ -19,7 +19,7 @@ const PAGE_SHIFT: u64 = 16;
 
 impl Builder {
     /// A call of the runtime's `helper` with `operands`, whose value has type `ty`.
-    fn helper(&mut self, func: &mut Func, helper: Helper, operands: &[Value], ty: Type) -> Value {
+    pub(super) fn helper(&mut self, func: &mut Func, helper: Helper, operands: &[Value], ty: Type) -> Value {
         let start = func.operands.len() as u32;
         func.operands.push(self.instance);
         for &operand in operands {
@@ -35,7 +35,7 @@ impl Builder {
     }
 
     /// The address of passive segment `index` in the instance's array of them at `offset`.
-    fn segment(&mut self, func: &mut Func, offset: usize, index: u32) -> Value {
+    pub(super) fn segment(&mut self, func: &mut Func, offset: usize, index: u32) -> Value {
         let segments = self.instance_field(func, offset);
         self.pure(
             func,

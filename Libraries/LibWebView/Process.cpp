@@ -113,6 +113,7 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
         "LC_"sv,
         "LIBGC_"sv,
         "LIBJS_"sv,
+        "LIBWASM_"sv,
         "LIBWEB_"sv,
         "LSAN_"sv,
         "RUST_"sv,

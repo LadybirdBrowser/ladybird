@@ -10,10 +10,13 @@
 //! addresses and its own data through rip-relative operands.
 
 mod calls;
+mod gc;
 mod memory;
 mod numeric;
 mod tables;
 mod vector;
+
+pub(crate) use vector::{is_vector_shift, vector_constant_inputs, vector_temps};
 
 use crate::RuntimeInfo;
 use crate::asm::x86_64::{Assembler, BitwiseOp, Cond, Precision, VexOperand};
@@ -75,6 +78,8 @@ pub(crate) fn condition(condition: IntCondition) -> Cond {
 pub struct Generated {
     pub code: Vec<u8>,
     pub frame_size: u32,
+    /// The offsets of the return addresses of calls that check for an exception once they return.
+    pub exception_sites: Vec<u32>,
 }
 
 /// Out-of-line code for an edge that needs moves: its label, the edge's slot and its target.
@@ -102,6 +107,7 @@ pub struct CodeGenerator<'a> {
     frame_size: u32,
     /// The block whose code is being generated.
     block: BlockId,
+    exception_sites: Vec<u32>,
 }
 
 impl<'a> CodeGenerator<'a> {
@@ -127,6 +133,7 @@ impl<'a> CodeGenerator<'a> {
             constants: Vec::new(),
             frame_size: size.next_multiple_of(16),
             block: 0,
+            exception_sites: Vec::new(),
         }
     }
 
@@ -171,6 +178,7 @@ impl<'a> CodeGenerator<'a> {
         Ok(Generated {
             code,
             frame_size: self.frame_size,
+            exception_sites: self.exception_sites,
         })
     }
 
@@ -221,6 +229,28 @@ impl<'a> CodeGenerator<'a> {
                 self.store_to_slot(record.output, slot, node.ty == Type::V128);
             }
         }
+    }
+
+    /// Has the runtime unwind the exception in `exception` from this frame, and continues where it says: at a call
+    /// that checks for exceptions, or in the entry trampoline.
+    fn throw(&mut self, exception: Gpr) {
+        let context = SCRATCH;
+        self.asm
+            .mov_rm(Width::W64, context, &Address::new(FP, convention::FRAME_INSTANCE));
+        self.asm.mov_rm(
+            Width::W64,
+            context,
+            &Address::new(context, offset_of!(InstanceData, context) as i32),
+        );
+        let arguments = offset_of!(ExecutionContext, arguments) as i32;
+        self.asm
+            .mov_mr(Width::W64, &Address::new(context, arguments), exception);
+        self.asm.mov_mr(Width::W64, &Address::new(context, arguments + 8), FP);
+        self.asm.mov_rr(Width::W64, Gpr(convention::RDI), context);
+        let target = Gpr(convention::RAX);
+        self.asm.mov_ri(target, self.runtime.throw);
+        self.asm.call_r(target);
+        crate::stubs::resume(&mut self.asm, target);
     }
 
     fn epilogue(&mut self) {
@@ -590,6 +620,7 @@ impl<'a> CodeGenerator<'a> {
                 let label = self.trap_label(node.args[0]);
                 self.asm.jmp(label);
             }
+            Op::Throw => self.throw(gpr(record.inputs[0])),
             _ => unreachable!("{} is no terminator", node.op.name()),
         }
     }
@@ -656,6 +687,15 @@ impl<'a> CodeGenerator<'a> {
             | Op::CheckFunction
             | Op::Helper => self.lower_runtime(value),
             Op::VectorLoad => self.lower_memory(value),
+            Op::CheckedAddress
+            | Op::AtomicRmw
+            | Op::AtomicCompareExchange
+            | Op::AtomicFence
+            | Op::Rtt
+            | Op::I31New
+            | Op::I31Get
+            | Op::ElementAddress
+            | Op::RefTest => self.lower_gc(value),
             Op::VectorUnary
             | Op::VectorBinary
             | Op::VectorTernary

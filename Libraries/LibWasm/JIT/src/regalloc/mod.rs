@@ -22,6 +22,7 @@
 pub mod liveness;
 pub mod verify;
 
+use crate::codegen;
 use crate::convention::{self, Place, Register};
 use crate::ir::{BlockId, Func, NONE, Op, Type, Value};
 use crate::passes::cleanup::Liveliness;
@@ -124,6 +125,8 @@ enum Input {
     Fixed(Register),
     /// A register, or the constant itself if it fits the instruction as an immediate.
     RegisterOrConstant,
+    /// A register, or a v128 constant itself, which the instruction reads from the constant pool.
+    RegisterOrVectorConstant,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -228,7 +231,7 @@ fn constraints(func: &Func, value: Value) -> Constraints {
         Op::ConvertU if input_type(0) == Type::I64 => {
             constraints.temps[0] = Temp::Gpr;
         }
-        Op::Load => {
+        Op::Load | Op::VectorLoad => {
             if fits_displacement(func, node.args[1], node.args[2]) {
                 constraints.inputs[1] = Input::RegisterOrConstant;
             }
@@ -243,18 +246,61 @@ fn constraints(func: &Func, value: Value) -> Constraints {
         Op::GlobalSet => constraints.inputs[1] = Input::RegisterOrConstant,
         Op::WriteField => constraints.inputs[1] = Input::RegisterOrConstant,
         Op::CheckFunction => constraints.temps = [Temp::Gpr, Temp::Gpr],
-        Op::BrTable => constraints.temps[0] = Temp::Gpr,
-        Op::Shuffle | Op::VectorTernary => constraints.temps[0] = Temp::Fpr,
-        Op::VectorUnary
+        Op::CheckedAddress => {
+            let size = 1u64 << (node.flags & 7);
+            let offset = func.node(node.args[2]).constant();
+            // NB: A memory64's offset can be close enough to 2^64 that adding the size wraps around.
+            if offset
+                .and_then(|offset| offset.checked_add(size))
+                .is_some_and(|end| end <= i32::MAX as u64)
+            {
+                constraints.inputs[2] = Input::RegisterOrConstant;
+            }
+        }
+        Op::AtomicRmw => {
+            constraints.temps[0] = Temp::Fixed(RAX);
             if matches!(
-                node.args[1],
-                libwasm_module::opcode::simd::I8X16_ALL_TRUE
-                    | libwasm_module::opcode::simd::I16X8_ALL_TRUE
-                    | libwasm_module::opcode::simd::I32X4_ALL_TRUE
-                    | libwasm_module::opcode::simd::I64X2_ALL_TRUE
-            ) =>
-        {
-            constraints.temps[0] = Temp::Fpr;
+                crate::ir::AtomicOp::from_index(node.args[2]),
+                crate::ir::AtomicOp::And | crate::ir::AtomicOp::Or | crate::ir::AtomicOp::Xor
+            ) {
+                constraints.temps[1] = Temp::Gpr;
+            }
+            constraints.clobbers = 1 << RAX;
+            constraints.output = Output::Fixed(RAX);
+        }
+        Op::AtomicCompareExchange => {
+            constraints.inputs[1] = Input::Fixed(RAX);
+            constraints.clobbers = 1 << RAX;
+            constraints.output = Output::Fixed(RAX);
+        }
+        Op::RefTest => {
+            constraints.inputs[1] = Input::RegisterOrConstant;
+            constraints.temps = match crate::ir::HeapTest::from_flags(node.flags) {
+                crate::ir::HeapTest::Struct | crate::ir::HeapTest::Array | crate::ir::HeapTest::ConcreteObject => {
+                    [Temp::Gpr, Temp::None]
+                }
+                crate::ir::HeapTest::ConcreteFunction => [Temp::Gpr, Temp::Gpr],
+                _ => [Temp::None, Temp::None],
+            };
+        }
+        Op::BrTable => constraints.temps[0] = Temp::Gpr,
+        Op::Shuffle | Op::VectorUnary | Op::VectorBinary | Op::VectorTernary => {
+            for temp in constraints
+                .temps
+                .iter_mut()
+                .take(codegen::x86_64::vector_temps(func, value))
+            {
+                *temp = Temp::Fpr;
+            }
+            if node.op == Op::VectorBinary && codegen::x86_64::is_vector_shift(node.args[2]) {
+                constraints.inputs[1] = Input::RegisterOrConstant;
+            }
+            let constants = codegen::x86_64::vector_constant_inputs(func, value);
+            for (index, input) in constraints.inputs.iter_mut().enumerate() {
+                if constants & (1 << index) != 0 {
+                    *input = Input::RegisterOrVectorConstant;
+                }
+            }
         }
         _ => {}
     }
@@ -914,6 +960,9 @@ impl Allocator {
             match constraints.inputs[index] {
                 Input::Fixed(_) => continue,
                 Input::RegisterOrConstant if func.node(input).op.is_constant() && fits_immediate(func, input) => {
+                    registers[index] = CONSTANT_INPUT;
+                }
+                Input::RegisterOrVectorConstant if func.node(input).op == Op::Const128 => {
                     registers[index] = CONSTANT_INPUT;
                 }
                 _ => {

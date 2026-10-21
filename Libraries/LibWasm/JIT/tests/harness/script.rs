@@ -77,7 +77,8 @@ pub fn same_value(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::F32(x), Value::F32(y)) => x == y || (f32::from_bits(*x).is_nan() && f32::from_bits(*y).is_nan()),
         (Value::F64(x), Value::F64(y)) => x == y || (f64::from_bits(*x).is_nan() && f64::from_bits(*y).is_nan()),
-        // NB: References are addresses, which differ between the stores.
+        // NB: References are addresses, which differ between the stores, but i31 references are their values.
+        (Value::Ref(x), Value::Ref(y)) if x & 1 != 0 || y & 1 != 0 => x == y,
         (Value::Ref(x), Value::Ref(y)) => (*x == 0) == (*y == 0),
         _ => a == b,
     }
@@ -156,7 +157,12 @@ fn vector_argument(json: &Json) -> Option<Value> {
     };
     let mut vector = 0u128;
     for (index, lane) in lanes.iter().enumerate() {
-        let lane = lane.as_str()?.parse::<u64>().ok()?;
+        // NB: Some scripts write lanes as signed numbers.
+        let lane = lane.as_str()?;
+        let lane = lane
+            .parse::<u64>()
+            .ok()
+            .or_else(|| lane.parse::<i64>().ok().map(|lane| lane as u64))?;
         let mask = if bits == 64 { u64::MAX } else { (1 << bits) - 1 };
         vector |= u128::from(lane & mask) << (index * bits);
     }
