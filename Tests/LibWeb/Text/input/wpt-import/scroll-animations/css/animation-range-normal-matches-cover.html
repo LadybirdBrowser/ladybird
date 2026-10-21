@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="help" src="https://drafts.csswg.org/scroll-animations-1/#named-timeline-range">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="support/testcommon.js"></script>
+<script src="../../scroll-animations/scroll-timelines/testcommon.js"></script>
+<title>Animation range 'normal' is equivalent to animation range 'cover'</title>
+</head>
+<style type="text/css">
+  @keyframes anim-1 {
+    from { background-color:  blue; }
+    to { background-color:  white; }
+  }
+  @keyframes anim-2 {
+    from { opacity: 0.3; }
+    to { opacity:  1; }
+  }
+  #scroller {
+    border:  10px solid lightgray;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    width: 300px;
+    height: 200px;
+  }
+  #target {
+    margin-top:  800px;
+    margin-bottom: 800px;
+    margin-left:  10px;
+    margin-right:  10px;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+    background-color: green;
+    animation:  anim-1 auto linear, anim-2 auto linear;
+    animation-range:  normal, cover;
+    view-timeline:  --t1;
+    animation-timeline:  --t1, --t1;
+  }
+</style>
+<body>
+  <div id="scroller">
+    <div id="target"></div>
+  </div>
+</body>
+<script type="text/javascript">
+  async function runTest() {
+    function assert_range_equals(actual, expected) {
+      if (typeof expected == 'string') {
+        assert_equals(actual, expected);
+      } else {
+        assert_equals(actual.rangeName, expected.rangeName);
+        assert_equals(actual.offset.value, expected.offset.value);
+      }
+    }
+
+    promise_test(async t => {
+      anims = target.getAnimations();
+      assert_equals(anims.length, 2, "Expecting 2 animations");
+      await anims[0].ready;
+      await anims[1].ready;
+
+      assert_range_equals(anims[0].rangeStart, "normal");
+      assert_range_equals(anims[0].rangeEnd, "normal");
+      assert_range_equals(anims[1].rangeStart,
+                          { rangeName: 'cover', offset: CSS.percent(0) });
+      assert_range_equals(anims[1].rangeEnd,
+                          { rangeName: 'cover', offset: CSS.percent(100) });
+
+      await runAndWaitForFrameUpdate(() => {
+        scroller.scrollTop = 600;  // Start boundary for cover range.
+      });
+
+      assert_percents_equal(anims[0].currentTime, 0,
+                            'currentTime at start of normal range');
+      assert_percents_equal(anims[1].currentTime, 0,
+                            'currentTime at cover 0%');
+
+      scroller.scrollTop = 900;  // End boundary for cover range.
+      await waitForNextFrame();
+
+      assert_percents_equal(anims[0].currentTime, 100,
+                            'currentTime at end of normal range');
+      assert_percents_equal(anims[1].currentTime, 100,
+                            'currentTime at cover 100%');
+    }, 'Changing the animation range updates the play state');
+  }
+
+  window.onload = runTest;
+</script>

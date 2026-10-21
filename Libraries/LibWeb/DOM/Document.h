@@ -1201,6 +1201,13 @@ public:
     void restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry);
 
     GC::Ref<Animations::DocumentTimeline> timeline();
+
+    // The scroll progress timelines and view progress timelines the elements of the document declare by name.
+    Animations::NamedTimelines& named_timelines();
+    bool has_named_timelines() const { return m_named_timelines != nullptr; }
+    // Moves on whenever the timelines an element declares by name, or the timeline names it scopes, may have changed.
+    u64 timeline_declarations_generation() const { return m_timeline_declarations_generation; }
+    void did_change_timeline_declarations() { ++m_timeline_declarations_generation; }
     auto const& last_animation_frame_timestamp() const { return m_last_animation_frame_timestamp; }
 
     void associate_with_timeline(GC::Ref<Animations::AnimationTimeline>);
@@ -2204,6 +2211,8 @@ private:
 
     // https://www.w3.org/TR/web-animations-1/#document-default-document-timeline
     GC::Ptr<Animations::DocumentTimeline> m_default_timeline;
+    GC::Ptr<Animations::NamedTimelines> m_named_timelines;
+    u64 m_timeline_declarations_generation { 0 };
     Optional<double> m_last_animation_frame_timestamp;
 
     // https://www.w3.org/TR/web-animations-1/#pending-animation-event-queue

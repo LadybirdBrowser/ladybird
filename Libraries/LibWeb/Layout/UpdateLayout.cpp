@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/AttributeNames.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -320,6 +321,11 @@ bool Document::let_layout_fly(Layout::RustFFI::FfiFlightBlocker blocker)
     update_style();
     auto navigable = this->navigable();
     if (!navigable || navigable->active_document().ptr() != this || !m_layout_node_arena)
+        return false;
+    // The style update may have given the document what keeps its layout in step, such as the first animation that
+    // names its timeline.
+    blocker = HTML::main_thread_event_loop().style_flight_blocker(*this);
+    if (blocker != Layout::RustFFI::FfiFlightBlocker::None)
         return false;
     Layout::ForcedReadScope read { *this };
     update_highlight_states_if_needed(read);

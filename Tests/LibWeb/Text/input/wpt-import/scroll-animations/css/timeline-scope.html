@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<title>Behavior of the timeline-scope property</title>
+<link rel="help" src="https://github.com/w3c/csswg-drafts/issues/7759">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+
+<main id=main></main>
+<script>
+  async function inflate(t, template) {
+    t.add_cleanup(() => main.replaceChildren());
+    return runAndWaitForFrameUpdate(() => {
+       main.append(template.content.cloneNode(true));
+    });
+  }
+
+  async function scrollTop(e, value) {
+    e.scrollTop = value;
+    await waitForNextFrame();
+  }
+</script>
+<style>
+  @keyframes anim {
+    from { width: 0px; }
+    to { width: 200px; }
+  }
+
+  .scroller {
+    overflow-y: hidden;
+    width: 200px;
+    height: 200px;
+  }
+  .scroller > .content {
+    margin: 400px 0px;
+    width: 100px;
+    height: 100px;
+    background-color: green;
+  }
+  .target {
+    background-color: coral;
+    width: 0px;
+    animation: anim auto linear;
+    animation-timeline: --t1;
+  }
+  .timeline {
+    scroll-timeline-name: --t1;
+  }
+  .scope {
+    timeline-scope: --t1;
+  }
+
+</style>
+
+<!-- Basic Behavior -->
+
+<template id=default_visible>
+  <div class=target>Test</div>
+  <div class="scroller timeline">
+    <div class=content></div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, default_visible);
+    let scroller = main.querySelector('.scroller');
+    let target = main.querySelector('.target');
+
+    const anim = target.getAnimations()[0];
+    await anim.ready;
+
+    await scrollTop(scroller, 350); // 50%
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+  }, 'Timelines are visible by default');
+</script>
+
+<template id=visible_in_scope_subtree>
+  <div class="scope">
+    <div class=target>Test</div>
+    <div class="scroller timeline">
+      <div class=content></div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, visible_in_scope_subtree);
+    let scroller = main.querySelector('.scroller');
+    let target = main.querySelector('.target');
+
+    const anim = target.getAnimations()[0];
+    await anim.ready;
+
+    await scrollTop(scroller, 350); // 50%
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+  }, 'Descendant can attach to a timeline under the same timeline-scope');
+</script>
+
+<template id=out_of_scope_subtree>
+  <div class="scope">
+    <div class=target>Test</div>
+  </div>
+  <div class="scroller timeline">
+    <div class=content></div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, out_of_scope_subtree);
+    let scroller = main.querySelector('.scroller');
+    let target = main.querySelector('.target');
+    await scrollTop(scroller, 350); // 50%
+    assert_equals(getComputedStyle(target).width, '0px');
+  }, 'Timeline outside of the target\'s scope subtree is inaccessible');
+</script>
+
+<template id=out_of_scope_subtree_different_name>
+  <div style="timeline-scope: --t2;">
+    <div class=target>Test</div>
+  </div>
+  <div class="scroller timeline">
+    <div class=content></div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, out_of_scope_subtree_different_name);
+    let scroller = main.querySelector('.scroller');
+    let target = main.querySelector('.target');
+    await scrollTop(scroller, 350); // 50%
+    assert_equals(getComputedStyle(target).width, '100px');
+  }, 'Timeline lookups isn\'t stopped by timeline-scope if the name doesn\'t match');
+</script>
+
+<template id=tree_order_out_of_scope>
+  <div class=target>Test</div>
+  <div>
+    <div class="scroller timeline">
+      <div class=content></div>
+    </div>
+  </div>
+  <div class=scope>
+    <div class="scroller timeline">
+      <div class=content></div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, tree_order_out_of_scope);
+    let scrollers = main.querySelectorAll('.scroller');
+    assert_equals(scrollers.length, 2);
+    let target = main.querySelector('.target');
+    await scrollTop(scrollers[0], 350); // 50%
+    await scrollTop(scrollers[1], 175); // 25%
+    // scrollers[1] is later in tree order, but should not be visible.
+    assert_equals(getComputedStyle(target).width, '100px');
+  }, 'Timeline under a different timeline-scope subtree is not visible to the target.');
+</script>
+
+<template id=tree_order_out_of_scope_self>
+  <div class=target>Test</div>
+  <div class="scroller timeline">
+    <div class=content></div>
+  </div>
+  <div class="scope scroller timeline">
+    <div class=content></div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, tree_order_out_of_scope_self);
+    let scrollers = main.querySelectorAll('.scroller');
+    assert_equals(scrollers.length, 2);
+    let target = main.querySelector('.target');
+    await scrollTop(scrollers[0], 350); // 50%
+    await scrollTop(scrollers[1], 175); // 25%
+    // scrollers[1] is later in tree order, but should not be visible.
+    assert_equals(getComputedStyle(target).width, '100px');
+  }, 'Timeline with a different timeline-scope is not visible to the target.');
+</script>
+
+<!-- Dynamic Reattachment -->
+
+<template id=scoped_timeline_reattach>
+  <div class="scope">
+    <div class=target>Test</div>
+    <div class="scroller timeline">
+      <div class=content></div>
+    </div>
+    <div class="scroller">
+      <div class=content></div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, scoped_timeline_reattach);
+    let scrollers = main.querySelectorAll('.scroller');
+    assert_equals(scrollers.length, 2);
+    let target = main.querySelector('.target');
+    await scrollTop(scrollers[0], 350); // 50%
+    await scrollTop(scrollers[1], 175); // 25%
+
+    // Attached to scrollers[0].
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+
+    // Reattach to scrollers[1].
+    await runAndWaitForFrameUpdate(() => {
+      scrollers[0].classList.remove('timeline');
+      scrollers[1].classList.add('timeline');
+    });
+
+    assert_equals(getComputedStyle(target).width, '50px'); // 0px => 200px, 25%
+  }, 'Dynamically re-attaching');
+</script>
+
+<template id=scoped_timeline_dynamic_detach>
+  <div class="scope">
+    <div class=target>Test</div>
+    <div class="scroller timeline">
+      <div class=content></div>
+    </div>
+    <div class="scroller timeline">
+      <div class=content></div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, scoped_timeline_dynamic_detach);
+    let scrollers = main.querySelectorAll('.scroller');
+    assert_equals(scrollers.length, 2);
+    let target = main.querySelector('.target');
+    await scrollTop(scrollers[0], 350); // 50%
+    await scrollTop(scrollers[1], 175); // 25%
+
+    // Attached to two timelines initially:
+    // Resolve conflict by selecting last match in flat tree order.
+    assert_equals(getComputedStyle(target).width, '50px');
+
+    // Detach scrollers[1].
+    await runAndWaitForFrameUpdate(() => {
+      scrollers[1].classList.remove('timeline');
+    });
+
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+
+    // Also detach scrollers[0].
+    scrollers[0].classList.remove('timeline');
+
+    await waitForNextFrame();
+    assert_equals(getComputedStyle(target).width, '0px');
+  }, 'Dynamically detaching');
+</script>
+
+<template id=scoped_timeline_attached_removed>
+  <div class="scope">
+    <div class=target>Test</div>
+    <div class="scroller timeline">
+      <div class=content></div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, scoped_timeline_attached_removed);
+    let scroller = main.querySelector('.scroller');
+    let target = main.querySelector('.target');
+    await scrollTop(scroller, 350); // 50%
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+
+    let scroller_parent = scroller.parentElement;
+    scroller.remove();
+    await waitForNextFrame();
+    assert_equals(getComputedStyle(target).width, '0px');
+
+    scroller_parent.append(scroller);
+    await scrollTop(scroller, 350); // 50%
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+  }, 'Removing/inserting element with attaching timeline');
+</script>
+
+<template id=scoped_timeline_attached_display_none>
+  <div class="scope">
+    <div class=target>Test</div>
+    <div class="scroller timeline">
+      <div class=content></div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, scoped_timeline_attached_display_none);
+    let scroller = main.querySelector('.scroller');
+    let target = main.querySelector('.target');
+    await scrollTop(scroller, 350); // 50%
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+
+    scroller.style.display = 'none';
+    await waitForNextFrame();
+    assert_equals(getComputedStyle(target).width, '0px');
+
+    scroller.style.display = 'block';
+    await scrollTop(scroller, 350); // 50%
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+  }, 'Ancestor attached element becoming display:none/block');
+</script>
+
+<template id=scoped_timeline_appearing>
+  <div class=target>Test</div>
+  <div class="container scope">
+    <div class="scroller timeline">
+      <div class=content></div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, scoped_timeline_appearing);
+    let container = main.querySelector('.container');
+    let scroller = main.querySelector('.scroller');
+    let target = main.querySelector('.target');
+
+    await scrollTop(scroller, 350); // 50%
+
+    // Not attached to any timeline initially.
+    assert_equals(getComputedStyle(target).width, '0px');
+
+    // Remove the scoping.
+    container.classList.remove('scope');
+    await waitForNextFrame();
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+
+    // Add back the scoping.
+    container.classList.add('scope');
+    await waitForNextFrame();
+    assert_equals(getComputedStyle(target).width, '0px');
+  }, 'A timline scope in the ancestor chain');
+</script>
+
+<template id=scroll_timeline_prioritize_ancestor>
+  <div class=scope>
+    <div class="scroller timeline">
+      <div class=content>
+        <div class=target>Test</div>
+        <div class="scroller timeline">
+          <div class=content></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, scroll_timeline_prioritize_ancestor);
+    let scroller = main.querySelector('.scroller');
+    let target = main.querySelector('.target');
+    await scrollTop(scroller, 350); // 50%
+    assert_equals(getComputedStyle(target).width, '100px'); // 0px => 200px, 50%
+  }, 'Timeline search prioritizes ancestors');
+</script>

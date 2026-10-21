@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	View timeline with start and end scroll offsets that do not align with the scroll boundaries
+Pass	View timeline does not clamp starting scroll offset at 0
+Pass	View timeline  does not clamp end scroll offset at max scroll

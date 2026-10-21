@@ -81,4 +81,22 @@ struct AttachmentInterval {
     bool operator==(AttachmentInterval const&) const = default;
 };
 
+// One side of the view progress visibility range: auto takes the scroll container's scroll padding, otherwise a length
+// plus a percentage of the scrollport.
+// https://drafts.csswg.org/scroll-animations-1/#view-timeline-inset
+struct ViewTimelineInsetEdge {
+    bool is_auto { true };
+    double px { 0 };
+    double percentage { 0 };
+
+    bool operator==(ViewTimelineInsetEdge const&) const = default;
+};
+
+struct ViewTimelineInset {
+    ViewTimelineInsetEdge start;
+    ViewTimelineInsetEdge end;
+
+    bool operator==(ViewTimelineInset const&) const = default;
+};
+
 }

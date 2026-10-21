@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html id="top">
+<meta charset="utf-8">
+<title>View timeline delay</title>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#viewtimeline-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="../../scroll-animations/scroll-timelines/testcommon.js"></script>
+<script src="../../scroll-animations/view-timelines/testcommon.js"></script>
+<style>
+    #container {
+    border:  10px solid lightgray;
+    overflow-x: scroll;
+    height:  200px;
+    width: 200px;
+  }
+  #content {
+    display:  flex;
+    flex-flow:  row nowrap;
+    justify-content:  flex-start;
+    width:  1800px;
+    margin: 0;
+  }
+  .spacer {
+    width:  800px;
+    display:  inline-block;
+  }
+  #target {
+    background-color:  green;
+    height:  100px;
+    width:  100px;
+    display:  inline-block;
+    font-size:  16px;
+  }
+  #target.big-font {
+    font-size:  20px;
+  }
+  #container.scroll-padded {
+    scroll-padding-inline: 10px 20px;
+  }
+</style>
+<body>
+  <div id="container">
+    <div id="content">
+      <div class="spacer"></div>
+      <div id="target"></div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+</body>
+<script type="text/javascript">
+
+  function verifyTimelineOffsets(anim, start, end)  {
+    const timeline = anim.timeline;
+    assert_px_equals(timeline.startOffset, start, 'startOffset');
+    assert_px_equals(timeline.endOffset, end, 'endOffset');
+  };
+
+  promise_test(async t => {
+    // These tests are all based on the cover range, which has bounds
+    // [600, 900] if there are no insets.
+    // startOffset = target_pos - viewport_size + end_side_inset
+    //             = 600 + end_side_inset
+    // endOffset = target_pos + target_size - start_side_inset
+    //           = 900 - start_side_inset
+    await runTimelineInsetTest(t, {
+      inset: [ CSS.px(0), CSS.px(0) ],
+      startOffset: 600,
+      endOffset: 900
+    }).then(anim => verifyTimelineOffsets(anim, 600, 900));
+    await runTimelineInsetTest(t, {
+      inset: [ CSS.px(10), CSS.px(20) ],
+      startOffset: 620,
+      endOffset: 890
+    }).then(anim => verifyTimelineOffsets(anim, 620, 890));
+    await runTimelineInsetTest(t, {
+      inset: [ CSS.px(10) ],
+      startOffset: 610,
+      endOffset: 890
+    }).then(anim => verifyTimelineOffsets(anim, 610, 890));
+  }, 'View timeline with px based inset.');
+
+  promise_test(async t => {
+    // These tests are all based on the cover range, which has bounds
+    // [600, 900].
+    // Percentages are relative to the viewport size, which is 200 for this
+    // test.
+    await runTimelineInsetTest(t, {
+      inset: [ CSS.percent(0), CSS.percent(0) ],
+      startOffset: 600,
+      endOffset: 900
+    }).then(anim => verifyTimelineOffsets(anim, 600, 900));
+    await runTimelineInsetTest(t, {
+      inset: [ CSS.percent(10), CSS.percent(20) ],
+      startOffset: 640,
+      endOffset: 880
+    }).then(anim => verifyTimelineOffsets(anim, 640, 880));
+    await runTimelineInsetTest(t, {
+      inset: [ CSS.percent(10) ],
+      startOffset: 620,
+      endOffset: 880
+    }).then(anim => verifyTimelineOffsets(anim, 620, 880));
+  }, 'View timeline with percent based inset.');
+
+  promise_test(async t => {
+    t.add_cleanup(() => {
+      container.classList.remove('scroll-padded');
+    });
+    const anim = await runTimelineInsetTest(t, {
+      inset: [ "auto", "auto" ],
+      startOffset: 600,
+      endOffset: 900
+    });
+    verifyTimelineOffsets(anim, 600, 900);
+    container.classList.add('scroll-padded');
+    await runTimelineBoundsTest(t, {
+      anim: anim,
+      startOffset: 620,
+      endOffset: 890,
+    }, 'Adjust for scroll-padding')
+        .then(anim => verifyTimelineOffsets(anim, 620, 890));
+  }, 'view timeline with inset auto.');
+
+promise_test(async t => {
+  await runTimelineInsetTest(t, {
+    inset: "10px",
+    startOffset: 610,
+    endOffset: 890
+  });
+  await runTimelineInsetTest(t, {
+    inset: "10px 20px",
+    startOffset: 620,
+    endOffset: 890
+  });
+  await runTimelineInsetTest(t, {
+    inset: "10%",
+    startOffset: 620,
+    endOffset: 880
+  });
+  await runTimelineInsetTest(t, {
+    inset: "10% 20%",
+    startOffset: 640,
+    endOffset: 880
+  });
+  await runTimelineInsetTest(t, {
+    inset: "auto",
+    startOffset: 600,
+    endOffset: 900
+  });
+
+  // Relative units are not allowed.
+  // https://github.com/w3c/csswg-drafts/issues/13852
+  assert_throws_js(TypeError, () => {
+    new ViewTimeline({
+      subject: target,
+      inset: "1em 2em"
+    });
+  });
+  assert_throws_js(TypeError, () => {
+    new ViewTimeline({
+      subject: target,
+      inset: "1vw 2vh"
+    });
+  });
+
+  assert_throws_js(TypeError, () => {
+    new ViewTimeline({
+      subject: target,
+      inset: "go fish"
+    });
+  });
+
+  assert_throws_js(TypeError, () => {
+    new ViewTimeline({
+      subject: target,
+      inset: "1 2"
+    });
+  });
+}, 'view timeline inset as string');
+
+promise_test(async t => {
+  assert_throws_js(TypeError, () => {
+    new ViewTimeline({
+      subject: target,
+      inset: []
+    });
+  });
+
+  assert_throws_js(TypeError, () => {
+    new ViewTimeline({
+      subject: target,
+      inset: [ CSS.rad(1) ]
+    });
+  });
+
+  assert_throws_js(TypeError, () => {
+    new ViewTimeline({
+      subject: target,
+      inset: [ CSS.px(10), CSS.px(10), CSS.px(10) ]
+    });
+  });
+}, 'view timeline with invalid inset');
+
+</script>

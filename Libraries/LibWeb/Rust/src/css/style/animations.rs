@@ -63,14 +63,20 @@ impl FfiAppliedAnimationDefinition {
     }
 
     /// Whether applying `self` to an animation that last had `published` applied would leave it
-    /// exactly as it is. A scroll timeline is rebuilt from the element's surroundings every time it
-    /// is applied, so a definition that names one is never called unchanged, and an animation no
+    /// exactly as it is. A scroll, view or named timeline is found from the element's surroundings
+    /// every time it is applied, so a definition that names one is never called unchanged, and an animation no
     /// plan has described yet publishes a null timing function, which no computed definition has.
     /// The timing function is compared by value: a recomputed style builds a fresh allocation for
     /// a declaration that has not changed.
     #[must_use]
     fn would_change_nothing(&self, published: &Self) -> bool {
-        self.values.timeline_kind != crate::css::style_compute::FfiAnimationTimelineKind::Scroll as u8
+        use crate::css::style_compute::FfiAnimationTimelineKind;
+        ![
+            FfiAnimationTimelineKind::Scroll as u8,
+            FfiAnimationTimelineKind::View as u8,
+            FfiAnimationTimelineKind::Named as u8,
+        ]
+        .contains(&self.values.timeline_kind)
             && !published.timing_function.is_null()
             && self.values == published.values
             && self.keyframe_set == published.keyframe_set

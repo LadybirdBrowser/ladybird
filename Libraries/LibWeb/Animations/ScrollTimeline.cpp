@@ -7,6 +7,7 @@
 #include "ScrollTimeline.h"
 #include <LibGC/Heap.h>
 #include <LibWeb/Animations/Animation.h>
+#include <LibWeb/Animations/ViewTimeline.h>
 #include <LibWeb/Bindings/ScrollTimeline.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -114,14 +115,9 @@ static ComputedScrollAxis computed_scroll_axis(ScrollAxis axis, CSS::WritingMode
     VERIFY_NOT_REACHED();
 }
 
-struct ScrollOffsetData {
-    Optional<AsyncScrollNodeStableID> scroll_node;
-    bool is_vertical;
-    double scroll_offset;
-    double max_scroll_offset;
-};
-static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> propagated_source, ScrollAxis axis)
+Optional<ScrollTimeline::ScrollerMetrics> ScrollTimeline::scroller_metrics() const
 {
+    auto propagated_source = get_propagated_source();
     if (propagated_source.visit([](auto const& source) { return source == nullptr; }))
         return {};
 
@@ -136,14 +132,18 @@ static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM
         return {};
 
     auto const& scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node).value();
-    auto const& computed_axis = computed_scroll_axis(axis, layout_node->writing_mode(), layout_node->direction());
+    auto const& computed_axis = computed_scroll_axis(m_axis, layout_node->writing_mode(), layout_node->direction());
+    auto scrollport = Painting::absolute_padding_box_rect(*layout_node);
+    // NB: Only a view progress timeline measures its subject against the scroll padding, so a scroll progress timeline
+    //     does not resolve it on every update.
+    auto snapport = is<ViewTimeline>(*this) ? Painting::scroll_snapport_rect(*layout_node, scrollport) : scrollport;
 
     // FIXME: Scroll offset is currently incorrect as it is always relative to the top left of the scrollable overflow
     //        rect when it should instead be relative to the scroll origin.
 
     // FIXME: Support the case where the computed scroll axis is reversed
 
-    return ScrollOffsetData {
+    return ScrollerMetrics {
         .scroll_node = Painting::async_scroll_node_stable_id(*layout_node),
         .is_vertical = computed_axis.is_vertical,
         .scroll_offset = computed_axis.is_vertical
@@ -152,7 +152,23 @@ static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM
         .max_scroll_offset = computed_axis.is_vertical
             ? scrollable_overflow_rect.height().to_double() - Painting::content_height(*layout_node).to_double()
             : scrollable_overflow_rect.width().to_double() - Painting::content_width(*layout_node).to_double(),
+        .scrollport_start = (computed_axis.is_vertical ? scrollport.y() : scrollport.x()).to_double(),
+        .scrollport_size = (computed_axis.is_vertical ? scrollport.height() : scrollport.width()).to_double(),
+        .scroll_padding_start = computed_axis.is_vertical
+            ? (snapport.y() - scrollport.y()).to_double()
+            : (snapport.x() - scrollport.x()).to_double(),
+        .scroll_padding_end = computed_axis.is_vertical
+            ? (scrollport.bottom() - snapport.bottom()).to_double()
+            : (scrollport.right() - snapport.right()).to_double(),
     };
+}
+
+void ScrollTimeline::set_axis(ScrollAxis axis)
+{
+    if (m_axis == axis)
+        return;
+    m_axis = axis;
+    update_current_time(0);
 }
 
 bool ScrollTimeline::is_stale() const
@@ -168,7 +184,7 @@ bool ScrollTimeline::is_stale() const
     //         narrow) tests in WPT and is the same behavior as is implemented by WebKit.
 
     // FIXME: Account for the named timeline ranges of view progress timelines once they are implemented.
-    auto scroll_offset_data = compute_scroll_offset_data(get_propagated_source(), m_axis);
+    auto scroll_offset_data = scroller_metrics();
 
     return scroll_offset_data.map([](auto const& data) { return data.max_scroll_offset; }) != m_last_max_scroll_offset;
 }
@@ -180,7 +196,7 @@ void ScrollTimeline::update_current_time(double)
     // representing its startmost scroll position (in the writing mode of the scroll container). Null when the timeline
     // is inactive.
 
-    auto scroll_offset_data = compute_scroll_offset_data(get_propagated_source(), m_axis);
+    auto scroll_offset_data = scroller_metrics();
 
     m_last_max_scroll_offset = scroll_offset_data.map([](auto const& data) { return data.max_scroll_offset; });
     m_followed_scroller.clear();

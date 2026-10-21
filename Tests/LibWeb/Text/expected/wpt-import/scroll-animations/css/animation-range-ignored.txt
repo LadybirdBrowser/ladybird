@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Animation API call rangeStart overrides animation-range-start
+Pass	Animation API call rangeEnd overrides animation-range-end

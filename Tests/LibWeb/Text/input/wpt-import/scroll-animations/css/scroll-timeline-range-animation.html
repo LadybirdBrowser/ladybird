@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<title>Scroll timelines and animation attachment ranges</title>
+<link rel="help" src="https://drafts.csswg.org/scroll-animations-1/#named-timeline-range">
+<link rel="help" src="https://drafts.csswg.org/scroll-animations-1/#animation-range">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+  @keyframes anim {
+    from { z-index: 0; background-color: skyblue;}
+    to { z-index: 100; background-color: coral; }
+  }
+  #scroller {
+    border:  10px solid lightgray;
+    overflow-y: scroll;
+    width: 200px;
+    height: 200px;
+  }
+  #scroller > div {
+    margin: 800px 0px;
+    width: 100px;
+    height: 100px;
+  }
+  #target {
+    font-size: 10px;
+    background-color: green;
+    z-index: -1;
+  }
+</style>
+<main id=main>
+</main>
+
+<template id=template_without_scope>
+  <div id=scroller class=timeline>
+    <div id=target></div>
+  </div>
+</template>
+
+<template id=template_with_scope>
+  <div id=scope>
+    <div id=target></div>
+    <div id=scroller class=timeline>
+      <div></div>
+    </div>
+  </div>
+</template>
+
+<script>
+  setup(assert_implements_animation_timeline);
+
+  function inflate(t, template) {
+    t.add_cleanup(() => main.replaceChildren());
+    main.append(template.content.cloneNode(true));
+  }
+  async function scrollTop(e, value) {
+    e.scrollTop = value;
+    await waitForNextFrame();
+  }
+  async function waitForAnimationReady(target) {
+    await waitForNextFrame();
+    await Promise.all(target.getAnimations().map(x => x.ready));
+  }
+  async function assertValueAt(scroller, target, args) {
+    await waitForAnimationReady(target);
+    await scrollTop(scroller, args.scrollTop);
+    assert_equals(getComputedStyle(target).zIndex, args.expected.toString());
+  }
+  function test_animation_range(options, template, desc_suffix) {
+    if (template === undefined)
+      template = template_without_scope;
+    if (desc_suffix === undefined)
+      desc_suffix = '';
+
+    promise_test(async (t) => {
+      inflate(t, template);
+      let scroller = main.querySelector('#scroller');
+      let target = main.querySelector('#target');
+      let timeline = main.querySelector('.timeline');
+      let scope = main.querySelector('#scope');
+      let maxScroll = scroller.scrollHeight - scroller.clientHeight;
+
+      if (scope != null) {
+        scope.style.timelineScope = '--t1';
+      }
+
+      timeline.style.scrollTimeline = '--t1';
+      target.style.animation = 'anim auto linear';
+      target.style.animationTimeline = '--t1';
+      target.style.animationRangeStart = options.rangeStart;
+      target.style.animationRangeEnd = options.rangeEnd;
+
+      // Accommodates floating point precision errors at the endpoints.
+      target.style.animationFillMode = 'both';
+
+      // 0%
+      await assertValueAt(scroller, target,
+          { scrollTop: options.startOffset, expected: 0 });
+      // 50%
+      await assertValueAt(scroller, target,
+          { scrollTop: (options.startOffset + options.endOffset) / 2, expected: 50 });
+      // 100%
+      await assertValueAt(scroller, target,
+          { scrollTop: options.endOffset, expected: 100 });
+
+      // Test before/after phases (need to clear the fill mode for that).
+      target.style.animationFillMode = 'initial';
+      let before_scroll = options.startOffset - 10;
+      if (before_scroll >= 0) {
+        await assertValueAt(scroller, target,
+            { scrollTop: options.startOffset - 10, expected: -1 });
+      }
+      let after_scroll = options.startOffset + 10;
+      if (after_scroll <= scroller.maxmum) {
+        await assertValueAt(scroller, target,
+            { scrollTop: options.endOffset + 10, expected: -1 });
+      }
+      // Check 50% again without fill mode.
+      await assertValueAt(scroller, target,
+          { scrollTop: (options.startOffset + options.endOffset) / 2, expected: 50 });
+
+    }, `Animation with ranges [${options.rangeStart}, ${options.rangeEnd}] ${desc_suffix}`.trim());
+  }
+
+  test_animation_range({
+    rangeStart: 'initial',
+    rangeEnd: 'initial',
+    startOffset: 0,
+    endOffset: 1500
+  });
+
+  test_animation_range({
+    rangeStart: '0%',
+    rangeEnd: '100%',
+    startOffset: 0,
+    endOffset: 1500
+  });
+
+  test_animation_range({
+    rangeStart: '10%',
+    rangeEnd: '100%',
+    startOffset: 150,
+    endOffset: 1500
+  });
+
+  test_animation_range({
+    rangeStart: '0%',
+    rangeEnd: '50%',
+    startOffset: 0,
+    endOffset: 750
+  });
+
+  test_animation_range({
+    rangeStart: '10%',
+    rangeEnd: '50%',
+    startOffset: 150,
+    endOffset: 750
+  });
+
+  test_animation_range({
+    rangeStart: '150px',
+    rangeEnd: '75em',
+    startOffset: 150,
+    endOffset: 750
+  });
+
+  test_animation_range({
+    rangeStart: 'calc(1% + 135px)',
+    rangeEnd: 'calc(70em + 50px)',
+    startOffset: 150,
+    endOffset: 750
+  });
+
+  // Test animation-range via timeline-scope.
+  test_animation_range({
+    rangeStart: 'calc(1% + 135px)',
+    rangeEnd: 'calc(70em + 50px)',
+    startOffset: 150,
+    endOffset: 750
+  }, template_with_scope, '(scoped)');
+
+</script>

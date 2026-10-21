@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface ScrollTimeline : AnimationTimeline {
     constructor(optional ScrollTimelineOptions options = {});
-    readonly attribute Element? source;
+    [ImplementedAs=source_for_bindings] readonly attribute Element? source;
     readonly attribute ScrollAxis axis;
 };
 

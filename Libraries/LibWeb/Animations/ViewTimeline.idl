@@ -1,0 +1,16 @@
+// https://drafts.csswg.org/scroll-animations-1/#dictdef-viewtimelineoptions
+dictionary ViewTimelineOptions {
+    required Element subject;
+    ScrollAxis axis = "block";
+    // INTEROP: Blink takes "auto" as a DOMString in the sequence too.
+    (DOMString or sequence<(CSSNumericValue or CSSKeywordValue or DOMString)>) inset = "auto";
+};
+
+// https://drafts.csswg.org/scroll-animations-1/#viewtimeline
+[Exposed=Window]
+interface ViewTimeline : ScrollTimeline {
+    constructor(ViewTimelineOptions options);
+    readonly attribute Element subject;
+    readonly attribute CSSNumericValue startOffset;
+    readonly attribute CSSNumericValue endOffset;
+};

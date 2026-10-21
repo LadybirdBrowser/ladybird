@@ -2817,6 +2817,22 @@ pub enum FfiAnimationTimelineKind {
     Document,
     None,
     Scroll,
+    View,
+    Named,
+}
+
+/// The insets of a view progress timeline's visibility range, as the host takes them: each side either auto, which
+/// takes the scroll container's scroll padding, or a length plus a percentage of the scrollport.
+/// https://drafts.csswg.org/scroll-animations-1/#view-timeline-inset
+#[repr(C)]
+#[derive(Clone, Copy, Default, PartialEq)]
+pub struct FfiViewTimelineInset {
+    pub start_is_auto: bool,
+    pub start_px: f64,
+    pub start_percentage: f64,
+    pub end_is_auto: bool,
+    pub end_px: f64,
+    pub end_percentage: f64,
 }
 
 #[repr(C)]
@@ -2834,6 +2850,10 @@ pub struct FfiComputedAnimation {
     pub timeline_kind: FfiAnimationTimelineKind,
     pub scroll_scroller: u8,
     pub scroll_axis: u8,
+    /// The insets of a view() timeline.
+    pub view_inset: FfiViewTimelineInset,
+    /// The name of a named timeline, as a CSS string, or null.
+    pub timeline_name: *const c_void,
     /// The edges of the animation attachment range, each a `TimelineRangeName` in the host's numbering and an offset
     /// from the start of that range: a length plus a percentage of the range.
     pub range_start_name: u8,
@@ -4808,12 +4828,273 @@ fn fly_string_is_ascii(string: &crate::css::css_string::CssString, expected: &[u
         .eq(expected.iter().copied().map(u16::from))
 }
 
-fn animation_timeline_descriptor(value: &StyleValueData) -> (FfiAnimationTimelineKind, u8, u8) {
-    let default = (FfiAnimationTimelineKind::Document, scroller::NEAREST, axis::BLOCK);
+/// A length-percentage computed value as a length plus a percentage of what it resolves against.
+fn length_plus_percentage(value: &StyleValueData) -> (f64, f64) {
     match value {
-        StyleValueData::Keyword { keyword } if *keyword == keyword::AUTO => default,
+        StyleValueData::Percentage { value } => (0.0, *value),
+        value => {
+            let value = crate::css::computed_value_views::LengthPercentageRef::over(value);
+            let px = value.to_px(CssPixels::default()).to_double();
+            (px, value.to_px(CssPixels::from_integer(100)).to_double() - px)
+        }
+    }
+}
+
+/// The insets a computed `[ auto | <length-percentage> ]{1,2}` describes, or both auto where there is none.
+fn view_timeline_inset(value: Option<&StyleValueData>) -> FfiViewTimelineInset {
+    let side = |value: &StyleValueData| match value {
+        StyleValueData::Keyword { keyword } if *keyword == keyword::AUTO => (true, 0.0, 0.0),
+        value => {
+            let (px, percentage) = length_plus_percentage(value);
+            (false, px, percentage)
+        }
+    };
+    let (start, end) = match value {
+        None => ((true, 0.0, 0.0), (true, 0.0, 0.0)),
+        Some(StyleValueData::ValueList { values, .. }) => match values.as_slice() {
+            [start, end] => (side(start.data()), side(end.data())),
+            [both] => (side(both.data()), side(both.data())),
+            _ => unreachable!("computed view timeline inset must have one or two sides"),
+        },
+        Some(value) => (side(value), side(value)),
+    };
+    FfiViewTimelineInset {
+        start_is_auto: start.0,
+        start_px: start.1,
+        start_percentage: start.2,
+        end_is_auto: end.0,
+        end_px: end.1,
+        end_percentage: end.2,
+    }
+}
+
+/// The insets a computed `view-timeline-inset` item describes, for a timeline the host builds from script.
+///
+/// # Safety
+/// `value` must point at live style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_view_timeline_inset(value: *const c_void) -> FfiViewTimelineInset {
+    // SAFETY: Guaranteed by the caller.
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    let value = match value {
+        StyleValueData::ValueList { values, separator, .. } if *separator == 1 => values.as_slice()[0].data(),
+        value => value,
+    };
+    view_timeline_inset(Some(value))
+}
+
+/// One named timeline an element declares with `scroll-timeline` or `view-timeline`.
+/// https://drafts.csswg.org/scroll-animations-1/#timeline-scoping
+#[repr(C)]
+pub struct FfiTimelineDeclaration {
+    /// The name, as a CSS string.
+    pub name: *const c_void,
+    pub is_view: bool,
+    pub axis: u8,
+    pub view_inset: FfiViewTimelineInset,
+}
+
+/// Hands `declare` the named timelines `values` declares. Of the timelines that share a name, the one handed last is
+/// the one the element defines: names declared later in the naming property take precedence, and scroll progress
+/// timelines take precedence over view progress timelines.
+///
+/// # Safety
+/// `values` must point at a live animation style group, and `declare` must be safe to call with `context`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_animation_values_timeline_declarations(
+    values: &crate::css::computed_value_types::AnimationValues,
+    context: *mut c_void,
+    declare: unsafe extern "C" fn(*mut c_void, *const FfiTimelineDeclaration),
+) {
+    let items = |handle: &crate::css::computed_value_types::ComputedStyleValueHandle| -> Vec<&StyleValueData> {
+        // SAFETY: A computed style group's handles point at retained style values it owns.
+        match unsafe { handle.pointer.cast::<StyleValueData>().as_ref() } {
+            None => Vec::new(),
+            Some(StyleValueData::ValueList { values, separator, .. }) if *separator == 1 => {
+                values.as_slice().iter().map(|value| value.data()).collect()
+            }
+            Some(value) => vec![value],
+        }
+    };
+    let axis_of = |values: &[&StyleValueData], index: usize| match values.get(index % values.len().max(1)) {
+        Some(StyleValueData::Keyword { keyword }) => keyword_to_axis(*keyword).unwrap_or(axis::BLOCK),
+        _ => axis::BLOCK,
+    };
+    let declare_names =
+        |names: Vec<&StyleValueData>, is_view: bool, axes: Vec<&StyleValueData>, insets: Vec<&StyleValueData>| {
+            for (index, name) in names.iter().enumerate() {
+                let StyleValueData::CustomIdent { custom_ident } = name else {
+                    continue;
+                };
+                let declaration = FfiTimelineDeclaration {
+                    name: custom_ident.as_ptr(),
+                    is_view,
+                    axis: axis_of(&axes, index),
+                    view_inset: view_timeline_inset(insets.get(index % insets.len().max(1)).copied()),
+                };
+                // SAFETY: Guaranteed by the caller.
+                unsafe { declare(context, &raw const declaration) };
+            }
+        };
+    declare_names(
+        items(&values.view_timeline_name),
+        true,
+        items(&values.view_timeline_axis),
+        items(&values.view_timeline_inset),
+    );
+    declare_names(
+        items(&values.scroll_timeline_name),
+        false,
+        items(&values.scroll_timeline_axis),
+        Vec::new(),
+    );
+}
+
+/// The names `timeline-scope` in `values` scopes: none, all of them, or those handed to `scope`.
+/// https://drafts.csswg.org/scroll-animations-1/#timeline-scope
+///
+/// # Safety
+/// `values` must point at a live animation style group, and `scope` must be safe to call with `context`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_animation_values_timeline_scope(
+    values: &crate::css::computed_value_types::AnimationValues,
+    context: *mut c_void,
+    scope: unsafe extern "C" fn(*mut c_void, *const c_void),
+) -> FfiTimelineScope {
+    // SAFETY: A computed style group's handles point at retained style values it owns.
+    let Some(value) = (unsafe { values.timeline_scope.pointer.cast::<StyleValueData>().as_ref() }) else {
+        return FfiTimelineScope::None;
+    };
+    let names: Vec<&StyleValueData> = match value {
+        StyleValueData::Keyword { keyword } if *keyword == keyword::ALL => return FfiTimelineScope::All,
+        StyleValueData::Keyword { .. } => return FfiTimelineScope::None,
+        StyleValueData::ValueList { values, .. } => values.as_slice().iter().map(|value| value.data()).collect(),
+        value => vec![value],
+    };
+    for name in names {
+        if let StyleValueData::CustomIdent { custom_ident } = name {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { scope(context, custom_ident.as_ptr()) };
+        }
+    }
+    FfiTimelineScope::Names
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq)]
+pub enum FfiTimelineScope {
+    None,
+    All,
+    Names,
+}
+
+/// Whether `a` and `b` declare the same named timelines, and scope the same timeline names.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_animation_values_timeline_declarations_equal(
+    a: &crate::css::computed_value_types::AnimationValues,
+    b: &crate::css::computed_value_types::AnimationValues,
+) -> bool {
+    let same = |a: &crate::css::computed_value_types::ComputedStyleValueHandle,
+                b: &crate::css::computed_value_types::ComputedStyleValueHandle| {
+        // SAFETY: A computed style group's handles point at retained style values it owns.
+        let (a, b) = unsafe {
+            (
+                a.pointer.cast::<StyleValueData>().as_ref(),
+                b.pointer.cast::<StyleValueData>().as_ref(),
+            )
+        };
+        a == b
+    };
+    same(&a.scroll_timeline_name, &b.scroll_timeline_name)
+        && same(&a.scroll_timeline_axis, &b.scroll_timeline_axis)
+        && same(&a.view_timeline_name, &b.view_timeline_name)
+        && same(&a.view_timeline_axis, &b.view_timeline_axis)
+        && same(&a.view_timeline_inset, &b.view_timeline_inset)
+        && same(&a.timeline_scope, &b.timeline_scope)
+}
+
+/// Whether `values` declares a named timeline, or scopes timeline names.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_animation_values_declare_timelines(
+    values: &crate::css::computed_value_types::AnimationValues,
+) -> bool {
+    fn declares_name(value: &StyleValueData) -> bool {
+        match value {
+            StyleValueData::Keyword { keyword } => *keyword != keyword::NONE,
+            StyleValueData::ValueList { values, .. } => values.as_slice().iter().any(|item| declares_name(item.data())),
+            _ => true,
+        }
+    }
+    let is_declared = |handle: &crate::css::computed_value_types::ComputedStyleValueHandle| {
+        // SAFETY: A computed style group's handles point at retained style values it owns.
+        unsafe { handle.pointer.cast::<StyleValueData>().as_ref() }.is_some_and(declares_name)
+    };
+    is_declared(&values.scroll_timeline_name)
+        || is_declared(&values.view_timeline_name)
+        || is_declared(&values.timeline_scope)
+}
+
+/// Whether a parsed `view-timeline-inset` value has a length in a unit that is not absolute.
+///
+/// # Safety
+/// `value` must point at live style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_view_timeline_inset_has_relative_length(value: *const c_void) -> bool {
+    let is_absolute = |unit: u8| {
+        matches!(
+            length_unit_kinds().get(unit as usize),
+            Some(LengthUnitKind::Px | LengthUnitKind::Absolute { .. })
+        )
+    };
+    fn has_relative_length(value: &StyleValueData, is_absolute: &dyn Fn(u8) -> bool) -> bool {
+        match value {
+            StyleValueData::Length { unit, .. } => !is_absolute(*unit),
+            StyleValueData::Calculated { rust_calculation, .. } => !rust_calculation
+                .node()
+                .is_computationally_independent(&|unit| is_absolute(unit), &|_| false),
+            StyleValueData::ValueList { values, .. } => values
+                .as_slice()
+                .iter()
+                .any(|value| has_relative_length(value.data(), is_absolute)),
+            _ => false,
+        }
+    }
+    // SAFETY: Guaranteed by the caller.
+    has_relative_length(unsafe { &*value.cast::<StyleValueData>() }, &is_absolute)
+}
+
+/// The timeline a computed `animation-timeline` item asks for.
+struct AnimationTimelineDescriptor {
+    kind: FfiAnimationTimelineKind,
+    scroller: u8,
+    axis: u8,
+    view_inset: FfiViewTimelineInset,
+    name: *const c_void,
+}
+
+fn animation_timeline_descriptor(value: &StyleValueData) -> AnimationTimelineDescriptor {
+    let descriptor = |kind, scroller, axis| AnimationTimelineDescriptor {
+        kind,
+        scroller,
+        axis,
+        view_inset: view_timeline_inset(None),
+        name: std::ptr::null(),
+    };
+    let optional_axis = |value: &RetainedStyleValueData| {
+        value
+            .optional_data()
+            .map(|value| match value {
+                StyleValueData::Keyword { keyword } => keyword_to_axis(*keyword).unwrap(),
+                _ => unreachable!("computed timeline axis must be a keyword"),
+            })
+            .unwrap_or(axis::BLOCK)
+    };
+    match value {
+        StyleValueData::Keyword { keyword } if *keyword == keyword::AUTO => {
+            descriptor(FfiAnimationTimelineKind::Document, scroller::NEAREST, axis::BLOCK)
+        }
         StyleValueData::Keyword { keyword } if *keyword == keyword::NONE => {
-            (FfiAnimationTimelineKind::None, scroller::NEAREST, axis::BLOCK)
+            descriptor(FfiAnimationTimelineKind::None, scroller::NEAREST, axis::BLOCK)
         }
         StyleValueData::Function { name, value } if fly_string_is_ascii(name, b"scroll") => {
             let StyleValueData::Tuple { values } = value.data() else {
@@ -4827,16 +5108,28 @@ fn animation_timeline_descriptor(value: &StyleValueData) -> (FfiAnimationTimelin
                     _ => unreachable!("computed scroll() scroller must be a keyword"),
                 })
                 .unwrap_or(scroller::NEAREST);
-            let axis = arguments[1]
-                .optional_data()
-                .map(|value| match value {
-                    StyleValueData::Keyword { keyword } => keyword_to_axis(*keyword).unwrap(),
-                    _ => unreachable!("computed scroll() axis must be a keyword"),
-                })
-                .unwrap_or(axis::BLOCK);
-            (FfiAnimationTimelineKind::Scroll, scroller, axis)
+            descriptor(FfiAnimationTimelineKind::Scroll, scroller, optional_axis(&arguments[1]))
         }
-        _ => default,
+        // https://drafts.csswg.org/scroll-animations-1/#view-notation
+        StyleValueData::Function { name, value } if fly_string_is_ascii(name, b"view") => {
+            let StyleValueData::Tuple { values } = value.data() else {
+                unreachable!("computed view() timeline must contain a tuple")
+            };
+            let arguments = values.as_slice();
+            AnimationTimelineDescriptor {
+                view_inset: view_timeline_inset(arguments[1].optional_data()),
+                ..descriptor(
+                    FfiAnimationTimelineKind::View,
+                    scroller::NEAREST,
+                    optional_axis(&arguments[0]),
+                )
+            }
+        }
+        StyleValueData::CustomIdent { custom_ident } => AnimationTimelineDescriptor {
+            name: custom_ident.as_ptr(),
+            ..descriptor(FfiAnimationTimelineKind::Named, scroller::NEAREST, axis::BLOCK)
+        },
+        _ => descriptor(FfiAnimationTimelineKind::Document, scroller::NEAREST, axis::BLOCK),
     }
 }
 
@@ -4855,14 +5148,7 @@ fn animation_range_edge(value: &StyleValueData, default_percentage: f64) -> (u8,
         keyword::SCROLL => 7,
         _ => 0,
     };
-    let offset = |value: &StyleValueData| match value {
-        StyleValueData::Percentage { value } => (0.0, *value),
-        value => {
-            let offset = crate::css::computed_value_views::LengthPercentageRef::over(value);
-            let px = offset.to_px(CssPixels::default()).to_double();
-            (px, offset.to_px(CssPixels::from_integer(100)).to_double() - px)
-        }
-    };
+    let offset = length_plus_percentage;
     match value {
         StyleValueData::Keyword { keyword } => (range_name(*keyword), 0.0, default_percentage),
         StyleValueData::ValueList { values, .. } => {
@@ -5106,8 +5392,7 @@ fn build_computed_animation_list(
             StyleValueData::Keyword { keyword } => *keyword,
             _ => unreachable!("computed animation enum must be a keyword"),
         };
-        let (timeline_kind, scroll_scroller, scroll_axis) =
-            animation_timeline_descriptor(timeline_values[index % timeline_values.len()].data());
+        let timeline = animation_timeline_descriptor(timeline_values[index % timeline_values.len()].data());
         let (range_start_name, range_start_px, range_start_percentage) =
             animation_range_edge(range_start_values[index % range_start_values.len()].data(), 0.0);
         let (range_end_name, range_end_px, range_end_percentage) =
@@ -5125,9 +5410,11 @@ fn build_computed_animation_list(
             fill_mode: keyword_to_animation_fill_mode(keyword_value(fill_mode_values)).unwrap(),
             composition: keyword_to_animation_composition(keyword_value(composition_values)).unwrap(),
             name: name.as_ptr(),
-            timeline_kind,
-            scroll_scroller,
-            scroll_axis,
+            timeline_kind: timeline.kind,
+            scroll_scroller: timeline.scroller,
+            scroll_axis: timeline.axis,
+            view_inset: timeline.view_inset,
+            timeline_name: timeline.name,
             range_start_name,
             range_start_px,
             range_start_percentage,

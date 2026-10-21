@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="scroller" style="overflow: scroll; width: 100px; height: 100px"><div id="target" style="height: 300px"></div></div>
+<script>
+    // Values that script gives a timeline range or a view timeline inset have nothing to substitute var() against or
+    // inherit from, so they are rejected rather than taken as computed values.
+    test(() => {
+        const animation = target.animate({ opacity: [0, 1] }, { timeline: new ScrollTimeline({ source: scroller }) });
+        for (const value of ["var(--x)", "inherit", "entry var(--x)"]) {
+            try {
+                animation.rangeStart = value;
+                println(`rangeStart ${value}: accepted`);
+            } catch (error) {
+                println(`rangeStart ${value}: ${error.name}`);
+            }
+        }
+        animation.rangeStart = {};
+        println(`rangeStart {}: ${animation.rangeStart}`);
+        for (const inset of ["var(--x)", "inherit"]) {
+            try {
+                new ViewTimeline({ subject: target, inset });
+                println(`inset ${inset}: accepted`);
+            } catch (error) {
+                println(`inset ${inset}: ${error.name}`);
+            }
+        }
+    });
+</script>

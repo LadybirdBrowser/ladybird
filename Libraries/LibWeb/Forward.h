@@ -74,7 +74,9 @@ class AnimationPlaybackEvent;
 class AnimationTimeline;
 class DocumentTimeline;
 class KeyframeEffect;
+class NamedTimelines;
 class ScrollTimeline;
+class ViewTimeline;
 
 }
 

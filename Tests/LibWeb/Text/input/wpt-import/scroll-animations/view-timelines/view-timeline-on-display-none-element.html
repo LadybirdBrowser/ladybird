@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>View timeline on element with display:none</title>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#scroll-timelines">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="../../scroll-animations/scroll-timelines/testcommon.js"></script>
+<script src="../../scroll-animations/view-timelines/testcommon.js"></script>
+<script src="../../css/css-typed-om/resources/testhelper.js"></script>
+
+<style>
+  #container {
+    border: 10px solid lightgray;
+    overflow-x: scroll;
+    height: 200px;
+    width: 200px;
+  }
+  #content {
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: flex-start;
+    width: 1800px;
+    margin: 0;
+  }
+  .spacer {
+    width: 800px;
+    display: inline-block;
+  }
+  #target {
+    background-color: green;
+    height: 100px;
+    width: 100px;
+    display: none;
+  }
+</style>
+
+<div id="container">
+  <div id="content">
+    <div class="spacer"></div>
+    <div id="target"></div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<script>
+promise_test(async t => {
+  const timeline = new ViewTimeline({ subject: target });
+  const anim = target.animate({ opacity: [0, 0.5] }, { timeline: timeline });
+  t.add_cleanup(() => {
+    anim.cancel();
+  });
+  // We use a unit that does not require an element to resolve given:
+  // https://github.com/web-platform-tests/interop/issues/1309
+  anim.rangeStart = "10px";
+  container.scrollLeft = 750;
+  await waitForNextFrame();
+  assert_equals(getComputedStyle(target).opacity, "1",
+                  "Opacity with inactive timeline");
+}, "element with display: none should have inactive viewtimeline");
+</script>

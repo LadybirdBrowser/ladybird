@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Dynamically changing view-timeline attachment
+Pass	Dynamically changing view-timeline-axis
+Pass	Dynamically changing view-timeline-inset
+Pass	Element with scoped view-timeline becoming display:none

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="help" src="https://www.w3.org/TR/scroll-animations-1/#named-range-animation-declaration">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="../../web-animations/resources/keyframe-utils.js"></script>
+<script src="support/testcommon.js"></script>
+<script src="../../scroll-animations/scroll-timelines/testcommon.js"></script>
+<title>Programmatic API overrides animation-range-*</title>
+</head>
+<style type="text/css">
+  #scroller {
+    border:  10px solid lightgray;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    width: 300px;
+    height: 200px;
+  }
+  @keyframes anim {
+    from { margin-left: 0px; }
+    to { margin-left: 100px; }
+  }
+  #target {
+    margin: 800px 0px;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+    background-color: green;
+  }
+  .animate {
+    animation:  anim auto linear;
+    view-timeline:  --timeline;
+    animation-timeline:  --timeline;
+    animation-range-start:  entry 0%;
+    animation-range-end:  entry 100%;
+  }
+</style>
+<body>
+  <div id=scroller>
+    <div id=target></div>
+  </div>
+</body>
+<script type="text/javascript">
+  async function runTest() {
+    function startAnimation(t) {
+      target.classList.add('animate');
+      t.add_cleanup(async () => {
+        target.classList.remove('animate');
+        await waitForNextFrame();
+      });
+      return target.getAnimations()[0];
+    }
+
+    promise_test(async t => {
+      // Points of interest:
+      // entry 0% @ 600
+      // entry 100% / contain 0% @ 700
+      // exit 0% / contain 100% @ 800
+      // exit 100% @ 900
+      const anim = startAnimation(t);
+      await anim.ready;
+
+      await runAndWaitForFrameUpdate(() => {
+        scroller.scrollTop = 650;
+      });
+
+      // Timline time = (scroll pos - cover 0%) / (cover 100% - cover 0%) * 100%
+      //              = (650 - 600)/(900 - 600) * 100% = 100/6%
+      assert_percents_equal(anim.timeline.currentTime, 100/6,
+                            'timeline\'s current time before style change');
+      assert_percents_equal(anim.startTime, 0,
+                            'animation\'s start time before style change');
+      // Range start of entry 0% aligns with timeline start. Thus, animation's
+      // and timeline's current time are equal.
+      assert_percents_equal(anim.currentTime, 100/6,
+                            'animation\'s current time before style change');
+      // Iteration duration =
+      //     (range end - range start) / (cover 100% - cover 0%) * 100%
+      //   = (700 - 600) / (900 - 600) = 33.3333%
+      assert_percents_equal(anim.effect.getComputedTiming().duration,
+                            100/3,
+                            'iteration duration before first style change');
+      assert_equals(getComputedStyle(target).marginLeft, '50px',
+                    'margin-left before style change');
+
+      // Step 1: Set the range end programmatically and range start via CSS.
+      // The start time will be respected since not previously set via the
+      // animation API.
+      await runAndWaitForFrameUpdate(() => {
+        anim.rangeEnd = 'contain 100%';
+        target.style.animationRangeStart = 'entry 50%';
+      });
+
+      // Animation range does not affect timeline's currentTime.
+      assert_percents_equal(
+          anim.timeline.currentTime, 100/6,
+          'timeline\'s current time after first set of range updates');
+      assert_percents_equal(
+          anim.startTime, 100/6,
+          'animation\'s start time after first set of range updates');
+      // Scroll position aligns with range start.
+      assert_percents_equal(
+          anim.currentTime, 0,
+          'animation\'s current time after first set of range updates');
+      // Iteration duration =
+      //     (range end - range start) / (cover 100% - cover 0%) * 100%
+      //   = (800 - 650) / (900 - 600) = 50%
+      assert_percents_equal(
+          anim.effect.getComputedTiming().duration, 50,
+          'iteration duration after first style change');
+      assert_equals(getComputedStyle(target).marginLeft, '0px',
+        'margin-left after first set of range updates');
+
+      // Step 2: Programmatically set the range start.
+      // Scroll position is current at entry 50%, thus the animation's current
+      // time is negative.
+      await runAndWaitForFrameUpdate(() => {
+        anim.rangeStart = 'contain 0%';
+      });
+      // animation current time =
+      //     (scroll pos - range start) / (cover 100% - cover 0%) * 100%
+      //   = (650 - 700) / (900 - 600) * 100% = -100/6%
+      assert_percents_equal(
+        anim.currentTime, -100/6,
+        'animation\'s current time after second set of range updates');
+      // Iteration duration =
+      //     (range end - range start) / (cover 100% - cover 0%) * 100%
+      //   = (800 - 700) / (900 - 600) = 33.3333%
+      assert_percents_equal(
+          anim.effect.getComputedTiming().duration, 100/3,
+          'iteration duration after second style change');
+      assert_equals(getComputedStyle(target).marginLeft, '0px',
+        'margin-left after second set of range updates');
+
+      // Jump to contain / cover 50%
+      scroller.scrollTop = 750;
+      await waitForNextFrame();
+
+      // animation current time =
+      //     (scroll pos - range start) / (cover 100% - cover 0%) * 100%
+      //   = (750 - 700) / (900 - 600) * 100% =  100/6%
+      assert_percents_equal(
+          anim.currentTime, 100/6,
+          'animation\'s current time after bumping scroll position');
+      assert_approx_equals(parseFloat(getComputedStyle(target).marginLeft), 50, 0.125);
+
+      // Step 3: Try to update the range start via CSS.  This change must be
+      // ignored since previously set programmatically.
+      await runAndWaitForFrameUpdate(() => {
+        target.style.animationRangeStart = "entry 50%";
+      });
+      assert_percents_equal(
+          anim.currentTime, 100/6,
+          'Current time unchanged after change to ignored CSS property');
+      assert_approx_equals(parseFloat(getComputedStyle(target).marginLeft), 50, 0.125,
+          'Margin-left unaffected by change to ignored CSS property');
+
+    }, 'Animation API call rangeStart overrides animation-range-start');
+
+    promise_test(async t => {
+      const anim = startAnimation(t);
+      await anim.ready;
+
+      scroller.scrollTop = 650;
+      await waitForNextFrame();
+
+      // Step 1: Set the range start programmatically and range end via CSS.
+      // The start time will be respected since not previously set via the
+      // animation API.
+      await runAndWaitForFrameUpdate(() => {
+        anim.rangeStart = "entry 50%";
+        target.style.animationRangeEnd = "contain 100%";
+      });
+
+      assert_percents_equal(
+          anim.timeline.currentTime, 100/6,
+          'timeline\'s current time after first set of range updates');
+      assert_percents_equal(
+          anim.startTime, 100/6,
+          'animation\'s start time after first set of range updates');
+      assert_percents_equal(
+          anim.currentTime, 0,
+          'animation\'s current time after first set of range updates');
+      assert_percents_equal(
+          anim.effect.getComputedTiming().duration, 50,
+          'iteration duration after first style change');
+      assert_equals(getComputedStyle(target).marginLeft, "0px",
+        'margin-left after first set of range updates');
+
+      // Step 2: Programmatically set the range.
+      // Scroll position is current at entry 50%, thus the animation's current
+      // time is negative.
+      await runAndWaitForFrameUpdate(() => {
+        anim.rangeStart = "contain 0%";
+        anim.rangeEnd = "contain 100%";
+      });
+
+      assert_percents_equal(
+        anim.currentTime, -100/6,
+        'animation\'s current time after second set of range updates');
+      assert_percents_equal(
+          anim.effect.getComputedTiming().duration, 100/3,
+          'iteration duration after second style change');
+      assert_equals(getComputedStyle(target).marginLeft, "0px",
+        'margin-left after second set of range updates');
+
+      // Jump to contain / cover 50%
+      scroller.scrollTop = 750;
+      await waitForNextFrame();
+
+      assert_percents_equal(
+          anim.currentTime, 100/6,
+          'animation\'s current time after bumping scroll position');
+      assert_approx_equals(parseFloat(getComputedStyle(target).marginLeft), 50, 0.125);
+
+      // Step 3: Try to update the range end via CSS. This change must be
+      // ignored since previously set programmatically.
+      await runAndWaitForFrameUpdate(() => {
+        target.style.animationRangeEnd = "cover 100%";
+      });
+      assert_percents_equal(
+          anim.currentTime, 100/6,
+          'Current time unchanged after change to ignored CSS property');
+      assert_approx_equals(parseFloat(getComputedStyle(target).marginLeft), 50, 0.125,
+          'Margin-left unaffected by change to ignored CSS property');
+
+    }, 'Animation API call rangeEnd overrides animation-range-end');
+  }
+
+  window.onload = runTest;
+</script>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<title>Changes to view-timeline are reflected in dependent elements</title>
+<link rel="help" src="https://drafts.csswg.org/scroll-animations-1/#view-timeline-shorthand">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+  @keyframes anim {
+    from { z-index: 0; }
+    to { z-index: 100; }
+  }
+  .scroller {
+    overflow: hidden;
+    width: 100px;
+    height: 100px;
+  }
+  .scroller > div {
+    height: 100px;
+  }
+  #target {
+    height: 0px;
+    z-index: -1;
+  }
+</style>
+<main id=main></main>
+<script>
+  setup(assert_implements_animation_timeline);
+
+  function inflate(t, template) {
+    t.add_cleanup(() => main.replaceChildren());
+    main.append(template.content.cloneNode(true));
+    main.offsetTop;
+  }
+  async function scrollTop(e, value) {
+    e.scrollTop = value;
+    await waitForNextFrame();
+  }
+  async function scrollLeft(e, value) {
+    e.scrollLeft = value;
+    await waitForNextFrame();
+  }
+</script>
+
+<template id=dynamic_view_timeline_attachment>
+  <style>
+    #scroller {
+      timeline-scope: --t1;
+    }
+    .timeline {
+      view-timeline: --t1;
+    }
+    #target {
+      animation: anim 1s linear;
+      animation-timeline: --t1;
+    }
+  </style>
+  <div id=scroller class=scroller>
+    <div id=div75></div>
+    <div id=div25></div>
+    <div id=div_before></div>
+    <div id=target></div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    inflate(t, dynamic_view_timeline_attachment);
+
+    await scrollTop(scroller, 50);
+
+    // scrollTop=50 is 75% for div75.
+    div75.classList.add('timeline');
+    await waitForCSSScrollTimelineStyle();
+    assert_equals(getComputedStyle(target).zIndex, '75', 'div75');
+
+    // Identical timelines in div75 and div25 creates a naming conflict that is
+    // resolved to the last match in tree order.
+    div25.classList.add('timeline');
+    await waitForCSSScrollTimelineStyle();
+    assert_equals(getComputedStyle(target).zIndex, '25', 'div25');
+    // Removing the timeline from div75 removes the conflict resolution.
+    div75.classList.remove('timeline');
+    await waitForCSSScrollTimelineStyle();
+    assert_equals(getComputedStyle(target).zIndex, '25', 'div25');
+
+    // scrollTop=50 is before the timeline start for div_before.
+    div25.classList.remove('timeline');
+    div_before.classList.add('timeline');
+    await waitForCSSScrollTimelineStyle();
+    assert_equals(getComputedStyle(target).zIndex, '-1', 'ahead of div_before');
+    // Scroll to 25% (for div_before) to verify that we're linked to that
+    // timeline.
+    await scrollTop(scroller, 150);
+    assert_equals(getComputedStyle(target).zIndex, '25', 'div_before');
+
+    // Linking the timeline back to div25 verifies that the new scrollTop=150 is
+    // actually at 75%.
+    div_before.classList.remove('timeline');
+    div25.classList.add('timeline');
+    await waitForCSSScrollTimelineStyle();
+    assert_equals(getComputedStyle(target).zIndex, '75', 'div25 again');
+  }, 'Dynamically changing view-timeline attachment');
+</script>
+
+<template id=dynamic_view_timeline_axis>
+  <style>
+    #timeline {
+      view-timeline: --t1;
+      width: 100px;
+      height: 100px;
+      margin: 100px;
+    }
+    #target {
+      animation: anim 1s linear;
+      animation-timeline: --t1;
+    }
+  </style>
+  <div id=scroller class=scroller>
+    <div id=timeline style="background: red;">
+      <div id=target></div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    inflate(t, dynamic_view_timeline_axis);
+
+    await scrollTop(scroller, 50); // 25% (vertical)
+    await scrollLeft(scroller, 20); // 10% (horizontal)
+
+    assert_equals(getComputedStyle(target).zIndex, '25', 'vertical');
+    timeline.style.viewTimelineAxis = 'x';
+    await waitForCSSScrollTimelineStyle();
+    assert_equals(getComputedStyle(target).zIndex, '10', 'horizontal');
+  }, 'Dynamically changing view-timeline-axis');
+</script>
+
+<template id=dynamic_view_timeline_inset>
+  <style>
+    #timeline {
+      width: 100px;
+      height: 100px;
+      margin: 100px;
+      view-timeline: --t1;
+    }
+    #target {
+      animation: anim 1s linear;
+      animation-timeline: --t1;
+    }
+  </style>
+  <div id=scroller class=scroller>
+    <div id=timeline style="background: red;">
+      <div id=target></div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    inflate(t, dynamic_view_timeline_inset);
+
+    await scrollTop(scroller, 50); // 25% (without inset).
+
+    assert_equals(getComputedStyle(target).zIndex, '25', 'without inset');
+    timeline.style.viewTimelineInset = '0px 50px';
+    await waitForCSSScrollTimelineStyle();
+    assert_equals(getComputedStyle(target).zIndex, '0', 'with inset');
+  }, 'Dynamically changing view-timeline-inset');
+</script>
+
+<template id=timeline_display_none>
+  <style>
+    #scroller {
+      timeline-scope: --t1;
+    }
+    #timeline {
+      view-timeline: --t1;
+    }
+    #target {
+      animation: anim 1s linear;
+      animation-timeline: --t1;
+    }
+  </style>
+  <div id=scroller class=scroller>
+    <div></div>
+    <div id=timeline></div>
+    <div id=target></div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    inflate(t, timeline_display_none);
+
+    await scrollTop(scroller, 50);
+    assert_equals(getComputedStyle(target).zIndex, '25', 'display:block');
+    timeline.style.display = 'none';
+    await waitForNextFrame();
+    // The timeline became inactive.
+    assert_equals(getComputedStyle(target).zIndex, '-1', 'display:none');
+  }, 'Element with scoped view-timeline becoming display:none');
+</script>

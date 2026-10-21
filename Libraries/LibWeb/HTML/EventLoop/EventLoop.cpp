@@ -13,6 +13,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/HeapAccess.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Animations/NamedTimelines.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSTransition.h>
@@ -1116,13 +1117,22 @@ static void update_style_and_layout_for_rendering(DOM::Document& document)
 
     TemporaryExecutionContext context { document.relevant_settings_object() };
 
+    // NB: The animations that name their timeline find the timelines that style update and layout declared. An
+    //     animation that moved to another timeline takes its time from it in this frame, so the timelines update their
+    //     current time and style and layout run again.
+    bool animations_changed_timeline = false;
+    if (document.has_named_timelines())
+        animations_changed_timeline = document.named_timelines().update_tracked_animations();
+    if (animations_changed_timeline)
+        requires_style_and_layout_update = true;
+
     for (auto const& timeline : document.associated_animation_timelines()) {
         auto* scroll_timeline = as_if<Animations::ScrollTimeline>(*timeline);
 
         if (!scroll_timeline)
             continue;
 
-        if (!scroll_timeline->is_stale())
+        if (!animations_changed_timeline && !scroll_timeline->is_stale())
             continue;
 
         // NB: The passed timestamp is ignored for ScrollTimelines so we can just use 0.
@@ -1273,8 +1283,6 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
     }
 }
 
-// Whether the style transaction of `document` in a rendering update may fly beside the event loop, or what keeps it in
-// step.
 Layout::RustFFI::FfiFlightBlocker EventLoop::style_flight_blocker(DOM::Document& document) const
 {
     using Blocker = Layout::RustFFI::FfiFlightBlocker;
@@ -1291,6 +1299,9 @@ Layout::RustFFI::FfiFlightBlocker EventLoop::style_flight_blocker(DOM::Document&
         if (is<Animations::ScrollTimeline>(*timeline))
             return Blocker::ScrollTimeline;
     }
+    // The animations that name their timeline look it up again after style and layout.
+    if (document.has_named_timelines())
+        return Blocker::ScrollTimeline;
     return Blocker::None;
 }
 

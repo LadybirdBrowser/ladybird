@@ -43,11 +43,13 @@ public:
     virtual Optional<TimeValue> duration() const override { return TimeValue { TimeValue::Type::Percentage, 100 }; }
 
     GC::Ptr<DOM::Element const> source() const;
+    virtual GC::Ptr<DOM::Element const> source_for_bindings() const { return source(); }
     ScrollAxis axis() const { return m_axis; }
+    void set_axis(ScrollAxis);
 
     Source source_internal() const { return m_source; }
 
-    bool is_stale() const;
+    virtual bool is_stale() const;
     virtual void update_current_time(double timestamp) override;
 
     // The scroll node the timeline followed at its last update, and the scroll offset at 100% progress there, in CSS
@@ -67,12 +69,29 @@ public:
     virtual Optional<TimeValue> maximum_timeline_time() const override { return TimeValue { TimeValue::Type::Percentage, 100 }; }
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const override { return false; }
 
-private:
+protected:
     ScrollTimeline(DOM::Document&, Source source, ScrollAxis axis);
     virtual ~ScrollTimeline() override = default;
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
+    // The scroll container the timeline follows, along the timeline's axis, in CSS pixels.
+    struct ScrollerMetrics {
+        Optional<AsyncScrollNodeStableID> scroll_node;
+        bool is_vertical { true };
+        double scroll_offset { 0 };
+        double max_scroll_offset { 0 };
+        // Where the scrollport starts in the coordinates the boxes inside it are laid out in, and its size.
+        double scrollport_start { 0 };
+        double scrollport_size { 0 };
+        // The scroll padding at the start and at the end of the scrollport.
+        double scroll_padding_start { 0 };
+        double scroll_padding_end { 0 };
+    };
+    // Empty while the source has no box, is not a scroll container or has no scrollable overflow.
+    Optional<ScrollerMetrics> scroller_metrics() const;
+
+private:
     Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> get_propagated_source() const;
 
     // https://drafts.csswg.org/scroll-animations-1/#dom-scrolltimeline-source

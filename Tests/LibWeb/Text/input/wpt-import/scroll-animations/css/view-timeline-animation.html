@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<title>Animations using view-timeline</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<link rel="help" src="https://drafts.csswg.org/scroll-animations-1/#view-timelines-named">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+  @keyframes anim {
+    from { z-index: 0; }
+    to { z-index: 100; }
+  }
+  .vertical-scroller {
+    overflow: auto;
+    width: 100px;
+    height: 100px;
+  }
+  .vertical-scroller > div {
+    height: 50px;
+    z-index: -1;
+  }
+  .horizontal-scroller {
+    overflow: auto;
+    width: 100px;
+    height: 100px;
+    writing-mode: vertical-lr;
+  }
+  .horizontal-scroller > div {
+    width: 50px;
+    z-index: -1;
+  }
+</style>
+<main id=main></main>
+<script>
+  setup(assert_implements_animation_timeline);
+
+  function inflate(t, template) {
+    t.add_cleanup(() => main.replaceChildren());
+    main.append(template.content.cloneNode(true));
+  }
+  async function scrollTop(e, value) {
+    e.scrollTop = value;
+    await waitForNextFrame();
+  }
+  async function scrollLeft(e, value) {
+    e.scrollLeft = value;
+    await waitForNextFrame();
+  }
+</script>
+
+<template id=default_view_timeline>
+  <style>
+    #target {
+      view-timeline: --t1;
+      animation: anim 1s linear forwards;
+      animation-timeline: --t1;
+    }
+  </style>
+  <div id=scroller class=vertical-scroller>
+    <div></div>           <!-- [0px,   50px]  -->
+    <div></div>           <!-- [50px,  100px] -->
+    <div></div>           <!-- [100px, 150px] -->
+    <div id=target></div> <!-- [150px, 200px] -->
+    <div></div>           <!-- [200px, 250px] -->
+    <div></div>           <!-- [250px, 300px] -->
+    <div></div>           <!-- [300px, 350px] -->
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    inflate(t, default_view_timeline);
+    assert_equals(getComputedStyle(target).zIndex, '-1');
+    await scrollTop(scroller, 25);
+    assert_equals(getComputedStyle(target).zIndex, '-1');
+    await scrollTop(scroller, 50); // 0% (enter 0%)
+    assert_equals(getComputedStyle(target).zIndex, '0');
+    await scrollTop(scroller, 125); // 50%
+    assert_equals(getComputedStyle(target).zIndex, '50');
+    await scrollTop(scroller, 200); // 100% (exit 100%)
+    assert_equals(getComputedStyle(target).zIndex, '100');
+    await scrollTop(scroller, 201); // now over the 100% scroll offset, but "fill: forwards" lets the animation apply.
+    assert_equals(getComputedStyle(target).zIndex, '100');
+    document.getAnimations()[0].effect.updateTiming( { fill: 'none' });
+    assert_equals(getComputedStyle(target).zIndex, '-1');
+    await scrollTop(scroller, 200); // now back to the 100% scroll offset.
+    assert_equals(getComputedStyle(target).zIndex, '100');
+  }, 'Default view-timeline');
+</script>
+
+<template id=horizontal_timeline>
+  <style>
+    #target {
+      view-timeline: --t1 x;
+      animation: anim 1s linear forwards;
+      animation-timeline: --t1;
+    }
+  </style>
+  <div id=scroller class=horizontal-scroller>
+    <div></div>           <!-- [0px,   50px]  -->
+    <div></div>           <!-- [50px,  100px] -->
+    <div></div>           <!-- [100px, 150px] -->
+    <div id=target></div> <!-- [150px, 200px] -->
+    <div></div>           <!-- [200px, 250px] -->
+    <div></div>           <!-- [250px, 300px] -->
+    <div></div>           <!-- [300px, 350px] -->
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    inflate(t, horizontal_timeline);
+    assert_equals(getComputedStyle(target).zIndex, '-1');
+    await scrollLeft(scroller, 25);
+    assert_equals(getComputedStyle(target).zIndex, '-1');
+    await scrollLeft(scroller, 50); // 0% (enter 0%)
+    assert_equals(getComputedStyle(target).zIndex, '0');
+    await scrollLeft(scroller, 125); // 50%
+    assert_equals(getComputedStyle(target).zIndex, '50');
+    await scrollLeft(scroller, 200); // 100% (exit 100%)
+    assert_equals(getComputedStyle(target).zIndex, '100');
+    await scrollLeft(scroller, 201); // now over the 100% scroll offset, but "fill: forwards" lets the animation apply.
+    assert_equals(getComputedStyle(target).zIndex, '100');
+    document.getAnimations()[0].effect.updateTiming( { fill: 'none' });
+    assert_equals(getComputedStyle(target).zIndex, '-1');
+    await scrollLeft(scroller, 200); // now back to the 100% scroll offset.
+    assert_equals(getComputedStyle(target).zIndex, '100');
+  }, 'Horizontal view-timeline');
+</script>
+
+<template id=multiple_timelines>
+  <style>
+    #timelines {
+      view-timeline: --tv y, --th x;
+      background-color: red;
+    }
+    #scroller {
+      width: 100px;
+      height: 100px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 50px 50px 50px 50px 50px 50px 50px;
+      grid-template-row: 50px 50px 50px 50px 50px 50px 50px;
+      timeline-scope: --tv, --th;
+    }
+    #scroller > div {
+      z-index: -1;
+      width: 50px;
+      height: 50px;
+    }
+    #target_v {
+      animation: anim 1s linear forwards;
+      animation-timeline: --tv;
+    }
+    #target_h {
+      animation: anim 1s linear forwards;
+      animation-timeline: --th;
+    }
+  </style>
+  <div id=scroller>
+    <!-- Created dynamically -->
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    inflate(t, multiple_timelines);
+
+    // Create a 350px x 350px grid (7x7 items of 50x50px each), with the
+    // timelines at item [3,3], an element attached to the horizontal timeline
+    // at [4,3], and an element attached to the vertical timeline at [3,4].
+
+    // x  x  x  x  x  x  x
+    // x  x  x  x  x  x  x
+    // x  x  x  x  x  x  x
+    // x  x  x  T  H  x  x
+    // x  x  x  V  x  x  x
+    // x  x  x  x  x  x  x
+    // x  x  x  x  x  x  x
+    // x  x  x  x  x  x  x
+
+    let grid_size = 7;
+    for (let i = 0; i < (grid_size*grid_size); ++i) {
+      let div = document.createElement('div');
+      if (i == (3 * grid_size + 3))
+        div.id = 'timelines';
+      if (i == (3 * grid_size + 4))
+        div.id = 'target_h';
+      if (i == (4 * grid_size + 3))
+        div.id = 'target_v';
+      scroller.append(div);
+    }
+
+    assert_equals(getComputedStyle(target_v).zIndex, '-1');
+    assert_equals(getComputedStyle(target_h).zIndex, '-1');
+
+    // First scroll vertically.
+    await scrollTop(scroller, 25);
+    assert_equals(getComputedStyle(target_v).zIndex, '-1');
+    assert_equals(getComputedStyle(target_h).zIndex, '-1');
+    await scrollTop(scroller, 50); // 0% (enter 0%)
+    assert_equals(getComputedStyle(target_v).zIndex, '0');
+    assert_equals(getComputedStyle(target_h).zIndex, '-1');
+    await scrollTop(scroller, 125); // 50%
+    assert_equals(getComputedStyle(target_v).zIndex, '50');
+    assert_equals(getComputedStyle(target_h).zIndex, '-1');
+    await scrollTop(scroller, 200); // 100% (exit 100%)
+    assert_equals(getComputedStyle(target_v).zIndex, '100');
+    assert_equals(getComputedStyle(target_h).zIndex, '-1');
+    await scrollTop(scroller, 201); // now over the 100% scroll offset, but "fill: forwards" lets the animation apply.
+    assert_equals(getComputedStyle(target_v).zIndex, '100');
+    assert_equals(getComputedStyle(target_h).zIndex, '-1');
+    document.getElementById('target_v').getAnimations()[0].
+        effect.updateTiming({ fill: 'none' });
+    assert_equals(getComputedStyle(target_v).zIndex, '-1');
+    assert_equals(getComputedStyle(target_h).zIndex, '-1');
+
+    // Then horizontally.
+    await scrollLeft(scroller, 25);
+    assert_equals(getComputedStyle(target_v).zIndex, '-1');
+    assert_equals(getComputedStyle(target_h).zIndex, '-1');
+    await scrollLeft(scroller, 50); // 0% (enter 0%)
+    assert_equals(getComputedStyle(target_v).zIndex, '-1');
+    assert_equals(getComputedStyle(target_h).zIndex, '0');
+    await scrollLeft(scroller, 125); // 50%
+    assert_equals(getComputedStyle(target_v).zIndex, '-1');
+    assert_equals(getComputedStyle(target_h).zIndex, '50');
+    await scrollLeft(scroller, 200); // 100% (exit 100%)
+    assert_equals(getComputedStyle(target_v).zIndex, '-1');
+    assert_equals(getComputedStyle(target_h).zIndex, '100');
+    await scrollLeft(scroller, 201); // now over the 100% scroll offset, but "fill: forwards" lets the animation apply.
+    assert_equals(getComputedStyle(target_v).zIndex, '-1');
+    assert_equals(getComputedStyle(target_h).zIndex, '100');
+    document.getElementById('target_h').getAnimations()[0].
+        effect.updateTiming({ fill: 'none' });
+    assert_equals(getComputedStyle(target_v).zIndex, '-1');
+    assert_equals(getComputedStyle(target_h).zIndex, '-1');
+
+    await scrollTop(scroller, 200);  // now back to the 100% scroll offset.
+    await scrollLeft(scroller, 200); // now back to the 100% scroll offset.
+    assert_equals(getComputedStyle(target_v).zIndex, '100');
+    assert_equals(getComputedStyle(target_h).zIndex, '100');
+  }, 'Multiple view-timelines on the same element');
+</script>

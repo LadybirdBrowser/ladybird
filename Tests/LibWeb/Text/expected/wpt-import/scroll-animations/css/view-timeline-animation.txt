@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Default view-timeline
+Fail	Horizontal view-timeline
+Fail	Multiple view-timelines on the same element

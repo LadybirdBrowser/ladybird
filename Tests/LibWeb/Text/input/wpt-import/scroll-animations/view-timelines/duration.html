@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>ViewTimeline.duration</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations-2/#dom-animationtimeline-duration">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id=subject></div>
+<script>
+'use strict';
+
+test(t => {
+  const timeline = new ViewTimeline({subject: subject});
+  assert_equals(timeline.duration.toString(), '100%');
+}, 'The duration of a view timeline is 100%');
+
+</script>

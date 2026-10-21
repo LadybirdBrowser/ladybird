@@ -5368,6 +5368,29 @@ void Element::update_animated_properties_for_abstract_element(Badge<Web::Animati
     effect.update_computed_properties_for_style(context, abstract_element);
 }
 
+// The animation style group of an installed style, which holds the timelines it declares by name.
+static CSS::ComputedValues::AnimationValues const* installed_animation_values(CSS::InstalledStyle const& style)
+{
+    auto const* payloads = static_cast<void const* const*>(style.payloads());
+    if (!payloads)
+        return nullptr;
+    return static_cast<CSS::ComputedValues::AnimationValues const*>(payloads[CSS::ComputedValues::AnimationValues::style_group_index]);
+}
+
+// Whether two installed styles differ in the timelines they declare by name, or the timeline names they scope.
+static bool timeline_declarations_differ(CSS::InstalledStyle const& old_style, CSS::InstalledStyle const& new_style)
+{
+    auto const* old_values = installed_animation_values(old_style);
+    auto const* new_values = installed_animation_values(new_style);
+    bool const old_declares = old_values && CSS::ComputedValuesFFI::rust_animation_values_declare_timelines(old_values);
+    bool const new_declares = new_values && CSS::ComputedValuesFFI::rust_animation_values_declare_timelines(new_values);
+    if (!old_declares && !new_declares)
+        return false;
+    if (old_declares != new_declares)
+        return true;
+    return old_values != new_values && !CSS::ComputedValuesFFI::rust_animation_values_timeline_declarations_equal(old_values, new_values);
+}
+
 void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
 {
     VERIFY(!style_record_identity || style_node_id() != 0);
@@ -5390,6 +5413,9 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
     // attributes for the layout tree build to resolve, so they follow every record the element takes.
     if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity)
         Layout::publish_svg_style_references(*this);
+    // https://drafts.csswg.org/scroll-animations-1/#timeline-scoping
+    if (timeline_declarations_differ(held_before, m_installed_style))
+        document().did_change_timeline_declarations();
 }
 
 // What C++ installs beside a pseudo-element it computes: its element's inheritable environment, or the one its own

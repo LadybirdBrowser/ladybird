@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+6 Pass
+1 Fail
+Pass	View timeline with range as <name> <percent> pair.
+Pass	View timeline with range and inferred name or offset.
+Pass	View timeline with range as <name> <px> pair.
+Pass	View timeline range accepts absolute units.
+Pass	View timeline with range as <name> <percent+px> pair.
+Pass	View timeline with range as strings.
+Fail	View timeline with range using relative units.

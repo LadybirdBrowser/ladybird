@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+9 Pass
+3 Fail
+Pass	scroll-timeline-name is referenceable in animation-timeline on the declaring element itself
+Pass	scroll-timeline-name is referenceable in animation-timeline on that element's descendants
+Pass	scroll-timeline-name on an element which is not a scroll-container
+Fail	Change in scroll-timeline-name to match animation timeline updates animation.
+Fail	Change in scroll-timeline-name to no longer match animation timeline updates animation.
+Pass	Timeline lookup updates candidate when closer match available.
+Fail	Timeline lookup updates candidate when match becomes available.
+Pass	scroll-timeline-axis is block
+Pass	scroll-timeline-axis is inline
+Pass	scroll-timeline-axis is x
+Pass	scroll-timeline-axis is y
+Pass	scroll-timeline-axis is mutated
