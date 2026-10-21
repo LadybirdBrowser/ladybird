@@ -102,9 +102,10 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
             auto image_data = image->current_request().image_data();
             return image_data && image_data->is_cors_cross_origin();
         },
-        [](GC::Ref<SVG::SVGImageElement>) {
-            // FIXME: image's current request's image data is CORS-cross-origin.
-            return false;
+        [](GC::Ref<SVG::SVGImageElement> image) {
+            // image's current request's image data is CORS-cross-origin.
+            auto image_data = image->decoded_image_data();
+            return image_data && image_data->is_cors_cross_origin();
         },
         // HTMLVideoElement
         [](GC::Ref<HTMLVideoElement>) {

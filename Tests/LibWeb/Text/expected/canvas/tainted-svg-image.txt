@@ -1,0 +1,5 @@
+Cross-origin SVG image drawn: SecurityError
+Pattern of cross-origin SVG image: SecurityError
+ImageBitmap of cross-origin SVG image drawn: SecurityError
+Same-origin SVG image drawn: readable
+Pixel: 255,0,0,255
