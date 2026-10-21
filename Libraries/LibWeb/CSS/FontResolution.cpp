@@ -188,7 +188,7 @@ static RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FontFaceSnapsh
         weighed_candidates.unchecked_append({ candidate.key.weight.min, candidate.key.weight.max, candidate.key.slope, candidate.width });
     Vector<size_t> order;
     order.resize(matching_family_fonts.size());
-    auto order_length = Parser::ValueParserFFI::rust_font_matching_order(weighed_candidates.data(), weighed_candidates.size(), weight, font_width_bucket_from_percentage(font_width.value()), slope, order.data());
+    auto order_length = Parser::ValueParserFFI::rust_font_matching_order(weighed_candidates.span(), weight, font_width_bucket_from_percentage(font_width.value()), slope, order.span());
     for (auto index : order.span().trim(order_length)) {
         if (auto found_font = matching_family_fonts[index].font_with_point_size(snapshot, font_size_in_pt, variations, shape_features))
             return found_font;

@@ -641,24 +641,17 @@ EncodingSniffingResult run_encoding_sniffing_algorithm(DOM::Document& document, 
     //    then return that encoding, with the confidence tentative. [UNIVCHARDET]
 
     auto tld_hint = extract_tld_hint(document.url());
-    u8 const* tld_data = tld_hint.is_empty() ? nullptr : reinterpret_cast<u8 const*>(tld_hint.characters());
-    size_t tld_size = tld_hint.length();
 
     u8 const* encoding_name_ptr = nullptr;
     size_t encoding_name_len = 0;
 
     bool allow_utf8_detection = document.url().scheme() == "file"sv;
 
-    if (Parser::rust_detect_encoding(
-            input.data(), input.size(),
-            tld_data, tld_size,
-            allow_utf8_detection,
-            &encoding_name_ptr, &encoding_name_len)) {
-        auto detected = StringView { reinterpret_cast<char const*>(encoding_name_ptr), encoding_name_len };
-        auto standardized = TextCodec::get_standardized_encoding(detected);
-        if (standardized.has_value())
-            return { ByteString { standardized.value() }, EncodingConfidence::Tentative };
-    }
+    Parser::rust_detect_encoding(input, tld_hint.bytes(), allow_utf8_detection, &encoding_name_ptr, &encoding_name_len);
+    auto detected = StringView { reinterpret_cast<char const*>(encoding_name_ptr), encoding_name_len };
+    auto standardized = TextCodec::get_standardized_encoding(detected);
+    if (standardized.has_value())
+        return { ByteString { standardized.value() }, EncodingConfidence::Tentative };
 
     // 9. Otherwise, return an implementation-defined or user-specified default character encoding, with the confidence tentative.
     //    In controlled environments or in environments where the encoding of documents can be prescribed (for example, for user agents intended for dedicated use in new
