@@ -61,6 +61,10 @@
         println(`closed ImageBitmap: ${closed.width}x${closed.height}`);
         println(`clone of a closed ImageBitmap: ${outcome(() => { const c = structuredClone(closed); return `${c.width}x${c.height}`; })}`);
         println(`transfer of a closed ImageBitmap: ${outcome(() => structuredClone(closed, { transfer: [closed] }))}`);
+        println(`clone of an object with a closed ImageBitmap: ${outcome(() => structuredClone({ bitmap: closed }))}`);
+        const transferred = await createImageBitmap(original);
+        structuredClone(transferred, { transfer: [transferred] });
+        println(`clone of a transferred ImageBitmap: ${outcome(() => structuredClone(transferred))}`);
         println(`drawImage of a closed ImageBitmap: ${outcome(() => context.drawImage(closed, 0, 0))}`);
 
         // An ImageBitmap of an OffscreenCanvas without pixels has no bitmap data.
