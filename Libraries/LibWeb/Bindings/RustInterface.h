@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Concepts.h>
+#include <AK/StringView.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/HostObjectABI.h>
@@ -49,6 +50,11 @@ concept RustInterfaceHandle = IsBaseOf<RustInterfaceCell, T> && GC::IsForeignCel
 };
 
 WEB_API GC::Ref<JS::HostObject> wrap_rust_interface_object(WrapperWorld&, JS::Realm& preferred_realm, InterfaceName, RustInterfaceCell&);
+
+// Whether the object is a wrapper of an object of an interface implemented in Rust that is or inherits from the
+// interface with the name, as Wrappable::implements_interface() says for the objects of the interfaces implemented in
+// C++.
+WEB_API bool rust_interface_object_implements_interface(JS::Object const&, StringView interface_name);
 
 template<RustInterfaceHandle T>
 [[nodiscard]] GC::Ref<JS::HostObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<T> object)

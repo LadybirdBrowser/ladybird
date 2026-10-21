@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/WebIDL/OverloadResolution.h>
 
 namespace Web::WebIDL {
@@ -26,7 +27,7 @@ static bool platform_object_implements_interface(JS::Value value, StringView int
 {
     auto const* wrappable = Bindings::wrappable_impl_from(&value.as_object());
     if (!wrappable)
-        return false;
+        return Bindings::rust_interface_object_implements_interface(value.as_object(), interface_name);
 
     return wrappable->implements_interface(MUST(String::from_utf8(interface_name)));
 }
