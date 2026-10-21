@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .scroller {
+        overflow: hidden;
+        width: 200px;
+        height: 200px;
+    }
+    .content {
+        margin: 400px 0px;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div class="scroller" id="margins"><div class="content"></div></div>
+<div class="scroller" id="margins-and-padding" style="padding-bottom: 20px"><div class="content"></div></div>
+<div class="scroller" id="last-child-margin"><div class="content" style="margin-bottom: 0"></div><div style="height: 10px; margin-bottom: 30px"></div></div>
+<div class="scroller" id="negative-end-margin"><div class="content" style="margin-bottom: -50px"></div></div>
+<div class="scroller" id="float-margin"><div class="content" style="float: left"></div></div>
+<script>
+    test(() => {
+        for (const scroller of document.querySelectorAll(".scroller"))
+            println(`${scroller.id}: ${scroller.scrollHeight}`);
+    });
+</script>

@@ -140,39 +140,12 @@ fn apply_css_transform_to_scrollable_overflow_rect(
 fn padding_inflated_scrollable_overflow(
     layout_arena: &impl PaintableRowsRead,
     box_paintable: NodeSlotId,
-    box_node: NodeSlotId,
     in_flow_and_floated_content_bounds: CssPixelRect,
 ) -> CssPixelRect {
-    let content_box = paintable_geometry::absolute_rect(layout_arena, box_paintable);
-    let padding_box = paintable_geometry::first_fragment_padding_box_rect(layout_arena, box_paintable);
+    // NB: The box's own padding surrounds its in-flow and floated content. Whatever of it falls inside the padding box,
+    //     or in the unreachable scrollable overflow region, adds nothing. This matches Blink.
     let padding = paintable_geometry::committed_padding(layout_arena, box_paintable);
-    let overflow_directions = physical_overflow_directions(layout_arena, box_node);
-
-    let mut left = in_flow_and_floated_content_bounds.left();
-    let mut top = in_flow_and_floated_content_bounds.top();
-    let mut right = in_flow_and_floated_content_bounds.right();
-    let mut bottom = in_flow_and_floated_content_bounds.bottom();
-
-    let in_flow_bounds_overflow_content_box_in_horizontal_axis =
-        left < content_box.left() || right > content_box.right();
-    if in_flow_bounds_overflow_content_box_in_horizontal_axis {
-        if overflow_directions.horizontal_axis_is_positive && right > content_box.right() {
-            right += padding.right;
-        } else if !overflow_directions.horizontal_axis_is_positive {
-            left = left.min(padding_box.left()) - padding.left;
-        }
-    }
-
-    let in_flow_bounds_overflow_content_box_in_vertical_axis = top < content_box.top() || bottom > content_box.bottom();
-    if in_flow_bounds_overflow_content_box_in_vertical_axis {
-        if overflow_directions.vertical_axis_is_positive && bottom > content_box.bottom() {
-            bottom += padding.bottom;
-        } else if !overflow_directions.vertical_axis_is_positive {
-            top = top.min(padding_box.top()) - padding.top;
-        }
-    }
-
-    CssPixelRect::new(left, top, right - left, bottom - top)
+    in_flow_and_floated_content_bounds.inflated(padding.top, padding.right, padding.bottom, padding.left)
 }
 
 #[derive(Clone, Copy)]
@@ -490,29 +463,41 @@ fn measure_scrollable_overflow_impl(
         if !child_border_box.is_empty() {
             scrollable_overflow_rect.unite(child_border_box);
 
-            let untransformed_child_margin_box = if child_is_flex_or_grid_item {
-                let child_margin = paintable_geometry::committed_margin(layout_arena, child_node);
-                let zero = CssPixels::from_raw(0);
-                Some(untransformed_child_border_box.inflated(
-                    child_margin.top.min(zero),
-                    child_margin.right.min(zero),
-                    child_margin.bottom.min(zero),
-                    child_margin.left.min(zero),
-                ))
-            } else {
-                None
-            };
-
             let child_is_in_flow = !(child_is_floating || child_is_absolutely_positioned);
             if child_is_in_flow || child_is_floating {
-                if let Some(child_margin_box) = untransformed_child_margin_box {
-                    // Use negative flex and grid item margin edges to determine whether the container's end
-                    // padding has already been consumed by in-flow content.
-                    in_flow_and_floated_content_bounds.unite_horizontally(child_margin_box);
-                    in_flow_and_floated_content_bounds.unite_vertically(child_margin_box);
-                } else {
-                    in_flow_and_floated_content_bounds.unite(untransformed_child_border_box);
-                }
+                // INTEROP: The edges of in-flow and floated content, after which the container's end padding comes,
+                //          are those of the margin boxes of block-level boxes, flex items and grid items, as in Blink:
+                //          with their computed margins, auto counting as zero, and where they are laid out before
+                //          relative positioning. Toward the end of the scrollable overflow a negative margin counts,
+                //          but no further than the size of the box; toward its start, it does not.
+                let child_is_block_level = child_is_flex_or_grid_item || !child_display.is_inline_outside();
+                let content_box = match child_style {
+                    Some(style) if child_is_block_level => {
+                        let mut border_box = untransformed_child_border_box;
+                        if child_position == positioning::RELATIVE {
+                            let inset = paintable_geometry::committed_inset(layout_arena, child_node);
+                            border_box = border_box.translated(-inset.left, -inset.top);
+                        }
+                        let margin = &style.surround().margin;
+                        let basis = paintable_absolute_content_box.width;
+                        let zero = CssPixels::from_raw(0);
+                        let (left, right) = (margin.left.to_px(basis), margin.right.to_px(basis));
+                        let (top, bottom) = (margin.top.to_px(basis), margin.bottom.to_px(basis));
+                        let (left, right) = if overflow_directions.horizontal_axis_is_positive {
+                            (left.max(zero), right.max(-border_box.width))
+                        } else {
+                            (left.max(-border_box.width), right.max(zero))
+                        };
+                        let (top, bottom) = if overflow_directions.vertical_axis_is_positive {
+                            (top.max(zero), bottom.max(-border_box.height))
+                        } else {
+                            (top.max(-border_box.height), bottom.max(zero))
+                        };
+                        border_box.inflated(top, right, bottom, left)
+                    }
+                    _ => untransformed_child_border_box,
+                };
+                in_flow_and_floated_content_bounds.unite(content_box);
             }
         }
 
@@ -574,7 +559,6 @@ fn measure_scrollable_overflow_impl(
         scrollable_overflow_rect.unite(padding_inflated_scrollable_overflow(
             layout_arena,
             box_paintable,
-            box_node,
             in_flow_and_floated_content_bounds,
         ));
     }
