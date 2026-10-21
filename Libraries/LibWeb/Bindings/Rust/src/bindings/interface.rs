@@ -22,9 +22,10 @@ use core::ptr::NonNull;
 
 use ak::Utf16FlyString;
 use libjs_rust::api::{
-    Attribute, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, FunctionObject, Gc, HostObject,
-    JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey, RawNativeFunction, RawNativeFunctionPointer,
-    Realm, Throw, ThrowCompletionOr, Trace, Value, Vm, get_function_realm, host_data_of, is_host_instance_of,
+    Attribute, EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, ExternalMemorySize, FunctionObject,
+    Gc, HostObject, JSHostClass, Object, PrimitiveString, PropertyAttributes, PropertyKey, RawNativeFunction,
+    RawNativeFunctionPointer, Realm, Throw, ThrowCompletionOr, Trace, Value, Vm, get_function_realm, host_data_of,
+    is_host_instance_of,
 };
 
 use crate::bindings::CallContext;
@@ -42,6 +43,16 @@ pub(crate) trait Wrappable {
     /// wrapper is created in the realm that first asks for it.
     fn relevant_realm(&self, _vm: &Vm) -> Option<Gc<Realm>> {
         None
+    }
+
+    /// Whether the object owns memory outside the heap, which LibGC then asks external_memory_size() for while it
+    /// sweeps and counts towards the bytes that make it collect, as Cell::external_memory_size() of a C++
+    /// implementation object.
+    const OWNS_EXTERNAL_MEMORY: bool = false;
+
+    /// How much memory outside the heap the object owns, which LibGC asks for if OWNS_EXTERNAL_MEMORY is true.
+    fn external_memory_size(&self) -> usize {
+        0
     }
 }
 
@@ -91,6 +102,21 @@ pub(crate) trait Interface: Wrappable + Trace + Sized + 'static {
 
 impl<T: Interface> EmbedderValue for Wrapped<T> {
     const CLASS: &'static EmbedderClass<Self> = T::CELL_CLASS;
+}
+
+impl<T: Wrappable + Trace> ExternalMemorySize for Wrapped<T> {
+    fn external_memory_size(&self) -> usize {
+        self.implementation.external_memory_size()
+    }
+}
+
+/// The class of the cells of the objects of an interface, which the generated bindings of the interface define once.
+pub(crate) const fn cell_class<T: Wrappable + Trace + 'static>(name: &'static str) -> EmbedderClass<Wrapped<T>> {
+    if T::OWNS_EXTERNAL_MEMORY {
+        EmbedderClass::new_with_external_memory_size(name)
+    } else {
+        EmbedderClass::new(name)
+    }
 }
 
 /// Without the generated bindings, which a build of the crate on its own leaves out, nothing creates or wraps an

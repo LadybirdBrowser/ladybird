@@ -17,7 +17,7 @@ use core::mem::{ManuallyDrop, MaybeUninit};
 use core::ops::Deref;
 use core::ptr::NonNull;
 
-use super::class::{Class, GcCell, MIN_CELL_SIZE, class_of};
+use super::class::{Class, ExternalMemorySize, GcCell, MIN_CELL_SIZE, class_of};
 use super::class_id::ClassId;
 use super::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
@@ -75,9 +75,8 @@ unsafe impl<T: Trace> Trace for EmbedderCell<T> {
 /// }
 /// ```
 ///
-/// LibGC traces the cells of the class, and destroys those whose value has a destructor. It does not finalize them
-/// or count memory they own outside the heap: an embedder type that needs either has to opt in through its class,
-/// as the runtime's own cells do through theirs, which no embedder type does yet.
+/// LibGC traces the cells of the class, and destroys those whose value has a destructor. It does not finalize them,
+/// and counts memory they own outside the heap only for a class that new_with_external_memory_size() creates.
 pub struct EmbedderClass<T: 'static> {
     class: Class,
     _value: PhantomData<fn() -> T>,
@@ -100,6 +99,27 @@ impl<T: Trace + 'static> EmbedderClass<T> {
     pub const fn class(&'static self) -> &'static Class {
         &self.class
     }
+}
+
+impl<T: Trace + ExternalMemorySize + 'static> EmbedderClass<T> {
+    /// A class whose cells LibGC asks how much memory their values own outside the heap, which it counts towards the
+    /// bytes that make it collect, as it asks a C++ cell that overrides Cell::external_memory_size().
+    pub const fn new_with_external_memory_size(name: &'static str) -> Self {
+        let mut class = Self::new(name);
+        class.class.type_info.external_memory_size = Some(external_memory_size_of_value::<T>);
+        class
+    }
+}
+
+/// The external_memory_size entry of a class that new_with_external_memory_size() creates.
+///
+/// # Safety
+///
+/// Only LibGC calls it, with a cell of that class.
+unsafe extern "C" fn external_memory_size_of_value<T: ExternalMemorySize>(cell: *const c_void) -> usize {
+    // SAFETY: LibGC passes a cell of the class, whose value stays intact for the call.
+    let cell = unsafe { &*cell.cast::<EmbedderCell<T>>() };
+    (**cell).external_memory_size()
 }
 
 /// A type of the embedder whose values live in cells of their own.
