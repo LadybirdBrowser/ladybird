@@ -441,6 +441,9 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
 
 void Client::log_response(HTTP::HttpRequest const& request, unsigned code)
 {
+    // A test harness sends a dozen commands per test and captures everything this process prints.
+    if (code == 200 && !WEBDRIVER_DEBUG)
+        return;
     outln("{} :: {:03d} :: {} {}", AK::UnixDateTime::now().to_byte_string(), code, request.method_name(), request.resource());
 }
 
