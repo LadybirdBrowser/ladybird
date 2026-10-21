@@ -3735,13 +3735,11 @@ Optional<String> ViewImplementation::crash_report_website() const
 
 String ViewImplementation::current_host_for_settings() const
 {
-    if (auto const& state = traversable().replicated_state(); state.has_value()) {
-        if (state->active_document_url.host().has_value())
-            return MUST(String::from_utf8(state->active_document_url.serialized_host()));
-        if (state->active_document_url.scheme() == "about"sv)
-            return MUST(String::from_utf8(state->active_document_url.serialize_path()));
-    }
-
+    auto url = this->url();
+    if (url.host().has_value())
+        return MUST(String::from_utf8(url.serialized_host()));
+    if (url.scheme() == "about"sv)
+        return MUST(String::from_utf8(url.serialize_path()));
     return {};
 }
 
