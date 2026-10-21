@@ -6,8 +6,8 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[8,8 106x20] color=rgb(212, 208, 200)
-FillRoundedRectRing@s1/e0 rect=[8,8 106x20] widths=[1,1,1,1] color=rgb(128, 128, 128)
+FillRect@s1/e0 rect=[8,8 106x20] color=rgb(239, 239, 239)
+FillRoundedRectRing@s1/e0 rect=[8,8 106x20] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/e0 rect=[13,10 96x16] translation=[13,22.796875] color=rgb(0, 0, 0)
 DrawLine@s1/e0 from=[13,26] to=[109,26] color=rgb(0, 0, 0) thickness=2 style=Solid
 

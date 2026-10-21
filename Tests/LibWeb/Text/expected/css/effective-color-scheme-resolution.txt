@@ -1,5 +1,5 @@
-preferred: light dark / rgb(235, 235, 235)
+preferred: light dark / rgb(255, 255, 255)
 first-supported: custom light / rgb(0, 0, 0)
-normal: normal / rgb(235, 235, 235)
-variable: dark / rgb(235, 235, 235)
+normal: normal / rgb(255, 255, 255)
+variable: dark / rgb(255, 255, 255)
 animated: dark / rgb(0, 0, 0)

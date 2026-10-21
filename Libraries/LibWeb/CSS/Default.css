@@ -25,7 +25,7 @@ label {
 
 /* FIXME: This is a temporary hack until we can render a native-looking frame for these. */
 input:not([type=submit], input[type=button], input[type=image], input[type=reset], input[type=color], input[type=checkbox], input[type=file], input[type=radio], input[type=range]), textarea {
-    border: 1px solid ButtonBorder;
+    border: 1px solid light-dark(#767676, #858585);
     padding: 1px 2px;
     min-height: 16px;
     cursor: text;
@@ -53,7 +53,7 @@ input::placeholder, textarea::placeholder {
 button, input[type=submit], input[type=button], input[type=reset], select, ::file-selector-button {
     padding: 1px 4px;
     background-color: ButtonFace;
-    border: 1px solid ButtonBorder;
+    border: 1px solid light-dark(#767676, #858585);
     color: ButtonText;
     cursor: default;
 
