@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#propdef-animation-range">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+// https://drafts.csswg.org/scroll-animations-1/#view-timelines-ranges
+test_valid_value("animation-range-end", "normal");
+test_valid_value("animation-range-end", "cover 0%");
+test_valid_value("animation-range-end", "cover 100%", "cover");
+test_valid_value("animation-range-end", "cover 120%");
+test_valid_value("animation-range-end", "cover 42%");
+test_valid_value("animation-range-end", "0", "0px");
+test_valid_value("animation-range-end", "120%");
+test_valid_value("animation-range-end", "120px");
+test_valid_value("animation-range-end", "cover -42%");
+test_valid_value("animation-range-end", "contain 42%");
+test_valid_value("animation-range-end", "exit 42%");
+test_valid_value("animation-range-end", "exit 1%, cover 2%, contain 0%");
+test_valid_value("animation-range-end", "exit 1%, cover 2%, contain 100%", "exit 1%, cover 2%, contain");
+test_valid_value("animation-range-end", "exit-crossing 42%");
+test_valid_value("animation-range-end", "entry 42px");
+test_valid_value("animation-range-end", "entry-crossing 42px");
+test_valid_value("animation-range-end", "contain calc(10px + 10%)", "contain calc(10% + 10px)");
+test_valid_value("animation-range-end", "entry 1em");
+test_valid_value("animation-range-end", "exit calc(1em + 10px)");
+test_valid_value("animation-range-end", "entry 42%");
+test_valid_value("animation-range-end", "cover");
+test_valid_value("animation-range-end", "contain");
+test_valid_value("animation-range-end", "entry");
+test_valid_value("animation-range-end", "exit");
+</script>

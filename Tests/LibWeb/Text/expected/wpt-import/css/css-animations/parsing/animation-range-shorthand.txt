@@ -1,0 +1,138 @@
+Harness status: OK
+
+Found 133 tests
+
+133 Pass
+Pass	e.style['animation-range'] = "normal" should set the property value
+Pass	e.style['animation-range'] = "normal normal" should set the property value
+Pass	e.style['animation-range'] = "cover" should set the property value
+Pass	e.style['animation-range'] = "contain" should set the property value
+Pass	e.style['animation-range'] = "entry" should set the property value
+Pass	e.style['animation-range'] = "entry-crossing" should set the property value
+Pass	e.style['animation-range'] = "exit" should set the property value
+Pass	e.style['animation-range'] = "exit-crossing" should set the property value
+Pass	e.style['animation-range'] = "entry, exit" should set the property value
+Pass	e.style['animation-range'] = "0% 100%" should set the property value
+Pass	e.style['animation-range'] = "entry 0% entry 100%" should set the property value
+Pass	e.style['animation-range'] = "entry-crossing 0% entry-crossing 100%" should set the property value
+Pass	e.style['animation-range'] = "exit 0% exit 100%" should set the property value
+Pass	e.style['animation-range'] = "exit-crossing 0% exit-crossing 100%" should set the property value
+Pass	e.style['animation-range'] = "cover 0% cover 100%" should set the property value
+Pass	e.style['animation-range'] = "contain 0% contain 100%" should set the property value
+Pass	e.style['animation-range'] = "entry calc(10% - 10%) entry calc(50% + 50%)" should set the property value
+Pass	e.style['animation-range'] = "cover 50%" should set the property value
+Pass	e.style['animation-range'] = "contain 50%" should set the property value
+Pass	e.style['animation-range'] = "entry 50%" should set the property value
+Pass	e.style['animation-range'] = "entry-crossing 50%" should set the property value
+Pass	e.style['animation-range'] = "exit 50%" should set the property value
+Pass	e.style['animation-range'] = "exit-crossing 50%" should set the property value
+Pass	e.style['animation-range'] = "entry 50px exit 100px" should set the property value
+Pass	e.style['animation-range'] = "exit calc(10% + 50px)" should set the property value
+Pass	e.style['animation-range'] = "entry 50% exit 50%" should set the property value
+Pass	e.style['animation-range'] = "cover 50% entry 50%, contain 50% exit 50%" should set the property value
+Pass	e.style['animation-range'] = "50% exit 50%" should set the property value
+Pass	e.style['animation-range'] = "normal 100px" should set the property value
+Pass	e.style['animation-range'] = "100px" should set the property value
+Pass	e.style['animation-range'] = "100px normal" should set the property value
+Pass	e.style['animation-range'] = "10% normal" should set the property value
+Pass	e.style['animation-range'] = "entry normal" should set the property value
+Pass	Property animation-range value 'normal'
+Pass	Property animation-range value 'normal normal'
+Pass	Property animation-range value 'cover'
+Pass	Property animation-range value 'contain'
+Pass	Property animation-range value 'entry'
+Pass	Property animation-range value 'entry-crossing'
+Pass	Property animation-range value 'exit'
+Pass	Property animation-range value 'exit-crossing'
+Pass	Property animation-range value 'entry, exit'
+Pass	Property animation-range value '0% 100%'
+Pass	Property animation-range value 'entry 0% entry 100%'
+Pass	Property animation-range value 'entry-crossing 0% entry-crossing 100%'
+Pass	Property animation-range value 'exit 0% exit 100%'
+Pass	Property animation-range value 'exit-crossing 0% exit-crossing 100%'
+Pass	Property animation-range value 'cover 0% cover 100%'
+Pass	Property animation-range value 'contain 0% contain 100%'
+Pass	Property animation-range value 'entry calc(10% - 10%) entry calc(50% + 50%)'
+Pass	Property animation-range value 'cover 50%'
+Pass	Property animation-range value 'contain 50%'
+Pass	Property animation-range value 'entry 50%'
+Pass	Property animation-range value 'entry-crossing 50%'
+Pass	Property animation-range value 'exit 50%'
+Pass	Property animation-range value 'exit-crossing 50%'
+Pass	Property animation-range value 'entry 50px exit 100px'
+Pass	Property animation-range value 'exit calc(10% + 50px)'
+Pass	Property animation-range value 'entry 50% exit 50%'
+Pass	Property animation-range value 'cover 50% entry 50%, contain 50% exit 50%'
+Pass	Property animation-range value 'entry 10em exit 20em'
+Pass	Property animation-range value '10em exit 20em'
+Pass	Property animation-range value 'normal 100px'
+Pass	Property animation-range value '100px'
+Pass	Property animation-range value '100px normal'
+Pass	Property animation-range value '10% normal'
+Pass	Property animation-range value 'entry normal'
+Pass	Property animation-range value '10% calc(70% + 10% * sign(100em - 1px))'
+Pass	e.style['animation-range'] = "entry 50% 0s" should not set the property value
+Pass	e.style['animation-range'] = "0s entry 50%" should not set the property value
+Pass	e.style['animation-range'] = "1s" should not set the property value
+Pass	e.style['animation-range'] = "-1s" should not set the property value
+Pass	e.style['animation-range'] = "1s 2s" should not set the property value
+Pass	e.style['animation-range'] = "1s, 2s" should not set the property value
+Pass	e.style['animation-range'] = "1s 2s, 3s" should not set the property value
+Pass	e.style['animation-range'] = "1s, 2s 3s" should not set the property value
+Pass	e.style['animation-range'] = "1s, 2s, 3s" should not set the property value
+Pass	e.style['animation-range'] = "1s 2s 3s" should not set the property value
+Pass	e.style['animation-range'] = "0s, 1s 2s 3s" should not set the property value
+Pass	e.style['animation-range'] = "1s / 2s" should not set the property value
+Pass	e.style['animation-range'] = "1s, 2px" should not set the property value
+Pass	e.style['animation-range'] = "#ff0000" should not set the property value
+Pass	e.style['animation-range'] = "red" should not set the property value
+Pass	e.style['animation-range'] = "thing" should not set the property value
+Pass	e.style['animation-range'] = "thing 0%" should not set the property value
+Pass	e.style['animation-range'] = "thing 42%" should not set the property value
+Pass	e.style['animation-range'] = "thing 100%" should not set the property value
+Pass	e.style['animation-range'] = "thing 100px" should not set the property value
+Pass	e.style['animation-range'] = "100% thing" should not set the property value
+Pass	e.style['animation-range'] = "normal foo normal 100%" should not set the property value
+Pass	e.style['animation-range'] = "normal normal 100%" should not set the property value
+Pass	e.style['animation-range'] = "normal" should set animation-range-end
+Pass	e.style['animation-range'] = "normal" should set animation-range-start
+Pass	e.style['animation-range'] = "normal" should not set unrelated longhands
+Pass	e.style['animation-range'] = "normal normal" should set animation-range-end
+Pass	e.style['animation-range'] = "normal normal" should set animation-range-start
+Pass	e.style['animation-range'] = "normal normal" should not set unrelated longhands
+Pass	e.style['animation-range'] = "normal entry 100%" should set animation-range-end
+Pass	e.style['animation-range'] = "normal entry 100%" should set animation-range-start
+Pass	e.style['animation-range'] = "normal entry 100%" should not set unrelated longhands
+Pass	e.style['animation-range'] = "normal entry 10%" should set animation-range-end
+Pass	e.style['animation-range'] = "normal entry 10%" should set animation-range-start
+Pass	e.style['animation-range'] = "normal entry 10%" should not set unrelated longhands
+Pass	e.style['animation-range'] = "cover" should set animation-range-end
+Pass	e.style['animation-range'] = "cover" should set animation-range-start
+Pass	e.style['animation-range'] = "cover" should not set unrelated longhands
+Pass	e.style['animation-range'] = "contain" should set animation-range-end
+Pass	e.style['animation-range'] = "contain" should set animation-range-start
+Pass	e.style['animation-range'] = "contain" should not set unrelated longhands
+Pass	e.style['animation-range'] = "contain 100% contain 0%" should set animation-range-end
+Pass	e.style['animation-range'] = "contain 100% contain 0%" should set animation-range-start
+Pass	e.style['animation-range'] = "contain 100% contain 0%" should not set unrelated longhands
+Pass	e.style['animation-range'] = "entry 10% exit 20%" should set animation-range-end
+Pass	e.style['animation-range'] = "entry 10% exit 20%" should set animation-range-start
+Pass	e.style['animation-range'] = "entry 10% exit 20%" should not set unrelated longhands
+Pass	e.style['animation-range'] = "entry calc(10% + 10px) exit 20px" should set animation-range-end
+Pass	e.style['animation-range'] = "entry calc(10% + 10px) exit 20px" should set animation-range-start
+Pass	e.style['animation-range'] = "entry calc(10% + 10px) exit 20px" should not set unrelated longhands
+Pass	e.style['animation-range'] = "entry, exit" should set animation-range-end
+Pass	e.style['animation-range'] = "entry, exit" should set animation-range-start
+Pass	e.style['animation-range'] = "entry, exit" should not set unrelated longhands
+Pass	e.style['animation-range'] = "entry 0%, exit" should set animation-range-end
+Pass	e.style['animation-range'] = "entry 0%, exit" should set animation-range-start
+Pass	e.style['animation-range'] = "entry 0%, exit" should not set unrelated longhands
+Pass	e.style['animation-range'] = "exit calc(10% + 50px)" should set animation-range-end
+Pass	e.style['animation-range'] = "exit calc(10% + 50px)" should set animation-range-start
+Pass	e.style['animation-range'] = "exit calc(10% + 50px)" should not set unrelated longhands
+Pass	e.style['animation-range'] = "100px" should set animation-range-end
+Pass	e.style['animation-range'] = "100px" should set animation-range-start
+Pass	e.style['animation-range'] = "100px" should not set unrelated longhands
+Pass	e.style['animation-range'] = "10%" should set animation-range-end
+Pass	e.style['animation-range'] = "10%" should set animation-range-start
+Pass	e.style['animation-range'] = "10%" should not set unrelated longhands

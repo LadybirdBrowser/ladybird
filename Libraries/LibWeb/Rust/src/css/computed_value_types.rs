@@ -441,6 +441,8 @@ pub struct AnimationValues {
     pub animation_fill_mode: ComputedStyleValueHandle,
     pub animation_iteration_count: ComputedStyleValueHandle,
     pub animation_play_state: ComputedStyleValueHandle,
+    pub animation_range_start: ComputedStyleValueHandle,
+    pub animation_range_end: ComputedStyleValueHandle,
     pub animation_timeline: ComputedStyleValueHandle,
     pub animation_timing_function: ComputedStyleValueHandle,
     pub scroll_timeline_name: ComputedStyleValueHandle,

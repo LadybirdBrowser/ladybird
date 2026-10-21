@@ -3408,9 +3408,151 @@ fn parse_view_timeline_inset_property(
     })
 }
 
+// https://drafts.csswg.org/scroll-animations-1/#typedef-timeline-range-name
+fn parse_timeline_range_name(value: &ComponentValue) -> Option<u16> {
+    let keyword = keyword_from_ascii_case_insensitive(value.ident()?)?;
+    matches!(
+        keyword,
+        keyword::COVER
+            | keyword::CONTAIN
+            | keyword::ENTRY
+            | keyword::EXIT
+            | keyword::ENTRY_CROSSING
+            | keyword::EXIT_CROSSING
+            | keyword::SCROLL
+    )
+    .then_some(keyword)
+}
+
+/// One edge of an animation attachment range: `normal | <length-percentage> | <timeline-range-name>
+/// <length-percentage>?`, consumed from `tokens`. A range name's offset is left out when it is the default for the
+/// edge: 0% for a start, 100% for an end.
+fn parse_animation_range_edge(
+    context: &ParseContext,
+    property: u16,
+    tokens: &mut TokenStream<'_>,
+    default_offset: f64,
+) -> Option<StyleValueData> {
+    tokens.discard_whitespace();
+    if !tokens.has_next_token() {
+        return None;
+    }
+    if let Some(normal) = parse_specific_keyword(tokens.next_token(), &[keyword::NORMAL]) {
+        tokens.discard_a_token();
+        return Some(normal);
+    }
+    let Some(name) = parse_timeline_range_name(tokens.next_token()) else {
+        return parse_length_percentage_from_stream(
+            context,
+            property,
+            tokens,
+            NumericRange::INFINITE,
+            NumericRange::INFINITE,
+        );
+    };
+    tokens.discard_a_token();
+    let mut after_name = tokens.clone();
+    let offset = parse_length_percentage_from_stream(
+        context,
+        property,
+        &mut after_name,
+        NumericRange::INFINITE,
+        NumericRange::INFINITE,
+    );
+    let name = StyleValueData::Keyword { keyword: name };
+    let Some(offset) = offset else {
+        return Some(name);
+    };
+    *tokens = after_name;
+    if matches!(offset, StyleValueData::Percentage { value } if value == default_offset) {
+        return Some(name);
+    }
+    Some(value_list(vec![name, offset], 0, false))
+}
+
+// https://drafts.csswg.org/scroll-animations-1/#animation-range-start
+// https://drafts.csswg.org/scroll-animations-1/#animation-range-end
+fn parse_animation_range_longhand(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
+    let default_offset = if property == property_id::ANIMATION_RANGE_START {
+        0.0
+    } else {
+        100.0
+    };
+    let edges = values
+        .split(ComponentValue::is_comma)
+        .map(|item| {
+            let mut tokens = TokenStream::new(item);
+            let edge = parse_animation_range_edge(context, property, &mut tokens, default_offset)?;
+            tokens.discard_whitespace();
+            (!tokens.has_next_token()).then_some(edge)
+        })
+        .collect::<Option<Vec<_>>>();
+    edges.map_or(ParseOutcome::Invalid, |edges| {
+        ParseOutcome::Parsed(shared_style_value(value_list(edges, 1, true)))
+    })
+}
+
+// https://drafts.csswg.org/scroll-animations-1/#animation-range
+// [ <'animation-range-start'> <'animation-range-end'>? ]#
+// If <'animation-range-end'> is omitted and <'animation-range-start'> includes a <timeline-range-name> component, then
+// animation-range-end is set to that same <timeline-range-name> and 100%. Otherwise, any omitted longhand is set to
+// its initial value.
+fn parse_animation_range_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let mut starts = Vec::new();
+    let mut ends = Vec::new();
+    for item in values.split(ComponentValue::is_comma) {
+        let mut tokens = TokenStream::new(item);
+        let Some(start) = parse_animation_range_edge(context, property_id::ANIMATION_RANGE_START, &mut tokens, 0.0)
+        else {
+            return ParseOutcome::Invalid;
+        };
+        tokens.discard_whitespace();
+        let end = if tokens.has_next_token() {
+            let Some(end) = parse_animation_range_edge(context, property_id::ANIMATION_RANGE_END, &mut tokens, 100.0)
+            else {
+                return ParseOutcome::Invalid;
+            };
+            tokens.discard_whitespace();
+            if tokens.has_next_token() {
+                return ParseOutcome::Invalid;
+            }
+            end
+        } else {
+            match animation_range_edge_name(&start) {
+                Some(name) => StyleValueData::Keyword { keyword: name },
+                None => StyleValueData::Keyword {
+                    keyword: keyword::NORMAL,
+                },
+            }
+        };
+        starts.push(start);
+        ends.push(end);
+    }
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
+        property_id::ANIMATION_RANGE,
+        vec![property_id::ANIMATION_RANGE_START, property_id::ANIMATION_RANGE_END],
+        vec![value_list(starts, 1, true), value_list(ends, 1, true)],
+    )))
+}
+
+/// The <timeline-range-name> of an animation range edge, if it has one.
+pub(crate) fn animation_range_edge_name(edge: &StyleValueData) -> Option<u16> {
+    match edge {
+        StyleValueData::Keyword { keyword } if *keyword != keyword::NORMAL => Some(*keyword),
+        StyleValueData::ValueList { values, .. } => match values.as_slice().first()?.data() {
+            StyleValueData::Keyword { keyword } => Some(*keyword),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 fn parse_long_tail_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     match property {
         property_id::ANIMATION_TIMELINE => parse_animation_timeline_property(context, values),
+        property_id::ANIMATION_RANGE_START | property_id::ANIMATION_RANGE_END => {
+            parse_animation_range_longhand(context, property, values)
+        }
         property_id::COLOR_SCHEME => parse_color_scheme_property(context, values),
         property_id::CONTENT => parse_content_property(context, values),
         property_id::CURSOR => parse_cursor_property(context, values),
@@ -5483,7 +5625,11 @@ fn parse_animation_transition_shorthand(
                 property_id::ANIMATION_PLAY_STATE,
                 property_id::ANIMATION_NAME,
             ][..],
-            Some(property_id::ANIMATION_TIMELINE),
+            &[
+                property_id::ANIMATION_TIMELINE,
+                property_id::ANIMATION_RANGE_START,
+                property_id::ANIMATION_RANGE_END,
+            ][..],
         ),
         property_id::TRANSITION => (
             &[
@@ -5493,7 +5639,7 @@ fn parse_animation_transition_shorthand(
                 property_id::TRANSITION_DELAY,
                 property_id::TRANSITION_BEHAVIOR,
             ][..],
-            None,
+            &[][..],
         ),
         _ => return ParseOutcome::NotHandled,
     };
@@ -5535,7 +5681,7 @@ fn parse_animation_transition_shorthand(
         .into_iter()
         .map(|values| value_list(values, 1, true))
         .collect::<Vec<_>>();
-    if let Some(reset_only) = reset_only {
+    for &reset_only in reset_only {
         sub_properties.push(reset_only);
         let Some(initial) = parse_initial_longhand(context, reset_only) else {
             return ParseOutcome::Invalid;
@@ -5761,6 +5907,9 @@ fn parse_css_value_after_substitution_scan(
         let outcome = parse_timeline_shorthand(context, property_id, values);
         if !matches!(outcome, ParseOutcome::NotHandled) {
             return outcome;
+        }
+        if property_id == property_id::ANIMATION_RANGE {
+            return parse_animation_range_shorthand(context, values);
         }
         let outcome = parse_animation_transition_shorthand(context, property_id, values);
         if !matches!(outcome, ParseOutcome::NotHandled) {

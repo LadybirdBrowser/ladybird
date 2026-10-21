@@ -5191,6 +5191,8 @@ fn property_declares_css_animations(property: u16) -> bool {
             | prop::ANIMATION_ITERATION_COUNT
             | prop::ANIMATION_NAME
             | prop::ANIMATION_PLAY_STATE
+            | prop::ANIMATION_RANGE_END
+            | prop::ANIMATION_RANGE_START
             | prop::ANIMATION_TIMELINE
             | prop::ANIMATION_TIMING_FUNCTION
     )

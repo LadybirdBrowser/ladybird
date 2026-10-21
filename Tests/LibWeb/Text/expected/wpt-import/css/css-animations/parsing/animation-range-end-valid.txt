@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	e.style['animation-range-end'] = "normal" should set the property value
+Pass	e.style['animation-range-end'] = "cover 0%" should set the property value
+Pass	e.style['animation-range-end'] = "cover 100%" should set the property value
+Pass	e.style['animation-range-end'] = "cover 120%" should set the property value
+Pass	e.style['animation-range-end'] = "cover 42%" should set the property value
+Pass	e.style['animation-range-end'] = "0" should set the property value
+Pass	e.style['animation-range-end'] = "120%" should set the property value
+Pass	e.style['animation-range-end'] = "120px" should set the property value
+Pass	e.style['animation-range-end'] = "cover -42%" should set the property value
+Pass	e.style['animation-range-end'] = "contain 42%" should set the property value
+Pass	e.style['animation-range-end'] = "exit 42%" should set the property value
+Pass	e.style['animation-range-end'] = "exit 1%, cover 2%, contain 0%" should set the property value
+Pass	e.style['animation-range-end'] = "exit 1%, cover 2%, contain 100%" should set the property value
+Pass	e.style['animation-range-end'] = "exit-crossing 42%" should set the property value
+Pass	e.style['animation-range-end'] = "entry 42px" should set the property value
+Pass	e.style['animation-range-end'] = "entry-crossing 42px" should set the property value
+Pass	e.style['animation-range-end'] = "contain calc(10px + 10%)" should set the property value
+Pass	e.style['animation-range-end'] = "entry 1em" should set the property value
+Pass	e.style['animation-range-end'] = "exit calc(1em + 10px)" should set the property value
+Pass	e.style['animation-range-end'] = "entry 42%" should set the property value
+Pass	e.style['animation-range-end'] = "cover" should set the property value
+Pass	e.style['animation-range-end'] = "contain" should set the property value
+Pass	e.style['animation-range-end'] = "entry" should set the property value
+Pass	e.style['animation-range-end'] = "exit" should set the property value

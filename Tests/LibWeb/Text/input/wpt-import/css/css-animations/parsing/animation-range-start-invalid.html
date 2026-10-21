@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#propdef-animation-range">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_invalid_value("animation-range-start", "peek 50%");
+test_invalid_value("animation-range-start", "50% contain");
+test_invalid_value("animation-range-start", "50% cover");
+test_invalid_value("animation-range-start", "50% entry");
+test_invalid_value("animation-range-start", "50% enter");
+test_invalid_value("animation-range-start", "50% exit");
+test_invalid_value("animation-range-start", "contain contain");
+test_invalid_value("animation-range-start", "none");
+test_invalid_value("animation-range-start", "cover 50% enter 50%");
+test_invalid_value("animation-range-start", "normal 10px");
+test_invalid_value("animation-range-start", "normal foo");
+</script>

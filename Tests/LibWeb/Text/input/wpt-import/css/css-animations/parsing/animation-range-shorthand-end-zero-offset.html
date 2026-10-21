@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>animation-range shorthand serialization preserves a 0% end offset</title>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#propdef-animation-range">
+<link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-value">
+<meta name="assert" content="A 0% offset on animation-range-end is not the end default (100%) and must be preserved when serializing the animation-range shorthand.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<div id="target" style="font-size:10px"></div>
+<script>
+// The omittable default offset is 0% for animation-range-start and 100% for
+// animation-range-end. So a 0% offset on the END is meaningful and must round-trip.
+// The collapse-to-bare-name path only fires when the end's range name differs from
+// the start's, which is the case these tests exercise.
+
+// Bug cases: end has a 0% offset and a different range name than the start.
+test_valid_value("animation-range", "normal cover 0%");
+test_valid_value("animation-range", "entry 0% exit 0%", "entry exit 0%");
+test_valid_value("animation-range", "cover 50% exit 0%");
+
+// Control: 100% IS the end default, so it correctly collapses to the bare name.
+test_valid_value("animation-range", "normal cover 100%", "normal cover");
+test_valid_value("animation-range", "entry 0% exit 100%", "entry exit");
+
+// Control: a non-default end offer is kept (passes regardless of the bug).
+test_valid_value("animation-range", "normal exit 50%");
+</script>

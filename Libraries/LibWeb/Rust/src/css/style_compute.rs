@@ -2506,6 +2506,61 @@ fn canonicalize_border_shape(value: &StyleValueData) -> Option<Arc<StyleValueDat
     }))
 }
 
+/// https://drafts.csswg.org/scroll-animations-1/#animation-range-start
+/// A computed range edge leaves out the progress after a range name when it is the default for the edge: 0% for a
+/// start, 100% for an end. Returns `None` when the value is already canonical.
+#[allow(clippy::arc_with_non_send_sync)]
+fn canonicalize_animation_range(value: &StyleValueData, default_offset: f64) -> Option<Arc<StyleValueData>> {
+    // A calculation that resolves to the default percentage, with no length part, is left out too.
+    let is_percentage_of = |offset: &StyleValueData, percentage: f64| match offset {
+        StyleValueData::Percentage { value } => *value == percentage,
+        StyleValueData::Calculated { .. } => {
+            let offset = crate::css::computed_value_views::LengthPercentageRef::over(offset);
+            offset.to_px(CssPixels::default()) == CssPixels::default()
+                && offset.to_px(CssPixels::from_integer(100)).to_double() == percentage
+        }
+        _ => false,
+    };
+    let canonical_edge = |edge: &StyleValueData| match edge {
+        StyleValueData::ValueList { values, .. } => match values.as_slice() {
+            [name, offset] if is_percentage_of(offset.data(), default_offset) => Some(name.clone_retained()),
+            _ => None,
+        },
+        _ => None,
+    };
+    let StyleValueData::ValueList {
+        values,
+        separator,
+        collapsible,
+    } = value
+    else {
+        return None;
+    };
+    // A list of edges is comma separated; a lone edge with a range name and an offset is a space separated pair.
+    if *separator == 0 {
+        return canonical_edge(value).map(|edge| Arc::new(edge.data().clone()));
+    }
+    let mut changed = false;
+    let edges = values
+        .as_slice()
+        .iter()
+        .map(|edge| match canonical_edge(edge.data()) {
+            Some(canonical) => {
+                changed = true;
+                canonical
+            }
+            None => edge.clone_retained(),
+        })
+        .collect();
+    changed.then(|| {
+        Arc::new(StyleValueData::ValueList {
+            values: RetainedStyleValueDataList::from_retained_values(edges),
+            separator: *separator,
+            collapsible: *collapsible,
+        })
+    })
+}
+
 // https://drafts.csswg.org/css-contain-2/#contain-property
 #[allow(clippy::arc_with_non_send_sync)]
 fn collapse_containment_list(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
@@ -4230,6 +4285,28 @@ pub(crate) unsafe fn drive_property_computation(
                             .map_or(NativeValue::Unchanged, NativeValue::StyleValue),
                         Some(crate::css::absolutize::Absolutized::Changed(new_value)) => {
                             match canonicalize_border_shape(new_value.data()) {
+                                Some(canonical) => NativeValue::StyleValue(canonical),
+                                None => NativeValue::StyleValue(new_value.into_arc()),
+                            }
+                        }
+                        None => NativeValue::Unsupported,
+                    }
+                }
+                (None, prop::ANIMATION_RANGE_START | prop::ANIMATION_RANGE_END) => {
+                    let resolution_context =
+                        length_resolution_context.expect("animation-range must compute with a resolution context");
+                    let default_offset = if inherited_property_id == prop::ANIMATION_RANGE_START {
+                        0.0
+                    } else {
+                        100.0
+                    };
+                    match absolutize_value(value_data, resolution_context, current_effective_color_scheme, results) {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                            canonicalize_animation_range(value_data, default_offset)
+                                .map_or(NativeValue::Unchanged, NativeValue::StyleValue)
+                        }
+                        Some(crate::css::absolutize::Absolutized::Changed(new_value)) => {
+                            match canonicalize_animation_range(new_value.data(), default_offset) {
                                 Some(canonical) => NativeValue::StyleValue(canonical),
                                 None => NativeValue::StyleValue(new_value.into_arc()),
                             }

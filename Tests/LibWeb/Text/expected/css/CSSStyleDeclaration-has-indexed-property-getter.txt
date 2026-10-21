@@ -94,6 +94,8 @@ All properties associated with getComputedStyle(document.body):
     "animation-iteration-count",
     "animation-name",
     "animation-play-state",
+    "animation-range-end",
+    "animation-range-start",
     "animation-timeline",
     "animation-timing-function",
     "appearance",

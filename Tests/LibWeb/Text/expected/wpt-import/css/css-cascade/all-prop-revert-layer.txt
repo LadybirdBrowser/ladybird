@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 329 tests
+Found 331 tests
 
-325 Pass
+327 Pass
 4 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -91,6 +91,8 @@ Pass	animation-fill-mode
 Pass	animation-iteration-count
 Pass	animation-name
 Pass	animation-play-state
+Pass	animation-range-end
+Pass	animation-range-start
 Pass	animation-timeline
 Pass	animation-timing-function
 Pass	appearance
