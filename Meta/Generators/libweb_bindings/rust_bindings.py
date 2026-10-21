@@ -122,9 +122,11 @@ def write_cpp_declaration(out: TextIO, includes: GeneratedIncludes, interface: I
     includes.add("LibJS/Runtime/NativeFunction.h")
     includes.add("LibJS/Runtime/Object.h")
     includes.add("LibWeb/Bindings/InterfaceObject.h")
+    includes.add("LibWeb/Export.h")
     out.write(
-        f"""// The class of the wrappers of {interface.name}, whose implementation is in Rust.
-extern "C" JSHostClass const {wrapper_host_class_symbol(interface)};
+        f"""// The class of the wrappers of {interface.name}, whose implementation is in Rust, which code outside LibWeb names
+// as well when it asks whether an object is a wrapper of the interface.
+extern "C" WEB_API JSHostClass const {wrapper_host_class_symbol(interface)};
 
 struct {interface.constructor_class} {{
 public:
