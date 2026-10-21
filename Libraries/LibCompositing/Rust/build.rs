@@ -104,6 +104,8 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "FfiVisualViewportTransform",
             "CanvasId",
             "VideoSinkResourceId",
+            "Canvas2DPaintKind",
+            "Canvas2DPatternRepetition",
         ]
         .map(String::from),
     );
@@ -151,6 +153,10 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("FfiVisualViewportTransform", "Compositing::TransformWithOrigin"),
         ("CanvasId", "Compositing::CanvasId"),
         ("VideoSinkResourceId", "Compositing::VideoSinkResourceId"),
+        ("Canvas2DPaintKind", "Compositing::Canvas2DPaintKind"),
+        ("Canvas2DPatternRepetition", "Compositing::Canvas2DPatternRepetition"),
+        ("CapStyle", "Gfx::Path::CapStyle"),
+        ("JoinStyle", "Gfx::Path::JoinStyle"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
@@ -166,6 +172,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "LibGfx/GradientInterpolation.h",
             "LibGfx/InterpolationColorSpace.h",
             "LibGfx/Matrix4x4.h",
+            "LibGfx/Path.h",
             "LibGfx/Point.h",
             "LibGfx/Rect.h",
             "LibGfx/ScalingMode.h",
@@ -286,6 +293,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiEasingDescriptor",
         "FfiEasingKind",
         "FfiLinearEasingPoint",
+        "FfiCanvas2DPaint",
+        "FfiCanvas2DCompositing",
+        "FfiCanvas2DStroke",
     ]
     .map(String::from)
     .to_vec();
@@ -300,6 +310,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/host/replay.rs"),
             manifest_dir.join("src/display_list/storage.rs"),
             manifest_dir.join("src/display_list/canvas_2d.rs"),
+            manifest_dir.join("src/display_list/canvas_2d_recorder.rs"),
             manifest_dir.join("src/ffi.rs"),
         ],
         &out_dir,
