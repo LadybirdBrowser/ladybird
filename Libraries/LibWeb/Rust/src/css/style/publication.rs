@@ -1560,15 +1560,20 @@ impl RetainedState {
             }
         };
         self.note_node_substitution(node, scratch, state, environment);
+        // The record reads the element's place among its siblings where its state's winners do, as
+        // the store substitutes them.
+        let reads_sibling_position = store.uses_tree_counting_function(self);
         // A record whose winners read beyond its environment is the element's alone, as is one
         // declaring registered custom properties, which its own font decides. The key is the one
-        // above, with the environment the element's declarations resolved. A substitution that
-        // made a non-inherited longhand `inherit` pins the parent's record, as a written `inherit`
-        // does.
+        // above, with the environment the element's declarations resolved, and the element's
+        // sibling position only where the substituted winners read it: before substitution, any
+        // substitution may have produced a tree-counting function. A substitution that made a
+        // non-inherited longhand `inherit` pins the parent's record, as a written `inherit` does.
         let cache_key = cache_key
             .filter(|_| !has_registered_declarations)
             .map(|key| ColdRecordKey {
                 environment,
+                sibling_position: reads_sibling_position.then(|| self.sibling_position(node)).flatten(),
                 parent: ColdRecordParent {
                     record: if store.substitutes_inherit_for_non_inherited_property(self) {
                         parent_record.map_or(0, |record| record.raw())
@@ -1592,9 +1597,6 @@ impl RetainedState {
         ) {
             return Ok(ElementAnswer::Delta(delta));
         }
-        // The record reads the element's place among its siblings where its state's winners do, as
-        // the store substitutes them.
-        let reads_sibling_position = store.uses_tree_counting_function(self);
         let no_resource_contexts = store.reads_no_resource_contexts(self);
         let donor = cache_key.and_then(|key| {
             let donor_key = ColdRecordDonorKey {
