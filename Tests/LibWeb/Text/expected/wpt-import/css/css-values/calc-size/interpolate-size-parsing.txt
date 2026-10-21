@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['interpolate-size'] = "numeric-only" should set the property value
+Pass	e.style['interpolate-size'] = "allow-keywords" should set the property value
+Pass	e.style['interpolate-size'] = "auto" should not set the property value
+Pass	e.style['interpolate-size'] = "none" should not set the property value
+Pass	e.style['interpolate-size'] = "100%" should not set the property value

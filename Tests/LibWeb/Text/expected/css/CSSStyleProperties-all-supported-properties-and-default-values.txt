@@ -617,6 +617,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'inset-inline-end': 'auto'
 'insetInlineStart': 'auto'
 'inset-inline-start': 'auto'
+'interpolateSize': 'numeric-only'
+'interpolate-size': 'numeric-only'
 'isolation': 'auto'
 'justifyContent': 'normal'
 'justify-content': 'normal'

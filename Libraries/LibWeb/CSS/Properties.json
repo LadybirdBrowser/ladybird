@@ -2990,6 +2990,17 @@
     "max-values": 1,
     "needs-layout-for-getcomputedstyle": true
   },
+  "interpolate-size": {
+    "style-group": "InheritedUIValues",
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": true,
+    "initial": "numeric-only",
+    "requires-computation": "never",
+    "valid-types": [
+      "interpolate-size"
+    ]
+  },
   "isolation": {
     "style-group": "EffectsValues",
     "affects-stacking-context": true,

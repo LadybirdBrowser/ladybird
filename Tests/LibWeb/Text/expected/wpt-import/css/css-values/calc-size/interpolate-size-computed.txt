@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Property interpolate-size value 'numeric-only'
+Pass	Property interpolate-size value 'allow-keywords'

@@ -705,6 +705,10 @@
     "optimizespeed",
     "optimizequality"
   ],
+  "interpolate-size": [
+    "numeric-only",
+    "allow-keywords"
+  ],
   "isolation": [
     "auto",
     "isolate"
