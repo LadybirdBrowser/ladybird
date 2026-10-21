@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", "/event-source-retry-field-only-ascii-digits", {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream", "Access-Control-Allow-Origin": "*" },
+            body: "retry: 500\nretry: -1\ndata: one\n\n",
+        });
+
+        const source = new EventSource(url);
+        const openTimes = [];
+        await new Promise(resolve => {
+            source.onopen = () => {
+                openTimes.push(performance.now());
+                if (openTimes.length === 2)
+                    resolve();
+            };
+        });
+        source.close();
+        println(`reconnected after at least 500 ms: ${openTimes[1] - openTimes[0] >= 500}`);
+    });
+</script>

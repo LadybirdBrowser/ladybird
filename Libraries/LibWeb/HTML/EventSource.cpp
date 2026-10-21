@@ -445,8 +445,10 @@ void EventSource::process_field(Utf16View field, Utf16View value)
     else if (field == u"retry"sv) {
         // If the field value consists of only ASCII digits, then interpret the field value as an integer in base ten,
         // and set the event stream's reconnection time to that integer. Otherwise, ignore the field.
-        if (auto retry = value.to_number<i64>(); retry.has_value())
-            m_reconnection_time = AK::Duration::from_seconds(*retry);
+        if (all_of(value, is_ascii_digit)) {
+            if (auto retry = value.to_number<i64>(TrimWhitespace::No); retry.has_value())
+                m_reconnection_time = AK::Duration::from_milliseconds(*retry);
+        }
     }
     // -> Otherwise
     else {
