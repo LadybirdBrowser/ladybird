@@ -1,0 +1,10 @@
+property-cycle: GIV
+inherited-property: RESOLVED
+inherited-property-reversed: RESOLVED
+inherited-function-local-property: RESOLVED
+inherited-function-local-property-reversed: RESOLVED
+self-reference: GIV
+inherited-attribute: RESOLVED
+inherited-attribute-reversed: RESOLVED
+attribute-property-cycle: GIV
+attribute-recursion: GIV
