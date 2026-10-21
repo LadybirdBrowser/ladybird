@@ -3710,16 +3710,41 @@ pub(crate) fn parse_shared_stylesheet(
     })
 }
 
+/// Every rule context, at the index of its discriminant.
+const RULE_CONTEXTS: [RuleContext; RuleContext::Margin as usize + 1] = {
+    use RuleContext::*;
+    let contexts = [
+        Unknown,
+        Style,
+        AtContainer,
+        AtCounterStyle,
+        AtMedia,
+        AtFontFace,
+        AtFontFeatureValues,
+        FontFeatureValue,
+        AtFunction,
+        AtKeyframes,
+        Keyframe,
+        AtSupports,
+        AtScope,
+        SupportsCondition,
+        AtLayer,
+        AtProperty,
+        AtPage,
+        Margin,
+    ];
+    let mut index = 0;
+    while index < contexts.len() {
+        assert!(contexts[index] as usize == index);
+        index += 1;
+    }
+    contexts
+};
+
 fn rule_contexts(contexts: &[u8]) -> Option<Vec<RuleContext>> {
     contexts
         .iter()
-        .map(|&context| {
-            if context > RuleContext::Margin as u8 {
-                return None;
-            }
-            // SAFETY: RuleContext has contiguous repr(u8) discriminants and the value was range-checked.
-            Some(unsafe { std::mem::transmute::<u8, RuleContext>(context) })
-        })
+        .map(|&context| RULE_CONTEXTS.get(usize::from(context)).copied())
         .collect()
 }
 
