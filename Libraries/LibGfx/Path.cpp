@@ -26,6 +26,11 @@ void ladybird_gfx_path_bounding_box(void const*, float*);
 void ladybird_gfx_path_serialize(void const*, void (*)(void*, u8 const*, size_t), void*);
 float ladybird_gfx_path_length(void const*);
 void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const* values, size_t count);
+void ladybird_gfx_path_append_ops(void*, u8 const* kinds, float const* values, size_t count);
+void ladybird_gfx_path_append_path(void*, void const* other);
+bool ladybird_gfx_path_is_empty(void const*);
+void ladybird_gfx_path_last_point(void const*, float* out_x_y);
+void* ladybird_gfx_path_clone(void const*);
 void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count);
 void* ladybird_gfx_path_copy_transformed(void const*, float const* affine_values);
 bool ladybird_gfx_path_contains(void const*, float, float, int);
@@ -118,6 +123,13 @@ enum class PathBuilderOpKind : u8 {
 extern "C" void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const* values, size_t count)
 {
     auto* path = new Gfx::Path;
+    ladybird_gfx_path_append_ops(path, kinds, values, count);
+    return path;
+}
+
+extern "C" void ladybird_gfx_path_append_ops(void* raw_path, u8 const* kinds, float const* values, size_t count)
+{
+    auto* path = static_cast<Gfx::Path*>(raw_path);
     for (size_t i = 0; i < count; ++i) {
         auto const* v = values + i * 7;
         switch (static_cast<PathBuilderOpKind>(kinds[i])) {
@@ -146,7 +158,28 @@ extern "C" void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const*
             VERIFY_NOT_REACHED();
         }
     }
-    return path;
+}
+
+extern "C" void ladybird_gfx_path_append_path(void* path, void const* other)
+{
+    static_cast<Gfx::Path*>(path)->append_path(*static_cast<Gfx::Path const*>(other));
+}
+
+extern "C" bool ladybird_gfx_path_is_empty(void const* path)
+{
+    return static_cast<Gfx::Path const*>(path)->is_empty();
+}
+
+extern "C" void ladybird_gfx_path_last_point(void const* path, float* out_x_y)
+{
+    auto point = static_cast<Gfx::Path const*>(path)->last_point();
+    out_x_y[0] = point.x();
+    out_x_y[1] = point.y();
+}
+
+extern "C" void* ladybird_gfx_path_clone(void const* path)
+{
+    return new Gfx::Path(static_cast<Gfx::Path const*>(path)->clone());
 }
 
 static Vector<NonnullRefPtr<Gfx::GlyphRun>> adopt_glyph_runs(LadybirdGfxGlyphRun const* runs, size_t run_count)
