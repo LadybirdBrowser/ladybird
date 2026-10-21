@@ -34,11 +34,14 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             state.transform = scaled(state.transform, x, y);
         }
         self.flush_transform();
-        self.transform_path(scaled(
-            AffineTransform::identity(),
-            float(1.0 / f64::from(x)),
-            float(1.0 / f64::from(y)),
-        ));
+        // NB: A zero factor leaves the matrix without an inverse, and then there is no 1 / x or 1 / y.
+        self.keep_path_in_place_after_multiplication(|| {
+            Some(scaled(
+                AffineTransform::identity(),
+                float(1.0 / f64::from(x)),
+                float(1.0 / f64::from(y)),
+            ))
+        });
         Ok(())
     }
 
@@ -53,7 +56,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             state.transform = translated(state.transform, x, y);
         }
         self.flush_transform();
-        self.transform_path(translated(AffineTransform::identity(), -x, -y));
+        self.keep_path_in_place_after_multiplication(|| Some(translated(AffineTransform::identity(), -x, -y)));
         Ok(())
     }
 
@@ -68,7 +71,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             state.transform = rotated(state.transform, radians);
         }
         self.flush_transform();
-        self.transform_path(rotated(AffineTransform::identity(), -radians));
+        self.keep_path_in_place_after_multiplication(|| Some(rotated(AffineTransform::identity(), -radians)));
         Ok(())
     }
 
@@ -105,10 +108,30 @@ impl<K: CanvasKind> RenderingContext2D<K> {
             state.transform = multiply_transforms(state.transform, transform);
         }
 
-        if let Some(inverse) = transform.inverse() {
+        self.keep_path_in_place_after_multiplication(|| transform.inverse());
+        self.flush_transform();
+    }
+
+    /// Moves the current default path into the coordinates of the current transformation matrix, after a
+    /// multiplication of the matrix with another whose inverse is given, so that the points of the path stay where
+    /// they were on the output bitmap when they were added.
+    ///
+    /// NB: A path cannot be kept in the coordinates of a matrix that is not invertible. When a multiplication leaves
+    ///     the matrix without an inverse, the path stays in the coordinates of the last matrix that was invertible,
+    ///     and every later multiplication leaves the matrix without one too. keep_path_in_place() moves the path from
+    ///     there when the matrix is replaced with an invertible one again.
+    fn keep_path_in_place_after_multiplication(
+        &self,
+        inverse_of_multiplication: impl FnOnce() -> Option<AffineTransform>,
+    ) {
+        let transform = self.drawing_state().transform;
+        if transform.inverse().is_none() {
+            return;
+        }
+        if let Some(inverse) = inverse_of_multiplication() {
             self.transform_path(inverse);
         }
-        self.flush_transform();
+        self.set_path_transform(transform);
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-gettransform
@@ -176,26 +199,26 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     /// Replaces the current transformation matrix, which leaves the current default path where it is on the output
     /// bitmap.
     fn set_current_transform(&self, transform: AffineTransform) {
-        let original_transform = core::mem::replace(&mut self.drawing_state_mut().transform, transform);
-        self.keep_path_in_place(original_transform);
+        self.drawing_state_mut().transform = transform;
+        self.keep_path_in_place();
         self.flush_transform();
     }
 
-    /// Moves the current default path from the coordinates of the original transformation matrix to those of the
-    /// current one, after a change of the matrix that is not a multiplication with another, so that the points of
-    /// the path stay where they were on the output bitmap when they were added.
-    pub(crate) fn keep_path_in_place(&self, original_transform: AffineTransform) {
+    /// Moves the current default path into the coordinates of the current transformation matrix, after a change of
+    /// the matrix that is not a multiplication with another, so that the points of the path stay where they were on
+    /// the output bitmap when they were added.
+    pub(crate) fn keep_path_in_place(&self) {
         let transform = self.drawing_state().transform;
-        if transform.values == original_transform.values {
+        // NB: A path cannot be kept in the coordinates of a matrix that is not invertible, so it stays in those of the
+        //     last matrix that was, as it does for a multiplication.
+        let Some(inverse) = transform.inverse() else {
+            return;
+        };
+        let path_transform = self.path_transform();
+        self.set_path_transform(transform);
+        if transform.values == path_transform.values {
             return;
         }
-        // NB: A path cannot be kept in the coordinates of a matrix that is not invertible, so it stays as it is when it
-        //     changes to or from one, as it does for transform().
-        if original_transform.inverse().is_none() {
-            return;
-        }
-        if let Some(inverse) = transform.inverse() {
-            self.transform_path(multiply_transforms(inverse, original_transform));
-        }
+        self.transform_path(multiply_transforms(inverse, path_transform));
     }
 }

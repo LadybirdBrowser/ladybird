@@ -1,0 +1,14 @@
+No change: 255 255 0
+scale(0, 1): 255 255 0
+scale(1, 0): 255 255 0
+scale(0, 0): 255 255 0
+transform(0, 0, 0, 0, 0, 0): 255 255 0
+scale(0, 1) and translate(5, 5): 255 255 0
+scale(0, 1) and rotate(1): 255 255 0
+scale(0, 1) and scale(2, 2): 255 255 0
+scale(0, 1) and restore(): 255 255 0
+scale(0, 1) and setTransform(2, 0, 0, 2, 0, 0): 255 255 0
+scale(0, 1) and setTransform() with a DOMMatrix: 255 255 0
+scale(0, 1) and resetTransform(): 255 255 0
+scale(0, 1) and restore() to a scale: 255 255 0
+scale(0, 1), save(), restore() and setTransform(2, 0, 0, 2, 0, 0): 255 255 0

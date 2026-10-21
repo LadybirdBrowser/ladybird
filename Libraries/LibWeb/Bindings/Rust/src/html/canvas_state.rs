@@ -23,12 +23,11 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     pub(crate) fn restore(&self, _: &mut CallContext) -> WebIdlResult<()> {
         // The restore() method steps are to pop the top entry in the drawing state stack, and reset the drawing state
         // it describes. If there is no saved state, then the method must do nothing.
-        let original_transform = self.drawing_state().transform;
         if !self.pop_drawing_state() {
             return Ok(());
         }
         // NB: The current default path is not part of the drawing state.
-        self.keep_path_in_place(original_transform);
+        self.keep_path_in_place();
 
         self.record_if_ready(CanvasRecorder::restore);
         Ok(())
