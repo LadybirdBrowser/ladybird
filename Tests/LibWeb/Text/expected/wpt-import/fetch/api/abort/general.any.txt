@@ -1,0 +1,67 @@
+Harness status: OK
+
+Found 61 tests
+
+54 Pass
+7 Fail
+Pass	Aborting rejects with AbortError
+Pass	Aborting rejects with abort reason
+Pass	Aborting rejects with abort reason when aborted after fetch() called
+Pass	Aborting rejects with AbortError - no-cors
+Pass	TypeError from request constructor takes priority - RequestInit's window is not null
+Pass	TypeError from request constructor takes priority - Input URL is not valid
+Pass	TypeError from request constructor takes priority - Input URL has credentials
+Pass	TypeError from request constructor takes priority - RequestInit's mode is navigate
+Pass	TypeError from request constructor takes priority - RequestInit's referrer is invalid
+Pass	TypeError from request constructor takes priority - RequestInit's method is invalid
+Pass	TypeError from request constructor takes priority - RequestInit's method is forbidden
+Pass	TypeError from request constructor takes priority - RequestInit's mode is no-cors and method is not simple
+Pass	TypeError from request constructor takes priority - RequestInit's cache mode is only-if-cached and mode is not same-origin
+Pass	TypeError from request constructor takes priority - Request with cache mode: only-if-cached and fetch mode cors
+Pass	TypeError from request constructor takes priority - Request with cache mode: only-if-cached and fetch mode no-cors
+Pass	TypeError from request constructor takes priority - Bad referrerPolicy init parameter value
+Pass	TypeError from request constructor takes priority - Bad mode init parameter value
+Pass	TypeError from request constructor takes priority - Bad credentials init parameter value
+Pass	TypeError from request constructor takes priority - Bad cache init parameter value
+Pass	TypeError from request constructor takes priority - Bad redirect init parameter value
+Pass	Request objects have a signal property
+Pass	Signal on request object
+Pass	Signal on request object should also have abort reason
+Pass	Signal on request object created from request object
+Pass	Signal on request object created from request object, with signal on second request
+Pass	Signal on request object created from request object, with signal on second request overriding another
+Pass	Signal retained after unrelated properties are overridden by fetch
+Pass	Signal removed by setting to null
+Pass	Already aborted signal rejects immediately
+Pass	Request is still 'used' if signal is aborted before fetching
+Fail	response.arrayBuffer() rejects if already aborted
+Pass	response.arrayBuffer() rejects with abort reason if already aborted
+Fail	response.blob() rejects if already aborted
+Pass	response.blob() rejects with abort reason if already aborted
+Fail	response.bytes() rejects if already aborted
+Pass	response.bytes() rejects with abort reason if already aborted
+Fail	response.formData() rejects if already aborted
+Pass	response.formData() rejects with abort reason if already aborted
+Fail	response.json() rejects if already aborted
+Pass	response.json() rejects with abort reason if already aborted
+Fail	response.text() rejects if already aborted
+Pass	response.text() rejects with abort reason if already aborted
+Fail	Call text() twice on aborted response
+Pass	Already aborted signal does not make request
+Pass	Already aborted signal can be used for many fetches
+Pass	Signal can be used to abort other fetches, even if another fetch succeeded before aborting
+Pass	Underlying connection is closed when aborting after receiving response
+Pass	Underlying connection is closed when aborting after receiving response - no-cors
+Pass	Fetch aborted & connection closed when aborted after calling response.arrayBuffer()
+Pass	Fetch aborted & connection closed when aborted after calling response.blob()
+Pass	Fetch aborted & connection closed when aborted after calling response.bytes()
+Pass	Fetch aborted & connection closed when aborted after calling response.formData()
+Pass	Fetch aborted & connection closed when aborted after calling response.json()
+Pass	Fetch aborted & connection closed when aborted after calling response.text()
+Pass	Stream errors once aborted. Underlying connection closed.
+Pass	Stream errors once aborted with abort reason. Underlying connection closed.
+Pass	Stream errors once aborted, after reading. Underlying connection closed.
+Pass	Stream will not error if body is empty. It's closed with an empty queue before it errors.
+Pass	Readable stream synchronously cancels with AbortError if aborted before reading
+Pass	Signal state is cloned
+Pass	Clone aborts with original controller

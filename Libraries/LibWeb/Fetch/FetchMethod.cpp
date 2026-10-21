@@ -30,6 +30,21 @@
 
 namespace Web::Fetch {
 
+struct ResponseObjectHolder final : public JS::Cell {
+    GC_CELL(ResponseObjectHolder, JS::Cell);
+    GC_DECLARE_ALLOCATOR(ResponseObjectHolder);
+
+    virtual void visit_edges(JS::Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(response_object);
+    }
+
+    GC::Ptr<Response> response_object;
+};
+
+GC_DEFINE_ALLOCATOR(ResponseObjectHolder);
+
 // https://fetch.spec.whatwg.org/#deserialize-a-serialized-abort-reason
 static JS::Value deserialize_serialized_abort_reason(JS::Realm& realm, Infrastructure::FetchController const& controller)
 {
@@ -88,7 +103,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
     (void)global_object;
 
     // 7. Let responseObject be null.
-    GC::Ptr<Response> response_object;
+    auto response_object_holder = GC::Heap::the().allocate<ResponseObjectHolder>();
 
     // 8. Let relevantRealm be this’s relevant Realm.
     // NOTE: This assumes that the running execution context is for the fetch() function call.
@@ -107,7 +122,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
 
     // 12. Set controller to the result of calling fetch given request and processResponse given response being these
     //     steps:
-    auto process_response = [locally_aborted, promise_capability, request, response_object, controller_holder, &relevant_realm](GC::Ref<Infrastructure::Response> response) mutable {
+    auto process_response = [locally_aborted, promise_capability, request, response_object_holder, controller_holder, &relevant_realm](GC::Ref<Infrastructure::Response> response) {
         // 1. If locallyAborted is true, then abort these steps.
         if (locally_aborted->value())
             return;
@@ -122,7 +137,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
             auto deserialized_error = deserialize_serialized_abort_reason(relevant_realm, *controller_holder->controller());
 
             // 2. Abort the fetch() call with p, request, responseObject, and deserializedError.
-            abort_fetch(*promise_capability, request, response_object, deserialized_error);
+            abort_fetch(*promise_capability, request, response_object_holder->response_object, deserialized_error);
 
             // 3. Abort these steps.
             return;
@@ -137,13 +152,13 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
 
         // 4. Set responseObject to the result of creating a Response object, given response, "immutable", and
         //    relevantRealm.
-        response_object = Response::create(response, Headers::Guard::Immutable);
+        response_object_holder->response_object = Response::create(response, Headers::Guard::Immutable);
 
         // 5. Resolve p with responseObject.
         auto response_value = Bindings::wrap(
             Bindings::host_defined_wrapper_world(relevant_realm),
             relevant_realm,
-            GC::Ref { *response_object });
+            GC::Ref { *response_object_holder->response_object });
         WebIDL::resolve_promise(relevant_realm, promise_capability, response_value);
     };
     controller_holder->set_controller(Fetching::fetch(
@@ -160,7 +175,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
             })));
 
     // 11. Add the following abort steps to requestObject’s signal:
-    (void)request_object->signal()->add_abort_algorithm([locally_aborted, request, controller_holder, promise_capability, request_object, response_object, &relevant_realm] {
+    (void)request_object->signal()->add_abort_algorithm([locally_aborted, request, controller_holder, promise_capability, request_object, response_object_holder, &relevant_realm] {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Request object signal's abort algorithm called");
 
         // 1. Set locallyAborted to true.
@@ -176,7 +191,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
         HTML::TemporaryExecutionContext execution_context { relevant_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 4. Abort the fetch() call with p, request, responseObject, and requestObject’s signal’s abort reason.
-        abort_fetch(*promise_capability, request, response_object, request_object->signal()->reason());
+        abort_fetch(*promise_capability, request, response_object_holder->response_object, request_object->signal()->reason());
     });
 
     // 13. Return p.
