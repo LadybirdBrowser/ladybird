@@ -305,7 +305,7 @@ def write_parameter_conversions(
         parameter_what = f"the parameter {parameter.name} of {what}"
         if parameter.variadic:
             raise UnsupportedByRustBindings(f"{parameter_what} is variadic")
-        unsupported = set(parameter.extended_attributes) - {"AllowShared", "AllowResizable"}
+        unsupported = set(parameter.extended_attributes) - {"AllowShared", "AllowResizable", "EnforceRange"}
         if unsupported:
             raise UnsupportedByRustBindings(f"{parameter_what} has the extended attributes {sorted(unsupported)}")
         name = rust_local_name(parameter.name)
@@ -401,8 +401,9 @@ def write_rust_interface(
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
         implements_cpp_interface, record_to_js, rooted_sequence_to_js, sequence_from_js, sequence_to_js,
         to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface, to_dom_string, to_double, to_float,
-        to_long, to_long_long, to_typed_array, to_unrestricted_double, to_unrestricted_float, to_unsigned_long,
-        to_unsigned_long_long, to_usv_string,
+        to_long, to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_typed_array,
+        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_enforcing_range,
+        to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string,
     }};
     use crate::bindings::interface::{{
         Inherits, Interface, Ref, Wrapped, cell_class, construct_arguments, construct_wrapper, define_attribute,
@@ -930,8 +931,9 @@ pub(crate) mod definitions {
         dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface, iterator_method,
         record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js, sequence_to_js,
         throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
-        to_dom_string, to_double, to_enumeration_value, to_float, to_long, to_long_long, to_typed_array,
-        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_long, to_usv_string,
+        to_dom_string, to_double, to_enumeration_value, to_float, to_long, to_long_enforcing_range, to_long_long,
+        to_long_long_enforcing_range, to_typed_array, to_unrestricted_double, to_unrestricted_float, to_unsigned_long,
+        to_unsigned_long_enforcing_range, to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string,
     };
     use crate::bindings::interface::{
         Interface, Ref, create_dictionary_object, implementation_of, set_dictionary_member, to_interface,

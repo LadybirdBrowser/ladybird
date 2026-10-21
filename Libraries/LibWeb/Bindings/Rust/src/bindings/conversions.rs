@@ -20,6 +20,7 @@ use libjs_rust::api::{
     to_well_formed, typed_array_byte_length,
 };
 
+use crate::ak_format::ak_formatted;
 use crate::bindings::CallContext;
 use crate::bindings::interface::{Interface, Ref, create_dictionary_object, wrap};
 use crate::bindings::services::web_bindings_object_implements_interface;
@@ -173,6 +174,81 @@ pub(crate) fn to_unsigned_long(vm: &Vm, value: Value) -> ThrowCompletionOr<u32> 
     //    it.
     // 2. Return the IDL unsigned long value that represents the same numeric value as x.
     value.to_u32(vm)
+}
+
+/// A JS value converted to an integer of the IDL type with [EnforceRange], whose bounds those are: steps 4 to 6 of
+/// https://webidl.spec.whatwg.org/#abstract-opdef-converttoint, which throw the errors that WebIDL::convert_to_int()
+/// of the C++ bindings throws.
+fn to_integer_enforcing_range(vm: &Vm, value: Value, lower_bound: f64, upper_bound: f64) -> ThrowCompletionOr<f64> {
+    // 4. Let x be ? ToNumber(V).
+    // 5. If x is −0, then set x to +0.
+    let x = value.to_double(vm)? + 0.0;
+
+    // 6. If the conversion is to an IDL type associated with the [EnforceRange] extended attribute, then:
+    //     1. If x is NaN, +∞, or −∞, then throw a TypeError.
+    if !x.is_finite() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NumberIsNaNOrInfinity, &[]);
+    }
+
+    //     2. Set x to IntegerPart(x).
+    let x = x.trunc() + 0.0;
+
+    //     3. If x < lowerBound or x > upperBound, then throw a TypeError.
+    if x < lower_bound || x > upper_bound {
+        let message = format!(
+            "Number '{}' is outside of allowed range of {} to {}",
+            ak_formatted(x),
+            ak_formatted(lower_bound),
+            ak_formatted(upper_bound)
+        );
+        return vm.throw_completion_with_utf16_message(ErrorKind::TypeError, Utf16String::from_utf8(&message));
+    }
+
+    //     4. Return x.
+    Ok(x)
+}
+
+/// The largest integer that a JS number represents unambiguously, the upper bound of a 64-bit integer type with
+/// [EnforceRange].
+const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+
+/// A JS value converted to a long with [EnforceRange], https://webidl.spec.whatwg.org/#js-long
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "the value is an integer within the bounds of the type"
+)]
+pub(crate) fn to_long_enforcing_range(vm: &Vm, value: Value) -> ThrowCompletionOr<i32> {
+    Ok(to_integer_enforcing_range(vm, value, f64::from(i32::MIN), f64::from(i32::MAX))? as i32)
+}
+
+/// A JS value converted to an unsigned long with [EnforceRange], https://webidl.spec.whatwg.org/#js-unsigned-long
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the value is an integer within the bounds of the type"
+)]
+pub(crate) fn to_unsigned_long_enforcing_range(vm: &Vm, value: Value) -> ThrowCompletionOr<u32> {
+    Ok(to_integer_enforcing_range(vm, value, 0.0, f64::from(u32::MAX))? as u32)
+}
+
+/// A JS value converted to a long long with [EnforceRange], https://webidl.spec.whatwg.org/#js-long-long
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "the value is an integer within the bounds of the type"
+)]
+pub(crate) fn to_long_long_enforcing_range(vm: &Vm, value: Value) -> ThrowCompletionOr<i64> {
+    Ok(to_integer_enforcing_range(vm, value, -MAX_SAFE_INTEGER, MAX_SAFE_INTEGER)? as i64)
+}
+
+/// A JS value converted to an unsigned long long with [EnforceRange],
+/// https://webidl.spec.whatwg.org/#js-unsigned-long-long
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the value is an integer within the bounds of the type"
+)]
+pub(crate) fn to_unsigned_long_long_enforcing_range(vm: &Vm, value: Value) -> ThrowCompletionOr<u64> {
+    Ok(to_integer_enforcing_range(vm, value, 0.0, MAX_SAFE_INTEGER)? as u64)
 }
 
 /// The number that https://webidl.spec.whatwg.org/#abstract-opdef-converttoint has after step 10 for a bit length of

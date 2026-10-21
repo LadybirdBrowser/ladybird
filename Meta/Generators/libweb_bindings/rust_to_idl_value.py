@@ -67,6 +67,11 @@ def rust_to_idl_value(
     name of the parameter or member that the value is of, which the errors of some conversions name."""
     rust_type(idl_type, context, what)
     name = idl_type.name
+    attributes = {**idl_type.extended_attributes, **parameter_attributes}
+    if "EnforceRange" in attributes and (idl_type.nullable or name not in INTEGER_TYPES):
+        raise UnsupportedByRustBindings(
+            f"{what} has the type {idl_type} with [EnforceRange], which the Rust bindings only handle on integer types"
+        )
     # https://webidl.spec.whatwg.org/#js-nullable-type
     if idl_type.nullable:
         inner_type = idl_type.without_nullable()
@@ -91,6 +96,8 @@ def rust_to_idl_value(
     if name == "boolean":
         return f"to_boolean({value})"
     if name in INTEGER_TYPES:
+        if "EnforceRange" in attributes:
+            return f"to_{name.replace(' ', '_')}_enforcing_range(vm, {value})"
         return f"to_{name.replace(' ', '_')}(vm, {value})"
     if name == "float":
         return f'to_float(vm, {value}, "{identifier}")'
