@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    .shrink {
+        width: fit-content;
+    }
+    .grid {
+        display: grid;
+        height: 10px;
+    }
+</style>
+<div class="shrink"><div class="grid" id="fixed" style="grid-template-columns: repeat(2, 90px)"></div></div>
+<div class="shrink"><div class="grid" id="auto-fill" style="grid-template-columns: repeat(auto-fill, 90px)"></div></div>
+<div class="shrink"><div class="grid" id="auto-fit" style="grid-template-columns: repeat(auto-fit, 90px)"></div></div>
+<div class="shrink"><div class="grid" id="padded" style="box-sizing: border-box; padding: 5px; grid-template-columns: repeat(auto-fill, 90px)"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["fixed", "auto-fill", "auto-fit", "padded"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().width}`);
+    });
+</script>

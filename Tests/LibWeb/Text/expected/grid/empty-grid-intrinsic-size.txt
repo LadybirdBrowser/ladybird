@@ -1,0 +1,4 @@
+fixed: 180
+auto-fill: 90
+auto-fit: 0
+padded: 100

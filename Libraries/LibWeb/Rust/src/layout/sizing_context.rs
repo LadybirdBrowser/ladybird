@@ -103,6 +103,12 @@ impl<'pass> SizingContext<'pass> {
         self.callbacks.first_child(node)
     }
 
+    /// Whether a box without children can still have an intrinsic size, as a grid container does from its tracks.
+    fn has_size_without_children(&self, node: Node) -> bool {
+        formatting_context::formatting_context_type_created_by_box(self.facts(node))
+            == Some(formatting_context::FormattingContextType::Grid)
+    }
+
     fn has_children(&self, node: Node) -> bool {
         !self.callbacks.first_child(node).is_invalid()
     }
@@ -2304,7 +2310,7 @@ impl<'pass> SizingContext<'pass> {
             return fallback;
         }
         // Boxes with no children have zero intrinsic inline size.
-        if !self.has_children(node) {
+        if !self.has_children(node) && !self.has_size_without_children(node) {
             return CssPixels::default();
         }
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(
@@ -2549,7 +2555,7 @@ impl<'pass> SizingContext<'pass> {
             }
         }
         // Boxes with no children have zero intrinsic inline size.
-        if !self.has_children(node) {
+        if !self.has_children(node) && !self.has_size_without_children(node) {
             return CssPixels::default();
         }
         self.measure_intrinsic_inline_size(node, constraints, block_size, IntrinsicSizeCacheKind::MaxContentInline)
@@ -2719,7 +2725,7 @@ impl<'pass> SizingContext<'pass> {
             return auto_size.aspect_ratio.map_or(height, |ratio| ratio.divide(inline_size));
         }
         // Boxes with no children have zero intrinsic height.
-        if !self.has_children(node) {
+        if !self.has_children(node) && !self.has_size_without_children(node) {
             return CssPixels::default();
         }
         self.measure_intrinsic_block_size(node, inline_size, constraints, IntrinsicSizeCacheKind::MinContentBlock)
@@ -2778,7 +2784,7 @@ impl<'pass> SizingContext<'pass> {
             return fallback;
         }
         // Boxes with no children have zero intrinsic height.
-        if !self.has_children(node) {
+        if !self.has_children(node) && !self.has_size_without_children(node) {
             return CssPixels::default();
         }
         self.measure_intrinsic_block_size(node, inline_size, constraints, IntrinsicSizeCacheKind::MaxContentBlock)
