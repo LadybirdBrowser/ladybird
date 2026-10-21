@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; }
+    #block { display: flow-root; width: 300px; min-height: 200px; }
+    #grid { display: grid; width: 300px; min-height: 200px; }
+    .bar { width: 10px; height: 2px; }
+</style>
+<div id="block"><p>Text</p><div><div class="bar" id="blockBar"></div></div></div>
+<div id="grid"><div><div class="bar" id="gridBar"></div></div></div>
+<script>
+    // Whether a change inside `root` has it lay out its content in a measurement run before its own layout.
+    const measuresContentFirst = (root, change) => {
+        const work = layoutWork(change);
+        return work.count(event => event.event === "run" && event.box.endsWith(`#${root.id}`) && event.measurement && !event.intrinsic) > 0;
+    };
+
+    test(() => {
+        const output = [];
+        // A block container's min-height clamps its block size once its content is laid out.
+        output.push(`block measures its content first: ${measuresContentFirst(block, () => (blockBar.style.width = "20px"))}`);
+        output.push(`block height: ${block.getBoundingClientRect().height}`);
+        // A grid lays out its content against its min-height where its content is shorter.
+        output.push(`grid measures its content first: ${measuresContentFirst(grid, () => (gridBar.style.width = "20px"))}`);
+        output.push(`grid height: ${grid.getBoundingClientRect().height}`);
+        for (const line of output)
+            println(line);
+    });
+</script>

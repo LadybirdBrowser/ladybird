@@ -1354,7 +1354,7 @@ fn apply_root_sizing_directives(
 ) -> RootSizingOutcome {
     let mut atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = None;
     let body_input = match input.participation {
-        ParticipationInParentFormattingContext::BlockLevel => dimension_block_level_root(run, input),
+        ParticipationInParentFormattingContext::BlockLevel => dimension_block_level_root(run, input, fc_type),
         ParticipationInParentFormattingContext::Float => body_input_with_inner_available_space(run, input),
         ParticipationInParentFormattingContext::AtomicInline => {
             let run_cache_may_store_this_block_formatting_context_run = fc_type == FormattingContextType::Block
@@ -1419,7 +1419,11 @@ fn apply_root_sizing_directives(
     }
 }
 
-fn dimension_block_level_root(run: &FormattingContextRun, input: &LayoutInput) -> LayoutInput {
+fn dimension_block_level_root(
+    run: &FormattingContextRun,
+    input: &LayoutInput,
+    fc_type: FormattingContextType,
+) -> LayoutInput {
     let node = run.box_;
     let available_space = input.available_space;
     let constraints = input.containing_block_constraints;
@@ -1427,7 +1431,10 @@ fn dimension_block_level_root(run: &FormattingContextRun, input: &LayoutInput) -
     let style = StyleValues::for_node(&run.callbacks, node);
     let mut body_input = body_input_with_inner_available_space(run, input);
     let mut measured_content_block_size = None;
-    if sizing.should_treat_block_size_as_auto(node, available_space, constraints) && !style.min_height().is_auto() {
+    if sizing.should_treat_block_size_as_auto(node, available_space, constraints)
+        && !style.min_height().is_auto()
+        && lays_out_content_against_min_block_size(NodeFacts::new(&run.callbacks, node), fc_type)
+    {
         let content_block_size =
             sizing.measure_automatic_content_block_size(node, run.layout_mode, body_input.available_space, constraints);
         measured_content_block_size = Some(content_block_size);
@@ -1444,6 +1451,14 @@ fn dimension_block_level_root(run: &FormattingContextRun, input: &LayoutInput) -
         measured_content_block_size,
     );
     body_input
+}
+
+/// Whether a block-level root with an automatic block size lays out its content against its min-height where its
+/// content is shorter, which then has to be measured first. A block container's content never reads that size: Its
+/// min-height only clamps its block size once its content is laid out, so measuring first would just lay out the
+/// whole subtree an extra time — on every layout. Form controls center their content within the clamped size, though.
+fn lays_out_content_against_min_block_size(facts: NodeFacts<'_>, fc_type: FormattingContextType) -> bool {
+    fc_type != FormattingContextType::Block || facts.uses_button_layout() || facts.is_primitive_text_input()
 }
 
 /// The content block size of a laid out box, for growing a block size transferred through its aspect ratio. Chrome

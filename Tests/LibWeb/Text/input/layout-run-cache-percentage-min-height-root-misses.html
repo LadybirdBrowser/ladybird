@@ -24,7 +24,7 @@
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
                           BlockContainer<DIV>#cached/block RUN (cache=miss)
-                            BlockContainer<DIV>#cached/block (measurement) RUN (cache=bypass)
+                            BlockContainer<DIV>#inner REUSE IN-FLOW SUBTREE
                 `,
                 check: equal => {
                     equal(heightBefore, 50, "height before");
