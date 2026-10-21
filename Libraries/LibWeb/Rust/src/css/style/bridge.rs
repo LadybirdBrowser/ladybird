@@ -1690,7 +1690,7 @@ fn collect_native_custom_declarations(
             let declaration = &property.declaration;
             // Custom properties retain their authored values, without normal-property
             // canonicalization. Their token spelling is observable after substitution.
-            let value = unsafe { engine.intern_specified_value(std::sync::Arc::as_ptr(&declaration.value)) };
+            let value = engine.intern_specified_value(&declaration.value);
             let written = RetainedStyleValueData::from_arc(declaration.value.clone());
             let declared = CustomDeclaration {
                 name: atom,

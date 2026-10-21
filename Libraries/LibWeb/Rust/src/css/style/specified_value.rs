@@ -8,7 +8,7 @@
 
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
-use crate::css::style_value::retain_style_value;
+use std::sync::Arc;
 
 use super::capacity::capacity_bytes;
 use super::cascade::SpecifiedValueID;
@@ -106,14 +106,12 @@ impl SpecifiedValues {
         self.gap.map_or(Lookup::KnownAbsent, Lookup::Missing)
     }
 
-    /// # Safety
-    /// `value` must point at live `StyleValueData`.
-    pub(super) unsafe fn intern(
+    pub(super) fn intern(
         &mut self,
-        value: *const StyleValueData,
+        value: &Arc<StyleValueData>,
         memory: &mut MemoryController,
     ) -> (SpecifiedValueID, Lookup<(), SpecifiedValueGap>) {
-        let lookup = match self.lookup(unsafe { &*value }) {
+        let lookup = match self.lookup(value) {
             Lookup::Known(id) => return (id, Lookup::Known(())),
             Lookup::KnownAbsent => Lookup::KnownAbsent,
             Lookup::Missing(gap) => Lookup::Missing(gap),
@@ -127,31 +125,21 @@ impl SpecifiedValues {
         if !memory.is_tier3_admitting(MemoryCategory::SpecifiedValueTable) {
             return (id, Lookup::Missing(self.mark_partial()));
         }
-        let retained = unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) };
-        self.push_entry(id, retained);
+        self.push_entry(id, RetainedStyleValueData::from_arc(Arc::clone(value)));
         self.settle_memory(memory);
         (id, lookup)
     }
 
     /// Associate another immutable spelling with an existing canonical identity.
-    ///
-    /// # Safety
-    /// `value` must point at live `StyleValueData`.
-    pub(super) unsafe fn alias(
-        &mut self,
-        value: *const StyleValueData,
-        id: SpecifiedValueID,
-        memory: &mut MemoryController,
-    ) {
-        if let Lookup::Known(existing) = self.lookup(unsafe { &*value }) {
+    pub(super) fn alias(&mut self, value: &Arc<StyleValueData>, id: SpecifiedValueID, memory: &mut MemoryController) {
+        if let Lookup::Known(existing) = self.lookup(value) {
             debug_assert_eq!(existing, id);
             return;
         }
         if !memory.is_tier3_admitting(MemoryCategory::SpecifiedValueTable) {
             return;
         }
-        let retained = unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) };
-        self.push_entry(id, retained);
+        self.push_entry(id, RetainedStyleValueData::from_arc(Arc::clone(value)));
         self.settle_memory(memory);
     }
 
@@ -211,7 +199,7 @@ mod tests {
         let equal_value = std::sync::Arc::new(StyleValueData::Number { value: 42.0 });
 
         assert!(matches!(values.lookup(&value), Lookup::KnownAbsent));
-        let (first, first_lookup) = unsafe { values.intern(std::sync::Arc::as_ptr(&value), &mut memory) };
+        let (first, first_lookup) = values.intern(&value, &mut memory);
         assert!(matches!(first_lookup, Lookup::KnownAbsent));
         assert_eq!(values.entries_by_pointer.len(), 1);
         assert_eq!(
@@ -220,7 +208,7 @@ mod tests {
         );
         assert!(matches!(values.lookup(&value), Lookup::Known(id) if id == first));
         assert!(matches!(values.value(first), Lookup::Known(retained) if retained == value.as_ref()));
-        let (reused, reused_lookup) = unsafe { values.intern(std::sync::Arc::as_ptr(&equal_value), &mut memory) };
+        let (reused, reused_lookup) = values.intern(&equal_value, &mut memory);
         assert_eq!(reused, first);
         assert!(matches!(reused_lookup, Lookup::Known(())));
         // A content hit does not retain a one-use duplicate spelling. Looking it up again repeats
@@ -237,7 +225,7 @@ mod tests {
             values.lookup(&value),
             Lookup::Missing(SpecifiedValueGap::RetiredPayloads { eviction_generation: 1 })
         ));
-        let (second, second_lookup) = unsafe { values.intern(std::sync::Arc::as_ptr(&value), &mut memory) };
+        let (second, second_lookup) = values.intern(&value, &mut memory);
         assert_ne!(second, first, "retired specified-value identities are never reused");
         assert!(matches!(
             second_lookup,
@@ -254,7 +242,7 @@ mod tests {
             .collect();
         let ids: Vec<_> = originals
             .iter()
-            .map(|value| unsafe { values.intern(std::sync::Arc::as_ptr(value), &mut memory) }.0)
+            .map(|value| values.intern(value, &mut memory).0)
             .collect();
         for (left, right) in ids.iter().zip(ids.iter().skip(1)) {
             assert_ne!(left, right);
@@ -263,7 +251,7 @@ mod tests {
             .map(|i| std::sync::Arc::new(StyleValueData::Number { value: f64::from(i) }))
             .collect();
         for (respelling, id) in respellings.iter().zip(ids.iter()) {
-            let (reused, _) = unsafe { values.intern(std::sync::Arc::as_ptr(respelling), &mut memory) };
+            let (reused, _) = values.intern(respelling, &mut memory);
             assert_eq!(reused, *id);
         }
     }
@@ -276,7 +264,7 @@ mod tests {
         let mut values = SpecifiedValues::new();
         let value = std::sync::Arc::new(StyleValueData::Number { value: 42.0 });
 
-        let (identity, _) = unsafe { values.intern(std::sync::Arc::as_ptr(&value), &mut memory) };
+        let (identity, _) = values.intern(&value, &mut memory);
 
         assert!(matches!(values.value(identity), Lookup::Known(retained) if retained == value.as_ref()));
         assert!(!memory.finish_tier3_quota_period()[MemoryCategory::SpecifiedValueTable as usize]);
@@ -290,14 +278,14 @@ mod tests {
         let canonical = std::sync::Arc::new(StyleValueData::Number { value: 42.0 });
         let authored = std::sync::Arc::new(StyleValueData::Number { value: 43.0 });
 
-        let (canonical_id, _) = unsafe { values.intern(std::sync::Arc::as_ptr(&canonical), &mut memory) };
-        unsafe { values.alias(std::sync::Arc::as_ptr(&authored), canonical_id, &mut memory) };
+        let (canonical_id, _) = values.intern(&canonical, &mut memory);
+        values.alias(&authored, canonical_id, &mut memory);
         assert_eq!(values.entries_by_pointer.len(), 2);
         assert!(matches!(
             values.lookup(&authored),
             Lookup::Known(id) if id == canonical_id
         ));
-        let (authored_id, lookup) = unsafe { values.intern(std::sync::Arc::as_ptr(&authored), &mut memory) };
+        let (authored_id, lookup) = values.intern(&authored, &mut memory);
 
         assert_eq!(authored_id, canonical_id);
         assert!(matches!(lookup, Lookup::Known(())));

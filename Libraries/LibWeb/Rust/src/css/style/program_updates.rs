@@ -117,13 +117,8 @@ impl RetainedState {
     ) -> DeclaredProperty {
         let canonical = canonical_specified_value(&declaration.value);
         let value = canonical.as_ref().unwrap_or(&declaration.value);
-        // SAFETY: Both roots are backed by live Arc allocations, retained by the native block
-        //         or by the canonical value above. Interning and aliasing retain their own roots.
-        let value = unsafe {
-            let value = self.intern_specified_value(Arc::as_ptr(value));
-            self.alias_specified_value(Arc::as_ptr(&declaration.value), value);
-            value
-        };
+        let value = self.intern_specified_value(value);
+        self.alias_specified_value(&declaration.value, value);
         let operator = declaration_operator(&declaration.value);
         DeclaredProperty {
             property: declaration.property_id,
@@ -134,12 +129,8 @@ impl RetainedState {
     }
 
     /// Intern one immutable specified value into the rule program's dense value table.
-    ///
-    /// # Safety
-    /// `value` must point at live `StyleValueData`.
-    pub unsafe fn intern_specified_value(&mut self, value: *const StyleValueData) -> SpecifiedValueID {
-        debug_assert!(!value.is_null());
-        let (id, lookup) = unsafe { self.specified_values.intern(value, &mut self.memory) };
+    pub fn intern_specified_value(&mut self, value: &Arc<StyleValueData>) -> SpecifiedValueID {
+        let (id, lookup) = self.specified_values.intern(value, &mut self.memory);
         match lookup {
             Lookup::Known(()) => self.counters.bump(Counter::SpecifiedValuesReused),
             Lookup::KnownAbsent | Lookup::Missing(_) => {}
@@ -148,11 +139,8 @@ impl RetainedState {
     }
 
     /// Register an authored spelling as an alias of its context-free canonical value.
-    ///
-    /// # Safety
-    /// `value` must point at live `StyleValueData`.
-    pub unsafe fn alias_specified_value(&mut self, value: *const StyleValueData, id: SpecifiedValueID) {
-        unsafe { self.specified_values.alias(value, id, &mut self.memory) };
+    pub fn alias_specified_value(&mut self, value: &Arc<StyleValueData>, id: SpecifiedValueID) {
+        self.specified_values.alias(value, id, &mut self.memory);
     }
 
     /// Make every concrete scope resolve its ranked program again. Programs whose sheet and layer

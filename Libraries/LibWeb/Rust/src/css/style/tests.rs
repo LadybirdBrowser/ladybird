@@ -817,7 +817,7 @@ fn retained_winners_construct_a_source_free_cascade_store() {
     let target = StyleAtomID(200);
     let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
     let value = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 1 });
-    let value_id = unsafe { engine.intern_specified_value(value.pointer()) };
+    let value_id = engine.intern_specified_value(&value.clone().into_arc());
     engine.set_rule_declared_properties_with_values(rule, &[(property_id::BACKGROUND_COLOR, true, value_id)]);
     commit_test_setup(&mut engine);
     let matches = vec![concrete_rule_match(&engine, nodes[1], rule, 0, None)];
