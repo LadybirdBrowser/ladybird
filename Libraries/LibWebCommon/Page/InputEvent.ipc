@@ -6,6 +6,36 @@
 #include <LibWebCommon/Page/InputEvent.h>
 
 [ExistingCpp]
+enum Web::KeyEvent::Type : u8 {
+    KeyDown,
+    KeyUp,
+}
+
+[ExistingCpp]
+enum Web::MouseEvent::Type : u8 {
+    MouseDown,
+    MouseUp,
+    MouseMove,
+    MouseLeave,
+    MouseCancel,
+    MouseWheel,
+}
+
+[ExistingCpp]
+enum Web::WheelDeltaPrecision : u8 {
+    Discrete,
+    Precise,
+}
+
+[ExistingCpp]
+enum Web::ScrollGesturePhase : u8 {
+    None,
+    Ongoing,
+    Momentum,
+    Ended,
+}
+
+[ExistingCpp]
 struct Web::KeyEvent {
     Web::KeyEvent::Type type;
     Web::UIEvents::KeyCode key;

@@ -8,6 +8,8 @@
 
 #include <AK/DistinctNumeric.h>
 #include <AK/Types.h>
+#include <LibIPC/Forward.h>
+#include <LibWebCommon/Export.h>
 
 namespace Web {
 
@@ -134,5 +136,23 @@ struct DictionaryLookup;
 struct DictionaryLookupTextStyle;
 struct Mutation;
 struct ProcessHandle;
+
+}
+
+// NB: These enums are complete types here, so a file can encode one without seeing the header that defines it. Their
+//     generated codecs are declared here as well, so that such a file uses them and not LibIPC's codec for any enum.
+namespace IPC {
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::ScrollGesturePhase const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::ScrollGesturePhase> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::WheelDeltaPrecision const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::WheelDeltaPrecision> decode(Decoder&);
 
 }
