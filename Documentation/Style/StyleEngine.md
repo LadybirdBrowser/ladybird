@@ -4,7 +4,7 @@ This document describes LibWeb's style engine: its data structures, algorithms, 
 
 `StyleEngine` is LibWeb's implementation of CSS selector evaluation, style invalidation, cascade, and computed-value computation. Mutations reach it as typed input deltas (§4.3), and compiled delta routing (§6.3) carries each delta to the transpose entry points that mention that input: every selector program that can change under the delta is reached, and subjects are match-checked before any truth delta is emitted. Selector answers, cascade winners, and computed styles are shared, interned values: elements hold a compact `StyleRecordID` into interned computed-value groups (§9.8), and every consumer of style (layout, paint, hit testing, accessibility, script APIs, and the rest of the inventory in §12) reads through that shared handle.
 
-Correctness rests on the engine's internal fallback chain: incremental evaluation, then exact evaluation of the affected scope, widening to the whole document when required (§10.6). Every path reads the same authoritative live DOM, and the exact cold evaluator is the reference implementation the others are checked against; the machinery that continuously enforces this is described in [StyleEngineTesting.md](StyleEngineTesting.md).
+Correctness rests on the engine's internal fallback chain: incremental evaluation, then exact evaluation of the affected scope, widening to the whole document when required (§3). Every path reads the same authoritative live DOM, and the exact cold evaluator is the reference implementation the others are checked against; the machinery that continuously enforces this is described in [StyleEngineTesting.md](StyleEngineTesting.md).
 
 One organizing frame runs through the whole document and is stated in §1.1: StyleEngine is a database, specifically an incremental view maintenance engine over a change stream. Mechanisms are described together with their database-world counterparts, in notes marked *Database counterpart*.
 
@@ -12,7 +12,7 @@ One organizing frame runs through the whole document and is stated in §1.1: Sty
 
 Conventional style engines do two things per change: conservatively determine which elements *may* be affected, then re-run selector matching, cascade, and computed-value construction for all of them. Work is proportional to the *possible* effects of a change rather than its *actual* semantic effects.
 
-StyleEngine models styling as a memory-bounded incremental computation. DOM structure, element state, stylesheets, CSSOM mutations, cascade topology, and environment values are versioned inputs. Selectors, cascade decisions, and computed values form a shared logical dependency program. A style flush discovers and propagates exact changes through that program and stops as soon as a semantic value is unchanged.
+StyleEngine models styling as an incremental computation. DOM structure, element state, stylesheets, CSSOM mutations, cascade topology, and environment values are versioned inputs. Selectors, cascade decisions, and computed values form a shared logical dependency program. A style flush discovers and propagates exact changes through that program and stops as soon as a semantic value is unchanged.
 
 The pipeline:
 
@@ -46,7 +46,7 @@ The canonical mapping, used throughout:
 
 | StyleEngine mechanism | Database counterpart |
 | --- | --- |
-| Authoritative DOM, CSSOM, browser state (Tier 0) | Base tables, the single source of truth |
+| Authoritative DOM, CSSOM, browser state | Base tables, the single source of truth |
 | Attached selector and cascade programs | Standing (continuous) queries |
 | Ephemeral selector programs (§6.10) | Ad-hoc queries |
 | Normalization journal (§4.4) | Changelog (CDC stream) with key-level compaction |
@@ -62,14 +62,13 @@ The canonical mapping, used throughout:
 | Incremental discipline (§3) | Incremental view maintenance (fast refresh) |
 | Exact batch plan (§3) | Complete refresh of the affected region; the upquery |
 | Witnesses, winner groups, match answers | Partially materialized views |
-| Tier-3 budget and eviction (§10) | Buffer pool with admission control |
 | Cold-batch protocol (§13) | Storage scan API with projection and predicate pushdown |
 | Cost model and counters (§15, §16) | Optimizer cost model and its statistics |
 
 Three consequences of the framing carry weight throughout:
 
 1. **Maintain-versus-refresh is a per-delta optimizer decision, not an architectural loyalty.** No mature system promises that incremental maintenance always wins; it prices the delta against the rescan and chooses. §6.7 is that decision for selector plans, and the same decision governs every retained view, fed by §16's counters. When applying a delta costs more than enumerating the affected scope, rescanning is the optimizer's correct output, not a failure of the design.
-2. **Every view is partial.** Any materialization may be missing, and a miss is answered by an upquery to base facts through the exact cold evaluator, never by a wrong answer. That is why eviction is always legal (invariant 5), why memory never scales with the product of DOM and selector count (invariant 3), and why the eviction policy matters: a policy that starves the views whose maintenance would pay converts the engine into a full-scan engine with extra bookkeeping.
+2. **Every view is partial.** Any materialization may be missing, and a miss is answered by an upquery to base facts through the exact cold evaluator, never by a wrong answer. That is why discarding a view is always legal (invariant 5) and why memory never scales with the product of DOM and selector count (invariant 3).
 3. **Propagation stops at unchanged output.** Every stage boundary in the §1 pipeline is a distinctness check: a delta whose output identity is unchanged is consolidated away and the next stage receives nothing. That is streaming consolidation, and it is invariant 1.
 
 Where the analogy stops: there is no durability and no recovery, which is why the journal is a changelog and not a write-ahead log (§4.4); the data model is an ordered tree whose axes (ancestry, sibling order, the flat tree) are join dimensions no relational engine indexes natively; and the query set is fixed at parse time, so plan compilation is a program-change event, not a per-query cost. Importing machinery for problems the engine does not have (locking, recovery logging, general ad-hoc planning) is a misreading of the framing.
@@ -83,25 +82,23 @@ These hold for every code path. They are not optional optimizations.
 1. If a semantic value does not change, no downstream semantic work is emitted.
 2. DOM mutations, state changes, CSSOM changes, and environment changes are equally first-class inputs.
 3. Core persistent memory is proportional to DOM size, stylesheet program size, and live observable style state, never to the product of DOM size and selector count.
-4. Selector matches, reverse dependencies, witnesses, proofs, and indexes are optional materialized views unless explicitly classified as core state (§10.1).
+4. Selector matches, reverse dependencies, witnesses, proofs, and indexes are optional materialized views unless explicitly classified as core state (§10).
 5. Every optional materialization can be discarded at any time without affecting correctness.
 6. High fanout uses exact pull evaluation rather than millions of explicit dependency edges.
-7. Cold, disconnected, hidden, and unobserved content does not receive per-selector state merely because it exists.
-8. Every cache and arena reports exact byte usage and participates in the document budget.
-9. Memory pressure reduces retained acceleration state, never correctness.
-10. Interning, compaction, and physical relabeling never create semantic style changes.
-11. The exact cold evaluator is part of the architecture. Optional incremental state may accelerate it but is never required for correctness.
-12. Every selector dependency has a compiled delta-routing entry point. Routing semantic inputs to selector programs is required program state, not an evictable view.
-13. Every scoped evaluation carries an impact-region coverage obligation (§6.4). Unknown scope is never treated as empty scope.
-14. Style reads use the authoritative live DOM under a mutation-free read epoch. A complete copied DOM is never allocated.
-15. Hot transpose and impact-region traversal has bounded evaluator-local access to every required tree relation, with no boundary crossing per relation step.
-16. Every broad or degraded path is named, counted, and reachable in tests. Nothing silently degrades to full-document invalidation.
+7. Disconnected content holds no per-selector state. Derived state for connected content lives until the content retires or an input invalidates it, whether or not the content is currently observed.
+8. Interning, compaction, and physical relabeling never create semantic style changes.
+9. The exact cold evaluator is part of the architecture. Optional incremental state may accelerate it but is never required for correctness.
+10. Every selector dependency has a compiled delta-routing entry point. Routing semantic inputs to selector programs is required program state, not an optional view.
+11. Every scoped evaluation carries an impact-region coverage obligation (§6.4). Unknown scope is never treated as empty scope.
+12. Style reads use the authoritative live DOM under a mutation-free read epoch. A complete copied DOM is never allocated.
+13. Hot transpose and impact-region traversal has bounded evaluator-local access to every required tree relation, with no boundary crossing per relation step.
+14. Every broad or degraded path is named, counted, and reachable in tests. Nothing silently degrades to full-document invalidation.
 
 ### 2.1 Explicitly rejected as primary architecture
 
 Alternatives with known failure modes, and why they were rejected:
 
-* **Full materialization of every view**: storing every selector state, match, witness, and reverse edge approaches the product of DOM and stylesheet size. The database framing of §1.1 survives this rejection precisely because its views are partial and evictable.
+* **Full materialization of every view**: storing every selector state, match, witness, and reverse edge approaches the product of DOM and stylesheet size. The database framing of §1.1 survives this rejection precisely because its views are partial.
 * **Conservative invalidation followed by restyle**: preserves the separation between possible effect and semantic change, and therefore preserves its work amplification.
 * **Permanent proof subscriptions**: exact dependency edges are good for hot low-fanout queries, unacceptable as mandatory state for every match and negative result.
 * **Rebuilding on CSSOM program change**: dynamic stylesheet insertion and editing are normal page behavior, especially during load; they use incremental query-program operations.
@@ -113,7 +110,7 @@ These are the working principles the invariants compile down to in day-to-day ch
 
 **Work is mutation-sized; a whole-DOM traversal is a purchase, never a default.** A style node may be visited only when the mutation named it, a compiled route reaches it, or its own output changes. A whole-document pass is one of three things: output (that many styles changed), a purchase (one counted pass that provably beats the per-node work it replaces), or a named, counted correctness floor. The review test for every loop: name what bounds it; if the bound is the document and the output is not, the loop is a bug, even while it is fast. Visit a node at most once per flush across all stages, and never restart an interrupted pass; grow its window instead.
 
-**Represent state data-oriented: dense tables over sparse maps, columns over objects.** A dense integer key (element index, atom, rule) indexes a vector or segmented column, never a hash map; hash maps are for content-keyed intern tables. Every dense per-node structure takes on the retirement story the day it is born, so a reused identity cannot inherit its predecessor's state. An evicted structure reads as unknown, never as empty.
+**Represent state data-oriented: dense tables over sparse maps, columns over objects.** A dense integer key (element index, atom, rule) indexes a vector or segmented column, never a hash map; hash maps are for content-keyed intern tables. Every dense per-node structure takes on the retirement story the day it is born, so a reused identity cannot inherit its predecessor's state. A missing structure reads as unknown, never as empty.
 
 **Choose presence structures by clearing cost.** A bitmap with a companion set-index list when the set lives for a transaction (cleared through the list, not memset); an epoch-stamped seen array when the set clears per candidate; a sorted vector when built once and only queried. A maintained population count is free exact cardinality where a plan cutoff wants one.
 
@@ -127,7 +124,7 @@ Two evaluation disciplines share one semantics:
 
 **Incremental**: the normal discipline. Retained derived state (prefix states, retained answers, winner groups) and exact deltas minimize discovery and downstream work.
 
-**Exact evaluation of a scope**: the engine ignores optional derived state and exactly evaluates an affected region with the exact evaluator against authoritative facts. It may inspect every style node in the region but emits only actual selector, rule, cascade, and computed-value changes. This is the correctness path and the universal response to eviction, memory pressure, missing state, or planner uncertainty. An exact batch is still an exact transaction: broad input scope, only changed outputs.
+**Exact evaluation of a scope**: the engine ignores optional derived state and exactly evaluates an affected region with the exact evaluator against authoritative facts. It may inspect every style node in the region but emits only actual selector, rule, cascade, and computed-value changes. This is the correctness path and the universal response to missing state or planner uncertainty. An exact batch is still an exact transaction: broad input scope, only changed outputs.
 
 The choice is made per routed region, as a `Plan`:
 
@@ -218,7 +215,7 @@ For tree and feature mutations, the first record retains the minimum old-side in
 
 A removed style-node identity and any required relation tombstone stay valid until the transaction retires. The journal does **not** copy unchanged descendant fields and does **not** preserve a traversable old DOM. Old-side facts exist to establish a complete impact region, not to reconstruct history.
 
-Resident derived state supplies old selector truth when available. If it was evicted, discard the affected derived fragment, evaluate the final state from the live DOM, and compare with the last committed style output.
+Resident derived state supplies old selector truth when available. If it is missing, discard the affected derived fragment, evaluate the final state from the live DOM, and compare with the last committed style output.
 
 **Journal overflow.** The journal is byte-accounted against its own memory category. Its capacity allows four fine-grained entries per connected element and is clamped between 4 MiB and 32 MiB. When growth would cross that capacity, the most numerous reconstructible fact, relation, program, or topology input kind's fine-grained entries are replaced with a typed **complete-scope marker** covering the whole document for that kind, and later records of that kind are dropped outright. Edge-triggered `ElementStyleInput` actions are never marker-coarsened: their reaction and inherited-group bits remain attached to every target and repeated actions on one target are unioned. At flush a marker widens the impact region to the document, and the plan evaluates that region exactly (§3). A pathological script can force broad discovery work but cannot discard an action whose target cannot be reconstructed from final facts. (Environment markers are exempted from disabling the retained-selector fast paths, since environment changes cannot alter selector incidence.)
 
@@ -257,8 +254,8 @@ tree scope                   conditional, allocated only for multi-scope documen
 assigned slot                allocated per segment
 shadow host                  allocated per segment
 fact metadata header         optional payload in a dense directly indexed column
-prefix local-fact identity   optional, Tier 3 segmented column
-computed publication handles compact dense columns, Tier 1 for observed content
+prefix local-fact identity   optional segmented column
+computed publication handles compact dense columns for observed content
 ```
 
 Shadow-relation and prefix-cache columns are allocated per segment only when useful. Fact metadata and computed publication use dense directly indexed columns whose vacant rows carry no external payload; they trade empty slots below the highest used identity for constant-time access. A document with no shadow trees allocates no shadow relationship columns.
@@ -271,16 +268,16 @@ Concretely: for `.theme .item` and a class mutation on a container, the transpos
 
 Rules:
 
-* Dense `u32`, allocated for every connected style node, charged to **Tier 1**, counted against the mandatory per-node byte budget (§10.5).
+* Dense `u32`, allocated for every connected style node, counted against the mandatory per-node byte budget (§10.2).
 * The DOM remains the Web-facing semantic owner, while these columns are the engine's committed evaluation projection. C++ must publish every relation mutation, and the columns must agree with the final live tree at every epoch boundary; the exact evaluator reads this projection rather than fetching the DOM in reverse.
-* Not evicted under ordinary memory pressure; Tier 3 is evicted first. Their allocation is required engine state, and a missing committed relation row is an invariant violation rather than a cold-path signal.
+* Their allocation is required engine state, and a missing committed relation row is an invariant violation rather than a cold-path signal.
 * Ownership follows the tree: the subsystem that mutates DOM structure publishes relation-column updates as part of the same `TreeDelta` that reports the mutation, so they cannot drift within a read epoch. Mismatch is an invariant violation, not a recoverable condition.
 
-Tree-scope navigation has the same traversal requirement once multiple scopes are supported, because scope-membership transposition works the same way. Allocate the dense tree-scope column only for documents that need it, and charge it to the conditional byte allowance (§10.5). Flat-tree operations derive from the sparse assigned-slot and shadow-host relations instead of duplicating a third parent column.
+Tree-scope navigation has the same traversal requirement once multiple scopes are supported, because scope-membership transposition works the same way. Allocate the dense tree-scope column only for documents that need it, and count it against the conditional byte allowance (§10.2). Flat-tree operations derive from the sparse assigned-slot and shadow-host relations instead of duplicating a third parent column.
 
 ### 5.4 Temporary packing
 
-Packing is an execution choice, not snapshot construction. Small or selective work queries the resident columns directly. A sufficiently large transaction compiles its affected regions into a preorder topology charged to Tier-4 scratch; broad matching holds an immutable shared view of the primary fact columns, while transaction-specific pre-images remain bounded overlays. Scratch is generation checked and released after the transaction. Whole-document cold evaluation never allocates a second complete flattened DOM or fact-store copy.
+Packing is an execution choice, not snapshot construction. Small or selective work queries the resident columns directly. A sufficiently large transaction compiles its affected regions into a preorder topology in transaction scratch; broad matching holds an immutable shared view of the primary fact columns, while transaction-specific pre-images remain bounded overlays. Scratch is generation checked and released after the transaction. Whole-document cold evaluation never allocates a second complete flattened DOM or fact-store copy.
 
 ### 5.5 Multiple tree relations
 
@@ -368,9 +365,9 @@ Compound operands transpose to the node whose local fact changed. Structural pse
 
 It covers tag, ID, class, attribute, namespace, state, tree relation, structural, scope/topology, and activation inputs. Selectors with no selective local atom go into a **typed** always-consulted slice for the input kinds that can affect them, not one global universal bucket. A child-list mutation must not consult programs that depend only on an environment predicate.
 
-Construction and bytes are charged to program compilation and Tier 2. Each input key indexes one insertion-ordered route slice, and all slices are packed into a flat `RouteID` vector; route headers and their variable-length paths live in parallel columnar arenas. The structure is proportional to selector-input incidence, not element count.
+Construction is part of program compilation. Each input key indexes one insertion-ordered route slice, and all slices are packed into a flat `RouteID` vector; route headers and their variable-length paths live in parallel columnar arenas. The structure is proportional to selector-input incidence, not element count.
 
-The registry is required, not optional: scanning every selector header for every ordinary mutation changes the hot-path asymptotics. Feature postings (Tier 3) may accelerate subject enumeration, but evicting them never changes which transpose entry points run. Program replacement keeps old registry entries alive through old-result removal and installs the new program and registry atomically in the next epoch.
+The registry is required, not optional: scanning every selector header for every ordinary mutation changes the hot-path asymptotics. Feature postings may accelerate subject enumeration, but a missing posting never changes which transpose entry points run. Program replacement keeps old registry entries alive through old-result removal and installs the new program and registry atomically in the next epoch.
 
 ### 6.4 Impact regions
 
@@ -403,16 +400,16 @@ The exact batch plan consumes only a complete impact region.
 
 One selector semantics, three cooperating execution kernels. The boundaries are physical, so operators can move between them later without changing query meaning.
 
-**Local-compound kernel**: the dominant hot path. Evaluates tag names, IDs, classes, attributes, namespaces, element states, and Boolean compound structure. Uses fixed-width interned atom IDs at the C++/Rust boundary, a rightmost-feature dispatch key, and an arena of fixed-width enum nodes with shared operand and literal tables. Candidate tests are ordered cheap/high-rejection first and short-circuit on failure. **A compound with no relational operator allocates no witness.** (Non-relational chains do participate in the retained prefix automaton below when admitted; that state is Tier-3 and evictable, never required.)
+**Local-compound kernel**: the dominant hot path. Evaluates tag names, IDs, classes, attributes, namespaces, element states, and Boolean compound structure. Uses fixed-width interned atom IDs at the C++/Rust boundary, a rightmost-feature dispatch key, and an arena of fixed-width enum nodes with shared operand and literal tables. Candidate tests are ordered cheap/high-rejection first and short-circuit on failure. **A compound with no relational operator allocates no witness.** (Non-relational chains do participate in the retained prefix automaton below when admitted; that state is optional, never required.)
 
 Selector feature keys have two sparse directions with independently bounded sizes:
 
 ```text
-feature atom -> candidate StyleNodeID posting     Tier 3, optional
-feature atom -> transpose entry points            Tier 2, required, program-proportional
+feature atom -> candidate StyleNodeID posting     optional
+feature atom -> transpose entry points            required, program-proportional
 ```
 
-The first avoids scanning DOM facts and may be evicted. The second lets a class, attribute, tag, ID, or state mutation activate only routes mentioning the changed feature. If the posting is evicted, the routed transpose program reads authoritative DOM facts or uses an exact scope batch. No element-by-selector relation is ever required.
+The first avoids scanning DOM facts and may be missing for a key. The second lets a class, attribute, tag, ID, or state mutation activate only routes mentioning the changed feature. If the posting is missing, the routed transpose program reads authoritative DOM facts or uses an exact scope batch. No element-by-selector relation is ever required.
 
 **Directional-combinator kernel**: child, descendant, adjacent-sibling, and subsequent-sibling relationships consume the same local compound programs, under operation-specific schedules:
 
@@ -423,7 +420,7 @@ The first avoids scanning DOM facts and may be evicted. The second lets a class,
 
 These are schedules over the same logical IR.
 
-**The prefix automaton.** Selector-prefix truths are retained across transactions as a Tier-3 cache: interned prefix states (the "context tokens" entering each node), per-element entering states, per-element terminal match sets, and per-element positional truth bits. Registration is budgeted: an automaton carries at most 32 structural-test truth bits, and a chain that would overflow is refused whole and stays with its exact routes, so refusal degrades to exact matching, never to a wrong answer. The cache's bytes cycle through scratch during a flush and are retained at the end of a patched flush; it is prioritized above the retained answers it maintains (§10.3), and discarding it is always legal; the next flush rebuilds from exact evaluation.
+**The prefix automaton.** Selector-prefix truths are retained across transactions as a cache: interned prefix states (the "context tokens" entering each node), per-element entering states, per-element terminal match sets, and per-element positional truth bits. Registration is budgeted: an automaton carries at most 32 structural-test truth bits, and a chain that would overflow is refused whole and stays with its exact routes, so refusal degrades to exact matching, never to a wrong answer. The cache cycles through scratch during a flush and is retained at the end of it; discarding it is always legal, and the next flush rebuilds from exact evaluation.
 
 **Relational-query kernel**: `RelativeExists` reuses local compounds and directional traversal to answer an existential question per anchor. Witnesses belong only to this kernel. A document with no relational selector allocates no relational queues, per-node relational fields, or relational cache tables (the witness table is empty and unallocated, and relational routing early-returns on an empty route set).
 
@@ -433,7 +430,7 @@ Selector lists and Boolean functional pseudo-classes compile to branch nodes in 
 
 Selector posting keys are semantic feature atoms, not strings: tag name, ID, class, attribute name, directionality, part name, and custom state. Namespace, ordinary state, root, heading, and other fixed facts are read from the authoritative row when dispatch reaches a candidate. Every attribute operator drives from the attribute-name posting; exact equality can reject on its value atom before matching, while substring and token operators run their exact text test in the compound evaluator.
 
-Representation: **chunked sorted postings**, sorted by `StyleNodeID`. While the Tier-3 category is admitted, every published selector feature is maintained eagerly, whether or not the current program mentions it. Forgetting an element removes all of its posting memberships; memory pressure evicts the complete posting category, and later selective demand may rebuild its missing keys from authoritative facts.
+Representation: **chunked sorted postings**, sorted by `StyleNodeID`. Every published selector feature is maintained eagerly, whether or not the current program mentions it. Forgetting an element removes all of its posting memberships. A selector posting that outgrows its cardinality limit is dropped and stays missing for its key.
 
 One key stops retaining a posting when its membership grows beyond the greater of 4096 elements and one quarter of the live elements. The key then reads as missing acceleration, so every consumer takes its exact fallback instead of retaining a near-document-sized secondary index.
 
@@ -441,13 +438,13 @@ One key stops retaining a posting when its membership grows beyond the greater o
 
 Because `StyleNodeID` is not a tree-order label, a subtree impact region is *not* a numeric posting interval. For a selective plan, enumerate posting candidates and prove region membership through the named tree relation, charging ancestor/sibling steps explicitly. Those steps walk the required relation columns, so a selective plan costs `Hregion` in-evaluator pointer hops rather than boundary crossings. For a broad region, stream the region in preorder and test local features from authoritative facts instead of building a full posting-to-preorder join.
 
-Transaction-local preorder arrays make repeated relation checks constant time only after their construction cost and `StyleNodeID`-to-preorder mapping bytes are charged to discovery and Tier 4.
+Transaction-local preorder arrays make repeated relation checks constant time only after their construction cost and `StyleNodeID`-to-preorder mapping are paid as discovery.
 
 ### 6.7 Selective-plan cutoff
 
 The plan choice is made once, before enumeration, from candidate cardinality and region size: **the exact batch plan is chosen when the smallest safe candidate source covers more than one quarter of the region** (`SELECTIVE_SHARE_DIVISOR = 4`). A candidate source of 64 or fewer skips the cost model entirely and goes straight to direct membership checks.
 
-The cutoff uses **exact cardinality** of normalized impact ranges. If exact cardinality is unavailable, the batch plan is chosen rather than a smaller scope guessed. Missing Tier-3 acceleration can make the exact batch plan cheaper, but memory accounting does not change the plan after enumeration begins.
+The cutoff uses **exact cardinality** of normalized impact ranges. If exact cardinality is unavailable, the batch plan is chosen rather than a smaller scope guessed. Missing acceleration can make the exact batch plan cheaper.
 
 ### 6.8 Query outputs
 
@@ -527,11 +524,11 @@ Retain **at most one witness per simple positive observed query**. Consequences:
 * Removing a non-retained witness requires no repair.
 * Removing the retained witness triggers a replacement search.
 
-A retained witness is a proof cache, never semantic state; evicting it is always legal.
+A retained witness is a proof cache, never semantic state; discarding it is always legal.
 
 *Database counterpart:* `:has()` truth is an EXISTS aggregate, so only zero-to-nonzero transitions are deltas. The retained witness is a one-row partial materialization of the subquery; losing it is a view miss repaired by an upquery, never a semantic event.
 
-**Bounds.** A retained witness is re-verified on read (liveness, axis membership, and a match re-check), with a fixed step cap on the following-sibling back-walk; any verification failure clears the entry and routes conservatively. The witness table itself is capped (currently 16,384 entries). Limit-crossing growth remains available for its current quota period, and the table is dropped whole at the following boundary. Replacement after a lost witness is the ordinary forward walk of the query's axis; the routing-side cutoff (§6.7) bounds how witness-side discovery drives anchors. A Boolean result is never approximated.
+**Bounds.** A retained witness is re-verified on read (liveness, axis membership, and a match re-check), with a fixed step cap on the following-sibling back-walk; any verification failure clears the entry and routes conservatively. The witness table itself is capped (currently 16,384 entries). Replacement after a lost witness is the ordinary forward walk of the query's axis; the routing-side cutoff (§6.7) bounds how witness-side discovery drives anchors. A Boolean result is never approximated.
 
 ### 7.4 Negative results
 
@@ -669,7 +666,7 @@ No existing selector truth is invalidated because a sheet was inserted. If the n
 * A small number of selective rules drives evaluation from sparse feature postings.
 * A large sheet or burst of sheets builds temporary rightmost-feature buckets and runs one columnar pass over the relevant live style nodes, evaluating all new fragments together.
 
-Temporary buckets and candidate arrays are Tier-4 scratch, discarded afterward.
+Temporary buckets and candidate arrays are transaction scratch, discarded afterward.
 
 If no style was observed before parser or script mutations completed, compute only the final program and style state. If an observer required an intermediate state, apply later sheets incrementally to that committed state.
 
@@ -811,7 +808,7 @@ background  <- element declaration (inline style)
 --theme     <- exact cascade (reconstructed cold)
 ```
 
-Representation: an **interned winner group** per observed style node (Tier 3, may be absent). Sparse and shared, never one heap object per property per element. Only properties declared by an added, removed, modified, or reprioritized rule are considered.
+Representation: an **interned winner group** per observed style node (may be absent). Sparse and shared, never one heap object per property per element. Only properties declared by an added, removed, modified, or reprioritized rule are considered.
 
 Candidate access is exact in each mutation direction:
 
@@ -822,7 +819,7 @@ Candidate access is exact in each mutation direction:
 
 *Database counterpart:* a winner is a top-1 aggregate per (style node, property) under the priority order, and top-1 is the classic non-invertible aggregate: insertions and losing deletions repair in place by comparison, but deleting the current winner cannot be repaired from the aggregate alone. That is exactly why a deleted winner falls back to exact cold cascade reconstruction, the same rescan MIN/MAX maintenance performs under deletion.
 
-The exact cold cascade gathers all active declarations for one node and property and runs the same priority comparison program as the incremental path, depending on no winner caches, tournament nodes, or retained state. It is both the eviction path and the reference implementation.
+The exact cold cascade gathers all active declarations for one node and property and runs the same priority comparison program as the incremental path, depending on no winner caches, tournament nodes, or retained state. It is both the fallback for a missing winner group and the reference implementation.
 
 Winner state, group, provenance and continuation identities remain eagerly
 interned during resolution. Canonical identity installation is deferred to a
@@ -835,11 +832,10 @@ Before-change comparisons continue reading unchanged retained state.
 
 Each queued write owns a pending state reference. Installation consumes writes
 in production order and transfers accepted references into retained rows;
-refused or abandoned writes release their references explicitly. Donor reuse
+abandoned writes release their references explicitly. Donor reuse
 captures completed state handles and pseudo inventory facts, so later changes
 to the producer cannot alter its consumer's output. Input handoff installs the
-old context before a new transaction can invalidate its identities. Winner
-installation precedes the same boundary admission decision as answer effects.
+old context before a new transaction can invalidate its identities.
 
 ### 9.4 Winner stopping keys
 
@@ -1017,96 +1013,34 @@ The pure style graph contains only dependencies resolvable from inputs held stab
 
 Use the existing feature-specific sequential coordinator; do not build a generic SCC runtime. The general selector and cascade graph remains acyclic within one read epoch. A cycle (style → layout → query input) produces one immutable style result per read epoch; the coordinator advances the layout-input version and schedules the next transaction per the feature's specified iteration and cycle-breaking rules. No partially updated graph is visible to script.
 
-## 10. Memory
+## 10. Lifetimes
 
-Memory is a primary constraint. Time improvements requiring unbounded retained state do not satisfy this design.
+Derived state lives as long as the node or rule it describes. There is no memory budget, no admission control, and no eviction: a materialization that is resident stays resident until its owner goes away or an input invalidates it. A view may still be missing, because it was never built or because an input invalidated it, and a miss is answered by an upquery through the exact cold evaluator (§3), never by a wrong answer.
 
-### 10.1 Tiers
+| Retained object | Reclamation rule |
+| --- | --- |
+| DOM, CSSOM, browser state | Owned by the authoritative subsystem |
+| Attached compact semantic rule program, routing registry, transpose routes | Reclaimed with the program after detachment |
+| Style feature atom mapping | Reclaimed after the last program or posting reference |
+| `StyleNodeID`, DOM-to-style-node mapping, relation columns | Reclaimed when the element disconnects and its identity retires |
+| `StyleRecordID` and shared computed-style payloads | Swept when no record reaches them |
+| Custom-property environments, animation and transition overlays | Reclaimed after every style, animation, and record releases them |
+| Match answers | Reference counted in the answer catalog and swept when unreferenced; a node's retained answer is forgotten when the node retires or an input invalidates it |
+| Cascade winner groups, selector incidences, retained witnesses | Kept per node or program until an input invalidates them |
+| Feature postings | Maintained with the facts they index; a selector posting that outgrows its cardinality limit is dropped and stays missing for its key |
+| Prefix transition and answer caches | Retained across flushes; released when a program change or an unmaintained scope invalidates them |
+| Normalization journal and coarsened scope markers | Released after the normalized transaction commits |
+| Temporary preorder, impact region, batch bucket, delta queue | Released at transaction end |
 
-* **Tier 0: authoritative semantic inputs.** DOM, CSSOM, stylesheet programs, browser state. Reference it; do not duplicate it.
-* **Tier 1: minimal live style state.** Compact handles and shared payloads required to answer current observers. Not evictable without first proving the content has no observer.
-* **Tier 2: shared semantic IR and intern pools.** Canonical selector, declaration, condition, cascade nodes; routing registry; transpose route programs. Bounded relative to the compact parsed stylesheet program; cannot absorb selector-result state.
-* **Tier 3: acceleration materializations.** Indexes, match sets, inverse maps, witnesses, proofs, flattened environments. Strictly budgeted and fully evictable.
-* **Tier 4: transaction scratch.** Reusable arenas for flattened relation ranges, delta queues, batch evaluation, comparison. High-water marks monitored; shrinks after unusually large work.
+Reclamation that keeps structures compact is local to the structure that needs it: the computed-record catalog sweeps unreachable records, the answer catalog sweeps and compacts unreferenced answers, and the primary fact arrangement repacks its payload arrays once more of them is stale than live.
 
-An interned object is not automatically Tier 2. Contexts, summaries, match answers, and proofs stay Tier 3 even when stored in an intern pool.
+The normalization journal bounds itself: past a per-document entry limit (four entries per connected element, clamped), it coarsens the most numerous reconstructible kind into a complete-scope marker (§4.4). A transaction carrying a marker widens its impact region to the document and is evaluated exactly there.
 
-| Retained object | Tier | Reclamation rule |
-| --- | --- | --- |
-| DOM, CSSOM, browser state | 0 | Owned by the authoritative subsystem |
-| Active read-epoch header and generation | 1 | Reclaim after every reader retires |
-| Attached compact semantic rule program | 2 | Reclaim after detachment and epoch retirement |
-| Style feature atom mapping | 2 | Reclaim after last program/posting reference and epoch retirement |
-| Delta-routing registry and transpose routes | 2 | Reclaim with the selector program and retired epochs |
-| Stable rule, attachment, and order nodes | 2 | Reclaim after semantic detachment and epoch retirement |
-| Memory controller and aggregate accounting | (uncharged) | Reclaim with the document |
-| `StyleNodeID` and DOM-to-style-node mapping | 1 | Reclaim after disconnection and epoch retirement |
-| DOM relation-navigation columns | 1 | Reclaim with the style node; not evicted for ordinary pressure |
-| `StyleRecordID` on an observed style node | 1 | Reclaim only after the node is provably unobserved |
-| Live shared computed-style payload | 1 | Reclaim after all style records and epochs release it |
-| Live custom-property environment | 1 | Reclaim after styles, animations, epochs release it |
-| Live animation or transition overlay | 1 | Reclaim after the effect and observing epochs release it |
-| Cascade winner group | 3 | Evict and reconstruct through exact cold cascade |
-| Feature posting | 3 | Evict and read authoritative DOM facts |
-| Retained match answers and selector incidences | 3 | Evict and reevaluate their selectors |
-| Prefix transition and answer caches | 3 | Discard; rebuilt from exact evaluation |
-| Retained witness | 3 | Evict without semantic effect |
-| Normalization journal and coarsened scope markers | 4 | Release after the normalized transaction commits |
-| Temporary preorder, impact region, batch bucket, delta queue | 4 | Release at transaction end or scratch shrink |
-
-### 10.2 Document budget
-
-Each document has a derived-style memory controller tracking exact bytes by logical operator, physical representation, scope, and tier.
-
-At each flush boundary the controller opens a new admission period for every Tier-3 category and records its starting residency. Admission remains work-conserving while the complete Tier-3 pool has space; there are no per-category partitions.
-
-Owners account exact capacity at arena, slab, vector, bitmap, and table growth boundaries. Growth crossing the global Tier-3 limit remains usable throughout the current evaluation loop. At the loop boundary, a pure decision over final category residency and the quota-period starting residency closes the categories that grew to new entries for later loops in that period. The Rust transaction and the host cold-matching batch each have an explicit end boundary. Exact-versus-pruned answer completion is selected before its batch and remains fixed throughout it. Existing entries may continue changing so they never become stale or partial. At the following flush boundary, an over-limit category is dropped whole; there is no mid-traversal eviction, retry, or rebuild.
-
-```text
-Tier3Limit = min(
-    DeviceCap,
-    BaseAllowance + NodeAllowance * ConnectedElementCount)
-```
-
-`ConnectedElementCount` counts connected styleable DOM elements in the live DOM at the read epoch, not pseudo style nodes, arena capacity, or retired generations. Required selector and rule-program storage is charged honestly to Tier 2 but does not enlarge the optional Tier-3 pool; process-shared selector programs therefore need no per-document attribution rule in this budget.
-
-| Configuration | Device cap | Base | Per connected style node |
-| --- | ---: | ---: | ---: |
-| Browser document | 64 MiB | 1 MiB | 2,048 bytes |
-
-These are a ceiling for the complete set of optional views, not an expectation. Counters report actual capacity against the limit rather than treating the limit as a target. The node coefficient reaches the device cap at 32,256 elements; above that the cap binds and larger documents run progressively colder, which is intended.
-
-Tier 2 is required program state and is tracked without a cap. The cold-interpreted fallback that a cap would require does not exist; required program capacity must therefore never be refused or relabelled as Tier 3.
-
-**Tier 4 peak cap:**
-
-```text
-Tier4Limit = min(
-    ScratchCap,
-    max(4 MiB, Tier3Limit, TransactionNodeAllowance * ConnectedElementCount))
-```
-
-The scratch cap is 32 MiB and the transaction node allowance is 768 bytes. The multiplier on `Tier3Limit` is 1, not 2, so transaction scratch cannot dominate the document's total style footprint; the 4 MiB floor matters most on small documents. Tier 4 is a **reported ceiling**, not a refusable cap: scratch charges cannot be refused because the flush must complete. The limit makes an over-limit transaction visible in the pressure report but changes no allocation or planning decision.
-
-Accounting uses one plain-integer ledger per document or shared-program context, mutated through exclusive borrows. Leases share only the accounting lifetime, so destroying an outliving query or shared program still releases its charge. Ledger operations never select admission or refuse required capacity. Peak charged live bytes and peak scratch bytes remain available after temporary charges are released. Required output and node workspace is reserved before computation. Output capacity is reconciled at vector growth; computation scratch capacity is sampled every 256 published elements and reconciled after the loop, before release. Its high-water observation reports accounted capacity at those points, not an allocator-level peak.
-
-Byte accounting happens at arena, slab, vector-capacity, bitmap, and hash-table allocation boundaries: operators update aggregate counters when capacity changes, not on every lookup.
-
-### 10.3 Eviction
-
-Eviction removes physical acceleration state and bumps no semantic versions. A later observer reconstructs from authoritative inputs and remaining logical state.
-
-The policy is benefit-driven with scan resistance built in. Each Tier-3 category accumulates hit/miss observations with exponential decay. At a pressured boundary, categories with no recorded hits are considered first, then the remaining categories by increasing hit ratio, with memory-category order breaking ties. It selects nothing unless the complete selection can cover the actual overage: an all-or-nothing rule that keeps one broad cold pass from flushing a working set that pays.
-
-The budget responds to document and program size. Tier-3 state remains fully evictable while compact live styles are retained.
-
-*Database counterpart:* buffer-pool replacement, with its known trap: without scan resistance and cost awareness, one broad cold pass flushes the working set, and a recency-only policy starves the views whose maintenance would pay, leaving a full-scan engine with extra bookkeeping.
-
-### 10.4 Interning
+### 10.1 Interning
 
 Intern pools use compact document-local handles and weak reclamation where possible. Apply hash-consing only where lookup and table overhead is likely to beat duplication; very small or unique values are cheaper inline. Prefer adaptive small-vector and interned representations over universal heap allocation.
 
-### 10.5 Per-node metadata budget
+### 10.2 Per-node metadata budget
 
 Mandatory per-node state is at most **eight 32-bit words**:
 
@@ -1131,33 +1065,16 @@ MandatoryNodeBytes(surface)      <= 32
 
 The engine asserts the relation-column budget in its own tests. The conditional allowance covers tree-scope identity, allocated only when the document requires it and no authoritative field can be exposed safely without duplication. Depth rejects impossible ancestry checks immediately and bounds the remaining parent walk. Slot, part, pseudo, or future relation navigation must derive a compact identity or replace the physical representation; it cannot raise the 32-byte cap. (`StyleNodeID` is a `NonZeroU32`, so optional relation slots niche-pack into one word.)
 
-Optional context, winner, dependency, and witness handles use dense, bit-packed, or segmented Tier-3 columns according to their access and clearing patterns; they do not consume a reserved mandatory word on every node. Dense optional columns and shared live style payloads are reported separately rather than hidden in the 32-byte relation surface.
+Optional context, winner, dependency, and witness handles use dense, bit-packed, or segmented columns according to their access and clearing patterns; they do not consume a reserved mandatory word on every node. Dense optional columns and shared live style payloads are reported separately rather than hidden in the 32-byte relation surface.
 
-**Tier 1 is required state, not free memory.** No duplicate complete computed styles.
-
-### 10.6 Failure behavior
-
-Memory pressure never degrades correctness; it degrades retention. The Tier-3 chain is:
-
-```text
-account exact coarse growth and keep it usable for this quota period
-    -> at the loop boundary, close grown categories to new retained entries
-    -> continue exact evaluation for entries that remain uncached
-    -> drop the complete over-limit category at the next flush boundary
-```
-
-Independently, a transaction the journal had to coarsen widens its impact region to the document and is evaluated exactly there. Whole-document exact evaluation runs as one pass; its scratch is charged to Tier 4, which is a reported ceiling rather than a refusable cap (§10.2).
-
-Memory pressure can therefore make a later flush slower and colder, but never rejects a synchronous style read as a Web-visible outcome.
+Live computed styles are shared payloads; no node holds a duplicate complete computed style.
 
 ## 11. Scheduling
 
 Execution is sequential. Style transactions are processed as dependency-ordered stages over homogeneous delta queues, not recursive pointer-chasing calls. The flush (`take_style_transaction`, flush.rs) runs:
 
 ```text
-1.  Reclaim unreachable computed payloads when due, finish the previous
-    Tier-3 quota period, evict selected complete categories, and open the next
-    period.
+1.  Reclaim unreachable computed payloads when due.
 2.  Finalize staged sheet-rule replacements, compact unshared routing
     directories, and normalize the journal into one transaction.
 3.  Commit staged program, tree, and fact state to the final snapshot while
@@ -1233,7 +1150,7 @@ Computed-value **construction** is C++-side: the reaction batch drives StyleComp
 
 **Identity allocation.** The engine mints `StyleNodeID` values (C++ requests them through an allocation call that accepts a batch); C++ owns DOM lifecycle and the DOM-to-style-node mapping. Rust treats IDs as opaque dense indexes. Reuse safety comes from two-phase retirement: retired indexes enter a pending pool and are released for reallocation only at a later safe boundary, never while a stale handle can observe them.
 
-The engine likewise mints process-global `StyleAtomID` values for selector-mentioned tag, ID, class, attribute, value, namespace, and state identities, keyed by the exact interned-string identity C++ passes (a `Utf16FlyString`'s one-word raw identity, retained until the last document reference releases it, so identity equality is exact and never hash-approximate). Interning on the engine side is what makes selector-name atoms and fact atoms comparable across shared programs: one process table assigns one sequence, while each document records and releases the atoms it uses. Rust stores only the `u32` atom in selector IR and postings; text the engine must inspect byte-wise (attribute values for broad string operators and language tags) is pushed to engine-side storage on demand and re-pushed if evicted.
+The engine likewise mints process-global `StyleAtomID` values for selector-mentioned tag, ID, class, attribute, value, namespace, and state identities, keyed by the exact interned-string identity C++ passes (a `Utf16FlyString`'s one-word raw identity, retained until the last document reference releases it, so identity equality is exact and never hash-approximate). Interning on the engine side is what makes selector-name atoms and fact atoms comparable across shared programs: one process table assigns one sequence, while each document records and releases the atoms it uses. Rust stores only the `u32` atom in selector IR and postings; text the engine must inspect byte-wise (attribute values for broad string operators and language tags) is pushed to engine-side storage on demand and re-pushed if released.
 
 **Relation columns** are stored on the Rust side, keyed by `StyleNodeID`, and maintained from the journalled tree deltas within the same transaction that reports the mutation, so transpose traversal, impact-region membership, and sibling-sequence scans run entirely inside the evaluator. Two deliberate exceptions bypass per-node journalling: initial bulk load links the whole arriving tree directly (safe because the root arrival forces whole-document evaluation), and shadow host/root registration is applied directly at registration time.
 
@@ -1241,7 +1158,7 @@ The engine likewise mints process-global `StyleAtomID` values for selector-menti
 
 **There is no reverse fact-fetch protocol.** The engine never asks C++ for a fact it lacks: C++ pushes every fact it owns eagerly as deltas, the engine stages them, and evaluation reads old/new values through a transaction-local fact view over retained pre-images plus the resident fact store. A broad plan holds an immutable shared view of the resident primary columns and allocates only the transaction-specific overlays and indexes it needs; it does not clone the complete fact store or cross the boundary. The one reverse direction that exists is an enumeration callback for flat-tree descendants not represented by an engine-owned child list.
 
-**Computed style crosses as a handle.** The boundary transfers a shared style-group handle, never a copied per-property object. C++ consumers hold `StyleRecordID` and read through the record view; layout and paint consume the same handle rather than materializing a private complete style per element (anonymous layout-derived boxes are the exception and own their values). Records are pinned while any C++ consumer references them and reclaimed per the Tier-1 rules in §10.1.
+**Computed style crosses as a handle.** The boundary transfers a shared style-group handle, never a copied per-property object. C++ consumers hold `StyleRecordID` and read through the record view; layout and paint consume the same handle rather than materializing a private complete style per element (anonymous layout-derived boxes are the exception and own their values). Records are pinned while any C++ consumer references them and reclaimed per the rules in §10.
 
 ### 13.1 Module layout
 
@@ -1277,7 +1194,6 @@ partial_view.rs       partial-materialization bookkeeping
 intern_table.rs       the generic intern table (id + payload + lifetime policy)
 sorted_merge.rs       the shared sorted delta-merge iterator
 capacity.rs           declarative capacity accounting and guards
-memory.rs             tiers, budget controller, eviction
 order.rs              hierarchical order-maintenance tokens
 tree.rs               style-node tree relations and identities
 fast_hash.rs          deterministic hashing aliases (fixed-seed foldhash)
@@ -1312,8 +1228,6 @@ The engine still charges the substantial selector and cascade discovery: this tr
 **Slot assignment and flat-tree relations change.** Moving a node between slots changes slot assignment and flat-tree identities even when the DOM parent is unchanged. `::slotted()`, host-context, inheritance, and any operator whose read set includes the affected relation are reevaluated in the shadow scope *and* the participating light-tree scope. Unrelated document-tree selectors keep their results. Never reuse a DOM-tree proof for a flat-tree question.
 
 **Sibling-relative `:has()` churn.** For `.item:has(+ .item.selected)`, changing `selected` has exactly one possible anchor: the immediately preceding sibling. Direct relation evaluation is exact and allocates no summary. `.card:has(~ .panel .error)` can force a large sibling-and-descendant search: run the complex evaluator until the replacement budget is reached, then finish the query family with the exact batch plan. Boolean truth is never approximated.
-
-**Tier-3 state disappears during interaction.** A backgrounded document loses postings, witnesses, and prefix caches. A later state change plus synchronous style read flushes the transaction, then uses DOM facts and the exact cold evaluator for the observed scope. The result must equal a never-evicted run. Returning to the foreground reconstructs nothing eagerly.
 
 **Privacy-sensitive state.** When visited-dependent styling is implemented, its taint component must join operator, cache, and style-record identities, and instrumentation must redact tainted identities and never expose match cardinality to script or developer-facing timing counters. The requirement is recorded here so no cache added in the meantime bakes in an assumption that all results are shareable across a future privacy boundary.
 
@@ -1363,7 +1277,7 @@ Accepted bounds when no useful optional materialization exists:
 | Replace one retained simple `:has()` witness | Forward walk of the query's axis, `O(K * Csel)` |
 | Answer a cold complex `:has()` query | Exact traversal of its anchor region; worst case `O(Nscope * Csel)` per query family |
 | Resolve a cold custom property | `O(Edepth + Tsub)` including cycle handling |
-| Tier-3 miss for an observed node | Exact selector and cascade evaluation for that scope; worst case `O(Nscope * Sscope * Csel)` |
+| Missing derived state for an observed node | Exact selector and cascade evaluation for that scope; worst case `O(Nscope * Sscope * Csel)` |
 | Broad source-order or root inherited change | `O(Nlive)` or greater when that many outputs change |
 
 Accepted lower bounds the design does not pretend to beat:
@@ -1384,8 +1298,6 @@ The engine maintains a large counter ledger (`instrumentation.rs`), exposed to C
 * Routing: routed entry points, impact relation steps, region cardinality.
 * Candidate enumeration: posting entries enumerated, region-membership checks, exact checks, rejections.
 * Matching and stopping: retained-answer patch stops, cascade compaction counts, cold-batch rows evaluated and missing.
-* Tier-3 memory decisions: admission closures per category and benefit-guided boundary evictions.
-* Bytes by tier and category.
 * Style records and interned states created, reused, reclaimed; reaction and recomputation counts on the C++ ledger (the amplification triage numbers).
 
 The doctrine over any future counter: ratios with a zero denominator report the raw numerator and `not applicable`, never an invented zero, and every plan decision made against an estimate should leave behind the observation that would have corrected it.
@@ -1462,11 +1374,11 @@ clock reads per transaction or C++ reaction batch.
 
 *Database counterpart:* these are the database's own pathologies in this engine's terms: view-size blowup, trigger fanout, buffer-pool thrashing, plan instability under churn, stale statistics. Each safeguard is the standard remedy, stated concretely.
 
-**Materialization explosion.** A selector family may generate unique states for most elements. Refuse the allocation at the Tier-3 limit and use exact cold evaluation. Low sharing is a real failure mode, not something hidden by calling the objects interned.
+**Materialization explosion.** A selector family may generate unique states for most elements. Low sharing is a real failure mode, not something hidden by calling the objects interned.
 
 **Dependency-edge explosion.** Never allocate an unbounded reverse subscriber list. When a direct edge budget would be crossed, retain no list and validate the exact affected scope from shared input identities.
 
-**Match-relation duplication.** Canonicalize match answers while a traversal consumes them. Per-node retained match answers and per-program selector incidences exist only as Tier-3 evictable views (never required state, never a complete `RuleID -> elements` relation), so the duplication is bounded by the budget and disappears under pressure.
+**Match-relation duplication.** Canonicalize match answers while a traversal consumes them. Per-node retained match answers and per-program selector incidences are optional views (never required state, never a complete `RuleID -> elements` relation), shared through the answer catalog.
 
 **Cache thrashing.** With no promotion logic, repeated cold reconstruction is directly visible in counters. Any later promotion mechanism must use hysteresis, rebuild cost, and a re-promotion penalty.
 
@@ -1474,7 +1386,7 @@ clock reads per transaction or C++ reaction batch.
 
 **Pathological broad changes.** When a change produces huge output, batch it. Never pretend the output can be avoided and never add unrelated invalidation work.
 
-**Stale lazy state.** Every lazy result records the identities of its semantic inputs or a shared context token. Observation validates those identities. Eviction and physical compaction never modify semantic identities.
+**Stale lazy state.** Every lazy result records the identities of its semantic inputs or a shared context token. Observation validates those identities. Releasing derived state and physical compaction never modify semantic identities.
 
 **Identifier exhaustion.** Document-local IDs are never reused while stale handles may exist (two-phase retirement). Exhaustion of the 32-bit index space is treated as unreachable for one document; if that assumption ever breaks, the answer is an arena rebuild at a safe boundary, never silent aliasing.
 
@@ -1482,7 +1394,7 @@ clock reads per transaction or C++ reaction batch.
 
 The engine's correctness claim (every path produces results identical to full recomputation from authoritative inputs) is enforced by standing machinery, not by convention:
 
-* **The exact cold evaluator is the reference implementation.** It is plain by design, free of the incremental path's caches, and is both the eviction fallback and the oracle every other path is checked against.
+* **The exact cold evaluator is the reference implementation.** It is plain by design, free of the incremental path's caches, and is both the fallback for missing state and the oracle every other path is checked against.
 * **In-crate unit and differential suites** (`tests.rs`, `differential_tests.rs`) exercise operators directly, including differential comparison of incremental against cold evaluation.
 * **Verify modes** re-derive incremental answers through the cold path at runtime and compare, observer-only: verification never mutates engine state, never disables the fast path it checks, and treats an incomplete comparison as a failure.
 

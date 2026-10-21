@@ -50,8 +50,6 @@ Verification is **observer-only**: structural checks receive an immutable engine
 
 **Performance.** A browser profile shows C++ materialization cost and engine cost side by side. The counters (§16 of StyleEngine.md) are exposed through the internals object (`--expose-internals-object` works on live sites via WebDriver) and answer the first triage question: how many reactions and recomputations did this interaction produce, and how many computed styles changed? A large gap is amplification, and the fix is precision, not micro-optimization. Performance claims are settled by measuring the real workload A/B; counter improvements and synthetic benchmarks are supporting evidence, not the verdict.
 
-**Suspected memory-accounting drift.** Every cache and arena reports exact bytes (invariant 8). Capacity tests assert charges reach zero after eviction.
-
 ## 3. Writing tests
 
 * Behavior fixes land with a test that failed before the fix. For engine-internal properties (invalidation reach, recompute counts, retention), assert through the internals hooks rather than timing; timing-based tests are forbidden.
