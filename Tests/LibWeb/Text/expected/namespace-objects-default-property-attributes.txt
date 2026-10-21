@@ -375,6 +375,14 @@ RuntimeError configurable: true
 RuntimeError enumerable: false
 RuntimeError value before: function RuntimeError() { [native code] }
 RuntimeError value after: replaced
+JSTag writable: undefined
+JSTag configurable: true
+JSTag enumerable: true
+Exception writable: true
+Exception configurable: true
+Exception enumerable: false
+Exception value before: function Exception() { [native code] }
+Exception value after: replaced
 Global writable: true
 Global configurable: true
 Global enumerable: false
@@ -400,3 +408,8 @@ Table configurable: true
 Table enumerable: false
 Table value before: function Table() { [native code] }
 Table value after: replaced
+Tag writable: true
+Tag configurable: true
+Tag enumerable: false
+Tag value before: function Tag() { [native code] }
+Tag value after: replaced

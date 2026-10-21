@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	Missing arguments
+Pass	Invalid exception argument
+Pass	Index out of bounds
+Fail	Getting out-of-range argument
+Pass	getArg

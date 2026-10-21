@@ -26,8 +26,14 @@ if(INCLUDE_WASM_SPEC_TESTS)
         extract_path("${CMAKE_CURRENT_BINARY_DIR}" "${WASM_SPEC_TEST_GZ_PATH}" "testsuite-${WASM_SPEC_TEST_COMMIT}/*.wast" "${WASM_SPEC_TEST_PATH}")
         file(MAKE_DIRECTORY ${WASM_SPEC_TEST_PATH})
         file(GLOB WASM_TESTS "${CMAKE_CURRENT_BINARY_DIR}/testsuite-${WASM_SPEC_TEST_COMMIT}/*.wast")
-        foreach(PATH ${WASM_TESTS})
+        # The tests of the legacy exception handling instructions are in a directory of their own, and share names with
+        # the current ones.
+        file(GLOB WASM_LEGACY_TESTS "${CMAKE_CURRENT_BINARY_DIR}/testsuite-${WASM_SPEC_TEST_COMMIT}/legacy/*.wast")
+        foreach(PATH ${WASM_TESTS} ${WASM_LEGACY_TESTS})
             get_filename_component(NAME ${PATH} NAME_WLE)
+            if (PATH IN_LIST WASM_LEGACY_TESTS)
+                set(NAME "legacy_${NAME}")
+            endif()
             message(STATUS "Generating test cases for WebAssembly test ${NAME}...")
             execute_process(
                 COMMAND env SKIP_PRETTIER=${SKIP_PRETTIER} bash ${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_libwasm_spec_test.sh "${PATH}" "${CMAKE_CURRENT_BINARY_DIR}/Tests/Spec" "${NAME}" "${WASM_SPEC_TEST_PATH}")

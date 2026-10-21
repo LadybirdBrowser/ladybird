@@ -16,9 +16,19 @@ static ENTRY_CODE: [u8; 3] = [0xf0, 0xf3, 0xf1];
 #[cfg(wasm_interpreter)]
 const MEMORY_FAULT_OPCODE: usize = 0xf2;
 
-#[cfg(wasm_interpreter)]
+// The interpreter uses the System V calling convention on every x86-64 target, Windows included.
+#[cfg(all(wasm_interpreter, not(all(target_arch = "x86_64", windows))))]
 unsafe extern "C" {
     fn wasm_interpreter(ip: *const u8, argument: u64);
+}
+
+#[cfg(all(wasm_interpreter, target_arch = "x86_64", windows))]
+unsafe extern "sysv64" {
+    fn wasm_interpreter(ip: *const u8, argument: u64);
+}
+
+#[cfg(wasm_interpreter)]
+unsafe extern "C" {
     static wasm_interpreter_end: u8;
     static wasm_interpreter_dispatch_table: [usize; 256];
 }
@@ -133,7 +143,18 @@ fn thread_stack_lowest_address() -> Option<usize> {
     }
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[cfg(windows)]
+#[allow(clippy::unnecessary_wraps)] // The other platforms' versions can fail.
+fn thread_stack_lowest_address() -> Option<usize> {
+    unsafe extern "system" {
+        fn GetCurrentThreadStackLimits(low: *mut usize, high: *mut usize);
+    }
+    let (mut low, mut high) = (0, 0);
+    unsafe { GetCurrentThreadStackLimits(&raw mut low, &raw mut high) };
+    Some(low)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
 fn thread_stack_lowest_address() -> Option<usize> {
     None
 }
@@ -148,7 +169,7 @@ mod fault {
     static mut PREVIOUS_SIGSEGV: libc::sigaction = unsafe { std::mem::zeroed() };
     static mut PREVIOUS_SIGBUS: libc::sigaction = unsafe { std::mem::zeroed() };
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     unsafe fn instruction_pointer(context: *mut libc::c_void) -> *mut usize {
         unsafe {
             let context = context.cast::<libc::ucontext_t>();
@@ -156,11 +177,27 @@ mod fault {
         }
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    unsafe fn instruction_pointer(context: *mut libc::c_void) -> *mut usize {
+        unsafe {
+            let context = context.cast::<libc::ucontext_t>();
+            (&raw mut (*context).uc_mcontext.pc).cast()
+        }
+    }
+
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
     unsafe fn instruction_pointer(context: *mut libc::c_void) -> *mut usize {
         unsafe {
             let context = context.cast::<libc::ucontext_t>();
             (&raw mut (*(*context).uc_mcontext).__ss.__rip).cast()
+        }
+    }
+
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    unsafe fn instruction_pointer(context: *mut libc::c_void) -> *mut usize {
+        unsafe {
+            let context = context.cast::<libc::ucontext_t>();
+            (&raw mut (*(*context).uc_mcontext).__ss.__pc).cast()
         }
     }
 
@@ -216,7 +253,72 @@ mod fault {
     }
 }
 
+/// Windows reports faults to vectored exception handlers before it looks for handlers in the faulting thread's frames.
+#[cfg(all(wasm_interpreter, windows))]
+mod fault {
+    use super::{interpreter_code_range, memory_fault_handler};
+    use crate::runtime::memory::is_in_any_reservation;
+    use std::ffi::c_void;
+    use std::sync::Once;
+
+    const EXCEPTION_ACCESS_VIOLATION: u32 = 0xc000_0005;
+    const EXCEPTION_CONTINUE_EXECUTION: i32 = -1;
+    const EXCEPTION_CONTINUE_SEARCH: i32 = 0;
+    /// Where Rip is in the x86-64 CONTEXT structure.
+    const CONTEXT_RIP_OFFSET: usize = 0xf8;
+
+    #[repr(C)]
+    struct ExceptionRecord {
+        code: u32,
+        flags: u32,
+        record: *mut ExceptionRecord,
+        address: *mut c_void,
+        parameter_count: u32,
+        /// For access violations, whether the access was a write, and the address it accessed.
+        information: [usize; 15],
+    }
+
+    #[repr(C)]
+    struct ExceptionPointers {
+        record: *mut ExceptionRecord,
+        context: *mut u8,
+    }
+
+    unsafe extern "system" {
+        fn AddVectoredExceptionHandler(
+            first: u32,
+            handler: unsafe extern "system" fn(*mut ExceptionPointers) -> i32,
+        ) -> *mut c_void;
+    }
+
+    static INSTALL: Once = Once::new();
+
+    unsafe extern "system" fn handle_exception(pointers: *mut ExceptionPointers) -> i32 {
+        unsafe {
+            let record = &*(*pointers).record;
+            if record.code != EXCEPTION_ACCESS_VIOLATION || record.parameter_count < 2 {
+                return EXCEPTION_CONTINUE_SEARCH;
+            }
+            let pc = (*pointers).context.add(CONTEXT_RIP_OFFSET).cast::<usize>();
+            let (start, end) = interpreter_code_range();
+            if (start..end).contains(&*pc) && is_in_any_reservation(record.information[1]) {
+                // The handlers keep their frame in the pinned registers, so the trap handler can find the
+                // execution context of the access from the frame pointer.
+                *pc = memory_fault_handler();
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
+            EXCEPTION_CONTINUE_SEARCH
+        }
+    }
+
+    pub fn install() {
+        INSTALL.call_once(|| unsafe {
+            AddVectoredExceptionHandler(1, handle_exception);
+        });
+    }
+}
+
 pub fn install_fault_handler() {
-    #[cfg(all(wasm_interpreter, unix))]
+    #[cfg(wasm_interpreter)]
     fault::install();
 }

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#![cfg(all(target_arch = "x86_64", not(windows)))]
+#![cfg(any(target_arch = "x86_64", all(target_arch = "aarch64", not(windows))))]
 
 use libwasm_engine::runtime::{ExternValue, InstanceAddress, Store, Trap, Value};
 use std::sync::Arc;
@@ -73,6 +73,26 @@ fn runs_control_flow_locals_calls_and_memory() {
     assert_eq!(
         call(&mut store, instance, "drop_in_block", &[]),
         Ok(vec![Value::I32(3)])
+    );
+}
+
+#[test]
+fn recurses_with_frames_larger_than_a_page() {
+    let mut store = Store::new();
+    let instance = instantiate(&mut store, "big_frames.wasm");
+    // Each frame reaches more than a page below the previous one, which Windows only commits if the interpreter probes
+    // the pages in between.
+    assert_eq!(
+        call(&mut store, instance, "deep", &[Value::I32(100)]),
+        Ok(vec![Value::I32(101)])
+    );
+    assert_eq!(
+        call(&mut store, instance, "deep", &[Value::I32(1_000_000)]),
+        Err(Trap::StackExhausted)
+    );
+    assert_eq!(
+        call(&mut store, instance, "deep", &[Value::I32(10)]),
+        Ok(vec![Value::I32(11)])
     );
 }
 

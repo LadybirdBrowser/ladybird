@@ -1,0 +1,10 @@
+exported tags are Tags: true, imported tag is the same object: true
+thrown by WebAssembly: true, is own: true, is imported: false
+arguments: 1, 2, stack: undefined
+an Exception thrown through WebAssembly is itself: true
+caught by its tag in WebAssembly: 5
+a JavaScript exception thrown through WebAssembly is itself: true
+not caught by the imported tag: true
+traceStack gives a stack: string
+struct: 7, same object again: true, prototype: null
+anyref of numbers and strings: 42, 2147483648, text

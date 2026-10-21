@@ -23,6 +23,7 @@
 #include <LibWeb/WebAssembly/Memory.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/Table.h>
+#include <LibWeb/WebAssembly/Tag.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 
 namespace Web::WebAssembly {
@@ -140,7 +141,7 @@ static GC::Ref<JS::Object> create_exports_object(JS::Realm& realm, WebAssembly::
             exports->define_direct_property(name, table(realm, instance.table_instance(address)), JS::default_attributes);
             break;
         case Wasm::Runtime::ExternKind::Tag:
-            dbgln("Not yet implemented: tags");
+            exports->define_direct_property(name, wrap(host_defined_wrapper_world(realm), realm, WebAssembly::Tag::from_address(address)), JS::default_attributes);
             break;
         }
     }

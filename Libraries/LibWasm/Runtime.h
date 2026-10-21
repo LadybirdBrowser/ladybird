@@ -259,6 +259,16 @@ public:
     // a host function.
     Optional<u32> function_index(Entity function);
 
+    // The types of functions, tables, globals, and tags of the store name concrete heap types by store-wide
+    // identities, where the types of a module name them by their indices in the module. This is a type of `module`
+    // in the store's terms.
+    ValueType canonical_value_type(Module const&, ValueType);
+    // Whether a non-null reference matches a reference type of the store. A reference of the any hierarchy must be in
+    // its internal form: an i31 reference, a GC object, or a host reference.
+    bool reference_matches(u64 reference, ValueType);
+    // Whether the concrete heap type `identity` is a function type, as opposed to a struct or array type.
+    bool is_function_type(u32 identity);
+
     Entity allocate_tag(ReadonlySpan<ValueType> parameters);
     Vector<ValueType> tag_parameters(Entity tag);
     // An exception is a cell of the heap, which keeps it while something refers to it.

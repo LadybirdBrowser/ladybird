@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	anyref casts
+Pass	eqref casts
+Pass	structref casts
+Pass	arrayref casts
+Pass	i31ref casts
+Pass	funcref casts
+Pass	externref casts
+Pass	null casts
+Pass	concrete struct casts
+Pass	concrete array casts
+Pass	concrete func casts

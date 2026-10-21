@@ -39,11 +39,13 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebAssembly/BindingsGlue.h>
+#include <LibWeb/WebAssembly/Exception.h>
 #include <LibWeb/WebAssembly/Global.h>
 #include <LibWeb/WebAssembly/Instance.h>
 #include <LibWeb/WebAssembly/Memory.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/Table.h>
+#include <LibWeb/WebAssembly/Tag.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -64,28 +66,28 @@ using WasmValueType = Wasm::Runtime::ValueType;
 using Wasm::Runtime::HeapKind;
 using Wasm::Runtime::ValueKind;
 
-template<typename T>
-GC::Ptr<T> WebAssemblyCache::ObjectCache<T>::get(Entity entity) const
+template<typename T, typename Key>
+GC::Ptr<T> WebAssemblyCache::ObjectCache<T, Key>::get(Key key) const
 {
-    auto entry = m_objects.get(entity);
+    auto entry = m_objects.get(key);
     if (!entry.has_value())
         return nullptr;
     return entry->ptr();
 }
 
-template<typename T>
-void WebAssemblyCache::ObjectCache<T>::set(Entity entity, T& object)
+template<typename T, typename Key>
+void WebAssemblyCache::ObjectCache<T, Key>::set(Key key, T& object)
 {
     // NB: Stale entries go once there are as many of them as live ones.
     if (m_objects.size() >= 2 * m_live_after_pruning + 16) {
         m_objects.remove_all_matching([](auto&, auto& weak) { return !weak; });
         m_live_after_pruning = m_objects.size();
     }
-    m_objects.set(entity, object);
+    m_objects.set(key, object);
 }
 
-template<typename T>
-void WebAssemblyCache::ObjectCache<T>::for_each(Function<void(T&)> const& callback) const
+template<typename T, typename Key>
+void WebAssemblyCache::ObjectCache<T, Key>::for_each(Function<void(T&)> const& callback) const
 {
     for (auto& entry : m_objects) {
         if (entry.value)
@@ -102,6 +104,12 @@ void WebAssemblyCache::set_memory_object(Entity memory, Memory& object) { m_memo
 GC::Ptr<Table> WebAssemblyCache::table_object(Entity table) const { return m_table_objects.get(table); }
 void WebAssemblyCache::set_table_object(Entity table, Table& object) { m_table_objects.set(table, object); }
 void WebAssemblyCache::for_each_memory_object(Function<void(Memory&)> const& callback) const { m_memory_objects.for_each(callback); }
+GC::Ptr<Tag> WebAssemblyCache::tag_object(Entity tag) const { return m_tag_objects.get(tag); }
+void WebAssemblyCache::set_tag_object(Entity tag, Tag& object) { m_tag_objects.set(tag, object); }
+GC::Ptr<Exception> WebAssemblyCache::exception_object(u64 exception) const { return m_exception_objects.get(exception); }
+void WebAssemblyCache::set_exception_object(u64 exception, Exception& object) { m_exception_objects.set(exception, object); }
+GC::Ptr<JS::Object> WebAssemblyCache::gc_object(u64 object) const { return m_gc_objects.get(object); }
+void WebAssemblyCache::set_gc_object(u64 object, JS::Object& gc_object) { m_gc_objects.set(object, gc_object); }
 
 WebAssemblyCache::~WebAssemblyCache() = default;
 
@@ -133,7 +141,7 @@ WebAssemblyCache::WebAssemblyCache(GC::Heap& heap)
 }
 
 // https://webassembly.github.io/spec/js-api/#error-objects
-void initialize(JS::Object& self, JS::Realm&)
+void initialize(JS::Object& self, JS::Realm& realm)
 {
     // 1. Let namespaceObject be the namespace object.
     auto& namespace_object = self;
@@ -149,6 +157,18 @@ void initialize(JS::Object& self, JS::Realm&)
     });
     WASM_ENUMERATE_NATIVE_ERRORS
 #undef __WASM_ENUMERATE
+
+    // https://webassembly.github.io/spec/js-api/#dom-webassembly-jstag
+    // NB: A regular attribute of a namespace is an accessor property of the namespace object.
+    Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> js_tag_getter = [](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        // 1. Let JSTagAddr be the result of getting the JavaScript exception tag.
+        // 2. Let JSTagObject be the result of creating a Tag object from JSTagAddr.
+        // 3. Return JSTagObject.
+        auto& current_realm = *vm.current_realm();
+        auto tag = Tag::from_address(Detail::WebAssemblyCache::the().js_tag());
+        return Bindings::wrap(Bindings::host_defined_wrapper_world(current_realm), current_realm, tag);
+    };
+    namespace_object.define_native_accessor(realm, "JSTag"_utf16_fly_string, move(js_tag_getter), Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-validate
@@ -326,6 +346,110 @@ static i32 value_of_i31_reference(u64 reference)
     return static_cast<i32>(static_cast<u32>(reference)) >> 1;
 }
 
+// https://webassembly.github.io/spec/js-api/#exported-gc-object
+// An Exported GC Object stands for a struct or an array, whose reference is the address of its cell. The object keeps
+// that cell as its host data, and has no properties, no prototype, and no way to get either.
+struct ExportedGCObjectTraits {
+    static JS::ThrowCompletionOr<JS::Object*> get_prototype_of(JS::HostObject const&)
+    {
+        // 1. Return null.
+        return nullptr;
+    }
+
+    static JS::ThrowCompletionOr<bool> set_prototype_of(JS::HostObject const& object, JS::Object*)
+    {
+        // 1. Throw a TypeError.
+        return object.vm().throw_completion<JS::TypeError>("Cannot set the prototype of a WebAssembly GC object"_utf16);
+    }
+
+    static JS::ThrowCompletionOr<bool> is_extensible(JS::HostObject const&)
+    {
+        // 1. Return false.
+        return false;
+    }
+
+    static JS::ThrowCompletionOr<bool> prevent_extensions(JS::HostObject const& object)
+    {
+        // 1. Throw a TypeError.
+        return object.vm().throw_completion<JS::TypeError>("Cannot prevent extensions of a WebAssembly GC object"_utf16);
+    }
+
+    static JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> get_own_property(JS::HostObject const&, JS::PropertyKey const&)
+    {
+        // 1. Return undefined.
+        return Optional<JS::PropertyDescriptor> {};
+    }
+
+    static JS::ThrowCompletionOr<bool> define_own_property(JS::HostObject const& object, JS::PropertyKey const&, JS::PropertyDescriptor&, Optional<JS::PropertyDescriptor>*)
+    {
+        // 1. Throw a TypeError.
+        return object.vm().throw_completion<JS::TypeError>("Cannot define properties of a WebAssembly GC object"_utf16);
+    }
+
+    static JS::ThrowCompletionOr<bool> has_property(JS::HostObject const&, JS::PropertyKey const&)
+    {
+        // 1. Return false.
+        return false;
+    }
+
+    static JS::ThrowCompletionOr<JS::Value> get(JS::HostObject const&, JS::PropertyKey const&, JS::Value, JS::CacheableGetPropertyMetadata*, JS::Object::PropertyLookupPhase)
+    {
+        // 1. Return undefined.
+        return JS::js_undefined();
+    }
+
+    static JS::ThrowCompletionOr<bool> set(JS::HostObject const& object, JS::PropertyKey const&, JS::Value, JS::Value, JS::CacheableSetPropertyMetadata*, JS::Object::PropertyLookupPhase)
+    {
+        // 1. Throw a TypeError.
+        return object.vm().throw_completion<JS::TypeError>("Cannot set properties of a WebAssembly GC object"_utf16);
+    }
+
+    static JS::ThrowCompletionOr<bool> delete_property(JS::HostObject const& object, JS::PropertyKey const&)
+    {
+        // 1. Throw a TypeError.
+        return object.vm().throw_completion<JS::TypeError>("Cannot delete properties of a WebAssembly GC object"_utf16);
+    }
+
+    static JS::ThrowCompletionOr<GC::RootVector<JS::Value>> own_property_keys(JS::HostObject const&)
+    {
+        // 1. Let keys be a new empty list.
+        // 2. Return keys.
+        return GC::RootVector<JS::Value> {};
+    }
+};
+
+static constexpr JSHostObjectHooks exported_gc_object_hooks = JS::make_host_object_hooks<ExportedGCObjectTraits>();
+static constexpr JSHostClass exported_gc_object_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "WebAssemblyGCObject"sv, nullptr, &exported_gc_object_hooks, nullptr, JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE);
+
+// https://webassembly.github.io/spec/js-api/#create-a-new-exported-gc-object
+static GC::Ref<JS::Object> create_exported_gc_object(JS::VM& vm, u64 reference)
+{
+    // 1. Assert: objectaddr is a struct or array address.
+    // 2. Let map be the current agent's associated exported GC object cache.
+    // 3. If map[objectaddr] exists, return map[objectaddr].
+    auto& cache = WebAssemblyCache::the();
+    if (auto object = cache.gc_object(reference))
+        return *object;
+
+    // 4. Let object be a new Exported GC Object, with [[ObjectAddress]] set to objectaddr and [[ObjectKind]] set to
+    //    objectKind.
+    auto* cell = reinterpret_cast<GC::ForeignCell*>(static_cast<FlatPtr>(reference));
+    auto object = JS::HostObject::create(*vm.current_realm(), exported_gc_object_host_class, nullptr, {}, cell);
+
+    // 5. Set map[objectaddr] to object.
+    cache.set_gc_object(reference, object);
+
+    // 6. Return object.
+    return object;
+}
+
+Optional<u64> exported_gc_object_address(JS::Object const& object)
+{
+    if (!JS::is_host_instance_of(object, exported_gc_object_host_class))
+        return {};
+    return static_cast<u64>(reinterpret_cast<FlatPtr>(JS::host_data_of(object).ptr()));
+}
+
 // https://webassembly.github.io/spec/js-api/#run-a-host-function
 static JS::ThrowCompletionOr<void> run_a_host_function(JS::VM& vm, JS::FunctionObject& function, Wasm::Runtime::FunctionType const& type, ReadonlySpan<WasmValue> arguments, Span<WasmValue> results)
 {
@@ -399,16 +523,38 @@ Wasm::Runtime::Entity create_host_function(JS::VM& vm, JS::FunctionObject& funct
         if (!result.is_error())
             return {};
 
-        // https://webassembly.github.io/spec/js-api/#run-a-host-function
-        // If the steps threw an exception v, throw a WebAssembly exception with the JavaScript tag and payload v, which
-        // WebAssembly code can catch, and which is v again once it leaves WebAssembly.
+        // https://webassembly.github.io/spec/js-api/#create-a-host-function
+        // If the steps threw an exception v,
         auto value = result.error_value();
+
+        // 1. If v implements Exception, let address be v.[[Address]].
+        if (auto* exception = Bindings::exception_from_value(value))
+            return Wasm::Runtime::HostError::exception(exception->address());
+
+        // 2. Otherwise,
+        //     1. Let type be the JavaScript exception tag.
+        //     2. Let payload be ! ToWebAssemblyValue(v, externref).
+        //     3. Let (store, address) be exn_alloc(store, type, « payload »).
+        // 3. Throw a WebAssembly exception with address, which WebAssembly code can catch, and which is v again once it
+        //    leaves WebAssembly.
         Array<WasmValue, 1> payload { WasmValue::from_reference(value.is_null() ? 0 : host_reference_of(vm, value)) };
         return Wasm::Runtime::HostError::exception(store.allocate_exception(WebAssemblyCache::the().js_tag(), payload));
     });
 
     cache.set_host_function_index(address, function_index);
     return address;
+}
+
+Wasm::Runtime::FunctionType function_type_in_store(Wasm::Runtime::Module const& module, u32 type_index)
+{
+    auto& store = WebAssemblyCache::the().store();
+    auto type = module.function_type(type_index);
+    VERIFY(type.has_value());
+    for (auto& parameter : type->parameters)
+        parameter = store.canonical_value_type(module, parameter);
+    for (auto& result : type->results)
+        result = store.canonical_value_type(module, result);
+    return type.release_value();
 }
 
 JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm::Runtime::Module const& module, GC::Ptr<JS::Object> import_object)
@@ -460,9 +606,7 @@ JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm
             else {
                 // 3.4.3.1. Create a host function from v and functype, and let funcaddr be the result.
                 // 3.4.3.2. Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
-                auto function_type = module.function_type(import.type.type_index);
-                VERIFY(function_type.has_value());
-                address = create_host_function(vm, function, function_type.release_value(), imported_function_count);
+                address = create_host_function(vm, function, function_type_in_store(module, import.type.type_index), imported_function_count);
             }
 
             // 3.4.4. Let externfunc be the external value func funcaddr.
@@ -473,7 +617,7 @@ JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm
         }
         // 3.5. If externtype is of the form global mut valtype,
         case Wasm::Runtime::ExternKind::Global: {
-            auto value_type = import.type.value_type;
+            auto value_type = store.canonical_value_type(module, import.type.value_type);
             Wasm::Runtime::Entity address = nullptr;
             // 3.5.1. If v is a Number or v is a BigInt,
             if (import_.is_number() || import_.is_bigint()) {
@@ -540,9 +684,20 @@ JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm
             imports.unchecked_append({ Wasm::Runtime::ExternKind::Table, table->address() });
             break;
         }
-        // FIXME: 3.8. If externtype is of the form tag attribute functype, which needs WebAssembly.Tag.
-        case Wasm::Runtime::ExternKind::Tag:
-            return vm.throw_completion<LinkError>("Tag imports are not supported"sv);
+        // 3.8. If externtype is of the form tag attribute functype,
+        case Wasm::Runtime::ExternKind::Tag: {
+            // 3.8.1. Assert: attribute is exception.
+            // 3.8.2. If v does not implement Tag, throw a LinkError exception.
+            auto* tag = Bindings::tag_from_value(import_);
+            if (!tag)
+                return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Tag for a tag import"sv);
+
+            // 3.8.3. Let tagaddr be v.[[Address]].
+            // 3.8.4. Let externtag be the external value tag tagaddr.
+            // 3.8.5. Append externtag to imports.
+            imports.unchecked_append({ Wasm::Runtime::ExternKind::Tag, tag->address() });
+            break;
+        }
         }
     }
 
@@ -838,10 +993,33 @@ GC::Ref<JS::NativeFunction> create_native_function(JS::Realm& realm, Wasm::Runti
     return object;
 }
 
+// The internal form of a JavaScript value as a reference of the any hierarchy: an i31 reference for a Number in its
+// range, the struct or array of an Exported GC Object, and otherwise a host reference.
+static u64 internalized_reference_of(JS::VM& vm, JS::Value value)
+{
+    if (auto reference = i31_reference_of(value); reference.has_value())
+        return *reference;
+    if (value.is_object()) {
+        if (auto address = exported_gc_object_address(value.as_object()); address.has_value())
+            return *address;
+    }
+    return host_reference_of(vm, value);
+}
+
+// Whether a reference type is of the func hierarchy, whose references are functions.
+static bool is_function_reference_type(WasmValueType type)
+{
+    if (type.heap == HeapKind::Concrete)
+        return WebAssemblyCache::the().store().is_function_type(type.type_index);
+    return type.heap == HeapKind::Function || type.heap == HeapKind::NoFunction;
+}
+
 // https://webassembly.github.io/spec/js-api/#towebassemblyvalue
 static JS::ThrowCompletionOr<u64> to_webassembly_reference(JS::VM& vm, JS::Value value, WasmValueType type)
 {
+    auto& store = WebAssemblyCache::the().store();
 
+    // If v is null: if the type is nullable, return ref.null of its heap type, and otherwise throw a TypeError.
     if (value.is_null()) {
         if (!type.nullable)
             return vm.throw_completion<JS::TypeError>("Cannot convert null to a non-nullable reference"_utf16);
@@ -849,26 +1027,6 @@ static JS::ThrowCompletionOr<u64> to_webassembly_reference(JS::VM& vm, JS::Value
     }
 
     switch (type.heap) {
-    case HeapKind::Function: {
-        if (value.is_function()) {
-            if (auto address = exported_function_address(value.as_function()); address.has_value())
-                return WebAssemblyCache::the().store().function_reference(*address);
-        }
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Exported function");
-    }
-    case HeapKind::Extern:
-        return host_reference_of(vm, value);
-    case HeapKind::Any:
-        // FIXME: Unwrap WebAssembly GC objects once they can reach JavaScript.
-        if (auto reference = i31_reference_of(value); reference.has_value())
-            return *reference;
-        // NB: Converting an externref to anyref keeps its bits.
-        return host_reference_of(vm, value);
-    case HeapKind::Eq:
-    case HeapKind::I31:
-        if (auto reference = i31_reference_of(value); reference.has_value())
-            return *reference;
-        return vm.throw_completion<JS::TypeError>("Cannot convert the value to an i31 reference"_utf16);
     case HeapKind::Exception:
     case HeapKind::NoException:
         return vm.throw_completion<JS::TypeError>("Cannot convert a JavaScript value to an exception reference"_utf16);
@@ -876,14 +1034,30 @@ static JS::ThrowCompletionOr<u64> to_webassembly_reference(JS::VM& vm, JS::Value
     case HeapKind::NoExtern:
     case HeapKind::None:
         return vm.throw_completion<JS::TypeError>("Only null converts to a bottom reference type"_utf16);
-    case HeapKind::Struct:
-    case HeapKind::Array:
-    case HeapKind::Concrete:
-        // FIXME: Implement the conversions for the wasm-gc reference hierarchy
-        //        (https://webassembly.github.io/spec/js-api/#towebassemblyvalue).
-        return vm.throw_completion<JS::TypeError>("Unsupported heap reference"_utf16);
+    case HeapKind::Extern:
+        // NB: An externref keeps the bits of the anyref it externalizes.
+        return internalized_reference_of(vm, value);
+    default:
+        break;
     }
-    VERIFY_NOT_REACHED();
+
+    // If the type is of the func hierarchy, only an Exported Function of a matching type converts, to its function.
+    if (is_function_reference_type(type)) {
+        if (value.is_function()) {
+            if (auto address = exported_function_address(value.as_function()); address.has_value()) {
+                auto reference = store.function_reference(*address);
+                if (store.reference_matches(reference, type))
+                    return reference;
+            }
+        }
+        return vm.throw_completion<JS::TypeError>("Cannot convert the value to a function reference of this type"_utf16);
+    }
+
+    // Otherwise the type is of the any hierarchy: the internal form of v converts if it matches the type.
+    auto reference = internalized_reference_of(vm, value);
+    if (!store.reference_matches(reference, type))
+        return vm.throw_completion<JS::TypeError>("Cannot convert the value to a reference of this type"_utf16);
+    return reference;
 }
 
 // https://webassembly.github.io/spec/js-api/#towebassemblyvalue
@@ -943,24 +1117,27 @@ JS::ThrowCompletionOr<JS::Value> to_js_value(JS::VM& vm, WasmValue wasm_value, W
         return vm.throw_completion<JS::TypeError>("Cannot convert an exception reference to a javascript value"_utf16);
 
     auto reference = wasm_value.reference_bits();
+
+    // 1. If w is of the form ref.null t, return null.
     if (reference == 0)
         return JS::js_null();
 
-    if (type.heap == HeapKind::Function)
+    // 2. If w is of the form ref.func funcaddr, return the result of creating a new Exported Function from funcaddr.
+    if (is_function_reference_type(type))
         return create_native_function(*vm.current_realm(), WebAssemblyCache::the().store().function_from_reference(reference));
-    if (type.heap == HeapKind::Concrete) {
-        // FIXME: Convert references of concrete types, which needs the module the type belongs to.
-        return vm.throw_completion<JS::TypeError>("Unsupported heap reference"_utf16);
-    }
 
+    // 3. If w is of the form ref.i31 u31, return 𝔽(signed_31(u31)).
     if (reference & I31_REFERENCE_BIT)
         return JS::Value(value_of_i31_reference(reference));
+
+    // 4. If w is of the form ref.host hostaddr, return the result of retrieving a host value from hostaddr.
+    // NB: An externref of a host value keeps the bits of the host reference.
     if ((reference & REFERENCE_TAG_MASK) == HOST_REFERENCE_TAG)
         return value_of_host_reference(reference);
 
-    // FIXME: Implement the conversions for the wasm-gc reference hierarchy
-    //        (https://webassembly.github.io/spec/js-api/#tojsvalue).
-    return vm.throw_completion<JS::TypeError>("Unsupported heap reference"_utf16);
+    // 5. If w is of the form ref.struct structaddr or ref.array arrayaddr, return the result of creating a new Exported
+    //    GC Object from it.
+    return create_exported_gc_object(vm, reference);
 }
 
 // https://webassembly.github.io/spec/js-api/#error-objects
@@ -982,8 +1159,10 @@ JS::Completion completion_of_failure(JS::VM& vm, Wasm::Runtime::Failure const& f
             auto payload = store.exception_values(failure.exception);
             return JS::throw_completion(MUST(to_js_value(vm, payload.first(), WasmValueType::reference(HeapKind::Extern))));
         }
-        // FIXME: Throw a WebAssembly.Exception once it exists.
-        return vm.throw_completion<RuntimeError>(Utf16String::formatted("Wasm execution trapped (WIP): {}", failure.message));
+        // Otherwise, throw the Exception object of the exception.
+        auto& realm = *vm.current_realm();
+        auto exception = Exception::from_address(failure.exception);
+        return JS::throw_completion(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, exception));
     }
     case Wasm::Runtime::FailureKind::Trap:
         // FIXME: Use the convoluted mapping of errors defined in the spec.

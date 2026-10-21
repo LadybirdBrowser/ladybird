@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	i31ref conversion to Number
+Pass	Number conversion to i31ref
+Pass	Check i31ref argument type
+Pass	Numbers in i31 range are i31ref, not hostref
+Pass	i31ref global
+Pass	i31ref table

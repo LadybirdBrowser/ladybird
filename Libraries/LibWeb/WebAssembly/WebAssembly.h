@@ -28,6 +28,9 @@
 
 namespace Web::WebAssembly {
 
+class Exception;
+class Tag;
+
 WEB_API void initialize(JS::Object&, JS::Realm&);
 
 WEB_API bool validate(JS::Realm&, WebIDL::BufferSource bytes);
@@ -49,7 +52,8 @@ struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> 
     NonnullRefPtr<Wasm::Runtime::Module> module;
 };
 
-// The surrounding agent's associated store, and the agent's Exported Function, Global, Memory, and Table object caches.
+// The surrounding agent's associated store, and the agent's Exported Function, Global, Memory, Table, Tag, Exception, and
+// Exported GC Object caches.
 // The store holds no wasm entity: each lives while the objects that stand for it, or other entities, refer to it. The
 // caches only map entities to their objects for as long as both live.
 class WebAssemblyCache {
@@ -76,6 +80,13 @@ public:
     void set_memory_object(Entity memory, WebAssembly::Memory&);
     GC::Ptr<WebAssembly::Table> table_object(Entity table) const;
     void set_table_object(Entity table, WebAssembly::Table&);
+    GC::Ptr<WebAssembly::Tag> tag_object(Entity tag) const;
+    void set_tag_object(Entity tag, WebAssembly::Tag&);
+    // Exceptions and GC objects are references, which are the addresses of their cells.
+    GC::Ptr<WebAssembly::Exception> exception_object(u64 exception) const;
+    void set_exception_object(u64 exception, WebAssembly::Exception&);
+    GC::Ptr<JS::Object> gc_object(u64 object) const;
+    void set_gc_object(u64 object, JS::Object&);
     void for_each_memory_object(Function<void(WebAssembly::Memory&)> const&) const;
 
     // The index of a host function: how many functions were imported before it.
@@ -86,16 +97,17 @@ private:
     explicit WebAssemblyCache(GC::Heap&);
     ~WebAssemblyCache();
 
-    // Objects by entity. An entry whose object is gone is stale: its entity may be gone too, and its address reused.
-    template<typename T>
+    // Objects by entity, or by reference for exceptions and GC objects. An entry whose object is gone is stale: its
+    // entity may be gone too, and its address reused.
+    template<typename T, typename Key = Entity>
     class ObjectCache {
     public:
-        GC::Ptr<T> get(Entity) const;
-        void set(Entity, T&);
+        GC::Ptr<T> get(Key) const;
+        void set(Key, T&);
         void for_each(Function<void(T&)> const&) const;
 
     private:
-        HashMap<Entity, GC::Weak<T>> m_objects;
+        HashMap<Key, GC::Weak<T>> m_objects;
         size_t m_live_after_pruning { 0 };
     };
 
@@ -106,6 +118,9 @@ private:
     ObjectCache<WebAssembly::Global> m_global_objects;
     ObjectCache<WebAssembly::Memory> m_memory_objects;
     ObjectCache<WebAssembly::Table> m_table_objects;
+    ObjectCache<WebAssembly::Tag> m_tag_objects;
+    ObjectCache<WebAssembly::Exception, u64> m_exception_objects;
+    ObjectCache<JS::Object, u64> m_gc_objects;
     // NB: An entry outlives its function, but every host function sets its own, so a live one's entry is right.
     HashMap<Entity, size_t> m_host_function_indices;
 };
@@ -116,6 +131,11 @@ GC::Ref<JS::HostFunction> create_exported_function(JS::Realm&, Utf16FlyString na
 // The value of the function's [[FunctionAddress]] internal slot, if it has one and is therefore an Exported Function.
 Optional<Wasm::Runtime::Entity> exported_function_address(JS::FunctionObject const&);
 
+// The value of the object's [[ObjectAddress]] internal slot, if it has one and is therefore an Exported GC Object.
+Optional<u64> exported_gc_object_address(JS::Object const&);
+
+// The function type at `type_index` of a module, in the store's terms (see Store::canonical_value_type()).
+Wasm::Runtime::FunctionType function_type_in_store(Wasm::Runtime::Module const&, u32 type_index);
 JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM&, Wasm::Runtime::Module const&, GC::Ptr<JS::Object> import_object);
 JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_core_module(JS::VM&, Wasm::Runtime::Module const&, ReadonlySpan<Wasm::Runtime::Extern> imports);
 Wasm::Runtime::Entity create_host_function(JS::VM&, JS::FunctionObject& function, Wasm::Runtime::FunctionType type, size_t function_index);

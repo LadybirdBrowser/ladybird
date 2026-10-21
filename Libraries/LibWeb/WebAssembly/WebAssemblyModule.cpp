@@ -15,6 +15,7 @@
 #include <LibWeb/WebAssembly/Memory.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/Table.h>
+#include <LibWeb/WebAssembly/Tag.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebAssembly/WebAssemblyModule.h>
 
@@ -331,9 +332,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModuleTraits::execute_module(JS::HostModu
                 else {
                     // 1. Create a host function from v and functype, and let funcaddr be the result.
                     // 2. Let index be the number of external functions in imports, defining the index of the host function funcaddr.
-                    auto functype = module.function_type(entry.type.type_index);
-                    VERIFY(functype.has_value());
-                    funcaddr = Detail::create_host_function(vm, function, functype.release_value(), imported_function_count);
+                    funcaddr = Detail::create_host_function(vm, function, Detail::function_type_in_store(module, entry.type.type_index), imported_function_count);
                 }
 
                 // 4. Let externfunc be the external value func funcaddr.
@@ -344,7 +343,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModuleTraits::execute_module(JS::HostModu
 
             // 4. If importtype is of the form global mut valtype,
             case Wasm::Runtime::ExternKind::Global: {
-                auto valtype = entry.type.value_type;
+                auto valtype = store.canonical_value_type(module, entry.type.value_type);
                 auto is_mutable = entry.type.is_mutable;
 
                 // 1. Let store be the surrounding agent’s associated store.
@@ -429,9 +428,20 @@ JS::ThrowCompletionOr<void> WebAssemblyModuleTraits::execute_module(JS::HostModu
                 break;
             }
 
-            // FIXME: Import tags once WebAssembly.Tag exists.
-            case Wasm::Runtime::ExternKind::Tag:
-                return vm.throw_completion<LinkError>("Tag imports are not supported"sv);
+            // 7. If importtype is of the form tag attribute functype,
+            case Wasm::Runtime::ExternKind::Tag: {
+                // 1. Assert: attribute is exception.
+                // 2. If v does not implement Tag, throw a LinkError exception.
+                auto* tag = Bindings::tag_from_value(v);
+                if (!tag)
+                    return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Tag for a tag import"sv);
+
+                // 3. Let tagaddr be v.[[Address]].
+                // 4. Let externtag be the external value tag tagaddr.
+                // 5. Append externtag to imports.
+                imports.append({ Wasm::Runtime::ExternKind::Tag, tag->address() });
+                break;
+            }
             }
         }
 

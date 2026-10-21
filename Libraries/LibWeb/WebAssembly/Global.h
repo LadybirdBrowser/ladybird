@@ -11,6 +11,15 @@
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace Web::Bindings {
+
+enum class ValueType : u8;
+
+// https://webassembly.github.io/spec/js-api/#tovaluetype
+Wasm::Runtime::ValueType to_value_type(ValueType);
+
+}
+
 namespace Web::WebAssembly {
 
 struct GlobalDescriptor {

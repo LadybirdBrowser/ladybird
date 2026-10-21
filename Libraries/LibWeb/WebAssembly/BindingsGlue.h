@@ -23,11 +23,13 @@
 
 namespace Web::WebAssembly {
 
+class Exception;
 class Global;
 class Instance;
 class Memory;
 class Module;
 class Table;
+class Tag;
 
 }
 
@@ -37,6 +39,11 @@ WEB_API WebIDL::ExceptionOr<GC::Ref<WebAssembly::Global>> construct_global(JS::R
 WEB_API WebIDL::ExceptionOr<JS::Value> value(JS::Realm&, WebAssembly::Global&);
 WEB_API WebIDL::ExceptionOr<void> set_value(JS::Realm&, WebAssembly::Global&, JS::Value);
 WEB_API WebIDL::ExceptionOr<JS::Value> value_of(JS::Realm&, WebAssembly::Global&);
+
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebAssembly::Tag>> construct_tag(JS::Realm&, TagType const&);
+
+WEB_API WebIDL::ExceptionOr<GC::Ref<WebAssembly::Exception>> construct_exception(JS::Realm&, WebAssembly::Tag&, GC::RootVector<JS::Value> const& payload, ExceptionOptions const&);
+WEB_API WebIDL::ExceptionOr<JS::Value> get_arg(WebAssembly::Exception&, WebAssembly::Tag&, u32 index);
 
 WEB_API WebIDL::ExceptionOr<GC::Ref<WebAssembly::Instance>> construct_instance(JS::Realm&, WebAssembly::Module&, GC::Ptr<JS::Object> import_object);
 WEB_API GC::Ref<JS::Object const> exports(JS::Realm&, GC::Ref<WebAssembly::Instance>);
@@ -54,11 +61,13 @@ WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> compile_streaming(JS::Real
 WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm&, WebIDL::BufferSource bytes, GC::Ptr<JS::Object> import_object);
 WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate(JS::Realm&, GC::Ref<WebAssembly::Module>, GC::Ptr<JS::Object> import_object);
 WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::Realm&, GC::Ref<WebIDL::Promise> source, GC::Ptr<JS::Object> import_object);
+WEB_API WebAssembly::Exception* exception_from_value(JS::Value);
 WEB_API WebAssembly::Global* global_from_value(JS::Value);
 WEB_API WebAssembly::Instance* instance_from_value(JS::Value);
 WEB_API WebAssembly::Memory* memory_from_value(JS::Value);
 WEB_API WebAssembly::Module* module_from_value(JS::Value);
 WEB_API WebAssembly::Table* table_from_value(JS::Value);
+WEB_API WebAssembly::Tag* tag_from_value(JS::Value);
 WEB_API void resolve_webassembly_module_promise(JS::Realm&, WebIDL::Promise&, GC::Ref<WebAssembly::Module>);
 WEB_API void resolve_webassembly_instance_promise(JS::Realm&, WebIDL::Promise&, GC::Ref<WebAssembly::Instance>);
 WEB_API GC::Ref<JS::Object> create_webassembly_instantiated_source(JS::Realm&, GC::Ref<WebAssembly::Module>, GC::Ref<WebAssembly::Instance>);

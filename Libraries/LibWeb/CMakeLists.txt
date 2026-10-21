@@ -985,11 +985,13 @@ set(SOURCES
     WebLocks/LockManager.cpp
     WebLocks/LockRequest.cpp
     WebLocks/NavigatorLocks.cpp
+    WebAssembly/Exception.cpp
     WebAssembly/Global.cpp
     WebAssembly/Instance.cpp
     WebAssembly/Memory.cpp
     WebAssembly/Module.cpp
     WebAssembly/Table.cpp
+    WebAssembly/Tag.cpp
     WebAssembly/WebAssembly.cpp
     WebAssembly/WebAssemblyModule.cpp
     WebAudio/AnalyserNode.cpp
