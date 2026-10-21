@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A transform that leaves the current transformation matrix singular does not move the points of the current
+    // default path, so they are still where they were on the bitmap when a later transform makes it invertible again.
+    function run(label, change) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 30;
+        canvas.height = 30;
+        const context = canvas.getContext("2d");
+        context.save();
+        context.moveTo(5, 15);
+        context.lineTo(25, 15);
+        change(context);
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.lineWidth = 4;
+        context.stroke();
+        const alphaAt = (x, y) => context.getImageData(x, y, 1, 1).data[3];
+        println(`${label}: ${[alphaAt(10, 15), alphaAt(20, 15), alphaAt(15, 5)].join(" ")}`);
+    }
+
+    // The points of the path are then in the coordinates of the last invertible matrix, and a matrix that replaces
+    // the singular one moves them from there, also when it is not the identity.
+    function runWithRecovery(label, steps) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 30;
+        canvas.height = 30;
+        const context = canvas.getContext("2d");
+        context.lineWidth = 4;
+        steps(context);
+        context.stroke();
+        const alphaAt = (x, y) => context.getImageData(x, y, 1, 1).data[3];
+        println(`${label}: ${[alphaAt(10, 15), alphaAt(20, 15), alphaAt(15, 5)].join(" ")}`);
+    }
+
+    test(() => {
+        run("No change", () => {});
+        run("scale(0, 1)", context => context.scale(0, 1));
+        run("scale(1, 0)", context => context.scale(1, 0));
+        run("scale(0, 0)", context => context.scale(0, 0));
+        run("transform(0, 0, 0, 0, 0, 0)", context => context.transform(0, 0, 0, 0, 0, 0));
+        run("scale(0, 1) and translate(5, 5)", context => { context.scale(0, 1); context.translate(5, 5); });
+        run("scale(0, 1) and rotate(1)", context => { context.scale(0, 1); context.rotate(1); });
+        run("scale(0, 1) and scale(2, 2)", context => { context.scale(0, 1); context.scale(2, 2); });
+        run("scale(0, 1) and restore()", context => { context.scale(0, 1); context.restore(); });
+        runWithRecovery("scale(0, 1) and setTransform(2, 0, 0, 2, 0, 0)", context => {
+            context.moveTo(5, 15);
+            context.lineTo(25, 15);
+            context.scale(0, 1);
+            context.setTransform(2, 0, 0, 2, 0, 0);
+        });
+        runWithRecovery("scale(0, 1) and setTransform() with a DOMMatrix", context => {
+            context.moveTo(5, 15);
+            context.lineTo(25, 15);
+            context.scale(0, 1);
+            context.setTransform(new DOMMatrix([2, 0, 0, 2, 0, 0]));
+        });
+        runWithRecovery("scale(0, 1) and resetTransform()", context => {
+            context.setTransform(2, 0, 0, 2, 0, 0);
+            context.moveTo(2.5, 7.5);
+            context.lineTo(12.5, 7.5);
+            context.scale(0, 1);
+            context.resetTransform();
+        });
+        runWithRecovery("scale(0, 1) and restore() to a scale", context => {
+            context.setTransform(2, 0, 0, 2, 0, 0);
+            context.save();
+            context.resetTransform();
+            context.moveTo(5, 15);
+            context.lineTo(25, 15);
+            context.scale(0, 1);
+            context.restore();
+        });
+        runWithRecovery("scale(0, 1), save(), restore() and setTransform(2, 0, 0, 2, 0, 0)", context => {
+            context.moveTo(5, 15);
+            context.lineTo(25, 15);
+            context.scale(0, 1);
+            context.save();
+            context.restore();
+            context.setTransform(2, 0, 0, 2, 0, 0);
+        });
+    });
+</script>

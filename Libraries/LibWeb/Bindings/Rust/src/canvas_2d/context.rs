@@ -146,6 +146,12 @@ pub(crate) struct ContextState {
     /// The current default path, in the coordinates of the current transformation matrix.
     #[gc(untraced)]
     path: RefCell<OwnedPath>,
+    /// The matrix in whose coordinates the current default path is.
+    ///
+    /// NB: This is the current transformation matrix while that matrix is invertible. A path cannot be kept in the
+    ///     coordinates of a matrix that is not invertible, so it stays in those of the last matrix that was.
+    #[gc(untraced)]
+    path_transform: Cell<AffineTransform>,
     #[gc(untraced)]
     backing_storage: RefCell<Option<BackingStorage>>,
     /// OPTIMIZATION: A readback requires a synchronous IPC to the Compositor, so its pixels are reused while no
@@ -191,6 +197,7 @@ impl ContextState {
             context_lost: Cell::new(false),
             states: RefCell::new(vec![DrawingState::default()]),
             path: RefCell::new(empty_path()),
+            path_transform: Cell::new(AffineTransform::identity()),
             backing_storage: RefCell::new(None),
             cached_readback: RefCell::new(None),
             color_cache: RefCell::new(Vec::new()),
@@ -266,6 +273,15 @@ impl ContextState {
     /// Empties the list of subpaths of the current default path.
     pub(crate) fn clear_path(&self) {
         self.path.replace(empty_path());
+    }
+
+    /// The matrix in whose coordinates the current default path is.
+    pub(crate) fn path_transform(&self) -> AffineTransform {
+        self.path_transform.get()
+    }
+
+    pub(crate) fn set_path_transform(&self, transform: AffineTransform) {
+        self.path_transform.set(transform);
     }
 
     /// Transforms every point of the current default path.
@@ -481,6 +497,7 @@ impl ContextState {
         // 3. Clear the context's drawing state stack.
         // 4. Reset everything that drawing state consists of to their initial values.
         self.states.replace(vec![DrawingState::default()]);
+        self.path_transform.set(AffineTransform::identity());
 
         if has_recorder {
             self.did_draw();
