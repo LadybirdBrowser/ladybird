@@ -21,8 +21,12 @@ pub(crate) mod interface;
 pub(crate) mod realm_data;
 pub(crate) mod services;
 
+use core::ptr::NonNull;
+
 use ak::Utf16String;
-use libjs_rust::api::{ErrorKind, Gc, Realm, Throw, ThrowCompletionOr, Vm};
+use libjs_rust::api::{ErrorKind, Gc, Object, Realm, Throw, ThrowCompletionOr, Value, Vm};
+
+use crate::bindings::services::web_bindings_create_dom_exception;
 
 /// What the bindings pass the implementation of an interface: the VM, and the realm that the implementation creates
 /// its results in. For an attribute or an operation, that is the realm of the object it runs on; for a constructor,
@@ -53,6 +57,10 @@ pub(crate) enum Exception {
     /// A simple exception with the message, which the bindings create in the current realm.
     TypeError(Utf16String),
     RangeError(Utf16String),
+    /// A DOMException with the name, one of https://webidl.spec.whatwg.org/#dfn-error-names-table, and the message,
+    /// which the bindings create in the realm of the call context, as the C++ bindings create the DOMExceptions of
+    /// the implementations they call.
+    Dom(&'static str, Utf16String),
 }
 
 impl From<Throw> for Exception {
@@ -62,11 +70,33 @@ impl From<Throw> for Exception {
 }
 
 impl Exception {
-    pub(crate) fn throw(self, vm: &Vm) -> Throw {
+    pub(crate) fn index_size_error(message: Utf16String) -> Self {
+        Self::Dom("IndexSizeError", message)
+    }
+
+    pub(crate) fn syntax_error(message: Utf16String) -> Self {
+        Self::Dom("SyntaxError", message)
+    }
+
+    pub(crate) fn throw(self, cx: &CallContext) -> Throw {
+        let vm = cx.vm();
         match self {
             Self::Thrown(throw) => throw,
             Self::TypeError(message) => thrown(vm.throw_completion_with_utf16_message(ErrorKind::TypeError, message)),
             Self::RangeError(message) => thrown(vm.throw_completion_with_utf16_message(ErrorKind::RangeError, message)),
+            Self::Dom(name, message) => {
+                // SAFETY: The realm is live, and the name and the message are lent for the call.
+                let exception = unsafe {
+                    web_bindings_create_dom_exception(
+                        cx.realm().as_ptr().cast(),
+                        ak::Span::new(name.as_bytes()),
+                        message.raw_identity(),
+                    )
+                };
+                let exception = NonNull::new(exception.cast::<Object>()).expect("LibWeb returns the DOMException");
+                // SAFETY: LibWeb returns a live wrapper.
+                Throw::new(Value::from_object(unsafe { Gc::from_non_null(exception) }))
+            }
         }
     }
 }
