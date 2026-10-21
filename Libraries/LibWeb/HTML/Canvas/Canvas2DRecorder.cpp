@@ -15,6 +15,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/HTML/Canvas/Canvas2DRecorder.h>
+#include <LibWeb/HTML/Canvas/DrawingState.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 
 namespace Web::HTML {
@@ -56,11 +57,15 @@ void web_canvas_2d_recorder_restore(RustCanvas2DRecorder*);
 void web_canvas_2d_recorder_clip_path(RustCanvas2DRecorder*, ReadonlyBytes path, Gfx::WindingRule);
 void web_canvas_2d_recorder_reset(RustCanvas2DRecorder*);
 void web_canvas_2d_recorder_clear_canvas(RustCanvas2DRecorder*, Gfx::Color);
+
+// Defined in Bindings/Rust/src/html/exports.rs.
+void web_canvas_gradient_lend_paint(void* gradient, FfiCanvas2DPaint* out_paint);
 }
 
 namespace {
 
-// A paint style as the recorder borrows it, with the arrays and the pattern image it lends kept alive.
+// A fill or stroke style as the recorder borrows it, with the pattern image it lends kept alive. A gradient lends its
+// color stops, which do not change while the recorder borrows them.
 class LentPaint {
     AK_MAKE_NONCOPYABLE(LentPaint);
     AK_MAKE_NONMOVABLE(LentPaint);
@@ -72,58 +77,34 @@ public:
         m_paint.color = color;
     }
 
-    explicit LentPaint(Gfx::PaintStyle const& paint_style)
+    explicit LentPaint(FillOrStrokeStyle const& style)
     {
-        if (auto const* solid_color = as_if<Gfx::SolidColorPaintStyle>(paint_style)) {
-            m_paint.kind = Compositing::Canvas2DPaintKind::Color;
-            m_paint.color = solid_color->color();
-        } else if (auto const* linear_gradient = as_if<Gfx::CanvasLinearGradientPaintStyle>(paint_style)) {
-            m_paint.kind = Compositing::Canvas2DPaintKind::LinearGradient;
-            m_paint.start_point = linear_gradient->start_point();
-            m_paint.end_point = linear_gradient->end_point();
-            lend_color_stops(*linear_gradient);
-        } else if (auto const* radial_gradient = as_if<Gfx::CanvasRadialGradientPaintStyle>(paint_style)) {
-            m_paint.kind = Compositing::Canvas2DPaintKind::RadialGradient;
-            m_paint.start_point = radial_gradient->start_center();
-            m_paint.start_radius = radial_gradient->start_radius();
-            m_paint.end_point = radial_gradient->end_center();
-            m_paint.end_radius = radial_gradient->end_radius();
-            lend_color_stops(*radial_gradient);
-        } else if (auto const* conic_gradient = as_if<Gfx::CanvasConicGradientPaintStyle>(paint_style)) {
-            m_paint.kind = Compositing::Canvas2DPaintKind::ConicGradient;
-            m_paint.start_point = conic_gradient->center();
-            m_paint.start_angle = conic_gradient->start_angle();
-            lend_color_stops(*conic_gradient);
-        } else if (auto const* pattern = as_if<Gfx::CanvasPatternPaintStyle>(paint_style)) {
-            m_paint.kind = Compositing::Canvas2DPaintKind::Pattern;
-            m_paint.pattern_repetition = static_cast<Compositing::Canvas2DPatternRepetition>(to_underlying(pattern->repetition()));
-            m_pattern_image = pattern->image();
-            if (m_pattern_image.has_value())
-                m_paint.pattern_image = &m_pattern_image.value();
-            if (auto const& transform = pattern->transform(); transform.has_value()) {
-                m_paint.has_pattern_transform = true;
-                m_paint.pattern_transform = *transform;
-            }
-        } else {
-            VERIFY_NOT_REACHED();
-        }
+        style.variant().visit(
+            [&](Gfx::Color color) {
+                m_paint.kind = Compositing::Canvas2DPaintKind::Color;
+                m_paint.color = color;
+            },
+            [&](GC::Ref<CanvasGradient> gradient) {
+                web_canvas_gradient_lend_paint(gradient.ptr(), &m_paint);
+            },
+            [&](GC::Ref<CanvasPattern> canvas_pattern) {
+                auto paint_style = canvas_pattern->to_gfx_paint_style();
+                auto const& pattern = as<Gfx::CanvasPatternPaintStyle>(*paint_style);
+                m_paint.kind = Compositing::Canvas2DPaintKind::Pattern;
+                m_paint.pattern_repetition = static_cast<Compositing::Canvas2DPatternRepetition>(to_underlying(pattern.repetition()));
+                m_pattern_image = pattern.image();
+                if (m_pattern_image.has_value())
+                    m_paint.pattern_image = &m_pattern_image.value();
+                if (auto const& transform = pattern.transform(); transform.has_value()) {
+                    m_paint.has_pattern_transform = true;
+                    m_paint.pattern_transform = *transform;
+                }
+            });
     }
 
     FfiCanvas2DPaint const* ptr() const { return &m_paint; }
 
 private:
-    void lend_color_stops(Gfx::GradientPaintStyle const& gradient)
-    {
-        m_color_stop_colors.ensure_capacity(gradient.color_stops().size());
-        m_color_stop_positions.ensure_capacity(gradient.color_stops().size());
-        for (auto const& color_stop : gradient.color_stops()) {
-            m_color_stop_colors.unchecked_append(color_stop.color);
-            m_color_stop_positions.unchecked_append(color_stop.position);
-        }
-        m_paint.color_stop_colors = m_color_stop_colors.span();
-        m_paint.color_stop_positions = m_color_stop_positions.span();
-    }
-
     FfiCanvas2DPaint m_paint {
         .kind = Compositing::Canvas2DPaintKind::Color,
         .pattern_repetition = Compositing::Canvas2DPatternRepetition::Repeat,
@@ -139,8 +120,6 @@ private:
         .pattern_image = nullptr,
         .pattern_transform = {},
     };
-    Vector<Gfx::Color, 8> m_color_stop_colors;
-    Vector<float, 8> m_color_stop_positions;
     Optional<Gfx::DecodedImageFrame> m_pattern_image;
 };
 
@@ -225,10 +204,10 @@ void Canvas2DRecorder::prepare_to_record()
     web_canvas_2d_recorder_prepare_to_record(m_recorder);
 }
 
-void Canvas2DRecorder::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, Gfx::WindingRule winding_rule, Canvas2DCompositing const& compositing)
+void Canvas2DRecorder::fill_path(Gfx::Path const& path, FillOrStrokeStyle const& style, Gfx::WindingRule winding_rule, Canvas2DCompositing const& compositing)
 {
     auto path_bytes = path.serialize_to_bytes();
-    LentPaint paint { paint_style };
+    LentPaint paint { style };
     auto lent_compositing = lend(compositing);
     web_canvas_2d_recorder_fill_path(m_recorder, path_bytes.span(), paint.ptr(), winding_rule, 0, &lent_compositing);
 }
@@ -241,10 +220,10 @@ void Canvas2DRecorder::fill_path_shadow(Gfx::Path const& path, Gfx::Color color,
     web_canvas_2d_recorder_fill_path(m_recorder, path_bytes.span(), paint.ptr(), winding_rule, blur_radius, &lent_compositing);
 }
 
-void Canvas2DRecorder::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, Canvas2DStroke const& stroke, Canvas2DCompositing const& compositing)
+void Canvas2DRecorder::stroke_path(Gfx::Path const& path, FillOrStrokeStyle const& style, Canvas2DStroke const& stroke, Canvas2DCompositing const& compositing)
 {
     auto path_bytes = path.serialize_to_bytes();
-    LentPaint paint { paint_style };
+    LentPaint paint { style };
     auto lent_stroke = lend(stroke);
     auto lent_compositing = lend(compositing);
     web_canvas_2d_recorder_stroke_path(m_recorder, path_bytes.span(), paint.ptr(), &lent_stroke, 0, &lent_compositing);
@@ -259,9 +238,9 @@ void Canvas2DRecorder::stroke_path_shadow(Gfx::Path const& path, Gfx::Color colo
     web_canvas_2d_recorder_stroke_path(m_recorder, path_bytes.span(), paint.ptr(), &lent_stroke, blur_radius, &lent_compositing);
 }
 
-void Canvas2DRecorder::draw_glyph_run(Gfx::Font const& font, ReadonlySpan<Compositing::DisplayListGlyph> glyphs, Gfx::FloatPoint translation, Gfx::PaintStyle const& paint_style, Canvas2DCompositing const& compositing)
+void Canvas2DRecorder::draw_glyph_run(Gfx::Font const& font, ReadonlySpan<Compositing::DisplayListGlyph> glyphs, Gfx::FloatPoint translation, FillOrStrokeStyle const& style, Canvas2DCompositing const& compositing)
 {
-    LentPaint paint { paint_style };
+    LentPaint paint { style };
     auto lent_compositing = lend(compositing);
     web_canvas_2d_recorder_draw_glyph_run(m_recorder, &font, glyphs, translation, paint.ptr(), &lent_compositing);
 }

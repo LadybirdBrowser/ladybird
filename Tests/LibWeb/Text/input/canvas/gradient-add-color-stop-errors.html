@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const context = document.createElement("canvas").getContext("2d");
+        const gradient = context.createLinearGradient(0, 0, 8, 0);
+
+        function tryAddColorStop(offset, color) {
+            try {
+                gradient.addColorStop(offset, color);
+                println(`addColorStop(${String(offset)}, ${color}): added`);
+            } catch (e) {
+                const kind = e instanceof DOMException ? `DOMException ${e.name} (code ${e.code})` : e.constructor.name;
+                println(`addColorStop(${String(offset)}, ${color}): ${kind}`);
+            }
+        }
+
+        tryAddColorStop(0, "red");
+        tryAddColorStop(1, "blue");
+        tryAddColorStop(-0, "green");
+        tryAddColorStop("0.5", "lime");
+        tryAddColorStop(NaN, "red");
+        tryAddColorStop(Infinity, "red");
+        tryAddColorStop(-Infinity, "red");
+        tryAddColorStop(-0.1, "red");
+        tryAddColorStop(1.1, "red");
+        tryAddColorStop(0.5, "not a color");
+        tryAddColorStop(0.5, "currentcolor");
+
+        try {
+            CanvasGradient.prototype.addColorStop.call({}, 0, "red");
+        } catch (e) {
+            println(`addColorStop on a plain object: ${e.constructor.name}`);
+        }
+        try {
+            gradient.addColorStop(0);
+        } catch (e) {
+            println(`addColorStop with one argument: ${e.constructor.name}`);
+        }
+
+        println(`gradient is a CanvasGradient: ${gradient instanceof CanvasGradient}`);
+        println(`toString tag: ${Object.prototype.toString.call(gradient)}`);
+        try {
+            new CanvasGradient();
+        } catch (e) {
+            println(`new CanvasGradient(): ${e.constructor.name}`);
+        }
+        try {
+            context.createRadialGradient(0, 0, -1, 0, 0, 1);
+        } catch (e) {
+            println(`createRadialGradient with a negative radius: DOMException ${e.name}`);
+        }
+        try {
+            context.createLinearGradient(0, 0, NaN, 0);
+        } catch (e) {
+            println(`createLinearGradient with NaN: ${e.constructor.name}`);
+        }
+    });
+</script>

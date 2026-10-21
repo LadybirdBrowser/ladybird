@@ -8,17 +8,12 @@
 
 namespace Web::HTML {
 
-NonnullRefPtr<Gfx::PaintStyle> FillOrStrokeStyle::to_gfx_paint_style()
+bool FillOrStrokeStyle::is_visible() const
 {
     return m_fill_or_stroke_style.visit(
-        [&](Gfx::Color color) -> NonnullRefPtr<Gfx::PaintStyle> {
-            if (!m_color_paint_style)
-                m_color_paint_style = Gfx::SolidColorPaintStyle::create(color).release_value_but_fixme_should_propagate_errors();
-            return *m_color_paint_style;
-        },
-        [&](auto handle) {
-            return handle->to_gfx_paint_style();
-        });
+        [](Gfx::Color color) { return color.alpha() > 0; },
+        [](GC::Ref<CanvasGradient> gradient) { return gradient->is_visible(); },
+        [](GC::Ref<CanvasPattern> pattern) { return pattern->to_gfx_paint_style()->is_visible(); });
 }
 
 Gfx::Color FillOrStrokeStyle::to_color_but_fixme_should_accept_any_paint_style() const

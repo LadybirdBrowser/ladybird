@@ -90,15 +90,25 @@ CanvasFillStrokeStyles::FillOrStrokeStyleVariant CanvasFillStrokeStyles::stroke_
     return drawing_state().stroke_style.to_js_fill_or_stroke_style();
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createradialgradient
 WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1)
 {
+    // If either of r0 or r1 are negative, then an "IndexSizeError" DOMException must be thrown.
+    if (r0 < 0)
+        return WebIDL::IndexSizeError::create("The r0 passed is less than 0"_utf16);
+    if (r1 < 0)
+        return WebIDL::IndexSizeError::create("The r1 passed is less than 0"_utf16);
+
     return CanvasGradient::create_radial(x0, y0, r0, x1, y1, r1);
 }
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createlineargradient
 WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_linear_gradient(double x0, double y0, double x1, double y1)
 {
     return CanvasGradient::create_linear(x0, y0, x1, y1);
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createconicgradient
 WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasFillStrokeStyles::create_conic_gradient(double start_angle, double x, double y)
 {
     return CanvasGradient::create_conic(start_angle, x, y);

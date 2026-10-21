@@ -1,0 +1,18 @@
+addColorStop(0, red): added
+addColorStop(1, blue): added
+addColorStop(0, green): added
+addColorStop(0.5, lime): added
+addColorStop(NaN, red): TypeError
+addColorStop(Infinity, red): TypeError
+addColorStop(-Infinity, red): TypeError
+addColorStop(-0.1, red): DOMException IndexSizeError (code 1)
+addColorStop(1.1, red): DOMException IndexSizeError (code 1)
+addColorStop(0.5, not a color): DOMException SyntaxError (code 12)
+addColorStop(0.5, currentcolor): added
+addColorStop on a plain object: TypeError
+addColorStop with one argument: TypeError
+gradient is a CanvasGradient: true
+toString tag: [object CanvasGradient]
+new CanvasGradient(): TypeError
+createRadialGradient with a negative radius: DOMException IndexSizeError
+createLinearGradient with NaN: TypeError
