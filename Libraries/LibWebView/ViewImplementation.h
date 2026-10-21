@@ -131,10 +131,10 @@ public:
     URL::URL url() const;
     URL::URL const& displayed_url() const { return m_displayed_url; }
 
-    void set_title(Badge<WebContentPage>, Utf16String title);
+    void set_title(Badge<WebContentPage>, Utf16String title) { set_title(move(title)); }
     Utf16String const& title() const { return m_title; }
 
-    void set_favicon(Badge<WebContentPage>, Optional<Gfx::Bitmap const&>);
+    void set_favicon(Badge<WebContentPage>, Optional<Gfx::Bitmap const&> favicon) { set_favicon(favicon); }
     Optional<String> const& favicon_hash() const { return m_favicon_hash; }
 
     String const& handle() const { return m_window_handle; }
@@ -626,6 +626,8 @@ protected:
     void set_owner_view(ViewImplementation const& owner_view) { m_owner_view_id = owner_view.view_id(); }
 
     void did_update_url();
+    void set_title(Utf16String);
+    void set_favicon(Optional<Gfx::Bitmap const&>);
     Optional<URL::URL const&> browser_ui_load_url() const;
     void update_displayed_url();
     void did_start_navigation();

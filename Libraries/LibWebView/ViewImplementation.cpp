@@ -181,6 +181,8 @@ void ViewImplementation::did_change_ongoing_navigation(Badge<CanonicalNavigable>
 
 void ViewImplementation::did_change_active_document(Badge<CanonicalTraversable>)
 {
+    set_title(Utf16String::from_utf8(url().serialize()));
+    set_favicon({});
     did_update_url();
 }
 
@@ -218,7 +220,7 @@ void ViewImplementation::set_text_fragment_indication_visibility(Badge<WebConten
     update_displayed_url();
 }
 
-void ViewImplementation::set_title(Badge<WebContentPage>, Utf16String title)
+void ViewImplementation::set_title(Utf16String title)
 {
     if (m_title == title)
         return;
@@ -229,7 +231,7 @@ void ViewImplementation::set_title(Badge<WebContentPage>, Utf16String title)
         on_title_change(m_title);
 }
 
-void ViewImplementation::set_favicon(Badge<WebContentPage>, Optional<Gfx::Bitmap const&> favicon)
+void ViewImplementation::set_favicon(Optional<Gfx::Bitmap const&> favicon)
 {
     m_favicon_hash.clear();
 
@@ -3347,6 +3349,7 @@ JsonValue ViewImplementation::webdriver_session_history() const
     JsonObject serialized;
     serialized.set("currentURL"sv, url().serialize());
     serialized.set("displayedURL"sv, m_displayed_url.serialize());
+    serialized.set("title"sv, m_title.to_utf8());
     serialized.set("webContentProcessID"sv, page().client().pid());
     serialized.set("backButtonEnabled"sv, m_navigate_back_action->enabled());
     serialized.set("forwardButtonEnabled"sv, m_navigate_forward_action->enabled());

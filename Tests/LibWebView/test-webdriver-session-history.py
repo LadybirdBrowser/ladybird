@@ -2630,7 +2630,11 @@ def run_pending_ui_load_test(webdriver_port, page_server, url_a, url_navigation_
         wait_for_event(page_server.blocked_navigation_requested, "pending UI load request")
 
         pending_history = session_history(webdriver_port, session_id)["ui"]
-        if pending_history["currentURL"] != url_a or pending_history["displayedURL"] != url_navigation_blocked:
+        if (
+            pending_history["currentURL"] != url_a
+            or pending_history["displayedURL"] != url_navigation_blocked
+            or pending_history["title"] != "A"
+        ):
             raise AssertionError(
                 f"Expected the pending UI load to show only in the address bar, got {pending_history}\n"
                 + "\n".join(log)
@@ -2671,7 +2675,11 @@ document.cookie = "control=1; path=/";
         wait_for_event(page_server.blocked_no_content_navigation_requested, "page-initiated navigation request")
 
         superseded_history = session_history(webdriver_port, session_id)["ui"]
-        if superseded_history["currentURL"] != url_a or superseded_history["displayedURL"] != url_a:
+        if (
+            superseded_history["currentURL"] != url_a
+            or superseded_history["displayedURL"] != url_a
+            or superseded_history["title"] != "A"
+        ):
             raise AssertionError(
                 f"Expected the address bar to stop showing the superseded UI load, got {superseded_history}\n"
                 + "\n".join(log)

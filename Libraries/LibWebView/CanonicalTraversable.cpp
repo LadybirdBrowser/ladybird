@@ -1555,7 +1555,8 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
 
     if (&navigable == this) {
         if (auto view = this->view(); view.has_value()) {
-            view->did_change_active_document({});
+            if (&navigable.active_document() != replaced_document)
+                view->did_change_active_document({});
             // NB: The address bar can already show a pending navigation's URL while the old document
             //     is still visible. Only apply the destination's zoom after its document is activated.
             view->apply_zoom_for_current_host();
