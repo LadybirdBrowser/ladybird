@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    .narrow { width: 20px; }
+    .wide { width: 40px; }
+    span { display: inline-block; width: var(--missing, inherit); }
+    .pseudo { display: inline-block; }
+    .pseudo.shallow { margin-left: 20px; }
+    .pseudo.deep { margin-left: 40px; }
+    .pseudo::before { content: ""; display: inline-block; width: 10px; margin-left: var(--missing, inherit); }
+</style>
+<div class="narrow"><span id="narrow-child"></span></div>
+<div class="wide"><span id="wide-child"></span></div>
+<div class="shallow pseudo" id="shallow-pseudo"></div>
+<div class="deep pseudo" id="deep-pseudo"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        println(`narrow child: ${getComputedStyle(document.getElementById("narrow-child")).width}`);
+        println(`wide child: ${getComputedStyle(document.getElementById("wide-child")).width}`);
+        const later = document.createElement("div");
+        later.className = "wide";
+        later.innerHTML = "<span></span>";
+        document.body.append(later);
+        println(`later wide child: ${getComputedStyle(later.firstElementChild).width}`);
+        println(`shallow ::before width with margin: ${document.getElementById("shallow-pseudo").offsetWidth}`);
+        println(`deep ::before width with margin: ${document.getElementById("deep-pseudo").offsetWidth}`);
+        const laterPseudo = document.createElement("div");
+        laterPseudo.className = "deep pseudo";
+        document.body.append(laterPseudo);
+        println(`later deep ::before width with margin: ${laterPseudo.offsetWidth}`);
+        const laterNarrowPseudo = document.createElement("div");
+        laterNarrowPseudo.className = "shallow pseudo";
+        document.body.append(laterNarrowPseudo);
+        println(`later shallow ::before width with margin: ${laterNarrowPseudo.offsetWidth}`);
+    });
+</script>
