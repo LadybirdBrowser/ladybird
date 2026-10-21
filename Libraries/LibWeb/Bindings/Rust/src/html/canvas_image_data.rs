@@ -132,6 +132,10 @@ impl ContextState {
                 b"ImageData's underlying buffer is detached or out-of-bounds",
             ));
         };
+        // NB: A lost context, or a canvas without backing storage, has no bitmap to set pixels in.
+        if !self.recorder_is_ready() {
+            return Ok(());
+        }
         // NB: Only the pixels that land inside the output bitmap are set, so only those are copied. The source
         //     rectangle is also kept inside imageData here, whatever the steps above computed, before its pixels are
         //     read.
@@ -365,9 +369,6 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     ) -> WebIdlResult<()> {
         // The putImageData(imageData, dx, dy) method steps are to put pixels from an ImageData onto a bitmap, given
         // imageData, this's output bitmap, dx, dy, 0, 0, imageData's width, and imageData's height.
-        if !self.recorder_is_ready() {
-            return Ok(());
-        }
         let (width, height) = image_data.size();
         // NB: An ImageData's size fits in a long, as nothing creates a larger one.
         let (width, height) = (
@@ -393,9 +394,6 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // The putImageData(imageData, dx, dy, dirtyX, dirtyY, dirtyWidth, dirtyHeight) method steps are to put pixels
         // from an ImageData onto a bitmap, given imageData, this's output bitmap, dx, dy, dirtyX, dirtyY, dirtyWidth,
         // and dirtyHeight.
-        if !self.recorder_is_ready() {
-            return Ok(());
-        }
         self.put_pixels_from_an_image_data_onto_a_bitmap(
             cx,
             image_data,

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // putImageData() throws for an ImageData whose buffer is detached, also when the canvas has no bitmap to put the
+    // pixels on.
+    function detachedImageData() {
+        const imageData = new ImageData(1, 1);
+        structuredClone(imageData.data.buffer, { transfer: [imageData.data.buffer] });
+        return imageData;
+    }
+
+    function report(label, fn) {
+        try {
+            fn();
+            println(`${label}: no throw`);
+        } catch (error) {
+            println(`${label}: ${error.name}`);
+        }
+    }
+
+    test(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 0;
+        canvas.height = 0;
+        const context = canvas.getContext("2d");
+        report("0x0 canvas", () => context.putImageData(detachedImageData(), 0, 0));
+        report("0x0 canvas, dirty rectangle", () => context.putImageData(detachedImageData(), 0, 0, 0, 0, 1, 1));
+        report("0x0 canvas, clean ImageData", () => context.putImageData(new ImageData(1, 1), 0, 0));
+
+        const offscreen = new OffscreenCanvas(0, 0).getContext("2d");
+        report("0x0 OffscreenCanvas", () => offscreen.putImageData(detachedImageData(), 0, 0));
+        report("0x0 OffscreenCanvas, dirty rectangle", () =>
+            offscreen.putImageData(detachedImageData(), 0, 0, 0, 0, 1, 1)
+        );
+    });
+</script>
