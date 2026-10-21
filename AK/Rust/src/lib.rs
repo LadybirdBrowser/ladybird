@@ -10,7 +10,7 @@ mod scope_guard;
 mod slice;
 
 pub use scope_guard::ScopeGuard;
-pub use slice::{slice_from_raw_parts, slice_from_raw_parts_mut};
+pub use slice::{Span, SpanMut, slice_from_raw_parts, slice_from_raw_parts_mut};
 
 use core::mem::MaybeUninit;
 use std::num::NonZeroUsize;
