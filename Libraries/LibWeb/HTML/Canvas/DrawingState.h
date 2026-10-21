@@ -31,7 +31,10 @@ struct FillOrStrokeStyle {
     {
     }
 
-    NonnullRefPtr<Gfx::PaintStyle> to_gfx_paint_style();
+    FillOrStrokeVariant const& variant() const { return m_fill_or_stroke_style; }
+
+    // Whether a draw with the style can change a pixel.
+    bool is_visible() const;
 
     Optional<Gfx::Color> as_color() const;
     Gfx::Color to_color_but_fixme_should_accept_any_paint_style() const;
@@ -57,7 +60,6 @@ struct FillOrStrokeStyle {
 
 private:
     FillOrStrokeVariant m_fill_or_stroke_style;
-    RefPtr<Gfx::PaintStyle> m_color_paint_style { nullptr };
 };
 
 // https://html.spec.whatwg.org/multipage/canvas.html#drawing-state

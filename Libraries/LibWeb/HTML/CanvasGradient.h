@@ -7,32 +7,25 @@
 
 #pragma once
 
-#include <AK/Utf16View.h>
-#include <LibGfx/PaintStyle.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/CanvasGradient.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
-class CanvasGradient final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(CanvasGradient, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(CanvasGradient);
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasgradient
+// The C++ side of a CanvasGradient, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/html): what the
+// 2D contexts create and paint with.
+class WEB_API CanvasGradient final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(CanvasGradient, canvas_gradient)
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_radial(double x0, double y0, double r0, double x1, double y1, double r1);
-    static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_linear(double x0, double y0, double x1, double y1);
-    static WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_conic(double start_angle, double x, double y);
+    static GC::Ref<CanvasGradient> create_linear(double x0, double y0, double x1, double y1);
+    static GC::Ref<CanvasGradient> create_radial(double x0, double y0, double r0, double x1, double y1, double r1);
+    static GC::Ref<CanvasGradient> create_conic(double start_angle, double x, double y);
 
-    WebIDL::ExceptionOr<void> add_color_stop(double offset, Utf16String const& color);
-
-    ~CanvasGradient();
-
-    NonnullRefPtr<Gfx::PaintStyle> to_gfx_paint_style() { return m_gradient; }
-
-private:
-    CanvasGradient(Gfx::GradientPaintStyle& gradient);
-
-    NonnullRefPtr<Gfx::GradientPaintStyle> m_gradient;
+    // Whether one of the color stops is not transparent.
+    bool is_visible() const;
 };
 
 }

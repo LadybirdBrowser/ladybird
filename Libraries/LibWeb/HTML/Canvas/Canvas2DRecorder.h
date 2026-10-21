@@ -27,12 +27,12 @@
 namespace Gfx {
 
 class Filter;
-class PaintStyle;
 
 }
 
 namespace Web::HTML {
 
+struct FillOrStrokeStyle;
 struct RustCanvas2DRecorder;
 
 // How a draw composites onto the canvas.
@@ -74,12 +74,12 @@ public:
     // Sends the shared stream once it holds a batch, so that what is recorded next travels with its resources.
     void prepare_to_record();
 
-    void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, Gfx::WindingRule, Canvas2DCompositing const&);
+    void fill_path(Gfx::Path const&, FillOrStrokeStyle const&, Gfx::WindingRule, Canvas2DCompositing const&);
     // A shadow: a fill in a solid color, blurred by the blur radius.
     void fill_path_shadow(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius, Canvas2DCompositing const&);
-    void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, Canvas2DStroke const&, Canvas2DCompositing const&);
+    void stroke_path(Gfx::Path const&, FillOrStrokeStyle const&, Canvas2DStroke const&, Canvas2DCompositing const&);
     void stroke_path_shadow(Gfx::Path const&, Gfx::Color, Canvas2DStroke const&, float blur_radius, Canvas2DCompositing const&);
-    void draw_glyph_run(Gfx::Font const&, ReadonlySpan<Compositing::DisplayListGlyph>, Gfx::FloatPoint translation, Gfx::PaintStyle const&, Canvas2DCompositing const&);
+    void draw_glyph_run(Gfx::Font const&, ReadonlySpan<Compositing::DisplayListGlyph>, Gfx::FloatPoint translation, FillOrStrokeStyle const&, Canvas2DCompositing const&);
     void clear_rect(Gfx::FloatRect const&, Gfx::Color);
     void draw_image_frame(Gfx::DecodedImageFrame const&, Gfx::FloatRect const& dst_rect, Gfx::IntRect const& src_rect, Gfx::ScalingMode, Canvas2DCompositing const&);
     void draw_canvas(Compositing::CanvasId source_canvas_id, Gfx::FloatRect const& dst_rect, Gfx::IntRect const& src_rect, Gfx::ScalingMode, Canvas2DCompositing const&);

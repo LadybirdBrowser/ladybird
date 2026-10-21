@@ -553,8 +553,7 @@ void Canvas2DContextBase::fill_text(Utf16View text, float x, float y, Optional<d
     auto* recorder = canvas_recorder();
     if (!recorder)
         return;
-    auto paint_style = state.fill_style.to_gfx_paint_style();
-    if (!paint_style->is_visible() && state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::SourceOver)
+    if (!state.fill_style.is_visible() && state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::SourceOver)
         return;
     auto const& glyph_run = glyph_runs.first();
     Vector<Compositing::DisplayListGlyph> glyphs;
@@ -564,7 +563,7 @@ void Canvas2DContextBase::fill_text(Utf16View text, float x, float y, Optional<d
             glyphs.unchecked_append({ .position = glyph.position, .glyph_id = glyph.glyph_id });
     }
     auto translation = text_transform(glyph_run->width(), {}).map(Gfx::FloatPoint { x, y });
-    recorder->draw_glyph_run(glyph_run->font(), glyphs, translation, *paint_style, compositing_for_drawing_state());
+    recorder->draw_glyph_run(glyph_run->font(), glyphs, translation, state.fill_style, compositing_for_drawing_state());
     did_draw({});
 }
 
@@ -639,8 +638,7 @@ void Canvas2DContextBase::stroke_internal(Gfx::Path path)
         return;
 
     auto& state = drawing_state();
-    auto paint_style = state.stroke_style.to_gfx_paint_style();
-    if (!paint_style->is_visible() && transparent_source_paint_can_be_ignored(state.current_compositing_and_blending_operator))
+    if (!state.stroke_style.is_visible() && transparent_source_paint_can_be_ignored(state.current_compositing_and_blending_operator))
         return;
 
     auto line_cap = to_gfx_cap(state.line_cap);
@@ -654,7 +652,7 @@ void Canvas2DContextBase::stroke_internal(Gfx::Path path)
     }
     paint_shadow_for_stroke_internal(path, line_cap, line_join, dash_array);
     auto bounding_box = path.bounding_box();
-    recorder->stroke_path(path, *paint_style,
+    recorder->stroke_path(path, state.stroke_style,
         {
             .thickness = state.line_width,
             .cap_style = line_cap,
@@ -696,14 +694,13 @@ void Canvas2DContextBase::fill_internal(Gfx::Path path, Gfx::WindingRule winding
         return;
 
     auto& state = this->drawing_state();
-    auto paint_style = state.fill_style.to_gfx_paint_style();
-    if (!paint_style->is_visible() && transparent_source_paint_can_be_ignored(state.current_compositing_and_blending_operator))
+    if (!state.fill_style.is_visible() && transparent_source_paint_can_be_ignored(state.current_compositing_and_blending_operator))
         return;
 
     paint_shadow_for_fill_internal(path, winding_rule);
 
     auto bounding_box = path.bounding_box();
-    recorder->fill_path(path, *paint_style, winding_rule, compositing_for_drawing_state());
+    recorder->fill_path(path, state.fill_style, winding_rule, compositing_for_drawing_state());
 
     did_draw(bounding_box);
 }

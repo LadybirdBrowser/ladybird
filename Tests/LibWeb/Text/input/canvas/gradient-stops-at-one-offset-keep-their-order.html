@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 100;
+        canvas.height = 1;
+        const context = canvas.getContext("2d");
+
+        // NB: Eight stops, which are hard bands of four colors. The stops at each inner offset must stay in the order
+        //     they were added in, so that each band has one color.
+        const gradient = context.createLinearGradient(0, 0, 100, 0);
+        gradient.addColorStop(0, "red");
+        gradient.addColorStop(0.25, "red");
+        gradient.addColorStop(0.25, "lime");
+        gradient.addColorStop(0.5, "lime");
+        gradient.addColorStop(0.5, "blue");
+        gradient.addColorStop(0.75, "blue");
+        gradient.addColorStop(0.75, "yellow");
+        gradient.addColorStop(1, "yellow");
+
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 100, 1);
+
+        for (const x of [5, 20, 30, 45, 55, 70, 80, 95]) {
+            const [r, g, b, a] = context.getImageData(x, 0, 1, 1).data;
+            println(`x=${x}: rgba(${r}, ${g}, ${b}, ${a})`);
+        }
+    });
+</script>
