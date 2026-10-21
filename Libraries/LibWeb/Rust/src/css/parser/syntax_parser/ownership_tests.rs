@@ -20,9 +20,8 @@ fn declarations(source: &str) -> crate::css::declaration_block::DeclarationBlock
     unsafe {
         let parse = std::sync::Arc::from_raw(super::rust_parse_css_block_syntax(
             view(&source),
-            contexts.as_ptr(),
-            contexts.len(),
-            &super::tests::parse_context(),
+            ak::Span::new(&contexts),
+            Some(&super::tests::parse_context()),
             false,
         ));
         *Box::from_raw(super::rust_css_syntax_parse_declaration_block(&*parse))
@@ -46,14 +45,14 @@ fn view(source: &[u16]) -> FfiUtf16View<'_> {
 }
 
 fn parse(source: &[u16], context: &crate::css::parser::value_parser::ParseContext) -> Arc<ParsedStyleSheet> {
-    unsafe { parse_shared_stylesheet(TokenizerInput::Utf16(source), context) }
+    parse_shared_stylesheet(TokenizerInput::Utf16(source), Some(context))
 }
 
 fn parse_shared_on_worker(source: &'static str) -> Arc<ParsedStyleSheet> {
     std::thread::spawn(move || {
         let source = utf16(source);
         let context = super::tests::parse_context();
-        let parse = || unsafe { parse_shared_stylesheet(TokenizerInput::Utf16(&source), &context) };
+        let parse = || parse_shared_stylesheet(TokenizerInput::Utf16(&source), Some(&context));
         let first = parse();
         let second = parse();
         assert!(Arc::ptr_eq(&first, &second));
@@ -81,7 +80,7 @@ fn builder_constructs_one_rule_tree_with_dense_unique_identities() {
         b"@media all { .parent { & {} color: red; @supports (display: grid) { width: 13px; } } } @font-face { font-family: Test; src: url(font.woff); }",
     );
     let context = super::tests::parse_context();
-    let mut builder = super::SyntaxParseBuilder::new(&context, false);
+    let mut builder = super::SyntaxParseBuilder::new(Some(&context), false);
     builder.append_roots(&rules);
     assert_eq!(builder.rules.len(), 2);
     let mut identities = std::collections::BTreeSet::new();
@@ -730,13 +729,13 @@ fn cache_keys_include_parsing_context_and_replay_side_effects() {
     assert!(!Arc::ptr_eq(&tracked, &tracked_again));
     context.length_resolution_context = None;
 
-    let mut random_index = 7;
-    context.random_function_index = &raw mut random_index;
+    let random_index = crate::css::parser::value_parser::RandomFunctionIndex::new(7);
+    context.random_function_index = Some(&random_index);
     let with_counter = parse(&source, &context);
-    let final_index = random_index;
-    random_index = 7;
+    let final_index = random_index.get();
+    random_index.set(7);
     let with_counter_again = parse(&source, &context);
-    assert_eq!(random_index, final_index);
+    assert_eq!(random_index.get(), final_index);
     assert!(Arc::ptr_eq(&with_counter, &with_counter_again));
 }
 
@@ -744,7 +743,7 @@ fn cache_keys_include_parsing_context_and_replay_side_effects() {
 fn cache_shares_ascii_and_utf16_sources() {
     let source = b".cached { width: 13px }";
     let context = super::tests::parse_context();
-    let ascii = unsafe { parse_shared_stylesheet(TokenizerInput::Ascii(source), &context) };
+    let ascii = parse_shared_stylesheet(TokenizerInput::Ascii(source), Some(&context));
     let wide = parse(&utf16(".cached { width: 13px }"), &context);
     assert!(Arc::ptr_eq(&ascii, &wide));
 }
@@ -1168,14 +1167,12 @@ fn function_descriptor_blocks_retain_worker_parsed_values() {
     use crate::css::descriptor_block::FfiDescriptorBlock;
     let (data, parsed_values) = std::thread::spawn(|| {
         let source = utf16("--色: 13px; result: var(--色)");
-        let parse = unsafe {
-            super::parse_shared_block(
-                TokenizerInput::Utf16(&source),
-                vec![super::RuleContext::AtFunction],
-                &super::tests::parse_context(),
-                false,
-            )
-        };
+        let parse = super::parse_shared_block(
+            TokenizerInput::Utf16(&source),
+            vec![super::RuleContext::AtFunction],
+            Some(&super::tests::parse_context()),
+            false,
+        );
         assert_eq!(parse.items.len(), 1);
         let ParsedRuleChild::Declarations(list) = &parse.items[0] else {
             panic!()

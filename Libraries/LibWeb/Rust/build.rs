@@ -2522,6 +2522,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
     // A tree scope's counter styles are queued on the document host, which the layout header declares.
     declare_document_host_of_layout_header(&mut value_parser_config);
+    // A parse context's random function counter is the `size_t` C++ lends.
+    value_parser_config
+        .export
+        .rename
+        .insert("RandomFunctionIndex".to_string(), "size_t".to_string());
+    value_parser_config
+        .export
+        .exclude
+        .push("RandomFunctionIndex".to_string());
     // A parse context names the lengths it resolves against as the computed values header declares them.
     value_parser_config.export.rename.insert(
         "FfiLengthResolutionContext".to_string(),

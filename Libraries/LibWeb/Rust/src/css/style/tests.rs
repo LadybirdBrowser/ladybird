@@ -27,9 +27,10 @@ fn native_rules(source: &str) -> std::rc::Rc<crate::css::rule::NativeRuleList> {
     use crate::css::parser::syntax_parser::parse_shared_stylesheet;
     let units: Vec<_> = source.encode_utf16().collect();
     let context = crate::css::parser::value_parser::ParseContext::default();
-    unsafe {
-        crate::css::rule::NativeRuleList::from_parsed(parse_shared_stylesheet(TokenizerInput::Utf16(&units), &context))
-    }
+    crate::css::rule::NativeRuleList::from_parsed(parse_shared_stylesheet(
+        TokenizerInput::Utf16(&units),
+        Some(&context),
+    ))
 }
 
 impl StyleEngine {

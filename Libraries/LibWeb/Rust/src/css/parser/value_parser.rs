@@ -116,6 +116,26 @@ pub struct FfiValueParsingContext<'a> {
     pub name: FfiUtf16View<'a>,
 }
 
+/// The counter a parse numbers its `random()` functions with, which C++ lends as a `size_t*`.
+#[repr(transparent)]
+#[derive(Default)]
+pub struct RandomFunctionIndex(std::cell::Cell<usize>);
+
+impl RandomFunctionIndex {
+    #[cfg(test)]
+    pub(crate) fn new(index: usize) -> Self {
+        Self(std::cell::Cell::new(index))
+    }
+
+    pub(crate) fn get(&self) -> usize {
+        self.0.get()
+    }
+
+    pub(crate) fn set(&self, index: usize) {
+        self.0.set(index);
+    }
+}
+
 /// Parser state required by CSS value parsing, borrowing what it names for `'a`.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -130,7 +150,7 @@ pub struct ParseContext<'a> {
     pub document_url: ak::Span<'a, u8>,
     pub document_base_url: ak::Span<'a, u8>,
     pub length_resolution_context: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
-    pub random_function_index: *mut usize,
+    pub random_function_index: Option<&'a RandomFunctionIndex>,
 }
 
 /// An empty context: no value contexts, namespaces or URLs, outside quirks mode.
@@ -147,7 +167,7 @@ impl Default for ParseContext<'_> {
             document_url: ak::Span::default(),
             document_base_url: ak::Span::default(),
             length_resolution_context: None,
-            random_function_index: std::ptr::null_mut(),
+            random_function_index: None,
         }
     }
 }
@@ -1209,7 +1229,7 @@ pub(crate) fn parse_calculated_numeric_value_with_ranges(
             random_function_index: context.random_function_index,
             allowed_color_channels: 0,
             allow_random_functions: context_allows_random_functions(context),
-            parse_context: std::ptr::from_ref(context).cast(),
+            parse_context: Some(context),
         },
     ) {
         Ok(root) => root,
@@ -3773,7 +3793,7 @@ pub(crate) fn parse_initial_value(property: u16) -> Option<Arc<StyleValueData>> 
         document_url: ak::Span::default(),
         document_base_url: ak::Span::default(),
         length_resolution_context: None,
-        random_function_index: std::ptr::null_mut(),
+        random_function_index: None,
     };
     let values = component_values_from_source(property_initial_value(property).as_bytes()).ok()?;
     let presence = SubstitutionFunctionsPresence::default();
@@ -6276,19 +6296,7 @@ mod tests {
     }
 
     fn context() -> ParseContext<'static> {
-        ParseContext {
-            in_quirks_mode: false,
-            is_svg_presentation_attribute: false,
-            is_substituted_value: false,
-            contains_attr_tainted_values: false,
-            is_ua_style_sheet: false,
-            value_contexts: ak::Span::default(),
-            declared_namespaces: None,
-            document_url: ak::Span::default(),
-            document_base_url: ak::Span::default(),
-            length_resolution_context: None,
-            random_function_index: std::ptr::null_mut(),
-        }
+        ParseContext::default()
     }
 
     fn parse(property: u16, source: &str) -> ParseOutcome {
@@ -6986,7 +6994,7 @@ mod tests {
         ] {
             assert!(matches!(parse(property, source), ParseOutcome::Parsed(_)), "{source}");
         }
-        let mut random_function_index = 0;
+        let random_function_index = RandomFunctionIndex::default();
         let mut random_context = context();
         let value_context = FfiValueParsingContext {
             kind: FfiValueParsingContextKind::Property,
@@ -6995,7 +7003,7 @@ mod tests {
             name: FfiUtf16View::default(),
         };
         random_context.value_contexts = ak::Span::new(std::slice::from_ref(&value_context));
-        random_context.random_function_index = &raw mut random_function_index;
+        random_context.random_function_index = Some(&random_function_index);
         assert!(matches!(
             parse_with_context(
                 &random_context,
@@ -7323,7 +7331,7 @@ mod tests {
             };
             assert!(matches!(&*value, StyleValueData::OpacityValue { .. }));
         }
-        let mut random_function_index = 0;
+        let random_function_index = RandomFunctionIndex::default();
         let mut random_context = context();
         let property_context = FfiValueParsingContext {
             kind: FfiValueParsingContextKind::Property,
@@ -7332,19 +7340,19 @@ mod tests {
             name: FfiUtf16View::default(),
         };
         random_context.value_contexts = ak::Span::new(std::slice::from_ref(&property_context));
-        random_context.random_function_index = &raw mut random_function_index;
+        random_context.random_function_index = Some(&random_function_index);
         let ParseOutcome::Parsed(value) = parse_with_context(&random_context, property_id::OPACITY, "random(0, 1)")
         else {
             panic!("random should parse with property parser state");
         };
         assert!(matches!(&*value, StyleValueData::OpacityValue { .. }));
-        assert_eq!(random_function_index, 1);
+        assert_eq!(random_function_index.get(), 1);
 
         assert!(matches!(
             parse_with_context(&random_context, property_id::OPACITY, "random(0, random(0, 1))"),
             ParseOutcome::Parsed(_)
         ));
-        assert_eq!(random_function_index, 3);
+        assert_eq!(random_function_index.get(), 3);
     }
 
     #[test]
@@ -7380,7 +7388,7 @@ mod tests {
 
     #[test]
     fn rejects_random_in_canvas_colors() {
-        let mut random_function_index = 0;
+        let random_function_index = RandomFunctionIndex::default();
         let value_contexts = [
             FfiValueParsingContext {
                 kind: FfiValueParsingContextKind::Special,
@@ -7397,7 +7405,7 @@ mod tests {
         ];
         let mut canvas_context = context();
         canvas_context.value_contexts = ak::Span::new(&value_contexts);
-        canvas_context.random_function_index = &raw mut random_function_index;
+        canvas_context.random_function_index = Some(&random_function_index);
 
         assert!(matches!(
             parse_with_context(
@@ -7407,7 +7415,7 @@ mod tests {
             ),
             ParseOutcome::Invalid
         ));
-        assert_eq!(random_function_index, 0);
+        assert_eq!(random_function_index.get(), 0);
     }
 
     #[test]

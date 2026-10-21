@@ -511,8 +511,9 @@ pub unsafe extern "C" fn rust_parse_with_syntax(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::css::parser::value_parser::RandomFunctionIndex;
 
-    fn context(random_function_index: &mut usize) -> ParseContext<'static> {
+    fn context(random_function_index: &RandomFunctionIndex) -> ParseContext<'_> {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
@@ -524,7 +525,7 @@ mod tests {
             document_url: ak::Span::default(),
             document_base_url: ak::Span::default(),
             length_resolution_context: None,
-            random_function_index,
+            random_function_index: Some(random_function_index),
         }
     }
 
@@ -591,8 +592,8 @@ mod tests {
 
     #[test]
     fn parses_values_against_syntax() {
-        let mut random_function_index = 0;
-        let context = context(&mut random_function_index);
+        let random_function_index = RandomFunctionIndex::default();
+        let context = context(&random_function_index);
         let syntax = parse_syntax(&utf16("<length> | <number>#"), true).unwrap();
         assert!(parse_with_syntax(&context, &utf16("12px"), &syntax).is_some());
         assert!(parse_with_syntax(&context, &utf16("1, 2, calc(1 + 2)"), &syntax).is_some());

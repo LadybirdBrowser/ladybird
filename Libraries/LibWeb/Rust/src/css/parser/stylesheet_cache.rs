@@ -5,7 +5,7 @@
  */
 
 use super::syntax_parser::ParsedStyleSheet;
-use super::value_parser::{FfiValueParsingContext, ParseContext};
+use super::value_parser::{FfiValueParsingContext, ParseContext, RandomFunctionIndex};
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style_compute::{FfiFontMetrics, FfiLengthResolutionContext};
@@ -178,7 +178,7 @@ fn own_url(bytes: &[u8]) -> Option<Box<[u16]>> {
 }
 
 impl ContextKey {
-    unsafe fn new(context: &ParseContext) -> Option<Self> {
+    fn new(context: &ParseContext) -> Option<Self> {
         // Keep this exhaustive so new parsing inputs cannot silently bypass the cache key.
         let ParseContext {
             in_quirks_mode,
@@ -229,7 +229,7 @@ impl ContextKey {
                 ],
                 value_contexts,
                 declared_namespaces,
-                random_function_index: unsafe { random_function_index.as_ref() }.copied(),
+                random_function_index: random_function_index.map(RandomFunctionIndex::get),
             },
             document_base_url: own_url(document_base_url.as_slice())?,
             length_resolution,
@@ -374,15 +374,13 @@ fn find(entries: &Entries, hash: u64, key: &StyleSheetKey) -> Option<Arc<ParsedS
     })
 }
 
-/// # Safety
-/// All pointers in `context` must remain valid for this call, just as for parsing.
-pub(super) unsafe fn parse_with_cache(
+pub(super) fn parse_with_cache(
     source: TokenizerInput<'_>,
     context: Option<&ParseContext>,
     parse: impl FnOnce() -> ParsedStyleSheet,
 ) -> Arc<ParsedStyleSheet> {
     let context_key = match context {
-        Some(context) => match unsafe { ContextKey::new(context) } {
+        Some(context) => match ContextKey::new(context) {
             Some(key) => Some(key),
             None => return Arc::new(parse()),
         },
@@ -422,13 +420,15 @@ pub(super) unsafe fn parse_with_cache(
     };
     if let Some(sheet) = cached {
         sheet.cache_metadata.as_ref().unwrap().dependencies.record();
-        if let Some(counter) = context.and_then(|context| unsafe { context.random_function_index.as_mut() }) {
-            *counter = sheet
-                .cache_metadata
-                .as_ref()
-                .unwrap()
-                .final_random_function_index
-                .unwrap();
+        if let Some(counter) = context.and_then(|context| context.random_function_index) {
+            counter.set(
+                sheet
+                    .cache_metadata
+                    .as_ref()
+                    .unwrap()
+                    .final_random_function_index
+                    .unwrap(),
+            );
         }
         return sheet;
     }
@@ -456,8 +456,8 @@ pub(super) unsafe fn parse_with_cache(
         key,
         dependencies,
         final_random_function_index: context
-            .and_then(|context| unsafe { context.random_function_index.as_ref() })
-            .copied(),
+            .and_then(|context| context.random_function_index)
+            .map(RandomFunctionIndex::get),
     });
     let sheet = Arc::new(sheet);
     entries.entry(hash).or_default().push(Arc::downgrade(&sheet));

@@ -1772,8 +1772,8 @@ impl RetainedState {
             reads_attributes.then(|| SubstitutionAttributes::of(&self.facts, node, self.html_element_namespace));
         // SAFETY: The values are the program's interned values, live for the call.
         let cascaded_store = unsafe { CustomPropertyStore::cascaded_child(parent_store.clone(), values) };
-        let mut random_function_index = 0_usize;
-        let mut parse_context = registry_ref.parse_context(&mut random_function_index);
+        let random_function_index = crate::css::parser::value_parser::RandomFunctionIndex::default();
+        let mut parse_context = registry_ref.parse_context(&random_function_index);
         parse_context.in_quirks_mode = inputs.in_quirks_mode;
         let media_environment = self.document_media.environment();
         let style_query = reads_conditions
@@ -2059,8 +2059,8 @@ impl RetainedState {
         // SAFETY: The values are live for the call.
         let cascaded_store = unsafe { CustomPropertyStore::cascaded_child(base.clone(), values) };
         let registry = self.document_style_computation_inputs.custom_property_registry();
-        let mut random_function_index = 0_usize;
-        let mut parse_context = registry.parse_context(&mut random_function_index);
+        let random_function_index = crate::css::parser::value_parser::RandomFunctionIndex::default();
+        let mut parse_context = registry.parse_context(&random_function_index);
         parse_context.in_quirks_mode = self.document_style_computation_inputs.in_quirks_mode;
         let media_environment = self.document_media.environment();
         // The `style()` queries the declarations read were noted as they resolved beneath the animations.
@@ -2262,8 +2262,8 @@ fn substitute_against_stores(
     let attributes = inputs.attributes;
     let functions = inputs.functions;
     let registry_ref = inputs.document.custom_property_registry();
-    let mut random_function_index = 0_usize;
-    let mut parse_context = registry_ref.parse_context(&mut random_function_index);
+    let random_function_index = crate::css::parser::value_parser::RandomFunctionIndex::default();
+    let mut parse_context = registry_ref.parse_context(&random_function_index);
     parse_context.in_quirks_mode = inputs.document.in_quirks_mode;
     let media_environment = inputs.media.environment();
     let mut resolution_environment = prepare_var_resolution_environment(

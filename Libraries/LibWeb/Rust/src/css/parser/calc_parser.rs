@@ -11,7 +11,8 @@
 
 use super::value_parser::{
     ANGLE_UNIT_NAMES, FLEX_UNIT_NAMES, FREQUENCY_UNIT_NAMES, NumericRange, ParseContext, RESOLUTION_UNIT_NAMES,
-    TIME_UNIT_NAMES, context_allows_tree_counting_functions, parse_calculated_numeric_value_with_ranges,
+    RandomFunctionIndex, TIME_UNIT_NAMES, context_allows_tree_counting_functions,
+    parse_calculated_numeric_value_with_ranges,
 };
 use crate::css::calc::{
     CalcNode, CalcNumericType, CalcNumericValue, CalcRoundingStrategy, resolve_as_for_value_type,
@@ -38,25 +39,25 @@ pub(crate) enum CalcParseError {
 type Result<T> = std::result::Result<T, CalcParseError>;
 
 #[derive(Clone, Copy)]
-pub(crate) struct CalcParserContext {
+pub(crate) struct CalcParserContext<'a> {
     pub percentages_resolve_as: Option<u8>,
     pub property: u16,
-    pub random_function_index: *mut usize,
+    pub random_function_index: Option<&'a RandomFunctionIndex>,
     pub allowed_color_channels: u64,
     pub allow_random_functions: bool,
-    pub parse_context: *const ParseContext<'static>,
+    pub parse_context: Option<&'a ParseContext<'a>>,
 }
 
-impl CalcParserContext {
+impl CalcParserContext<'_> {
     #[cfg(test)]
     fn for_test(percentages_resolve_as: Option<u8>) -> Self {
         Self {
             percentages_resolve_as,
             property: 0,
-            random_function_index: std::ptr::null_mut(),
+            random_function_index: None,
             allowed_color_channels: 0,
             allow_random_functions: false,
-            parse_context: std::ptr::null(),
+            parse_context: None,
         }
     }
 }
@@ -79,11 +80,11 @@ fn unit_index(unit: &[u16], names: &[&str]) -> Option<u8> {
 struct CalculationParser<'a> {
     values: Vec<&'a ComponentValue>,
     position: usize,
-    context: CalcParserContext,
+    context: CalcParserContext<'a>,
 }
 
 impl<'a> CalculationParser<'a> {
-    fn new(values: &'a [ComponentValue], context: CalcParserContext) -> Self {
+    fn new(values: &'a [ComponentValue], context: CalcParserContext<'a>) -> Self {
         Self {
             values: values.iter().filter(|value| !value.is_whitespace()).collect(),
             position: 0,
@@ -207,7 +208,7 @@ fn parse_non_math_function(
     arguments: &[ComponentValue],
     context: CalcParserContext,
 ) -> Result<Arc<CalcNode>> {
-    let parse_context = unsafe { context.parse_context.as_ref() }.ok_or(CalcParseError::NotHandled)?;
+    let parse_context = context.parse_context.ok_or(CalcParseError::NotHandled)?;
     if (equals_ascii_case_insensitive(name, b"sibling-count") || equals_ascii_case_insensitive(name, b"sibling-index"))
         && arguments.iter().all(ComponentValue::is_whitespace)
         && context_allows_tree_counting_functions(parse_context)
@@ -602,7 +603,7 @@ fn parse_random_value_sharing(
                 StyleValueData::Number { value }
             }
             ComponentKind::Function { ref name, ref values } if math_function_from_name(name).is_some() => {
-                let parse_context = unsafe { context.parse_context.as_ref() }.ok_or(CalcParseError::NotHandled)?;
+                let parse_context = context.parse_context.ok_or(CalcParseError::NotHandled)?;
                 parse_calculated_numeric_value_with_ranges(
                     parse_context,
                     context.property,
@@ -665,11 +666,11 @@ fn parse_random_value_sharing(
 }
 
 fn parse_random(arguments: &[&[ComponentValue]], context: CalcParserContext) -> Result<Arc<CalcNode>> {
-    if !context.allow_random_functions || context.random_function_index.is_null() {
+    let Some(random_function_index) = context.random_function_index.filter(|_| context.allow_random_functions) else {
         return Err(CalcParseError::NotHandled);
-    }
-    let index = unsafe { *context.random_function_index };
-    unsafe { *context.random_function_index += 1 };
+    };
+    let index = random_function_index.get();
+    random_function_index.set(index + 1);
     let auto_name = random_auto_name(context, index);
     let explicit_sharing = arguments
         .first()
@@ -776,17 +777,17 @@ mod tests {
         let values =
             consume_a_list_of_component_values(tokenize_for_parser(b"random(element-shared, 1px, 3px)")).unwrap();
         let (name, values) = values[0].function().unwrap();
-        let mut random_function_index = 4;
+        let random_function_index = RandomFunctionIndex::new(4);
         let context = CalcParserContext {
             percentages_resolve_as: None,
             property: 1,
-            random_function_index: &raw mut random_function_index,
+            random_function_index: Some(&random_function_index),
             allowed_color_channels: 0,
             allow_random_functions: true,
-            parse_context: std::ptr::null(),
+            parse_context: None,
         };
         let parsed = parse_a_calc_function_node(name, values, context).unwrap();
         assert!(matches!(&*parsed, CalcNode::Random { .. }));
-        assert_eq!(random_function_index, 5);
+        assert_eq!(random_function_index.get(), 5);
     }
 }

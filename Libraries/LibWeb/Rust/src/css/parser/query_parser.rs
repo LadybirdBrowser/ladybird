@@ -2004,7 +2004,7 @@ fn media_value_parse_context<'a>(value_context: &'a FfiValueParsingContext<'a>) 
         document_url: ak::Span::default(),
         document_base_url: ak::Span::default(),
         length_resolution_context: None,
-        random_function_index: std::ptr::null_mut(),
+        random_function_index: None,
     }
 }
 
