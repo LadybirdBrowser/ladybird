@@ -21,7 +21,7 @@ createImageData(0, 1): DOMException IndexSizeError: Width and height must not be
 createImageData(1, NaN): TypeError: Number must not be NaN or Infinity
 createImageData(2 ** 31, 1): TypeError: Number '2147483648' is outside of allowed range of -2147483648 to 2147483647
 createImageData(1.99, -1.99): ImageData 1x1 [0,0,0,0]
-createImageData(-(2 ** 31), 1): DOMException IndexSizeError: The specified image size could not created
+createImageData(-(2 ** 31), 1): DOMException IndexSizeError: The specified image size could not be created
 createImageData(new ImageData(3, 1)): ImageData 3x1 [0,0,0,0,0,0,0,0,0,0,0,0]
 createImageData(1, 1, { colorSpace: "srgb-linear" }).colorSpace: srgb-linear
 createImageData(null): TypeError: Not an object of type ImageData
@@ -72,7 +72,7 @@ createImageData(0, 1): DOMException IndexSizeError: Width and height must not be
 createImageData(1, NaN): TypeError: Number must not be NaN or Infinity
 createImageData(2 ** 31, 1): TypeError: Number '2147483648' is outside of allowed range of -2147483648 to 2147483647
 createImageData(1.99, -1.99): ImageData 1x1 [0,0,0,0]
-createImageData(-(2 ** 31), 1): DOMException IndexSizeError: The specified image size could not created
+createImageData(-(2 ** 31), 1): DOMException IndexSizeError: The specified image size could not be created
 createImageData(new ImageData(3, 1)): ImageData 3x1 [0,0,0,0,0,0,0,0,0,0,0,0]
 createImageData(1, 1, { colorSpace: "srgb-linear" }).colorSpace: srgb-linear
 createImageData(null): TypeError: Not an object of type ImageData
