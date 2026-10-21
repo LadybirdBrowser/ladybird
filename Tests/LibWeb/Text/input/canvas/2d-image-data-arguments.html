@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<canvas id="canvas" width="4" height="3"></canvas>
+<script>
+    function tryOperation(description, operation) {
+        try {
+            const result = operation();
+            if (result instanceof ImageData)
+                println(`${description}: ImageData ${result.width}x${result.height} [${Array.from(result.data)}]`);
+            else if (result === undefined)
+                println(`${description}: no exception`);
+            else
+                println(`${description}: ${result}`);
+        } catch (e) {
+            const kind = e instanceof DOMException ? `DOMException ${e.name}` : e.constructor.name;
+            println(`${description}: ${kind}: ${e.message}`);
+        }
+    }
+
+    function exercise(label, context) {
+        println(`${label}:`);
+        context.fillStyle = "rgb(10, 20, 30)";
+        context.fillRect(0, 0, 2, 2);
+        context.fillStyle = "rgba(200, 100, 50, 0.5)";
+        context.fillRect(2, 1, 2, 2);
+
+        tryOperation("getImageData(0, 0, 2, 1)", () => context.getImageData(0, 0, 2, 1));
+        tryOperation("getImageData(1.9, 0.5, 2.9, 1.2)", () => context.getImageData(1.9, 0.5, 2.9, 1.2));
+        tryOperation("getImageData(3, 2, -2, -2)", () => context.getImageData(3, 2, -2, -2));
+        tryOperation("getImageData(-1, -1, 2, 2)", () => context.getImageData(-1, -1, 2, 2));
+        tryOperation("getImageData(10, 10, 1, 1)", () => context.getImageData(10, 10, 1, 1));
+        tryOperation("getImageData(0, 0, 0, 1)", () => context.getImageData(0, 0, 0, 1));
+        tryOperation("getImageData(NaN, 0, 1, 1)", () => context.getImageData(NaN, 0, 1, 1));
+        tryOperation("getImageData(0, Infinity, 1, 1)", () => context.getImageData(0, Infinity, 1, 1));
+        tryOperation("getImageData(2 ** 31, 0, 1, 1)", () => context.getImageData(2 ** 31, 0, 1, 1));
+        tryOperation("getImageData(0, -(2 ** 31) - 1, 1, 1)", () => context.getImageData(0, -(2 ** 31) - 1, 1, 1));
+        tryOperation("getImageData(-(2 ** 31), -(2 ** 31), 1, 1)", () => context.getImageData(-(2 ** 31), -(2 ** 31), 1, 1));
+        tryOperation("getImageData(0, 0, 1, 1e300)", () => context.getImageData(0, 0, 1, 1e300));
+        tryOperation("getImageData(2 ** 31 - 1, 2 ** 31 - 1, 1, 1)", () => context.getImageData(2 ** 31 - 1, 2 ** 31 - 1, 1, 1));
+        tryOperation("getImageData(0, 0, \"2\", [1])", () => context.getImageData(0, 0, "2", [1]));
+        tryOperation("getImageData(0, 0, 1, 1, { colorSpace: \"bogus\" })", () => context.getImageData(0, 0, 1, 1, { colorSpace: "bogus" }));
+        tryOperation("getImageData(0, 0, 1, 1, { colorSpace: \"display-p3\" }).colorSpace", () => context.getImageData(0, 0, 1, 1, { colorSpace: "display-p3" }).colorSpace);
+
+        tryOperation("createImageData(2, 1)", () => context.createImageData(2, 1));
+        tryOperation("createImageData(-2, -1)", () => context.createImageData(-2, -1));
+        tryOperation("createImageData(0, 1)", () => context.createImageData(0, 1));
+        tryOperation("createImageData(1, NaN)", () => context.createImageData(1, NaN));
+        tryOperation("createImageData(2 ** 31, 1)", () => context.createImageData(2 ** 31, 1));
+        tryOperation("createImageData(1.99, -1.99)", () => context.createImageData(1.99, -1.99));
+        tryOperation("createImageData(-(2 ** 31), 1)", () => context.createImageData(-(2 ** 31), 1));
+        tryOperation("createImageData(new ImageData(3, 1))", () => context.createImageData(new ImageData(3, 1)));
+        tryOperation("createImageData(1, 1, { colorSpace: \"srgb-linear\" }).colorSpace", () => context.createImageData(1, 1, { colorSpace: "srgb-linear" }).colorSpace);
+        tryOperation("createImageData(null)", () => context.createImageData(null));
+
+        const source = new ImageData(new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 1, 2, 3, 4]), 2, 2);
+        tryOperation("putImageData(source, Infinity, 0)", () => context.putImageData(source, Infinity, 0));
+        tryOperation("putImageData(source, 0, 2 ** 31)", () => context.putImageData(source, 0, 2 ** 31));
+        tryOperation("putImageData(source, 0, 0, 0, 0, NaN, 1)", () => context.putImageData(source, 0, 0, 0, 0, NaN, 1));
+        tryOperation("putImageData(source, 3, 2)", () => context.putImageData(source, 3, 2));
+        tryOperation("after it, getImageData(0, 0, 4, 3)", () => context.getImageData(0, 0, 4, 3));
+        tryOperation("putImageData(source, 0, 0, 1, 1, -5, -5)", () => context.putImageData(source, 0, 0, 1, 1, -5, -5));
+        tryOperation("after it, getImageData(0, 0, 4, 3)", () => context.getImageData(0, 0, 4, 3));
+        tryOperation("putImageData(source, 1, 0, -1, -1, 2, 3)", () => context.putImageData(source, 1, 0, -1, -1, 2, 3));
+        tryOperation("after it, getImageData(0, 0, 4, 3)", () => context.getImageData(0, 0, 4, 3));
+        tryOperation("putImageData(source, -(2 ** 31), -(2 ** 31), 2 ** 31 - 1, 2 ** 31 - 1, 2 ** 31 - 1, 2 ** 31 - 1)", () => context.putImageData(source, -(2 ** 31), -(2 ** 31), 2 ** 31 - 1, 2 ** 31 - 1, 2 ** 31 - 1, 2 ** 31 - 1));
+        tryOperation("putImageData(source, 2 ** 31 - 1, 2 ** 31 - 1, -(2 ** 31), -(2 ** 31), -(2 ** 31), -(2 ** 31))", () => context.putImageData(source, 2 ** 31 - 1, 2 ** 31 - 1, -(2 ** 31), -(2 ** 31), -(2 ** 31), -(2 ** 31)));
+        tryOperation("putImageData(source, -1, -1, 0, 0, 2 ** 31 - 1, 2 ** 31 - 1)", () => context.putImageData(source, -1, -1, 0, 0, 2 ** 31 - 1, 2 ** 31 - 1));
+        tryOperation("after it, getImageData(0, 0, 4, 3)", () => context.getImageData(0, 0, 4, 3));
+        const detached = new ImageData(1, 1);
+        structuredClone(detached.data.buffer, { transfer: [detached.data.buffer] });
+        tryOperation("putImageData(detached, 0, 0)", () => context.putImageData(detached, 0, 0));
+
+        tryOperation("createPattern(canvas, null) repeats", () => context.createPattern(canvas, null) !== null);
+        tryOperation("createPattern(canvas, \"\")", () => context.createPattern(canvas, "") !== null);
+        tryOperation("createPattern(canvas, \"repeat-x\")", () => context.createPattern(canvas, "repeat-x") !== null);
+        tryOperation("createPattern(canvas, \"Repeat\")", () => context.createPattern(canvas, "Repeat"));
+        tryOperation("createPattern(canvas, undefined)", () => context.createPattern(canvas, undefined));
+        const emptyCanvas = document.createElement("canvas");
+        emptyCanvas.width = 0;
+        tryOperation("createPattern(canvas without width, \"repeat\")", () => context.createPattern(emptyCanvas, "repeat"));
+        tryOperation("createPattern(new OffscreenCanvas(0, 1), \"repeat\")", () => context.createPattern(new OffscreenCanvas(0, 1), "repeat"));
+        tryOperation("createPattern(new Image(), \"repeat\")", () => context.createPattern(new Image(), "repeat"));
+        tryOperation("createPattern({}, \"repeat\")", () => context.createPattern({}, "repeat"));
+        tryOperation("createPattern(canvas)", () => context.createPattern(canvas));
+    }
+
+    asyncTest(async done => {
+        exercise("A canvas", canvas.getContext("2d"));
+        exercise("An OffscreenCanvas", new OffscreenCanvas(4, 3).getContext("2d"));
+
+        const bitmap = await createImageBitmap(new ImageData(1, 1));
+        bitmap.close();
+        tryOperation("createPattern(closed ImageBitmap, \"repeat\")", () => canvas.getContext("2d").createPattern(bitmap, "repeat"));
+        tryOperation("drawImage(closed ImageBitmap, 0, 0)", () => canvas.getContext("2d").drawImage(bitmap, 0, 0));
+        done();
+    });
+</script>

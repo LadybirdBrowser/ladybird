@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function exercise(label, context) {
+        println(`${label}:`);
+        const points = [[5, 5], [15, 15], [25, 5], [10.5, 10.5], [NaN, 5], [Infinity, 5], [29.99, 15]];
+        const report = (description, test) => println(`  ${description}: ${points.map(([x, y]) => test(x, y) ? 1 : 0).join("")}`);
+
+        context.rect(0, 0, 20, 20);
+        context.rect(5, 5, 10, 10);
+        report("two rectangles, nonzero", (x, y) => context.isPointInPath(x, y));
+        report("two rectangles, evenodd", (x, y) => context.isPointInPath(x, y, "evenodd"));
+
+        context.beginPath();
+        context.translate(10, 0);
+        context.rect(0, 0, 20, 20);
+        report("a translated rectangle", (x, y) => context.isPointInPath(x, y));
+        context.scale(0.5, 2);
+        report("after a later scale", (x, y) => context.isPointInPath(x, y));
+        context.setTransform(0, 0, 0, 0, 0, 0);
+        report("under a singular transform", (x, y) => context.isPointInPath(x, y));
+        context.resetTransform();
+
+        const path = new Path2D();
+        path.arc(15, 15, 10, 0, 2 * Math.PI);
+        report("a Path2D circle", (x, y) => context.isPointInPath(path, x, y));
+        context.rotate(Math.PI / 4);
+        report("a Path2D circle under a rotation", (x, y) => context.isPointInPath(path, x, y, "evenodd"));
+        context.resetTransform();
+        report("an empty Path2D", (x, y) => context.isPointInPath(new Path2D(), x, y));
+
+        for (const [description, call] of [
+            ["isPointInPath()", () => context.isPointInPath()],
+            ["isPointInPath(1)", () => context.isPointInPath(1)],
+            ["isPointInPath(1, 2, \"bogus\")", () => context.isPointInPath(1, 2, "bogus")],
+            ["isPointInPath(path, 1)", () => context.isPointInPath(path, 1)],
+            ["isPointInPath({}, 1, 2)", () => context.isPointInPath({}, 1, 2)],
+            ["fill(\"bogus\")", () => context.fill("bogus")],
+            ["fill(null)", () => context.fill(null)],
+            ["clip(path, \"bogus\")", () => context.clip(path, "bogus")],
+            ["stroke(null)", () => context.stroke(null)],
+            ["drawImage(null, 0, 0)", () => context.drawImage(null, 0, 0)],
+            ["drawImage(canvas, 0)", () => context.drawImage(context.canvas, 0)],
+            ["drawImage(canvas, 0, 0, 1)", () => context.drawImage(context.canvas, 0, 0, 1)],
+            ["drawImage(canvas, 0, 0, 1, 1, 1, 1)", () => context.drawImage(context.canvas, 0, 0, 1, 1, 1, 1)],
+            ["setTransform(1, 2)", () => context.setTransform(1, 2)],
+            ["putImageData(new ImageData(1, 1), 0, 0, 0)", () => context.putImageData(new ImageData(1, 1), 0, 0, 0)],
+            ["createImageData()", () => context.createImageData()],
+            ["fillText(\"a\", 1)", () => context.fillText("a", 1)],
+            ["fillStyle = {}", () => { context.fillStyle = {}; return context.fillStyle; }],
+            ["fillStyle = new Path2D()", () => { context.fillStyle = new Path2D(); return context.fillStyle; }],
+        ]) {
+            try {
+                println(`  ${description}: ${call()}`);
+            } catch (e) {
+                println(`  ${description}: ${e.constructor.name}: ${e.message}`);
+            }
+        }
+    }
+
+    test(() => {
+        exercise("A canvas", document.createElement("canvas").getContext("2d"));
+        exercise("An OffscreenCanvas", new OffscreenCanvas(30, 30).getContext("2d"));
+    });
+</script>

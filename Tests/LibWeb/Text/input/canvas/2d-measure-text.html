@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const members = [
+        "width", "actualBoundingBoxLeft", "actualBoundingBoxRight", "fontBoundingBoxAscent", "fontBoundingBoxDescent",
+        "actualBoundingBoxAscent", "actualBoundingBoxDescent", "emHeightAscent", "emHeightDescent", "hangingBaseline",
+        "alphabeticBaseline", "ideographicBaseline",
+    ];
+
+    function measure(context, text) {
+        const metrics = context.measureText(text);
+        println(`  ${JSON.stringify(text)}: ${members.map(member => metrics[member]).join(", ")}`);
+    }
+
+    function exercise(label, context) {
+        println(`${label}:`);
+        for (const font of ["10px sans-serif", "23px serif", "bold 17.5px monospace", "italic 9px sans-serif"]) {
+            context.font = font;
+            println(` ${context.font}`);
+            for (const text of ["", " ", "Hello, world!", "a\tb\nc\fd\re", "é😀漢字 mixed", "\ud800 lone"])
+                measure(context, text);
+        }
+        context.font = "15px sans-serif";
+        for (const baseline of ["top", "hanging", "middle", "alphabetic", "ideographic", "bottom"]) {
+            context.textBaseline = baseline;
+            println(` textBaseline ${baseline}`);
+            measure(context, "Baseline");
+        }
+        context.textBaseline = "alphabetic";
+        for (const spacing of ["3px", "-1px", "0.5em"]) {
+            context.letterSpacing = spacing;
+            println(` letterSpacing ${spacing}`);
+            measure(context, "Spaced out");
+        }
+        context.letterSpacing = "0px";
+        for (const align of ["start", "end", "left", "right", "center"]) {
+            context.textAlign = align;
+            println(` textAlign ${align}`);
+            measure(context, "Aligned");
+        }
+    }
+
+    test(() => {
+        exercise("A canvas", document.createElement("canvas").getContext("2d"));
+        exercise("An OffscreenCanvas", new OffscreenCanvas(10, 10).getContext("2d"));
+    });
+</script>
