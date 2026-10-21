@@ -2778,6 +2778,20 @@ impl<'pass> FlexFormattingContext<'pass> {
         Some(self.cross_size_from_main_size_and_aspect_ratio(node, main_size))
     }
 
+    // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
+    fn cross_size_is_cyclic_percentage_of_aspect_ratio_item(&self, index: usize) -> bool {
+        let node = self.flex_items[index].box_;
+        // If the box is non-replaced, then the entire value of any max size property or preferred size property
+        // ('width'/'max-width'/'height'/'max-height') specified as an expression containing a percentage (such as
+        // '10%' or 'calc(10px + 0%)') that is cyclic is treated for the purpose of calculating the box's intrinsic
+        // size contributions only as that property's initial value.
+        !self.cross_axis_is_horizontal()
+            && self.computed_cross_size(node).0.contains_percentage()
+            && self
+                .sizing()
+                .block_size_transfers_through_aspect_ratio(node, self.item_containing_block_constraints())
+    }
+
     fn calculate_cross_content_contribution(
         &self,
         index: usize,
@@ -2785,7 +2799,8 @@ impl<'pass> FlexFormattingContext<'pass> {
         max_content: bool,
     ) -> CssPixels {
         let node = self.flex_items[index].box_;
-        let cross_size_auto = self.should_treat_cross_size_as_auto(node);
+        let cross_size_auto = self.should_treat_cross_size_as_auto(node)
+            || self.cross_size_is_cyclic_percentage_of_aspect_ratio_item(index);
         let mut size = if cross_size_auto {
             self.cross_size_transferred_from_definite_main_size(index)
                 .unwrap_or_else(|| {

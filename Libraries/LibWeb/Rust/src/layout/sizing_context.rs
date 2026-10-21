@@ -1108,6 +1108,19 @@ impl<'pass> SizingContext<'pass> {
         size
     }
 
+    // NB: Like auto, a definite inline size transfers through the aspect ratio of a non-replaced box.
+    pub(crate) fn block_size_transfers_through_aspect_ratio(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+    ) -> bool {
+        let facts = self.facts(node);
+        self.used(node).has_definite_inline_size()
+            && !facts.is_replaced_box()
+            && facts.has_preferred_aspect_ratio()
+            && self.preferred_block_size(node, constraints).is_auto()
+    }
+
     pub(crate) fn should_treat_block_size_as_auto(
         &self,
         node: Node,
@@ -1129,11 +1142,7 @@ impl<'pass> SizingContext<'pass> {
                     return false;
                 }
                 formatting_context::CyclicPercentageIntrinsicContribution::TreatAsInitialValue => {
-                    // NB: Like auto, a definite inline size transfers through the aspect ratio of a non-replaced box.
-                    return !(self.used(node).has_definite_inline_size()
-                        && !facts.is_replaced_box()
-                        && facts.has_preferred_aspect_ratio()
-                        && self.preferred_block_size(node, constraints).is_auto());
+                    return !self.block_size_transfers_through_aspect_ratio(node, constraints);
                 }
                 formatting_context::CyclicPercentageIntrinsicContribution::NotCyclic => {}
             }
