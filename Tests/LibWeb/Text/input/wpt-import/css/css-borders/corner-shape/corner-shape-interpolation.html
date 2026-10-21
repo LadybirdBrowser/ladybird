@@ -40,9 +40,9 @@ test_interpolation({
   to:  neutralKeyframe,
 }, [
   {at: -0.3, expect: 'superellipse(1.4)'},
-  {at: 0, expect: 'round'},
+  {at: 0, expect: 'superellipse(1)'},
   {at: 0.6, expect: 'superellipse(0.36)'},
-  {at: 1, expect: 'bevel'},
+  {at: 1, expect: 'superellipse(0)'},
   {at: 1.5, expect: 'superellipse(-0.46)'},
 ]);
 
@@ -52,11 +52,11 @@ test_composition({
   replaceFrom: 'round',
   replaceTo: neutralKeyframe,
 }, [
-  {at: -0.3, expect: 'round'},
-  {at: 0, expect: 'round'},
-  {at: 0.6, expect: 'round'},
-  {at: 1, expect: 'round'},
-  {at: 1.5, expect: 'round'},
+  {at: -0.3, expect: 'superellipse(1)'},
+  {at: 0, expect: 'superellipse(1)'},
+  {at: 0.6, expect: 'superellipse(1)'},
+  {at: 1, expect: 'superellipse(1)'},
+  {at: 1.5, expect: 'superellipse(1)'},
 ]);
 
 test_corner_shape_interpolation({
@@ -64,9 +64,9 @@ test_corner_shape_interpolation({
   to: 'bevel',
 }, [
   {at: -0.3, expect: 'superellipse(1.4)'},
-  {at: 0, expect: 'round'},
+  {at: 0, expect: 'superellipse(1)'},
   {at: 0.6, expect: 'superellipse(0.36)'},
-  {at: 1, expect: 'bevel'},
+  {at: 1, expect: 'superellipse(0)'},
   {at: 1.5, expect: 'superellipse(-0.46)'},
 ]);
 test_corner_shape_interpolation({
@@ -74,10 +74,10 @@ test_corner_shape_interpolation({
   to: 'scoop',
 }, [
   {at: -0.3, expect: 'superellipse(1.91)'},
-  {at: 0, expect: 'round'},
-  {at: 0.5, expect: 'bevel'},
+  {at: 0, expect: 'superellipse(1)'},
+  {at: 0.5, expect: 'superellipse(0)'},
   {at: 0.6, expect: 'superellipse(-0.18)'},
-  {at: 1, expect: 'scoop'},
+  {at: 1, expect: 'superellipse(-1)'},
   {at: 1.5, expect: 'superellipse(-2.95)'},
 ]);
 
@@ -87,10 +87,10 @@ test_interpolation({
   to: 'squircle',
 }, [
   {at: -0.3, expect: 'superellipse(-0.45)'},
-  {at: 0, expect: 'bevel'},
+  {at: 0, expect: 'superellipse(0)'},
   {at: 0.6, expect: 'superellipse(0.98)'},
-  {at: 1, expect: 'squircle'},
-  {at: 1.5, expect: 'square'},
+  {at: 1, expect: 'superellipse(2)'},
+  {at: 1.5, expect: 'superellipse(infinity)'},
 ]);
 test_interpolation({
   property: 'corner-top-right-shape',

@@ -50,8 +50,9 @@ function test_invalid_value(property, value) {
     }, "e.style['" + property + "'] = " + stringifiedValue + " should not set the property value");
 }
 
-function test_valid_forgiving_selector(selector) {
-  test_valid_selector(selector, selector, { onlyWhenForgiving: true });
+function test_valid_forgiving_selector(selector, serializedValue = null) {
+  test_valid_selector(selector, serializedValue ? serializedValue : selector,
+                      {onlyWhenForgiving: true});
 }
 
 // serializedSelector can be the expected serialization of selector,

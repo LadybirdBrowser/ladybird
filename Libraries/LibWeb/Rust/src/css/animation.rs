@@ -8371,7 +8371,7 @@ mod tests {
     }
 
     #[test]
-    fn resolves_halfway_superellipses_to_a_bevel() {
+    fn resolves_halfway_superellipses_to_superellipse_zero() {
         let property = crate::css::property_metadata::property_id::CORNER_TOP_LEFT_SHAPE;
         let (from, to) = (
             parsed(property, "superellipse(-infinity)"),
@@ -8381,7 +8381,7 @@ mod tests {
         assert!(result.handled);
         let value = result.value.unwrap().into_arc();
         let text = crate::css::serialize::serialize_resolved_style_value_to_utf16(&value);
-        assert_eq!(String::from_utf16(&text).unwrap(), "bevel");
+        assert_eq!(String::from_utf16(&text).unwrap(), "superellipse(0)");
     }
 
     #[test]
