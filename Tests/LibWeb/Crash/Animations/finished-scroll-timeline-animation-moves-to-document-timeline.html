@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    @keyframes grow {
+        from { width: 10px; }
+        to { width: 100px; }
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #content {
+        height: 300px;
+    }
+    .scroll-driven {
+        animation: grow linear forwards;
+        animation-timeline: scroll();
+    }
+    .time-based {
+        animation: grow 1s linear forwards;
+    }
+</style>
+<div id="scroller">
+    <div id="target" class="scroll-driven"></div>
+    <div id="content"></div>
+</div>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    (async () => {
+        await animationFrame();
+        // A scroll-driven animation at the end of its timeline is finished, and holds its time.
+        scroller.scrollTop = 200;
+        await animationFrame();
+        await animationFrame();
+        // Moving it to the document timeline must not mix up the units of its old and new times.
+        target.className = "time-based";
+        getComputedStyle(target).width;
+        await animationFrame();
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</html>
