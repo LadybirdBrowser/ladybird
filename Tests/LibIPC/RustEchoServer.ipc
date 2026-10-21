@@ -4,6 +4,20 @@
 #include <AK/Utf16String.h>
 #include <LibIPC/File.h>
 
+enum RustEcho::Shape : u8 { Circle, Square }
+
+struct RustEcho::Record {
+    [NonZero] u64 id;
+    [MaxBytes=8] String label;
+    [MaxBytes=8] ByteString name;
+    [MaxBytes=8] ByteBuffer bytes;
+    [MaxCount=3] Vector<u16> values;
+    [Finite] double scale;
+    RustEcho::Shape shape;
+}
+
+variant RustEcho::Value { Record RustEcho::Record, Number u32, Shape RustEcho::Shape }
+
 endpoint RustEchoServer
 {
     echo(u32 number, String text, Utf16String utf16_text, Vector<Optional<i64>> values, ByteBuffer bytes) => (u32 number, String text, Utf16String utf16_text, Vector<Optional<i64>> values, ByteBuffer bytes)
@@ -11,4 +25,5 @@ endpoint RustEchoServer
     echo_files(Vector<IPC::File> files) => (Vector<IPC::File> files)
     stop() =|
     echo_utf8([UTF8] ByteString text, [UTF8] ByteBuffer bytes) => ([UTF8] ByteString text, [UTF8] ByteBuffer bytes)
+    echo_value(RustEcho::Value value) => (RustEcho::Value value)
 }

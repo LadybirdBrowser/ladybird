@@ -11,7 +11,9 @@
 #include <AK/Concepts.h>
 #include <AK/Forward.h>
 #include <AK/MemoryStream.h>
+#include <AK/NumericLimits.h>
 #include <AK/Queue.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <AK/String.h>
 #include <AK/Time.h>
@@ -48,6 +50,11 @@ public:
     template<typename T>
     ErrorOr<T> decode();
 
+    // Decodes a string, byte buffer or vector, which goes as its size and then its contents, refusing one larger than
+    // max_size before decoding its contents.
+    template<typename T>
+    ErrorOr<T> decode_with_max_size(size_t max_size);
+
     template<typename T>
     ErrorOr<void> decode_into(T& value)
     {
@@ -69,6 +76,7 @@ public:
 private:
     FixedMemoryStream& m_stream;
     Queue<Attachment>& m_attachments;
+    size_t m_max_size_of_next_value { NumericLimits<size_t>::max() };
 };
 
 template<Arithmetic T>
@@ -277,6 +285,16 @@ template<typename T>
 ErrorOr<T> Decoder::decode()
 {
     return IPC::decode<T>(*this);
+}
+
+template<typename T>
+ErrorOr<T> Decoder::decode_with_max_size(size_t max_size)
+{
+    // NB: Decoding a string, byte buffer or vector starts with decode_size(), which checks the size against this. The
+    //     bound ends with the value, so it never applies to anything decoded after it.
+    m_max_size_of_next_value = max_size;
+    ScopeGuard reset_max_size = [&] { m_max_size_of_next_value = NumericLimits<size_t>::max(); };
+    return decode<T>();
 }
 
 }

@@ -120,6 +120,7 @@ pub struct Decoder<'a> {
     bytes: &'a [u8],
     position: usize,
     attachments: VecDeque<Attachment>,
+    max_size_of_next_value: usize,
 }
 
 impl<'a> Decoder<'a> {
@@ -128,6 +129,7 @@ impl<'a> Decoder<'a> {
             bytes,
             position: 0,
             attachments: attachments.into_iter().collect(),
+            max_size_of_next_value: usize::MAX,
         }
     }
 
@@ -143,11 +145,26 @@ impl<'a> Decoder<'a> {
     }
 
     pub fn decode_size(&mut self) -> Result<usize, DecodeError> {
+        let max_size = std::mem::replace(&mut self.max_size_of_next_value, usize::MAX);
         let size = self.decode::<u32>()? as usize;
+        if size > max_size {
+            return Err(DecodeError::SizeTooLarge(size));
+        }
         if size > self.remaining_bytes().saturating_add(self.attachments.len()) {
             return Err(DecodeError::UnexpectedEnd);
         }
         Ok(size)
+    }
+
+    /// Decodes a string, byte buffer or vector, which goes as its size and then its contents, refusing one larger than
+    /// `max_size` before decoding its contents.
+    pub fn decode_with_max_size<T: Decode>(&mut self, max_size: usize) -> Result<T, DecodeError> {
+        // NB: Decoding a string, byte buffer or vector starts with decode_size(), which checks the size against this.
+        //     The bound ends with the value, so it never applies to anything decoded after it.
+        self.max_size_of_next_value = max_size;
+        let value = self.decode();
+        self.max_size_of_next_value = usize::MAX;
+        value
     }
 
     pub fn take_attachment(&mut self) -> Result<Attachment, DecodeError> {
@@ -620,6 +637,24 @@ mod tests {
         let decoded = decoder.decode().unwrap();
         assert!(decoder.is_at_end());
         (decoded, bytes)
+    }
+
+    #[test]
+    fn sizes_are_bounded_before_contents_and_only_within_the_value() {
+        let mut encoder = Encoder::new();
+        encoder.encode("123456789").unwrap();
+        encoder.encode(&None::<String>).unwrap();
+        encoder.encode("123456789").unwrap();
+        let (bytes, _) = encoder.finish();
+        let mut decoder = Decoder::new(&bytes, []);
+        assert_eq!(
+            decoder.decode_with_max_size::<String>(8),
+            Err(DecodeError::SizeTooLarge(9))
+        );
+        let mut decoder = Decoder::new(&bytes, []);
+        assert_eq!(decoder.decode_with_max_size::<String>(9).unwrap(), "123456789");
+        assert_eq!(decoder.decode_with_max_size::<Option<String>>(4).unwrap(), None);
+        assert_eq!(decoder.decode::<String>().unwrap(), "123456789");
     }
 
     #[test]

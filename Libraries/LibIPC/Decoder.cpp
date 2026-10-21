@@ -22,7 +22,10 @@ namespace IPC {
 
 ErrorOr<size_t> Decoder::decode_size()
 {
+    auto max_size = exchange(m_max_size_of_next_value, NumericLimits<size_t>::max());
     auto size = static_cast<size_t>(TRY(decode<u32>()));
+    if (size > max_size)
+        return Error::from_string_literal("IPC decode: Size exceeds the maximum");
 
     // Every element of a string or container takes at least one byte or one attachment of the message.
     if (size > m_stream.remaining() + m_attachments.size())

@@ -185,3 +185,42 @@ fn server_flushes_posted_replies_before_returning_on_errors() {
         assert!(client.receive().is_none());
     }
 }
+
+#[test]
+fn generated_encoders_refuse_what_decoders_refuse() {
+    use crate::ipc_types::{RustEcho_Record, RustEcho_Shape};
+    use libipc_rust::wire::{ByteString, Utf8String};
+    use libipc_rust::{EncodeError, Encoder};
+
+    let record = || RustEcho_Record {
+        id: 7,
+        label: Utf8String::from("label"),
+        name: ByteString(b"name".to_vec()),
+        bytes: b"bytes".to_vec(),
+        values: vec![1, 2, 3],
+        scale: 1.5,
+        shape: RustEcho_Shape::Square,
+    };
+    assert!(Encoder::new().encode(&record()).is_ok());
+    let invalidations: [fn(&mut RustEcho_Record); 7] = [
+        |record| record.id = 0,
+        |record| record.label = Utf8String::from("123456789"),
+        |record| record.name = ByteString(b"123456789".to_vec()),
+        |record| record.bytes = b"123456789".to_vec(),
+        |record| record.values.push(4),
+        |record| record.scale = f64::NAN,
+        |record| record.scale = f64::INFINITY,
+    ];
+    for invalidate in invalidations {
+        let mut invalid = record();
+        invalidate(&mut invalid);
+        assert!(matches!(
+            Encoder::new().encode(&invalid),
+            Err(EncodeError::InvalidValue(_))
+        ));
+        assert!(matches!(
+            Encoder::new().encode_owned(invalid),
+            Err(EncodeError::InvalidValue(_))
+        ));
+    }
+}

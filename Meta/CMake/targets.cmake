@@ -25,6 +25,8 @@ function(ladybird_generate_export_header name fs_name)
         set(base_name BASE_NAME ${EXPORT_HEADER_BASE_NAME})
     endif()
     generate_export_header(${name} ${base_name} EXPORT_MACRO_NAME ${fs_name_upper}_API EXPORT_FILE_NAME "Export.h")
+    # NB: The IPC compiler exports the codecs it generates for the library with this.
+    set_target_properties(${name} PROPERTIES LADYBIRD_EXPORT_MACRO ${fs_name_upper}_API)
 endfunction()
 
 # What the objects of every library are compiled and linked with, whether the library is a target of its own or an

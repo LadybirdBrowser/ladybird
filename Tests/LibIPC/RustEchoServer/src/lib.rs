@@ -24,11 +24,15 @@ use libipc_rust::{
     transport::TransportMachPort as Transport,
 };
 
-include!(env!("RUST_ECHO_SERVER_ENDPOINT"));
+// NB: The generated code names the types RustEchoServer.ipc declares as crate::ipc_types::Namespace_Name.
+mod ipc_types {
+    include!(env!("RUST_ECHO_SERVER_ENDPOINT"));
+}
 
+use ipc_types::rust_echo_server;
 use rust_echo_server::{
     Message,
-    messages::{EchoFilesResponse, EchoResponse, EchoUtf8Response, WriteToFileResponse},
+    messages::{EchoFilesResponse, EchoResponse, EchoUtf8Response, EchoValueResponse, WriteToFileResponse},
 };
 
 #[cfg(test)]
@@ -73,11 +77,13 @@ fn serve(transport: Transport) {
                     bytes: request.bytes,
                 },
             ),
+            Message::EchoValue(request) => reply(&transport, EchoValueResponse { value: request.value }),
             Message::Stop(_) => break,
             Message::EchoResponse(_)
             | Message::WriteToFileResponse(_)
             | Message::EchoFilesResponse(_)
-            | Message::EchoUtf8Response(_) => {
+            | Message::EchoUtf8Response(_)
+            | Message::EchoValueResponse(_) => {
                 eprintln!("RustEchoServer: Refusing a response sent to it");
                 break;
             }

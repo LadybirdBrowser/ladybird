@@ -4,12 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+// NB: The generated header comes first, so that it declares its codecs before anything else in LibIPC is seen.
+#include <RustEchoServerEndpoint.h>
+
+#include <AK/Function.h>
+#include <AK/MemoryStream.h>
 #include <LibCore/System.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
-#include <RustEchoServerEndpoint.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <math.h>
 #include <sys/resource.h>
 
 // NB: Starts the Rust endpoint, which the IPC compiler generated Rust code for from the same definition as the C++ code
@@ -214,4 +221,119 @@ TEST_CASE(cpp_and_rust_decoders_accept_trailing_bytes)
     MUST(transport->post_message(move(bytes), outgoing_attachments));
     auto response = receive<Messages::RustEchoServer::EchoUtf8Response>(*transport);
     EXPECT_EQ(response->text(), "hello"sv);
+}
+
+static RustEcho::Record make_record()
+{
+    return RustEcho::Record {
+        .id = 7,
+        .label = "label"_string,
+        .name = "name"sv,
+        .bytes = MUST(ByteBuffer::copy("bytes"sv.bytes())),
+        .values = { 1, 2, 3 },
+        .scale = 1.5,
+        .shape = RustEcho::Shape::Square,
+    };
+}
+
+static IPC::MessageDataType encode_value(RustEcho::Value const& value)
+{
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder { buffer };
+    MUST(encoder.encode(value));
+    return buffer.take_data();
+}
+
+static void expect_refused_by_cpp_and_rust(ReadonlyBytes message)
+{
+    Queue<IPC::Attachment> attachments;
+    EXPECT(RustEchoServerEndpoint::decode_message(message, attachments).is_error());
+
+    auto transport = start_server();
+    Vector<IPC::Attachment> outgoing_attachments;
+    IPC::MessageDataType bytes;
+    bytes.append(message.data(), message.size());
+    MUST(transport->post_message(move(bytes), outgoing_attachments));
+    // NB: A valid message follows, so the Rust end either closes the connection or answers it, and never leaves this
+    //     waiting.
+    send(*transport, Messages::RustEchoServer::EchoValue::static_encode(RustEcho::Value { 1u }));
+    auto answered = false;
+    auto should_shutdown = IPC::Transport::ShouldShutdown::No;
+    while (!answered && should_shutdown == IPC::Transport::ShouldShutdown::No) {
+        transport->wait_until_readable();
+        should_shutdown = transport->read_as_many_messages_as_possible_without_blocking([&](auto&&) { answered = true; });
+    }
+    if (answered)
+        FAIL("The Rust endpoint answered a message after one it should have refused");
+}
+
+// NB: Encodes a message with a record field by field, past the generated encoder, which refuses invalid records.
+static IPC::MessageDataType encode_record_message_unchecked(RustEcho::Record const& record)
+{
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder { buffer };
+    MUST(encoder.encode(Messages::RustEchoServer::EchoValue::ENDPOINT_MAGIC));
+    MUST(encoder.encode(Messages::RustEchoServer::EchoValue::static_message_id()));
+    MUST(encoder.encode<u8>(0));
+    MUST(encoder.encode(record.id));
+    MUST(encoder.encode(record.label));
+    MUST(encoder.encode(record.name));
+    MUST(encoder.encode(record.bytes));
+    MUST(encoder.encode(record.values));
+    MUST(encoder.encode(record.scale));
+    MUST(encoder.encode(record.shape));
+    return buffer.take_data();
+}
+
+TEST_CASE(declared_types_make_a_round_trip_through_rust)
+{
+    auto transport = start_server();
+    for (RustEcho::Value value : { RustEcho::Value { make_record() }, RustEcho::Value { 42u }, RustEcho::Value { RustEcho::Shape::Circle } }) {
+        send(*transport, Messages::RustEchoServer::EchoValue::static_encode(value));
+        auto response = receive<Messages::RustEchoServer::EchoValueResponse>(*transport);
+        EXPECT_EQ(encode_value(response->value()), encode_value(value));
+    }
+}
+
+TEST_CASE(declared_types_are_checked_by_cpp_and_rust)
+{
+    EXPECT_EQ(encode_record_message_unchecked(make_record()), MUST(Messages::RustEchoServer::EchoValue::static_encode(RustEcho::Value { make_record() })).take_data());
+
+    Vector<Function<void(RustEcho::Record&)>> invalidations;
+    invalidations.append([](auto& record) { record.id = 0; });
+    invalidations.append([](auto& record) { record.label = "123456789"_string; });
+    invalidations.append([](auto& record) { record.name = "123456789"sv; });
+    invalidations.append([](auto& record) { record.bytes = MUST(ByteBuffer::copy("123456789"sv.bytes())); });
+    invalidations.append([](auto& record) { record.values.append(4); });
+    invalidations.append([](auto& record) { record.scale = NAN; });
+    invalidations.append([](auto& record) { record.scale = INFINITY; });
+    for (auto& invalidate : invalidations) {
+        auto record = make_record();
+        invalidate(record);
+        EXPECT(Messages::RustEchoServer::EchoValue::static_encode(RustEcho::Value { record }).is_error());
+        expect_refused_by_cpp_and_rust(encode_record_message_unchecked(record));
+    }
+
+    // NB: The variant's index follows the endpoint magic and message ID, and a shape follows its index.
+    auto message = MUST(Messages::RustEchoServer::EchoValue::static_encode(RustEcho::Value { RustEcho::Shape::Square })).take_data();
+    message[9] = 2;
+    expect_refused_by_cpp_and_rust(message);
+    message[8] = 3;
+    message[9] = 0;
+    expect_refused_by_cpp_and_rust(message);
+}
+
+TEST_CASE(declared_enums_are_checked_wherever_they_are_encoded)
+{
+    // NB: This file encodes and decodes the enum itself, which must use its generated codec and not LibIPC's codec
+    //     for any enum, which takes every value.
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder { buffer };
+    EXPECT(encoder.encode(static_cast<RustEcho::Shape>(2)).is_error());
+
+    Array<u8, 1> invalid_shape { 2 };
+    FixedMemoryStream stream { invalid_shape.span() };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+    EXPECT(decoder.decode<RustEcho::Shape>().is_error());
 }

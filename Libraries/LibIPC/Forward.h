@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Concepts.h>
 #include <AK/Error.h>
 #include <AK/Platform.h>
 
@@ -42,6 +43,14 @@ template<typename T>
 ErrorOr<void> encode(Encoder&, T const&);
 
 template<typename T>
+ErrorOr<T> decode(Decoder&);
+
+// NB: Declared here so that a codec specialized for one enum, wherever it is declared, specializes these and not the
+//     templates above.
+template<Enum T>
+ErrorOr<void> encode(Encoder&, T const&);
+
+template<Enum T>
 ErrorOr<T> decode(Decoder&);
 
 using MessageDataType = Vector<u8, 1024>;
