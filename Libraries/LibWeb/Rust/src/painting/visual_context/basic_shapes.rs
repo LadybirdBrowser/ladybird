@@ -357,10 +357,14 @@ fn circle_to_path(
     let radius_px = resolve_circle_size(radius.data(), center, translated_reference_box).to_float();
     let center_x = center.x.to_float();
     let center_y = center.y.to_float();
+    // NB: The circle is traced in quarter arcs from its rightmost point, as SVG traces a <circle>, so that both
+    //     rasterize alike.
     let mut path = PathBuilder::new();
-    path.move_to(center_x, center_y + radius_px);
-    path.arc_to(center_x, center_y - radius_px, radius_px, true, true);
-    path.arc_to(center_x, center_y + radius_px, radius_px, true, true);
+    path.move_to(center_x + radius_px, center_y);
+    path.arc_to(center_x, center_y + radius_px, radius_px, false, true);
+    path.arc_to(center_x - radius_px, center_y, radius_px, false, true);
+    path.arc_to(center_x, center_y - radius_px, radius_px, false, true);
+    path.arc_to(center_x + radius_px, center_y, radius_px, false, true);
     path.build()
 }
 
@@ -384,10 +388,14 @@ fn ellipse_to_path(
     let center_y = center.y.to_float();
     let radius_x = size.width.to_float();
     let radius_y = size.height.to_float();
+    // NB: The ellipse is traced in quarter arcs from its rightmost point, as SVG traces an <ellipse>, so that both
+    //     rasterize alike.
     let mut path = PathBuilder::new();
-    path.move_to(center_x, center_y + radius_y);
-    path.elliptical_arc_to(center_x, center_y - radius_y, radius_x, radius_y, 0.0, true, true);
-    path.elliptical_arc_to(center_x, center_y + radius_y, radius_x, radius_y, 0.0, true, true);
+    path.move_to(center_x + radius_x, center_y);
+    path.elliptical_arc_to(center_x, center_y + radius_y, radius_x, radius_y, 0.0, false, true);
+    path.elliptical_arc_to(center_x - radius_x, center_y, radius_x, radius_y, 0.0, false, true);
+    path.elliptical_arc_to(center_x, center_y - radius_y, radius_x, radius_y, 0.0, false, true);
+    path.elliptical_arc_to(center_x + radius_x, center_y, radius_x, radius_y, 0.0, false, true);
     path.build()
 }
 
