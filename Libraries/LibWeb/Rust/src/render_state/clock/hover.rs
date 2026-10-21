@@ -50,8 +50,8 @@ unsafe extern "C" {
     /// Hands the render clock a pointer move over the compositor context of a same-process iframe's document, as the
     /// compositor hands it those over the page's: the context, the position in the context's device pixels, or none
     /// where the pointer left it, the buttons held, whether the compositor scrolled since the frame, and the input
-    /// event id. Any thread may call it.
-    fn web_render_clock_hand_pointer_move(
+    /// event id. Any thread may call it, and it ignores a context it has no lane for.
+    safe fn web_render_clock_hand_pointer_move(
         context: u64,
         has_position: bool,
         x: f32,
@@ -238,18 +238,15 @@ impl HoverPlan {
 /// pixels, or out of it.
 fn hand_pointer_to_context(context: u64, position: Option<FloatPoint>, pointer: PendingPointer) {
     let position_or_origin = position.unwrap_or(FloatPoint { x: 0.0, y: 0.0 });
-    // SAFETY: The render clock takes these arguments from any thread.
-    unsafe {
-        web_render_clock_hand_pointer_move(
-            context,
-            position.is_some(),
-            position_or_origin.x,
-            position_or_origin.y,
-            pointer.buttons,
-            pointer.scrolled_since_frame,
-            pointer.input_event_id,
-        );
-    }
+    web_render_clock_hand_pointer_move(
+        context,
+        position.is_some(),
+        position_or_origin.x,
+        position_or_origin.y,
+        pointer.buttons,
+        pointer.scrolled_since_frame,
+        pointer.input_event_id,
+    );
 }
 
 /// Where the render clock heard the pointer went.
@@ -492,7 +489,7 @@ fn monotonic_milliseconds() -> f64 {
         nanoseconds: i64,
     }
     unsafe extern "C" {
-        fn clock_gettime(clock: i32, time: *mut Timespec) -> i32;
+        safe fn clock_gettime(clock: i32, time: &mut Timespec) -> i32;
     }
     #[cfg(target_os = "macos")]
     const CLOCK_MONOTONIC: i32 = 6;
@@ -502,8 +499,7 @@ fn monotonic_milliseconds() -> f64 {
         seconds: 0,
         nanoseconds: 0,
     };
-    // SAFETY: `time` is valid for writes.
-    unsafe { clock_gettime(CLOCK_MONOTONIC, &raw mut time) };
+    clock_gettime(CLOCK_MONOTONIC, &mut time);
     time.seconds as f64 * 1000.0 + time.nanoseconds as f64 / 1_000_000.0
 }
 

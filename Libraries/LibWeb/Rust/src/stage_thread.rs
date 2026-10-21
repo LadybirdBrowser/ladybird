@@ -35,18 +35,17 @@ use std::thread::Thread;
 #[cfg(feature = "thread-sanitizer")]
 pub(crate) mod tsan {
     unsafe extern "C" {
-        fn __tsan_acquire(address: *mut std::ffi::c_void);
-        fn __tsan_release(address: *mut std::ffi::c_void);
+        // NB: The TSan runtime only uses the address as a synchronization key, and never reads or writes through it.
+        safe fn __tsan_acquire(address: *mut std::ffi::c_void);
+        safe fn __tsan_release(address: *mut std::ffi::c_void);
     }
 
     pub(crate) fn release(key: &std::sync::atomic::AtomicBool) {
-        // SAFETY: The TSan runtime only uses the address as a synchronization key.
-        unsafe { __tsan_release(std::ptr::from_ref(key).cast_mut().cast()) }
+        __tsan_release(std::ptr::from_ref(key).cast_mut().cast());
     }
 
     pub(crate) fn acquire(key: &std::sync::atomic::AtomicBool) {
-        // SAFETY: The TSan runtime only uses the address as a synchronization key.
-        unsafe { __tsan_acquire(std::ptr::from_ref(key).cast_mut().cast()) }
+        __tsan_acquire(std::ptr::from_ref(key).cast_mut().cast());
     }
 }
 
