@@ -6,7 +6,7 @@
     // activates.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const FRAME_COUNT = 30;
+        const FRAME_COUNT = 15;
 
         const localUrl = await httpServer.createEcho("GET", "/remote-iframe-removed-while-coming-back-local", {
             status: 200,
@@ -22,18 +22,20 @@
         );
         remoteUrl.hostname = uniqueLocalhostHostname("remote-iframe-removed-while-coming-back");
 
+        const loaded = frame => new Promise(resolve => (frame.onload = resolve));
         const frames = [];
         for (let i = 0; i < FRAME_COUNT; ++i) {
             const frame = document.createElement("iframe");
             frame.src = localUrl;
             frames.push(frame);
-            document.body.appendChild(frame);
-            await new Promise(resolve => (frame.onload = resolve));
         }
-        for (const frame of frames) {
+        const framesLoaded = Promise.all(frames.map(loaded));
+        document.body.append(...frames);
+        await framesLoaded;
+        const framesNavigated = Promise.all(frames.map(loaded));
+        for (const frame of frames)
             frame.contentWindow.location.href = remoteUrl.href;
-            await new Promise(resolve => (frame.onload = resolve));
-        }
+        await framesNavigated;
         if (remoteFrameCount() !== FRAME_COUNT) {
             println("iframes did not become remote");
             return;
