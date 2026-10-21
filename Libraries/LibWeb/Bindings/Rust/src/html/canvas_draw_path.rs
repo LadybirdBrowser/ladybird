@@ -1,0 +1,138 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawpath
+
+use libgfx_rust::path::OwnedPath;
+use libgfx_rust::{AffineTransform, FloatPoint, WindingRule};
+
+use super::path2d::Path2D;
+use crate::bindings::interface::Ref;
+use crate::bindings::{CallContext, WebIdlResult};
+use crate::canvas_2d::context::{CanvasKind, RenderingContext2D};
+use crate::canvas_2d::float;
+
+/// https://html.spec.whatwg.org/multipage/canvas.html#canvasfillrule
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CanvasFillRule {
+    Nonzero,
+    Evenodd,
+}
+
+impl From<CanvasFillRule> for WindingRule {
+    fn from(fill_rule: CanvasFillRule) -> Self {
+        match fill_rule {
+            CanvasFillRule::Nonzero => Self::Nonzero,
+            CanvasFillRule::Evenodd => Self::EvenOdd,
+        }
+    }
+}
+
+/// The path of a Path2D, which nothing changes while a context draws with it, as no script runs meanwhile.
+fn path_of(path: &Ref<Path2D>) -> &OwnedPath {
+    // SAFETY: No script runs while the context uses the path.
+    unsafe { path.path_unguarded() }
+}
+
+/// Whether the point, in the coordinates that the transform maps from, is inside the path.
+fn is_point_in_path_internal(
+    path: &OwnedPath,
+    transform: AffineTransform,
+    x: f64,
+    y: f64,
+    fill_rule: CanvasFillRule,
+) -> bool {
+    let mut point = FloatPoint {
+        x: float(x),
+        y: float(y),
+    };
+    if let Some(inverse_transform) = transform.inverse() {
+        point = inverse_transform.map_point(point);
+    }
+    path.contains(point.x, point.y, WindingRule::from(fill_rule) as i32)
+}
+
+impl<K: CanvasKind> RenderingContext2D<K> {
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-beginpath
+    pub(crate) fn begin_path(&self, _: &mut CallContext) -> WebIdlResult<()> {
+        self.clear_path();
+        Ok(())
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fill
+    pub(crate) fn fill(&self, _: &mut CallContext, fill_rule: CanvasFillRule) -> WebIdlResult<()> {
+        let path = self.path().clone();
+        self.fill_internal(&path, fill_rule.into());
+        Ok(())
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fill
+    pub(crate) fn fill_path2d(
+        &self,
+        _: &mut CallContext,
+        path: Ref<Path2D>,
+        fill_rule: CanvasFillRule,
+    ) -> WebIdlResult<()> {
+        self.fill_internal(path_of(&path), fill_rule.into());
+        Ok(())
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-stroke
+    pub(crate) fn stroke(&self, _: &mut CallContext) -> WebIdlResult<()> {
+        let path = self.path().clone();
+        self.stroke_internal(&path);
+        Ok(())
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-stroke
+    pub(crate) fn stroke_path2d(&self, _: &mut CallContext, path: Ref<Path2D>) -> WebIdlResult<()> {
+        self.stroke_internal(path_of(&path));
+        Ok(())
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-clip
+    pub(crate) fn clip(&self, _: &mut CallContext, fill_rule: CanvasFillRule) -> WebIdlResult<()> {
+        let path = self.path().clone();
+        self.clip_internal(&path, fill_rule.into());
+        Ok(())
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-clip
+    pub(crate) fn clip_path2d(
+        &self,
+        _: &mut CallContext,
+        path: Ref<Path2D>,
+        fill_rule: CanvasFillRule,
+    ) -> WebIdlResult<()> {
+        self.clip_internal(path_of(&path), fill_rule.into());
+        Ok(())
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-ispointinpath
+    pub(crate) fn is_point_in_path(
+        &self,
+        _: &mut CallContext,
+        x: f64,
+        y: f64,
+        fill_rule: CanvasFillRule,
+    ) -> WebIdlResult<bool> {
+        let transform = self.drawing_state().transform;
+        Ok(is_point_in_path_internal(&self.path(), transform, x, y, fill_rule))
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-ispointinpath
+    pub(crate) fn is_point_in_path2d(
+        &self,
+        _: &mut CallContext,
+        path: Ref<Path2D>,
+        x: f64,
+        y: f64,
+        fill_rule: CanvasFillRule,
+    ) -> WebIdlResult<bool> {
+        let transform = self.drawing_state().transform;
+        Ok(is_point_in_path_internal(path_of(&path), transform, x, y, fill_rule))
+    }
+}

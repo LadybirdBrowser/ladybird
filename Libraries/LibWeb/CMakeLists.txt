@@ -439,20 +439,11 @@ set(SOURCES
     HTML/BeforeUnloadEvent.cpp
     HTML/BroadcastChannel.cpp
     HTML/BrowsingContext.cpp
-    HTML/Canvas/AbstractCanvasMixin.cpp
     HTML/Canvas/Canvas2DContextBase.cpp
-    HTML/Canvas/Canvas2DRecorder.cpp
     HTML/Canvas/CanvasHost.cpp
     HTML/Canvas/CanvasDrawImage.cpp
-    HTML/Canvas/CanvasFillStrokeStyles.cpp
-    HTML/Canvas/CanvasPath.cpp
-    HTML/Canvas/CanvasState.cpp
-    HTML/Canvas/CanvasTextDrawingStyles.cpp
-    HTML/Canvas/DrawingState.cpp
     HTML/Canvas/RemoteCanvas2DTransportFFI.cpp
     HTML/Canvas/SerializeBitmap.cpp
-    HTML/CanvasGradient.cpp
-    HTML/CanvasPattern.cpp
     HTML/CanvasRenderingContext2D.cpp
     HTML/CheckUnloadingCanceledState.cpp
     HTML/CloseEvent.cpp
@@ -627,7 +618,6 @@ set(SOURCES
     HTML/Parser/HTMLTokenizer.cpp
     HTML/Parser/IncrementalDocumentParser.cpp
     HTML/Parser/SpeculativeHTMLParser.cpp
-    HTML/Path2D.cpp
     HTML/Plugin.cpp
     HTML/PluginArray.cpp
     HTML/PolicyContainers.cpp
@@ -678,7 +668,6 @@ set(SOURCES
     HTML/TagNames.cpp
     HTML/TextDirective.cpp
     HTML/TextDirectiveGenerator.cpp
-    HTML/TextMetrics.cpp
     HTML/TextTrack.cpp
     HTML/TextTrackCue.cpp
     HTML/TextTrackCueList.cpp

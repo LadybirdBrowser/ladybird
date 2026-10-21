@@ -14,32 +14,9 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(CanvasRenderingContext2D);
-
-GC::Ref<CanvasRenderingContext2D> CanvasRenderingContext2D::create(HTMLCanvasElement& element, HTML::CanvasRenderingContext2DSettings context_attributes)
+GC::Ref<CanvasRenderingContext2D> CanvasRenderingContext2D::create(HTMLCanvasElement& element, CanvasRenderingContext2DSettings const& context_attributes)
 {
-    auto& realm = HTML::relevant_realm(element);
-    auto context = realm.create<CanvasRenderingContext2D>(realm, element, context_attributes);
-    return context;
-}
-
-CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element, HTML::CanvasRenderingContext2DSettings context_attributes)
-    : Canvas2DContextBase(realm, element.bitmap_size_for_canvas(), move(context_attributes))
-    , m_element(element)
-{
-}
-
-CanvasRenderingContext2D::~CanvasRenderingContext2D() = default;
-
-void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_element);
-}
-
-GC::Ref<HTMLCanvasElement> CanvasRenderingContext2D::canvas_for_binding() const
-{
-    return *m_element;
+    return static_cast<CanvasRenderingContext2D&>(Canvas2DContextBase::create(element, element, false, context_attributes));
 }
 
 }

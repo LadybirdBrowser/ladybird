@@ -12,6 +12,7 @@ use core::ptr::NonNull;
 
 use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, Transport};
 use libcompositing_rust::display_list::commands::{CanvasId, FontResourceId, ImageFrameResourceId};
+use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{IntRect, IntSize};
 
 unsafe extern "C" {
@@ -34,7 +35,17 @@ unsafe extern "C" {
         height: i32,
         alpha_type: AlphaType,
     ) -> *mut c_void;
+    fn web_canvas_2d_bitmap_ref(bitmap: *mut c_void);
     fn web_canvas_2d_bitmap_unref(bitmap: *mut c_void);
+    fn web_canvas_2d_bitmap_size_in_bytes(bitmap: *mut c_void) -> usize;
+    fn web_canvas_2d_image_frame_from_bitmap(bitmap: *mut c_void) -> *mut c_void;
+    fn web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(
+        bitmap: *mut c_void,
+        out_pixels: *mut *const u8,
+        out_pitch: *mut usize,
+        out_width: *mut i32,
+        out_height: *mut i32,
+    ) -> bool;
 }
 
 /// A Gfx::Font that C++ lends.
@@ -49,11 +60,63 @@ pub(crate) struct LentVideoFrameHold(pub(crate) NonNull<c_void>);
 /// A Gfx::Bitmap, one reference to which the value owns.
 pub(crate) struct Bitmap(NonNull<c_void>);
 
+/// The pixels of a bitmap that are RGBA8888 and unpremultiplied, as a readback of a canvas gives them: `height` rows of
+/// `width` pixels, `pitch` bytes apart.
+pub(crate) struct UnpremultipliedRgbaPixels {
+    pub(crate) first_row: NonNull<u8>,
+    pub(crate) pitch: usize,
+    pub(crate) width: i32,
+    pub(crate) height: i32,
+}
+
+// SAFETY (of every call below): The value owns a reference to the bitmap.
 impl Bitmap {
     pub(crate) fn into_raw(self) -> *mut c_void {
         let bitmap = self.0.as_ptr();
         core::mem::forget(self);
         bitmap
+    }
+
+    /// A frame of the bitmap, which the frame keeps alive.
+    pub(crate) fn into_image_frame(self) -> ImageFrameHandle {
+        let frame = unsafe { web_canvas_2d_image_frame_from_bitmap(self.into_raw()) };
+        // SAFETY: LibWeb hands over a frame that it allocated with new, which took over the reference to the bitmap.
+        unsafe { ImageFrameHandle::adopt(frame) }
+    }
+
+    pub(crate) fn size_in_bytes(&self) -> usize {
+        unsafe { web_canvas_2d_bitmap_size_in_bytes(self.0.as_ptr()) }
+    }
+
+    /// The pixels, which stay valid while the value lives, if the bitmap is RGBA8888 and unpremultiplied.
+    pub(crate) fn unpremultiplied_rgba_pixels(&self) -> Option<UnpremultipliedRgbaPixels> {
+        let (mut first_row, mut pitch, mut width, mut height) = (core::ptr::null(), 0, 0, 0);
+        let is_rgba = unsafe {
+            web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(
+                self.0.as_ptr(),
+                &raw mut first_row,
+                &raw mut pitch,
+                &raw mut width,
+                &raw mut height,
+            )
+        };
+        if !is_rgba {
+            return None;
+        }
+        Some(UnpremultipliedRgbaPixels {
+            first_row: NonNull::new(first_row.cast_mut()).expect("a bitmap has pixels"),
+            pitch,
+            width,
+            height,
+        })
+    }
+}
+
+impl Clone for Bitmap {
+    fn clone(&self) -> Self {
+        // SAFETY: The value owns a reference to the bitmap, so it is live.
+        unsafe { web_canvas_2d_bitmap_ref(self.0.as_ptr()) };
+        Self(self.0)
     }
 }
 

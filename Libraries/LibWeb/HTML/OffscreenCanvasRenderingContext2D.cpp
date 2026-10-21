@@ -9,48 +9,17 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(OffscreenCanvasRenderingContext2D);
+// Defined in Bindings/Rust/src/canvas_2d/exports.rs.
+extern "C" void web_canvas_2d_context_replace_bitmap_with_cleared_bitmap(void* context);
 
-GC::Ref<OffscreenCanvasRenderingContext2D> OffscreenCanvasRenderingContext2D::create(OffscreenCanvas& offscreen_canvas, HTML::CanvasRenderingContext2DSettings context_attributes)
+GC::Ref<OffscreenCanvasRenderingContext2D> OffscreenCanvasRenderingContext2D::create(OffscreenCanvas& offscreen_canvas, CanvasRenderingContext2DSettings const& context_attributes)
 {
-    auto& realm = offscreen_canvas.relevant_global_object().shape().realm();
-    return realm.create<OffscreenCanvasRenderingContext2D>(realm, offscreen_canvas, move(context_attributes));
-}
-
-OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(JS::Realm& realm, OffscreenCanvas& offscreen_canvas, HTML::CanvasRenderingContext2DSettings context_attributes)
-    : Canvas2DContextBase(realm, offscreen_canvas.bitmap_size_for_canvas(), move(context_attributes))
-    , m_canvas(offscreen_canvas)
-{
-}
-
-OffscreenCanvasRenderingContext2D::~OffscreenCanvasRenderingContext2D() = default;
-
-void OffscreenCanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_canvas);
-}
-
-CanvasHost& OffscreenCanvasRenderingContext2D::canvas_host() const
-{
-    return *m_canvas;
-}
-
-GC::Ref<OffscreenCanvas> OffscreenCanvasRenderingContext2D::canvas()
-{
-    return m_canvas;
+    return static_cast<OffscreenCanvasRenderingContext2D&>(Canvas2DContextBase::create(offscreen_canvas, offscreen_canvas, true, context_attributes));
 }
 
 void OffscreenCanvasRenderingContext2D::replace_bitmap_with_cleared_bitmap()
 {
-    m_cached_readback = nullptr;
-    m_origin_clean = true;
-    if (!has_backing_storage())
-        return;
-    if (auto* recorder = canvas_recorder()) {
-        recorder->clear_canvas(clear_color());
-        did_draw({ {}, m_size.to_type<float>() });
-    }
+    web_canvas_2d_context_replace_bitmap_with_cleared_bitmap(this);
 }
 
 }

@@ -16,7 +16,7 @@
 // which declares these functions in host.rs.
 //
 // The recorder holds a transport and a bitmap as a pointer that owns one reference. A font, a decoded image frame and a
-// video frame hold are lent for the call that takes them.
+// video frame hold are lent for the call that takes them. The pixels of a bitmap that is read back are read in place.
 
 namespace Web::HTML {
 
@@ -45,7 +45,11 @@ void web_canvas_2d_transport_record_present(void* transport);
 size_t web_canvas_2d_transport_pending_command_count(void const* transport);
 void web_canvas_2d_transport_flush(void* transport);
 void* web_canvas_2d_transport_read_back_pixels(void* transport, i32 x, i32 y, i32 width, i32 height, u8 alpha_type);
+void web_canvas_2d_bitmap_ref(void* bitmap);
 void web_canvas_2d_bitmap_unref(void* bitmap);
+size_t web_canvas_2d_bitmap_size_in_bytes(void* bitmap);
+bool web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(void* bitmap, u8 const** out_pixels, size_t* out_pitch, i32* out_width, i32* out_height);
+void* web_canvas_2d_image_frame_from_bitmap(void* bitmap);
 }
 
 static RemoteCanvas2DTransport& transport_from(void* transport)
@@ -121,9 +125,38 @@ void* web_canvas_2d_transport_read_back_pixels(void* transport, i32 x, i32 y, i3
     return &bitmap.release_nonnull().leak_ref();
 }
 
+void web_canvas_2d_bitmap_ref(void* bitmap)
+{
+    static_cast<Gfx::Bitmap*>(bitmap)->ref();
+}
+
 void web_canvas_2d_bitmap_unref(void* bitmap)
 {
     static_cast<Gfx::Bitmap*>(bitmap)->unref();
+}
+
+size_t web_canvas_2d_bitmap_size_in_bytes(void* bitmap)
+{
+    return static_cast<Gfx::Bitmap*>(bitmap)->size_in_bytes();
+}
+
+bool web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(void* bitmap, u8 const** out_pixels, size_t* out_pitch, i32* out_width, i32* out_height)
+{
+    auto const& typed_bitmap = *static_cast<Gfx::Bitmap const*>(bitmap);
+    if (typed_bitmap.format() != Gfx::BitmapFormat::RGBA8888 || typed_bitmap.alpha_type() != Gfx::AlphaType::Unpremultiplied)
+        return false;
+    *out_pixels = typed_bitmap.scanline_u8(0);
+    *out_pitch = typed_bitmap.pitch();
+    *out_width = typed_bitmap.width();
+    *out_height = typed_bitmap.height();
+    return true;
+}
+
+// A Gfx::DecodedImageFrame of the bitmap, allocated with new, which takes over the reference to the bitmap.
+void* web_canvas_2d_image_frame_from_bitmap(void* bitmap)
+{
+    NonnullRefPtr<Gfx::Bitmap const> adopted_bitmap = adopt_ref(*static_cast<Gfx::Bitmap*>(bitmap));
+    return new Gfx::DecodedImageFrame { move(adopted_bitmap) };
 }
 
 }

@@ -8,14 +8,74 @@
 
 use core::cell::Cell;
 
+use ak::Utf16String;
+use libcompositing_rust::display_list::canvas_2d::Compositing;
+use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, Recorder};
 use libcompositing_rust::display_list::commands::Canvas2DPatternRepetition;
-use libgfx_rust::AffineTransform;
 use libgfx_rust::image_frame::ImageFrameHandle;
+use libgfx_rust::{AffineTransform, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, ScalingMode};
 use libjs_rust::api::{Trace, Vm};
 
+use super::canvas_draw_image::CanvasImageSource;
+use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
-use crate::bindings::{CallContext, WebIdlResult};
+use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::canvas_2d::canvas::{CanvasImageSourceKind, capture_video_frame, video_transport};
+use crate::canvas_2d::host::LentVideoFrameHold;
 use crate::geometry::dom_matrix_read_only::{DOMMatrix2DInit, validate_and_fixup_2d};
+
+/// The repetition that a value of the repetition argument of createPattern() names exactly, if it names one.
+fn parse_repetition(repetition: &Utf16String) -> Option<Canvas2DPatternRepetition> {
+    [
+        ("repeat", Canvas2DPatternRepetition::Repeat),
+        ("repeat-x", Canvas2DPatternRepetition::RepeatX),
+        ("repeat-y", Canvas2DPatternRepetition::RepeatY),
+        ("no-repeat", Canvas2DPatternRepetition::NoRepeat),
+    ]
+    .into_iter()
+    .find(|(name, _)| *repetition == Utf16String::from_ascii(name.as_bytes()))
+    .map(|(_, repetition)| repetition)
+}
+
+/// A pattern outlives any one video frame, so it reads the frame back instead of holding it.
+fn read_back_current_video_frame(video: CppInterface) -> Option<ImageFrameHandle> {
+    let captured_frame = capture_video_frame(video)?;
+    let transport = video_transport(video)?;
+    let mut recorder = Recorder::new(transport);
+
+    let (width, height) = CanvasImageSourceKind::HTMLVideoElement.size(video);
+    let frame_rect = IntRect {
+        x: 0,
+        y: 0,
+        width,
+        height,
+    };
+    if width <= 0 || height <= 0 || !recorder.create_context(IntSize { width, height }, true) {
+        return None;
+    }
+
+    #[allow(
+        clippy::cast_precision_loss,
+        reason = "the rectangle is in floats, as the C++ had it"
+    )]
+    let destination = FloatRect::new(0.0, 0.0, width as f32, height as f32);
+    recorder.draw_video_frame(
+        &LentVideoFrameHold(captured_frame.hold()),
+        captured_frame.sink_handle,
+        captured_frame.generation,
+        destination,
+        frame_rect,
+        ScalingMode::NearestNeighbor,
+        &Compositing {
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Copy,
+            ..Compositing::default()
+        },
+    );
+    recorder.flush();
+    let bitmap = recorder.read_back_pixels(frame_rect, AlphaType::Premultiplied);
+    recorder.destroy_context();
+    Some(bitmap?.into_image_frame())
+}
 
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
@@ -43,6 +103,47 @@ impl CanvasPattern {
                 transform: Cell::new(None),
             },
         )
+    }
+
+    /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createpattern
+    pub(crate) fn create_for_image(
+        vm: &Vm,
+        image: &CanvasImageSource,
+        repetition: &Utf16String,
+    ) -> WebIdlResult<Option<Ref<Self>>> {
+        // 1. Let usability be the result of checking the usability of image.
+        // 2. If usability is bad, then return null.
+        // 3. Assert: usability is good.
+        if !image.check_usability()? {
+            return Ok(None);
+        }
+
+        // 4. If repetition is the empty string, then set it to "repeat".
+        // 5. If repetition is not identical to one of "repeat", "repeat-x", "repeat-y", or "no-repeat", then throw a
+        //    "SyntaxError" DOMException.
+        let repetition = if repetition.is_empty() {
+            Some(Canvas2DPatternRepetition::Repeat)
+        } else {
+            parse_repetition(repetition)
+        };
+        let Some(repetition) = repetition else {
+            return Err(Exception::syntax_error(Utf16String::from_ascii(
+                b"Repetition value is not valid",
+            )));
+        };
+
+        // 6. Let pattern be a new CanvasPattern object with the image image and the repetition behavior given by
+        //    repetition.
+        let frame = match *image {
+            CanvasImageSource::HTMLVideoElement(video) => read_back_current_video_frame(video),
+            _ => image.frame(),
+        };
+        let pattern = Self::create(vm, frame, repetition);
+
+        // FIXME: 7. If image is not origin-clean, then mark pattern as not origin-clean.
+
+        // 8. Return pattern.
+        Ok(Some(pattern))
     }
 
     pub(crate) fn image(&self) -> Option<&ImageFrameHandle> {

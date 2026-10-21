@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWebCommon/Bindings/PredefinedColorSpace.h>
 
 namespace Web::HTML {
 
@@ -22,7 +23,7 @@ static_assert(to_underlying(Bindings::PredefinedColorSpace::DisplayP3Linear) == 
 extern "C" {
 
 // Defined in Bindings/Rust/src/html/exports.rs.
-JSCompletion web_image_data_create(JSVM*, void* realm, u32 width, u32 height, bool has_color_space, Bindings::PredefinedColorSpace, void** out_image_data);
+JSCompletion web_image_data_create(JSVM*, void* realm, u32 width, u32 height, void** out_image_data);
 u32 web_image_data_width(void const* image_data);
 u32 web_image_data_height(void const* image_data);
 bool web_image_data_is_detached(void const* image_data);
@@ -48,11 +49,10 @@ JSCompletion web_image_data_deserialize_color_space(Bindings::RustSerializationR
 }
 }
 
-WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, u32 width, u32 height, Optional<Settings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, u32 width, u32 height)
 {
-    auto color_space = settings.has_value() ? settings->color_space : Optional<Bindings::PredefinedColorSpace> {};
     void* image_data = nullptr;
-    TRY(JS::HostABI::completion_from_abi<void>(web_image_data_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, width, height, color_space.has_value(), color_space.value_or(Bindings::PredefinedColorSpace::Srgb), &image_data)));
+    TRY(JS::HostABI::completion_from_abi<void>(web_image_data_create(JS::HostABI::vm_to_abi(realm.vm()), &realm, width, height, &image_data)));
     return GC::Ref { *static_cast<ImageData*>(image_data) };
 }
 
