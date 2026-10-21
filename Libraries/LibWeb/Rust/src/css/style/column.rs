@@ -7,8 +7,6 @@
 use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 
-use super::capacity::ShallowCapacityBytes;
-
 /// A directly indexed column whose missing rows all have the same value.
 ///
 /// NB: The default vacant value stays a type rather than a stored pointer. A column grows to the
@@ -89,12 +87,6 @@ impl<T> IntoIterator for Column<T> {
     }
 }
 
-impl<T> ShallowCapacityBytes for Column<T> {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        self.entries.shallow_capacity_bytes()
-    }
-}
-
 /// A directly indexed side table whose rows are invalidated by advancing a stamp instead of being
 /// cleared, and whose storage is borrowed from a thread-local pool instead of allocated.
 ///
@@ -148,10 +140,6 @@ impl StampedIndex {
             value,
         };
     }
-
-    fn capacity_bytes(&self) -> u64 {
-        self.rows.shallow_capacity_bytes()
-    }
 }
 
 thread_local! {
@@ -166,7 +154,6 @@ thread_local! {
 ///     many bytes across all of them, since a buffer grows to the highest element identity it
 ///     was ever asked for.
 const STAMPED_INDEX_POOL_LIMIT: usize = 8;
-const STAMPED_INDEX_POOL_BYTE_LIMIT: u64 = 4 << 20;
 
 /// A [`StampedIndex`] taken from the thread's pool on first write and returned when dropped.
 ///
@@ -193,10 +180,6 @@ impl PooledStampedIndex {
             })
             .insert(index, value);
     }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        self.0.as_ref().map_or(0, StampedIndex::capacity_bytes)
-    }
 }
 
 impl Drop for PooledStampedIndex {
@@ -206,10 +189,7 @@ impl Drop for PooledStampedIndex {
         };
         let _ = STAMPED_INDEX_POOL.try_with(|pool| {
             let mut pool = pool.borrow_mut();
-            let pooled_bytes: u64 = pool.iter().map(StampedIndex::capacity_bytes).sum();
-            if pool.len() < STAMPED_INDEX_POOL_LIMIT
-                && pooled_bytes + borrowed.capacity_bytes() <= STAMPED_INDEX_POOL_BYTE_LIMIT
-            {
+            if pool.len() < STAMPED_INDEX_POOL_LIMIT {
                 pool.push(borrowed);
             }
         });
@@ -232,12 +212,6 @@ impl PartialEq for BitColumn {
 }
 
 impl Eq for BitColumn {}
-
-impl ShallowCapacityBytes for BitColumn {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        self.capacity_bytes()
-    }
-}
 
 impl BitColumn {
     /// Set one bit and return whether its value changed and newly allocated bytes.
@@ -269,10 +243,6 @@ impl BitColumn {
 
     pub(super) fn clear(&mut self) {
         self.words.fill(0);
-    }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        self.words.shallow_capacity_bytes()
     }
 }
 
@@ -379,16 +349,6 @@ impl<P: PagedColumnPage> PagedColumn<P> {
     pub(super) fn directory_capacity(&self) -> usize {
         self.pages.capacity()
     }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        self.pages.shallow_capacity_bytes() + (self.page_count * size_of::<P>()) as u64
-    }
-}
-
-impl<P: PagedColumnPage> ShallowCapacityBytes for PagedColumn<P> {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        self.capacity_bytes()
-    }
 }
 
 impl<P: RemovablePagedColumnPage> PagedColumn<P> {
@@ -439,12 +399,6 @@ impl DerefMut for EpochColumn {
     }
 }
 
-impl ShallowCapacityBytes for EpochColumn {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        self.marks.shallow_capacity_bytes()
-    }
-}
-
 /// Advance a shared epoch, clearing every participating column on wrap.
 pub(super) fn advance_epoch(epoch: &mut u32, step: u32, columns: &mut [&mut EpochColumn]) -> u32 {
     if let Some(next) = epoch.checked_add(step) {
@@ -486,7 +440,6 @@ mod tests {
     #[test]
     fn stamped_index_costs_nothing_until_it_holds_a_row() {
         let index = PooledStampedIndex::default();
-        assert_eq!(index.capacity_bytes(), 0);
         assert_eq!(index.get(0), None);
     }
 

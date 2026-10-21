@@ -62,7 +62,7 @@ struct EngineEnvironment {
 #[derive(Clone)]
 struct MemoizedEnvironment {
     identity: u64,
-    written_values: Box<[RetainedStyleValueData]>,
+    _written_values: Box<[RetainedStyleValueData]>,
 }
 
 /// One substituted value and the written value whose identity names it. Keeping the written value
@@ -147,9 +147,6 @@ pub(super) struct CustomPropertyEnvironments {
     /// What a written value substitutes to for a property under an environment, by the written
     /// value's identity: the same declaration under the same environment substitutes alike.
     substitutions: HashMap<(usize, u16, u64), MemoizedSubstitution>,
-    /// Storage owned by map entries, maintained when entries change rather than rescanned
-    /// on every style publication.
-    nested_capacity_bytes: u64,
 }
 
 impl CustomPropertyEnvironments {
@@ -166,7 +163,6 @@ impl CustomPropertyEnvironments {
             return false;
         };
         let text: Arc<[u16]> = text.into();
-        self.nested_capacity_bytes += size_of_val(text.as_ref()) as u64;
         entry.insert(CustomPropertyName {
             raw: SharedUtf16FlyString(unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) }),
             text,
@@ -181,9 +177,7 @@ impl CustomPropertyEnvironments {
     /// Forget names whose atom identities are about to become available for reuse.
     pub(super) fn forget_names(&mut self, names: &[StyleAtomID]) {
         for name in names {
-            if let Some(name) = self.names.remove(name) {
-                self.nested_capacity_bytes -= size_of_val(name.text.as_ref()) as u64;
-            }
+            self.names.remove(name);
         }
     }
 
@@ -296,16 +290,13 @@ impl CustomPropertyEnvironments {
     ) {
         let environment = MemoizedEnvironment {
             identity,
-            written_values: written_values.into_boxed_slice(),
+            _written_values: written_values.into_boxed_slice(),
         };
-        self.nested_capacity_bytes += size_of_val(environment.written_values.as_ref()) as u64;
         match self.memo.entry(inputs) {
             Entry::Occupied(mut entry) => {
-                self.nested_capacity_bytes -= size_of_val(entry.get().written_values.as_ref()) as u64;
                 entry.insert(environment);
             }
             Entry::Vacant(entry) => {
-                self.nested_capacity_bytes += size_of_val(entry.key().cascaded.as_ref()) as u64;
                 entry.insert(environment);
             }
         }
@@ -405,12 +396,7 @@ impl CustomPropertyEnvironments {
         self.engine.retain(|&identity, _| is_live(identity));
         self.reads_viewport.retain(|&identity| is_live(identity));
         self.memo.retain(|inputs, environment| {
-            let retain = is_live(environment.identity) && (inputs.parent == 0 || is_live(inputs.parent));
-            if !retain {
-                self.nested_capacity_bytes -=
-                    (size_of_val(inputs.cascaded.as_ref()) + size_of_val(environment.written_values.as_ref())) as u64;
-            }
-            retain
+            is_live(environment.identity) && (inputs.parent == 0 || is_live(inputs.parent))
         });
         self.substitutions
             .retain(|&(_, _, environment), _| environment == 0 || is_live(environment));
@@ -418,40 +404,11 @@ impl CustomPropertyEnvironments {
             .retain(|&(overlay, base), &mut moved| is_live(overlay) && (base == 0 || is_live(base)) && is_live(moved));
         self.handed_down = handed_down;
     }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        (self.stores.capacity() * (size_of::<u64>() + size_of::<RetainedCustomPropertyStore>())
-            + self.engine.capacity() * (size_of::<u64>() + size_of::<EngineEnvironment>())
-            + self.inheritable.capacity() * 2 * size_of::<u64>()
-            + self.handed_down.capacity() * size_of::<u64>()
-            + self.reads_viewport.capacity() * size_of::<u64>()
-            + self.memo.capacity() * (size_of::<EnvironmentInputs>() + size_of::<MemoizedEnvironment>())
-            + self.overlays_moved.capacity() * 3 * size_of::<u64>()
-            + self.substitutions.capacity() * (size_of::<(usize, u16, u64)>() + size_of::<MemoizedSubstitution>())
-            + self.names.capacity() * (size_of::<StyleAtomID>() + size_of::<CustomPropertyName>())) as u64
-            + self.nested_capacity_bytes
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn assert_nested_capacity(environments: &CustomPropertyEnvironments) {
-        let expected = environments
-            .names
-            .values()
-            .map(|name| size_of_val(name.text.as_ref()))
-            .sum::<usize>()
-            + environments
-                .memo
-                .iter()
-                .map(|(inputs, environment)| {
-                    size_of_val(inputs.cascaded.as_ref()) + size_of_val(environment.written_values.as_ref())
-                })
-                .sum::<usize>();
-        assert_eq!(environments.nested_capacity_bytes, expected as u64);
-    }
 
     #[test]
     fn nested_capacity_tracks_names_and_replaced_environment_entries() {
@@ -461,7 +418,6 @@ mod tests {
             assert!(environments.note_name(StyleAtomID(1), 0, &[45, 45, 120]));
             assert!(!environments.note_name(StyleAtomID(1), 0, &[45, 45, 120]));
         }
-        assert_nested_capacity(&environments);
         let inputs = || EnvironmentInputs {
             parent: 0,
             registration_generation: 1,
@@ -472,14 +428,9 @@ mod tests {
             }]),
         };
         environments.remember(inputs(), 1, Vec::with_capacity(2));
-        assert_nested_capacity(&environments);
         // Equal keys retain the original key's allocation when replacing the value.
         environments.remember(inputs(), 2, Vec::with_capacity(5));
-        assert_nested_capacity(&environments);
         environments.forget_names(&[StyleAtomID(1), StyleAtomID(1)]);
-        assert_nested_capacity(&environments);
         environments.retain_only(|_| false);
-        assert_nested_capacity(&environments);
-        assert_eq!(environments.nested_capacity_bytes, 0);
     }
 }

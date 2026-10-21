@@ -245,13 +245,7 @@ pub(super) fn compile_selector_program(
 
 impl RetainedState {
     pub(super) fn push_pending_region(&mut self, regions: &mut Vec<ImpactRegion>, region: ImpactRegion) {
-        let before = regions.capacity();
         regions.push(region);
-        let after = regions.capacity();
-        self.memory.reserve_required(
-            MemoryCategory::BatchScratch,
-            ((after - before) * size_of::<ImpactRegion>()) as u64,
-        );
     }
 
     /// Says whether the document matches id and class selectors ASCII case-insensitively.
@@ -287,7 +281,6 @@ impl RetainedState {
     }
 
     pub(super) fn add_routing_rule(&mut self, rule: RuleID, program: SelectorProgramID) {
-        self.programs.settle_memory(&mut self.memory);
         // A detached sheet's routes were shed, and reattachment restores the current routes of
         // every live rule in the sheet, so routes added for a rule edited while its sheet is
         // detached would come back twice. The exclusion covers the edit until the sheet reattaches.
@@ -371,7 +364,7 @@ impl RetainedState {
         self.note_relational_arrival_keys(&compiled);
         let program = self.programs.add(compiled);
         self.selector_programs_need_sweep |= reusable.is_some();
-        self.programs.settle_memory(&mut self.memory);
+
         program
     }
 
@@ -488,12 +481,6 @@ impl RetainedState {
                 .is_some_and(crate::css::parser::arbitrary_substitution::attr_may_read_name)
     }
 
-    #[must_use]
-    #[cfg(test)]
-    pub fn memory(&self) -> &MemoryController {
-        &self.memory
-    }
-
     /// Whether the last transaction planned nothing but derived child reactions, read once.
     pub fn take_only_derived_child_reactions(&mut self) -> bool {
         std::mem::take(&mut self.last_transaction_only_derived_child_reactions)
@@ -509,7 +496,7 @@ impl RetainedState {
             (InputKey::LocalFeature(node, feature), InputValue::Feature(value)) => match feature {
                 LocalFeatureKey::TagName => {
                     if let FeatureValue::Atom(atom) = value {
-                        self.facts.set_tag(node, atom, &mut self.memory);
+                        self.facts.set_tag(node, atom);
                     }
                 }
                 LocalFeatureKey::PartExposure => self.facts.set_part_exposure(
@@ -532,7 +519,6 @@ impl RetainedState {
                         FeatureValue::Atom(atom) => atom,
                         _ => StyleAtomID::NONE,
                     },
-                    &mut self.memory,
                 ),
                 LocalFeatureKey::HeadingLevel => self.facts.set_heading_level(
                     node,
@@ -547,7 +533,6 @@ impl RetainedState {
                         FeatureValue::Atom(atom) => atom,
                         _ => StyleAtomID::NONE,
                     },
-                    &mut self.memory,
                 ),
                 // Parts and custom states are published as complete sets after their individual
                 // journal deltas have been recorded. Arrival is only a routing key.
@@ -561,9 +546,8 @@ impl RetainedState {
                         FeatureValue::Atom(atom) => atom,
                         _ => StyleAtomID::NONE,
                     },
-                    &mut self.memory,
                 ),
-                LocalFeatureKey::Class(class) => self.facts.set_class(node, class, value.holds(), &mut self.memory),
+                LocalFeatureKey::Class(class) => self.facts.set_class(node, class, value.holds()),
                 LocalFeatureKey::Attribute(name) => {
                     // The value's atom rides on the same delta. Presence is what routing reads; the
                     // value is what an exact test compares, and a cold pass has no DOM to ask.
@@ -571,12 +555,11 @@ impl RetainedState {
                         FeatureValue::Atom(atom) => atom,
                         _ => StyleAtomID::NONE,
                     };
-                    self.facts
-                        .set_attribute(node, name, atom, value.holds(), &mut self.memory);
+                    self.facts.set_attribute(node, name, atom, value.holds());
                 }
             },
             (InputKey::State(node, fact), InputValue::State(value)) => {
-                self.facts.set_state(node, fact, value, &mut self.memory);
+                self.facts.set_state(node, fact, value);
             }
             _ => {}
         }
@@ -676,7 +659,7 @@ impl RetainedState {
         }
 
         if new.tree_scope != TreeScopeID::DOCUMENT {
-            self.tree.enable_tree_scopes(&mut self.memory);
+            self.tree.enable_tree_scopes();
         }
         if self.tree.has_tree_scopes() {
             self.tree.set_tree_scope(node, new.tree_scope);
@@ -685,7 +668,7 @@ impl RetainedState {
         // The slot a slottable is assigned to is its parent in the flat tree, and `::slotted()`
         // walks back along it. A slot name change reassigns it with no DOM mutation at all, so the
         // relation has to be carried by the delta rather than derived from the tree.
-        self.tree.set_assigned_slot(node, new.assigned_slot, &mut self.memory);
+        self.tree.set_assigned_slot(node, new.assigned_slot);
     }
 
     /// A fact whose value is an atom is absent when the atom is, so the two are one conversion.
@@ -943,13 +926,13 @@ impl RetainedState {
 
     /// Record the text node's whitespace-only state, as its data now spells it.
     pub fn set_text_is_ascii_whitespace(&mut self, node: StyleNodeID, value: bool) {
-        self.tree.set_text_is_ascii_whitespace(node, value, &mut self.memory);
+        self.tree.set_text_is_ascii_whitespace(node, value);
     }
 
     /// Record the unique node id the document names the element by. It arrives with the identity
     /// and never changes while the element holds it.
     pub fn set_element_unique_node_id(&mut self, node: StyleNodeID, unique_node_id: i64) {
-        self.tree.set_unique_node_id(node, unique_node_id, &mut self.memory);
+        self.tree.set_unique_node_id(node, unique_node_id);
     }
 
     /// The unique node id the document names the element by, or zero for anything else.
@@ -966,7 +949,7 @@ impl RetainedState {
 
     /// Record what a row built for the node is painted and hit-tested with.
     pub fn set_node_dom_paint_facts(&mut self, node: StyleNodeID, facts: u8) {
-        self.tree.set_dom_paint_facts(node, facts, &mut self.memory);
+        self.tree.set_dom_paint_facts(node, facts);
     }
 
     /// The spans a row built for the element takes from its attributes.
@@ -977,12 +960,12 @@ impl RetainedState {
 
     /// Record the spans a row built for the element takes from its attributes.
     pub fn set_element_table_spans(&mut self, node: StyleNodeID, spans: super::tree::TableSpans) {
-        self.tree.set_table_spans(node, spans, &mut self.memory);
+        self.tree.set_table_spans(node, spans);
     }
 
     /// Record whether the text node holds the value of a password input.
     pub fn set_text_is_password_input(&mut self, node: StyleNodeID, value: bool) {
-        self.tree.set_text_is_password_input(node, value, &mut self.memory);
+        self.tree.set_text_is_password_input(node, value);
     }
 
     /// Record the characters the text node now holds.
@@ -992,8 +975,7 @@ impl RetainedState {
 
     /// Record which kind of tree the text node arrived in.
     pub fn set_text_is_in_user_agent_shadow_tree(&mut self, node: StyleNodeID, value: bool) {
-        self.tree
-            .set_text_is_in_user_agent_shadow_tree(node, value, &mut self.memory);
+        self.tree.set_text_is_in_user_agent_shadow_tree(node, value);
     }
 
     /// Whether the element's published style record replaces its contents with a single image.
@@ -1096,7 +1078,7 @@ impl RetainedState {
 
     /// Record the id an element answers to, or clear it with atom zero.
     pub fn set_element_id_name(&mut self, node: StyleNodeID, name: StyleAtomID) {
-        self.tree.set_element_id_name(node, name, &mut self.memory);
+        self.tree.set_element_id_name(node, name);
     }
 
     /// The first element in tree order that answers to `name` inside `tree_scope`.
@@ -1135,23 +1117,23 @@ impl RetainedState {
     }
 
     pub fn set_shadow_root(&mut self, host: StyleNodeID, shadow_root: StyleNodeID) {
-        self.tree.set_shadow_root(host, shadow_root, &mut self.memory);
+        self.tree.set_shadow_root(host, shadow_root);
     }
 
     /// Replace the ordered list of nodes a slot has assigned to it, text nodes included.
     pub fn set_slot_assigned_nodes(&mut self, slot: StyleNodeID, nodes: &[StyleNodeID]) {
         self.counters.bump(Counter::SlotAssignedNodeListsPublished);
-        self.tree.set_assigned_nodes(slot, nodes, &mut self.memory);
+        self.tree.set_assigned_nodes(slot, nodes);
     }
 
     /// Replace the document's top layer, in the order its members were added.
     pub fn set_top_layer_elements(&mut self, members: &[StyleNodeID]) {
-        self.tree.set_top_layer(members, &mut self.memory);
+        self.tree.set_top_layer(members);
     }
 
     /// Retire text identities as their nodes disconnect.
     pub fn retire_text_style_nodes(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>) {
-        self.tree.retire_texts(nodes, &mut self.memory);
+        self.tree.retire_texts(nodes);
     }
 
     // -- DOM child sequence ------------------------------------------------------------------
@@ -1177,7 +1159,7 @@ impl RetainedState {
     /// Mark an identity that stands in the tree only to be named by relations. The document is one:
     /// it owns the DOM child sequence its children hang from, and it is never styled or matched.
     pub fn mark_relation_only_style_node(&mut self, node: StyleNodeID) {
-        self.tree.mark_relation_only(node, &mut self.memory);
+        self.tree.mark_relation_only(node);
     }
 
     // -- Stylesheet program ------------------------------------------------------------------
@@ -1229,7 +1211,6 @@ impl RetainedState {
         for (rule, program) in rules {
             routing.add_rule(rule, program, programs);
         }
-        routing.settle_memory(&mut self.memory);
     }
 
     /// Record the animation names an element's computed style references.
@@ -1238,7 +1219,7 @@ impl RetainedState {
     /// recomputed by whatever changed it. What the index is for is the other direction - a
     /// `@keyframes` rule finding the elements running the animation it describes.
     pub fn set_element_animation_names(&mut self, node: StyleNodeID, names: &[StyleAtomID]) {
-        self.facts.set_animation_names(node, names, &mut self.memory);
+        self.facts.set_animation_names(node, names);
     }
 
     /// Keep the custom-property environment an element now holds; a null `data` is none. Only
@@ -1640,11 +1621,9 @@ impl RetainedState {
         uses_unnamed: bool,
         uses_custom_functions: bool,
     ) {
-        self.facts.set_custom_property_names(node, names, &mut self.memory);
-        self.facts
-            .set_uses_unnamed_custom_properties(node, uses_unnamed, &mut self.memory);
-        self.facts
-            .set_uses_custom_functions(node, uses_custom_functions, &mut self.memory);
+        self.facts.set_custom_property_names(node, names);
+        self.facts.set_uses_unnamed_custom_properties(node, uses_unnamed);
+        self.facts.set_uses_custom_functions(node, uses_custom_functions);
     }
 
     pub fn set_tree_scope_root(&mut self, tree_scope: TreeScopeID, root: StyleNodeID) {
@@ -1945,26 +1924,17 @@ impl RetainedState {
         let (state, _) =
             self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates));
         let published = if let Some(traversal) = self.batch_matching_traversal.as_mut() {
-            traversal.answer_effects.winners.set(
-                &mut self.winner_groups,
-                node,
-                state,
-                self.program.version(),
-                &mut self.memory,
-            )
+            traversal
+                .answer_effects
+                .winners
+                .set(&mut self.winner_groups, node, state, self.program.version())
         } else {
             let mut effects = super::cascade::WinnerEffects::default();
-            let published = effects.set(
-                &mut self.winner_groups,
-                node,
-                state,
-                self.program.version(),
-                &mut self.memory,
-            );
+            let published = effects.set(&mut self.winner_groups, node, state, self.program.version());
             self.install_winner_effects(effects);
             published
         };
-        self.winner_groups.settle_memory(&mut self.memory);
+
         if published {
             self.counters.bump(Counter::CascadeNodeHandlesPublished);
         }
@@ -1974,13 +1944,11 @@ impl RetainedState {
 impl StyleEngine {
     #[must_use]
     pub(crate) fn new() -> Self {
-        let mut memory = MemoryController::new();
-        let tree = StyleNodeTree::new(&mut memory);
+        let tree = StyleNodeTree::new();
         Self {
             retained: RetainedState {
                 counters: Counters::new(),
-                memory,
-                admission: AdmissionFacts::default(),
+
                 deferred_pseudo_elements: 0,
                 tree: crate::fork::ForkShared::new(tree),
                 program: crate::fork::ForkShared::new(StyleSheetProgram::new()),
@@ -1993,7 +1961,7 @@ impl StyleEngine {
                 match_workspace: MatchScratch::default(),
                 exact_covered_scratch: Vec::new(),
                 cascade_compaction_scratch: ordering::CascadeCompactionWorkspace::default(),
-                cascade_compaction_scratch_memory: MemoryLease::new(MemoryCategory::BatchScratch),
+
                 next_style_transaction_version: StyleTransactionVersion(1),
                 document_style_computation_inputs: Default::default(),
                 driven_viewport: (0.0, 0.0),
@@ -2061,13 +2029,7 @@ impl StyleEngine {
                 batch_backing_pseudo_matches: HashMap::default(),
                 engine_cold_record_cache: Default::default(),
                 engine_cold_record_donors: Default::default(),
-                computed_group_set_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
-                custom_property_environment_memory: MemoryLease::new(MemoryCategory::CustomPropertyEnvironment),
-                computed_fixed_metadata_memory: MemoryLease::new(MemoryCategory::ComputedFixedMetadata),
-                computed_longhand_table_memory: MemoryLease::new(MemoryCategory::ComputedLonghandTable),
-                style_record_memory: MemoryLease::new(MemoryCategory::StyleRecord),
-                animation_overlay_memory: MemoryLease::new(MemoryCategory::AnimationOverlayRecord),
-                computed_pseudo_assignment_memory: MemoryLease::new(MemoryCategory::ComputedPseudoAssignment),
+
                 style_invalidation_cache: HashMap::default(),
                 html_element_namespace: StyleAtomID::NONE,
                 match_answers: Default::default(),
@@ -2100,8 +2062,7 @@ impl StyleEngine {
                 selector_truth_changes_active: false,
                 relational_witnesses: RelationalWitnesses::default(),
                 pending_witness_effects: Vec::new(),
-                witness_effect_scratch: MemoryLease::new(MemoryCategory::BatchScratch),
-                relational_witness_residency: MemoryLease::new(MemoryCategory::RetainedWitness),
+
                 scope_roots: Column::default(),
                 scope_by_root: Default::default(),
                 scope_programs: intern_table::InternTable::default(),
@@ -2127,15 +2088,14 @@ impl StyleEngine {
                 deferred_element_style_inputs_moved: false,
                 deferred_element_style_inputs_are_pending: false,
                 environment_move_changed_names: Default::default(),
-                deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
+
                 initial_tree_batch_applied: false,
                 initial_tree_bulk_load_is_pending: false,
                 tree_staging: TreeRelationStaging::default(),
-                tree_staging_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
+
                 program_staging: ProgramStaging::default(),
                 sheet_occurrences: HashMap::default(),
-                sheet_occurrence_storage_bytes: 0,
-                sheet_occurrence_memory: MemoryLease::new(MemoryCategory::RuleProgram),
+
                 sheet_rule_replacement: None,
                 reclaimed_style_atoms: Vec::new(),
                 defers_atom_sweep: false,
@@ -2147,11 +2107,9 @@ impl StyleEngine {
     /// than of an element or stylesheet rule.
     pub fn record_environment_change(&mut self) {
         self.discard_prepared_batch_matching_traversal();
-        self.host.journal.record_complete_scope_action(
-            InputKind::Environment,
-            &mut self.retained.memory,
-            &self.retained.counters,
-        );
+        self.host
+            .journal
+            .record_complete_scope_action(InputKind::Environment, &self.retained.counters);
     }
 
     /// Whether the first tree batch can be installed directly.
@@ -2525,11 +2483,9 @@ impl StyleEngine {
         if self.host.deferred_geometry_journal.is_empty() {
             std::mem::swap(&mut self.host.journal, &mut self.host.deferred_geometry_journal);
         } else {
-            self.host.deferred_geometry_journal.absorb_newer(
-                &mut self.host.journal,
-                &mut self.retained.memory,
-                &self.retained.counters,
-            );
+            self.host
+                .deferred_geometry_journal
+                .absorb_newer(&mut self.host.journal, &self.retained.counters);
         }
         self.host.deferred_geometry_journal.markers().is_empty()
     }
@@ -2589,11 +2545,9 @@ impl StyleEngine {
             std::mem::swap(&mut self.host.journal, &mut self.host.deferred_geometry_journal);
             return;
         }
-        self.host.deferred_geometry_journal.absorb_newer(
-            &mut self.host.journal,
-            &mut self.retained.memory,
-            &self.retained.counters,
-        );
+        self.host
+            .deferred_geometry_journal
+            .absorb_newer(&mut self.host.journal, &self.retained.counters);
         std::mem::swap(&mut self.host.journal, &mut self.host.deferred_geometry_journal);
     }
 
@@ -2621,14 +2575,11 @@ impl StyleEngine {
                 InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts),
                 InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(FeatureValue::Present),
-                &mut self.retained.memory,
                 &self.retained.counters,
             );
             return true;
         }
-        self.host
-            .journal
-            .record(key, old, new, &mut self.retained.memory, &self.retained.counters);
+        self.host.journal.record(key, old, new, &self.retained.counters);
         true
     }
 
@@ -2701,12 +2652,7 @@ impl StyleEngine {
             .stage_first_child(parent, self.retained.tree.first_element_child(parent), child);
     }
 
-    pub(super) fn settle_tree_staging_memory(&mut self) {
-        let bytes = self.host.tree_staging.capacity_bytes();
-        self.host
-            .tree_staging_memory
-            .resize_required_to(&mut self.retained.memory, bytes);
-    }
+    pub(super) fn settle_tree_staging_memory(&mut self) {}
 
     /// Raises `deepest_element` to the depth of the deepest element the tree holds, and keeps `staged_rows` at how many
     /// relation rows are staged and not settled yet, both of which the document's host reads, rather than counts of
@@ -2744,9 +2690,7 @@ impl StyleEngine {
                 self.retained.tree.set_parent_without_updating_depth(node, None);
                 self.retained.tree.set_next_element_sibling(node, None);
                 self.retained.tree.set_previous_element_sibling(node, None);
-                self.retained
-                    .tree
-                    .set_assigned_slot(node, None, &mut self.retained.memory);
+                self.retained.tree.set_assigned_slot(node, None);
                 continue;
             };
             self.retained
@@ -2759,14 +2703,12 @@ impl StyleEngine {
                 .tree
                 .set_previous_element_sibling(node, relations.previous_element_sibling);
             if relations.tree_scope != TreeScopeID::DOCUMENT {
-                self.retained.tree.enable_tree_scopes(&mut self.retained.memory);
+                self.retained.tree.enable_tree_scopes();
             }
             if self.retained.tree.has_tree_scopes() {
                 self.retained.tree.set_tree_scope(node, relations.tree_scope);
             }
-            self.retained
-                .tree
-                .set_assigned_slot(node, relations.assigned_slot, &mut self.retained.memory);
+            self.retained.tree.set_assigned_slot(node, relations.assigned_slot);
         }
         for (parent, _, child) in self.host.tree_staging.dirty_first_children() {
             self.retained.tree.set_first_element_child(parent, child);
@@ -2793,11 +2735,8 @@ impl StyleEngine {
             retired_nodes.push(node);
         }
         if !retired_nodes.is_empty() {
-            self.retained
-                .tree
-                .retire_elements(&retired_nodes, &mut self.retained.memory);
+            self.retained.tree.retire_elements(&retired_nodes);
             let live_animation_overlays_after = self.retained.computed_group_sets.live_animation_overlay_records();
-            self.settle_computed_memory();
             self.retained.counters.add(
                 Counter::AnimationOverlaySlotsReleased,
                 (live_animation_overlays_before - live_animation_overlays_after) as u64,
@@ -2960,9 +2899,9 @@ impl StyleEngine {
         let mut minted_an_element = false;
         for node in nodes.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)) {
             if node.text_index().is_some() {
-                self.retained.tree.mint_text(node, &mut self.retained.memory);
+                self.retained.tree.mint_text(node);
             } else {
-                self.retained.tree.mint_element(node, &mut self.retained.memory);
+                self.retained.tree.mint_element(node);
                 self.retained.counters.bump(Counter::StyleNodesAllocated);
                 minted_an_element = true;
             }
@@ -3258,9 +3197,7 @@ impl StyleEngine {
                 arriving_node,
             );
         }
-        self.retained
-            .facts
-            .set_custom_states(node, custom_states, &mut self.retained.memory);
+        self.retained.facts.set_custom_states(node, custom_states);
     }
 
     /// Record the shadow parts an element exposes.
@@ -3292,11 +3229,9 @@ impl StyleEngine {
                     InputValue::Feature(FeatureValue::Present),
                 );
             }
-            self.retained.facts.set_parts(node, &parts, &mut self.retained.memory);
+            self.retained.facts.set_parts(node, &parts);
         }
-        self.retained
-            .tree
-            .set_part_hosts(node, pairs, &mut self.retained.memory);
+        self.retained.tree.set_part_hosts(node, pairs);
     }
 
     /// Report the outermost host a `::part()` rule can address this element from.
@@ -3377,9 +3312,7 @@ impl StyleEngine {
                 InputValue::Feature(FeatureValue::Present),
             );
         }
-        self.retained
-            .facts
-            .set_custom_states(node, states, &mut self.retained.memory);
+        self.retained.facts.set_custom_states(node, states);
     }
 }
 
@@ -3394,8 +3327,6 @@ impl RetainedState {
     pub(super) fn retire_node_state(&mut self, node: StyleNodeID) {
         let Self {
             counters: _,
-            memory: _,
-            admission: _,
             deferred_pseudo_elements: _,
             // Retires the whole batch at once, in `retire_elements`.
             tree: _,
@@ -3411,7 +3342,6 @@ impl RetainedState {
             // Scratch of one candidate evaluation.
             exact_covered_scratch: _,
             cascade_compaction_scratch: _,
-            cascade_compaction_scratch_memory: _,
             next_style_transaction_version: _,
             document_style_computation_inputs: _,
             driven_viewport: _,
@@ -3478,13 +3408,6 @@ impl RetainedState {
             batch_backing_pseudo_matches: _,
             engine_cold_record_cache: _,
             engine_cold_record_donors: _,
-            computed_group_set_memory: _,
-            custom_property_environment_memory: _,
-            computed_fixed_metadata_memory: _,
-            computed_longhand_table_memory: _,
-            style_record_memory: _,
-            animation_overlay_memory: _,
-            computed_pseudo_assignment_memory: _,
             style_invalidation_cache: _,
             match_answers: _,
             selector_truth_sets: _,
@@ -3526,8 +3449,6 @@ impl RetainedState {
             relational_witnesses: _,
             // Scratch of one transaction.
             pending_witness_effects: _,
-            witness_effect_scratch: _,
-            relational_witness_residency: _,
             // Forgotten for departed scope roots in `forget_departed_elements`.
             scope_roots: _,
             scope_by_root: _,

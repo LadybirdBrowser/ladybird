@@ -76,7 +76,6 @@ RENDER_STATE_ALLOWED = {
         [
             "css/style/matching.rs:DISPATCH_POOLS",
             "css/style/native_rules/targets.rs:TARGET_PAGES",
-            "css/style/prefix/relation.rs:RELATION_PROGRAM_MEMORY",
             "css/style/program.rs:RULE_DECLARATIONS",
             "css/style/program/rule_records.rs:RULE_RECORD_PAGES",
             "css/style/program/rule_versions.rs:RULE_VERSION_PAGES",

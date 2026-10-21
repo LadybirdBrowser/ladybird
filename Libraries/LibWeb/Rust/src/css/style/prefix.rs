@@ -18,7 +18,6 @@
 //! sequence exactly as a descendant step persists down the tree, so the state representation, the
 //! interner, and the retained form serve both axes unchanged.
 
-use super::capacity::capacity_bytes;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
 use super::selector::SelectorPrefixPredicate;
@@ -41,9 +40,6 @@ use super::index::StyleAtomID;
 use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
-use super::memory::MemoryCategory;
-use super::memory::MemoryController;
-use super::memory::MemoryLease;
 use super::partial_view::Lookup;
 use super::program::EntryID;
 use super::program::SelectorProgramID;
@@ -278,13 +274,6 @@ impl PrefixRootSteps {
             Self::Many(steps) => steps.as_mut_slice(),
         }
     }
-
-    fn capacity_bytes(&self) -> usize {
-        match self {
-            Self::Empty | Self::One(_) => 0,
-            Self::Many(steps) => size_of::<Vec<PrefixStepID>>() + steps.capacity() * size_of::<PrefixStepID>(),
-        }
-    }
 }
 
 #[derive(Clone, Default)]
@@ -295,18 +284,10 @@ struct PrefixDispatchBucket {
 }
 
 /// The pools for finished prefix automata.
+#[derive(Default)]
 pub(super) struct PrefixPools {
     compounds: SharedVectorPool<PrefixCompound>,
     features: SharedVectorPool<PrefixFeature>,
-}
-
-impl Default for PrefixPools {
-    fn default() -> Self {
-        Self {
-            compounds: SharedVectorPool::new(MemoryCategory::RuleProgram),
-            features: SharedVectorPool::new(MemoryCategory::RuleProgram),
-        }
-    }
 }
 
 /// Immutable prefix program attached to one selector dispatch.
@@ -844,66 +825,6 @@ impl PrefixAutomaton {
             step: *path.get(index)?,
         })
     }
-
-    #[must_use]
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.local_fact_dependencies.ids,
-                self.local_fact_dependencies.classes,
-                self.local_fact_dependencies.attribute_names,
-                self.local_fact_dependencies.attribute_values,
-                self.local_fact_dependencies.attribute_text_names,
-                self.compounds,
-                self.compound_ids,
-                self.features,
-                self.tag_tests,
-                self.attribute_tests,
-                self.steps,
-                self.step_output_builders,
-                self.outputs,
-                self.step_ids,
-                self.buckets,
-                self.entry_paths,
-                self.entry_path_steps,
-                self.entry_path_keys,
-                self.step_predecessors,
-            ];
-            cached [];
-            nested [
-                self.compounds.iter().map(|compound| match &compound.predicate {
-                    PrefixPredicate::Program { identity, .. } => size_of::<SelectorPrefixPredicate>() + 2 * size_of::<usize>() + identity.capacity_bytes(),
-                    _ => 0,
-                }).sum::<usize>(),
-                self
-                .compound_ids
-                .keys()
-                .map(|predicate| match predicate {
-                    PrefixPredicateKey::Features { features, .. } => features.len() * size_of::<FeatureTest>(),
-                    PrefixPredicateKey::Program(_) => 0,
-                })
-                .sum::<usize>(),
-                self
-                .step_output_builders
-                .iter()
-                .map(|builder| {
-                    (builder.child_successors.capacity()
-                        + builder.descendant_successors.capacity()
-                        + builder.adjacent_successors.capacity()
-                        + builder.following_successors.capacity())
-                        * size_of::<PrefixStepID>()
-                        + builder.terminals.capacity() * size_of::<EntryID>()
-                })
-                .sum::<usize>(),
-                self
-                .buckets
-                .values()
-                .map(|bucket| bucket.root_steps.capacity_bytes())
-                .sum::<usize>(),
-            ];
-            skip [self.entry_paths_finished, self.relation_program];
-        }
-    }
 }
 
 impl PrefixSelection {
@@ -913,15 +834,6 @@ impl PrefixSelection {
 
     fn contains_terminal(&self, terminal: EntryID) -> bool {
         self.terminals[terminal.0 as usize]
-    }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [];
-            nested [self.steps.len(), self.terminals.len()];
-            skip [];
-        }
     }
 }
 
@@ -1307,33 +1219,14 @@ impl PrefixTransitionContext {
         context.scratch.composite_local_fact_changes = Some(changed.to_vec());
         context
     }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        self.scratch.capacity_bytes() + self.effects.capacity_bytes()
-    }
 }
 
-#[derive(Clone)]
-
+#[derive(Clone, Default)]
 pub(super) struct PrefixTransitionContexts {
     by_program: Column<Option<PrefixTransitionContext>>,
-    memory: MemoryLease,
-}
-
-impl Default for PrefixTransitionContexts {
-    fn default() -> Self {
-        Self {
-            by_program: Column::default(),
-            memory: MemoryLease::new(MemoryCategory::BatchScratch),
-        }
-    }
 }
 
 impl PrefixTransitionContexts {
-    pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
-        self.memory.resize_required_to(memory, self.capacity_bytes());
-    }
-
     pub(super) fn prepare(&mut self, program: ScopeProgramID, states: &mut PrefixStates, facts: &StyleNodeFacts) {
         self.by_program
             .entry(program.0 as usize)
@@ -1364,7 +1257,7 @@ impl PrefixTransitionContexts {
             .expect("prefix context prepared")
     }
 
-    pub(super) fn install(&mut self, states: &mut PrefixStateCache, memory: &mut MemoryController) {
+    pub(super) fn install(&mut self, states: &mut PrefixStateCache) {
         let mut installed = false;
         for (program, context) in self.by_program.iter_mut().enumerate() {
             if let Some(context) = context
@@ -1377,28 +1270,7 @@ impl PrefixTransitionContexts {
                 installed = true;
             }
         }
-        if installed {
-            states.settle_memory(memory);
-        }
-    }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        (self.by_program.capacity() * size_of::<Option<PrefixTransitionContext>>()) as u64
-            + self
-                .by_program
-                .iter()
-                .flatten()
-                .map(PrefixTransitionContext::capacity_bytes)
-                .sum::<u64>()
-    }
-
-    pub(super) fn program_and_column_capacity_bytes(&self, program: ScopeProgramID) -> u64 {
-        (self.by_program.capacity() * size_of::<Option<PrefixTransitionContext>>()) as u64
-            + self
-                .by_program
-                .get(program.0 as usize)
-                .and_then(Option::as_ref)
-                .map_or(0, PrefixTransitionContext::capacity_bytes)
+        if installed {}
     }
 }
 
@@ -1737,26 +1609,9 @@ impl PrefixDeltaArena {
         }
         self.append_scratch_delta(0)
     }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.steps, self.deltas, self.matches, self.signed_scratch, self.key_tables];
-            cached [];
-            nested [
-                self.scratch.iter().map(Vec::capacity).sum::<usize>() * size_of::<PrefixStepID>(),
-                self.match_scratch.iter().map(Vec::capacity).sum::<usize>() * size_of::<EntryID>(),
-                self.key_table_bytes,
-            ];
-            skip [];
-        }
-    }
 }
 
 impl<'a, 'b> PrefixEvaluation<'a, 'b> {
-    pub(super) fn match_scratch_capacity_bytes(&self) -> u64 {
-        self.evaluator.match_scratch_capacity_bytes()
-    }
-
     fn positional_test_matches(
         &mut self,
         node: StyleNodeID,
@@ -4147,81 +4002,6 @@ impl PrefixStates {
         self.new_following = Vec::new();
         self.new_adjacent = Vec::new();
     }
-
-    fn top_level_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.states,
-                self.relation_answers,
-                self.delta_steps,
-                self.states_by_hash,
-                self.match_offsets,
-                self.match_entries,
-                self.truth_offsets,
-                self.truth_steps,
-                self.truth_sets_by_hash,
-                self.results,
-                self.result_ids,
-                self.match_sets_by_hash,
-                self.transition_by_element,
-                self.entering_by_element,
-                self.local_facts_by_element,
-                self.positional_bits_by_element,
-                self.candidate_epoch,
-                self.comparison_marks,
-                self.compound_epoch,
-                self.output_epoch,
-                self.match_epoch,
-                self.parent_persisting_epoch,
-                self.previous_persisting_epoch,
-                self.compound_answer,
-                self.candidates,
-                self.compare_left,
-                self.compare_right,
-                self.new_descendant,
-                self.new_child,
-                self.new_following,
-                self.new_adjacent,
-                self.descendant_only,
-                self.output_matches,
-                self.output_matched_steps,
-            ];
-            cached [];
-            nested [self.states_by_hash_collision_bytes];
-            skip [
-                self.local_fact_interner,
-                self.relation,
-                self.comparison_epoch,
-                self.states_by_hash_collision_bytes,
-                self.new_descendant_hash,
-                self.new_child_hash,
-                self.new_following_hash,
-                self.new_adjacent_hash,
-                self.epoch,
-                self.complete,
-                self.automaton_step_count,
-                self.automaton_statistics_recorded,
-                self.last_compacted_working_bytes,
-            ];
-        }
-    }
-
-    #[must_use]
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [];
-            nested [self.top_level_capacity_bytes()];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub(super) fn relation_capacity_bytes(&self) -> u64 {
-        self.relation.as_ref().map_or(0, |relation| {
-            size_of::<PrefixRelation>() as u64 + relation.capacity_bytes()
-        })
-    }
 }
 
 impl PrefixTransitionScratch {
@@ -4273,22 +4053,9 @@ impl PrefixTransitionScratch {
             self.local_fact_representatives = Default::default();
         }
     }
-
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.memo, self.by_node, self.local_facts_by_row, self.ancestor_chain, self.local_fact_representatives];
-            cached [];
-            nested [self.composite_local_fact_changes.as_ref().map_or(0, |changes| (changes.capacity() * size_of::<StyleNodeID>()) as u64)];
-            skip [self.facts_generation, self.states_identity, self.composite_local_fact_changes];
-        }
-    }
 }
 
-impl PrefixEffects {
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        (self.writes.capacity() * size_of::<PrefixNodeWrite>()) as u64
-    }
-}
+impl PrefixEffects {}
 
 impl PrefixStates {
     pub(super) fn install_prefix_effects(&mut self, effects: &mut PrefixEffects) {
@@ -4519,9 +4286,6 @@ fn selected_matches_equal(left: &[EntryID], right: &[EntryID], selection: &Prefi
 /// no compact retained encoding. Retention moves the same working bytes from scratch into Tier 3.
 pub(super) struct PrefixStateCache {
     by_program: Column<Option<Box<PrefixStates>>>,
-    scratch_memory: MemoryLease,
-    residency: MemoryLease,
-    relation_residency: MemoryLease,
     lifecycle: PrefixStateCacheLifecycle,
 }
 
@@ -4562,9 +4326,7 @@ impl Default for PrefixStateCache {
     fn default() -> Self {
         Self {
             by_program: Column::default(),
-            scratch_memory: MemoryLease::new(MemoryCategory::BatchScratch),
-            residency: MemoryLease::new(MemoryCategory::PrefixTransitionCache),
-            relation_residency: MemoryLease::new(MemoryCategory::PrefixRelation),
+
             lifecycle: PrefixStateCacheLifecycle::Scratch(PrefixStateCacheCoverage::Full),
         }
     }
@@ -4609,40 +4371,7 @@ impl PrefixStateCache {
         }
     }
 
-    pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
-        let (transition_bytes, relation_bytes) =
-            self.by_program
-                .iter()
-                .flatten()
-                .fold((0, 0), |(transitions, relations), states| {
-                    (
-                        transitions + size_of::<PrefixStates>() as u64 + states.capacity_bytes(),
-                        relations + states.relation_capacity_bytes(),
-                    )
-                });
-        let bytes = capacity_bytes! {
-            shallow [self.by_program];
-            cached [];
-            nested [transition_bytes];
-            skip [self.scratch_memory, self.residency, self.relation_residency, self.lifecycle];
-        };
-        if relation_bytes != 0 || self.relation_residency.bytes() != 0 {
-            self.relation_residency.reconcile_committed(memory, relation_bytes);
-        }
-        if self.lifecycle.is_retained() {
-            self.residency.reconcile_committed(memory, bytes);
-        } else {
-            self.scratch_memory.resize_required_to(memory, bytes);
-        }
-    }
-
     pub(super) fn release(&mut self) {
-        if self.lifecycle.is_retained() {
-            self.residency.release();
-        } else {
-            self.scratch_memory.release();
-        }
-        self.relation_residency.release();
         self.by_program = Column::default();
         self.lifecycle = PrefixStateCacheLifecycle::Scratch(self.lifecycle.coverage());
     }
@@ -4660,11 +4389,6 @@ impl PrefixStateCache {
                 Box::new(states)
             });
         }
-        if self.lifecycle.is_retained() {
-            self.residency.release();
-        } else {
-            self.scratch_memory.release();
-        }
         let coverage = self.lifecycle.coverage();
         self.lifecycle = if self.lifecycle.is_current() {
             PrefixStateCacheLifecycle::CurrentScratch(coverage)
@@ -4673,22 +4397,14 @@ impl PrefixStateCache {
         };
     }
 
-    pub(super) fn retain(&mut self, memory: &mut MemoryController) -> bool {
+    pub(super) fn retain(&mut self) -> bool {
         if self.lifecycle.is_retained() {
             return true;
         }
         for states in self.by_program.iter_mut().flatten() {
-            let before = states.capacity_bytes();
             states.trim_for_retention();
-            let after = states.capacity_bytes();
-            self.scratch_memory.shrink_committed(before - after);
         }
-        let working_bytes = self.scratch_memory.bytes();
-        if !memory.is_tier3_admitting(MemoryCategory::PrefixTransitionCache) {
-            return false;
-        }
-        self.residency.reconcile_committed(memory, working_bytes);
-        self.scratch_memory.release();
+
         self.lifecycle = match self.lifecycle {
             PrefixStateCacheLifecycle::Scratch(coverage) => PrefixStateCacheLifecycle::Retained(coverage),
             PrefixStateCacheLifecycle::CurrentScratch(coverage) => PrefixStateCacheLifecycle::CurrentRetained(coverage),
@@ -4764,12 +4480,11 @@ impl PrefixStateCache {
         }
     }
 
-    pub(super) fn make_scratch(&mut self, memory: &mut MemoryController) {
+    pub(super) fn make_scratch(&mut self) {
         if !self.lifecycle.is_retained() {
             return;
         }
-        self.scratch_memory.resize_required_to(memory, self.residency.bytes());
-        self.residency.release();
+
         self.lifecycle = match self.lifecycle {
             PrefixStateCacheLifecycle::Retained(coverage) => PrefixStateCacheLifecycle::Scratch(coverage),
             PrefixStateCacheLifecycle::CurrentRetained(coverage) => PrefixStateCacheLifecycle::CurrentScratch(coverage),
@@ -4777,39 +4492,17 @@ impl PrefixStateCache {
         };
     }
 
-    pub(super) fn prepare_to_mutate(&mut self, memory: &mut MemoryController) {
+    pub(super) fn prepare_to_mutate(&mut self) {
         debug_assert!(!self.lifecycle.is_retained());
         for states in self.by_program.iter_mut().flatten() {
-            let before = states.capacity_bytes();
             states.rebuild_interners();
-            let after = states.capacity_bytes();
-            if after > before {
-                self.scratch_memory.grow_required(memory, after - before);
-            }
         }
     }
 
     pub(super) fn remove(&mut self, program: ScopeProgramID) {
         let index = program.0 as usize;
-        if self.by_program.get(index).is_none_or(Option::is_none) {
-            return;
-        }
-        let states = self.by_program[index].as_ref().expect("program entry is live");
-        let relation_released = states.relation_capacity_bytes();
-        let released = size_of::<PrefixStates>() as u64 + states.capacity_bytes();
-        self.by_program[index] = None;
-        self.relation_residency
-            .shrink_committed(relation_released.min(self.relation_residency.bytes()));
-        let held = if self.lifecycle.is_retained() {
-            self.residency.bytes()
-        } else {
-            self.scratch_memory.bytes()
-        };
-        let released = released.min(held);
-        if self.lifecycle.is_retained() {
-            self.residency.shrink_to(held - released);
-        } else {
-            self.scratch_memory.shrink_to(held - released);
+        if let Some(entry) = self.by_program.get_mut(index) {
+            *entry = None;
         }
     }
 }
@@ -5013,7 +4706,6 @@ mod tests {
         );
         assert_eq!(counters.get(Counter::PrefixLocalFactIdentityHits), 1);
         assert_eq!(counters.get(Counter::PrefixLocalFactIdentityMisses), 1);
-        assert!(context.capacity_bytes() < 4096);
     }
 
     #[test]
@@ -5734,7 +5426,6 @@ mod tests {
     fn retained_cache_entry_maintenance_charges_the_residency_lease() {
         use super::super::index::StateSet;
 
-        let mut memory = MemoryController::new();
         let mut cache = PrefixStateCache::default();
         let mut facts = StyleNodeFacts::new();
         facts.push_row(
@@ -5746,14 +5437,11 @@ mod tests {
             &[],
         );
         let mut context = PrefixTransitionContext::new(cache.prepare_program(ScopeProgramID(0)), &facts);
-        cache.settle_memory(&mut memory);
-        assert!(cache.retain(&mut memory));
-        assert!(memory.bytes_in_category(MemoryCategory::PrefixTransitionCache) > 0);
+
+        assert!(cache.retain());
 
         // Preparing a fresh private row domain does not change retained cache accounting.
         context.scratch.prepare_rows(facts.generation() + 1);
         let _ = cache.prepare_program(ScopeProgramID(0));
-        cache.settle_memory(&mut memory);
-        assert_eq!(memory.bytes_in_category(MemoryCategory::BatchScratch), 0);
     }
 }

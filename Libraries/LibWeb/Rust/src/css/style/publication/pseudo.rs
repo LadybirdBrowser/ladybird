@@ -411,7 +411,6 @@ impl RetainedState {
                         if substituted {
                             scratch.substituted_states.insert((state, environment));
                         }
-                        scratch.store_capacity_bytes += store.capacity_bytes();
                         if !element_alone && !self.records_are_the_elements_alone(node) {
                             scratch.pseudo_stores.insert((kind, state, environment), store.clone());
                         }
@@ -1271,7 +1270,6 @@ impl RetainedState {
             self.engine_pseudo_record_cache.retain(|_, record| *record != derived);
         }
         scratch.pseudo_deltas.clear();
-        self.settle_computed_memory();
     }
 
     /// Whether the winners hold every match the node's answer has for a pseudo-element, as
@@ -1335,7 +1333,7 @@ impl StyleEngine {
             resolver.prepare(font_environment_generation);
         }
         let mut scratch = EngineComputedRecordScratch::default();
-        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+
         // The settle runs in the host's style update, which publishes winners as a flush does.
         let republication = WinnerRepublication::for_flush();
         let attempt = loop {
@@ -1347,7 +1345,7 @@ impl StyleEngine {
             ) {
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
-                    suspended_memory.resize_required_to(&mut self.memory, scratch.font_drive.capacity_bytes());
+
                     self.refill_font_request(node, request);
                 }
                 attempt => break attempt,

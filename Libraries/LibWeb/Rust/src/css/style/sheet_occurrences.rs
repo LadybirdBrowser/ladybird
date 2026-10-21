@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::capacity::ShallowCapacityBytes;
 use super::*;
 
 #[derive(Clone)]
@@ -19,7 +18,6 @@ struct SheetOccurrence {
 pub(super) struct ScopeSheetOccurrences {
     occurrences: Vec<SheetOccurrence>,
     published: Vec<SheetID>,
-    accounted_bytes: u64,
 }
 
 impl StyleEngine {
@@ -85,21 +83,14 @@ impl StyleEngine {
         active.reverse();
         let old = std::mem::replace(&mut state.published, active);
         let active = state.published.clone();
-        let bytes = state.occurrences.shallow_capacity_bytes() + state.published.shallow_capacity_bytes();
-        self.host.sheet_occurrence_storage_bytes =
-            self.host.sheet_occurrence_storage_bytes - state.accounted_bytes + bytes;
-        state.accounted_bytes = bytes;
+
         if state.occurrences.is_empty() {
-            self.host.sheet_occurrence_storage_bytes -= bytes;
             self.host.sheet_occurrences.remove(&scope);
             if self.host.sheet_occurrences.is_empty() {
                 self.host.sheet_occurrences.shrink_to_fit();
             }
         }
-        let bytes = self.host.sheet_occurrence_storage_bytes + self.host.sheet_occurrences.shallow_capacity_bytes();
-        self.host
-            .sheet_occurrence_memory
-            .resize_required_to(&mut self.retained.memory, bytes);
+
         if old == active {
             return;
         }
@@ -182,6 +173,5 @@ mod tests {
         engine.detach_sheet_occurrence(second, 2);
         assert!(engine.host.sheet_occurrences.is_empty());
         assert_eq!(engine.host.sheet_occurrences.capacity(), 0);
-        assert_eq!(engine.host.sheet_occurrence_storage_bytes, 0);
     }
 }

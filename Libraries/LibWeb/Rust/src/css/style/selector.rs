@@ -25,8 +25,6 @@
 //! arrives with the semantics it needs rather than as a placeholder that would have to be guessed
 //! at now.
 
-use super::capacity::ShallowCapacityBytes;
-use super::capacity::capacity_bytes;
 use super::column::BitColumn;
 use super::column::Column;
 use super::column::PagedColumn;
@@ -54,9 +52,6 @@ use std::sync::OnceLock;
 
 use super::TransactionFactSide;
 use super::TransactionFactView;
-use super::memory::MemoryCategory;
-use super::memory::MemoryController;
-use super::memory::MemoryLease;
 use super::partial_view::Lookup;
 use super::planning::SequenceEntry;
 use super::planning::SequenceEntryIndex;
@@ -686,21 +681,7 @@ pub(super) enum SelectorPrefixPredicate {
     Language(Box<[Box<[u16]>]>),
 }
 
-impl SelectorPrefixPredicate {
-    pub(super) fn capacity_bytes(&self) -> usize {
-        match self {
-            Self::Leaf(_) => 0,
-            Self::Attribute(_, text) => size_of_val(text.as_ref()),
-            Self::And(operands) | Self::Or(operands) => {
-                size_of_val(operands.as_ref()) + operands.iter().map(Self::capacity_bytes).sum::<usize>()
-            }
-            Self::Not(inner) => size_of::<Self>() + inner.capacity_bytes(),
-            Self::Language(ranges) => {
-                size_of_val(ranges.as_ref()) + ranges.iter().map(|range| size_of_val(range.as_ref())).sum::<usize>()
-            }
-        }
-    }
-}
+impl SelectorPrefixPredicate {}
 
 /// Whose names the atoms of a selector program are.
 ///
@@ -912,37 +893,6 @@ impl<A: AtomSpace> SelectorProgram<A> {
     #[must_use]
     pub fn node_count(&self) -> usize {
         self.nodes.len()
-    }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.nodes,
-                self.operands,
-                self.text,
-                self.entries,
-                self.relative_queries,
-                self.language_ranges,
-                self.dispatch_metadata.0,
-            ];
-            cached [];
-            nested [
-                size_of::<bool>(),
-                self.dispatch_metadata.0
-                    .iter()
-                    .map(|metadata| {
-                        size_of_val(metadata.subject_dispatch_keys.as_ref()) as u64
-                            + size_of_val(metadata.subject_required_keys.as_ref()) as u64
-                            + metadata
-                                .prefix_chain
-                                .as_ref()
-                                .map_or(0, |chain| size_of_val(chain.as_ref()) as u64)
-                    })
-                    .sum::<u64>(),
-            ];
-            skip [self.can_leave_scope, self.subject_can_leave_scope];
-        }
     }
 }
 
@@ -2594,7 +2544,6 @@ fn dispatch_selectivity(key: DispatchKey) -> u8 {
 struct SharedSelectorProgram {
     program: SelectorProgram,
     hash: u64,
-    _memory: MemoryLease,
     /// The document and rule that routed the program first, as `transpose_router` packs them, or
     /// `UNROUTED` before any did.
     first_transpose_router: std::sync::atomic::AtomicU64,
@@ -2606,7 +2555,6 @@ struct SharedSelectorProgram {
 /// The transpose entry points of each entry of a shared program, charged to the process's program pools.
 struct TransposeSites {
     by_entry: Box<[Box<[OwnedTransposeSite]>]>,
-    _memory: MemoryLease,
 }
 
 /// A transpose entry point kept beside the program it was walked from.
@@ -2635,15 +2583,6 @@ impl OwnedTransposeSite {
             parent_dispatch: site.parent_dispatch.into(),
             waypoints: site.waypoints.into(),
         }
-    }
-
-    fn capacity_bytes(&self) -> u64 {
-        (size_of::<Self>()
-            + size_of_val(self.path.as_ref())
-            + size_of_val(self.origin_dispatch.as_ref())
-            + size_of_val(self.origin_required.as_ref())
-            + size_of_val(self.parent_dispatch.as_ref())
-            + size_of_val(self.waypoints.as_ref())) as u64
     }
 
     fn site(&self) -> TransposeSite<'_> {
@@ -2707,12 +2646,10 @@ fn share_selector_program(
     if let Some(found) = pool.find(hash, |candidate| candidate.program == program) {
         return found;
     }
-    let mut program_memory = MemoryLease::new(MemoryCategory::RuleProgram);
-    program_memory.reconcile_committed(&mut pool.memory, program.capacity_bytes());
+
     let program = Arc::new(SharedSelectorProgram {
         program,
         hash,
-        _memory: program_memory,
         first_transpose_router: std::sync::atomic::AtomicU64::new(UNROUTED),
         transpose_sites: std::sync::OnceLock::new(),
     });
@@ -2760,15 +2697,6 @@ impl SelectorProgramStorage {
         match self {
             Self::Document(program) => SelectorPrograms::program_hash(program),
             Self::Process(program) => program.hash,
-        }
-    }
-
-    fn document_capacity_bytes(&self) -> u64 {
-        match self {
-            Self::Document(program) => {
-                (size_of::<SelectorProgram>() + 2 * size_of::<usize>()) as u64 + program.capacity_bytes()
-            }
-            Self::Process(_) => 0,
         }
     }
 }
@@ -2822,36 +2750,16 @@ impl SelectorEntryIDs {
     fn iter(&self) -> impl ExactSizeIterator<Item = EntryID> + '_ {
         (0..self.len()).map(|index| self.get(index))
     }
-
-    fn capacity_bytes(&self) -> usize {
-        match self {
-            Self::Consecutive { .. } => 0,
-            Self::Explicit(entries) => {
-                size_of_val(entries.as_ref().as_ref()) + size_of_val(entries.as_ref()) + 2 * size_of::<usize>()
-            }
-        }
-    }
 }
 
 /// The process's pools for selector programs and their attachments, shared by every engine.
+#[derive(Default)]
 struct SelectorProgramPools {
     programs: WeakPool<SharedSelectorProgram>,
     entry_attachments: SharedVectorPool<Option<SelectorEntryIDs>>,
     program_attachments: SharedVectorPool<Option<SelectorProgramStorage>>,
     program_indices: SharedVectorPool<Option<NonZeroU32>>,
     entry_locations: SharedVectorPool<Option<(NonZeroU32, u32)>>,
-}
-
-impl Default for SelectorProgramPools {
-    fn default() -> Self {
-        Self {
-            programs: WeakPool::default(),
-            entry_attachments: SharedVectorPool::new(MemoryCategory::RuleProgram),
-            program_attachments: SharedVectorPool::new(MemoryCategory::RuleProgram),
-            program_indices: SharedVectorPool::new(MemoryCategory::RuleProgram),
-            entry_locations: SharedVectorPool::new(MemoryCategory::RuleProgram),
-        }
-    }
 }
 
 fn selector_program_pools() -> MutexGuard<'static, SelectorProgramPools> {
@@ -2877,7 +2785,6 @@ pub struct SelectorPrograms {
     programs: SharedVector<Option<SelectorProgramStorage>>,
     vacant_programs: Vec<SelectorProgramID>,
     entry_ids_by_program: SharedVector<Option<SelectorEntryIDs>>,
-    entry_ids_bytes: usize,
     entry_locations: SharedVector<Option<(NonZeroU32, u32)>>,
     vacant_entries: Vec<EntryID>,
     /// Open-addressed structural interning table. Reclamation rebuilds it, so lookup never has to
@@ -2887,8 +2794,6 @@ pub struct SelectorPrograms {
     /// once compiled, so this is settled by the one place that can move it - which matters because
     /// compiling a rule settles the charge, and deriving it by walking the list would make a sheet
     /// cost a pass over every rule already in the document for each rule it adds.
-    program_memory: MemoryLease,
-    memory: MemoryLease,
     scope: SelectorProgramScope,
     /// Tells this document's routing of a process-shared program apart from other documents'.
     router: u32,
@@ -2900,12 +2805,10 @@ impl Default for SelectorPrograms {
             programs: SharedVector::default(),
             vacant_programs: Vec::new(),
             entry_ids_by_program: SharedVector::default(),
-            entry_ids_bytes: 0,
             entry_locations: SharedVector::default(),
             vacant_entries: Vec::new(),
             program_index: SharedVector::default(),
-            program_memory: MemoryLease::new(MemoryCategory::RuleProgram),
-            memory: MemoryLease::new(MemoryCategory::RuleProgram),
+
             scope: SelectorProgramScope::Document,
             router: next_document_router(),
         }
@@ -2998,7 +2901,7 @@ impl SelectorPrograms {
         });
         let stored_id = Self::stored_program_id(id);
         self.vacant_programs.pop();
-        self.program_memory.grow_committed(program.document_capacity_bytes());
+
         if id.0 as usize == self.programs.len() {
             self.programs.make_mut().push(Some(program));
         } else {
@@ -3041,7 +2944,6 @@ impl SelectorPrograms {
                 .collect();
             SelectorEntryIDs::from_entries(entries)
         };
-        self.entry_ids_bytes += entries.capacity_bytes();
         if self.entry_ids_by_program.len() <= id.0 as usize {
             self.entry_ids_by_program
                 .make_mut()
@@ -3075,7 +2977,7 @@ impl SelectorPrograms {
         NonZeroU32::new(id.0.checked_add(1).expect("selector program space exhausted")).unwrap()
     }
 
-    pub(super) fn share_indices(&mut self, memory: &mut MemoryController) {
+    pub(super) fn share_indices(&mut self) {
         if matches!(self.scope, SelectorProgramScope::Process) {
             self.programs.share(&mut selector_program_pools().program_attachments);
         }
@@ -3084,7 +2986,6 @@ impl SelectorPrograms {
         self.entry_locations.share(&mut pools.entry_locations);
         self.entry_ids_by_program.share(&mut pools.entry_attachments);
         drop(pools);
-        self.settle_memory(memory);
     }
 
     fn program_hash(program: &SelectorProgram) -> u64 {
@@ -3144,18 +3045,7 @@ impl SelectorPrograms {
                             sites.into_boxed_slice()
                         })
                         .collect();
-                    let bytes = size_of_val(by_entry.as_ref()) as u64
-                        + by_entry
-                            .iter()
-                            .flatten()
-                            .map(OwnedTransposeSite::capacity_bytes)
-                            .sum::<u64>();
-                    let mut memory = MemoryLease::new(MemoryCategory::RuleProgram);
-                    memory.reconcile_committed(&mut selector_program_pools().programs.memory, bytes);
-                    TransposeSites {
-                        by_entry,
-                        _memory: memory,
-                    }
+                    TransposeSites { by_entry }
                 });
                 for site in &sites.by_entry[entry] {
                     visit(site.site());
@@ -3212,11 +3102,8 @@ impl SelectorPrograms {
                 assert!(slot.is_some(), "a referenced selector program must remain live");
                 continue;
             }
-            if let Some(program) = slot.take() {
-                self.program_memory.shrink_committed(program.document_capacity_bytes());
-            }
+            *slot = None;
             if let Some(entries) = self.entry_ids_by_program.make_mut()[index].take() {
-                self.entry_ids_bytes -= entries.capacity_bytes();
                 for entry in entries.iter() {
                     self.entry_locations.make_mut()[entry.0 as usize] = None;
                     self.vacant_entries.push(entry);
@@ -3241,32 +3128,6 @@ impl SelectorPrograms {
     #[cfg(test)]
     pub fn len(&self) -> usize {
         self.programs.len()
-    }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.programs,
-                self.vacant_programs,
-                self.entry_ids_by_program,
-                self.entry_locations,
-                self.vacant_entries,
-                self.program_index,
-            ];
-            cached [self.program_memory.bytes()];
-            // Consecutive identities live inline; charge only fragmented lists without
-            // walking every program when settling after each rule.
-            nested [self.entry_ids_bytes];
-            skip [self.memory];
-        }
-    }
-
-    pub fn settle_memory(&mut self, memory: &mut MemoryController) {
-        let program = self.program_memory.bytes();
-        self.program_memory.reconcile_committed(memory, program);
-        let header = self.capacity_bytes() - self.program_memory.bytes();
-        self.memory.resize_required_to(memory, header);
     }
 }
 
@@ -3388,7 +3249,6 @@ struct FlatRouteDirectoryData {
 
 struct SharedFlatRouteDirectory {
     data: FlatRouteDirectoryData,
-    _memory: MemoryLease,
 }
 
 fn share_flat_route_directory(
@@ -3414,14 +3274,8 @@ fn share_flat_route_directory(
     if let Some(found) = pool.find(hash, |candidate| candidate.data == data) {
         return Some(found);
     }
-    let mut memory = MemoryLease::new(MemoryCategory::RoutingRegistry);
-    memory.resize_required_to(
-        &mut pool.memory,
-        size_of::<SharedFlatRouteDirectory>() as u64
-            + data.ranges.shallow_capacity_bytes()
-            + data.routes.shallow_capacity_bytes(),
-    );
-    let shared = Arc::new(SharedFlatRouteDirectory { data, _memory: memory });
+
+    let shared = Arc::new(SharedFlatRouteDirectory { data });
     pool.insert(hash, &shared);
     Some(shared)
 }
@@ -3562,21 +3416,6 @@ impl RouteDirectory {
             Self::FlatAfterIdle { data }
         }
     }
-
-    fn capacity_bytes(&self) -> u64 {
-        match self {
-            Self::BuildingAfterIdle(building)
-            | Self::BuildingAfterChange(building)
-            | Self::BuildingIdleAfterChange(building) => capacity_bytes! {
-                shallow [building];
-                cached [];
-                nested [building.values().map(|routes| routes.capacity() * size_of::<RouteID>()).sum::<usize>()];
-                skip [];
-            },
-            // Immutable directory allocations are charged once to the pool's ledger.
-            Self::FlatAfterIdle { .. } | Self::FlatAfterChange { .. } => 0,
-        }
-    }
 }
 
 #[derive(Clone, Default, PartialEq, Eq)]
@@ -3647,26 +3486,15 @@ impl std::ops::Deref for RouteColumns {
 
 struct SharedRouteColumns {
     data: RouteColumnData,
-    _memory: MemoryLease,
 }
 
 /// The process's pools for routing registries, shared by every engine.
+#[derive(Default)]
 struct RoutingPools {
     route_columns: WeakPool<SharedRouteColumns>,
     route_ranges: SharedVectorPool<RouteRange>,
     flat_route_directories: WeakPool<SharedFlatRouteDirectory>,
     sibling_entry_maps: SharedVectorPool<u32>,
-}
-
-impl Default for RoutingPools {
-    fn default() -> Self {
-        Self {
-            route_columns: WeakPool::default(),
-            route_ranges: SharedVectorPool::new(MemoryCategory::RoutingRegistry),
-            flat_route_directories: WeakPool::default(),
-            sibling_entry_maps: SharedVectorPool::new(MemoryCategory::RoutingRegistry),
-        }
-    }
 }
 
 fn routing_pools() -> MutexGuard<'static, RoutingPools> {
@@ -3696,14 +3524,6 @@ impl RouteColumns {
         self.make_mut().push(header, ranges);
     }
 
-    fn capacity_bytes(&self) -> u64 {
-        match self {
-            Self::Owned(data) => size_of::<RouteColumnData>() as u64 + data.capacity_bytes(),
-            // The immutable allocation is charged once to the pool's ledger.
-            Self::Shared(_) => 0,
-        }
-    }
-
     fn share(&mut self, pools: &mut RoutingPools) {
         if matches!(self, Self::Shared(_)) || self.is_empty() {
             return;
@@ -3724,12 +3544,8 @@ impl RouteColumns {
                 data.origin_requirements.share(&mut pools.route_ranges);
                 data.parents.share(&mut pools.route_ranges);
                 data.waypoints.share(&mut pools.route_ranges);
-                let mut memory = MemoryLease::new(MemoryCategory::RoutingRegistry);
-                memory.resize_required_to(&mut pools.route_columns.memory, data.capacity_bytes());
-                let shared = Arc::new(SharedRouteColumns {
-                    data: *data,
-                    _memory: memory,
-                });
+
+                let shared = Arc::new(SharedRouteColumns { data: *data });
                 pools.route_columns.insert(hash, &shared);
                 shared
             }
@@ -3772,30 +3588,6 @@ impl RouteColumnData {
 
     fn is_empty(&self) -> bool {
         self.headers.is_empty()
-    }
-
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.headers,
-                self.paths,
-                self.origins,
-                self.origin_requirements,
-                self.parents,
-                self.waypoints,
-                self.anchors,
-                self.entry_facts,
-                self.inverse_steps,
-                self.keys,
-                self.relational,
-                self.sibling_first,
-                self.canonical_route_heads,
-                self.canonical_next,
-            ];
-            cached [];
-            nested [];
-            skip [];
-        }
     }
 }
 
@@ -4275,8 +4067,6 @@ pub struct RoutingRegistry {
     /// The live routes whose rules may move layout geometry, part of the liveness view.
     geometry_routes: BitColumn,
     route_liveness_version: Option<u64>,
-    memory: MemoryLease,
-    nested_memory: MemoryLease,
 }
 
 impl Default for RoutingRegistry {
@@ -4297,8 +4087,6 @@ impl Default for RoutingRegistry {
             live_sequence_index: crate::fork::ForkLocked::new(SequenceEntryIndex::default()),
             geometry_routes: BitColumn::default(),
             route_liveness_version: None,
-            memory: MemoryLease::new(MemoryCategory::RoutingRegistry),
-            nested_memory: MemoryLease::new(MemoryCategory::RoutingRegistry),
         }
     }
 }
@@ -4307,12 +4095,6 @@ impl RoutingRegistry {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
-    }
-
-    fn push_route(memory: &mut MemoryLease, routes: &mut Vec<RouteID>, route: RouteID) {
-        let capacity_before = routes.capacity();
-        routes.push(route);
-        memory.grow_committed(((routes.capacity() - capacity_before) * size_of::<RouteID>()) as u64);
     }
 
     fn insert(&mut self, key: RoutingKey, descriptor: RouteDescriptor<'_>) -> RouteID {
@@ -4402,11 +4184,11 @@ impl RoutingRegistry {
                 self.routes.make_mut().sibling_first.push(route);
                 if origin_dispatch.is_empty() {
                     let routes = self.sibling_first_by_origin.entry(DispatchKey::Universal).or_default();
-                    Self::push_route(&mut self.nested_memory, routes, route);
+                    routes.push(route);
                 } else {
                     for &origin in origin_dispatch {
                         let routes = self.sibling_first_by_origin.entry(origin).or_default();
-                        Self::push_route(&mut self.nested_memory, routes, route);
+                        routes.push(route);
                     }
                 }
             }
@@ -4857,41 +4639,6 @@ impl RoutingRegistry {
             });
         }
     }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.sibling_first_by_origin,
-            ];
-            cached [self.nested_memory.bytes()];
-            nested [
-                self.routes.capacity_bytes()
-                    + self.by_input.capacity_bytes()
-                    + self.arrival_by_input.capacity_bytes()
-                    + self.route_liveness.capacity_bytes()
-                    + self.geometry_routes.capacity_bytes()
-                    + self.live_relational_routes.capacity() as u64 * size_of::<LiveRelationalRoute>() as u64
-                    + self.live_sibling_entries.capacity() as u64 * size_of::<SiblingEntry>() as u64
-                    + self.live_sibling_workspace.lock().expect(LIVENESS_LOCK).capacity_bytes()
-                    + self.live_sequence_entries.capacity() as u64 * size_of::<SequenceEntry>() as u64
-                    + self.live_sequence_index.lock().expect(LIVENESS_LOCK).capacity_bytes()
-            ];
-            skip [self.memory];
-        }
-    }
-
-    pub fn settle_memory(&mut self, memory: &mut MemoryController) {
-        let nested = self.nested_memory.bytes();
-        self.nested_memory.reconcile_committed(memory, nested);
-        let header = self.capacity_bytes() - self.nested_memory.bytes();
-        self.memory.resize_required_to(memory, header);
-    }
-
-    pub fn release_memory(&mut self) {
-        self.memory.release();
-        self.nested_memory.release();
-    }
 }
 
 /// Why a match evaluation could not produce an exact answer.
@@ -5196,14 +4943,12 @@ type PrecedingSiblingPrefix = super::selector_evaluation::PrecedingSiblingPrefix
 
 struct ProgramRelationColumns<C> {
     programs: Column<Option<Box<ProgramColumns<C>>>>,
-    footprint: MemoryLease,
 }
 
 impl<C> Default for ProgramRelationColumns<C> {
     fn default() -> Self {
         Self {
             programs: Column::default(),
-            footprint: MemoryLease::new(MemoryCategory::BatchScratch),
         }
     }
 }
@@ -5225,32 +4970,15 @@ impl<C: Default> ProgramRelationColumns<C> {
 
     fn column_mut(&mut self, program: SelectorProgramID, relation: SelectorNodeID) -> (&mut C, bool) {
         let program_index = program.0 as usize;
-        self.footprint.grow_committed(self.programs.ensure(program_index));
-
-        let program_was_absent = self.programs[program_index].is_none();
+        self.programs.ensure(program_index);
         let program_columns = self.programs[program_index].get_or_insert_with(Box::default);
-        self.footprint
-            .grow_committed((usize::from(program_was_absent) * size_of::<ProgramColumns<C>>()) as u64);
-
         let relation_index = relation.0 as usize;
-        self.footprint
-            .grow_committed(program_columns.relations.ensure(relation_index));
-
+        program_columns.relations.ensure(relation_index);
         let column_was_absent = program_columns.relations[relation_index].is_none();
         (
             program_columns.relations[relation_index].get_or_insert_with(C::default),
             column_was_absent,
         )
-    }
-
-    #[must_use]
-    fn capacity_bytes(&self) -> usize {
-        (capacity_bytes! {
-            shallow [];
-            cached [self.footprint.bytes()];
-            nested [];
-            skip [self.programs];
-        }) as usize
     }
 }
 
@@ -5327,28 +5055,9 @@ impl MatchRelationAnswers {
         node: StyleNodeID,
         answer: bool,
     ) -> (bool, bool) {
-        let (column_was_absent, page_was_absent, bytes_grown) = {
-            let (column, column_was_absent) = self.columns.column_mut(program, relation);
-            let column_bytes_before = column.capacity_bytes();
-            let page_was_absent = column.insert(node.element_index().unwrap() as usize, answer).1;
-            (
-                column_was_absent,
-                page_was_absent,
-                column.capacity_bytes() - column_bytes_before,
-            )
-        };
-        self.columns.footprint.grow_committed(bytes_grown);
+        let (column, column_was_absent) = self.columns.column_mut(program, relation);
+        let page_was_absent = column.insert(node.element_index().unwrap() as usize, answer).1;
         (column_was_absent, page_was_absent)
-    }
-
-    #[must_use]
-    fn capacity_bytes(&self) -> usize {
-        (capacity_bytes! {
-            shallow [];
-            cached [self.columns.capacity_bytes()];
-            nested [];
-            skip [];
-        }) as usize
     }
 }
 
@@ -5369,23 +5078,8 @@ impl PrecedingSiblingPrefixes {
         parent: PrecedingSiblingParentID,
         prefix: PrecedingSiblingPrefix,
     ) {
-        let bytes_grown = {
-            let (column, _) = self.columns.column_mut(program, relation);
-            let column_bytes_before = column.capacity_bytes();
-            column.insert(parent.0 as usize, prefix);
-            column.capacity_bytes() - column_bytes_before
-        };
-        self.columns.footprint.grow_committed(bytes_grown);
-    }
-
-    #[must_use]
-    fn capacity_bytes(&self) -> usize {
-        (capacity_bytes! {
-            shallow [];
-            cached [self.columns.capacity_bytes()];
-            nested [];
-            skip [];
-        }) as usize
+        let (column, _) = self.columns.column_mut(program, relation);
+        column.insert(parent.0 as usize, prefix);
     }
 }
 
@@ -5491,15 +5185,6 @@ impl SiblingSequenceGeometry {
             from_end: count - ordinal,
         })
     }
-
-    pub(super) fn capacity_bytes(&self) -> usize {
-        (capacity_bytes! {
-            shallow [self.sequences];
-            cached [self.sequence_bytes];
-            nested [self.memberships.capacity_bytes()];
-            skip [];
-        }) as usize
-    }
 }
 
 /// The semantic side of a match-program evaluation.
@@ -5535,7 +5220,6 @@ pub struct MatchScratch {
 #[derive(Clone, Default)]
 struct PositionalAnswers {
     by_test: Vec<(NthPosition, HashMap<StyleNodeID, bool>)>,
-    answer_capacity_bytes: u64,
 }
 
 impl PositionalAnswers {
@@ -5551,51 +5235,17 @@ impl PositionalAnswers {
     fn insert(&mut self, position: NthPosition, node: StyleNodeID, answer: bool) {
         match self.by_test.iter_mut().find(|(candidate, _)| *candidate == position) {
             Some((_, answers)) => {
-                let previous_bytes = answers.shallow_capacity_bytes();
                 answers.insert(node, answer);
-                self.answer_capacity_bytes += answers.shallow_capacity_bytes() - previous_bytes;
             }
             None => {
                 let answers = HashMap::from_iter([(node, answer)]);
-                self.answer_capacity_bytes += answers.shallow_capacity_bytes();
                 self.by_test.push((position, answers));
             }
         }
     }
-
-    fn capacity_bytes(&self) -> usize {
-        (capacity_bytes! {
-            shallow [self.by_test];
-            cached [self.answer_capacity_bytes];
-            nested [];
-            skip [];
-        }) as usize
-    }
 }
 
 impl MatchRelationCache {
-    #[must_use]
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [];
-            nested [
-                self.answers.capacity_bytes(),
-                {
-                    let parent_ids = &self.preceding_sibling_parent_ids;
-                    capacity_bytes! {
-                        shallow [parent_ids];
-                        cached [];
-                        nested [];
-                        skip [];
-                    }
-                },
-                self.preceding_sibling_prefixes.capacity_bytes(),
-            ];
-            skip [];
-        }
-    }
-
     /// Discard selector-specific answers before a following matching traversal.
     ///
     /// Exact planning asks a narrow set of selector entries, while matching asks every candidate
@@ -5649,35 +5299,6 @@ impl MatchRelationCache {
 }
 
 impl MatchScratch {
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [];
-            nested [
-                self.relations_by_evaluation_side
-                    .iter()
-                    .map(MatchRelationCache::capacity_bytes)
-                    .sum::<u64>(),
-                self
-                .sibling_geometry_by_tree_side
-                .iter()
-                .map(|geometry| geometry.capacity_bytes())
-                .sum::<usize>(),
-                self
-                .type_positions_by_evaluation_side
-                .iter()
-                .map(|positions| positions.capacity_bytes())
-                .sum::<u64>(),
-                self.positional_answers_by_evaluation_side
-                .iter()
-                .map(|answers| answers.capacity_bytes())
-                .sum::<usize>(),
-            ];
-            skip [];
-        }
-    }
-
     /// Keep only reusable current-tree, current-fact data for the following matching traversal.
     pub(super) fn retain_current_for_matching(&mut self) {
         self.relations_by_evaluation_side[MatchEvaluationSide::Current as usize].clear_selector_answers();
@@ -5834,14 +5455,6 @@ impl<'a> MatchEvaluator<'a> {
         );
         self.subject.witnesses = Some(witnesses);
         self
-    }
-
-    #[inline]
-    pub(super) fn match_scratch_capacity_bytes(&self) -> u64 {
-        self.subject
-            .match_workspace
-            .as_ref()
-            .map_or(0, |(scratch, _)| scratch.capacity_bytes())
     }
 
     /// How far the subject is from the scoping root its `@scope` resolved through.
@@ -6650,7 +6263,6 @@ mod tests {
     use super::super::index::LocalFeatureKey;
     use super::super::index::StateSet;
     use super::super::instrumentation::Counter;
-    use super::super::memory::MemoryController;
     use super::super::relative_selector::RelativeAxis;
     use super::*;
 
@@ -6753,7 +6365,6 @@ mod tests {
                 node: first,
             })
         );
-        assert!(cache.answers.capacity_bytes() > 0);
     }
 
     #[test]
@@ -6782,7 +6393,6 @@ mod tests {
         prefixes.insert(program, relation, first_parent, replacement);
         assert!(prefixes.get(program, relation, first_parent).unwrap().answer);
         assert_eq!(prefixes.get(program, relation, first_parent).unwrap().next, None);
-        assert!(prefixes.capacity_bytes() > 0);
     }
 
     #[test]
@@ -6903,7 +6513,6 @@ mod tests {
 
     /// A four-element document: `root > [first.item, second.item#target, third]`.
     struct Fixture {
-        memory: MemoryController,
         tree: StyleNodeTree,
         facts: StyleNodeFacts,
         nodes: Vec<StyleNodeID>,
@@ -6958,9 +6567,8 @@ mod tests {
 
     impl Fixture {
         fn new() -> Self {
-            let mut memory = MemoryController::new();
-            let mut tree = StyleNodeTree::new(&mut memory);
-            let nodes: Vec<StyleNodeID> = (0..4).map(|_| tree.allocate_element(&mut memory)).collect();
+            let mut tree = StyleNodeTree::new();
+            let nodes: Vec<StyleNodeID> = (0..4).map(|_| tree.allocate_element()).collect();
             tree.set_first_element_child(nodes[0], Some(nodes[1]));
             for index in 1..4 {
                 tree.set_parent(nodes[index], Some(nodes[0]));
@@ -7008,7 +6616,6 @@ mod tests {
             facts.push_row(nodes[3], TAG_DIV, StyleAtomID::NONE, StateSet::default(), &[], &[]);
 
             Self {
-                memory,
                 tree,
                 facts,
                 nodes,
@@ -7294,8 +6901,8 @@ mod tests {
     #[test]
     fn a_missing_fact_below_a_sibling_names_its_descendant_range() {
         let mut fixture = Fixture::new();
-        let mut memory = MemoryController::new();
-        let child = fixture.tree.allocate_element(&mut memory);
+
+        let child = fixture.tree.allocate_element();
         fixture.tree.set_parent(child, Some(fixture.nodes[1]));
         fixture.tree.set_first_element_child(fixture.nodes[1], Some(child));
         let program = single_entry(|builder| {
@@ -7772,7 +7379,6 @@ mod tests {
 
     #[test]
     fn the_registry_returns_only_the_routes_that_mention_an_input() {
-        let mut memory = MemoryController::new();
         let mut registry = RoutingRegistry::new();
         let mut programs = SelectorPrograms::new();
 
@@ -7810,7 +7416,6 @@ mod tests {
         registry.add_rule(RuleID(2), unrelated, &programs);
         registry.add_rule(RuleID(3), sibling, &programs);
         registry.add_rule(RuleID(4), relational, &programs);
-        registry.settle_memory(&mut memory);
 
         // A hover change reaches only the rule that mentions it.
         let routed = registry.routes_for(RoutingKey::State(StateFact::Hover));
@@ -7825,19 +7430,6 @@ mod tests {
         assert_eq!(arrivals.len(), 2);
         assert_eq!(registry.rule_of(arrivals[0]), RuleID(3));
         assert_eq!(registry.rule_of(arrivals[1]), RuleID(4));
-        assert!(memory.bytes_in_category(MemoryCategory::RoutingRegistry) > 0);
-    }
-
-    #[test]
-    fn route_liveness_charges_its_packed_word_storage() {
-        let mut registry = RoutingRegistry::new();
-        let before = registry.capacity_bytes();
-
-        let (changed, growth) = registry.route_liveness.set(511, true);
-
-        assert!(changed);
-        assert_eq!(registry.capacity_bytes() - before, growth);
-        assert_eq!(registry.route_liveness.capacity_bytes(), growth);
     }
 
     #[test]
@@ -7991,7 +7583,6 @@ mod tests {
 
     #[test]
     fn the_running_program_total_tracks_what_the_programs_reserve() {
-        let mut memory = MemoryController::new();
         let mut programs = SelectorPrograms::new();
         // Enough programs, of differing sizes, to reallocate the list several times over.
         for index in 0..64_u32 {
@@ -8004,11 +7595,6 @@ mod tests {
             });
             programs.add(program);
         }
-        programs.settle_memory(&mut memory);
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::RuleProgram),
-            programs.capacity_bytes()
-        );
     }
 
     #[test]
@@ -8035,11 +7621,11 @@ mod tests {
         let make_program = |atom| single_entry(|builder| builder.push_feature(FeatureTest::Class(StyleAtomID(atom))));
         let mut first = SelectorPrograms::new();
         let mut second = SelectorPrograms::new();
-        let mut memory = MemoryController::new();
+
         for programs in [&mut first, &mut second] {
             programs.add(make_program(7));
             programs.add(make_program(8));
-            programs.share_indices(&mut memory);
+            programs.share_indices();
         }
         assert_eq!(first.program_index.as_ptr(), second.program_index.as_ptr());
         assert_eq!(first.entry_locations.as_ptr(), second.entry_locations.as_ptr());
@@ -8060,7 +7646,6 @@ mod tests {
     fn selector_entry_runs_keep_fragmented_recycled_identities() {
         let consecutive = SelectorEntryIDs::from_entries(vec![EntryID(7), EntryID(8), EntryID(9)]);
         assert!(matches!(consecutive, SelectorEntryIDs::Consecutive { .. }));
-        assert_eq!(consecutive.capacity_bytes(), 0);
         assert_eq!(
             consecutive.iter().collect::<Vec<_>>(),
             [EntryID(7), EntryID(8), EntryID(9)]
@@ -8098,15 +7683,6 @@ mod tests {
                 allocated_entries
             );
             assert_eq!(programs.entry_locations.iter().flatten().count(), allocated_entries);
-            assert_eq!(
-                programs.entry_ids_bytes,
-                programs
-                    .entry_ids_by_program
-                    .iter()
-                    .flatten()
-                    .map(SelectorEntryIDs::capacity_bytes)
-                    .sum::<usize>()
-            );
         };
         for mut programs in [SelectorPrograms::new(), SelectorPrograms::shared_across_documents()] {
             check(&programs);
@@ -8163,7 +7739,7 @@ mod tests {
     #[test]
     fn process_programs_share_payload_and_its_memory_lifetime() {
         let make_program = || single_entry(|builder| builder.push_feature(FeatureTest::Class(StyleAtomID(91))));
-        let expected_bytes = make_program().capacity_bytes();
+
         let program_hash = SelectorPrograms::program_hash(&make_program());
         let mut first = SelectorPrograms::shared_across_documents();
         let mut second = SelectorPrograms::shared_across_documents();
@@ -8179,7 +7755,6 @@ mod tests {
         assert!(Arc::ptr_eq(first_program, second_program));
         // The pool is shared with every other test running in the process, so this test only
         // looks at its own program: nothing else interns a class selector on this atom.
-        assert_eq!(first_program._memory.bytes(), expected_bytes);
         assert_eq!(selector_program_pools().programs.live_values_under(program_hash), 1);
 
         drop(first);
@@ -8365,13 +7940,11 @@ mod tests {
         let host = fixture.nodes[0];
         let slotted = fixture.nodes[1];
         let shadow_root = fixture.nodes[3];
-        fixture.tree.set_shadow_root(host, shadow_root, &mut fixture.memory);
+        fixture.tree.set_shadow_root(host, shadow_root);
+        fixture.tree.set_assigned_slot(slotted, Some(fixture.nodes[2]));
         fixture
             .tree
-            .set_assigned_slot(slotted, Some(fixture.nodes[2]), &mut fixture.memory);
-        fixture
-            .tree
-            .set_part_hosts(fixture.nodes[2], &[(StyleAtomID(77), host)], &mut fixture.memory);
+            .set_part_hosts(fixture.nodes[2], &[(StyleAtomID(77), host)]);
 
         let host_rule = single_entry(|builder| {
             let any = builder.push_feature(FeatureTest::AnyElement);
@@ -8457,9 +8030,7 @@ mod tests {
     #[test]
     fn a_generic_descendant_walk_does_not_pierce_a_shadow_root() {
         let mut fixture = Fixture::new();
-        fixture
-            .tree
-            .set_shadow_root(fixture.nodes[0], fixture.nodes[3], &mut fixture.memory);
+        fixture.tree.set_shadow_root(fixture.nodes[0], fixture.nodes[3]);
 
         // .theme .item still means DOM ancestry; hosting changes nothing about it.
         let program = single_entry(|builder| {

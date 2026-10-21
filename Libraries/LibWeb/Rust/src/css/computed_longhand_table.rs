@@ -547,19 +547,6 @@ impl SlotStorage {
             }
         }
     }
-
-    fn owned_capacity_bytes(&self) -> usize {
-        match self {
-            Self::Dense(_) => size_of::<DenseSlotStorage>(),
-            Self::Delta { changes, view, .. } => {
-                (if changes.spilled() {
-                    changes.capacity() * size_of::<ChangedSlot>()
-                } else {
-                    0
-                }) + view.get().map_or(0, |view| size_of_val(view.as_ref()))
-            }
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -637,28 +624,6 @@ pub struct FfiComputedStyleMetadata {
 }
 
 impl ComputedLonghandTable {
-    /// Capacity owned by a suspended drive, excluding shared style-value allocations.
-    pub(crate) fn owned_capacity_bytes(&self) -> u64 {
-        (size_of::<Self>()
-            + self.storage.owned_capacity_bytes()
-            + self.inheritance_dependent.capacity() * size_of::<(u16, RetainedStyleValueData)>()
-            + self.inheritance_dependent_view.capacity() * size_of::<FfiTableInheritanceDependentValue>()
-            + self
-                .frozen_transition_longhands
-                .get()
-                .map_or(0, |values| size_of_val(values.as_ref()))) as u64
-    }
-
-    /// Immutable table allocations retained at publication. The pre-existing lazy
-    /// transition memo is excluded here because it can grow after this boundary.
-    pub(crate) fn publication_capacity_bytes(&self) -> u64 {
-        self.owned_capacity_bytes()
-            - self
-                .frozen_transition_longhands
-                .get()
-                .map_or(0, |values| size_of_val(values.as_ref()) as u64)
-    }
-
     pub(crate) fn new() -> Self {
         Self::with_storage(SlotStorage::new())
     }

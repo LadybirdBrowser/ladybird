@@ -1637,15 +1637,6 @@ pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
     refcount.fetch_add(1, Ordering::Relaxed);
 }
 
-pub(crate) fn retained_group_payload_bytes(group_index: usize, payload: *const c_void) -> usize {
-    let group = style_group(group_index);
-    let refcount = refcount_of(payload, payload_align(group));
-    if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
-        return 0;
-    }
-    allocation_layout(group).size()
-}
-
 fn header_size(align: usize) -> usize {
     align.max(size_of::<usize>())
 }

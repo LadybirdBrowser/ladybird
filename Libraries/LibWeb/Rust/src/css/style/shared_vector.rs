@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::capacity::ShallowCapacityBytes;
 use super::fast_hash::fast_hasher;
-use super::memory::{MemoryCategory, MemoryLease};
 use super::weak_pool::WeakPool;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
@@ -15,14 +13,12 @@ use std::sync::Arc;
 /// A pool of shared vector contents of one element type.
 pub(super) struct SharedVectorPool<T: 'static> {
     pool: WeakPool<SharedVectorData<T>>,
-    category: MemoryCategory,
 }
 
-impl<T> SharedVectorPool<T> {
-    pub(super) fn new(category: MemoryCategory) -> Self {
+impl<T> Default for SharedVectorPool<T> {
+    fn default() -> Self {
         Self {
             pool: WeakPool::default(),
-            category,
         }
     }
 }
@@ -30,7 +26,6 @@ impl<T> SharedVectorPool<T> {
 struct SharedVectorData<T: 'static> {
     values: Vec<T>,
     hash: u64,
-    _memory: MemoryLease,
 }
 
 enum Storage<T: 'static> {
@@ -158,30 +153,12 @@ impl<T: Clone + Eq + Hash> SharedVector<T> {
         let shared = match pool.pool.find(hash, |data| data.values == values) {
             Some(found) => found,
             None => {
-                let mut memory = MemoryLease::new(pool.category);
-                memory.resize_required_to(
-                    &mut pool.pool.memory,
-                    size_of::<SharedVectorData<T>>() as u64 + values.shallow_capacity_bytes(),
-                );
-                let shared = Arc::new(SharedVectorData {
-                    values,
-                    hash,
-                    _memory: memory,
-                });
+                let shared = Arc::new(SharedVectorData { values, hash });
                 pool.pool.insert(hash, &shared);
                 shared
             }
         };
         self.storage = Storage::Shared(shared);
-    }
-}
-
-impl<T> ShallowCapacityBytes for SharedVector<T> {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        match &self.storage {
-            Storage::Owned(values) => values.shallow_capacity_bytes(),
-            Storage::Shared(_) => 0,
-        }
     }
 }
 
@@ -266,24 +243,13 @@ impl<T: Clone + Eq + Hash> PagedSharedVector<T> {
     }
 }
 
-impl<T> ShallowCapacityBytes for PagedSharedVector<T> {
-    fn shallow_capacity_bytes(&self) -> u64 {
-        self.pages.shallow_capacity_bytes()
-            + self
-                .pages
-                .iter()
-                .map(ShallowCapacityBytes::shallow_capacity_bytes)
-                .sum::<u64>()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn equal_vectors_share_and_mutation_detaches_without_changing_other_owners() {
-        let mut pool = SharedVectorPool::new(MemoryCategory::RuleProgram);
+        let mut pool = SharedVectorPool::default();
         let mut make_vector = || {
             let mut vector = SharedVector::default();
             vector.make_mut().extend([1, 2, 3]);

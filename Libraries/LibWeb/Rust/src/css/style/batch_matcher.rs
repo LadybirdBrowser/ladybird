@@ -13,10 +13,8 @@
 
 use super::prefix::PrefixTransitionContext;
 use smallvec::SmallVec;
-use std::mem::size_of;
 
 use super::ScopeDispatchShape;
-use super::capacity::capacity_bytes;
 use super::cascade::Top1Cascade;
 use super::index::AncestorDispatchFacts;
 use super::index::AncestorDispatchTopologyID;
@@ -29,8 +27,6 @@ use super::index::RuleDispatch;
 use super::index::StyleNodeFacts;
 use super::instrumentation::Counter;
 use super::instrumentation::Counters;
-use super::memory::MemoryCategory;
-use super::memory::MemoryController;
 use super::prefix::PrefixEvaluation;
 use super::prefix::PrefixMatchSetID;
 use super::prefix::PrefixStates;
@@ -90,7 +86,6 @@ pub struct RuleMatch {
 pub struct RuleMatches {
     matches: Vec<RuleMatch>,
     selector_truth: Option<Vec<super::SelectorTruth>>,
-    charged_bytes: u64,
 }
 
 impl RuleMatches {
@@ -154,44 +149,20 @@ impl RuleMatches {
         }
     }
 
-    pub(super) fn take_prepared_selector_truth(
-        &mut self,
-        memory: &mut MemoryController,
-    ) -> Option<Vec<super::SelectorTruth>> {
-        self.settle_memory(memory);
+    pub(super) fn take_prepared_selector_truth(&mut self) -> Option<Vec<super::SelectorTruth>> {
         let mut truth = self.selector_truth.take()?;
-        self.settle_memory(memory);
+
         truth.sort_unstable();
         truth.dedup();
         Some(truth)
     }
 
-    /// Reconcile the scratch charge after a pass.
-    pub fn settle_memory(&mut self, memory: &mut MemoryController) {
-        let current = (self.matches.capacity() * size_of::<RuleMatch>()
-            + self
-                .selector_truth
-                .as_ref()
-                .map_or(0, |truth| truth.capacity() * size_of::<super::SelectorTruth>())) as u64;
-        if current > self.charged_bytes {
-            memory.reserve_required(MemoryCategory::BatchScratch, current - self.charged_bytes);
-        } else if self.charged_bytes > current {
-            memory.release(MemoryCategory::BatchScratch, self.charged_bytes - current);
-        }
-        self.charged_bytes = current;
-    }
-
     #[must_use]
-    pub fn take(&mut self, memory: &mut MemoryController) -> Vec<RuleMatch> {
-        self.settle_memory(memory);
-        let matches = std::mem::take(&mut self.matches);
-        self.settle_memory(memory);
-        matches
+    pub fn take(&mut self) -> Vec<RuleMatch> {
+        std::mem::take(&mut self.matches)
     }
 
-    pub fn release(&mut self, memory: &mut MemoryController) {
-        memory.release(MemoryCategory::BatchScratch, self.charged_bytes);
-        self.charged_bytes = 0;
+    pub fn release(&mut self) {
         self.matches = Vec::new();
         self.selector_truth = None;
     }
@@ -464,17 +435,6 @@ pub(super) struct AncestorRequirements {
 }
 
 impl AncestorRequirements {
-    #[must_use]
-    pub(super) fn required_bytes(row_count: usize, key_count: usize) -> u64 {
-        let words_per_row = key_count.div_ceil(u64::BITS as usize);
-        let bytes = row_count
-            .saturating_mul(words_per_row)
-            .saturating_mul(size_of::<u64>())
-            .saturating_add(row_count.saturating_mul(size_of::<bool>()))
-            .saturating_add(row_count.saturating_mul(size_of::<u32>()));
-        u64::try_from(bytes).unwrap_or(u64::MAX)
-    }
-
     pub(super) fn build(tree: &StyleNodeTree, facts: &StyleNodeFacts, dispatch: &RuleDispatch) -> Self {
         let words_per_row = dispatch.ancestor_key_count().div_ceil(u64::BITS as usize);
         let row_count = facts.row_count();
@@ -543,12 +503,6 @@ impl AncestorRequirements {
             single_row: None,
             selected_rows: Vec::new(),
         }
-    }
-
-    #[must_use]
-    pub(super) fn required_bytes_for_one_row(key_count: usize) -> u64 {
-        let words = key_count.div_ceil(u64::BITS as usize);
-        u64::try_from(words.saturating_mul(size_of::<u64>()).saturating_add(size_of::<bool>())).unwrap_or(u64::MAX)
     }
 
     /// Summarize one element's ancestor requirements with a single walk.
@@ -634,16 +588,6 @@ impl AncestorRequirements {
         let first = row * self.words_per_row;
         AncestorDispatchFacts::new(&self.bits[first..first + self.words_per_row], self.unbounded[row])
     }
-
-    #[must_use]
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.bits, self.unbounded, self.selected_rows];
-            cached [];
-            nested [];
-            skip [self.words_per_row, self.single_row];
-        }
-    }
 }
 
 /// Exact ancestor summaries prepared before one synchronous matching traversal.
@@ -651,47 +595,23 @@ impl AncestorRequirements {
 pub(super) struct AncestorRequirementsCache {
     // Concrete rule identities and cascade ranks do not affect ancestor requirements.
     by_topology: Vec<(AncestorDispatchTopologyID, AncestorRequirements)>,
-    charged_bytes: u64,
 }
 
 impl AncestorRequirementsCache {
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.by_topology];
-            cached [];
-            nested [self.by_topology.iter().map(|(_, requirements)| requirements.capacity_bytes()).sum::<u64>()];
-            skip [self.charged_bytes];
-        }
-    }
-
     pub(super) fn prepare(
         &mut self,
         tree: &StyleNodeTree,
         facts: &StyleNodeFacts,
         dispatch: &RuleDispatch,
         nodes: Option<&[StyleNodeID]>,
-        memory: &mut MemoryController,
     ) -> &AncestorRequirements {
         let topology = dispatch.ancestor_topology_id();
         if !self.by_topology.iter().any(|(held, _)| *held == topology) {
-            let build_scratch = AncestorRequirements::required_bytes(
-                nodes.map_or(facts.row_count(), <[StyleNodeID]>::len),
-                dispatch.ancestor_key_count(),
-            );
-            memory.reserve_required(MemoryCategory::BatchScratch, build_scratch);
             let requirements = match nodes {
                 Some(nodes) => AncestorRequirements::build_for_nodes(tree, facts, dispatch, nodes),
                 None => AncestorRequirements::build(tree, facts, dispatch),
             };
             self.by_topology.push((topology, requirements));
-            let current = self.capacity_bytes();
-            let growth = current.saturating_sub(self.charged_bytes);
-            if growth > build_scratch {
-                memory.reserve_required(MemoryCategory::BatchScratch, growth - build_scratch);
-            } else {
-                memory.release(MemoryCategory::BatchScratch, build_scratch - growth);
-            }
-            self.charged_bytes = current;
         }
         self.get(dispatch)
     }
@@ -706,9 +626,7 @@ impl AncestorRequirementsCache {
             .1
     }
 
-    pub(super) fn release(&mut self, memory: &mut MemoryController) {
-        memory.release(MemoryCategory::BatchScratch, self.charged_bytes);
-        self.charged_bytes = 0;
+    pub(super) fn release(&mut self) {
         self.by_topology = Vec::new();
     }
 }
@@ -1670,7 +1588,6 @@ mod tests {
 
     /// `div.theme > [ div.item, span#header, div.item ]`
     struct Document {
-        memory: MemoryController,
         tree: StyleNodeTree,
         facts: StyleNodeFacts,
         programs: SelectorPrograms,
@@ -1681,9 +1598,8 @@ mod tests {
 
     impl Document {
         fn new() -> Self {
-            let mut memory = MemoryController::new();
-            let mut tree = StyleNodeTree::new(&mut memory);
-            let nodes: Vec<StyleNodeID> = (0..4).map(|_| tree.allocate_element(&mut memory)).collect();
+            let mut tree = StyleNodeTree::new();
+            let nodes: Vec<StyleNodeID> = (0..4).map(|_| tree.allocate_element()).collect();
             tree.set_first_element_child(nodes[0], Some(nodes[1]));
             for index in 1..4 {
                 tree.set_parent(nodes[index], Some(nodes[0]));
@@ -1723,7 +1639,6 @@ mod tests {
             program.attach_sheet(sheet, TreeScopeID::DOCUMENT);
 
             Self {
-                memory,
                 tree,
                 facts,
                 programs: SelectorPrograms::new(),
@@ -1759,7 +1674,7 @@ mod tests {
             interpreter
                 .match_subtree(self.nodes[0], &mut matches, &self.counters)
                 .expect("the batch covers the whole document");
-            matches.settle_memory(&mut self.memory);
+
             matches
         }
 
@@ -2145,23 +2060,13 @@ mod tests {
             builder.push_entry(root);
         });
         let dispatch = build_scope_dispatch(&document.program, &document.programs, TreeScopeID::DOCUMENT);
-        let baseline = document.memory.bytes_in_category(MemoryCategory::BatchScratch);
-        let mut cache = AncestorRequirementsCache::default();
-        cache.prepare(&document.tree, &document.facts, &dispatch, None, &mut document.memory);
-        let after_first = document.memory.bytes_in_category(MemoryCategory::BatchScratch);
-        assert!(after_first > baseline);
-        cache.prepare(&document.tree, &document.facts, &dispatch, None, &mut document.memory);
-        assert_eq!(
-            document.memory.bytes_in_category(MemoryCategory::BatchScratch),
-            after_first,
-            "a second ask for the same dispatch reuses its exact summary"
-        );
 
-        cache.release(&mut document.memory);
-        assert_eq!(
-            document.memory.bytes_in_category(MemoryCategory::BatchScratch),
-            baseline
-        );
+        let mut cache = AncestorRequirementsCache::default();
+        cache.prepare(&document.tree, &document.facts, &dispatch, None);
+
+        cache.prepare(&document.tree, &document.facts, &dispatch, None);
+
+        cache.release();
     }
 
     #[test]
@@ -2415,7 +2320,7 @@ mod tests {
         let mut document = Document::new();
         document.add_rule(class_rule(CLASS_ITEM));
         // Extend the tree past what the fact batch covers.
-        let extra = document.tree.allocate_element(&mut document.memory);
+        let extra = document.tree.allocate_element();
         document.tree.set_parent(extra, Some(document.nodes[0]));
         document.tree.set_next_element_sibling(document.nodes[3], Some(extra));
         document
@@ -2436,19 +2341,6 @@ mod tests {
             Err(Incomplete::MissingFacts(extra))
         );
         assert!(matches.is_empty(), "an aborted pass publishes nothing");
-    }
-
-    #[test]
-    fn scratch_is_charged_and_released_around_a_pass() {
-        use super::super::memory::Tier;
-
-        let mut document = Document::new();
-        document.add_rule(class_rule(CLASS_ITEM));
-        let mut matches = document.run();
-        assert!(document.memory.bytes_in_tier(Tier::Scratch) > 0);
-
-        matches.release(&mut document.memory);
-        assert_eq!(document.memory.bytes_in_tier(Tier::Scratch), 0);
     }
 
     #[test]

@@ -428,20 +428,9 @@ impl StyleEngine {
         // the same record, which must not then be mistaken for an unconsumed derivation.
         self.discard_engine_computed_records();
         self.retained.forget_custom_property_environments_by_answer();
-        self.reclaim_computed_memory_if_needed();
-        self.sync_tier3_benefit_observations();
-        let tier3_evictions = self.retained.memory.finish_tier3_quota_period();
-        for &category in &TIER3_REFUSAL_CATEGORIES {
-            if tier3_evictions[category as usize] && self.evict_tier3_category(category) {
-                self.retained.counters.bump(Counter::Tier3BenefitEvictions);
-            }
-        }
-        self.retained.memory.begin_tier3_quota_period();
-        self.retained.refresh_admission_facts();
-        self.retained.winner_groups.begin_quota_period();
+        self.reclaim_unreachable_computed_records();
         self.retained.flush_stamp += 1;
         self.retained.winner_groups.begin_flush(self.retained.flush_stamp);
-        self.retained.relational_witnesses.set_admitting(true);
         self.retained
             .route_pruning_states
             .lock()
@@ -476,28 +465,20 @@ impl StyleEngine {
         }
         self.host.deferred_element_style_inputs_are_pending = false;
         let inputs_moved = std::mem::take(&mut self.retained.row_inputs_moved);
-        self.host
-            .deferred_element_style_input_memory
-            .resize_required_to(&mut self.retained.memory, 0);
+
         let document_root_arrival_is_pending =
             self.host.journal.pending_old(InputKey::TreeRelations(root)) == Some(InputValue::TreeRelations(None));
         let initial_tree_was_bulk_loaded =
             self.host.initial_tree_bulk_load_is_pending && document_root_arrival_is_pending;
         let publish_document_root_arrival = document_root_arrival_is_pending;
 
-        // Whatever the last flush's late exact asks left in the flush-local workspace was measured
-        // in the previous topology. Every exact evaluation below reads current-side sibling
-        // geometry from it, so it starts empty here, before this transaction's tree is applied.
-        let stale_match_workspace_bytes = self.retained.match_workspace.capacity_bytes();
         self.retained.match_workspace = MatchScratch::default();
-        self.retained
-            .memory
-            .release(MemoryCategory::BatchScratch, stale_match_workspace_bytes);
+
         let mut transaction = self.drain_transaction();
         self.apply_staged_transaction(&mut transaction);
         self.retained.program.share_rule_storage();
         self.retained.native_rules.targets.share();
-        self.retained.programs.share_indices(&mut self.retained.memory);
+        self.retained.programs.share_indices();
         if transaction.is_empty() {
             self.release_transaction_and_sweep_atoms(transaction);
             clock.enter(Counter::TransactionRemainderMicroseconds, &self.retained.counters);
@@ -661,16 +642,11 @@ impl StyleEngine {
         // Keep the coordinates in Tier-4 scratch and let narrower updates walk the columns.
         let mut regions =
             if transaction.inputs.len().saturating_mul(16) >= self.retained.tree.connected_element_count() as usize {
-                let regions = ImpactRegions::with_topology(&self.retained.tree, root);
-                let bytes = regions.topology_capacity_bytes();
-                self.retained
-                    .memory
-                    .reserve_required(MemoryCategory::BatchScratch, bytes);
-                regions
+                ImpactRegions::with_topology(&self.retained.tree, root)
             } else {
                 ImpactRegions::new()
             };
-        let topology_bytes = regions.topology_capacity_bytes();
+
         let mut arriving_nodes: Vec<StyleNodeID> = if !transaction.has_coarsened_markers() {
             transaction
                 .inputs
@@ -767,10 +743,7 @@ impl StyleEngine {
             sequence_touched_parents.sort_unstable();
             sequence_touched_parents.dedup();
         }
-        let sequence_touched_parent_bytes = (sequence_touched_parents.capacity() * size_of::<StyleNodeID>()) as u64;
-        self.retained
-            .memory
-            .reserve_required(MemoryCategory::BatchScratch, sequence_touched_parent_bytes);
+
         let connected_element_count = self.retained.tree.connected_element_count() as usize;
         let departing_nodes = transaction
             .inputs
@@ -829,13 +802,7 @@ impl StyleEngine {
             }
         }
         drop(caches);
-        let fact_view_bytes = self
-            .transaction_fact_view
-            .as_ref()
-            .map_or(0, TransactionFactView::capacity_bytes);
-        self.retained
-            .memory
-            .reserve_required(MemoryCategory::BatchScratch, fact_view_bytes);
+
         let mut sequences = SequenceChanges::new();
         if !transaction.has_coarsened_markers() {
             // Routing reads the program as it stands now, but the inputs happened before it did.
@@ -883,14 +850,7 @@ impl StyleEngine {
                 self.elements_under_excluding_subtrees(root, &outer_arrivals)
             };
             resident_nodes.sort_unstable();
-            let arrival_scratch_bytes = ((arriving_nodes.capacity()
-                + nested_arrivals.capacity()
-                + outer_arrivals.capacity()
-                + resident_nodes.capacity())
-                * size_of::<StyleNodeID>()) as u64;
-            self.retained
-                .memory
-                .reserve_required(MemoryCategory::BatchScratch, arrival_scratch_bytes);
+
             let tree_routing = TreeRoutingMode {
                 use_exact: use_exact_tree_routing,
                 has_before_sibling_relations,
@@ -1051,19 +1011,9 @@ impl StyleEngine {
             routing_inputs_timer.stop(Counter::RoutingInputsMicroseconds, &self.retained.counters);
             pending_routes.finish();
             pending_sibling_routes.finish();
-            let pending_table_scratch_bytes = (pending_routes.capacity_bytes()
-                + pending_sibling_routes.capacity_bytes()
-                + pending_prefix_producers.capacity() * size_of::<PendingPrefixProducer>()
-                + prefix_producer_seen.capacity() * size_of::<u32>())
-                as u64;
-            self.retained
-                .memory
-                .reserve_required(MemoryCategory::BatchScratch, pending_table_scratch_bytes);
+
             sequences.finish();
-            let sequence_scratch_bytes = sequences.capacity_bytes();
-            self.retained
-                .memory
-                .reserve_required(MemoryCategory::BatchScratch, sequence_scratch_bytes);
+
             let mut planning_workspace = ImpactPlanningWorkspace::default();
             let mut deferred_sequence_routes = DeferredSequenceRoutes::default();
             let sequence_routing_timer = PassTimer::start();
@@ -1132,43 +1082,12 @@ impl StyleEngine {
             }
             drop(planning_workspace);
             pending_route_flush_timer.stop(Counter::PendingRouteFlushMicroseconds, &self.retained.counters);
-            let pending_route_scratch_bytes = pending_routes
-                .values()
-                .map(|routes| (routes.capacity() * size_of::<ImpactRegion>()) as u64)
-                .sum();
-            self.retained
-                .memory
-                .release(MemoryCategory::BatchScratch, pending_route_scratch_bytes);
-            let pending_sibling_scratch_bytes = pending_sibling_routes
-                .values()
-                .map(|routes| (routes.capacity() * size_of::<ImpactRegion>()) as u64)
-                .sum();
-            self.retained
-                .memory
-                .release(MemoryCategory::BatchScratch, pending_sibling_scratch_bytes);
-            self.retained
-                .memory
-                .release(MemoryCategory::BatchScratch, pending_table_scratch_bytes);
-            self.retained
-                .memory
-                .release(MemoryCategory::BatchScratch, sequence_scratch_bytes);
-            self.retained
-                .memory
-                .release(MemoryCategory::BatchScratch, arrival_scratch_bytes);
             let mut match_workspace = std::mem::take(&mut self.retained.match_workspace);
-            let before = match_workspace.capacity_bytes();
             match_workspace.retain_current_for_matching();
-            let after = match_workspace.capacity_bytes();
-            self.retained
-                .memory
-                .release(MemoryCategory::BatchScratch, before - after);
-            let prepared_match_workspace = (after != 0).then_some(match_workspace);
-            if let Some(match_workspace) = prepared_match_workspace {
-                let mut prepared = PreparedBatchMatchingTraversal::new(root);
-                prepared.reuse_retained_match_answers = reuse_retained_match_answers;
-                prepared.match_workspace = match_workspace;
-                self.retained.prepared_batch_matching_traversal = Some(prepared);
-            }
+            let mut prepared = PreparedBatchMatchingTraversal::new(root);
+            prepared.reuse_retained_match_answers = reuse_retained_match_answers;
+            prepared.match_workspace = match_workspace;
+            self.retained.prepared_batch_matching_traversal = Some(prepared);
         } else {
             routing_setup_timer.stop(Counter::RoutingSetupMicroseconds, &self.retained.counters);
         }
@@ -1215,10 +1134,7 @@ impl StyleEngine {
         }
         let batch_compilation_timer = PassTimer::start();
         regions.normalize(&self.retained.tree);
-        let impact_region_scratch_bytes = regions.region_index_capacity_bytes();
-        let impact_region_scratch = self
-            .memory
-            .charge_scratch(MemoryCategory::BatchScratch, impact_region_scratch_bytes);
+
         let patch_cover = retained_answer_patch_selection
             .as_ref()
             .map(|_| regions.compile_patch_cover(&self.retained.tree, Some(root)));
@@ -1251,14 +1167,8 @@ impl StyleEngine {
             is_complete
         };
         completeness_timer.stop(Counter::BatchCompilationMicroseconds, &self.retained.counters);
-        let fact_view_bytes = self
-            .transaction_fact_view
-            .as_ref()
-            .map_or(0, TransactionFactView::capacity_bytes);
         self.retained.transaction_fact_view = None;
-        self.retained
-            .memory
-            .release(MemoryCategory::BatchScratch, fact_view_bytes);
+
         let plan_is_broad = regions.regions().contains(&ImpactRegion::Document)
             || regions.regions().iter().any(|region| {
                 matches!(region, ImpactRegion::TreeScope(_))
@@ -1270,10 +1180,7 @@ impl StyleEngine {
             direct_action_nodes.push(node);
         }
         direct_action_nodes.consolidate();
-        let direct_action_node_bytes = direct_action_nodes.capacity_bytes();
-        self.retained
-            .memory
-            .reserve_required(MemoryCategory::BatchScratch, direct_action_node_bytes);
+
         let mut style_input_reactions: Vec<(StyleNodeID, u8, u8)> = transaction
             .inputs
             .iter()
@@ -1299,10 +1206,7 @@ impl StyleEngine {
             })
             .collect();
         style_input_reactions.sort_unstable_by_key(|&(node, _, _)| node);
-        let style_input_reaction_bytes = (style_input_reactions.capacity() * size_of::<(StyleNodeID, u8, u8)>()) as u64;
-        self.retained
-            .memory
-            .reserve_required(MemoryCategory::BatchScratch, style_input_reaction_bytes);
+
         let reuse_unchanged_cascades = transaction_reaches_no_selector
             && !rule_declarations_edited
             && !environment_changed
@@ -1322,11 +1226,7 @@ impl StyleEngine {
         };
         changed_cascade_input_nodes.sort_unstable();
         changed_cascade_input_nodes.dedup();
-        let changed_cascade_input_node_bytes =
-            (changed_cascade_input_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
-        self.retained
-            .memory
-            .reserve_required(MemoryCategory::BatchScratch, changed_cascade_input_node_bytes);
+
         self.release_transaction_and_sweep_atoms(transaction);
         // Releasing staging can compact primary payloads. Take the shared view afterwards so that
         // compaction does not need to copy the complete primary arrangement away from its view.
@@ -1355,12 +1255,7 @@ impl StyleEngine {
         let mut retained_answer_patch =
             retained_answer_patch_selection.map(|selection| self.prepare_retained_answer_patch(selection));
         patch_preparation_timer.stop(Counter::RetainedAnswerPatchLoopMicroseconds, &self.retained.counters);
-        let retained_answer_patch_scratch_bytes = retained_answer_patch
-            .as_ref()
-            .map_or(0, RetainedAnswerPatch::capacity_bytes);
-        self.retained
-            .memory
-            .reserve_required(MemoryCategory::BatchScratch, retained_answer_patch_scratch_bytes);
+
         let published_retained_answer_dispatch = if retained_answer_patch.is_none() && reuse_retained_match_answers {
             self.retained_answer_dispatch_for_traversal(true)
         } else {
@@ -1388,12 +1283,8 @@ impl StyleEngine {
         if self.retained.tree.has_tree_scopes() || !self.retained.scope_roots.is_empty() {
             let mut nodes = Vec::new();
             regions.for_each_batch(&compiled_regions, |node| nodes.push(node));
-            let bytes = (nodes.capacity() * size_of::<StyleNodeID>()) as u64;
-            self.retained
-                .memory
-                .reserve_required(MemoryCategory::BatchScratch, bytes);
+
             self.prepare_scope_programs_for_nodes(nodes);
-            self.retained.memory.release(MemoryCategory::BatchScratch, bytes);
         } else {
             self.prepare_scope_program(TreeScopeID::DOCUMENT);
         }
@@ -1405,10 +1296,7 @@ impl StyleEngine {
         // node routes consume their signed changes directly; only incomplete routes refresh.
         let mut selector_truth_changes = std::mem::take(&mut self.retained.selector_truth_changes);
         selector_truth_changes.consolidate(&self.retained.counters);
-        let selector_truth_change_bytes = selector_truth_changes.capacity_bytes();
-        self.retained
-            .memory
-            .reserve_required(MemoryCategory::BatchScratch, selector_truth_change_bytes);
+
         // A winner-pruned route preserves this flush's cascade result but makes its exact answer
         // stale. Retire it only after the current batch has been compiled so publication stays put.
         let mut stale_refresh_nodes = Vec::new();
@@ -1416,22 +1304,16 @@ impl StyleEngine {
         let mut patch_processed_nodes: Vec<StyleNodeID> = Vec::new();
         for refresh in selector_truth_changes.refreshes.as_slice() {
             if !regions.batch_contains_node(&compiled_regions, refresh.node) {
-                published_match_answers.answer_effects.forget_answer(
-                    refresh.node,
-                    &mut self.retained.match_answers,
-                    &mut self.retained.memory,
-                );
+                published_match_answers
+                    .answer_effects
+                    .forget_answer(refresh.node, &mut self.retained.match_answers);
             } else {
                 stale_refresh_nodes.push(refresh.node);
             }
         }
         stale_refresh_nodes.sort_unstable();
         stale_refresh_nodes.dedup();
-        let stale_refresh_node_bytes = (stale_refresh_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
-        self.retained
-            .memory
-            .reserve_required(MemoryCategory::BatchScratch, stale_refresh_node_bytes);
-        let mut patch_node_scratch_bytes = 0_u64;
+
         let mut published_nodes = Vec::new();
         let mut identity_repair_nodes = Vec::new();
         let mut incremental_cascade_answers = Vec::new();
@@ -1623,11 +1505,9 @@ impl StyleEngine {
                                     self.retained.retained_match_answers.cascade_input_lookup(node),
                                     Lookup::Known(_)
                                 );
-                            published_match_answers.answer_effects.forget_answer(
-                                node,
-                                &mut self.retained.match_answers,
-                                &mut self.retained.memory,
-                            );
+                            published_match_answers
+                                .answer_effects
+                                .forget_answer(node, &mut self.retained.match_answers);
                             has_upquery = true;
                             true
                         }
@@ -1635,11 +1515,9 @@ impl StyleEngine {
                 }
                 (false, None) => {
                     if !transaction_reaches_no_selector {
-                        published_match_answers.answer_effects.forget_answer(
-                            node,
-                            &mut self.retained.match_answers,
-                            &mut self.retained.memory,
-                        );
+                        published_match_answers
+                            .answer_effects
+                            .forget_answer(node, &mut self.retained.match_answers);
                         has_upquery = true;
                     }
                     true
@@ -1690,17 +1568,11 @@ impl StyleEngine {
             if let Lookup::Known(states) = caches.states.lookup_mut(patch.scope_program) {
                 states.install_prefix_effects(&mut patch.prefix_context.effects);
             }
-            caches.states.settle_memory(&mut self.retained.memory);
         }
         patch_loop_timer.stop(Counter::RetainedAnswerPatchLoopMicroseconds, &self.retained.counters);
         exact_cascade_stop_nodes.consolidate();
         exact_cascade_confirmation_nodes.consolidate();
-        let exact_cascade_stop_node_bytes = exact_cascade_stop_nodes.capacity_bytes();
-        let exact_cascade_confirmation_node_bytes = exact_cascade_confirmation_nodes.capacity_bytes();
-        self.retained.memory.reserve_required(
-            MemoryCategory::BatchScratch,
-            exact_cascade_stop_node_bytes + exact_cascade_confirmation_node_bytes,
-        );
+
         #[cfg(test)]
         if self.retained.diagnostic_plan_capture.is_some() {
             // Plan-only fixtures deliberately omit unrelated fact rows. Complete those fixtures
@@ -1709,24 +1581,11 @@ impl StyleEngine {
             for node in self.elements_under(root) {
                 self.retained.facts.ensure_row(node);
             }
-            self.retained.facts.apply_staged(&mut self.retained.memory);
+            self.retained.facts.apply_staged();
             self.retained.counters.restore(&saved_counters);
         }
         let publish_style_answers = true;
         {
-            let published_node_bytes = (published_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
-            let previous_cascade_input_bytes =
-                (previous_cascade_inputs.capacity() * size_of::<Option<MatchAnswerID>>()) as u64;
-            let identity_repair_node_bytes = (identity_repair_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
-            self.retained
-                .memory
-                .reserve_required(MemoryCategory::BatchScratch, published_node_bytes);
-            self.retained
-                .memory
-                .reserve_required(MemoryCategory::BatchScratch, previous_cascade_input_bytes);
-            self.retained
-                .memory
-                .reserve_required(MemoryCategory::BatchScratch, identity_repair_node_bytes);
             if publish_style_answers {
                 identity_repair_nodes.sort_unstable();
                 identity_repair_nodes.dedup();
@@ -1746,7 +1605,7 @@ impl StyleEngine {
                 } else if let Some(mut traversal) = self.retained.batch_matching_traversal.take() {
                     // Rows matched outside the batch may belong to nodes this transaction removed.
                     traversal.unbatched_facts = StyleNodeFacts::new();
-                    traversal.unbatched_facts_memory.release();
+
                     if let Some(batch) = traversal.batch.as_ref() {
                         self.prepare_prefix_rows_for_batch(batch, &mut traversal.prefix_contexts);
                     }
@@ -1761,18 +1620,13 @@ impl StyleEngine {
                 patch_preserved_nodes.dedup();
                 patch_processed_nodes.sort_unstable();
                 patch_processed_nodes.dedup();
-                patch_node_scratch_bytes = ((patch_preserved_nodes.capacity() + patch_processed_nodes.capacity())
-                    * size_of::<StyleNodeID>()) as u64;
-                self.retained
-                    .memory
-                    .reserve_required(MemoryCategory::BatchScratch, patch_node_scratch_bytes);
+
                 let mut accepted_node_count = 0;
                 // Exact retained answers are interned across elements. Once one sufficiently
                 // expensive answer has been compacted in this completion batch, other elements
                 // without element declarations can share its cascade input and winner identities.
                 let mut completed_retained_answers: HashMap<MatchAnswerID, (StyleNodeID, MatchAnswerID, bool)> =
                     HashMap::default();
-                let mut completed_retained_answer_bytes = 0_u64;
                 let share_cascade_completions = published_nodes.len() >= MIN_SHARED_CASCADE_COMPLETION_BATCH;
                 let completion_pass_timer = PassTimer::start();
                 let mut traversal = self.retained.batch_matching_traversal.take();
@@ -1854,19 +1708,11 @@ impl StyleEngine {
                         && self.shared_cascade_completion_is_profitable(identity)
                         && self.shared_cascade_completion_is_node_independent(identity)
                     {
-                        let capacity_before = completed_retained_answers.capacity();
                         completed_retained_answers.entry(identity).or_insert((
                             node,
                             cascade_input,
                             published_answer.cascade_winners_are_complete,
                         ));
-                        let added_bytes = ((completed_retained_answers.capacity() - capacity_before)
-                            * (size_of::<MatchAnswerID>() + size_of::<(StyleNodeID, MatchAnswerID, bool)>() + 1))
-                            as u64;
-                        self.retained
-                            .memory
-                            .reserve_required(MemoryCategory::BatchScratch, added_bytes);
-                        completed_retained_answer_bytes += added_bytes;
                     }
                     if let Some(retained_cascade_input) = retained_cascade_input
                         && let Some(published_cascade_input) = published_answer.cascade_input
@@ -1989,20 +1835,14 @@ impl StyleEngine {
                             published_nodes[accepted_node_count] = node;
                             previous_cascade_inputs[accepted_node_count] = previous_exact_cascade_input;
                             accepted_node_count += 1;
-                            published_match_answers.push(
-                                published_answer,
-                                &mut self.retained.memory,
-                                &self.retained.counters,
-                            );
+                            published_match_answers.push(published_answer, &self.retained.counters);
                         }
                     }
                 }
                 self.install_answer_effects(std::mem::take(&mut published_match_answers.answer_effects));
                 self.retained.batch_matching_traversal = traversal;
                 completion_pass_timer.stop(Counter::CompletionPassMicroseconds, &self.retained.counters);
-                self.retained
-                    .memory
-                    .release(MemoryCategory::BatchScratch, completed_retained_answer_bytes);
+
                 published_nodes.truncate(accepted_node_count);
                 previous_cascade_inputs.truncate(accepted_node_count);
                 if !reuse_active_batch_matching_traversal {
@@ -2012,66 +1852,25 @@ impl StyleEngine {
                 published_nodes.clear();
                 previous_cascade_inputs.clear();
             }
-            self.retained
-                .memory
-                .release(MemoryCategory::BatchScratch, identity_repair_node_bytes);
-            self.retained
-                .memory
-                .release(MemoryCategory::BatchScratch, previous_cascade_input_bytes);
         }
-        self.retained.memory.release(
-            MemoryCategory::BatchScratch,
-            exact_cascade_stop_node_bytes + exact_cascade_confirmation_node_bytes,
-        );
-        self.retained.memory.release(
-            MemoryCategory::BatchScratch,
-            sequence_touched_parent_bytes + stale_refresh_node_bytes + patch_node_scratch_bytes,
-        );
+
         verify_style_plan_provenance(self, |_| {
             assert!(
                 plan_is_broad || unattributed_node_count == 0,
                 "a scoped style transaction published {unattributed_node_count} nodes without semantic provenance"
             );
         });
-        let final_retained_answer_patch_scratch_bytes = retained_answer_patch
-            .as_ref()
-            .map_or(0, RetainedAnswerPatch::capacity_bytes);
-        if final_retained_answer_patch_scratch_bytes > retained_answer_patch_scratch_bytes {
-            self.retained.memory.reserve_required(
-                MemoryCategory::BatchScratch,
-                final_retained_answer_patch_scratch_bytes - retained_answer_patch_scratch_bytes,
-            );
-        } else {
-            self.retained.memory.release(
-                MemoryCategory::BatchScratch,
-                retained_answer_patch_scratch_bytes - final_retained_answer_patch_scratch_bytes,
-            );
-        }
         if retained_answer_patch.take().is_some() {
             self.retain_prefix_states();
         }
-        self.retained
-            .memory
-            .release(MemoryCategory::BatchScratch, final_retained_answer_patch_scratch_bytes);
-        self.retained
-            .memory
-            .release(MemoryCategory::BatchScratch, selector_truth_change_bytes);
-        self.retained
-            .memory
-            .release(MemoryCategory::BatchScratch, direct_action_node_bytes);
-        self.retained
-            .memory
-            .release(MemoryCategory::BatchScratch, changed_cascade_input_node_bytes);
+
         published_match_answers.sort();
         // Record computation interns and installs immediately in the current evaluator.
         clock.enter(Counter::ComputationPublicationMicroseconds, &self.retained.counters);
         let mut suspended_pass = None;
         {
-            let mut style_delta_memory = MemoryLease::new(MemoryCategory::BridgeBuffer);
-            let mut computation_scratch_memory = MemoryLease::new(MemoryCategory::BatchScratch);
             let mut style_deltas = Vec::with_capacity(published_nodes.len());
-            let style_delta_bytes = (style_deltas.capacity() * size_of::<PublishedStyleDeltaRecord>()) as u64;
-            style_delta_memory.resize_required_to(&mut self.retained.memory, style_delta_bytes);
+
             let mut engine_computed_record_scratch = publication::EngineComputedRecordScratch::default();
             engine_computed_record_scratch.document_environment_moved = environment_changed;
             engine_computed_record_scratch.host_applies_animation_plans = true;
@@ -2084,10 +1883,7 @@ impl StyleEngine {
             engine_computed_record_scratch.viewport_moved =
                 std::mem::replace(&mut self.retained.driven_viewport, viewport) != viewport;
             let computation_loop_timer = PassTimer::start();
-            computation_scratch_memory.resize_required_to(
-                &mut self.retained.memory,
-                engine_computed_record_scratch.capacity_bytes(),
-            );
+
             let font_environment_generation = self
                 .retained
                 .document_style_computation_inputs
@@ -2156,10 +1952,6 @@ impl StyleEngine {
                 } else {
                     self.retained.counters.bump(Counter::RootFontInputsUnprovenFallbacks);
                 }
-                computation_scratch_memory.resize_required_to(
-                    &mut self.retained.memory,
-                    engine_computed_record_scratch.capacity_bytes(),
-                );
             }
             // Each published node's pseudo-element inventory, read from the answer this transaction
             // publishes for it before that answer is installed and kept with the node's record
@@ -2223,17 +2015,10 @@ impl StyleEngine {
                 scratch: engine_computed_record_scratch,
                 next_index: 0,
             };
-            self.run_style_pass(
-                &mut pass,
-                &mut style_deltas,
-                &mut style_delta_memory,
-                &mut computation_scratch_memory,
-            );
+            self.run_style_pass(&mut pass, &mut style_deltas);
             computation_loop_timer.stop(Counter::ComputationLoopMicroseconds, &self.retained.counters);
-            computation_scratch_memory.resize_required_to(&mut self.retained.memory, pass.scratch.capacity_bytes());
-            computation_scratch_memory.release();
+
             if !style_deltas.is_empty() {
-                self.settle_computed_memory();
                 self.retained
                     .counters
                     .add(Counter::PublishedMatchAnswerRecords, style_deltas.len() as u64);
@@ -2241,10 +2026,7 @@ impl StyleEngine {
                 emit(transaction_version, program_version, &style_deltas);
             }
             clock.enter(Counter::TransactionRemainderMicroseconds, &self.retained.counters);
-            self.retained.memory.release(
-                MemoryCategory::BatchScratch,
-                (pass.published_nodes.capacity() * size_of::<StyleNodeID>()) as u64,
-            );
+
             published_match_answers = std::mem::take(&mut pass.published_match_answers);
             // NB: A pass the host installs in waves keeps its rows until its last wave; their batch
             //     scratch accounting is released with the first one.
@@ -2252,15 +2034,11 @@ impl StyleEngine {
                 suspended_pass = Some(pass);
             }
         }
-        self.retained
-            .memory
-            .release(MemoryCategory::BatchScratch, style_input_reaction_bytes);
-        drop(impact_region_scratch);
+
         published_match_answers.match_element_calls_at_publication = self
             .retained
             .counters
             .get(Counter::MatchElementCallsDuringPublishedStyleTransaction);
-        published_match_answers.discard_unobserved_retained_answers = publish_document_root_arrival || plan_is_broad;
         // The rows of the waves still to come read the batch's answers as the first one did.
         if suspended_pass.is_none() {
             self.retained.clear_batch_answer_facts();
@@ -2274,9 +2052,6 @@ impl StyleEngine {
         self.retained.counters.add(Counter::InvalidatedStyleNodes, node_count);
         if node_count == 0 {
             self.discard_prepared_batch_matching_traversal();
-            self.retained
-                .memory
-                .release(MemoryCategory::BatchScratch, topology_bytes);
         } else {
             // C++ may propagate a changed inherited output below the nodes named by the plan. Those
             // descendants did not receive a selector delta, so their retained answers are still
@@ -2289,11 +2064,7 @@ impl StyleEngine {
                     self.retained.prepared_batch_matching_traversal = Some(prepared);
                 }
             }
-            if !self.prepare_topology_for_matching(root, &mut regions) {
-                self.retained
-                    .memory
-                    .release(MemoryCategory::BatchScratch, topology_bytes);
-            }
+            if !self.prepare_topology_for_matching(root, &mut regions) {}
         }
         !publish_document_root_arrival && !plan_is_broad
     }
@@ -2303,13 +2074,7 @@ impl StyleEngine {
     /// before it. That row, and every row after it, wait for the next wave. The first row of a wave
     /// waits for nothing: the host installed every row before it.
     #[allow(clippy::too_many_lines)]
-    fn run_style_pass(
-        &mut self,
-        pass: &mut StylePass,
-        style_deltas: &mut Vec<PublishedStyleDeltaRecord>,
-        style_delta_memory: &mut MemoryLease,
-        computation_scratch_memory: &mut MemoryLease,
-    ) {
+    fn run_style_pass(&mut self, pass: &mut StylePass, style_deltas: &mut Vec<PublishedStyleDeltaRecord>) {
         // What the chain above a node proves, read by its children in the same pass. A published
         // ancestor's change is exact for a descendant only when none of the ancestors can move
         // anything the descendant inherits, so the fold below is the upward walk the gate used to
@@ -2739,10 +2504,6 @@ impl StyleEngine {
                 };
                 if style_deltas.len() == style_deltas.capacity() {
                     style_deltas.reserve(1);
-                    style_delta_memory.resize_required_to(
-                        &mut self.retained.memory,
-                        capacity::ShallowCapacityBytes::shallow_capacity_bytes(&*style_deltas),
-                    );
                 }
                 let row_index = style_deltas.len();
                 style_deltas.push(style_delta);
@@ -2764,10 +2525,6 @@ impl StyleEngine {
                         ) | bridge::FfiStyleInvalidationField::EngineComputed as u32;
                         if style_deltas.len() == style_deltas.capacity() {
                             style_deltas.reserve(1);
-                            style_delta_memory.resize_required_to(
-                                &mut self.retained.memory,
-                                capacity::ShallowCapacityBytes::shallow_capacity_bytes(&*style_deltas),
-                            );
                         }
                         style_deltas.push(PublishedStyleDeltaRecord {
                             style_node: node.raw(),
@@ -2829,14 +2586,11 @@ impl StyleEngine {
                     }
                 }
                 // NB: Sample scratch coexistence without scanning its containers per element.
-                if (published_index + 1).is_multiple_of(256) {
-                    computation_scratch_memory
-                        .resize_required_to(&mut self.retained.memory, pass.scratch.capacity_bytes());
-                }
+                if (published_index + 1).is_multiple_of(256) {}
             }
             if suspended_on_font {
                 let request = pass.scratch.font_drive.take_suspended_request();
-                computation_scratch_memory.resize_required_to(&mut self.retained.memory, pass.scratch.capacity_bytes());
+
                 let node = pass.published_nodes[next_published_index];
                 self.refill_font_request(node, request);
             }
@@ -2875,24 +2629,17 @@ impl StyleEngine {
         if let Some(resolver) = &mut self.retained.font_resolution {
             resolver.prepare(font_environment_generation);
         }
-        let mut style_delta_memory = MemoryLease::new(MemoryCategory::BridgeBuffer);
-        let mut computation_scratch_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+
         let mut style_deltas = Vec::new();
-        self.run_style_pass(
-            &mut pass,
-            &mut style_deltas,
-            &mut style_delta_memory,
-            &mut computation_scratch_memory,
-        );
-        computation_scratch_memory.release();
+        self.run_style_pass(&mut pass, &mut style_deltas);
+
         if !style_deltas.is_empty() {
-            self.settle_computed_memory();
             self.retained
                 .counters
                 .add(Counter::PublishedMatchAnswerRecords, style_deltas.len() as u64);
             emit(pass.transaction_version, pass.program_version, &style_deltas);
         }
-        style_delta_memory.release();
+
         self.retained.published_match_answers = std::mem::take(&mut pass.published_match_answers);
         let scoped = pass.scoped;
         if pass.next_index < pass.published_nodes.len() {
@@ -3130,7 +2877,7 @@ impl StyleEngine {
                 self.take_style_transaction_with_clock(root, emit, &mut clock)
             }
         };
-        self.finish_memory_evaluation_loop();
+        self.install_witness_effects();
         // Include transaction-local destruction on both ordinary and early-return paths.
         clock.finish(&self.retained.counters);
         scoped

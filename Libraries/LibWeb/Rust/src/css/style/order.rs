@@ -14,8 +14,6 @@
 //! only reads the order labels imply. Relabeling is therefore invisible to selector truth, cascade
 //! winners, and computed values.
 
-use super::capacity::capacity_bytes;
-
 define_id! {
     /// A stable handle on one position in an order. The numeric label behind it may be rewritten at
     /// any time; the handle does not change.
@@ -83,16 +81,6 @@ impl OrderMaintenance {
         let position = self.locate(token);
         self.order.remove(position);
         self.free_entries.push(token.0);
-    }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.labels, self.free_entries, self.order];
-            cached [];
-            nested [];
-            skip [];
-        }
     }
 
     #[cfg(test)]
@@ -233,10 +221,8 @@ mod tests {
         assert!(order.is_empty());
         assert_eq!(order.iter().count(), 0);
 
-        let bytes = order.capacity_bytes();
         let reinserted: Vec<OrderToken> = (0..300).map(|_| order.insert_last()).collect();
         assert!(is_sorted(&order, &reinserted));
-        assert_eq!(order.capacity_bytes(), bytes);
     }
 
     #[test]

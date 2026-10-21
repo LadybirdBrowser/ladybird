@@ -6,7 +6,6 @@
 
 //! Physical views used while evaluating one normalized transaction.
 
-use super::capacity::capacity_bytes;
 use super::index::DispatchKey;
 use super::index::StyleNodeFacts;
 use super::selector::SiblingSequenceGeometry;
@@ -129,15 +128,6 @@ impl FeatureFluxColumn {
             .take_while(|&&(candidate, _)| candidate == key)
             .all(|&(_, node)| predicate(node))
     }
-
-    pub(super) fn capacity_bytes(&self) -> usize {
-        (capacity_bytes! {
-            shallow [self.occupied, self.node_starts, self.nodes, self.keys, self.nodes_by_key];
-            cached [];
-            nested [];
-            skip [];
-        }) as usize
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -170,29 +160,6 @@ pub(super) struct TransactionFactView {
 
 impl TransactionFactView {
     #[must_use]
-    pub(super) fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.before_sibling_sequence_by_parent,
-                self.before_sibling_parents_by_sequence,
-                self.before_absent_nodes,
-            ];
-            cached [];
-            nested [
-                self.moved_features.capacity_bytes(),
-                self.before_sibling_geometry.capacity_bytes(),
-                self.prefix.as_ref().map_or(0, PrefixFactTransition::capacity_bytes),
-                self.before.as_ref().map_or(0, StyleNodeFacts::capacity_bytes),
-            ];
-            skip [
-                self.root,
-                self.before_sibling_relations_available,
-                self.retained_truth_available,
-            ];
-        }
-    }
-
-    #[must_use]
     pub(super) fn row_of<'a>(
         &'a self,
         side: TransactionFactSide,
@@ -221,16 +188,7 @@ pub(super) struct PrefixFactTransition {
     pub(super) sibling_frontier: Vec<StyleNodeID>,
 }
 
-impl PrefixFactTransition {
-    fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.roots, self.departures, self.sibling_frontier];
-            cached [];
-            nested [];
-            skip [self.tree_relations_changed];
-        }
-    }
-}
+impl PrefixFactTransition {}
 
 #[cfg(test)]
 mod tests {

@@ -14,7 +14,6 @@
 
 use super::fast_hash::FastMap as HashMap;
 
-use super::capacity::capacity_bytes;
 use super::index::LocalFeatureKey;
 use super::partial_view::Lookup;
 use super::program::SelectorProgramID;
@@ -268,32 +267,19 @@ pub(super) enum WitnessEffect {
 /// such evaluation that completed with no witness. An evaluation of an overlaid or hypothetical
 /// state must never write here, because that is the one way to plant an entry whose "was true"
 /// half is false - the read-side re-verification only re-establishes the "is true now" half.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct RelationalWitnesses {
     entries: HashMap<RelationalWitnessKey, StyleNodeID>,
-    admitting: bool,
-}
-
-impl Default for RelationalWitnesses {
-    fn default() -> Self {
-        Self {
-            entries: HashMap::default(),
-            admitting: true,
-        }
-    }
 }
 
 impl RelationalWitnesses {
     /// Retain `witness` for `key`, returning whether it was stored. A full table sheds the
     /// entries whose anchor or witness identity has been retired before refusing.
     pub fn retain(&mut self, key: RelationalWitnessKey, witness: StyleNodeID, tree: &StyleNodeTree) -> bool {
-        if !self.admitting || self.entries.len() >= MAX_RETAINED_WITNESSES {
+        if self.entries.len() >= MAX_RETAINED_WITNESSES {
             if let Some(retained) = self.entries.get_mut(&key) {
                 *retained = witness;
                 return true;
-            }
-            if !self.admitting {
-                return false;
             }
             self.entries
                 .retain(|entry, retained| tree.is_live(entry.anchor) && tree.is_live(*retained));
@@ -311,20 +297,6 @@ impl RelationalWitnesses {
 
     pub fn clear_all(&mut self) {
         self.entries = HashMap::default();
-    }
-
-    pub(super) fn set_admitting(&mut self, admitting: bool) {
-        self.admitting = admitting;
-    }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.entries];
-            cached [];
-            nested [];
-            skip [self.admitting];
-        }
     }
 }
 
@@ -411,7 +383,6 @@ pub fn candidate_witnesses(
 #[cfg(test)]
 mod tests {
     use super::super::index::StyleAtomID;
-    use super::super::memory::MemoryController;
     use super::*;
 
     const ERROR_CLASS: LocalFeatureKey = LocalFeatureKey::Class(StyleAtomID(1));
@@ -424,9 +395,8 @@ mod tests {
 
     impl Fixture {
         fn new() -> Self {
-            let mut memory = MemoryController::new();
-            let mut tree = StyleNodeTree::new(&mut memory);
-            let nodes: Vec<StyleNodeID> = (0..6).map(|_| tree.allocate_element(&mut memory)).collect();
+            let mut tree = StyleNodeTree::new();
+            let nodes: Vec<StyleNodeID> = (0..6).map(|_| tree.allocate_element()).collect();
             // 0 root, 1 card, 2 other; card's children 3, 4, 5
             tree.set_first_element_child(nodes[0], Some(nodes[1]));
             tree.set_parent(nodes[1], Some(nodes[0]));

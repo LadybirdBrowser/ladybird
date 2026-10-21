@@ -30,8 +30,6 @@ use rule_versions::RuleVersionTable;
 
 pub use crate::css::cascaded_properties::CascadeOrigin;
 
-use super::capacity::ShallowCapacityBytes;
-use super::capacity::capacity_bytes;
 use super::cascade::CascadeOperator;
 use super::cascade::SpecifiedValueID;
 use super::column::BitColumn;
@@ -39,9 +37,6 @@ use super::column::Column;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::FastSet as HashSet;
 use super::index::StyleAtomID;
-use super::memory::MemoryCategory;
-use super::memory::MemoryController;
-use super::memory::MemoryLease;
 use super::order::OrderMaintenance;
 use super::order::OrderToken;
 use super::transaction::ProgramVersion;
@@ -298,19 +293,10 @@ struct RuleDeclarationData {
     custom_written_values: Vec<RetainedStyleValueData>,
 }
 
-impl RuleDeclarationData {
-    fn capacity_bytes(&self) -> u64 {
-        (self.declared_properties.capacity() * size_of::<DeclaredProperty>()
-            + self.written_values.capacity() * size_of::<RetainedStyleValueData>()
-            + self.written_value_checks.capacity() * size_of::<super::publication::WrittenValueChecks>()
-            + self.custom_declarations.capacity() * size_of::<CustomDeclaration>()
-            + self.custom_written_values.capacity() * size_of::<RetainedStyleValueData>()) as u64
-    }
-}
+impl RuleDeclarationData {}
 
 struct SharedRuleDeclarations {
     data: RuleDeclarationData,
-    _memory: MemoryLease,
 }
 
 impl std::ops::Deref for Rule {
@@ -341,12 +327,8 @@ fn share_rule_declarations(
     if let Some(found) = pool.find(hash, |candidate| candidate.data == data) {
         return found;
     }
-    let mut memory = MemoryLease::new(MemoryCategory::RuleProgram);
-    memory.resize_required_to(
-        &mut pool.memory,
-        size_of::<SharedRuleDeclarations>() as u64 + data.capacity_bytes(),
-    );
-    let declarations = Arc::new(SharedRuleDeclarations { data, _memory: memory });
+
+    let declarations = Arc::new(SharedRuleDeclarations { data });
     pool.insert(hash, &declarations);
     declarations
 }
@@ -398,8 +380,6 @@ pub struct StyleSheetProgram {
     scopes_using_document_sheets: BitColumn,
     version: ProgramVersion,
     routing_liveness_version: u64,
-    capacity_bytes: u64,
-    charged_bytes: u64,
 }
 
 impl StyleSheetProgram {
@@ -452,8 +432,6 @@ impl StyleSheetProgram {
             scopes_using_document_sheets: BitColumn::default(),
             version: ProgramVersion(1),
             routing_liveness_version: 1,
-            capacity_bytes: 0,
-            charged_bytes: 0,
         }
     }
 
@@ -487,19 +465,10 @@ impl StyleSheetProgram {
         self.bump_sheet_dispatch_version(self.rules[rule.0 as usize].sheet);
     }
 
-    fn record_capacity_change(&mut self, previous: u64, current: u64) {
-        if current >= previous {
-            self.capacity_bytes += current - previous;
-        } else {
-            self.capacity_bytes -= previous - current;
-        }
-    }
-
     // -- Sheets ------------------------------------------------------------------------------
 
     pub fn add_sheet(&mut self, _object: StyleSheetObjectID, origin: CascadeOrigin) -> SheetID {
         let id = SheetID(u32::try_from(self.sheets.len()).expect("sheet identity space exhausted"));
-        let previous_capacity = (self.sheets.capacity() * size_of::<Sheet>()) as u64;
         self.sheets.push(Sheet {
             origin,
             dispatch_version: 0,
@@ -510,7 +479,7 @@ impl StyleSheetProgram {
             conditions_hold: true,
             live: true,
         });
-        self.record_capacity_change(previous_capacity, (self.sheets.capacity() * size_of::<Sheet>()) as u64);
+
         id
     }
 
@@ -522,7 +491,7 @@ impl StyleSheetProgram {
     #[cfg(test)]
     fn sheet_order_mut(&mut self, tree_scope: TreeScopeID) -> &mut OrderMaintenance {
         let index = tree_scope.0 as usize;
-        self.capacity_bytes += self.sheet_order.ensure(index);
+        self.sheet_order.ensure(index);
         self.sheet_order[index].get_or_insert_with(OrderMaintenance::new)
     }
 
@@ -530,22 +499,17 @@ impl StyleSheetProgram {
     #[cfg(test)]
     pub fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) -> Attachment {
         let order_axis = self.sheet_order_mut(tree_scope);
-        let previous_order_capacity = order_axis.capacity_bytes();
+
         let order = order_axis.insert_last();
-        let current_order_capacity = order_axis.capacity_bytes();
-        self.record_capacity_change(previous_order_capacity, current_order_capacity);
+
         let attachment = Attachment { tree_scope, order };
         let attachments = &mut self.sheets[sheet.0 as usize].attachments;
-        let previous_attachment_capacity = (attachments.capacity() * size_of::<Attachment>()) as u64;
         attachments.push(attachment);
-        let current_attachment_capacity = (attachments.capacity() * size_of::<Attachment>()) as u64;
-        self.record_capacity_change(previous_attachment_capacity, current_attachment_capacity);
+
         let scope_index = tree_scope.0 as usize;
-        self.capacity_bytes += self.sheets_by_scope.ensure(scope_index);
-        let previous_scope_capacity = (self.sheets_by_scope[scope_index].capacity() * size_of::<SheetID>()) as u64;
+        self.sheets_by_scope.ensure(scope_index);
         self.sheets_by_scope[scope_index].push(sheet);
-        let current_scope_capacity = (self.sheets_by_scope[scope_index].capacity() * size_of::<SheetID>()) as u64;
-        self.record_capacity_change(previous_scope_capacity, current_scope_capacity);
+
         self.bump_routing_liveness_version();
         self.bump_version();
         attachment
@@ -557,21 +521,18 @@ impl StyleSheetProgram {
     #[cfg(test)]
     pub fn attach_sheet_before(&mut self, sheet: SheetID, before: Attachment) -> Attachment {
         let order_axis = self.sheet_order_mut(before.tree_scope);
-        let previous_order_capacity = order_axis.capacity_bytes();
+
         let order = order_axis.insert_before(before.order);
-        let current_order_capacity = order_axis.capacity_bytes();
-        self.record_capacity_change(previous_order_capacity, current_order_capacity);
+
         let attachment = Attachment {
             tree_scope: before.tree_scope,
             order,
         };
         let attachments = &mut self.sheets[sheet.0 as usize].attachments;
-        let previous_attachment_capacity = (attachments.capacity() * size_of::<Attachment>()) as u64;
         attachments.push(attachment);
-        let current_attachment_capacity = (attachments.capacity() * size_of::<Attachment>()) as u64;
-        self.record_capacity_change(previous_attachment_capacity, current_attachment_capacity);
+
         let scope_index = before.tree_scope.0 as usize;
-        self.capacity_bytes += self.sheets_by_scope.ensure(scope_index);
+        self.sheets_by_scope.ensure(scope_index);
         let position = self.sheets_by_scope[scope_index]
             .iter()
             .position(|&candidate| {
@@ -579,10 +540,8 @@ impl StyleSheetProgram {
                     .is_some_and(|attachment| attachment.order == before.order)
             })
             .expect("an insertion target must remain attached");
-        let previous_scope_capacity = (self.sheets_by_scope[scope_index].capacity() * size_of::<SheetID>()) as u64;
         self.sheets_by_scope[scope_index].insert(position, sheet);
-        let current_scope_capacity = (self.sheets_by_scope[scope_index].capacity() * size_of::<SheetID>()) as u64;
-        self.record_capacity_change(previous_scope_capacity, current_scope_capacity);
+
         self.bump_routing_liveness_version();
         self.bump_version();
         attachment
@@ -599,10 +558,7 @@ impl StyleSheetProgram {
         };
         let attachment = attachments.remove(position);
         if let Some(order) = self.sheet_order.get_mut(tree_scope.0 as usize).and_then(Option::as_mut) {
-            let previous_capacity = order.capacity_bytes();
             order.remove(attachment.order);
-            let current_capacity = order.capacity_bytes();
-            self.record_capacity_change(previous_capacity, current_capacity);
         }
         if let Some(sheets) = self.sheets_by_scope.get_mut(tree_scope.0 as usize)
             && let Some(position) = sheets.iter().position(|&candidate| candidate == sheet)
@@ -753,9 +709,8 @@ impl StyleSheetProgram {
 
     pub(crate) fn set_sheets_in_scope(&mut self, tree_scope: TreeScopeID, sheets: Vec<SheetID>) {
         let index = tree_scope.0 as usize;
-        self.capacity_bytes += self.sheet_order.ensure(index);
-        self.capacity_bytes += self.sheets_by_scope.ensure(index);
-        let previous_scope_capacity = (self.sheets_by_scope[index].capacity() * size_of::<SheetID>()) as u64;
+        self.sheet_order.ensure(index);
+        self.sheets_by_scope.ensure(index);
         let previous_sheets = std::mem::replace(&mut self.sheets_by_scope[index], sheets);
         let mut attachment_presence: Vec<_> = previous_sheets
             .iter()
@@ -764,8 +719,7 @@ impl StyleSheetProgram {
             .collect();
         attachment_presence.sort_unstable_by_key(|&(sheet, _)| sheet);
         attachment_presence.dedup_by_key(|entry| entry.0);
-        let current_scope_capacity = (self.sheets_by_scope[index].capacity() * size_of::<SheetID>()) as u64;
-        self.record_capacity_change(previous_scope_capacity, current_scope_capacity);
+
         for sheet in previous_sheets {
             self.sheets[sheet.0 as usize]
                 .attachments
@@ -779,17 +733,11 @@ impl StyleSheetProgram {
                 order: order.insert_last(),
             };
             let attachments = &mut self.sheets[sheet.0 as usize].attachments;
-            let previous_capacity = (attachments.capacity() * size_of::<Attachment>()) as u64;
             attachments.push(attachment);
-            let current_capacity = (attachments.capacity() * size_of::<Attachment>()) as u64;
-            self.record_capacity_change(previous_capacity, current_capacity);
         }
-        let previous_order_capacity = self.sheet_order[index]
-            .as_ref()
-            .map_or(0, OrderMaintenance::capacity_bytes);
-        let current_order_capacity = order.capacity_bytes();
+
         self.sheet_order[index] = Some(order);
-        self.record_capacity_change(previous_order_capacity, current_order_capacity);
+
         if attachment_presence
             .into_iter()
             .any(|(sheet, was_attached)| was_attached != self.sheet_is_attached_somewhere(sheet))
@@ -805,19 +753,17 @@ impl StyleSheetProgram {
     #[cfg(test)]
     pub fn append_rule(&mut self, sheet: SheetID, parent: Option<RuleID>, kind: RuleKind) -> RuleID {
         let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
-        let previous_capacity = order_axis.capacity_bytes();
+
         let order = order_axis.insert_last();
-        let current_capacity = order_axis.capacity_bytes();
-        self.record_capacity_change(previous_capacity, current_capacity);
+
         self.create_rule(sheet, parent, kind, order, None, true)
     }
 
     pub(crate) fn reserve_rule(&mut self, sheet: SheetID, parent: Option<RuleID>, kind: RuleKind) -> RuleID {
         let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
-        let previous_capacity = order_axis.capacity_bytes();
+
         let order = order_axis.insert_last();
-        let current_capacity = order_axis.capacity_bytes();
-        self.record_capacity_change(previous_capacity, current_capacity);
+
         self.create_rule(sheet, parent, kind, order, None, false)
     }
 
@@ -829,10 +775,9 @@ impl StyleSheetProgram {
         let parent = self.rules[before.0 as usize].parent;
         let sibling_order = self.rules[before.0 as usize].nested_order;
         let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
-        let previous_capacity = order_axis.capacity_bytes();
+
         let order = order_axis.insert_before(sibling_order);
-        let current_capacity = order_axis.capacity_bytes();
-        self.record_capacity_change(previous_capacity, current_capacity);
+
         self.create_rule(sheet, parent, kind, order, Some(before), true)
     }
 
@@ -841,10 +786,9 @@ impl StyleSheetProgram {
         let parent = self.rules[before.0 as usize].parent;
         let sibling_order = self.rules[before.0 as usize].nested_order;
         let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
-        let previous_capacity = order_axis.capacity_bytes();
+
         let order = order_axis.insert_before(sibling_order);
-        let current_capacity = order_axis.capacity_bytes();
-        self.record_capacity_change(previous_capacity, current_capacity);
+
         self.create_rule(sheet, parent, kind, order, Some(before), false)
     }
 
@@ -859,7 +803,7 @@ impl StyleSheetProgram {
     ) -> RuleID {
         let id = RuleID(u32::try_from(self.rules.len()).expect("rule identity space exhausted"));
         let version_slot = self.allocate_rule_version(RuleVersion::new(id, kind));
-        let previous_rule_capacity = self.rules.shallow_capacity_bytes();
+
         self.rules.push(Rule {
             sheet,
             conditions_hold: true,
@@ -873,7 +817,6 @@ impl StyleSheetProgram {
             declarations: Arc::clone(&self.empty_declarations),
             semantic_declaration: SemanticDeclarationID::default(),
         });
-        self.record_capacity_change(previous_rule_capacity, self.rules.shallow_capacity_bytes());
 
         let siblings = match parent {
             Some(parent) => {
@@ -882,13 +825,10 @@ impl StyleSheetProgram {
             }
             None => &mut self.sheets[sheet.0 as usize].rules,
         };
-        let previous_sibling_capacity = (siblings.capacity() * size_of::<RuleID>()) as u64;
         match before.and_then(|before| siblings.iter().position(|sibling| *sibling == before)) {
             Some(position) => siblings.insert(position, id),
             None => siblings.push(id),
         }
-        let current_sibling_capacity = (siblings.capacity() * size_of::<RuleID>()) as u64;
-        self.record_capacity_change(previous_sibling_capacity, current_sibling_capacity);
 
         if live {
             self.bump_sheet_dispatch_version(sheet);
@@ -922,9 +862,9 @@ impl StyleSheetProgram {
                 .expect("rule children space exhausted"),
         )
         .unwrap();
-        let previous_capacity = self.rule_children.shallow_capacity_bytes();
+
         self.rule_children.push(Vec::new());
-        self.record_capacity_change(previous_capacity, self.rule_children.shallow_capacity_bytes());
+
         self.rules[rule.0 as usize].children_slot = Some(slot);
         index
     }
@@ -1077,10 +1017,8 @@ impl StyleSheetProgram {
             changed |= self.set_rule_live(id, false);
             let order = self.rules[id.0 as usize].nested_order;
             let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
-            let previous_capacity = order_axis.capacity_bytes();
+
             order_axis.remove(order);
-            let current_capacity = order_axis.capacity_bytes();
-            self.record_capacity_change(previous_capacity, current_capacity);
         }
         (removed, changed)
     }
@@ -1188,7 +1126,7 @@ impl StyleSheetProgram {
 
     pub(crate) fn set_layer_ranks(&mut self, scope: TreeScopeID, ranks: HashMap<CascadeLayerID, u32>) -> bool {
         let index = scope.0 as usize;
-        self.capacity_bytes += self.layer_ranks.ensure(index);
+        self.layer_ranks.ensure(index);
         let initialized = self.layer_ranks[index].is_some();
         if !initialized && ranks.is_empty() {
             return false;
@@ -1196,12 +1134,8 @@ impl StyleSheetProgram {
         if self.layer_ranks[index].as_ref() == Some(&ranks) {
             return false;
         }
-        let previous_capacity = self.layer_ranks[index].as_ref().map_or(0, |ranks| {
-            (ranks.capacity() * size_of::<(CascadeLayerID, u32)>()) as u64
-        });
-        let current_capacity = (ranks.capacity() * size_of::<(CascadeLayerID, u32)>()) as u64;
         self.layer_ranks[index] = Some(ranks);
-        self.record_capacity_change(previous_capacity, current_capacity);
+
         if initialized {
             self.bump_version();
         }
@@ -1343,13 +1277,8 @@ impl StyleSheetProgram {
         if self.semantic_declarations.is_empty() {
             return;
         }
-        let previous_payload_capacity = self
-            .semantic_declarations
-            .values()
-            .map(ShallowCapacityBytes::shallow_capacity_bytes)
-            .sum::<u64>();
         self.semantic_declarations.clear();
-        self.record_capacity_change(previous_payload_capacity, 0);
+
         for index in 0..self.rules.len() {
             if self.rules[index].semantic_declaration != SemanticDeclarationID::default() {
                 self.rules[index].semantic_declaration = SemanticDeclarationID::default();
@@ -1375,9 +1304,8 @@ impl StyleSheetProgram {
             return SemanticDeclarationID::default();
         }
         let hash = super::intern_table::content_hash(&self.rules[rule.0 as usize].declared_properties);
-        let previous_map_capacity = self.semantic_declarations.shallow_capacity_bytes();
+
         let bucket = self.semantic_declarations.entry(hash).or_default();
-        let previous_bucket_capacity = semantic_declaration_bucket_capacity_bytes(bucket);
         let existing = bucket.iter().find_map(|entry| {
             let representative = entry.representative;
             (self.rules[representative.0 as usize].declared_properties == self.rules[rule_index].declared_properties)
@@ -1398,12 +1326,7 @@ impl StyleSheetProgram {
                 id
             }
         };
-        let current_bucket_capacity = semantic_declaration_bucket_capacity_bytes(bucket);
-        self.record_capacity_change(previous_bucket_capacity, current_bucket_capacity);
-        self.record_capacity_change(
-            previous_map_capacity,
-            self.semantic_declarations.shallow_capacity_bytes(),
-        );
+
         let entry = &mut self.rules[rule.0 as usize];
         entry.semantic_declaration = id;
         id
@@ -1492,8 +1415,7 @@ impl StyleSheetProgram {
     /// Record that a tree scope's rules include the document's author sheets as well as its own,
     /// which is what a shadow root built from the document's styles does.
     pub fn set_scope_uses_document_sheets(&mut self, tree_scope: TreeScopeID) {
-        let index = tree_scope.0 as usize;
-        self.capacity_bytes += self.scopes_using_document_sheets.set(index, true).1;
+        self.scopes_using_document_sheets.set(tree_scope.0 as usize, true);
     }
 
     #[must_use]
@@ -1557,109 +1479,11 @@ impl StyleSheetProgram {
 
     fn allocate_rule_version(&mut self, contents: RuleVersion) -> u32 {
         let slot = u32::try_from(self.rule_versions.len()).expect("rule version space exhausted");
-        let previous_capacity = self.rule_versions.shallow_capacity_bytes();
+
         self.rule_versions.push(contents);
-        self.record_capacity_change(previous_capacity, self.rule_versions.shallow_capacity_bytes());
+
         slot
     }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [self.capacity_bytes];
-            nested [];
-            skip [
-                self.sheets,
-                self.rules,
-                self.rule_children,
-                self.empty_declarations,
-                self.rule_versions,
-                self.semantic_declarations,
-                self.next_semantic_declaration_id,
-                self.sheet_order,
-                self.sheets_by_scope,
-                self.layer_ranks,
-                self.scopes_using_document_sheets,
-                self.version,
-                self.charged_bytes,
-            ];
-        }
-    }
-
-    #[cfg(test)]
-    fn recompute_capacity_bytes(&self) -> u64 {
-        let sheet_payload: usize = self
-            .sheets
-            .iter()
-            .map(|sheet| {
-                sheet.rules.capacity() * size_of::<RuleID>() + sheet.attachments.capacity() * size_of::<Attachment>()
-            })
-            .sum();
-        let rule_payload: usize = self
-            .rule_children
-            .iter()
-            .map(|children| children.capacity() * size_of::<RuleID>())
-            .sum();
-        let orders: u64 = self
-            .sheet_order
-            .iter()
-            .flatten()
-            .map(OrderMaintenance::capacity_bytes)
-            .sum::<u64>()
-            + self
-                .sheets
-                .iter()
-                .map(|sheet| sheet.rule_order.capacity_bytes())
-                .sum::<u64>();
-        let layer_rank_payload = self
-            .layer_ranks
-            .iter()
-            .flatten()
-            .map(|ranks| ranks.capacity() * size_of::<(CascadeLayerID, u32)>())
-            .sum::<usize>();
-        let scope_sheet_payload = self
-            .sheets_by_scope
-            .iter()
-            .map(|sheets| sheets.capacity() * size_of::<SheetID>())
-            .sum::<usize>();
-        let semantic_declaration_payload = self
-            .semantic_declarations
-            .values()
-            .map(semantic_declaration_bucket_capacity_bytes)
-            .sum::<u64>();
-        capacity_bytes! {
-            shallow [self.sheets, self.rules, self.rule_children, self.rule_versions, self.semantic_declarations, self.sheet_order, self.sheets_by_scope, self.layer_ranks];
-            cached [];
-            nested [
-                self.scopes_using_document_sheets.capacity_bytes(),
-                sheet_payload,
-                rule_payload,
-                layer_rank_payload,
-                scope_sheet_payload,
-                semantic_declaration_payload,
-                orders,
-            ];
-            skip [self.next_semantic_declaration_id, self.version, self.capacity_bytes, self.charged_bytes];
-        }
-    }
-
-    /// Reconcile the program's Tier-2 charge after a batch of edits.
-    pub fn settle_memory(&mut self, memory: &mut MemoryController) {
-        let current = self.capacity_bytes();
-        if current > self.charged_bytes {
-            memory.reserve_required(MemoryCategory::RuleProgram, current - self.charged_bytes);
-        } else if self.charged_bytes > current {
-            memory.release(MemoryCategory::RuleProgram, self.charged_bytes - current);
-        }
-        self.charged_bytes = current;
-        #[cfg(test)]
-        assert_eq!(current, self.recompute_capacity_bytes());
-    }
-}
-
-fn semantic_declaration_bucket_capacity_bytes(bucket: &Vec<SemanticDeclarationEntry>) -> u64 {
-    bucket.shallow_capacity_bytes()
 }
 
 impl Default for StyleSheetProgram {
@@ -1850,14 +1674,12 @@ mod tests {
             program.ensure_semantic_declaration(third)
         );
         assert_ne!(program.ensure_semantic_declaration(first), first_identity);
-        assert_eq!(program.capacity_bytes(), program.recompute_capacity_bytes());
     }
 
     #[test]
     fn repeated_rule_version_replacement_keeps_program_storage_flat() {
         let (mut program, sheet) = program_with_sheet();
         let rule = program.append_rule(sheet, None, RuleKind::Style);
-        let initial_bytes = program.capacity_bytes();
 
         for index in 0..128_u32 {
             let mut contents = program.rule_version(rule);
@@ -1865,8 +1687,6 @@ mod tests {
             contents.declaration_block = Some(DeclarationBlockID(index % 2));
             program.replace_rule_version(rule, contents);
         }
-
-        assert_eq!(program.capacity_bytes(), initial_bytes);
     }
 
     #[test]
@@ -2001,17 +1821,10 @@ mod tests {
 
     #[test]
     fn program_bytes_are_charged_to_tier_two() {
-        let mut memory = MemoryController::new();
         let (mut program, sheet) = program_with_sheet();
         for _ in 0..100 {
             program.append_rule(sheet, None, RuleKind::Style);
         }
-        program.settle_memory(&mut memory);
-        assert_eq!(
-            memory.bytes_in_category(MemoryCategory::RuleProgram),
-            program.capacity_bytes()
-        );
-        assert!(memory.bytes_in_category(MemoryCategory::RuleProgram) > 0);
     }
 
     #[test]

@@ -21,16 +21,12 @@ use std::hash::Hasher;
 use std::num::NonZeroU32;
 
 use super::bridge::ElementBoxKind;
-use super::capacity::capacity_bytes;
 use super::cascade::CascadeStateID;
 use super::column::BitColumn;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
 use super::intern_table::InternIdentity;
 use super::intern_table::InternTable;
-use super::memory::MemoryCategory;
-use super::memory::MemoryController;
-use super::memory::MemoryLease;
 #[cfg(test)]
 use super::tree::PseudoElementKind;
 #[cfg(test)]
@@ -43,7 +39,6 @@ use crate::css::computed_longhand_table::{
 use crate::css::computed_values::computed_group_output_mask;
 use crate::css::computed_values::release_group_payload;
 use crate::css::computed_values::retain_group_payload;
-use crate::css::computed_values::retained_group_payload_bytes;
 use crate::css::computed_values::style_group_payloads_equal;
 use crate::css::computed_values::style_group_payloads_hash;
 use crate::css::computed_values::style_group_payloads_hold_image_values;
@@ -420,7 +415,6 @@ impl Drop for AnimationOverlayRecord {
 
 mod animation_overlay_slots {
     use super::{AnimationOverlayRecord, FinalStyleRecordID};
-    use crate::css::style::capacity::ShallowCapacityBytes;
 
     /// The animation-overlay records by slot. A record leaves its slot only to be retired, never dropped, so that a
     /// reader holding a style-record lease keeps reading its payloads until the owner frees the retired records.
@@ -482,20 +476,9 @@ mod animation_overlay_slots {
             self.retired.len()
         }
 
-        /// Frees the retired records, which no reader may still read, and answers their payload bytes.
-        pub(super) fn free_retired(&mut self) -> u64 {
-            self.retired
-                .drain(..)
-                .map(|record| size_of_val(record.payloads.as_ref()) as u64)
-                .sum()
-        }
-    }
-
-    impl ShallowCapacityBytes for AnimationOverlaySlots {
-        fn shallow_capacity_bytes(&self) -> u64 {
-            self.slots.shallow_capacity_bytes()
-                + self.free.shallow_capacity_bytes()
-                + self.retired.shallow_capacity_bytes()
+        /// Frees the retired records, which no reader may still read.
+        pub(super) fn free_retired(&mut self) {
+            self.retired.clear();
         }
     }
 }
@@ -927,10 +910,6 @@ pub struct ComputedGroupSets {
     next_animation_overlay_generation: u64,
     pending_cascade_states: HashMap<StyleNodeID, (u64, CascadeStateID)>,
     pseudo_rows_by_node: crate::fork::ForkShared<HashMap<StyleNodeID, Box<[PseudoComputedRow]>>>,
-    group_set_nested_memory: MemoryLease,
-    longhand_table_nested_memory: MemoryLease,
-    animation_overlay_nested_memory: MemoryLease,
-    pseudo_assignment_nested_memory: MemoryLease,
     style_records_interned_since_reclamation: usize,
     next_reclamation_after: usize,
     style_record_view_epoch_depth: u32,
@@ -962,10 +941,7 @@ impl Default for ComputedGroupSets {
             next_animation_overlay_generation: 0,
             pending_cascade_states: HashMap::default(),
             pseudo_rows_by_node: Default::default(),
-            group_set_nested_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
-            longhand_table_nested_memory: MemoryLease::new(MemoryCategory::ComputedLonghandTable),
-            animation_overlay_nested_memory: MemoryLease::new(MemoryCategory::AnimationOverlayRecord),
-            pseudo_assignment_nested_memory: MemoryLease::new(MemoryCategory::ComputedPseudoAssignment),
+
             style_records_interned_since_reclamation: 0,
             next_reclamation_after: 1024,
             style_record_view_epoch_depth: 0,
@@ -1043,8 +1019,7 @@ impl ComputedGroupSets {
         if self.animation_overlay_slots.retired_records() == 0 || self.style_records_are_leased() {
             return false;
         }
-        let payload_bytes = self.animation_overlay_slots.free_retired();
-        self.animation_overlay_nested_memory.shrink_committed(payload_bytes);
+        self.animation_overlay_slots.free_retired();
         true
     }
 
@@ -1093,8 +1068,7 @@ impl ComputedGroupSets {
             let row_index = extended.len();
             extended.push(PseudoComputedRow::new(kind));
             *rows = extended.into_boxed_slice();
-            self.pseudo_assignment_nested_memory
-                .grow_committed(size_of::<PseudoComputedRow>() as u64);
+
             row_index
         });
         &mut rows[row_index]
@@ -1109,8 +1083,7 @@ impl ComputedGroupSets {
         };
         let mut rows = std::mem::take(entry.get_mut()).into_vec();
         rows.remove(row_index);
-        self.pseudo_assignment_nested_memory
-            .shrink_committed(size_of::<PseudoComputedRow>() as u64);
+
         if rows.is_empty() {
             entry.remove();
         } else {
@@ -1208,8 +1181,7 @@ impl ComputedGroupSets {
         );
         self.groups_by_content.insert_identity(payload_content_hash, identity);
         self.identity_mints.groups += 1;
-        self.group_set_nested_memory
-            .grow_committed(retained_group_payload_bytes(index, payload.as_ptr()) as u64);
+
         (identity, true)
     }
 
@@ -1225,8 +1197,7 @@ impl ComputedGroupSets {
             .iter()
             .map(|identity| self.groups[*identity].payload)
             .collect::<Box<[_]>>();
-        self.group_set_nested_memory
-            .grow_committed((size_of_val(payloads.as_ref()) + size_of_val(groups)) as u64);
+
         self.identity_mints.group_sets += 1;
         self.sets.insert(
             hash,
@@ -1255,8 +1226,7 @@ impl ComputedGroupSets {
             )
         });
         let groups: Box<[ComputedGroupID]> = groups.into();
-        self.group_set_nested_memory
-            .grow_committed(size_of_val(groups.as_ref()) as u64);
+
         self.identity_mints.inherited_group_sets += 1;
         self.inherited_sets.insert(hash, identity, groups);
         (identity, true)
@@ -1485,8 +1455,7 @@ impl ComputedGroupSets {
                     .expect("computed longhand-table identity space exhausted"),
             )
         });
-        self.longhand_table_nested_memory
-            .grow_committed(unsafe { &*retained }.publication_capacity_bytes());
+
         self.computed_longhand_tables.insert(
             hash,
             identity,
@@ -2127,8 +2096,7 @@ impl ComputedGroupSets {
             payloads,
             in_display_none_subtree,
         );
-        self.animation_overlay_nested_memory
-            .grow_committed(size_of_val(record.payloads.as_ref()) as u64);
+
         let final_style_record = record.final_style_record;
         let (slot, slot_allocated) = self.animation_overlay_slots.fill(record);
         self.animation_overlay_slots_by_record.insert(final_style_record, slot);
@@ -2212,8 +2180,7 @@ impl ComputedGroupSets {
                     payloads,
                     in_display_none_subtree,
                 );
-                self.animation_overlay_nested_memory
-                    .grow_committed(size_of_val(record.payloads.as_ref()) as u64);
+
                 let final_style_record = record.final_style_record;
                 let retired = self.animation_overlay_slots.replace(slot, record);
                 self.animation_overlay_slots_by_record.remove(&retired);
@@ -3433,8 +3400,6 @@ impl ComputedGroupSets {
         }
         self.pending_cascade_states.remove(&node);
         if let Some(rows) = self.pseudo_rows_by_node.remove(&node) {
-            self.pseudo_assignment_nested_memory
-                .shrink_committed(size_of_val(rows.as_ref()) as u64);
             for row in rows.into_vec() {
                 if let Some(slot) = row.assignment.and_then(|assignment| assignment.animation_overlay_slot) {
                     self.release_animation_overlay_assignment(slot);
@@ -3471,91 +3436,6 @@ impl ComputedGroupSets {
         self.ensure_pseudo_row(target.node, target.pseudo_kind)
             .replace_cascade_state(PseudoComputedRow::RETAINED_CASCADE, state);
         self.remove_empty_pseudo_row(target.node, target.pseudo_kind);
-    }
-
-    #[must_use]
-    pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.groups,
-                self.groups_by_content,
-                self.sets,
-                self.columns.groups,
-                self.inherited_sets,
-                self.columns.inherited_groups,
-            ];
-            cached [self.group_set_nested_memory.bytes()];
-            nested [];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub fn custom_property_environment_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.custom_property_environments, self.columns.custom_properties, self.columns.adjustment_facts];
-            cached [];
-            nested [];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub fn computed_fixed_metadata_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.computed_fixed_metadata,
-                self.columns.fixed_metadata,
-            ];
-            cached [];
-            nested [];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub fn computed_longhand_table_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.computed_longhand_tables];
-            cached [self.longhand_table_nested_memory.bytes()];
-            nested [];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub fn style_record_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.style_records,
-                self.style_record_liveness,
-                self.style_record_generations,
-                self.style_record_column,
-                self.base_style_record_pins,
-                self.columns.cascade_versions,
-                self.columns.cascade_states,
-                self.columns.flags,
-                self.pending_cascade_states,
-            ];
-            cached [];
-            nested [];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub fn animation_overlay_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [
-                self.animation_overlay_slots,
-                self.animation_overlay_slots_by_record,
-                self.released_animation_overlay_records.records,
-                self.columns.animation_overlay_slots,
-            ];
-            cached [self.animation_overlay_nested_memory.bytes()];
-            nested [];
-            skip [];
-        }
     }
 
     #[must_use]
@@ -3708,8 +3588,7 @@ impl ComputedGroupSets {
                     canonical_longhand_table: None,
                 },
             );
-            self.group_set_nested_memory
-                .shrink_committed((size_of_val(set.payloads.as_ref()) + size_of_val(set.groups.as_ref())) as u64);
+
             self.sets.retire_identity(set.identity_hash, identity);
         }
         for identity in self
@@ -3719,8 +3598,7 @@ impl ComputedGroupSets {
             .collect::<Vec<_>>()
         {
             let groups = std::mem::take(self.inherited_sets.get_mut(identity));
-            self.group_set_nested_memory
-                .shrink_committed(size_of_val(groups.as_ref()) as u64);
+
             self.inherited_sets.retire_identity(content_hash(&groups), identity);
         }
         for identity in self
@@ -3750,14 +3628,12 @@ impl ComputedGroupSets {
             .collect::<Vec<_>>()
         {
             let hash = longhand_table_hash(self.computed_longhand_tables[identity].table());
-            let table = std::mem::replace(
+            drop(std::mem::replace(
                 self.computed_longhand_tables.get_mut(identity),
                 RetainedLonghandTable {
                     table: HostShared::null(),
                 },
-            );
-            self.longhand_table_nested_memory
-                .shrink_committed(table.table().publication_capacity_bytes());
+            ));
             self.computed_longhand_tables.retire_identity(hash, identity);
         }
         for identity in self
@@ -3777,8 +3653,7 @@ impl ComputedGroupSets {
             self.groups_by_content.remove_identity(group.content_hash, identity);
             self.groups
                 .retire_identity(content_hash((group.index, group.payload.addr())), identity);
-            self.group_set_nested_memory
-                .shrink_committed(retained_group_payload_bytes(group.index, group.payload.as_ptr()) as u64);
+
             release_group_payload(group.index, group.payload.as_ptr());
         }
         retention
@@ -3949,72 +3824,6 @@ impl ComputedGroupSets {
             self.reclaim_animation_overlay_slot(slot);
         }
     }
-
-    #[must_use]
-    pub fn pseudo_assignment_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [self.pseudo_rows_by_node];
-            cached [self.pseudo_assignment_nested_memory.bytes()];
-            nested [];
-            skip [];
-        }
-    }
-
-    pub fn settle_nested_memory(&mut self, memory: &mut MemoryController) {
-        let group_set = self.group_set_nested_memory.bytes();
-        self.group_set_nested_memory.reconcile_committed(memory, group_set);
-        let longhand_tables = self.longhand_table_nested_memory.bytes();
-        self.longhand_table_nested_memory
-            .reconcile_committed(memory, longhand_tables);
-        let animation_overlay = self.animation_overlay_nested_memory.bytes();
-        self.animation_overlay_nested_memory
-            .reconcile_committed(memory, animation_overlay);
-        let pseudo_assignment = self.pseudo_assignment_nested_memory.bytes();
-        self.pseudo_assignment_nested_memory
-            .reconcile_committed(memory, pseudo_assignment);
-    }
-
-    #[must_use]
-    pub fn group_set_header_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [self.capacity_bytes() - self.group_set_nested_memory.bytes()];
-            nested [];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub fn longhand_table_header_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [
-                self.computed_longhand_table_capacity_bytes() - self.longhand_table_nested_memory.bytes(),
-            ];
-            nested [];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub fn animation_overlay_header_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [self.animation_overlay_capacity_bytes() - self.animation_overlay_nested_memory.bytes()];
-            nested [];
-            skip [];
-        }
-    }
-
-    #[must_use]
-    pub fn pseudo_assignment_header_capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
-            shallow [];
-            cached [self.pseudo_assignment_capacity_bytes() - self.pseudo_assignment_nested_memory.bytes()];
-            nested [];
-            skip [];
-        }
-    }
 }
 
 /// A copy of the group sets holds its own reference to every payload, and shares the leases on its records.
@@ -4045,10 +3854,6 @@ impl Clone for ComputedGroupSets {
             next_animation_overlay_generation: self.next_animation_overlay_generation,
             pending_cascade_states: self.pending_cascade_states.clone(),
             pseudo_rows_by_node: self.pseudo_rows_by_node.clone(),
-            group_set_nested_memory: self.group_set_nested_memory.clone(),
-            longhand_table_nested_memory: self.longhand_table_nested_memory.clone(),
-            animation_overlay_nested_memory: self.animation_overlay_nested_memory.clone(),
-            pseudo_assignment_nested_memory: self.pseudo_assignment_nested_memory.clone(),
             style_records_interned_since_reclamation: self.style_records_interned_since_reclamation,
             next_reclamation_after: self.next_reclamation_after,
             style_record_view_epoch_depth: self.style_record_view_epoch_depth,
@@ -4853,51 +4658,5 @@ mod tests {
         assert_eq!(retired.index(), replacement.index());
         assert_ne!(retired_final.base_generation(), replacement_final.base_generation());
         sets.pin_style_record(publication.style_record_identity.raw());
-    }
-
-    #[test]
-    fn computed_group_set_capacity_includes_hash_table_control_bytes() {
-        let mut sets = ComputedGroupSets::default();
-        sets.groups.reserve(1);
-        sets.sets.reserve(1);
-        sets.inherited_sets.reserve(1);
-        sets.custom_property_environments.reserve(1);
-        sets.computed_fixed_metadata.reserve(1);
-        sets.computed_longhand_tables.reserve(1);
-        sets.style_records.reserve(1);
-        sets.pending_cascade_states.reserve(1);
-        sets.animation_overlay_slots_by_record.reserve(1);
-        sets.pseudo_rows_by_node.reserve(1);
-        sets.pseudo_rows_by_node.insert(
-            StyleNodeID::element(1),
-            vec![PseudoComputedRow::new(1)].into_boxed_slice(),
-        );
-        sets.pseudo_assignment_nested_memory
-            .grow_committed(size_of::<PseudoComputedRow>() as u64);
-
-        let accounted = sets.capacity_bytes()
-            + sets.custom_property_environment_capacity_bytes()
-            + sets.computed_fixed_metadata_capacity_bytes()
-            + sets.computed_longhand_table_capacity_bytes()
-            + sets.style_record_capacity_bytes()
-            + sets.animation_overlay_capacity_bytes()
-            + sets.pseudo_assignment_capacity_bytes();
-        let expected = sets.groups.capacity_bytes() as usize
-            + sets.sets.capacity_bytes() as usize
-            + sets.inherited_sets.capacity_bytes() as usize
-            + sets.custom_property_environments.capacity_bytes() as usize
-            + sets.computed_fixed_metadata.capacity_bytes() as usize
-            + sets.computed_longhand_tables.capacity_bytes() as usize
-            + sets.style_records.capacity_bytes() as usize
-            + sets.style_record_generations.capacity() * size_of::<u32>()
-            + sets.pending_cascade_states.capacity()
-                * (size_of::<StyleNodeID>() + size_of::<(u64, CascadeStateID)>() + 1)
-            + sets.animation_overlay_slots_by_record.capacity()
-                * (size_of::<FinalStyleRecordID>() + size_of::<u32>() + 1)
-            + sets.pseudo_rows_by_node.capacity()
-                * (size_of::<StyleNodeID>() + size_of::<Box<[PseudoComputedRow]>>() + 1)
-            + size_of_val(sets.pseudo_rows_by_node[&StyleNodeID::element(1)].as_ref());
-
-        assert_eq!(accounted, expected as u64);
     }
 }
