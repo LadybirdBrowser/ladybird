@@ -8,7 +8,6 @@
 #include <AK/Optional.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
-#include <LibGfx/CanvasCommandList.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
@@ -151,6 +150,7 @@ void CompositorHost::flush_canvas_2d_stream()
 void CompositorHost::discard_canvas_2d_stream()
 {
     (void)m_canvas_2d_stream->take_segments();
+    (void)m_canvas_2d_stream->take_image_frames();
     (void)m_canvas_2d_stream->take_video_frame_holds();
 }
 
@@ -293,12 +293,39 @@ private:
         m_canvas_id.clear();
     }
 
-    virtual Compositing::Canvas2DCommandStream& shared_stream() override
+    virtual void append_command(ReadonlyBytes record) override
     {
-        return *m_stream;
+        VERIFY(m_canvas_id.has_value());
+        m_stream->append_command(*m_canvas_id, record);
     }
 
-    virtual void flush_shared_stream() override
+    virtual Compositing::FontResourceId add_font(Gfx::Font const& font) override
+    {
+        return m_stream->add_font(font);
+    }
+
+    virtual Compositing::ImageFrameResourceId add_image_frame(Gfx::DecodedImageFrame const& frame) override
+    {
+        return m_stream->add_image_frame(frame);
+    }
+
+    virtual void retain_video_frame_hold(NonnullRefPtr<Compositing::VideoFrameHold> hold) override
+    {
+        m_stream->retain_video_frame_hold(move(hold));
+    }
+
+    virtual void record_present() override
+    {
+        VERIFY(m_canvas_id.has_value());
+        m_stream->record_present(*m_canvas_id);
+    }
+
+    virtual size_t pending_command_count() const override
+    {
+        return m_stream->total_command_count();
+    }
+
+    virtual void flush() override
     {
         m_connection->update_canvas_2d_stream(*m_stream);
     }

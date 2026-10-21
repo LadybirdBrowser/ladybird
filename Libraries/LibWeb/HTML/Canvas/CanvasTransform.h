@@ -137,8 +137,8 @@ public:
 
     void flush_transform()
     {
-        if (auto* canvas_command_list = this->canvas_command_list())
-            canvas_command_list->append(Gfx::CanvasCommands::SetTransform { .transform = drawing_state().transform });
+        if (auto* recorder = canvas_recorder())
+            recorder->set_transform(drawing_state().transform);
     }
 
 protected:

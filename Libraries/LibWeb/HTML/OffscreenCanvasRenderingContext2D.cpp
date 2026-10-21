@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/CanvasCommandList.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
 
@@ -48,8 +47,8 @@ void OffscreenCanvasRenderingContext2D::replace_bitmap_with_cleared_bitmap()
     m_origin_clean = true;
     if (!has_backing_storage())
         return;
-    if (auto* canvas_command_list = this->canvas_command_list()) {
-        canvas_command_list->append(Gfx::CanvasCommands::ClearCanvas { .color = clear_color() });
+    if (auto* recorder = canvas_recorder()) {
+        recorder->clear_canvas(clear_color());
         did_draw({ {}, m_size.to_type<float>() });
     }
 }

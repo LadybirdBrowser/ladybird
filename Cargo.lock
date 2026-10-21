@@ -1028,6 +1028,8 @@ dependencies = [
  "ak",
  "encoding_rs",
  "ladybird_allocator",
+ "libcompositing_rust",
+ "libgfx_rust",
  "libjs_rust",
  "liburl_rust",
  "libweb_rust",

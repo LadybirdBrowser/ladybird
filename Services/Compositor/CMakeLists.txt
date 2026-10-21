@@ -1,6 +1,7 @@
 set(SOURCES
     AsyncScrollUpdateOutbox.cpp
     BackingStoreManager.cpp
+    Canvas2DCommandPlayer.cpp
     CanvasHost.cpp
     CaretBlinkTimer.cpp
     CompositorState.cpp

@@ -9,6 +9,7 @@
 
 #include <AK/Debug.h>
 #include <AK/Mutex.h>
+#include <LibCompositing/CanvasSize.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
@@ -314,7 +315,7 @@ Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(G
         return {};
 
     // NB: The Compositor refuses the same sizes, so a context it is asked to create always exists afterwards.
-    if (!Gfx::is_valid_canvas_2d_size(size))
+    if (!Compositing::is_valid_canvas_2d_size(size))
         return {};
 
     // OPTIMIZATION: Creating a context is asynchronous, under an ID from a range reserved up front. A synchronous
@@ -356,7 +357,19 @@ void CompositorConnection::update_canvas_2d_stream(Compositing::Canvas2DCommandS
             added_fonts.append(move(font));
     }
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), move(kept_font_ids), move(added_fonts)));
+    // A frame travels in a shared bitmap. One that cannot be placed in one is left out, and the Compositor skips the
+    // draws that name it.
+    Vector<Compositing::DisplayListImageFrameResource> image_frames;
+    for (auto& frame : stream.take_image_frames()) {
+        auto bitmap = frame.frame.bitmap().to_shareable_bitmap();
+        if (!bitmap.is_valid()) {
+            dbgln("WebContent: Could not place a {} canvas image frame in shared memory", frame.frame.bitmap().size());
+            continue;
+        }
+        image_frames.append({ .id = frame.id, .frame = Gfx::DecodedImageFrame { *bitmap.bitmap(), frame.frame.color_space() } });
+    }
+
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), move(kept_font_ids), move(added_fonts), move(image_frames)));
     auto video_frame_holds = stream.take_video_frame_holds();
     if (post_message(encoded_message).is_error()) {
         did_lose_compositor();

@@ -8,6 +8,7 @@
 #include <AK/Math.h>
 #include <Compositor/ConnectionFromWebContent.h>
 #include <Compositor/RasterizeDisplayList.h>
+#include <LibCompositing/DisplayList/Canvas2DTape.h>
 #include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
@@ -280,9 +281,15 @@ void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId ca
     (void)m_canvas_host.create_2d_context(canvas_id, size, alpha);
 }
 
-void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::FontResourceId> kept_font_ids, Vector<Compositing::DisplayListFontResource> added_fonts)
+void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::FontResourceId> kept_font_ids, Vector<Compositing::DisplayListFontResource> added_fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames)
 {
-    m_canvas_host.execute_canvas_2d_stream(segments, kept_font_ids, added_fonts);
+    for (auto const& segment : segments) {
+        if (Compositing::validate_canvas_2d_tape(segment.tape).is_error()) {
+            did_misbehave("WebContent sent a canvas 2D stream that does not validate");
+            return;
+        }
+    }
+    m_canvas_host.execute_canvas_2d_stream(segments, kept_font_ids, added_fonts, image_frames);
 }
 
 void ConnectionFromWebContent::destroy_canvas_context(Compositing::CanvasId canvas_id)
