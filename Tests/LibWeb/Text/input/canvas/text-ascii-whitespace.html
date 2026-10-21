@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // fillText() and strokeText() replace ASCII whitespace with spaces, as measureText() does.
+    function pixelsOf(method, text, maxWidth) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 200;
+        canvas.height = 50;
+        const context = canvas.getContext("2d");
+        context.font = "20px sans-serif";
+        if (maxWidth === undefined)
+            context[method](text, 10, 30);
+        else
+            context[method](text, 10, 30, maxWidth);
+        return context.getImageData(0, 0, canvas.width, canvas.height).data.join();
+    }
+
+    test(() => {
+        const context = document.createElement("canvas").getContext("2d");
+        context.font = "20px sans-serif";
+        for (const [name, whitespace] of [
+            ["tab", "\t"],
+            ["line feed", "\n"],
+            ["form feed", "\f"],
+            ["carriage return", "\r"],
+        ]) {
+            const text = `a${whitespace}b`;
+            println(`${name}: measureText(): ${context.measureText(text).width === context.measureText("a b").width}`);
+            for (const [label, method, maxWidth] of [
+                ["fillText()", "fillText"],
+                ["fillText() with maxWidth", "fillText", 1000],
+                ["strokeText()", "strokeText"],
+            ])
+                println(`${name}: ${label}: ${pixelsOf(method, text, maxWidth) === pixelsOf(method, "a b", maxWidth)}`);
+        }
+    });
+</script>

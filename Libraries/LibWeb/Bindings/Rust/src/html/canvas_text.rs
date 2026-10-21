@@ -58,7 +58,9 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         if !are_finite(x, y, max_width) {
             return Ok(());
         }
-        let text = text.to_utf16();
+        // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm
+        // 2. Replace all ASCII whitespace in text with U+0020 SPACE characters.
+        let text = replace_ascii_whitespace(&text.to_utf16());
 
         // Complex text effects continue to use the combined outline so they are applied once to the entire text,
         // including runs that use different fallback fonts.
@@ -135,7 +137,10 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         if !are_finite(x, y, max_width) {
             return Ok(());
         }
-        self.stroke_internal(&self.text_path(&text.to_utf16(), x, y, max_width));
+        // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm
+        // 2. Replace all ASCII whitespace in text with U+0020 SPACE characters.
+        let text = replace_ascii_whitespace(&text.to_utf16());
+        self.stroke_internal(&self.text_path(&text, x, y, max_width));
         Ok(())
     }
 
