@@ -7,6 +7,7 @@
 //! The objects that the 2D canvas contexts create and draw with. The contexts are still LibWeb's C++, which creates
 //! and reads these objects through the C ABI of `exports`.
 
+pub(crate) mod canvas_path;
 pub(crate) mod color_stops;
 
 // What follows runs on the JS runtime, which the tests of the crate do not link.
