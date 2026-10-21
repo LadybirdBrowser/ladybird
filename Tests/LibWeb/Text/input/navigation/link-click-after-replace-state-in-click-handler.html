@@ -39,10 +39,8 @@
 
         const result = await new Promise(resolve => {
             const iframe = document.createElement("iframe");
-            const timer = setTimeout(() => resolve("FAIL (timed out)"), 5000);
             window.addEventListener("message", e => {
                 if (e.source === iframe.contentWindow && e.data === "loaded-page2") {
-                    clearTimeout(timer);
                     iframe.remove();
                     resolve("PASS");
                 }
