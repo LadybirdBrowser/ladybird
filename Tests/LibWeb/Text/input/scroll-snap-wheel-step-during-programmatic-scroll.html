@@ -37,7 +37,7 @@
 
         // The gesture stays latched for as long as it may still produce scrolls, so the next step must travel from
         // where the programmatic scroll has taken the scrolling box.
-        scroller.scrollTo({ top: 900, behavior: "smooth" });
+        scroller.scrollTo({ top: 600, behavior: "smooth" });
         while (scroller.scrollTop < 400)
             await animationFrame();
 
