@@ -383,11 +383,11 @@ CSS::SizeWithAspectRatio const& SVGDecodedImageData::natural_size() const
         m_document->update_style();
         auto const* sizing_values = m_root_element->style_group<CSS::ComputedValues::SizingValues>();
         VERIFY(sizing_values);
-        auto absolute_length = [](auto const& size_handle) -> Optional<CSSPixels> {
-            auto const& size = CSS::Size::view(size_handle);
-            if (size.is_length() && size.length().is_absolute())
-                return size.length().absolute_length_to_px();
-            return {};
+        auto absolute_length = [](auto const& size) -> Optional<CSSPixels> {
+            double pixels = 0;
+            if (!CSS::ComputedValuesFFI::rust_computed_size_absolute_length_px(&size, &pixels))
+                return {};
+            return CSSPixels::nearest_value_for(pixels);
         };
         natural_size.width = absolute_length(sizing_values->width);
         natural_size.height = absolute_length(sizing_values->height);

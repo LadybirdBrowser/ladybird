@@ -83,8 +83,6 @@ static_assert(to_underlying(PaintOrder::Stroke) == 1);
 static_assert(to_underlying(PaintOrder::Markers) == 2);
 static_assert(to_underlying(TextAnchor::Start) == 0);
 static_assert(to_underlying(ShapeRendering::Auto) == 0);
-static_assert(sizeof(Size) == sizeof(ComputedValuesFFI::ComputedSize));
-static_assert(alignof(Size) == alignof(ComputedValuesFFI::ComputedSize));
 static_assert(sizeof(RustStyleValueHandle) == sizeof(StyleValueFFI::StyleValueData const*));
 static_assert(alignof(RustStyleValueHandle) == alignof(StyleValueFFI::StyleValueData const*));
 

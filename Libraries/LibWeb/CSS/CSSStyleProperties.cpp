@@ -328,30 +328,6 @@ static NonnullRefPtr<StyleValue const> style_value_for_transform_origin(Transfor
     return StyleValueList::create(move(offsets), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
 }
 
-static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
-{
-    if (size.is_none())
-        return KeywordStyleValue::create(Keyword::None);
-    if (size.is_percentage())
-        return PercentageStyleValue::create(size.percentage());
-    if (size.is_length())
-        return LengthStyleValue::create(size.length());
-    if (size.is_auto())
-        return KeywordStyleValue::create(Keyword::Auto);
-    if (size.is_calculated())
-        return size.calculated();
-    if (size.is_min_content())
-        return KeywordStyleValue::create(Keyword::MinContent);
-    if (size.is_max_content())
-        return KeywordStyleValue::create(Keyword::MaxContent);
-    if (size.is_fit_content()) {
-        if (auto available_space = size.fit_content_available_space(); available_space.has_value())
-            return FunctionStyleValue::create("fit-content"_utf16_fly_string, style_value_for_length_percentage(available_space.release_value()));
-        return KeywordStyleValue::create(Keyword::FitContent);
-    }
-    TODO();
-}
-
 static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowType shadow_type, ReadonlySpan<ShadowData> shadow_data)
 {
     if (shadow_data.is_empty())
@@ -1199,8 +1175,8 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             [](auto const& box_layout_node) { return Painting::content_height(box_layout_node); },
             [](auto const& box_layout_node) { return Painting::unbroken_border_box_size(box_layout_node).height(); });
         if (maybe_used_height.has_value())
-            return style_value_for_size(Size::make_px(maybe_used_height.release_value()));
-        return style_value_for_size(layout_node.height());
+            return LengthStyleValue::create(Length::make_px(maybe_used_height.release_value()));
+        return get_computed_value(property_id);
     }
     case PropertyID::MarginBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.bottom; }); maybe_used_value.has_value())
@@ -1239,8 +1215,8 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             [](auto const& box_layout_node) { return Painting::content_width(box_layout_node); },
             [](auto const& box_layout_node) { return Painting::unbroken_border_box_size(box_layout_node).width(); });
         if (maybe_used_width.has_value())
-            return style_value_for_size(Size::make_px(maybe_used_width.release_value()));
-        return style_value_for_size(layout_node.width());
+            return LengthStyleValue::create(Length::make_px(maybe_used_width.release_value()));
+        return get_computed_value(property_id);
     }
 
         // -> bottom
@@ -1408,13 +1384,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // https://drafts.csswg.org/css-backgrounds/#border-width
         // NB: We do this adjustment when assigning to ComputedValues, so read from there.
     case PropertyID::BorderBottomWidth:
-        return style_value_for_size(Size::make_px(layout_node.border_bottom().width));
+        return LengthStyleValue::create(Length::make_px(layout_node.border_bottom().width));
     case PropertyID::BorderLeftWidth:
-        return style_value_for_size(Size::make_px(layout_node.border_left().width));
+        return LengthStyleValue::create(Length::make_px(layout_node.border_left().width));
     case PropertyID::BorderRightWidth:
-        return style_value_for_size(Size::make_px(layout_node.border_right().width));
+        return LengthStyleValue::create(Length::make_px(layout_node.border_right().width));
     case PropertyID::BorderTopWidth:
-        return style_value_for_size(Size::make_px(layout_node.border_top().width));
+        return LengthStyleValue::create(Length::make_px(layout_node.border_top().width));
 
         // -> Any other property
         //    The resolved value is the computed value.

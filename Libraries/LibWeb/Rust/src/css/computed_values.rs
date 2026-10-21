@@ -1946,6 +1946,49 @@ pub unsafe extern "C" fn rust_style_group_payloads_equal(
     unsafe { style_group_payloads_equal(group_index, a, b) }
 }
 
+/// Clamps a border box size by the min and max sizes of a sizing group that resolve against the given basis, as
+/// resizing an element by its resizer does.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_sizing_values_clamp_size(
+    values: &SizingValues,
+    basis_width: f64,
+    basis_height: f64,
+    width: &mut f64,
+    height: &mut f64,
+) {
+    use crate::css::css_pixels::CssPixels;
+    let clamp = |size: f64, basis: f64, minimum: &ComputedSize, maximum: &ComputedSize| {
+        let basis = CssPixels::nearest_value_for(basis);
+        let mut size = size;
+        if minimum.is_length_percentage() {
+            size = size.max(minimum.to_px(basis).to_double());
+        }
+        if maximum.is_length_percentage() {
+            size = size.min(maximum.to_px(basis).to_double());
+        }
+        size
+    };
+    *width = clamp(*width, basis_width, &values.min_width, &values.max_width);
+    *height = clamp(*height, basis_height, &values.min_height, &values.max_height);
+}
+
+/// The pixels of a computed size given as an absolute length, written to `pixels`. Returns false for any other size.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_computed_size_absolute_length_px(size: &ComputedSize, pixels: &mut f64) -> bool {
+    let Some(StyleValueData::Length { value, unit }) = size.value.style_value() else {
+        return false;
+    };
+    if size.kind != ComputedSizeKind::Length {
+        return false;
+    }
+    let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[*unit as usize];
+    if !ratio.is_finite() {
+        return false;
+    }
+    *pixels = value * ratio;
+    true
+}
+
 /// One field of a style group the generic builder can populate or check: a pokeable simple field
 /// at `offset` in the group's payload, or a constraint requiring the value to be one that leaves
 /// the payload's initial value standing.

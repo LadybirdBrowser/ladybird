@@ -363,7 +363,6 @@ class ScreenOrientation;
 class Selector;
 class ShadowStyleValue;
 class ShorthandStyleValue;
-class Size;
 class StringStyleValue;
 class StyleComputer;
 class StylePropertyMap;
