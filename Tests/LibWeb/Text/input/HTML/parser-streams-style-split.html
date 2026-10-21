@@ -20,7 +20,11 @@
             done();
         }, { once: true });
 
-        frame.src = `${url}?chunks=${stylePrefix.length}&chunk_delay_ms=100`;
+        const token = crypto.randomUUID();
+        frame.src = `${url}?chunks=${stylePrefix.length}&chunk_unblock_tokens=${token}`;
         document.body.appendChild(frame);
+        while (!frame.contentDocument.querySelector("style"))
+            await new Promise(resolve => setTimeout(resolve, 0));
+        await fetch(new URL(`/unblock/${token}`, url));
     });
 </script>

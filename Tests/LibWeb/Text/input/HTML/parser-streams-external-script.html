@@ -10,16 +10,17 @@
             },
             body: `document.getElementById("target").textContent = "script ran";`,
         });
+        const delayedScriptToken = crypto.randomUUID();
         const delayedScriptURL = await httpServer.createEcho("GET", "/parser-streams-delayed-external-script.js", {
             status: 200,
             headers: {
                 "Content-Type": "text/javascript",
             },
             body: `document.getElementById("delayed-target").textContent = "delayed script ran";`,
+            wait_for_unblock: delayedScriptToken,
         });
-        const delayedScriptURLWithSlowResponse = `${delayedScriptURL}?chunks=1&chunk_delay_ms=300`;
         const externalScriptStartTag = `<scr` + `ipt src="${scriptURL}">`;
-        const delayedExternalScriptStartTag = `<scr` + `ipt src="${delayedScriptURLWithSlowResponse}">`;
+        const delayedExternalScriptStartTag = `<scr` + `ipt src="${delayedScriptURL}">`;
         const scriptEndTag = `</scr` + `ipt>`;
         const inlineScriptStartTag = `<scr` + `ipt>`;
         const prefix = `<!DOCTYPE html><body>${" ".repeat(1500)}<div id="target">before</div>${externalScriptStartTag}${scriptEndTag}`;
@@ -39,7 +40,15 @@
             done();
         }, { once: true });
 
-        frame.src = `${url}?chunks=${delayedPrefix.length}&chunk_delay_ms=50`;
+        const chunkToken = crypto.randomUUID();
+        frame.src = `${url}?chunks=${delayedPrefix.length}&chunk_unblock_tokens=${chunkToken}`;
         document.body.appendChild(frame);
+
+        while (!frame.contentDocument.querySelector(`script[src="${delayedScriptURL}"]`))
+            await new Promise(resolve => setTimeout(resolve, 0));
+        await fetch(new URL(`/unblock/${chunkToken}`, url));
+        while (!internals.htmlParserBodyIsExhausted(frame.contentDocument))
+            await new Promise(resolve => setTimeout(resolve, 0));
+        await fetch(new URL(`/unblock/${delayedScriptToken}`, url));
     });
 </script>
