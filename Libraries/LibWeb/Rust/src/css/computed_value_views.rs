@@ -100,6 +100,15 @@ impl LengthPercentageRef<'_> {
             StyleValueData::Length { .. } => false,
             StyleValueData::Percentage { .. } => true,
             StyleValueData::Calculated { rust_calculation, .. } => rust_calculation.node().contains_percentage(),
+            // A calc-size() whose basis is any or a calculation acts like a calculation.
+            value @ StyleValueData::Function { .. } => {
+                crate::css::calc_size::calc_size_arguments(value).is_some_and(|(basis, calculation)| {
+                    [basis, calculation].into_iter().any(|argument| {
+                        !matches!(argument, StyleValueData::Keyword { .. })
+                            && LengthPercentageRef::over(argument).contains_percentage()
+                    })
+                })
+            }
             _ => unreachable!("computed length-percentage holds a non-length-percentage style value"),
         }
     }
@@ -115,6 +124,10 @@ impl LengthPercentageRef<'_> {
                 CssPixels::truncated_value_for(reference.to_double() * self.as_fraction())
             }
             StyleValueData::Calculated { .. } => resolve_calc_to_px(self.calculated_pointer(), reference),
+            // NB: A calc-size() that does not resolve is invalid at computed-value time, and resolves to zero.
+            value @ StyleValueData::Function { .. } => CssPixels::nearest_value_for(
+                crate::css::calc_size::resolve_calc_size(value, Some(reference.to_double()), &|_| 0.0).unwrap_or(0.0),
+            ),
             _ => unreachable!("computed length-percentage holds a non-length-percentage style value"),
         }
     }
@@ -171,6 +184,15 @@ impl ComputedSize {
         self.kind == ComputedSizeKind::None
     }
 
+    /// The calc-size() function this size was given as, if any. It acts as its basis for all purposes other
+    /// than resolving the size.
+    /// https://drafts.csswg.org/css-values-5/#calc-size
+    pub(crate) fn calc_size(&self) -> Option<&StyleValueData> {
+        self.value
+            .style_value()
+            .filter(|value| crate::css::calc_size::calc_size_arguments(value).is_some())
+    }
+
     pub(crate) fn is_length_percentage(&self) -> bool {
         matches!(
             self.kind,
@@ -196,6 +218,9 @@ impl ComputedSize {
     /// The fit-content argument; None for the keyword-only form.
     pub(crate) fn fit_content_available_space(&self) -> Option<LengthPercentageRef<'_>> {
         debug_assert!(self.is_fit_content());
+        if self.calc_size().is_some() {
+            return None;
+        }
         self.value.length_percentage()
     }
 

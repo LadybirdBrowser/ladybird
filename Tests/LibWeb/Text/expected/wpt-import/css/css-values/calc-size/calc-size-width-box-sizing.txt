@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	resolved width with styles {"width":"auto"}
+Pass	resolved width with styles {"width":"auto","box-sizing":"border-box"}
+Pass	resolved width with styles {"width":"calc-size(auto, size)"}
+Pass	resolved width with styles {"width":"calc-size(auto, size)","box-sizing":"border-box"}
+Pass	resolved width with styles {"width":"calc-size(auto, size * 2)"}
+Pass	resolved width with styles {"width":"calc-size(auto, size * 2)","box-sizing":"content-box"}
+Pass	resolved width with styles {"width":"calc-size(auto, size * 2)","box-sizing":"border-box"}
+Pass	resolved width with styles {"width":"calc-size(min-content, size * 2)"}
+Pass	resolved width with styles {"width":"calc-size(fit-content, size * 2)","box-sizing":"border-box"}
+Pass	resolved width with styles {"min-width":"calc-size(min-content, size * 2)"}
+Pass	resolved width with styles {"min-width":"calc-size(max-content, size * 2)","box-sizing":"border-box"}
+Pass	resolved width with styles {"width":"200px","max-width":"calc-size(max-content, size * 2)"}
+Pass	resolved width with styles {"width":"200px","max-width":"calc-size(min-content, size * 2)","box-sizing":"border-box"}
+Pass	resolved width with styles {"width":"calc-size(11px, size * 2)"}
+Pass	resolved width with styles {"width":"calc-size(11px, size * 2)","box-sizing":"border-box"}

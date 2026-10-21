@@ -7,7 +7,7 @@
 // Parsed values use the thread-confined shared graph owned by the C++ style objects.
 #![allow(clippy::arc_with_non_send_sync)]
 
-use super::component_value::{ComponentKind, ComponentValue};
+use super::component_value::{ComponentKind, ComponentValue, trim_whitespace};
 use super::token_stream::TokenStream;
 use super::value_parser::{
     NumericRange, ParseContext, ParseOutcome, equals_ascii_case_insensitive, parse_length_from_stream,
@@ -1833,6 +1833,13 @@ pub(crate) fn parse_anchor_fit_property(
         } else {
             parsed
         }
+    } else if property_accepted_value_types(property).contains(&VALUE_TYPE_FIT_CONTENT)
+        && let [value] = trim_whitespace(values)
+        && value
+            .function()
+            .is_some_and(|(name, _)| equals_ascii_case_insensitive(name, b"calc-size"))
+    {
+        crate::css::calc_size::parse_calc_size(context, property, value)
     } else if property_accepted_value_types(property).contains(&VALUE_TYPE_FIT_CONTENT) {
         let is_fit_or_anchor_size = values.iter().find(|value| !value.is_whitespace()).is_some_and(|value| {
             value

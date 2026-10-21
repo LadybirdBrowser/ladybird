@@ -1200,6 +1200,31 @@ pub(crate) fn parse_calculated_numeric_value_with_ranges(
     name: &[u16],
     values: &[ComponentValue],
 ) -> Option<StyleValueData> {
+    parse_calculated_numeric_value_allowing_size_keyword(
+        context,
+        property,
+        value_type,
+        percentages_resolve_as,
+        range,
+        name,
+        values,
+        false,
+    )
+}
+
+/// Parses a math function like parse_calculated_numeric_value_with_ranges(), where `allow_size_keyword` lets the
+/// calculation read the size keyword of a calc-size() calculation.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn parse_calculated_numeric_value_allowing_size_keyword(
+    context: &ParseContext,
+    property: u16,
+    value_type: u8,
+    percentages_resolve_as: Option<u8>,
+    range: NumericRange,
+    name: &[u16],
+    values: &[ComponentValue],
+    allow_size_keyword: bool,
+) -> Option<StyleValueData> {
     if equals_ascii_case_insensitive(name, b"calc")
         && let Some(tree_value) = single_non_whitespace_value(values)
         && let Some((tree_name, tree_arguments)) = tree_value.function()
@@ -1228,6 +1253,7 @@ pub(crate) fn parse_calculated_numeric_value_with_ranges(
             property,
             random_function_index: context.random_function_index,
             allowed_color_channels: 0,
+            allow_size_keyword,
             allow_random_functions: context_allows_random_functions(context),
             parse_context: Some(context),
         },

@@ -8,6 +8,7 @@ pub(crate) mod absolutize;
 pub mod animated_overlay;
 pub mod animation;
 pub mod calc;
+pub(crate) mod calc_size;
 pub mod cascaded_properties;
 pub(crate) mod color_conversion;
 pub mod color_interpolation;

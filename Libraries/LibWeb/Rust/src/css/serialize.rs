@@ -219,6 +219,11 @@ pub(crate) fn serialize_computed_size(size: &crate::css::computed_value_types::C
     use crate::css::computed_value_types::ComputedSizeKind;
 
     let mut sink = TextSink::new();
+    // NB: A calc-size() keeps its whole function, whatever keyword its basis is.
+    if let Some(calc_size) = size.calc_size() {
+        serialize_style_value(&mut sink, calc_size, SerializationMode::Normal);
+        return sink.into_string();
+    }
     match size.kind {
         ComputedSizeKind::Auto => sink.push_ascii("auto"),
         ComputedSizeKind::Calculated | ComputedSizeKind::Length | ComputedSizeKind::Percentage => {
@@ -961,6 +966,25 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 first = false;
                 serialize_style_value(sink, value, mode);
             }
+        }
+        StyleValueData::Function { name, value } if crate::css::calc_size::is_calc_size_function_name(name) => {
+            // https://drafts.csswg.org/css-values-5/#calc-size
+            // Both arguments are calculations given without a calc() around them.
+            sink.push_ascii("calc-size(");
+            if let StyleValueData::ValueList { values, .. } = value.data() {
+                for (index, argument) in values.as_slice().iter().enumerate() {
+                    if index > 0 {
+                        sink.push_ascii(", ");
+                    }
+                    match argument.data() {
+                        argument @ StyleValueData::Calculated { .. } => {
+                            serialize_calculated_pieces(sink, argument, mode, true);
+                        }
+                        argument => serialize_style_value(sink, argument, mode),
+                    }
+                }
+            }
+            sink.push_ascii(")");
         }
         StyleValueData::Function { name, value } => {
             with_fly_string_units(name, |units| push_units_raw(sink, &units));
@@ -2214,9 +2238,18 @@ fn serialize_number_with_type(sink: &mut TextSink, value: f64, number_type: u8, 
 /// batch the calc serializer in calc.rs produces; mirrors the consumer loop in
 /// CalculatedStyleValue.cpp.
 fn serialize_calculated(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) {
+    serialize_calculated_pieces(sink, value, mode, false);
+}
+
+/// Serializes a calculation, as a whole math function, or as a bare calculation without a calc() around it.
+fn serialize_calculated_pieces(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode, bare: bool) {
     use crate::css::css_enums::channel_keyword;
 
-    let pieces = crate::css::calc::serialize_math_function_pieces(value, mode.is_resolved());
+    let pieces = if bare {
+        crate::css::calc::serialize_bare_calculation_pieces(value, mode.is_resolved())
+    } else {
+        crate::css::calc::serialize_math_function_pieces(value, mode.is_resolved())
+    };
     let mut previous_piece_appended = false;
     for piece in &pieces {
         let start_length = sink.len();

@@ -44,6 +44,8 @@ pub(crate) struct CalcParserContext<'a> {
     pub property: u16,
     pub random_function_index: Option<&'a RandomFunctionIndex>,
     pub allowed_color_channels: u64,
+    /// Whether the calc-size() size keyword may appear, as in a calc-size() calculation.
+    pub allow_size_keyword: bool,
     pub allow_random_functions: bool,
     pub parse_context: Option<&'a ParseContext<'a>>,
 }
@@ -56,6 +58,7 @@ impl CalcParserContext<'_> {
             property: 0,
             random_function_index: None,
             allowed_color_channels: 0,
+            allow_size_keyword: false,
             allow_random_functions: false,
             parse_context: None,
         }
@@ -240,6 +243,9 @@ fn parse_calc_keyword(identifier: &[u16], context: CalcParserContext) -> Result<
         && context.allowed_color_channels & (1 << channel) != 0
     {
         return Ok(Arc::new(CalcNode::ChannelKeyword(channel)));
+    }
+    if context.allow_size_keyword && equals_ascii_case_insensitive(identifier, b"size") {
+        return Ok(Arc::new(CalcNode::SizeKeyword));
     }
     let value = if equals_ascii_case_insensitive(identifier, b"e") {
         std::f64::consts::E
@@ -783,6 +789,7 @@ mod tests {
             property: 1,
             random_function_index: Some(&random_function_index),
             allowed_color_channels: 0,
+            allow_size_keyword: false,
             allow_random_functions: true,
             parse_context: None,
         };

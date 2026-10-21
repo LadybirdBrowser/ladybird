@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>calc-size() with an intrinsic basis on an out-of-flow positioned box</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="help" href="https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+  #container {
+    position: relative;
+    width: 400px;
+    height: 300px;
+  }
+  #container > div {
+    position: absolute;
+    top: 0;
+  }
+  /* The content is 100px wide, so min-content and max-content are both 100px. */
+  #container > div > div {
+    width: 100px;
+    height: 20px;
+  }
+</style>
+
+<div id="log"></div>
+<div id="container"></div>
+
+<script>
+const CONTENT = 100;
+const CONTAINER = 400;
+
+const cases = [
+  { styles: { width: "max-content" },                                  expected: 100, note: "keyword on its own, for comparison" },
+  { styles: { width: "calc-size(max-content, size)" },                 expected: 100, note: "identity" },
+  { styles: { width: "calc-size(max-content, size + 20px)" },          expected: 120 },
+  { styles: { width: "calc-size(min-content, size * 2)" },             expected: 200 },
+  { styles: { width: "calc-size(fit-content, size + 10px)" },          expected: 110 },
+  { styles: { width: "calc-size(stretch, size / 4)" },                 expected: 100, note: "stretch is the containing block" },
+  { styles: { width: "calc-size(auto, size / 2)", left: "0", right: "0" }, expected: 200, note: "an auto basis with both insets set" },
+  { styles: { width: "calc-size(max-content, 30%)" },                  expected: 120, note: "a percentage resolves against the containing block" },
+  { styles: { minWidth: "calc-size(max-content, size + 30px)" },       expected: 130 },
+  { styles: { width: "300px", maxWidth: "calc-size(max-content, size + 20px)" }, expected: 120 },
+  { styles: { width: "calc-size(calc-size(min-content, size * 2), size + 5px)" }, expected: 205, note: "nested: the outer size is the inner result" },
+];
+
+const container = document.getElementById("container");
+
+for (const testCase of cases) {
+  const box = document.createElement("div");
+  Object.assign(box.style, testCase.styles);
+  box.appendChild(document.createElement("div"));
+  container.appendChild(box);
+  testCase.box = box;
+}
+
+for (const testCase of cases) {
+  const written = Object.entries(testCase.styles).map(([property, value]) => `${property}: ${value}`).join("; ");
+
+  test(() => {
+    assert_equals(testCase.box.getBoundingClientRect().width, testCase.expected);
+  }, "used width, " + written + (testCase.note ? " — " + testCase.note : ""));
+}
+
+test(() => {
+  assert_equals(cases[0].box.getBoundingClientRect().width, CONTENT,
+                "the content is not the width this test assumes");
+  assert_equals(container.getBoundingClientRect().width, CONTAINER,
+                "the containing block is not the width this test assumes");
+}, "the content and the containing block have the widths the expectations are built on");
+</script>

@@ -1294,6 +1294,26 @@ impl AbsposEngine<'_> {
                 resolved_anchor_insets,
             );
 
+        // NB: A calc-size() with an auto basis resolves against the inline size auto gives the box.
+        if style.width().is_auto() && style.width().calc_size().is_some() {
+            let inline_size = sizing.resolve_calc_size(
+                node,
+                SizingAxis::Inline,
+                style.width(),
+                auto_px_value(used_inline_size),
+                constraints.percentage_basis_inline_size,
+            );
+            (used_inline_size, left, right, margin_left, margin_right) = self.solve_non_replaced_inline_once(
+                node,
+                containing_block_inline_size,
+                available_space,
+                constraints,
+                static_position_rect,
+                Some(inline_size),
+                resolved_anchor_insets,
+            );
+        }
+
         if !sizing.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
             let max_inline_size =
                 sizing.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints);

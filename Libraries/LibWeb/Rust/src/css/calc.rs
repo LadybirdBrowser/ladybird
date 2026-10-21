@@ -335,6 +335,7 @@ pub(crate) fn simplify_parsed_calculation(
     let callbacks = CalcSimplifyCallbacks {
         resolve_non_math_function: &|_| None,
         resolve_channel_keyword: &|_| None,
+        resolve_size_keyword: &|| None,
         absolutize_random_sharing: &|_| None,
     };
     let simplified = root.simplify(&evaluation_context, &callbacks);
@@ -355,6 +356,7 @@ pub(crate) fn serialize_context_free_calculation(
             property: 0,
             random_function_index: None,
             allowed_color_channels: 0,
+            allow_size_keyword: false,
             allow_random_functions: false,
             parse_context: None,
         },
@@ -580,6 +582,9 @@ pub enum CalcNode {
     /// https://drafts.csswg.org/css-color-5/#relative-color
     /// A color channel keyword inside a relative color, opaque code.
     ChannelKeyword(u8),
+    /// https://drafts.csswg.org/css-values-5/#valdef-calc-size-size
+    /// The size keyword inside a calc-size() calculation, a <length> resolved at used-value time.
+    SizeKeyword,
     Sum(Vec<Arc<CalcNode>>),
     Product(Vec<Arc<CalcNode>>),
     Negate(Arc<CalcNode>),
@@ -656,7 +661,10 @@ impl CalcNode {
     /// node kind.
     pub(crate) fn for_each_child(&self, f: &mut impl FnMut(&Arc<CalcNode>)) {
         match self {
-            CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) | CalcNode::NonMathFunction { .. } => {}
+            CalcNode::Numeric(..)
+            | CalcNode::ChannelKeyword(..)
+            | CalcNode::SizeKeyword
+            | CalcNode::NonMathFunction { .. } => {}
             CalcNode::Sum(children)
             | CalcNode::Product(children)
             | CalcNode::Min(children)
@@ -755,6 +763,7 @@ impl CalcNode {
                 CalcNumericValue::Percentage(..) => Some(*percentage_leaf_type),
             },
             CalcNode::ChannelKeyword(..) => Some(CalcNumericType::default()),
+            CalcNode::SizeKeyword => single(0),
             CalcNode::Sum(children) | CalcNode::Min(children) | CalcNode::Max(children) | CalcNode::Hypot(children) => {
                 add_children(&children.iter().collect::<Vec<_>>())
             }
@@ -811,7 +820,7 @@ impl CalcNode {
     ) -> bool {
         let leaf_independent = match self {
             CalcNode::Numeric(CalcNumericValue::Length { unit, .. }) => length_is_independent(*unit),
-            CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) => true,
+            CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) | CalcNode::SizeKeyword => true,
             CalcNode::Random { sharing, .. } => style_value_is_independent(sharing),
             CalcNode::NonMathFunction { value, .. } => style_value_is_independent(value),
             _ => true,
@@ -1018,6 +1027,7 @@ fn combine_calculations(
     let callbacks = CalcSimplifyCallbacks {
         resolve_non_math_function: &|_| None,
         resolve_channel_keyword: &|_| None,
+        resolve_size_keyword: &|| None,
         absolutize_random_sharing: &|_| None,
     };
     let simplified = drop_zero_length_terms(root.simplify(&evaluation_context, &callbacks));
@@ -1214,6 +1224,8 @@ pub(crate) type RandomBaseValueResolver<'a> = &'a dyn Fn(&RetainedStyleValueData
 pub(crate) struct CalcSimplifyCallbacks<'a> {
     pub resolve_non_math_function: &'a dyn Fn(&RetainedStyleValueData) -> Option<Arc<CalcNode>>,
     pub resolve_channel_keyword: &'a dyn Fn(u8) -> Option<f64>,
+    /// The used size a calc-size() calculation's size keyword stands for, in pixels.
+    pub resolve_size_keyword: &'a dyn Fn() -> Option<f64>,
     /// Absolutizes a random() node's sharing options at computed-value time,
     /// fixing its per-element random base value; None keeps the original.
     pub absolutize_random_sharing: &'a dyn Fn(&RetainedStyleValueData) -> Option<RetainedStyleValueData>,
@@ -2013,6 +2025,16 @@ impl CalcNode {
             }
             return self.clone();
         }
+        // https://drafts.csswg.org/css-values-5/#resolving-calc-size
+        if matches!(&**self, CalcNode::SizeKeyword) {
+            if let Some(resolved) = (callbacks.resolve_size_keyword)() {
+                return shared(CalcNode::Numeric(CalcNumericValue::Length {
+                    value: resolved,
+                    unit: canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+                }));
+            }
+            return self.clone();
+        }
 
         // 3. At this point, root is an operator node. Simplify all the calculation children of root.
         let root = self.with_simplified_children(context, callbacks);
@@ -2393,7 +2415,10 @@ impl CalcNode {
                     sharing: simplified_sharing,
                 }
             }
-            CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) | CalcNode::NonMathFunction { .. } => {
+            CalcNode::Numeric(..)
+            | CalcNode::ChannelKeyword(..)
+            | CalcNode::SizeKeyword
+            | CalcNode::NonMathFunction { .. } => {
                 return self.clone();
             }
         };
@@ -2803,6 +2828,7 @@ fn with_ffi_evaluation<R>(
         },
         // Relative color channels resolve through the color resolver, which supplies their values.
         resolve_channel_keyword: &|_| None,
+        resolve_size_keyword: &|| None,
     };
     f(&evaluation_context, &callbacks)
 }
@@ -2897,7 +2923,7 @@ fn resolve_calculated_with_channels(
     length_resolution: LengthResolution,
     channels: Option<&crate::css::color_resolution::RelativeColorContext>,
 ) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
-    resolve_calculated_with_channels_options(calculated, percentage_basis, length_resolution, channels, true)
+    resolve_calculated_with_channels_options(calculated, percentage_basis, length_resolution, channels, None, true)
 }
 
 fn resolve_calculated_with_channels_options(
@@ -2905,6 +2931,7 @@ fn resolve_calculated_with_channels_options(
     percentage_basis: Option<CalcNumericValue>,
     length_resolution: LengthResolution,
     channels: Option<&crate::css::color_resolution::RelativeColorContext>,
+    size_keyword_px: Option<f64>,
     apply_censoring_and_clamping: bool,
 ) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
     use crate::css::style_value::StyleValueData;
@@ -2943,6 +2970,7 @@ fn resolve_calculated_with_channels_options(
         absolutize_random_sharing: &|_| None,
         resolve_non_math_function: &|_| None,
         resolve_channel_keyword: &|channel| channels.and_then(|map| map.get(channel as usize).copied().flatten()),
+        resolve_size_keyword: &|| size_keyword_px,
     };
     let simplified = root.simplify(&evaluation_context, &callbacks);
     let (value, numeric_type) = resolve_simplified_calculation(
@@ -3287,8 +3315,31 @@ pub(crate) fn resolve_calculated_raw_length_without_context(
     calculated: &crate::css::style_value::StyleValueData,
 ) -> Option<f64> {
     let (value, numeric_type, resolve_as) =
-        resolve_calculated_with_channels_options(calculated, None, LengthResolution::default(), None, false)?;
+        resolve_calculated_with_channels_options(calculated, None, LengthResolution::default(), None, None, false)?;
     numeric_type.matches_dimension(0, resolve_as).then_some(value)
+}
+
+/// Resolves a calc-size() calculation to pixels at used-value time, with its size keyword standing for
+/// `size_px`. Percentages resolve against `percentage_basis_px`, or against zero when that is indefinite.
+/// https://drafts.csswg.org/css-values-5/#resolving-calc-size
+pub(crate) fn resolve_calc_size_calculation(
+    calculated: &crate::css::style_value::StyleValueData,
+    size_px: f64,
+    percentage_basis_px: Option<f64>,
+) -> Option<f64> {
+    let basis = CalcNumericValue::Length {
+        value: percentage_basis_px.unwrap_or(0.0),
+        unit: canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+    };
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_channels_options(
+        calculated,
+        Some(basis),
+        LengthResolution::default(),
+        None,
+        Some(size_px),
+        true,
+    )?;
+    (numeric_type.matches_dimension(0, resolve_as) || numeric_type.matches_percentage()).then_some(value)
 }
 
 /// Resolves a calculated value that must produce a length using the immutable
@@ -3710,7 +3761,11 @@ impl CalcSerializer<'_> {
         //         children by commas.
         // AD-HOC: ChannelKeyword nodes, used for relative-color syntax, serialize directly as the
         //         keyword name.
-        if matches!(&**node, CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..)) || is_operator {
+        if matches!(
+            &**node,
+            CalcNode::Numeric(..) | CalcNode::ChannelKeyword(..) | CalcNode::SizeKeyword
+        ) || is_operator
+        {
             self.literal("calc(");
             self.serialize_tree(node, false);
             self.literal(")");
@@ -3811,6 +3866,7 @@ impl CalcSerializer<'_> {
             // AD-HOC: ChannelKeyword nodes, used for relative-color syntax, serialize directly as
             //         the keyword name.
             CalcNode::ChannelKeyword(channel) => self.channel(*channel),
+            CalcNode::SizeKeyword => self.literal("size"),
             // 4. If root is a Negate node, let s be a string initially containing "(-1 * ".
             CalcNode::Negate(child) => {
                 if emit_outer_parentheses {
@@ -4254,6 +4310,32 @@ pub(crate) fn serialize_math_function_pieces(
     serializer.pieces
 }
 
+/// Serializes a Calculated style value's calculation into the piece batch without a calc() around it, as
+/// calc-size() serializes its arguments.
+pub(crate) fn serialize_bare_calculation_pieces(
+    calculated: &crate::css::style_value::StyleValueData,
+    resolved_mode: bool,
+) -> Vec<FfiCalcSerializationPiece> {
+    let crate::css::style_value::StyleValueData::Calculated {
+        rust_calculation,
+        resolve_numbers_as_integers,
+        accepted_ranges,
+        ..
+    } = calculated
+    else {
+        unreachable!("calc serialization requires calculated value data");
+    };
+    let root = rust_calculation.node_arc();
+    let mut serializer = CalcSerializer {
+        pieces: Vec::new(),
+        resolved_mode,
+        resolve_numbers_as_integers: *resolve_numbers_as_integers,
+        accepted_ranges: accepted_ranges.as_slice(),
+    };
+    serializer.serialize_tree(&root, false);
+    serializer.pieces
+}
+
 impl CalcNode {
     /// Structural equality over two calculation trees, mirroring the C++ node
     /// equals implementations: kinds, leaf values and child structures must match.
@@ -4264,6 +4346,7 @@ impl CalcNode {
         match (self, other) {
             (CalcNode::Numeric(a), CalcNode::Numeric(b)) => a == b,
             (CalcNode::ChannelKeyword(a), CalcNode::ChannelKeyword(b)) => a == b,
+            (CalcNode::SizeKeyword, CalcNode::SizeKeyword) => true,
             (CalcNode::Sum(a), CalcNode::Sum(b))
             | (CalcNode::Product(a), CalcNode::Product(b))
             | (CalcNode::Min(a), CalcNode::Min(b))
@@ -4468,6 +4551,7 @@ fn node_kind_code(node: &CalcNode) -> u8 {
         CalcNode::Rem { .. } => 26,
         CalcNode::Random { .. } => 27,
         CalcNode::NonMathFunction { .. } => 28,
+        CalcNode::SizeKeyword => 29,
     }
 }
 

@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	resolved height with styles {"height":"auto"}
+Pass	resolved height with styles {"height":"auto","box-sizing":"border-box"}
+Pass	resolved height with styles {"height":"calc-size(auto, size)"}
+Pass	resolved height with styles {"height":"calc-size(auto, size)","box-sizing":"border-box"}
+Pass	resolved height with styles {"height":"calc-size(auto, size * 2)"}
+Pass	resolved height with styles {"height":"calc-size(auto, size * 2)","box-sizing":"content-box"}
+Pass	resolved height with styles {"height":"calc-size(auto, size * 2)","box-sizing":"border-box"}
+Pass	resolved height with styles {"height":"calc-size(min-content, size * 2)"}
+Pass	resolved height with styles {"height":"calc-size(fit-content, size * 2)","box-sizing":"border-box"}
+Pass	resolved height with styles {"min-height":"calc-size(min-content, size * 2)"}
+Pass	resolved height with styles {"min-height":"calc-size(fit-content, size * 2)","box-sizing":"border-box"}
+Pass	resolved height with styles {"height":"200px","max-height":"calc-size(min-content, size * 2)"}
+Pass	resolved height with styles {"height":"200px","max-height":"calc-size(fit-content, size * 2)","box-sizing":"border-box"}
+Pass	resolved height with styles {"height":"calc-size(11px, size * 2)"}
+Pass	resolved height with styles {"height":"calc-size(11px, size * 2)","box-sizing":"border-box"}
