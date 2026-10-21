@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Resetting a context clears the whole bitmap, whatever transform and clipping region the context had.
+    function run(label, prepare, reset) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 100;
+        canvas.height = 100;
+        const context = canvas.getContext("2d");
+        context.fillRect(0, 0, 100, 100);
+        prepare(context);
+        reset(canvas, context);
+        const alphaAt = (x, y) => context.getImageData(x, y, 1, 1).data[3];
+        println(`${label}: ${[alphaAt(10, 10), alphaAt(60, 10), alphaAt(90, 90)].join(" ")}`);
+    }
+
+    test(() => {
+        const resets = {
+            "reset()": (canvas, context) => context.reset(),
+            "width": (canvas, context) => { canvas.width = canvas.width; },
+        };
+        for (const [name, reset] of Object.entries(resets)) {
+            run(`${name} after nothing`, () => {}, reset);
+            run(`${name} after translate(50, 0)`, context => context.translate(50, 0), reset);
+            run(`${name} after scale(0.5, 0.5)`, context => context.scale(0.5, 0.5), reset);
+            run(`${name} after clip()`, context => { context.rect(0, 0, 20, 20); context.clip(); }, reset);
+            run(`${name} after save() and clip()`, context => { context.save(); context.rect(0, 0, 20, 20); context.clip(); context.save(); }, reset);
+        }
+    });
+</script>

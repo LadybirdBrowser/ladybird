@@ -1,0 +1,10 @@
+reset() after nothing: 0 0 0
+reset() after translate(50, 0): 0 0 0
+reset() after scale(0.5, 0.5): 0 0 0
+reset() after clip(): 0 0 0
+reset() after save() and clip(): 0 0 0
+width after nothing: 0 0 0
+width after translate(50, 0): 0 0 0
+width after scale(0.5, 0.5): 0 0 0
+width after clip(): 0 0 0
+width after save() and clip(): 0 0 0
