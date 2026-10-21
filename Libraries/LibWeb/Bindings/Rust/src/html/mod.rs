@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The objects that the 2D canvas contexts create and draw with. The contexts are still LibWeb's C++, which creates
-//! and reads these objects through the C ABI of `exports`.
+//! The objects that the 2D canvas contexts draw with, and the operations of a path that Path2D and the contexts
+//! share. The contexts are still LibWeb's C++, which creates and reads these objects and builds its paths through the
+//! C ABI of `exports`.
 
 pub(crate) mod canvas_path;
 pub(crate) mod color_stops;
@@ -17,5 +18,7 @@ pub(crate) mod canvas_gradient;
 pub(crate) mod canvas_pattern;
 #[cfg(not(test))]
 pub(crate) mod exports;
+#[cfg(not(test))]
+pub(crate) mod path2d;
 #[cfg(not(test))]
 pub(crate) mod text_metrics;

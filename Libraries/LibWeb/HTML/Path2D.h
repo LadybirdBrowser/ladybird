@@ -6,42 +6,22 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/HTML/Canvas/CanvasPath.h>
-
-namespace Web::Bindings {
-
-struct DOMMatrix2DInit;
-
-}
-
-namespace Web::Geometry {
-
-class DOMMatrix;
-
-}
+#include <LibGfx/Forward.h>
+#include <LibWeb/Bindings/Path2D.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#path2d
-class Path2D final
-    : public Bindings::GCAllocatedWrappable
-    , public CanvasPath {
-
-    WEB_WRAPPABLE(Path2D, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(Path2D);
+// The C++ side of a Path2D, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/html): what the 2D
+// contexts fill, stroke and clip with.
+class WEB_API Path2D final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(Path2D, path2d)
 
 public:
-    static GC::Ref<Path2D> create(Optional<Variant<GC::Ref<Path2D>, Utf16String>> const& path);
-
-    virtual ~Path2D() override;
-
-    WebIDL::ExceptionOr<void> add_path(GC::Ref<Path2D> path, GC::Ref<Geometry::DOMMatrix> transform);
-    WebIDL::ExceptionOr<void> add_path(GC::Ref<Path2D> path, Bindings::DOMMatrix2DInit const& transform);
-
-private:
-    explicit Path2D(Optional<Variant<GC::Ref<Path2D>, Utf16String>> const&);
+    // The path, which changes only when script calls a method of the Path2D.
+    Gfx::Path const& path() const;
 };
 
 }

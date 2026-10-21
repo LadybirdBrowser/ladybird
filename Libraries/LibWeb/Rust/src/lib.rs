@@ -30,6 +30,9 @@ pub(crate) mod stage;
 pub(crate) mod stage_thread;
 pub(crate) mod svg;
 
+// What libweb_bindings_rust, whose interfaces are implemented in Rust, uses of this crate.
+pub use svg::gfx_path_from_path_data;
+
 // NB: Only C++ calls into the HTML tokenizer and parser, so nothing in this crate names them. Linking the crate keeps
 //     their extern "C" functions in the static library.
 extern crate libweb_html_tokenizer;

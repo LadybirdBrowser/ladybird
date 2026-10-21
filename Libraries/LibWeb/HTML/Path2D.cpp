@@ -6,93 +6,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
-#include <LibWeb/Geometry/DOMMatrix.h>
+#include <LibGfx/Path.h>
 #include <LibWeb/HTML/Path2D.h>
-#include <LibWeb/SVG/Path.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(Path2D);
+// Defined in Bindings/Rust/src/html/exports.rs.
+extern "C" Gfx::Path const* web_path2d_path(void* path);
 
-GC::Ref<Path2D> Path2D::create(Optional<Variant<GC::Ref<Path2D>, Utf16String>> const& path)
+Gfx::Path const& Path2D::path() const
 {
-    return GC::Heap::the().allocate<Path2D>(path);
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d
-Path2D::Path2D(Optional<Variant<GC::Ref<Path2D>, Utf16String>> const& path)
-{
-    // 1. Let output be a new Path2D object.
-    // 2. If path is not given, then return output.
-    if (!path.has_value())
-        return;
-
-    // 3. If path is a Path2D object, then add all subpaths of path to output and return output.
-    //    (In other words, it returns a copy of the argument.)
-    if (path->has<GC::Ref<Path2D>>()) {
-        this->path() = path->get<GC::Ref<Path2D>>()->path();
-        return;
-    }
-
-    // 4. Let svgPath be the result of parsing and interpreting path according to SVG 2's rules for path data. [SVG]
-    auto path_instructions = SVG::parse_path_data(path->get<Utf16String>());
-    auto svg_path = path_instructions.to_gfx_path();
-
-    if (!svg_path.is_empty()) {
-        // 5. Let (x, y) be the last point in svgPath.
-        auto xy = svg_path.last_point();
-
-        // 6. Add all the subpaths, if any, from svgPath to output.
-        this->path() = move(svg_path);
-
-        // 7. Create a new subpath in output with (x, y) as the only point in the subpath.
-        this->move_to(xy.x(), xy.y());
-    }
-
-    // 8. Return output.
-}
-
-Path2D::~Path2D() = default;
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d-addpath
-WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, GC::Ref<Geometry::DOMMatrix> matrix)
-{
-    // The addPath(path, transform) method, when invoked on a Path2D object a, must run these steps:
-
-    // 1. If the Path2D object path has no subpaths, then return.
-    if (path->path().is_empty())
-        return {};
-
-    // 2. Let matrix be the result of creating a DOMMatrix from the 2D dictionary transform.
-    // NB: This is done by the binding helper before entering the implementation.
-
-    // 3. If one or more of matrix's m11 element, m12 element, m21 element, m22 element, m41 element, or m42 element are infinite or NaN, then return.
-    if (!isfinite(matrix->m11()) || !isfinite(matrix->m12()) || !isfinite(matrix->m21()) || !isfinite(matrix->m22()) || !isfinite(matrix->m41()) || !isfinite(matrix->m42()))
-        return {};
-
-    // 4. Create a copy of all the subpaths in path. Let c be this copy.
-    // 5. Transform all the coordinates and lines in c by the transform matrix matrix.
-    auto copy = path->path().copy_transformed(Gfx::AffineTransform { static_cast<float>(matrix->m11()), static_cast<float>(matrix->m12()), static_cast<float>(matrix->m21()), static_cast<float>(matrix->m22()), static_cast<float>(matrix->m41()), static_cast<float>(matrix->m42()) });
-
-    // 6. Let (x, y) be the last point in the last subpath of c.
-    auto xy = copy.last_point();
-
-    // 7. Add all the subpaths in c to a.
-    // FIXME: Is this correct?
-    this->path().append_path(copy);
-
-    // 8. Create a new subpath in a with (x, y) as the only point in the subpath.
-    this->move_to(xy.x(), xy.y());
-
-    return {};
-}
-
-WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, Bindings::DOMMatrix2DInit const& transform)
-{
-    auto matrix = Geometry::DOMMatrix::create_from_dom_matrix_2d_init(TRY(Geometry::validate_and_fixup_dom_matrix_2d_init(transform)));
-    return add_path(path, matrix);
+    return *web_path2d_path(const_cast<Path2D*>(this));
 }
 
 }

@@ -168,7 +168,7 @@ protected:
 
     void stroke_internal(Gfx::Path);
     void fill_internal(Gfx::Path, Gfx::WindingRule);
-    void clip_internal(Gfx::Path&, Gfx::WindingRule);
+    void clip_internal(Gfx::Path const&, Gfx::WindingRule);
     void paint_shadow_for_fill_internal(Gfx::Path const&, Gfx::WindingRule);
     void paint_shadow_for_stroke_internal(Gfx::Path const&, Gfx::Path::CapStyle, Gfx::Path::JoinStyle, Vector<float> const&);
 

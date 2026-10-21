@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 20;
+        const context = canvas.getContext("2d");
+        const inside = (path, x, y, rule) => rule === undefined ? context.isPointInPath(path, x, y) : context.isPointInPath(path, x, y, rule);
+
+        const square = new Path2D();
+        square.rect(0, 0, 10, 10);
+        println(`Path2D: ${Object.prototype.toString.call(square)}, instanceof ${square instanceof Path2D}`);
+        println(`rect: inside ${inside(square, 5, 5)}, outside ${inside(square, 15, 5)}`);
+
+        const copy = new Path2D(square);
+        copy.rect(10, 10, 5, 5);
+        println(`copy has the original's subpaths: ${inside(copy, 5, 5)}`);
+        println(`copy is independent: copy ${inside(copy, 12, 12)}, original ${inside(square, 12, 12)}`);
+
+        println(`empty: ${inside(new Path2D(), 0, 0)}, undefined: ${inside(new Path2D(undefined), 0, 0)}`);
+        println(`SVG: ${inside(new Path2D("M 0 0 h 10 v 10 h -10 z"), 5, 5)}`);
+        println(`SVG with an error after a subpath: ${inside(new Path2D("M 0 0 h 10 v 10 h -10 z L"), 5, 5)}`);
+        println(`SVG that does not start with a move: ${inside(new Path2D("L 10 10 L 0 10 z"), 5, 7)}`);
+        println(`SVG from a number: ${inside(new Path2D(5), 0, 0)}`);
+        println(`SVG from an object: ${inside(new Path2D({ toString: () => "M 0 0 h 10 v 10 h -10 z" }), 5, 5)}`);
+        const svgThenLine = new Path2D("M 0 0 L 10 0");
+        svgThenLine.lineTo(10, 10);
+        svgThenLine.lineTo(0, 10);
+        println(`SVG ends in a new subpath at its last point: ${inside(svgThenLine, 7, 3)}`);
+
+        const added = new Path2D();
+        added.addPath(square, { e: 5, f: 5 });
+        println(`addPath with a translation: ${inside(added, 12, 12)}, ${inside(added, 2, 2)}`);
+        const scaled = new Path2D();
+        scaled.addPath(square, new DOMMatrix([2, 0, 0, 2, 0, 0]));
+        println(`addPath with a DOMMatrix: ${inside(scaled, 15, 15)}`);
+        const ignored = new Path2D();
+        ignored.addPath(square, { a: NaN });
+        println(`addPath with a NaN member: ${inside(ignored, 5, 5)}`);
+        const self = new Path2D();
+        self.rect(0, 0, 2, 2);
+        self.addPath(self, { e: 10 });
+        println(`addPath of itself: ${inside(self, 1, 1)}, ${inside(self, 11, 1)}`);
+        for (const [description, path, transform] of [["a path", square, { a: 1, m11: 2 }], ["an empty path", new Path2D(), { a: 1, m11: 2 }], ["not a path", {}, {}]]) {
+            try {
+                new Path2D().addPath(path, transform);
+                println(`addPath of ${description}: no exception`);
+            } catch (e) {
+                println(`addPath of ${description}: ${e.constructor.name}`);
+            }
+        }
+
+        for (const radii of [undefined, 3, "3", { x: 3, y: 3 }, [3], [1, 2, 3], [{ x: 1, y: 2 }, 3], null, [1, 2, 3, 4, 5], -1, [NaN]]) {
+            const path = new Path2D();
+            try {
+                path.roundRect(0, 0, 10, 10, radii);
+                println(`roundRect(${JSON.stringify(radii)}): corner ${inside(path, 0.5, 0.5)}, center ${inside(path, 5, 5)}`);
+            } catch (e) {
+                println(`roundRect(${JSON.stringify(radii)}): ${e.constructor.name}`);
+            }
+        }
+
+        const shapes = new Path2D();
+        shapes.moveTo(0, 0);
+        shapes.lineTo(10, 0);
+        shapes.quadraticCurveTo(15, 5, 10, 10);
+        shapes.bezierCurveTo(8, 12, 2, 12, 0, 10);
+        shapes.closePath();
+        println(`curves: ${inside(shapes, 12, 5)}, ${inside(shapes, 5, 10.5)}`);
+        const arcs = new Path2D();
+        arcs.arc(5, 5, 4, 0, Math.PI * 2);
+        arcs.ellipse(15, 5, 4, 2, Math.PI / 2, 0, Math.PI * 2);
+        println(`arcs: ${inside(arcs, 5, 5)}, ${inside(arcs, 15, 8)}, ${inside(arcs, 18, 5)}`);
+        const corner = new Path2D();
+        corner.moveTo(0, 0);
+        corner.arcTo(10, 0, 10, 10, 5);
+        corner.lineTo(0, 10);
+        println(`arcTo: ${inside(corner, 9.5, 0.5)}, ${inside(corner, 5, 5)}`);
+
+        const ring = new Path2D();
+        ring.rect(0, 0, 10, 10);
+        ring.rect(2, 2, 6, 6);
+        println(`fill rules: nonzero ${inside(ring, 5, 5, "nonzero")}, evenodd ${inside(ring, 5, 5, "evenodd")}`);
+
+        for (const [description, operation] of [
+            ["arc", () => new Path2D().arc(0, 0, -1, 0, 1)],
+            ["ellipse", () => new Path2D().ellipse(0, 0, 1, -1, 0, 0, 1)],
+            ["arcTo", () => new Path2D().arcTo(0, 0, 1, 1, -1)],
+            ["roundRect", () => new Path2D().roundRect(0, 0, 1, 1, [])],
+        ]) {
+            try {
+                operation();
+                println(`${description}: no exception`);
+            } catch (e) {
+                const kind = e instanceof DOMException ? `DOMException ${e.name}` : e.constructor.name;
+                println(`${description}: ${kind}: ${e.message}`);
+            }
+        }
+
+        context.fillStyle = "lime";
+        context.fill(square);
+        context.strokeStyle = "blue";
+        context.lineWidth = 2;
+        context.stroke(copy);
+        println(`fill: ${context.getImageData(5, 5, 1, 1).data}, stroke: ${context.getImageData(15, 10, 1, 1).data}`);
+        context.save();
+        context.clip(new Path2D("M 0 0 h 4 v 4 h -4 z"));
+        context.fillStyle = "red";
+        context.fillRect(0, 0, 20, 20);
+        context.restore();
+        println(`clip: ${context.getImageData(2, 2, 1, 1).data}, ${context.getImageData(6, 6, 1, 1).data}`);
+        println(`isPointInPath without a path: ${context.isPointInPath(5, 5)}`);
+    });
+</script>

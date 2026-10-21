@@ -1,0 +1,40 @@
+Path2D: [object Path2D], instanceof true
+rect: inside true, outside false
+copy has the original's subpaths: true
+copy is independent: copy true, original false
+empty: false, undefined: false
+SVG: true
+SVG with an error after a subpath: true
+SVG that does not start with a move: false
+SVG from a number: false
+SVG from an object: true
+SVG ends in a new subpath at its last point: true
+addPath with a translation: true, false
+addPath with a DOMMatrix: true
+addPath with a NaN member: false
+addPath of itself: true, true
+addPath of a path: TypeError
+addPath of an empty path: no exception
+addPath of not a path: TypeError
+roundRect(undefined): corner true, center true
+roundRect(3): corner false, center true
+roundRect("3"): corner false, center true
+roundRect({"x":3,"y":3}): corner false, center true
+roundRect([3]): corner false, center true
+roundRect([1,2,3]): corner true, center true
+roundRect([{"x":1,"y":2},3]): corner true, center true
+roundRect(null): corner true, center true
+roundRect([1,2,3,4,5]): RangeError
+roundRect(-1): RangeError
+roundRect([null]): corner false, center false
+curves: true, true
+arcs: true, true, false
+arcTo: false, true
+fill rules: nonzero true, evenodd false
+arc: DOMException IndexSizeError: The radius provided (-1) is negative.
+ellipse: DOMException IndexSizeError: The minor-axis radius provided (-1) is negative.
+arcTo: DOMException IndexSizeError: The radius provided (-1) is negative.
+roundRect: RangeError: roundRect: Can have between 1 and 4 radii
+fill: 0,255,0,255, stroke: 0,0,255,255
+clip: 255,0,0,255, 0,255,0,255
+isPointInPath without a path: false

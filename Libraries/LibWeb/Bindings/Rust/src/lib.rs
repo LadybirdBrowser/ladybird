@@ -88,7 +88,7 @@ mod webgl_proxy;
 #[path = "../generate/webgl_wire_model.rs"]
 mod webgl_wire_model;
 
-// NB: Only C++ calls into libweb_rust, so nothing in this crate names it. Linking it keeps its extern "C" functions in
-//     the static library.
+// NB: Little in this crate names libweb_rust, which C++ calls into. Linking it keeps its extern "C" functions in the
+//     static library.
 #[cfg(not(test))]
 extern crate libweb_rust;

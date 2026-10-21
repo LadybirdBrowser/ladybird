@@ -8,3 +8,4 @@
 //! are LibWeb's C++.
 
 pub(crate) mod dom_matrix_read_only;
+pub(crate) mod dom_point_read_only;
