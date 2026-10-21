@@ -156,6 +156,19 @@ impl WinnerStore {
                 .any(|declaration| view.dependencies(declaration).uses_tree_counting_function)
     }
 
+    /// Whether a substitution made a non-inherited longhand `inherit`, which its written value
+    /// does not show: the value is then read from the parent's record, not its inherited style.
+    pub(super) fn substitutes_inherit_for_non_inherited_property(&self, engine: &RetainedState) -> bool {
+        let view = self.view(engine);
+        self.declarations.iter().any(|declaration| {
+            matches!(declaration.value, WinnerValue::Substituted { .. })
+                && declaration.property >= crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+                && !crate::css::property_metadata::property_is_inherited(declaration.property)
+                && matches!(view.value(declaration).data(), StyleValueData::Keyword { keyword }
+                    if *keyword == crate::css::style_compute::keyword::INHERIT)
+        })
+    }
+
     /// The proof that no value the store holds resolves a `url()`, or `None` when one may.
     pub(super) fn reads_no_resource_contexts(&self, engine: &RetainedState) -> Option<ReadsNoResourceContexts> {
         let view = self.view(engine);

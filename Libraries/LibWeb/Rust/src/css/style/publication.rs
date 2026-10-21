@@ -1562,10 +1562,23 @@ impl RetainedState {
         self.note_node_substitution(node, scratch, state, environment);
         // A record whose winners read beyond its environment is the element's alone, as is one
         // declaring registered custom properties, which its own font decides. The key is the one
-        // above, with the environment the element's declarations resolved.
+        // above, with the environment the element's declarations resolved. A substitution that
+        // made a non-inherited longhand `inherit` pins the parent's record, as a written `inherit`
+        // does.
         let cache_key = cache_key
             .filter(|_| !has_registered_declarations)
-            .map(|key| ColdRecordKey { environment, ..key });
+            .map(|key| ColdRecordKey {
+                environment,
+                parent: ColdRecordParent {
+                    record: if store.substitutes_inherit_for_non_inherited_property(self) {
+                        parent_record.map_or(0, |record| record.raw())
+                    } else {
+                        key.parent.record
+                    },
+                    ..key.parent
+                },
+                ..key
+            });
         if let Some(delta) = self.assign_cached_cold_record(
             node,
             target,
@@ -2973,8 +2986,13 @@ impl RetainedState {
             return;
         };
         // A record whose winners read beyond its environment is the element's alone, as is one
-        // `records_are_the_elements_alone` says is.
-        if self.state_reads_beyond_environment(node, cascade_state.1) || self.records_are_the_elements_alone(node) {
+        // `records_are_the_elements_alone` says is. Nor is one whose winners substitute kept: what
+        // they substituted to is C++'s, and a substitution can make a non-inherited property
+        // `inherit`, which neither the key nor the record's explicitly inherited groups would show.
+        if self.state_reads_beyond_environment(node, cascade_state.1)
+            || self.records_are_the_elements_alone(node)
+            || self.state_has_substitutions(node, cascade_state.1)
+        {
             return;
         }
         let Some(parent) = self.cold_record_parent(node, parent, parent_record, cascade_state.1) else {
