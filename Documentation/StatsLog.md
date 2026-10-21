@@ -112,6 +112,7 @@ form `namespace:local`, preserving their exact values in floating-point JSON con
 | `navigation_start` | Ladybird | `navigable_id` (cross-process ID string), `navigation_id` (string), `url` (string) |
 | `DOMContentLoaded` | WebContent | `page_id` (integer), `navigable_id` (cross-process ID string), `document_id` (cross-process ID string), `url` (string) |
 | `load` | WebContent | Same fields as `DOMContentLoaded` |
+| `frame` | Compositor | `page_id` (integer), `changed` (boolean), `damage_x`, `damage_y`, `damage_width`, `damage_height` (integer device pixels) |
 | `gc` | WebContent or WebWorker | `collection`, `duration_ns`, `pause_duration_ns`, `sweep_duration_ns`, `bytes_before`, `bytes_after`, `live_cell_bytes`, `live_external_bytes` (integers) |
 
 Navigation starts are recorded when the browser admits a navigation. Lifecycle markers are recorded
@@ -123,6 +124,16 @@ Detached documents and decoded SVG image documents do not produce lifecycle mark
 GC events are written after sweeping finishes. Durations measure active collection work, excluding
 idle time between incremental sweep slices. Byte counts describe the heap's existing accounting,
 not process RSS.
+
+The compositor records a frame immediately before publishing its rendered surface to the browser.
+GPU work has completed, or on Metal has been scheduled for the receiving surface to wait on.
+This is a rendered-frame timestamp, not a hardware scanout timestamp. Child surfaces and screenshots
+do not produce separate frame events. Match frames to lifecycle markers by `page_id`.
+
+`changed` is the existing damage rectangle's non-emptiness. Damage is conservative: repainting can
+produce identical colors. No readback or pixel hashing is performed. Fully suppressed frames do not
+produce events. The last changed frame after a bounded quiet period gives a conservative estimate of
+when the page finished painting. Animation and media can keep producing changed frames indefinitely.
 
 ## Sandboxing and overhead
 
