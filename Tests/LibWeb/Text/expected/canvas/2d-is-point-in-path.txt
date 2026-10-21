@@ -3,7 +3,7 @@ A canvas:
   two rectangles, evenodd: 1100000
   a translated rectangle: 0111001
   after a later scale: 0111001
-  under a singular transform: 1010000
+  under a singular transform: 0000000
   a Path2D circle: 0101000
   a Path2D circle under a rotation: 0000000
   an empty Path2D: 0000000
@@ -31,7 +31,7 @@ An OffscreenCanvas:
   two rectangles, evenodd: 1100000
   a translated rectangle: 0111001
   after a later scale: 0111001
-  under a singular transform: 1010000
+  under a singular transform: 0000000
   a Path2D circle: 0101000
   a Path2D circle under a rotation: 0000000
   an empty Path2D: 0000000

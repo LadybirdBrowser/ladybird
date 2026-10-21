@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Under a transformation matrix that is not invertible, no point is in a path: a Path2D is transformed by the
+    // matrix onto a line or a point, and so are the points that the current default path gets.
+    test(() => {
+        const context = document.createElement("canvas").getContext("2d");
+        const path = new Path2D();
+        path.rect(0, 0, 10, 10);
+        println(`Path2D: ${context.isPointInPath(path, 5, 5)}`);
+        context.scale(0, 0);
+        println(`Path2D under scale(0, 0): ${context.isPointInPath(path, 5, 5)}`);
+        context.setTransform(0, 0, 0, 0, 0, 0);
+        println(`Path2D under setTransform(0, 0, 0, 0, 0, 0): ${context.isPointInPath(path, 0, 0)}`);
+
+        context.rect(0, 0, 10, 10);
+        println(`Path added under setTransform(0, 0, 0, 0, 0, 0): ${context.isPointInPath(5, 5)}`);
+    });
+</script>
