@@ -2522,6 +2522,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
     // A tree scope's counter styles are queued on the document host, which the layout header declares.
     declare_document_host_of_layout_header(&mut value_parser_config);
+    // A parse context names the lengths it resolves against as the computed values header declares them.
+    value_parser_config.export.rename.insert(
+        "FfiLengthResolutionContext".to_string(),
+        "Web::CSS::ComputedValuesFFI::FfiLengthResolutionContext".to_string(),
+    );
+    value_parser_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::CSS::ComputedValuesFFI { struct FfiLengthResolutionContext; }");
 
     generate_ffi_header(
         value_parser_config,

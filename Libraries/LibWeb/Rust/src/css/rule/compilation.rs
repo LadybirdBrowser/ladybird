@@ -1565,7 +1565,7 @@ mod tests {
         drop(sheet);
         std::thread::spawn(move || {
             let context = ParseContext {
-                declared_namespaces: Arc::as_ptr(&namespaces),
+                declared_namespaces: Some(&namespaces),
                 ..ParseContext::default()
             };
             for (source, expected) in [("色|item { color: red; }", 1), ("未知|item { color: red; }", 0)] {

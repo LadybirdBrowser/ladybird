@@ -312,21 +312,18 @@ impl CustomPropertyRegistry {
         )
     }
 
-    pub(crate) fn parse_context(&self, random_function_index: &mut usize) -> ParseContext {
+    pub(crate) fn parse_context(&self, random_function_index: &mut usize) -> ParseContext<'_> {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
             is_substituted_value: false,
             contains_attr_tainted_values: false,
             is_ua_style_sheet: false,
-            value_contexts: std::ptr::null(),
-            value_context_count: 0,
-            declared_namespaces: std::ptr::null(),
-            document_url: self.document_url.as_ptr(),
-            document_url_length: self.document_url.len(),
-            document_base_url: self.document_base_url.as_ptr(),
-            document_base_url_length: self.document_base_url.len(),
-            length_resolution_context: std::ptr::null(),
+            value_contexts: ak::Span::default(),
+            declared_namespaces: None,
+            document_url: ak::Span::new(&self.document_url),
+            document_base_url: ak::Span::new(&self.document_base_url),
+            length_resolution_context: None,
             random_function_index,
         }
     }
@@ -385,8 +382,7 @@ impl CustomPropertyRegistry {
             name: Default::default(),
         };
         let mut context = self.parse_context(&mut random_function_index);
-        context.value_contexts = &raw const value_context;
-        context.value_context_count = 1;
+        context.value_contexts = ak::Span::new(std::slice::from_ref(&value_context));
         parse_with_syntax(&context, source, &registration.syntax)
     }
 
@@ -928,7 +924,7 @@ struct ASFResolutionContext<'a> {
     /// Whether an attr-tainted value was substituted into a URL, or substituted one.
     uses_attr_tainted_url: bool,
     custom_functions: Option<&'a CustomFunctionRegistry>,
-    parse_context: Option<&'a ParseContext>,
+    parse_context: Option<&'a ParseContext<'a>>,
     media_environment: Option<&'a FfiMediaEnvironment<'a>>,
     /// What lengths in a style query resolve against: the element's last computed style.
     style_query_length_resolution_context: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
@@ -2514,7 +2510,7 @@ fn evaluate_if_condition(
                 return ConditionEvaluation::NotHandled;
             };
             let source = serialize_tokens(&test[1..close]);
-            return match unsafe { parse_and_evaluate_supports_if_condition(&source, parse_context) } {
+            return match parse_and_evaluate_supports_if_condition(&source, parse_context) {
                 Some(MatchResult::True) => ConditionEvaluation::Match(true),
                 Some(MatchResult::False | MatchResult::Unknown) => ConditionEvaluation::Match(false),
                 None => ConditionEvaluation::Invalid,
@@ -3355,7 +3351,7 @@ pub(crate) struct VarResolutionInputs<'a> {
     pub(crate) store: Option<&'a CustomPropertyStore>,
     pub(crate) inheritance_store: Option<&'a CustomPropertyStore>,
     pub(crate) registry: Option<&'a CustomPropertyRegistry>,
-    pub(crate) parse_context: Option<&'a ParseContext>,
+    pub(crate) parse_context: Option<&'a ParseContext<'a>>,
     pub(crate) media_environment: Option<&'a FfiMediaEnvironment<'a>>,
     pub(crate) attribute_names_are_ascii_case_insensitive: bool,
     pub(crate) style_query_inputs: Option<&'a crate::css::cascaded_properties::FfiStyleQueryInputs>,

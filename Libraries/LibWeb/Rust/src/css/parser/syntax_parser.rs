@@ -1948,9 +1948,8 @@ pub(crate) fn supports_declaration_matches(context: &ParseContext, source: &[u16
     };
     let mut value_context = *context;
     value_context.is_ua_style_sheet = false;
-    value_context.value_contexts = &raw const property_context;
-    value_context.value_context_count = 1;
-    value_context.length_resolution_context = std::ptr::null();
+    value_context.value_contexts = ak::Span::new(std::slice::from_ref(&property_context));
+    value_context.length_resolution_context = None;
     let outcome = parse_css_value_with_utf16_source(&value_context, property_id, &declaration.value, source.as_ref());
     if let Some(random_function_index) = unsafe { context.random_function_index.as_mut() } {
         *random_function_index = 0;
@@ -2142,7 +2141,7 @@ struct SyntaxParseBuilder {
     // Whether a top-level @import or @namespace rule appended next is still in its ordering window.
     import_rules_valid: bool,
     namespace_rules_valid: bool,
-    parse_context: *const ParseContext,
+    parse_context: *const ParseContext<'static>,
     preserve_property_source_text: bool,
     dedup: DeclarationDedup,
 }
@@ -2839,7 +2838,7 @@ impl SyntaxParseBuilder {
 
     pub(crate) fn new(parse_context: *const ParseContext, preserve_property_source_text: bool) -> Self {
         let declared_namespaces = (unsafe { parse_context.as_ref() })
-            .map(|context| unsafe { declared_namespaces_from_context(context) })
+            .map(declared_namespaces_from_context)
             .unwrap_or_default()
             .into_iter()
             .map(|namespace| {
@@ -2861,7 +2860,7 @@ impl SyntaxParseBuilder {
             declared_namespaces,
             import_rules_valid: true,
             namespace_rules_valid: true,
-            parse_context,
+            parse_context: parse_context.cast(),
             preserve_property_source_text,
             dedup: DeclarationDedup::default(),
         }
@@ -3044,13 +3043,7 @@ impl SyntaxParseBuilder {
         };
 
         let parse_context = unsafe { &*self.parse_context };
-        let mut value_contexts = if parse_context.value_context_count == 0 {
-            Vec::new()
-        } else {
-            // SAFETY: C++ keeps the context storage live for the complete syntax parse call.
-            unsafe { ak::slice_from_raw_parts(parse_context.value_contexts, parse_context.value_context_count) }
-                .to_vec()
-        };
+        let mut value_contexts = parse_context.value_contexts.as_slice().to_vec();
         value_contexts.push(FfiValueParsingContext {
             kind: FfiValueParsingContextKind::Property,
             value: property_id,
@@ -3058,8 +3051,7 @@ impl SyntaxParseBuilder {
             name: Default::default(),
         });
         let mut context = *parse_context;
-        context.value_contexts = value_contexts.as_ptr();
-        context.value_context_count = value_contexts.len();
+        context.value_contexts = ak::Span::new(&value_contexts);
 
         let outcome = parse_css_value_with_utf16_source(&context, property_id, &declaration.value, source_utf16);
         if let Some(random_function_index) = unsafe { parse_context.random_function_index.as_mut() } {
@@ -3983,21 +3975,18 @@ mod tests {
         parse_rule_prelude(rule, rule_kind(rule), None, &[], &|_, _| None)
     }
 
-    pub(super) fn parse_context() -> ParseContext {
+    pub(super) fn parse_context() -> ParseContext<'static> {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
             is_substituted_value: false,
             contains_attr_tainted_values: false,
             is_ua_style_sheet: false,
-            value_contexts: std::ptr::null(),
-            value_context_count: 0,
-            declared_namespaces: std::ptr::null(),
-            document_url: std::ptr::null(),
-            document_url_length: 0,
-            document_base_url: std::ptr::null(),
-            document_base_url_length: 0,
-            length_resolution_context: std::ptr::null(),
+            value_contexts: ak::Span::default(),
+            declared_namespaces: None,
+            document_url: ak::Span::default(),
+            document_base_url: ak::Span::default(),
+            length_resolution_context: None,
             random_function_index: std::ptr::null_mut(),
         }
     }

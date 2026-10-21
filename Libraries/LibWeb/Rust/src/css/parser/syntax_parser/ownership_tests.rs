@@ -653,16 +653,12 @@ fn namespace_rules_own_native_names_after_the_sheet_is_dropped() {
 fn cached_sheets_share_across_urls_without_capturing_image_resource_contexts() {
     let mut first_context = super::tests::parse_context();
     let first_url = b"https://first.example/path/";
-    first_context.document_url = first_url.as_ptr();
-    first_context.document_url_length = first_url.len();
-    first_context.document_base_url = first_url.as_ptr();
-    first_context.document_base_url_length = first_url.len();
+    first_context.document_url = ak::Span::new(first_url);
+    first_context.document_base_url = ak::Span::new(first_url);
     let mut second_context = first_context;
     let second_url = b"https://second.example/other/";
-    second_context.document_url = second_url.as_ptr();
-    second_context.document_url_length = second_url.len();
-    second_context.document_base_url = second_url.as_ptr();
-    second_context.document_base_url_length = second_url.len();
+    second_context.document_url = ak::Span::new(second_url);
+    second_context.document_base_url = ak::Span::new(second_url);
 
     let source = utf16(".shared-without-images { display: none !important; --image: url(later.png) }");
     let first = parse(&source, &first_context);
@@ -687,11 +683,12 @@ fn cached_calculated_descriptors_keep_their_length_resolution_context() {
     let source =
         utf16("@counter-style contextual { system: numeric; symbols: 'a' 'b'; pad: calc(sign(1em - 1px) + 1) '0'; }");
     let mut context = super::tests::parse_context();
-    let mut lengths = crate::css::style_compute::FfiLengthResolutionContext::default();
-    context.length_resolution_context = (&raw const lengths).cast();
+    let lengths = crate::css::style_compute::FfiLengthResolutionContext::default();
+    context.length_resolution_context = Some(&lengths);
     let first = parse(&source, &context);
-    lengths.font_metrics.font_size = 16.0;
-    context.length_resolution_context = (&raw const lengths).cast();
+    let mut larger_lengths = lengths;
+    larger_lengths.font_metrics.font_size = 16.0;
+    context.length_resolution_context = Some(&larger_lengths);
     let second = parse(&source, &context);
     assert!(!Arc::ptr_eq(&first, &second));
     let repeated = parse(&source, &context);
@@ -710,28 +707,28 @@ fn cache_keys_include_parsing_context_and_replay_side_effects() {
     assert!(!Arc::ptr_eq(&first, &quirks));
     context.in_quirks_mode = false;
     let base_url = b"https://example.com/directory/";
-    context.document_base_url = base_url.as_ptr();
-    context.document_base_url_length = base_url.len();
+    context.document_base_url = ak::Span::new(base_url);
     let with_base_url = parse(&source, &context);
     assert!(Arc::ptr_eq(&first, &with_base_url));
-    context.document_base_url = std::ptr::null();
-    context.document_base_url_length = 0;
+    context.document_base_url = ak::Span::default();
 
-    let mut lengths = crate::css::style_compute::FfiLengthResolutionContext::default();
-    context.length_resolution_context = (&raw const lengths).cast();
+    let lengths = crate::css::style_compute::FfiLengthResolutionContext::default();
+    context.length_resolution_context = Some(&lengths);
     let with_lengths = parse(&source, &context);
-    lengths.viewport_width = 800.0;
-    context.length_resolution_context = (&raw const lengths).cast();
+    let mut resized_lengths = lengths;
+    resized_lengths.viewport_width = 800.0;
+    context.length_resolution_context = Some(&resized_lengths);
     let resized = parse(&source, &context);
     assert!(Arc::ptr_eq(&first, &with_lengths));
     assert!(Arc::ptr_eq(&with_lengths, &resized));
     let mut resolved_viewport_length = false;
-    lengths.resolved_viewport_relative_length = &raw mut resolved_viewport_length;
-    context.length_resolution_context = (&raw const lengths).cast();
+    let mut tracking_lengths = resized_lengths;
+    tracking_lengths.resolved_viewport_relative_length = &raw mut resolved_viewport_length;
+    context.length_resolution_context = Some(&tracking_lengths);
     let tracked = parse(&source, &context);
     let tracked_again = parse(&source, &context);
     assert!(!Arc::ptr_eq(&tracked, &tracked_again));
-    context.length_resolution_context = std::ptr::null();
+    context.length_resolution_context = None;
 
     let mut random_index = 7;
     context.random_function_index = &raw mut random_index;

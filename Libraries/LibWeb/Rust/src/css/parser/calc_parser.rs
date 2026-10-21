@@ -44,7 +44,7 @@ pub(crate) struct CalcParserContext {
     pub random_function_index: *mut usize,
     pub allowed_color_channels: u64,
     pub allow_random_functions: bool,
-    pub parse_context: *const ParseContext,
+    pub parse_context: *const ParseContext<'static>,
 }
 
 impl CalcParserContext {

@@ -116,29 +116,25 @@ pub struct FfiValueParsingContext<'a> {
     pub name: FfiUtf16View<'a>,
 }
 
-/// Parser state required by CSS value parsing.
+/// Parser state required by CSS value parsing, borrowing what it names for `'a`.
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct ParseContext {
+pub struct ParseContext<'a> {
     pub in_quirks_mode: bool,
     pub is_svg_presentation_attribute: bool,
     pub is_substituted_value: bool,
     pub contains_attr_tainted_values: bool,
     pub is_ua_style_sheet: bool,
-    /// Borrowed for the parse.
-    pub value_contexts: *const FfiValueParsingContext<'static>,
-    pub value_context_count: usize,
-    pub declared_namespaces: *const crate::css::rule::NativeNamespaceContext,
-    pub document_url: *const u8,
-    pub document_url_length: usize,
-    pub document_base_url: *const u8,
-    pub document_base_url_length: usize,
-    pub length_resolution_context: *const c_void,
+    pub value_contexts: ak::Span<'a, FfiValueParsingContext<'a>>,
+    pub declared_namespaces: Option<&'a crate::css::rule::NativeNamespaceContext>,
+    pub document_url: ak::Span<'a, u8>,
+    pub document_base_url: ak::Span<'a, u8>,
+    pub length_resolution_context: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
     pub random_function_index: *mut usize,
 }
 
 /// An empty context: no value contexts, namespaces or URLs, outside quirks mode.
-impl Default for ParseContext {
+impl Default for ParseContext<'_> {
     fn default() -> Self {
         Self {
             in_quirks_mode: false,
@@ -146,14 +142,11 @@ impl Default for ParseContext {
             is_substituted_value: false,
             contains_attr_tainted_values: false,
             is_ua_style_sheet: false,
-            value_contexts: std::ptr::null(),
-            value_context_count: 0,
-            declared_namespaces: std::ptr::null(),
-            document_url: std::ptr::null(),
-            document_url_length: 0,
-            document_base_url: std::ptr::null(),
-            document_base_url_length: 0,
-            length_resolution_context: std::ptr::null(),
+            value_contexts: ak::Span::default(),
+            declared_namespaces: None,
+            document_url: ak::Span::default(),
+            document_base_url: ak::Span::default(),
+            length_resolution_context: None,
             random_function_index: std::ptr::null_mut(),
         }
     }
@@ -1133,13 +1126,7 @@ pub(crate) fn parse_tree_counting_value(
 }
 
 pub(crate) fn context_allows_tree_counting_functions(context: &ParseContext) -> bool {
-    let contexts = if context.value_context_count == 0 {
-        &[]
-    } else if context.value_contexts.is_null() {
-        return false;
-    } else {
-        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
-    };
+    let contexts = context.value_contexts.as_slice();
     !contexts.iter().any(|value_context| {
         value_context.kind == FfiValueParsingContextKind::Descriptor
             || (value_context.kind == FfiValueParsingContextKind::Special && matches!(value_context.value, 0..=2))
@@ -1147,10 +1134,10 @@ pub(crate) fn context_allows_tree_counting_functions(context: &ParseContext) -> 
 }
 
 fn substitution_function_context_names(context: &ParseContext) -> Option<Vec<Vec<u16>>> {
-    if context.value_context_count == 0 || context.value_contexts.is_null() {
+    let contexts = context.value_contexts.as_slice();
+    if contexts.is_empty() {
         return None;
     }
-    let contexts = unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) };
     let names = contexts
         .iter()
         .filter(|value_context| value_context.kind == FfiValueParsingContextKind::Function)
@@ -1222,7 +1209,7 @@ pub(crate) fn parse_calculated_numeric_value_with_ranges(
             random_function_index: context.random_function_index,
             allowed_color_channels: 0,
             allow_random_functions: context_allows_random_functions(context),
-            parse_context: context,
+            parse_context: std::ptr::from_ref(context).cast(),
         },
     ) {
         Ok(root) => root,
@@ -3669,13 +3656,7 @@ fn context_allows_quirky_color(context: &ParseContext, property: u16) -> bool {
     if !context.in_quirks_mode || !property_has_hashless_hex_color_quirk(property) {
         return false;
     }
-    let value_contexts = if context.value_context_count == 0 {
-        &[]
-    } else if context.value_contexts.is_null() {
-        return false;
-    } else {
-        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
-    };
+    let value_contexts = context.value_contexts.as_slice();
     value_contexts.iter().all(|value_context| {
         value_context.kind == FfiValueParsingContextKind::Property
             && property_has_hashless_hex_color_quirk(value_context.value)
@@ -3683,13 +3664,7 @@ fn context_allows_quirky_color(context: &ParseContext, property: u16) -> bool {
 }
 
 pub(crate) fn context_allows_random_functions(context: &ParseContext) -> bool {
-    let value_contexts = if context.value_context_count == 0 {
-        &[]
-    } else if context.value_contexts.is_null() {
-        return false;
-    } else {
-        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
-    };
+    let value_contexts = context.value_contexts.as_slice();
 
     if value_contexts.first().is_some_and(|value_context| {
         value_context.kind == FfiValueParsingContextKind::Special && matches!(value_context.value, 0 | 3)
@@ -3793,14 +3768,11 @@ pub(crate) fn parse_initial_value(property: u16) -> Option<Arc<StyleValueData>> 
         is_substituted_value: false,
         contains_attr_tainted_values: false,
         is_ua_style_sheet: false,
-        value_contexts: &raw const property_context,
-        value_context_count: 1,
-        declared_namespaces: std::ptr::null(),
-        document_url: std::ptr::null(),
-        document_url_length: 0,
-        document_base_url: std::ptr::null(),
-        document_base_url_length: 0,
-        length_resolution_context: std::ptr::null(),
+        value_contexts: ak::Span::new(std::slice::from_ref(&property_context)),
+        declared_namespaces: None,
+        document_url: ak::Span::default(),
+        document_base_url: ak::Span::default(),
+        length_resolution_context: None,
         random_function_index: std::ptr::null_mut(),
     };
     let values = component_values_from_source(property_initial_value(property).as_bytes()).ok()?;
@@ -6125,16 +6097,14 @@ fn parse_css_primitive_values(
 ) -> Option<(StyleValueData, usize)> {
     let mut stream = TokenStream::new(values);
     let range = NumericRange::new(range_min, range_max);
-    let property = if context.value_context_count == 0 || context.value_contexts.is_null() {
-        property_id::WIDTH
-    } else {
-        unsafe { ak::slice_from_raw_parts(context.value_contexts, context.value_context_count) }
-            .iter()
-            .find(|value_context| {
-                value_context.kind == FfiValueParsingContextKind::Property && value_context.value != property_id::CUSTOM
-            })
-            .map_or(property_id::WIDTH, |value_context| value_context.value)
-    };
+    let property = context
+        .value_contexts
+        .as_slice()
+        .iter()
+        .find(|value_context| {
+            value_context.kind == FfiValueParsingContextKind::Property && value_context.value != property_id::CUSTOM
+        })
+        .map_or(property_id::WIDTH, |value_context| value_context.value);
     let parsed = match value_type {
         VALUE_TYPE_ANGLE => parse_angle_from_stream(context, property, &mut stream, range),
         VALUE_TYPE_INTEGER => parse_integer_from_stream(context, property, &mut stream, range),
@@ -6305,21 +6275,18 @@ mod tests {
         source.units().to_vec()
     }
 
-    fn context() -> ParseContext {
+    fn context() -> ParseContext<'static> {
         ParseContext {
             in_quirks_mode: false,
             is_svg_presentation_attribute: false,
             is_substituted_value: false,
             contains_attr_tainted_values: false,
             is_ua_style_sheet: false,
-            value_contexts: std::ptr::null(),
-            value_context_count: 0,
-            declared_namespaces: std::ptr::null(),
-            document_url: std::ptr::null(),
-            document_url_length: 0,
-            document_base_url: std::ptr::null(),
-            document_base_url_length: 0,
-            length_resolution_context: std::ptr::null(),
+            value_contexts: ak::Span::default(),
+            declared_namespaces: None,
+            document_url: ak::Span::default(),
+            document_base_url: ak::Span::default(),
+            length_resolution_context: None,
             random_function_index: std::ptr::null_mut(),
         }
     }
@@ -7027,8 +6994,7 @@ mod tests {
             secondary_value: 0,
             name: FfiUtf16View::default(),
         };
-        random_context.value_contexts = &raw const value_context;
-        random_context.value_context_count = 1;
+        random_context.value_contexts = ak::Span::new(std::slice::from_ref(&value_context));
         random_context.random_function_index = &raw mut random_function_index;
         assert!(matches!(
             parse_with_context(
@@ -7365,8 +7331,7 @@ mod tests {
             secondary_value: 0,
             name: FfiUtf16View::default(),
         };
-        random_context.value_contexts = &raw const property_context;
-        random_context.value_context_count = 1;
+        random_context.value_contexts = ak::Span::new(std::slice::from_ref(&property_context));
         random_context.random_function_index = &raw mut random_function_index;
         let ParseOutcome::Parsed(value) = parse_with_context(&random_context, property_id::OPACITY, "random(0, 1)")
         else {
@@ -7431,8 +7396,7 @@ mod tests {
             },
         ];
         let mut canvas_context = context();
-        canvas_context.value_contexts = value_contexts.as_ptr();
-        canvas_context.value_context_count = value_contexts.len();
+        canvas_context.value_contexts = ak::Span::new(&value_contexts);
         canvas_context.random_function_index = &raw mut random_function_index;
 
         assert!(matches!(
@@ -7591,8 +7555,7 @@ mod tests {
                 name: FfiUtf16View::from_ascii(function_name),
             }));
             let mut parse_context = context();
-            parse_context.value_contexts = function_contexts.as_ptr();
-            parse_context.value_context_count = function_contexts.len();
+            parse_context.value_contexts = ak::Span::new(&function_contexts);
             assert!(
                 matches!(
                     parse_with_context(&parse_context, property, source),
