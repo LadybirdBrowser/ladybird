@@ -228,6 +228,6 @@ pub extern "C" fn rust_media_list_item_matches(list: &MediaList, index: usize) -
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_media_list_evaluate(list: &MediaList, environment: FfiMediaEnvironment) -> bool {
-    list.evaluate(unsafe { environment.borrow() })
+pub extern "C" fn rust_media_list_evaluate(list: &MediaList, environment: FfiMediaEnvironment<'_>) -> bool {
+    list.evaluate(environment.borrow())
 }
