@@ -66,6 +66,9 @@ SUPPORTED_INTERFACE_EXTENDED_ATTRIBUTES = {
     "LegacyNoInterfaceObject",
     "NavigatorCompatibilityMode",
     "SecureContext",
+    # NB: The implementation implements structured_data::Serializable, whose steps StructuredSerialize of LibWeb's C++
+    #     runs through the entry points that write_rust_structured_data_entry_points() writes.
+    "Serializable",
 }
 
 
@@ -404,6 +407,7 @@ def write_rust_interface(
         implementation_of, prototype_from_new_target, rejected_promise, set_interface_prototype_object_prototype,
         this_object, to_interface,
     }};
+    use crate::bindings::structured_data;
     use crate::bindings::{{CallContext, WebIdlResult}};
 
     use {implementation} as Implementation;
@@ -580,7 +584,49 @@ def write_rust_interface(
     }}
 """
         )
+    write_rust_structured_data_entry_points(out, interface)
     out.write("}\n")
+
+
+def write_rust_structured_data_entry_points(out: TextIO, interface: Interface) -> None:
+    """The entry points through which StructuredSerialize of LibWeb's C++ runs the steps of an interface that is
+    serializable, which Meta/Generators/libweb_bindings/structured_serialize.py declares."""
+    if "Serializable" in interface.extended_attributes:
+        out.write(
+            f"""
+    /// The serialization steps of the interface, for StructuredSerialize of LibWeb's C++.
+    ///
+    /// # Safety
+    ///
+    /// The pointers must be the VM, a live realm, the live cell of an object of the interface, and a lent writer.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn {rust_entry_point_name(interface, "serialization_steps")}(
+        vm: *mut c_void,
+        realm: *mut c_void,
+        cell: *mut c_void,
+        serialized: *mut c_void,
+        for_storage: bool,
+    ) -> RawNativeFunctionResult {{
+        // SAFETY: The caller passes live pointers.
+        unsafe {{ structured_data::serialization_steps::<Implementation>(vm, realm, cell, serialized, for_storage) }}
+    }}
+
+    /// The deserialization steps of the interface, which return the wrapper of the new object.
+    ///
+    /// # Safety
+    ///
+    /// The pointers must be the VM, a live realm, and a lent reader.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn {rust_entry_point_name(interface, "deserialization_steps")}(
+        vm: *mut c_void,
+        realm: *mut c_void,
+        serialized: *mut c_void,
+    ) -> RawNativeFunctionResult {{
+        // SAFETY: The caller passes live pointers.
+        unsafe {{ structured_data::deserialization_steps::<Implementation>(vm, realm, serialized) }}
+    }}
+"""
+        )
 
 
 def write_this_implementation(out: TextIO, context: GenerationContext, interface: Interface) -> None:

@@ -1670,7 +1670,7 @@ public:
 
             // 3. Otherwise, if value is a platform object that is a serializable object, then perform the serialization steps for value's primary interface, given value, serialized, and forStorage.
             else if (auto serializable = Bindings::serializable_from_object(object); serializable.has_value()) {
-                TRY(serializable->serializable->serialization_steps(serialized, m_for_storage, m_memory));
+                TRY(serializable->serialization_steps(serialized, m_for_storage, m_memory));
             }
 
             // 4. Otherwise, for each key in ! EnumerableOwnProperties(value, key):
@@ -2127,6 +2127,18 @@ public:
             if (!Bindings::is_exposed(interface_name, realm))
                 return WebIDL::DataCloneError::create(realm, "Unsupported type"_utf16);
 
+            // NB: The deserialization steps of an interface implemented in Rust create the new instance from what they
+            //     read, so they run here, at the position in memory that the instance has.
+            if (Bindings::serializable_interface_is_implemented_in_rust(interface_name)) {
+                if (version.has_value() && *version != serializable_payload_version)
+                    return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Unsupported serializable payload version"));
+                auto memory_index = m_memory.size();
+                m_memory.append(JS::js_undefined());
+                value = TRY(Bindings::deserialize_rust_platform_object(interface_name, realm, m_serialized, m_memory));
+                m_memory[memory_index] = value;
+                return value;
+            }
+
             // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
             value = Bindings::create_serialized_platform_object(interface_name, realm);
 
@@ -2201,7 +2213,7 @@ public:
             else {
                 // 1. Perform the appropriate deserialization steps for the interface identified by serialized.[[Type]], given serialized, value, and targetRealm.
                 auto serializable = Bindings::serializable_from_object(value.as_object());
-                VERIFY(serializable.has_value());
+                VERIFY(serializable.has_value() && serializable->serializable);
                 TRY(serializable->serializable->deserialization_steps(realm, m_serialized, m_memory));
             }
         }
