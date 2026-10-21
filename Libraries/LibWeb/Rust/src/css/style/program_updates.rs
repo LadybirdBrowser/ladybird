@@ -130,10 +130,9 @@ impl RetainedState {
 
     /// Intern one immutable specified value into the rule program's dense value table.
     pub fn intern_specified_value(&mut self, value: &Arc<StyleValueData>) -> SpecifiedValueID {
-        let (id, lookup) = self.specified_values.intern(value);
-        match lookup {
-            Lookup::Known(()) => self.counters.bump(Counter::SpecifiedValuesReused),
-            Lookup::KnownAbsent | Lookup::Missing(_) => {}
+        let (id, reused) = self.specified_values.intern(value);
+        if reused {
+            self.counters.bump(Counter::SpecifiedValuesReused);
         }
         id
     }
@@ -1349,7 +1348,7 @@ impl StyleEngine {
     /// Take the pending transaction for the style consumer that immediately follows this call.
     ///
     /// Exact planning may already have packed the current facts and built document-order
-    /// coordinates. Keep that Tier-4 workspace for matching instead of reconstructing it. The
+    /// coordinates. Keep that workspace for matching instead of reconstructing it. The
     /// callback receives only accepted match-answer records after their complete payloads have been
     /// published. Versions are shared by the whole emitted batch rather than repeated per record.
     #[cfg(test)]

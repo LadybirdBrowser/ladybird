@@ -80,7 +80,7 @@ pub struct RuleMatch {
 
 /// Concrete matches for one evaluation, sorted by style node.
 ///
-/// This is transaction-local Tier-4 scratch: the cascade consumes it and it is discarded. It is not
+/// This is transaction-local scratch: the cascade consumes it and it is discarded. It is not
 /// an inverse match relation and is never retained.
 #[derive(Default)]
 pub struct RuleMatches {

@@ -190,9 +190,7 @@ impl RetainedState {
             }
             visit(node);
 
-            let previous_capacity = pending.capacity();
             pending.extend(self.tree.flat_tree_children(node));
-            if pending.capacity() > previous_capacity {}
         }
     }
 

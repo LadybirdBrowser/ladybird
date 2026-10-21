@@ -17,8 +17,7 @@ const MINIMUM_SWEEP_THRESHOLD: usize = 64;
 /// while something is interned through it.
 /// A dead reference still holds its value's allocation, though not the value, until it is dropped
 /// when its bucket is next searched or by a full sweep, which runs whenever the references have
-/// doubled since the last one, so dead references never outnumber the live ones by much. Shared
-/// values are charged once to the pool's own ledger.
+/// doubled since the last one, so dead references never outnumber the live ones by much.
 pub(super) struct WeakPool<T> {
     by_hash: HashMap<u64, Vec<Weak<T>>>,
     references: usize,

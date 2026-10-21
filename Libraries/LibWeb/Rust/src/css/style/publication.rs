@@ -294,7 +294,7 @@ impl RetainedState {
             if !Self::retained_store_supports_property(target, winner.property) {
                 return None;
             }
-            let Lookup::Known(value) = self.specified_values.retained_value(winner.key.value) else {
+            let Some(value) = self.specified_values.retained_value(winner.key.value) else {
                 return None;
             };
             if crate::css::style_compute::external_value_dependencies(value.data())
@@ -457,8 +457,8 @@ impl RetainedState {
         Ok(delta)
     }
 
-    /// The winners a driven element's record is computed from. A republish admits the row whatever
-    /// the memory budget, and an answer that published nothing is matched again; a row that holds
+    /// The winners a driven element's record is computed from. An answer that published nothing is
+    /// matched again; a row that holds
     /// no winners even then is the host's, as is one a drive without the leave to republish holds
     /// no winners for.
     fn driven_element_winners(
@@ -1350,7 +1350,6 @@ impl RetainedState {
                 );
             }
         }
-        self.mark_published_answer_observed(node);
     }
 
     /// The records the engine derived for `node`'s element that the host has not taken, for the
@@ -1911,9 +1910,10 @@ impl RetainedState {
         self.winner_groups
             .winner_in_state(state, crate::css::property_metadata::property_id::FONT_FAMILY)
             .and_then(|winner| self.winner_groups.resolved_winner(winner))
-            .is_some_and(|winner| match self.specified_values.value(winner.key.value) {
-                Lookup::Known(data) => crate::css::style_compute::font_family_is_monospace(data),
-                _ => true,
+            .is_some_and(|winner| {
+                self.specified_values
+                    .value(winner.key.value)
+                    .is_none_or(crate::css::style_compute::font_family_is_monospace)
             })
     }
 
@@ -2939,7 +2939,7 @@ impl RetainedState {
         if facts & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0 {
             return;
         }
-        // A state minted before the winner groups were evicted names nothing in the table now.
+        // A state minted before the winner groups were cleared names nothing in the table now.
         if cascade_state.0 != self.winner_groups.generation() {
             return;
         }
@@ -4211,8 +4211,8 @@ impl StyleEngine {
     /// Frees what the engine kept for the leases of published frames, once none is held. The host calls it as it
     /// takes a recording in, so that a document that styles nothing more still frees what its recording kept.
     pub(crate) fn free_style_records_kept_for_leases(&mut self) {
-        let freed_overlays = self.retained.computed_group_sets.free_retired_animation_overlays();
-        if self.reclaim_unreachable_computed_records() || freed_overlays {}
+        self.retained.computed_group_sets.free_retired_animation_overlays();
+        self.reclaim_unreachable_computed_records();
     }
 
     /// Reclaims the unreachable computed records, if they are due and nothing views them, and answers whether it did.
@@ -5416,39 +5416,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    #[test]
-    fn acknowledgement_without_pending_records_observes_published_answer() {
-        let mut engine = StyleEngine::new();
-        let mut raw_nodes = [0; 2];
-        engine.allocate_style_nodes(&mut raw_nodes);
-        let [first, second] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
-        for node in [first, second] {
-            engine.retained.published_match_answers.push(
-                PublishedMatchAnswer {
-                    node,
-                    cascade_input: None,
-                    matches: None,
-                    cascade_winners_are_complete: true,
-                    observed: false,
-                },
-                &engine.retained.counters,
-            );
-        }
-        engine.published_match_answers.sort();
-        assert!(engine.engine_computed_records_pending.is_empty());
-
-        engine.acknowledge_engine_computed_record(second);
-        let effects = std::mem::take(&mut engine.published_match_answers.answer_effects);
-        engine.install_answer_effects(effects);
-        assert!(engine.published_match_answers.lookup(second).unwrap().observed);
-        assert!(!engine.published_match_answers.lookup(first).unwrap().observed);
-        engine.acknowledge_engine_computed_record(second);
-        let effects = std::mem::take(&mut engine.published_match_answers.answer_effects);
-        engine.install_answer_effects(effects);
-        assert!(engine.published_match_answers.lookup(second).unwrap().observed);
-        assert_eq!(engine.counters.get(Counter::EngineComputedLonghandEvaluations), 0);
     }
 
     #[test]

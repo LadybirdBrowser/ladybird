@@ -1237,7 +1237,7 @@ impl PrefixTransitionContexts {
     /// Prepare one program's context again when the arena it was prepared against was replaced.
     ///
     /// A traversal owns its contexts for as long as it runs, while the states they name can be
-    /// released and rebuilt under it whenever the cache loses its residency. Every pairing of a
+    /// released and rebuilt under it whenever the cache is released. Every pairing of a
     /// context with an arena therefore revalidates before reading memoized answers.
     pub(super) fn rebind(&mut self, program: ScopeProgramID, states: &mut PrefixStates, facts: &StyleNodeFacts) {
         let context = self
@@ -1258,7 +1258,6 @@ impl PrefixTransitionContexts {
     }
 
     pub(super) fn install(&mut self, states: &mut PrefixStateCache) {
-        let mut installed = false;
         for (program, context) in self.by_program.iter_mut().enumerate() {
             if let Some(context) = context
                 && !context.effects.writes.is_empty()
@@ -1267,10 +1266,8 @@ impl PrefixTransitionContexts {
                 ))
             {
                 states.install_prefix_effects(&mut context.effects);
-                installed = true;
             }
         }
-        if installed {}
     }
 }
 
@@ -3970,7 +3967,7 @@ impl PrefixStates {
     }
 
     /// Shed unreachable interned identities and allocation slack before the working form is
-    /// offered for residency. Only per-element transitions cross this boundary; traversal memos
+    /// retained. Only per-element transitions cross this boundary; traversal memos
     /// and completed-answer keys are batch-local, so every remapped identity stays internal.
     fn trim_for_retention(&mut self) {
         let working_bytes = self.interned_working_bytes();
@@ -4283,7 +4280,7 @@ fn selected_matches_equal(left: &[EntryID], right: &[EntryID], selection: &Prefi
 /// Prefix states shared by every element ask in one synchronous matching traversal.
 ///
 /// The delta representation keeps the working form small enough to retain outright, so there is
-/// no compact retained encoding. Retention moves the same working bytes from scratch into Tier 3.
+/// no compact retained encoding. Retention keeps the same working form.
 pub(super) struct PrefixStateCache {
     by_program: Column<Option<Box<PrefixStates>>>,
     lifecycle: PrefixStateCacheLifecycle,
@@ -4397,9 +4394,9 @@ impl PrefixStateCache {
         };
     }
 
-    pub(super) fn retain(&mut self) -> bool {
+    pub(super) fn retain(&mut self) {
         if self.lifecycle.is_retained() {
-            return true;
+            return;
         }
         for states in self.by_program.iter_mut().flatten() {
             states.trim_for_retention();
@@ -4410,7 +4407,6 @@ impl PrefixStateCache {
             PrefixStateCacheLifecycle::CurrentScratch(coverage) => PrefixStateCacheLifecycle::CurrentRetained(coverage),
             PrefixStateCacheLifecycle::Retained(_) | PrefixStateCacheLifecycle::CurrentRetained(_) => unreachable!(),
         };
-        true
     }
 
     /// Forget one element's transition. This is the whole maintenance a pure tree flush needs,
@@ -4787,7 +4783,7 @@ mod tests {
             });
         }
 
-        // Losing residency rebuilds the arena every answer above names by index.
+        // Releasing the cache rebuilds the arena every answer above names by index.
         let mut rebuilt = PrefixStates::new();
         contexts.rebind(program, &mut rebuilt, &facts);
         let context = contexts.get_mut(program);
@@ -5420,28 +5416,5 @@ mod tests {
                 states.transition_by_element.capacity(),
             ]
         );
-    }
-
-    #[test]
-    fn retained_cache_entry_maintenance_charges_the_residency_lease() {
-        use super::super::index::StateSet;
-
-        let mut cache = PrefixStateCache::default();
-        let mut facts = StyleNodeFacts::new();
-        facts.push_row(
-            super::super::tree::StyleNodeID::element(1),
-            StyleAtomID(1),
-            StyleAtomID::NONE,
-            StateSet(0),
-            &[],
-            &[],
-        );
-        let mut context = PrefixTransitionContext::new(cache.prepare_program(ScopeProgramID(0)), &facts);
-
-        assert!(cache.retain());
-
-        // Preparing a fresh private row domain does not change retained cache accounting.
-        context.scratch.prepare_rows(facts.generation() + 1);
-        let _ = cache.prepare_program(ScopeProgramID(0));
     }
 }

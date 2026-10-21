@@ -807,7 +807,6 @@ fn published_match_answer(node: u32, cascade_input: Option<u32>, match_count: us
         cascade_input: cascade_input.map(MatchAnswerID),
         matches: Some(vec![rule_match; match_count].into_boxed_slice()),
         cascade_winners_are_complete: true,
-        observed: false,
     }
 }
 
@@ -1091,7 +1090,7 @@ fn an_evicted_prefix_answer_is_a_typed_missing_key() {
     };
     answers.remember(&mut catalog, key, &[], None, None, MatchAnswerID(1), true);
 
-    assert!(answers.retain());
+    answers.retain();
     assert!(matches!(
         answers.lookup(key),
         Lookup::Known(answer)
@@ -1101,7 +1100,7 @@ fn an_evicted_prefix_answer_is_a_typed_missing_key() {
     answers.make_scratch();
 
     assert!(matches!(answers.lookup(key), Lookup::Known(_)));
-    assert!(answers.retain());
+    answers.retain();
 
     answers.release(&mut catalog);
     assert!(catalog.answer(contribution).is_none());
@@ -1181,7 +1180,7 @@ fn prefix_answer_keys_compare_content_after_hash_collisions() {
         assert_eq!(answers.lookup(key).sparse().unwrap().cascade_input, MatchAnswerID(100));
     }
 
-    assert!(answers.retain());
+    answers.retain();
     answers.release(&mut catalog);
 
     assert!(catalog.answer(contribution).is_none());
@@ -1388,7 +1387,7 @@ fn retained_match_answer_payloads_are_evictable_without_losing_identity() {
     assert_eq!(catalog.intern(&[same_retained_match]), identity);
     answers.remember_cascade_input(&mut catalog, node, cascade_input);
 
-    answers.evict(&mut catalog);
+    answers.clear(&mut catalog);
     assert!(catalog.retained_answer(identity).is_none());
     assert!(matches!(answers.lookup(node), Lookup::Missing(gap) if gap == node));
     assert!(matches!(
@@ -1598,7 +1597,7 @@ fn an_evicted_feature_posting_is_missing_instead_of_empty() {
 
     let key = SelectorPostingKey::Class(target);
     assert!(matches!(engine.facts.postings().lookup(key), Lookup::Known(_)));
-    engine.facts.postings_mut().evict(key);
+    engine.facts.postings_mut().drop_posting(key);
     assert!(matches!(engine.facts.postings().lookup(key), Lookup::Missing(gap) if gap == key));
 
     remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
@@ -2906,7 +2905,10 @@ fn hover_requires_style_state_only_when_an_origin_may_be_present() {
     discard_transaction(&mut engine);
     assert!(!engine.hover_needs_style_state(nodes[0]));
 
-    engine.facts.postings_mut().evict(SelectorPostingKey::Class(second));
+    engine
+        .facts
+        .postings_mut()
+        .drop_posting(SelectorPostingKey::Class(second));
     assert!(engine.hover_needs_style_state(nodes[0]));
 }
 
@@ -3562,7 +3564,7 @@ fn an_evicted_retained_match_answer_falls_back_to_cold_matching() {
     engine
         .retained
         .retained_match_answers
-        .evict(&mut engine.retained.match_answers);
+        .clear(&mut engine.retained.match_answers);
     assert!(matches!(
         engine.retained_match_answer(nodes[1]),
         Lookup::Missing(gap) if gap == nodes[1]
@@ -3647,7 +3649,7 @@ fn an_evicted_answer_payload_repairs_to_its_retained_identity() {
     engine
         .retained
         .retained_match_answers
-        .evict(&mut engine.retained.match_answers);
+        .clear(&mut engine.retained.match_answers);
 
     engine.set_rule_conditions_hold(losing_rule, false);
     let repairs_before = engine.counters().get(Counter::PublishedMatchAnswerIdentityRepairs);

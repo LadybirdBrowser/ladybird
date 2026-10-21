@@ -2038,7 +2038,6 @@ impl StyleEngine {
                 retained_selector_incidences: RetainedSelectorIncidences::default(),
                 selector_incidence_is_current: false,
                 batch_matching_traversal: None,
-                completion_exactness: CompletionExactness::Exact,
                 route_pruning_states: crate::fork::ForkReset::new(Mutex::new(RoutePruningStateCache::default())),
                 sibling_positions: crate::fork::ForkReset::default(),
                 prefix_caches: std::sync::Arc::default(),
@@ -2132,7 +2131,7 @@ impl StyleEngine {
         for &(node, relations) in arrivals {
             self.link(node, relations);
         }
-        self.publish_budget_inputs();
+        self.update_journal_entry_limit();
 
         let root_relations = arrivals
             .iter()
@@ -2750,7 +2749,7 @@ impl StyleEngine {
                 .add(Counter::StyleNodesRetired, retired_nodes.len() as u64);
         }
         self.host.tree_staging.mark_applied();
-        self.publish_budget_inputs();
+        self.update_journal_entry_limit();
     }
 
     /// Name the node a style scope belongs to. A shadow root is a scope and a subtree at once, which
@@ -2907,7 +2906,7 @@ impl StyleEngine {
             }
         }
         if minted_an_element {
-            self.publish_budget_inputs();
+            self.update_journal_entry_limit();
         }
     }
 
@@ -3421,7 +3420,6 @@ impl RetainedState {
             route_pruning_states: _,
             // Keyed by the tree's DOM order version.
             sibling_positions: _,
-            completion_exactness: _,
             // Dropped in `forget_departed_elements` when a relation holds a departed element.
             prefix_caches: _,
             #[cfg(test)]

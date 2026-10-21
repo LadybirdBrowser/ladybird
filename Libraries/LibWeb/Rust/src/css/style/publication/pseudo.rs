@@ -100,7 +100,7 @@ impl RetainedState {
         }
         let republication = republication.or_refused()?;
         // The element row may already be compared with the record derived from it in this flush:
-        // keep it and publish only the pseudo rows. An evicted answer is matched again.
+        // keep it and publish only the pseudo rows. A missing answer is matched again.
         let republished = self.current_winner_groups().row_stamp(node) == Some(self.flush_stamp)
             && self
                 .republish_pseudo_winners_from_retained_answer(node, republication)
@@ -739,8 +739,8 @@ impl RetainedState {
         }
     }
 
-    /// The kinds the node's match answer has rules for, matching the element again when that
-    /// answer was evicted. A match that cannot complete for want of a fact generates no
+    /// The kinds the node's match answer has rules for, matching the element again when there is
+    /// no answer. A match that cannot complete for want of a fact generates no
     /// pseudo-element.
     pub(super) fn pseudo_style_mask_or_rematch(&mut self, node: StyleNodeID) -> u64 {
         if let Some(mask) = self.pseudo_style_mask(node) {

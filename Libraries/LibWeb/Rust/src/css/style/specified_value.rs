@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Canonical specified-value identities retained as an evictable dense table.
+//! Canonical specified-value identities retained as a dense table.
 
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
@@ -12,7 +12,6 @@ use std::sync::Arc;
 
 use super::cascade::SpecifiedValueID;
 use super::fast_hash::FastMap as HashMap;
-use super::partial_view::Lookup;
 
 #[derive(Clone)]
 
@@ -29,20 +28,12 @@ impl super::intern_table::InternIdentity for SpecifiedValueEntryIndex {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum SpecifiedValueGap {
-    RetiredPayloads { eviction_generation: u64 },
-}
-
-/// An identity is never reused, so evicting the values only makes future equality checks
-/// conservative. Existing rule and winner rows can keep comparing their opaque identities without
-/// retaining old CSSOM values forever.
+/// An identity is never reused, so rule and winner rows can compare their opaque identities.
 #[derive(Clone)]
 pub(super) struct SpecifiedValues {
     entries: super::intern_table::InternTable<SpecifiedValueEntryIndex, SpecifiedValueEntry>,
     entries_by_pointer: HashMap<usize, SpecifiedValueID>,
     entries_by_id: HashMap<SpecifiedValueID, u32>,
-    gap: Option<SpecifiedValueGap>,
     next_id: u64,
 }
 
@@ -52,15 +43,14 @@ impl SpecifiedValues {
             entries: super::intern_table::InternTable::default(),
             entries_by_pointer: HashMap::default(),
             entries_by_id: HashMap::default(),
-            gap: None,
             next_id: 1,
         }
     }
 
     #[must_use]
-    fn lookup(&self, value: &StyleValueData) -> Lookup<SpecifiedValueID, SpecifiedValueGap> {
+    fn lookup(&self, value: &StyleValueData) -> Option<SpecifiedValueID> {
         if let Some(id) = self.entries_by_pointer.get(&(std::ptr::from_ref(value) as usize)) {
-            return Lookup::Known(*id);
+            return Some(*id);
         }
         // Equal URL text can refer to different resources in different declarations. The native
         // image keeps its stylesheet context outside StyleValueData, so only an existing pointer
@@ -70,63 +60,44 @@ impl SpecifiedValues {
                 .entries
                 .find(value.content_hash(), |_index, entry| entry.value.data() == value)
         {
-            return Lookup::Known(self.entries[index].id);
+            return Some(self.entries[index].id);
         }
-        self.gap.map_or(Lookup::KnownAbsent, Lookup::Missing)
-    }
-
-    fn mark_partial(&mut self) -> SpecifiedValueGap {
-        *self
-            .gap
-            .get_or_insert(SpecifiedValueGap::RetiredPayloads { eviction_generation: 1 })
+        None
     }
 
     /// Return the retained payload behind one maintained declaration identity.
     #[must_use]
-    pub(super) fn value(&self, id: SpecifiedValueID) -> Lookup<&StyleValueData, SpecifiedValueGap> {
-        if let Some(index) = self.entries_by_id.get(&id) {
-            return Lookup::Known(self.entries[*index as usize].value.data());
-        }
-        self.gap.map_or(Lookup::KnownAbsent, Lookup::Missing)
+    pub(super) fn value(&self, id: SpecifiedValueID) -> Option<&StyleValueData> {
+        let index = self.entries_by_id.get(&id)?;
+        Some(self.entries[*index as usize].value.data())
     }
 
     /// Return an owned reference to one maintained declaration payload.
     #[must_use]
     #[cfg(test)]
-    pub(super) fn retained_value(&self, id: SpecifiedValueID) -> Lookup<RetainedStyleValueData, SpecifiedValueGap> {
-        if let Some(index) = self.entries_by_id.get(&id) {
-            return Lookup::Known(self.entries[*index as usize].value.clone_retained());
-        }
-        self.gap.map_or(Lookup::KnownAbsent, Lookup::Missing)
+    pub(super) fn retained_value(&self, id: SpecifiedValueID) -> Option<RetainedStyleValueData> {
+        let index = self.entries_by_id.get(&id)?;
+        Some(self.entries[*index as usize].value.clone_retained())
     }
 
-    pub(super) fn intern(&mut self, value: &Arc<StyleValueData>) -> (SpecifiedValueID, Lookup<(), SpecifiedValueGap>) {
-        let lookup = match self.lookup(value) {
-            Lookup::Known(id) => return (id, Lookup::Known(())),
-            Lookup::KnownAbsent => Lookup::KnownAbsent,
-            Lookup::Missing(gap) => Lookup::Missing(gap),
-        };
-
+    /// The identity of `value`, and whether it already had one.
+    pub(super) fn intern(&mut self, value: &Arc<StyleValueData>) -> (SpecifiedValueID, bool) {
+        if let Some(id) = self.lookup(value) {
+            return (id, true);
+        }
         let id = SpecifiedValueID(self.next_id);
         self.next_id = self
             .next_id
             .checked_add(1)
             .expect("specified value identity space exhausted");
-        if !true {
-            return (id, Lookup::Missing(self.mark_partial()));
-        }
         self.push_entry(id, RetainedStyleValueData::from_arc(Arc::clone(value)));
-
-        (id, lookup)
+        (id, false)
     }
 
     /// Associate another immutable spelling with an existing canonical identity.
     pub(super) fn alias(&mut self, value: &Arc<StyleValueData>, id: SpecifiedValueID) {
-        if let Lookup::Known(existing) = self.lookup(value) {
+        if let Some(existing) = self.lookup(value) {
             debug_assert_eq!(existing, id);
-            return;
-        }
-        if !true {
             return;
         }
         self.push_entry(id, RetainedStyleValueData::from_arc(Arc::clone(value)));
@@ -177,13 +148,9 @@ mod tests {
         let (canonical_id, _) = values.intern(&canonical);
         values.alias(&authored, canonical_id);
         assert_eq!(values.entries_by_pointer.len(), 2);
-        assert!(matches!(
-            values.lookup(&authored),
-            Lookup::Known(id) if id == canonical_id
-        ));
-        let (authored_id, lookup) = values.intern(&authored);
-
+        assert_eq!(values.lookup(&authored), Some(canonical_id));
+        let (authored_id, reused) = values.intern(&authored);
         assert_eq!(authored_id, canonical_id);
-        assert!(matches!(lookup, Lookup::Known(())));
+        assert!(reused);
     }
 }

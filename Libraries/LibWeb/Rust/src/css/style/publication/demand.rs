@@ -300,7 +300,6 @@ impl StyleEngine {
                             cascade_input: answer.cascade_input,
                             matches: answer.matches.clone(),
                             cascade_winners_are_complete: answer.cascade_winners_are_complete,
-                            observed: false,
                         },
                         &self.retained.counters,
                     );

@@ -3823,8 +3823,7 @@ impl RetainedState {
         // Once both exact fact sides and the retained answer are complete, their region union can
         // be compared by evaluating that entry once per candidate. This replaces repeated partial
         // path walks with the exact question the planner ultimately needs to answer. Keep initial
-        // and incomplete state on the original route-order path: its allocation lifetimes are part
-        // of retained-cache admission under memory pressure.
+        // and incomplete state on the original route-order path.
         let can_group_exact_entries = retained_winners_are_current
             && transaction.inputs.iter().all(|input| {
                 let (InputKey::LocalFeature(node, _) | InputKey::State(node, _)) = input.key else {

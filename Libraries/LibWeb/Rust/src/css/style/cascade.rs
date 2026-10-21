@@ -618,7 +618,7 @@ pub(super) enum WinnerGroupCoverageGap {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum WinnerGroupTokenGap {
     StaleGeneration { retained: u64, current: u64 },
-    AdmissionClosed,
+    NotAnElement,
 }
 
 const WINNER_RULE_PAGE_SHIFT: usize = 6;
@@ -783,7 +783,6 @@ pub(super) struct WinnerEffects {
     entries: Vec<PendingWinnerNode>,
     writes: Vec<WinnerNodeWrite>,
     by_node: Column<u32>,
-    nested_bytes: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -839,9 +838,7 @@ impl WinnerEffects {
     }
 
     fn push_write(&mut self, write: WinnerNodeWrite) {
-        let capacity = self.writes.capacity();
         self.writes.push(write);
-        if capacity != self.writes.capacity() {}
     }
 
     pub(super) fn view<'a>(&'a self, groups: &'a WinnerGroups) -> WinnerView<'a> {
@@ -858,9 +855,6 @@ impl WinnerEffects {
         state: CascadeStateID,
         version: ProgramVersion,
     ) -> bool {
-        if node.element_index().is_none() {
-            return false;
-        }
         let Some(index) = self.entry_index(node) else {
             return false;
         };
@@ -901,9 +895,7 @@ impl WinnerEffects {
         if let Some(row) = rows.iter_mut().find(|row| row.pseudo == pseudo) {
             *row = new;
         } else {
-            let before = rows.capacity();
             rows.push(new);
-            self.nested_bytes += (rows.capacity() - before) * size_of::<PseudoWinnerRow>();
         }
         self.push_write(WinnerNodeWrite::Set {
             node,
@@ -1006,7 +998,7 @@ impl WinnerEffects {
         }
         self.set(groups, node, state, version)
             .then_some(())
-            .ok_or(WinnerGroupTokenGap::AdmissionClosed)
+            .ok_or(WinnerGroupTokenGap::NotAnElement)
     }
 
     pub(super) fn copy_node_rows(
@@ -1294,9 +1286,8 @@ pub(super) struct StateSummary {
 /// Interned per-node winning declarations.
 ///
 /// Sparse and shared: never one heap object per property per element. A node retains one state
-/// identity, and states share property-range winner groups. The whole structure is Tier-3, so
-/// evicting it changes no semantic version and a later observer reconstructs a state from the
-/// node's cascade input or from the exact cold cascade.
+/// identity, and states share property-range winner groups. A node without a row reconstructs its
+/// state from its cascade input or from the exact cold cascade.
 #[derive(Clone, Default)]
 pub struct WinnerGroups {
     states: InternTable<CascadeStateID, Box<[WinnerGroupRef]>>,

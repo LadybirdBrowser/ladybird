@@ -12,11 +12,9 @@
 //! logical dependency program. A style flush discovers and propagates exact changes through that
 //! program and stops as soon as a semantic value is unchanged.
 //!
-//! Two properties shape every module here. First, memory is a primary constraint: derived state is
-//! tiered (see [`memory`]), budgeted, and - above Tier 2 - discardable at any time without affecting
-//! correctness. Second, the cache-free exact matcher is part of the architecture rather than a
-//! fallback bolted on: optional incremental state may accelerate matching but is never required to
-//! answer a style read correctly.
+//! The cache-free exact matcher is part of the architecture rather than a fallback bolted on:
+//! optional incremental state may accelerate matching but is never required to answer a style read
+//! correctly. Derived state lives as long as the node or rule it describes.
 //!
 //! Everything between a style input and a computed value is authoritative here, on the Rust side.
 //! C++ remains authoritative for DOM and CSSOM object identity, mutation semantics, document
@@ -981,8 +979,8 @@ pub struct RetainedState {
     retained_selector_incidences: RetainedSelectorIncidences,
     /// Whether the current transaction changes activation without changing selector inputs.
     selector_incidence_is_current: bool,
-    /// Read-through facts shared by one synchronous style traversal. This is Tier-4 scratch, not
-    /// retained matching state. A broad traversal begins with a complete batch; a selective one
+    /// Read-through facts shared by one synchronous style traversal. This is transaction scratch,
+    /// not retained matching state. A broad traversal begins with a complete batch; a selective one
     /// promotes only after repeated local packing clears its rebuild-cost hysteresis.
     /// The transaction or host-call adapter owns the box while matching borrows its scratch.
     /// Moving the box at those boundaries leaves the fact batch's vector headers in place.
@@ -996,22 +994,18 @@ pub struct RetainedState {
     /// The places of the children of parents with many of them, which sibling-counting functions
     /// read, kept while the tree's DOM order stands.
     sibling_positions: crate::fork::ForkReset<Mutex<publication::SiblingPositionCache>>,
-    /// Once Tier-3 pressure closes retained-answer admission, the rest of the completion batch
-    /// stops asking for exact answers: an exact answer costs more to evaluate, and paying that
-    /// premium for an answer the controller cannot retain buys nothing on any later flush.
-    completion_exactness: CompletionExactness,
     /// Prefix transitions and their canonical answers have one document-lifetime owner. Matching
     /// traversals and answer patches borrow it synchronously and change its cache-owned lifecycle
-    /// between scratch and retained residency without moving the payload.
+    /// between scratch and retained without moving the payload.
     prefix_caches: std::sync::Arc<SharedPrefixCaches>,
-    /// Test-only: force the bounded completion window regardless of headroom.
+    /// Test-only: force the bounded completion window.
     #[cfg(test)]
     force_bounded_prefix_completion: bool,
     /// Current-side scratch an exact transaction already produced for the style consumer
     /// that immediately consumes it. Any intervening engine mutation discards it.
     prepared_batch_matching_traversal: Option<PreparedBatchMatchingTraversal>,
     /// Complete compact answers owned by the scoped style transaction which the next traversal
-    /// consumes. This is required Tier-4 scratch, not a persistent inverse match relation.
+    /// consumes. This is transaction scratch, not a persistent inverse match relation.
     published_match_answers: PublishedMatchAnswers,
     transaction_fact_view: Option<TransactionFactView>,
     facts: crate::fork::ForkShared<ElementFactStore>,

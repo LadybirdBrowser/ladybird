@@ -140,6 +140,10 @@ impl StampedIndex {
             value,
         };
     }
+
+    fn capacity_bytes(&self) -> usize {
+        self.rows.capacity() * size_of::<StampedRow>()
+    }
 }
 
 thread_local! {
@@ -150,10 +154,11 @@ thread_local! {
 /// the contexts a single matching pass has open, not the nodes it visits.
 ///
 /// NB: A buffer in the pool is memory the process holds while no owner leases it. These bounds
-///     are what keep that off-book residency small: at most this many buffers, and at most this
-///     many bytes across all of them, since a buffer grows to the highest element identity it
-///     was ever asked for.
+///     are what keep that residency small: at most this many buffers, and at most this many bytes
+///     across all of them, since a buffer grows to the highest element identity it was ever asked
+///     for.
 const STAMPED_INDEX_POOL_LIMIT: usize = 8;
+const STAMPED_INDEX_POOL_BYTE_LIMIT: usize = 4 << 20;
 
 /// A [`StampedIndex`] taken from the thread's pool on first write and returned when dropped.
 ///
@@ -189,7 +194,10 @@ impl Drop for PooledStampedIndex {
         };
         let _ = STAMPED_INDEX_POOL.try_with(|pool| {
             let mut pool = pool.borrow_mut();
-            if pool.len() < STAMPED_INDEX_POOL_LIMIT {
+            let pooled_bytes: usize = pool.iter().map(StampedIndex::capacity_bytes).sum();
+            if pool.len() < STAMPED_INDEX_POOL_LIMIT
+                && pooled_bytes + borrowed.capacity_bytes() <= STAMPED_INDEX_POOL_BYTE_LIMIT
+            {
                 pool.push(borrowed);
             }
         });
