@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<title>calc-size() on width, with border/padding/margin/box-sizing</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    display: inline-block;
+    font-size: 20px;
+  }
+  #target {
+    display: inline-block;
+    height: 123px;
+    border-style: solid;
+    border-width: 20px 1px 20px 3px;
+    padding: 20px 3px 20px 5px;
+    margin: 20px 2px 20px 1px;
+  }
+  #child {
+    height: 20px;
+    width: 7px;
+  }
+</style>
+
+<div id="container">
+  <div id="target">
+    <div id="child"></div>
+  </div>
+</div>
+
+<script>
+
+let tests = [
+  {
+    styles: {
+      "width": "auto",
+    },
+    expected_target_computed: "7px",
+    expected_target_border_box: 19,
+    expected_container: 22,
+  },
+  {
+    styles: {
+      "width": "auto",
+      "box-sizing": "border-box",
+    },
+    expected_target_computed: "19px",
+    expected_target_border_box: 19,
+    expected_container: 22,
+  },
+  {
+    styles: {
+      "width": "calc-size(auto, size)",
+    },
+    expected_target_computed: "7px",
+    expected_target_border_box: 19,
+    expected_container: 22,
+  },
+  {
+    styles: {
+      "width": "calc-size(auto, size)",
+      "box-sizing": "border-box",
+    },
+    expected_target_computed: "19px",
+    expected_target_border_box: 19,
+    expected_container: 22,
+  },
+  {
+    styles: {
+      "width": "calc-size(auto, size * 2)",
+    },
+    expected_target_computed: "14px",
+    expected_target_border_box: 26,
+    expected_container: 29,
+  },
+  {
+    styles: {
+      "width": "calc-size(auto, size * 2)",
+      "box-sizing": "content-box", /* just one test with explicit initial value */
+    },
+    expected_target_computed: "14px",
+    expected_target_border_box: 26,
+    expected_container: 29,
+  },
+  {
+    styles: {
+      "width": "calc-size(auto, size * 2)",
+      "box-sizing": "border-box",
+    },
+    expected_target_computed: "38px",
+    expected_target_border_box: 38,
+    expected_container: 41,
+  },
+  {
+    styles: {
+      "width": "calc-size(min-content, size * 2)",
+    },
+    expected_target_computed: "14px",
+    expected_target_border_box: 26,
+    expected_container: 29,
+  },
+  {
+    styles: {
+      "width": "calc-size(fit-content, size * 2)",
+      "box-sizing": "border-box",
+    },
+    expected_target_computed: "38px",
+    expected_target_border_box: 38,
+    expected_container: 41,
+  },
+  {
+    styles: {
+      "min-width": "calc-size(min-content, size * 2)",
+    },
+    expected_target_computed: "14px",
+    expected_target_border_box: 26,
+    expected_container: 29,
+  },
+  {
+    styles: {
+      "min-width": "calc-size(max-content, size * 2)",
+      "box-sizing": "border-box",
+    },
+    expected_target_computed: "38px",
+    expected_target_border_box: 38,
+    expected_container: 41,
+  },
+  {
+    styles: {
+      "width": "200px",
+      "max-width": "calc-size(max-content, size * 2)",
+    },
+    expected_target_computed: "14px",
+    expected_target_border_box: 26,
+    expected_container: 29,
+  },
+  {
+    styles: {
+      "width": "200px",
+      "max-width": "calc-size(min-content, size * 2)",
+      "box-sizing": "border-box",
+    },
+    expected_target_computed: "38px",
+    expected_target_border_box: 38,
+    expected_container: 41,
+  },
+  {
+    styles: {
+      "width": "calc-size(11px, size * 2)",
+    },
+    expected_target_computed: "22px",
+    expected_target_border_box: 34,
+    expected_container: 37,
+  },
+  {
+    styles: {
+      "width": "calc-size(11px, size * 2)",
+      "box-sizing": "border-box",
+    },
+    expected_target_computed: "22px",
+    expected_target_border_box: 22,
+    expected_container: 25,
+  },
+];
+const container = document.getElementById("container");
+const container_cs = getComputedStyle(container);
+const target = document.getElementById("target");
+const target_cs = getComputedStyle(target);
+for (const obj of tests) {
+  test((t) => {
+    for (const prop in obj.styles) {
+      target.style.setProperty(prop, obj.styles[prop]);
+    }
+    t.add_cleanup(() => {
+      for (const prop in obj.styles) {
+        target.style.removeProperty(prop);
+      }
+    });
+    assert_equals(target_cs.width, obj.expected_target_computed,
+                  "getComputedStyle(target).width");
+    assert_equals(target.getBoundingClientRect().width, obj.expected_target_border_box,
+                  "target.getBoundingClientRect().width");
+    assert_equals(container_cs.width, `${obj.expected_container}px`,
+                  "getComputedStyle(container).width");
+    assert_equals(container.getBoundingClientRect().width, obj.expected_container,
+                  "container.getBoundingClientRect().width");
+  }, `resolved width with styles ${JSON.stringify(obj.styles)}`);
+}
+
+</script>

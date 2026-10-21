@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<title>calc-size() on height</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    font-size: 20px;
+  }
+  #child {
+    width: 123px;
+    height: 10px;
+  }
+</style>
+
+<div id="container">
+  <div id="target">
+    <div id="child"></div>
+  </div>
+</div>
+
+<script>
+
+let basic_tests = [
+  { value: "calc-size(any, 357px)", expected: "357px" },
+  { value: "calc-size(any, 31%)", expected_auto: "0px", expected_definite: "31px" },
+  { value: "calc-size(31%, size)", expected_auto: "10px", expected_definite: "31px" },
+  { value: "calc-size(max-content, 31%)", expected_auto: "0px", expected_definite: "31px" },
+  { value: "calc-size(fit-content, 72px)", expected: "72px" },
+  { value: "calc-size(37px, 93px)", expected: "93px" },
+  { value: "calc-size(83px, size * 3)", expected: "249px" },
+  { value: "calc-size(min-content, size / 2)", expected: "5px" },
+  { value: "calc-size(max-content, size * 1.2)", expected: "12px" },
+  { value: "calc-size(fit-content, size / 2 + 30px)", expected: "35px" },
+  { value: "calc-size(30px, 15em)", expected: "300px" },
+  { value: "calc-size(calc-size(any, 30px), 15em)", expected: "300px" },
+  { value: "calc-size(calc-size(2in, 30px), 15em)", expected: "300px" },
+  { value: "calc-size(calc-size(any, 300px), size * 2)", expected: "600px" },
+  { value: "calc-size(calc-size(min-content, 30px), 15em)", expected: "300px" },
+  { value: "calc-size(calc-size(min-content, size), size)", expected: "10px" },
+  { value: "calc-size(any, 31% + 12px)", expected_auto: "12px", expected_definite: "43px" },
+  { value: "calc-size(auto, size * 1.5)", expected: "15px" },
+];
+const container = document.getElementById("container");
+const target = document.getElementById("target");
+const target_cs = getComputedStyle(target);
+const child = document.getElementById("child");
+const child_cs = getComputedStyle(child);
+for (const obj of basic_tests) {
+  test((t) => {
+    target.style.removeProperty("height");
+    target.style.height = obj.value;
+    container.style.height = "auto";
+    let expected = "expected" in obj ? obj.expected : obj.expected_auto;
+    assert_equals(target_cs.height, expected);
+  }, `resolved height for height in auto height container: ${obj.value}`);
+  test((t) => {
+    target.style.removeProperty("height");
+    target.style.height = obj.value;
+    container.style.height = "100px";
+    let expected = "expected" in obj ? obj.expected : obj.expected_definite;
+    assert_equals(target_cs.height, expected);
+  }, `resolved height for height in definite height container: ${obj.value}`);
+}
+
+test((t) => {
+  t.add_cleanup(() => {
+    child.style.height = "";
+    child.innerHTML = "";
+  });
+  container.style.height = "auto";
+  target.style.height = "calc-size(min-content, size + 23px)";
+  child.style.height = "100%";
+  child.innerHTML = "<div style='height: 7px'></div>";
+  assert_equals(child_cs.height, "7px");
+}, "calc-size() is indefinite when the intrinsic size is indefinite");
+
+</script>

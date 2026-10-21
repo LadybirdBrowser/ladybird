@@ -373,6 +373,7 @@ fn parse_calculated_numeric(
             property,
             random_function_index: context.random_function_index,
             allowed_color_channels,
+            allow_size_keyword: false,
             allow_random_functions: context_allows_random_functions(context),
             parse_context: Some(context),
         },

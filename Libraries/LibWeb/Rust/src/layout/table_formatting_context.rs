@@ -1432,8 +1432,13 @@ impl<'pass> TableFormattingContext<'pass> {
         // those values, or if the computed value of the table-layout property is auto, then the table-root is said to be laid out in auto mode.
         let style = self.style(self.run.box_);
         let width = style.width();
+        // NB: A calc-size() width counts as well, whatever its basis.
+        //     https://drafts.csswg.org/css-values-5/#calc-size
         style.table_layout() == TABLE_LAYOUT_FIXED
-            && (width.is_length() || width.is_percentage() || width.is_min_content() || width.is_fit_content())
+            && (width.is_length_percentage()
+                || width.is_min_content()
+                || width.is_fit_content()
+                || width.calc_size().is_some())
     }
 
     /// Whether a cell takes part in measuring the tracks of an axis. https://www.w3.org/TR/css-tables-3/#computing-column-measures:

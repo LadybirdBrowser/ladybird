@@ -1297,7 +1297,9 @@ impl<'pass> SizingContext<'pass> {
         constraints: ContainingBlockConstraints,
     ) -> bool {
         let size = self.style(node).max_width();
-        if size.is_none() || (available == AvailableSize::MaxContent && size.is_max_content()) {
+        // NB: A keyword limit is no limit under the same intrinsic constraint, unless calc-size() changes its size.
+        let is_plain_keyword = size.calc_size().is_none();
+        if size.is_none() || (available == AvailableSize::MaxContent && size.is_max_content() && is_plain_keyword) {
             return true;
         }
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
@@ -1320,9 +1322,10 @@ impl<'pass> SizingContext<'pass> {
                 return true;
             }
         }
-        (size.is_fit_content() && available.is_intrinsic_sizing_constraint())
-            || (size.is_max_content() && available == AvailableSize::MaxContent)
-            || (size.is_min_content() && available == AvailableSize::MinContent)
+        size.calc_size().is_none()
+            && ((size.is_fit_content() && available.is_intrinsic_sizing_constraint())
+                || (size.is_max_content() && available == AvailableSize::MaxContent)
+                || (size.is_min_content() && available == AvailableSize::MinContent))
     }
 
     pub(crate) fn should_treat_max_block_size_as_none(
@@ -1347,9 +1350,10 @@ impl<'pass> SizingContext<'pass> {
                 return true;
             }
         }
-        (size.is_fit_content() && available.is_intrinsic_sizing_constraint())
-            || (size.is_max_content() && available == AvailableSize::MaxContent)
-            || (size.is_min_content() && available == AvailableSize::MinContent)
+        size.calc_size().is_none()
+            && ((size.is_fit_content() && available.is_intrinsic_sizing_constraint())
+                || (size.is_max_content() && available == AvailableSize::MaxContent)
+                || (size.is_min_content() && available == AvailableSize::MinContent))
     }
 
     // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
@@ -1616,6 +1620,13 @@ impl<'pass> SizingContext<'pass> {
         } else {
             child_automatic_block_size.unwrap_or_else(automatic_block_size_fallback)
         };
+        block_size = self.resolve_calc_size(
+            node,
+            SizingAxis::Block,
+            style.height(),
+            block_size,
+            constraints.percentage_basis_block_size,
+        );
         block_size = self.clamp_block_size_to_min_max(node, block_size, available_space, constraints);
 
         if facts.document_in_quirks_mode() && facts.is_html_html_element() && style.height().is_auto() {
@@ -1917,6 +1928,17 @@ impl<'pass> SizingContext<'pass> {
             self.calculate_inner_inline_size(node, available_space.inline_size, style.width(), constraints)
         };
 
+        let unconstrained_inline_size = if width_was_treated_as_auto {
+            self.resolve_calc_size(
+                node,
+                SizingAxis::Inline,
+                style.width(),
+                unconstrained_inline_size,
+                constraints.percentage_basis_inline_size,
+            )
+        } else {
+            unconstrained_inline_size
+        };
         let mut inline_size = unconstrained_inline_size;
         if !self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
             inline_size = inline_size.min(self.calculate_inner_inline_size(
@@ -3181,6 +3203,55 @@ impl<'pass> SizingContext<'pass> {
         }
     }
 
+    /// The used content size of a box whose size property is `size`, given the content size its basis resolved
+    /// to. A calc-size() resolves its calculation against that size; any other size keeps it.
+    /// https://drafts.csswg.org/css-values-5/#resolving-calc-size
+    pub(crate) fn resolve_calc_size(
+        &self,
+        node: Node,
+        axis: SizingAxis,
+        size: &ComputedSize,
+        content_size: CssPixels,
+        percentage_basis: Option<CssPixels>,
+    ) -> CssPixels {
+        let Some(calc_size) = size.calc_size() else {
+            return content_size;
+        };
+        // The size is that of the box the box-sizing property names.
+        let style = self.style(node);
+        let edges = if style.box_sizing() == box_sizing::BORDER_BOX {
+            let used = self.used(node);
+            match axis {
+                SizingAxis::Inline => {
+                    style.border_left_width()
+                        + used.padding_left.get()
+                        + used.padding_right.get()
+                        + style.border_right_width()
+                }
+                SizingAxis::Block => {
+                    style.border_top_width()
+                        + used.padding_top.get()
+                        + used.padding_bottom.get()
+                        + style.border_bottom_width()
+                }
+            }
+        } else {
+            CssPixels::default()
+        };
+        let basis_size = (content_size + edges).to_double();
+        // A size given as a calculation reaches here when it behaves as auto, and auto's size then stands for it.
+        let behaves_as_auto = size.is_length_percentage();
+        let Some(resolved) = crate::css::calc_size::resolve_calc_size_with_basis_size(
+            calc_size,
+            percentage_basis.map(CssPixels::to_double),
+            behaves_as_auto.then_some(basis_size),
+            &|_| basis_size,
+        ) else {
+            return content_size;
+        };
+        (CssPixels::nearest_value_for(resolved) - edges).max(CssPixels::default())
+    }
+
     pub(crate) fn calculate_inner_inline_size(
         &self,
         node: Node,
@@ -3198,8 +3269,8 @@ impl<'pass> SizingContext<'pass> {
         } else {
             available.to_px_or_zero()
         };
-        if preferred_size.is_fit_content() {
-            return self.calculate_fit_content_size(
+        let keyword_size = if preferred_size.is_fit_content() {
+            Some(self.calculate_fit_content_size(
                 node,
                 SizingAxis::Inline,
                 AvailableSpace {
@@ -3207,13 +3278,22 @@ impl<'pass> SizingContext<'pass> {
                     block_size: AvailableSize::Indefinite,
                 },
                 constraints,
+            ))
+        } else if preferred_size.is_max_content() {
+            Some(self.calculate_max_content_inline_size(node, constraints))
+        } else if preferred_size.is_min_content() {
+            Some(self.calculate_min_content_inline_size(node, constraints))
+        } else {
+            None
+        };
+        if let Some(keyword_size) = keyword_size {
+            return self.resolve_calc_size(
+                node,
+                SizingAxis::Inline,
+                preferred_size,
+                keyword_size,
+                constraints.percentage_basis_inline_size,
             );
-        }
-        if preferred_size.is_max_content() {
-            return self.calculate_max_content_inline_size(node, constraints);
-        }
-        if preferred_size.is_min_content() {
-            return self.calculate_min_content_inline_size(node, constraints);
         }
         let value = preferred_size.to_px(basis);
         let style = self.style(node);
@@ -3241,21 +3321,22 @@ impl<'pass> SizingContext<'pass> {
             return self.content_block_size_from_aspect_ratio(node, self.used(node).content_inline_size.get());
         }
         assert!(!preferred_size.is_auto());
-        if preferred_size.is_fit_content() {
-            return self.calculate_fit_content_size(node, SizingAxis::Block, available_space, constraints);
-        }
-        if preferred_size.is_max_content() {
-            return self.calculate_max_content_block_size(
+        let keyword_size = if preferred_size.is_fit_content() {
+            Some(self.calculate_fit_content_size(node, SizingAxis::Block, available_space, constraints))
+        } else if preferred_size.is_max_content() {
+            Some(self.calculate_max_content_block_size(node, available_space.inline_size.to_px_or_zero(), constraints))
+        } else if preferred_size.is_min_content() {
+            Some(self.calculate_min_content_block_size(node, available_space.inline_size.to_px_or_zero(), constraints))
+        } else {
+            None
+        };
+        if let Some(keyword_size) = keyword_size {
+            return self.resolve_calc_size(
                 node,
-                available_space.inline_size.to_px_or_zero(),
-                constraints,
-            );
-        }
-        if preferred_size.is_min_content() {
-            return self.calculate_min_content_block_size(
-                node,
-                available_space.inline_size.to_px_or_zero(),
-                constraints,
+                SizingAxis::Block,
+                preferred_size,
+                keyword_size,
+                constraints.percentage_basis_block_size,
             );
         }
 

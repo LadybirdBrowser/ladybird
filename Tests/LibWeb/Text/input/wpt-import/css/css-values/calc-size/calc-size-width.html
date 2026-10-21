@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<title>calc-size() on width</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+  #container {
+    font-family: 'Ahem';
+    font-size: 20px;
+    width: 500px;
+  }
+  #target {
+  }
+</style>
+
+<div id="container">
+  <!--
+    Given the contents of #target (and the Ahem font):
+      max-content width is 30ch or 600px
+      min-content width is 20ch or 400px
+  -->
+  <div id="target">ninechars twenty_characters___</div>
+</div>
+
+<script>
+
+setup({explicit_done: true});
+document.fonts.ready.then(()=> {
+  let basic_tests = [
+    { value: "calc-size(any, 357px)", expected: "357px" },
+    { value: "calc-size(any, 31%)", expected: "155px" },
+    { value: "calc-size(max-content, 31%)", expected: "155px" },
+    { value: "calc-size(fit-content, 72px)", expected: "72px" },
+    { value: "calc-size(37px, 93px)", expected: "93px" },
+    { value: "calc-size(83px, size * 3)", expected: "249px" },
+    { value: "calc-size(min-content, size / 2)", expected: "200px" },
+    { value: "calc-size(max-content, size * 1.2)", expected: "720px" },
+    { value: "calc-size(fit-content, size / 4 + 30px)", expected: "155px" },
+    { value: "calc-size(stretch, size / 2 - 10%)", expected: "200px" },
+    { value: "calc-size(30px, 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(any, 30px), 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(2in, 30px), 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(min-content, 30px), 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(min-content, size), size)", expected: "400px" },
+    { value: "calc-size(auto, size)", expected: "500px" },
+    { value: "calc-size(auto, size * 0.6 + 23px)", expected: "323px" },
+  ];
+  const container = document.getElementById("container");
+  const target = document.getElementById("target");
+  const target_cs = getComputedStyle(target);
+  for (const obj of basic_tests) {
+    test((t) => {
+      target.style.removeProperty("width");
+      target.style.width = obj.value;
+      assert_equals(target_cs.width, obj.expected);
+    }, `resolved width for width: ${obj.value}`);
+  }
+
+  target.style.width = "calc-size(fit-content, size / 2)";
+  let container_size_tests = [
+    { container_width: "300px", expected: "200px" },
+    { container_width: "500px", expected: "250px" },
+    { container_width: "700px", expected: "300px" },
+  ];
+  for (const obj of container_size_tests) {
+    test((t) => {
+      container.style.width = obj.container_width;
+      assert_equals(target_cs.width, obj.expected);
+    }, `resolved width for width: ${target.style.width} with container width ${obj.container_width}`);
+  }
+  container.style.width = "";
+
+  done();
+});
+
+</script>

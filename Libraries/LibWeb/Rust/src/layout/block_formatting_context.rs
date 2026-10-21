@@ -762,6 +762,27 @@ impl<'pass> BlockFormattingContext<'pass> {
             &mut margin_right_is_auto,
         );
 
+        // NB: A calc-size() with an auto basis resolves against the inline size auto gives the box.
+        if style.width().is_auto()
+            && style.width().calc_size().is_some()
+            && let Some(auto_inline_size) = used_inline_size
+        {
+            let inline_size = sizing.resolve_calc_size(
+                node,
+                SizingAxis::Inline,
+                style.width(),
+                auto_inline_size,
+                constraints.percentage_basis_inline_size,
+            );
+            used_inline_size = compute(
+                Some(inline_size),
+                &mut margin_left,
+                &mut margin_right,
+                &mut margin_left_is_auto,
+                &mut margin_right_is_auto,
+            );
+        }
+
         // 2. The tentative used width is greater than 'max-width', the rules above are applied again,
         //    but this time using the computed value of 'max-width' as the computed value for 'width'.
         if !sizing.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {

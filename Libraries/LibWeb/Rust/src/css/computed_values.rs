@@ -2682,6 +2682,19 @@ impl ComputedSize {
             Some(StyleValueData::Keyword { keyword: value }) if *value == keyword::NONE => {
                 Self::keyword(ComputedSizeKind::None)
             }
+            Some(value @ StyleValueData::Function { .. })
+                if crate::css::calc_size::calc_size_arguments(value).is_some() =>
+            {
+                // NB: A calc-size() acts like its basis keyword, or like a calculation for any other basis.
+                let kind = match crate::css::calc_size::calc_size_basis_keyword(value) {
+                    Some(keyword::AUTO) => ComputedSizeKind::Auto,
+                    Some(keyword::MIN_CONTENT) => ComputedSizeKind::MinContent,
+                    Some(keyword::MAX_CONTENT) => ComputedSizeKind::MaxContent,
+                    Some(keyword::FIT_CONTENT) => ComputedSizeKind::FitContent,
+                    _ => ComputedSizeKind::Calculated,
+                };
+                Self::retained(kind, data)
+            }
             Some(StyleValueData::Function { value, .. }) => Self::retained(ComputedSizeKind::FitContent, value),
             Some(StyleValueData::Calculated { .. }) => Self::retained(ComputedSizeKind::Calculated, data),
             Some(StyleValueData::Percentage { .. }) => Self::retained(ComputedSizeKind::Percentage, data),
