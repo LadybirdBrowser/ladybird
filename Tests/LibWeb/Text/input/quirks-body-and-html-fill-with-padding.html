@@ -1,0 +1,18 @@
+<!DOCTYPE quirks>
+<script src="include.js"></script>
+<style>
+    html { padding: 10px; }
+    body { padding: 20px; }
+    /* Keep the test output from making the body taller. */
+    #out { position: absolute; }
+</style>
+<!-- In quirks mode, the border boxes of html and body fill the viewport and the html element, so their
+     padding does not make them taller, and a percentage height fills the body's content box. -->
+<div id="child" style="height: 100%"></div>
+<script>
+    test(() => {
+        println(`html: ${document.documentElement.offsetHeight}`);
+        println(`body: ${document.body.offsetHeight}`);
+        println(`child: ${document.getElementById("child").offsetHeight}`);
+    });
+</script>
