@@ -372,6 +372,8 @@ impl OwnedUsedGridTrackList {
 pub(crate) struct OwnedUsedGridTracks {
     pub(crate) columns: OwnedUsedGridTrackList,
     pub(crate) rows: OwnedUsedGridTrackList,
+    /// The area the grid's tracks and gutters cover, relative to the container's content box.
+    pub(crate) grid_area: CssPixelRect,
 }
 
 // https://drafts.csswg.org/css-grid/#overlarge-grids
@@ -3713,9 +3715,22 @@ impl<'pass> GridFormattingContext<'pass> {
     fn save_used_tracks(&self, grid_style: &GridValues) {
         // getComputedStyle() needs to return the resolved values of grid-template-columns and grid-template-rows
         // so they need to be saved in the state, and then assigned to paintables by the Rust commit walk.
+        let start = |axis: Axis| {
+            content_start_offset(
+                self.content_alignment(axis),
+                self.grid_container_alignment_size(axis),
+                self.track_sum(axis),
+            )
+        };
         let tracks = OwnedUsedGridTracks {
             columns: self.used_track_list_data(Axis::Column, self.is_subgridded(Axis::Column, grid_style)),
             rows: self.used_track_list_data(Axis::Row, self.is_subgridded(Axis::Row, grid_style)),
+            grid_area: CssPixelRect::new(
+                start(Axis::Column),
+                start(Axis::Row),
+                self.track_sum(Axis::Column),
+                self.track_sum(Axis::Row),
+            ),
         };
         self.container_used().rare_data_mut().used_grid_tracks = Some(std::sync::Arc::new(tracks));
     }

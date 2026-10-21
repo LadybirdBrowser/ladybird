@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    .grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(3, 100px);
+        grid-template-rows: repeat(6, 100px);
+        width: 120px;
+        height: 120px;
+    }
+</style>
+<div class="grid" id="scroller" style="overflow: auto"></div>
+<div style="display: grid; grid-template-columns: 300px; width: 100px; height: 50px; overflow: auto" id="columns-only"></div>
+<div style="width: 120px; height: 120px; overflow: auto" id="outer">
+    <div class="grid"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`grid scroll container: ${scroller.scrollWidth}x${scroller.scrollHeight}`);
+        println(`grid with columns but no rows: ${document.getElementById("columns-only").scrollWidth}x${document.getElementById("columns-only").scrollHeight}`);
+        println(`grid inside a scroll container: ${outer.scrollWidth}x${outer.scrollHeight}`);
+    });
+</script>
