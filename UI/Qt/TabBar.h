@@ -265,7 +265,7 @@ private:
     void update_vertical_tabs_hover_expanded();
     void toggle_window_maximized();
     bool start_window_move();
-    void accept_tab_drag(QDragMoveEvent*);
+    void accept_tab_drag(QDragMoveEvent*, QWidget* target);
     void accept_tab_drop(QDropEvent*, int index);
 
     TabBar* m_tab_bar { nullptr };
