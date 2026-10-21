@@ -104,7 +104,7 @@ DOMHighResTimeStamp coarsened_shared_current_time(HTML::CanUseCrossOriginIsolate
 // https://w3c.github.io/hr-time/#wall-clock-unsafe-current-time
 DOMHighResTimeStamp wall_clock_unsafe_current_time()
 {
-    return UnixDateTime::now().nanoseconds_since_epoch() / 1.0e6;
+    return UnixDateTime::now().to_seconds_f64() * 1000.0;
 }
 
 // https://w3c.github.io/hr-time/#dfn-unsafe-shared-current-time
@@ -112,7 +112,7 @@ DOMHighResTimeStamp unsafe_shared_current_time()
 {
     // The unsafe shared current time must return the current value of the shared monotonic clock.
     // Note: This is in milliseconds (stored as a double).
-    return MonotonicTime::now().nanoseconds() / 1.0e6;
+    return MonotonicTime::now().to_seconds_f64() * 1000.0;
 }
 
 }
