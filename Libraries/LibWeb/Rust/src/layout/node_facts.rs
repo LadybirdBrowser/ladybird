@@ -1450,15 +1450,11 @@ mod node_facts_tests {
 /// Writes the natural size of the document's `<svg>` document element as its last layout
 /// negotiated it to `natural_size` and returns true, unless it is what the last call handed over.
 /// The size is all absent if the document element is no `<svg>` with a box.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `natural_size` writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_take_changed_document_svg_root_natural_size(
+pub extern "C" fn render_state_take_changed_document_svg_root_natural_size(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    natural_size: *mut crate::painting::host::FfiNaturalSize,
+    natural_size: &mut crate::painting::host::FfiNaturalSize,
 ) -> bool {
     let changed = super::shell_reads::read_arena(host, read, (), |arena, ()| {
         arena.take_changed_document_svg_root_natural_size()
@@ -1466,7 +1462,6 @@ pub unsafe extern "C" fn render_state_take_changed_document_svg_root_natural_siz
     let Some(changed) = changed else {
         return false;
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { natural_size.write(changed.into()) };
+    *natural_size = changed.into();
     true
 }
