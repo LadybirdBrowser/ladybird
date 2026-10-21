@@ -71,11 +71,9 @@ impl CommitNotifications {
             .filter_map(|message| StyleNodeID::from_raw(message.style_node))
     }
 
-    /// # Safety
-    ///
-    /// The host must keep the document and node shells alive until these synchronous
-    /// notifications return. No mutable arena borrow may be active.
-    pub(crate) unsafe fn notify_host(
+    /// Tells the host of the resets and messages of the commit, which it answers synchronously, while no mutable arena
+    /// borrow is active.
+    pub(crate) fn notify_host(
         self,
         main_thread: &crate::stage::MainThread,
         read: &crate::render_state::BegunRead,
