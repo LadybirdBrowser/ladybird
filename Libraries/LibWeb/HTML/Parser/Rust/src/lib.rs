@@ -126,40 +126,17 @@ fn position_to_ffi(pos: &Position) -> (u64, u64) {
 }
 
 /// Create a new Rust HTML tokenizer directly from a UTF-16 code unit buffer.
-///
-/// # Safety
-/// `input` must point to `len` valid UTF-16 code units.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_create_from_utf16(
-    input: *const u16,
-    len: usize,
-) -> *mut RustFfiTokenizerHandle {
-    let code_units = if input.is_null() || len == 0 {
-        Vec::new()
-    } else {
-        unsafe { ak::slice_from_raw_parts(input, len) }.to_vec()
-    };
+pub extern "C" fn rust_html_tokenizer_create_from_utf16(input: ak::Span<'_, u16>) -> *mut RustFfiTokenizerHandle {
+    let code_units = input.as_slice().to_vec();
 
     make_handle(HtmlTokenizer::new(code_units))
 }
 
 /// Create a new Rust HTML tokenizer directly from an ASCII byte buffer.
-///
-/// # Safety
-/// `input` must point to `len` ASCII bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_create_from_ascii(
-    input: *const u8,
-    len: usize,
-) -> *mut RustFfiTokenizerHandle {
-    let code_units = if input.is_null() || len == 0 {
-        Vec::new()
-    } else {
-        unsafe { ak::slice_from_raw_parts(input, len) }
-            .iter()
-            .map(|byte| u16::from(*byte))
-            .collect()
-    };
+pub extern "C" fn rust_html_tokenizer_create_from_ascii(input: ak::Span<'_, u8>) -> *mut RustFfiTokenizerHandle {
+    let code_units = input.as_slice().iter().map(|byte| u16::from(*byte)).collect();
 
     make_handle(HtmlTokenizer::new(code_units))
 }
@@ -345,86 +322,54 @@ pub extern "C" fn rust_html_tokenizer_switch_state(handle: Option<&mut RustFfiTo
 }
 
 /// Insert UTF-16 input at the current insertion point.
-///
-/// # Safety
-/// `handle` must be valid. `input` must point to `len` valid UTF-16 code units.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_insert_utf16_input(
+pub extern "C" fn rust_html_tokenizer_insert_utf16_input(
     handle: Option<&mut RustFfiTokenizerHandle>,
-    input: *const u16,
-    len: usize,
+    input: ak::Span<'_, u16>,
 ) {
     let Some(handle) = handle else {
         return;
     };
-    let code_units = if input.is_null() || len == 0 {
-        &[]
-    } else {
-        unsafe { ak::slice_from_raw_parts(input, len) }
-    };
+    let code_units = input.as_slice();
     handle.tokenizer.insert_input_at_insertion_point(code_units);
 }
 
 /// Insert ASCII input at the current insertion point.
-///
-/// # Safety
-/// `handle` must be valid. `input` must point to `len` ASCII bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_insert_ascii_input(
+pub extern "C" fn rust_html_tokenizer_insert_ascii_input(
     handle: Option<&mut RustFfiTokenizerHandle>,
-    input: *const u8,
-    len: usize,
+    input: ak::Span<'_, u8>,
 ) {
     let Some(handle) = handle else {
         return;
     };
-    let input = if input.is_null() || len == 0 {
-        &[]
-    } else {
-        unsafe { ak::slice_from_raw_parts(input, len) }
-    };
+    let input = input.as_slice();
     handle.tokenizer.insert_ascii_input_at_insertion_point(input);
 }
 
 /// Append UTF-16 input to the tokenizer input stream.
-///
-/// # Safety
-/// `handle` must be valid. `input` must point to `len` valid UTF-16 code units.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_append_utf16_input(
+pub extern "C" fn rust_html_tokenizer_append_utf16_input(
     handle: Option<&mut RustFfiTokenizerHandle>,
-    input: *const u16,
-    len: usize,
+    input: ak::Span<'_, u16>,
 ) {
     let Some(handle) = handle else {
         return;
     };
-    let code_units = if input.is_null() || len == 0 {
-        &[]
-    } else {
-        unsafe { ak::slice_from_raw_parts(input, len) }
-    };
+    let code_units = input.as_slice();
     handle.tokenizer.append_input(code_units);
 }
 
 /// Append ASCII input to the tokenizer input stream.
-///
-/// # Safety
-/// `handle` must be valid. `input` must point to `len` ASCII bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_html_tokenizer_append_ascii_input(
+pub extern "C" fn rust_html_tokenizer_append_ascii_input(
     handle: Option<&mut RustFfiTokenizerHandle>,
-    input: *const u8,
-    len: usize,
+    input: ak::Span<'_, u8>,
 ) {
     let Some(handle) = handle else {
         return;
     };
-    let input = if input.is_null() || len == 0 {
-        &[]
-    } else {
-        unsafe { ak::slice_from_raw_parts(input, len) }
-    };
+    let input = input.as_slice();
     handle.tokenizer.append_ascii_input(input);
 }
 
