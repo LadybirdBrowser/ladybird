@@ -9,7 +9,6 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <LibGfx/Point.h>
-#include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/Forward.h>
 
@@ -31,18 +30,4 @@ struct WEBCOMMON_API DictionaryLookup {
 
 }
 
-namespace IPC {
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DictionaryLookupTextStyle const&);
-
-template<>
-WEBCOMMON_API ErrorOr<WebView::DictionaryLookupTextStyle> decode(Decoder&);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DictionaryLookup const&);
-
-template<>
-WEBCOMMON_API ErrorOr<WebView::DictionaryLookup> decode(Decoder&);
-
-}
+#include <LibWebCommon/WebView/DictionaryLookupCodecs.h>
