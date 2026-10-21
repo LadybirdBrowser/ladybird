@@ -16,6 +16,7 @@ use libcompositing_rust::display_list::commands::Canvas2DPaintKind;
 use libjs_rust::api::Vm;
 
 use super::canvas_gradient::CanvasGradient;
+use super::text_metrics::{TextMeasurements, TextMetrics};
 use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi};
 
 /// # Safety
@@ -159,4 +160,14 @@ pub unsafe extern "C" fn web_canvas_gradient_lend_paint<'a>(
     let gradient: &'a CanvasGradient = unsafe { object_from_abi(gradient) };
     // SAFETY: The caller adds no stop while the paint is in use.
     lend_paint(unsafe { gradient.paint_unguarded() }, out_paint);
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_text_metrics_create(vm: *mut c_void, measurements: &TextMeasurements) -> *mut c_void {
+    // SAFETY: The caller passes the live VM.
+    let vm = unsafe { vm_from_abi(vm) };
+    cell_into_abi(TextMetrics::create(vm, *measurements))
 }

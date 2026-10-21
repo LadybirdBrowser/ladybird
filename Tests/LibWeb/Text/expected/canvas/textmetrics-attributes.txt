@@ -1,0 +1,19 @@
+metrics is a TextMetrics: true
+toString tag: [object TextMetrics]
+width: number, finite true
+actualBoundingBoxLeft: number, finite true
+actualBoundingBoxRight: number, finite true
+fontBoundingBoxAscent: number, finite true
+fontBoundingBoxDescent: number, finite true
+actualBoundingBoxAscent: number, finite true
+actualBoundingBoxDescent: number, finite true
+emHeightAscent: number, finite true
+emHeightDescent: number, finite true
+hangingBaseline: number, finite true
+alphabeticBaseline: number, finite true
+ideographicBaseline: number, finite true
+width is positive: true
+empty text has zero width: true
+each call returns a new object: true
+width getter on a plain object: TypeError
+new TextMetrics(): TypeError

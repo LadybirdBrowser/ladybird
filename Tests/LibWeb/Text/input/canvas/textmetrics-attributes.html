@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const context = document.createElement("canvas").getContext("2d");
+        const metrics = context.measureText("Hello");
+        println(`metrics is a TextMetrics: ${metrics instanceof TextMetrics}`);
+        println(`toString tag: ${Object.prototype.toString.call(metrics)}`);
+        for (const name of Object.getOwnPropertyNames(TextMetrics.prototype)) {
+            if (name === "constructor")
+                continue;
+            const value = metrics[name];
+            println(`${name}: ${typeof value}, finite ${Number.isFinite(value)}`);
+        }
+        println(`width is positive: ${metrics.width > 0}`);
+        println(`empty text has zero width: ${context.measureText("").width === 0}`);
+        println(`each call returns a new object: ${context.measureText("a") !== context.measureText("a")}`);
+        try {
+            Object.getOwnPropertyDescriptor(TextMetrics.prototype, "width").get.call({});
+        } catch (e) {
+            println(`width getter on a plain object: ${e.constructor.name}`);
+        }
+        try {
+            new TextMetrics();
+        } catch (e) {
+            println(`new TextMetrics(): ${e.constructor.name}`);
+        }
+    });
+</script>
