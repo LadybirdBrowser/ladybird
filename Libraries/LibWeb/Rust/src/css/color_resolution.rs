@@ -529,31 +529,31 @@ fn active_text(dark: bool) -> Rgba {
 }
 
 fn button_border(dark: bool) -> Rgba {
-    if dark { rgb(72, 72, 72) } else { rgb(128, 128, 128) }
+    if dark { rgb(255, 255, 255) } else { rgb(0, 0, 0) }
 }
 
 fn button_face(dark: bool) -> Rgba {
-    if dark { rgb(32, 29, 25) } else { rgb(212, 208, 200) }
+    if dark { rgb(107, 107, 107) } else { rgb(239, 239, 239) }
 }
 
 fn button_text(dark: bool) -> Rgba {
-    if dark { rgb(235, 235, 235) } else { rgb(0, 0, 0) }
+    if dark { rgb(255, 255, 255) } else { rgb(0, 0, 0) }
 }
 
 fn canvas(dark: bool) -> Rgba {
-    if dark { rgb(20, 20, 20) } else { rgb(255, 255, 255) }
+    if dark { rgb(18, 18, 18) } else { rgb(255, 255, 255) }
 }
 
 fn canvas_text(dark: bool) -> Rgba {
-    if dark { rgb(235, 235, 235) } else { rgb(0, 0, 0) }
+    if dark { rgb(255, 255, 255) } else { rgb(0, 0, 0) }
 }
 
 fn field(dark: bool) -> Rgba {
-    if dark { rgb(32, 29, 25) } else { rgb(255, 255, 255) }
+    if dark { rgb(59, 59, 59) } else { rgb(255, 255, 255) }
 }
 
 fn field_text(dark: bool) -> Rgba {
-    if dark { rgb(235, 235, 235) } else { rgb(0, 0, 0) }
+    if dark { rgb(255, 255, 255) } else { rgb(0, 0, 0) }
 }
 
 fn gray_text(_dark: bool) -> Rgba {
@@ -2117,7 +2117,7 @@ mod tests {
         };
         assert_eq!(
             to_color(&keyword_value(keyword::CANVAS), &dark_input),
-            Some(rgb(20, 20, 20))
+            Some(rgb(18, 18, 18))
         );
         assert_eq!(to_color(&keyword_value(keyword::AUTO), &EMPTY_INPUT), None);
 
@@ -2207,7 +2207,7 @@ mod tests {
             system_color_for_keyword(keyword::CANVAS, false),
             Some(rgb(255, 255, 255))
         );
-        assert_eq!(system_color_for_keyword(keyword::CANVAS, true), Some(rgb(20, 20, 20)));
+        assert_eq!(system_color_for_keyword(keyword::CANVAS, true), Some(rgb(18, 18, 18)));
         assert_eq!(
             system_color_for_keyword(keyword::SCROLLBAR, false),
             Some(rgb(255, 255, 255))
@@ -2218,11 +2218,11 @@ mod tests {
         );
         assert_eq!(
             system_color_for_keyword(keyword::_LIBWEB_BUTTONFACEDISABLED, false),
-            Some(rgb(212, 208, 200).with_alpha(128))
+            Some(rgb(239, 239, 239).with_alpha(128))
         );
         assert_eq!(
             system_color_for_keyword(keyword::_LIBWEB_BUTTONFACEHOVER, false),
-            Some(rgb(169, 166, 160))
+            Some(rgb(191, 191, 191))
         );
         assert_eq!(
             system_color_for_keyword(keyword::VISITEDTEXT, true),
