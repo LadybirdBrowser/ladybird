@@ -961,6 +961,106 @@ pub(crate) fn interpolate_length_percentage_calculations(
     combine_calculations(from, to, 1.0 - delta as f64, delta as f64, Some(ResolveAs::Base(0)))
 }
 
+/// Interpolates two calc-size() calculations as calc((1 - p) * A + p * B).
+/// https://drafts.csswg.org/css-values-5/#interpolate-calc-size
+pub(crate) fn interpolate_calc_size_calculations(
+    from: Arc<CalcNode>,
+    to: Arc<CalcNode>,
+    delta: f32,
+) -> Option<(Arc<CalcNode>, FfiNumericType)> {
+    combine_calculations_keeping_zero_lengths(from, to, 1.0 - delta as f64, delta as f64, Some(ResolveAs::Base(0)))
+}
+
+/// The calculation with each calc-size() size keyword in it replaced by `replacement`, or None where the
+/// calculation holds a kind of node this does not rebuild.
+/// https://drafts.csswg.org/css-values-5/#substitute-into-a-calc-size-calculation
+pub(crate) fn replace_size_keyword(node: &Arc<CalcNode>, replacement: &Arc<CalcNode>) -> Option<Arc<CalcNode>> {
+    let replaced = map_calc_size_leaves(node, &|leaf| {
+        matches!(leaf, CalcNode::SizeKeyword).then(|| replacement.clone())
+    })?;
+    // NB: The replacement is shared by every `size` in the calculation, but simplification and evaluation walk the
+    //     calculation as a tree. Nested calc-size() functions that each refer to the size more than once would grow
+    //     that tree exponentially, so a calculation too large to walk is refused.
+    const MAXIMUM_EXPANDED_NODE_COUNT: u64 = 1 << 16;
+    (expanded_node_count(&replaced, &mut std::collections::HashMap::new()) <= MAXIMUM_EXPANDED_NODE_COUNT)
+        .then_some(replaced)
+}
+
+/// The number of nodes in the calculation when each shared node is counted every time it is reached.
+fn expanded_node_count(node: &Arc<CalcNode>, counts: &mut std::collections::HashMap<*const CalcNode, u64>) -> u64 {
+    if let Some(&count) = counts.get(&Arc::as_ptr(node)) {
+        return count;
+    }
+    let mut count = 1u64;
+    node.for_each_child(&mut |child| count = count.saturating_add(expanded_node_count(child, counts)));
+    counts.insert(Arc::as_ptr(node), count);
+    count
+}
+
+/// The calculation with each percentage in it replaced by (size * N), where N is the percentage's value divided by
+/// 100, or None where the calculation holds a kind of node this does not rebuild.
+/// https://drafts.csswg.org/css-values-5/#de-percentify-a-calc-size-calculation
+pub(crate) fn de_percentify_calc_size_calculation(node: &Arc<CalcNode>) -> Option<Arc<CalcNode>> {
+    map_calc_size_leaves(node, &|leaf| match leaf {
+        CalcNode::Numeric(CalcNumericValue::Percentage(value)) => Some(shared(CalcNode::Product(vec![
+            shared(CalcNode::SizeKeyword),
+            shared(CalcNode::Numeric(CalcNumericValue::Number {
+                value: value / 100.0,
+                number_type: 0,
+            })),
+        ]))),
+        _ => None,
+    })
+}
+
+/// Rebuilds a calculation with each leaf `replace` gives a replacement for replaced, or returns None where that
+/// would need to rebuild a kind of node other than the calc operators, min(), max() and clamp().
+fn map_calc_size_leaves(
+    node: &Arc<CalcNode>,
+    replace: &dyn Fn(&CalcNode) -> Option<Arc<CalcNode>>,
+) -> Option<Arc<CalcNode>> {
+    if let Some(replacement) = replace(node) {
+        return Some(replacement);
+    }
+    let all = |children: &[Arc<CalcNode>]| {
+        children
+            .iter()
+            .map(|child| map_calc_size_leaves(child, replace))
+            .collect::<Option<Vec<_>>>()
+    };
+    Some(match &**node {
+        CalcNode::Numeric(..) | CalcNode::SizeKeyword => node.clone(),
+        CalcNode::Sum(children) => shared(CalcNode::Sum(all(children)?)),
+        CalcNode::Product(children) => shared(CalcNode::Product(all(children)?)),
+        CalcNode::Min(children) => shared(CalcNode::Min(all(children)?)),
+        CalcNode::Max(children) => shared(CalcNode::Max(all(children)?)),
+        CalcNode::Negate(child) => shared(CalcNode::Negate(map_calc_size_leaves(child, replace)?)),
+        CalcNode::Invert(child) => shared(CalcNode::Invert(map_calc_size_leaves(child, replace)?)),
+        CalcNode::Clamp { min, center, max } => shared(CalcNode::Clamp {
+            min: map_calc_size_leaves(min, replace)?,
+            center: map_calc_size_leaves(center, replace)?,
+            max: map_calc_size_leaves(max, replace)?,
+        }),
+        _ => {
+            let mut needs_replacement = false;
+            node.for_each_child(&mut |child| needs_replacement |= tree_has_replaced_leaf(child, replace));
+            if needs_replacement {
+                return None;
+            }
+            node.clone()
+        }
+    })
+}
+
+fn tree_has_replaced_leaf(node: &CalcNode, replace: &dyn Fn(&CalcNode) -> Option<Arc<CalcNode>>) -> bool {
+    if replace(node).is_some() {
+        return true;
+    }
+    let mut has = false;
+    node.for_each_child(&mut |child| has |= tree_has_replaced_leaf(child, replace));
+    has
+}
+
 pub(crate) fn add_length_percentage_calculations(
     underlying: Arc<CalcNode>,
     animated: Arc<CalcNode>,
@@ -1011,6 +1111,17 @@ fn combine_calculations(
     to_multiplier: f64,
     resolve_as: Option<ResolveAs>,
 ) -> Option<(Arc<CalcNode>, FfiNumericType)> {
+    combine_calculations_keeping_zero_lengths(from, to, from_multiplier, to_multiplier, resolve_as)
+        .map(|(simplified, numeric_type)| (drop_zero_length_terms(simplified), numeric_type))
+}
+
+fn combine_calculations_keeping_zero_lengths(
+    from: Arc<CalcNode>,
+    to: Arc<CalcNode>,
+    from_multiplier: f64,
+    to_multiplier: f64,
+    resolve_as: Option<ResolveAs>,
+) -> Option<(Arc<CalcNode>, FfiNumericType)> {
     let number = |value| shared(CalcNode::Numeric(CalcNumericValue::Number { value, number_type: 0 }));
     let from_contribution = shared(CalcNode::Product(vec![from, number(from_multiplier)]));
     let to_contribution = shared(CalcNode::Product(vec![to, number(to_multiplier)]));
@@ -1030,8 +1141,8 @@ fn combine_calculations(
         resolve_size_keyword: &|| None,
         absolutize_random_sharing: &|_| None,
     };
-    let simplified = drop_zero_length_terms(root.simplify(&evaluation_context, &callbacks));
-    let numeric_type = simplified.numeric_type(&percentage_leaf_type)?;
+    let simplified = root.simplify(&evaluation_context, &callbacks);
+    let numeric_type = drop_zero_length_terms(simplified.clone()).numeric_type(&percentage_leaf_type)?;
     Some((simplified, FfiNumericType::from_calc(Some(numeric_type))))
 }
 

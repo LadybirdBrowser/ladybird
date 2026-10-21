@@ -248,12 +248,36 @@ pub struct FfiAnimationLengthResolutionContext {
 #[repr(C)]
 pub struct FfiAnimationContext<'a> {
     pub allow_discrete: bool,
+    /// Whether the element's interpolate-size lets sizing keywords interpolate with lengths.
+    /// https://drafts.csswg.org/css-values-5/#interpolate-size
+    pub allow_keyword_size_interpolation: bool,
     pub current_color: Option<&'a RetainedStyleValueData>,
     pub has_length_resolution_context: bool,
     pub length_resolution_context: FfiAnimationLengthResolutionContext,
     pub has_transform_reference_box: bool,
     pub transform_reference_box_width: f64,
     pub transform_reference_box_height: f64,
+}
+
+/// Whether the computed interpolate-size of a style lets sizing keywords interpolate with lengths.
+/// https://drafts.csswg.org/css-values-5/#valdef-interpolate-size-allow-keywords
+pub(crate) fn allows_keyword_size_interpolation(
+    table: &crate::css::computed_longhand_table::ComputedLonghandTable,
+    overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
+) -> bool {
+    matches!(
+        table
+            .effective_value_handle(
+                overlay,
+                crate::css::property_metadata::property_id::INTERPOLATE_SIZE,
+                true
+            )
+            .0
+            .optional_data(),
+        Some(StyleValueData::Keyword {
+            keyword: crate::css::css_enums::keyword::ALLOW_KEYWORDS
+        })
+    )
 }
 
 impl FfiAnimationContext<'_> {
@@ -1120,6 +1144,130 @@ fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> 
         },
         values: RetainedStyleValueDataList::from_retained_values(values),
     })
+}
+
+/// https://drafts.csswg.org/css-values-5/#sizing-property
+fn is_sizing_property(property_id: u16) -> bool {
+    use crate::css::property_metadata::property_id;
+    matches!(
+        property_id,
+        property_id::WIDTH
+            | property_id::HEIGHT
+            | property_id::MIN_WIDTH
+            | property_id::MIN_HEIGHT
+            | property_id::MAX_WIDTH
+            | property_id::MAX_HEIGHT
+            | property_id::INLINE_SIZE
+            | property_id::BLOCK_SIZE
+            | property_id::MIN_INLINE_SIZE
+            | property_id::MIN_BLOCK_SIZE
+            | property_id::MAX_INLINE_SIZE
+            | property_id::MAX_BLOCK_SIZE
+            | property_id::FLEX_BASIS
+    )
+}
+
+/// Interpolates two sizes where one is a sizing keyword or a calc-size(), as calc-size() values, or returns None
+/// where they do not interpolate that way.
+/// https://drafts.csswg.org/css-values-5/#interpolate-calc-size
+fn interpolate_calc_size(
+    context: Option<&FfiAnimationContext>,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> Option<StyleValueData> {
+    use crate::css::css_enums::keyword;
+
+    #[derive(PartialEq)]
+    enum Kind {
+        Keyword,
+        CalcSize,
+        LengthPercentage,
+    }
+    let kind = |value: &StyleValueData| match value {
+        StyleValueData::Keyword {
+            keyword:
+                keyword::AUTO | keyword::MIN_CONTENT | keyword::MAX_CONTENT | keyword::FIT_CONTENT | keyword::CONTENT,
+        } => Some(Kind::Keyword),
+        value if crate::css::calc_size::calc_size_arguments(value).is_some() => Some(Kind::CalcSize),
+        StyleValueData::Length { .. } | StyleValueData::Percentage { .. } | StyleValueData::Calculated { .. } => {
+            Some(Kind::LengthPercentage)
+        }
+        _ => None,
+    };
+    let (from_kind, to_kind) = (kind(from)?, kind(to)?);
+    if from_kind == Kind::LengthPercentage && to_kind == Kind::LengthPercentage {
+        return None;
+    }
+    // https://drafts.csswg.org/css-values-5/#valdef-interpolate-size-allow-keywords
+    // Sizing values can also be combined if one of them is an <size-keyword> and the other is a <length-percentage>.
+    let keyword_and_length =
+        [&from_kind, &to_kind].contains(&&Kind::Keyword) && [&from_kind, &to_kind].contains(&&Kind::LengthPercentage);
+    if keyword_and_length && !context.is_some_and(|context| context.allow_keyword_size_interpolation) {
+        return None;
+    }
+
+    // Treat the non-calc-size() value as calc-size(any, value) if the value is a <calc-sum> or as
+    // calc-size(value, size) otherwise.
+    let any = StyleValueData::Keyword { keyword: keyword::ANY };
+    let prepared = |value: &StyleValueData, kind: &Kind| -> Option<(StyleValueData, Arc<crate::css::calc::CalcNode>)> {
+        match kind {
+            Kind::Keyword => Some((value.clone(), Arc::new(crate::css::calc::CalcNode::SizeKeyword))),
+            Kind::LengthPercentage => Some((any.clone(), length_percentage_calculation_node(value)?)),
+            Kind::CalcSize => prepared_calc_size(value),
+        }
+    };
+    let (from_basis, from_calculation) = prepared(from, &from_kind)?;
+    let (to_basis, to_calculation) = prepared(to, &to_kind)?;
+    let basis = if from_basis == to_basis || to_basis == any {
+        from_basis
+    } else if from_basis == any {
+        to_basis
+    } else {
+        return None;
+    };
+    // The result's calc-size calculation is the interpolation of the two input calc-size calculations.
+    let (calculation, resolved_type) =
+        crate::css::calc::interpolate_calc_size_calculations(from_calculation, to_calculation, delta)?;
+    let calculation = crate::css::calc::length_percentage_calculated_style_value(calculation, resolved_type);
+    Some(crate::css::calc_size::calc_size_function(basis, calculation))
+}
+
+/// A calc-size() prepared for interpolation, as its basis and its calculation, with any basis other than a sizing
+/// keyword or any substituted into the calculation.
+/// https://drafts.csswg.org/css-values-5/#calc-size-prepared-for-interpolation
+fn prepared_calc_size(value: &StyleValueData) -> Option<(StyleValueData, Arc<crate::css::calc::CalcNode>)> {
+    let (basis, calculation) = crate::css::calc_size::calc_size_arguments(value)?;
+    let calculation = length_percentage_calculation_node(calculation)?;
+    match basis {
+        StyleValueData::Keyword { .. } => Some((basis.clone(), calculation)),
+        // A nested calc-size() stands for its own calculation, against its own basis.
+        StyleValueData::Function { .. } => {
+            let (inner_basis, inner_calculation) = prepared_calc_size(basis)?;
+            Some((
+                inner_basis,
+                crate::css::calc::replace_size_keyword(&calculation, &inner_calculation)?,
+            ))
+        }
+        // A <calc-sum> basis with no percentage present is substituted into the calculation, leaving a basis of
+        // any. Any other <calc-sum> basis is replaced with 100%, after being de-percentified and substituted.
+        basis => {
+            let basis_calculation = length_percentage_calculation_node(basis)?;
+            if !basis_calculation.contains_percentage() {
+                return Some((
+                    StyleValueData::Keyword {
+                        keyword: crate::css::css_enums::keyword::ANY,
+                    },
+                    crate::css::calc::replace_size_keyword(&calculation, &basis_calculation)?,
+                ));
+            }
+            let de_percentified = crate::css::calc::de_percentify_calc_size_calculation(&basis_calculation)?;
+            Some((
+                StyleValueData::Percentage { value: 100.0 },
+                crate::css::calc::replace_size_keyword(&calculation, &de_percentified)?,
+            ))
+        }
+    }
 }
 
 fn length_percentage_calculation_node(value: &StyleValueData) -> Option<Arc<crate::css::calc::CalcNode>> {
@@ -6305,6 +6453,11 @@ pub(crate) fn interpolate_value(
         // The property’s values cannot be meaningfully combined, thus it is not additive and interpolation swaps from Va to Vb at 50% (p=0.5), i.e.
         return discrete_value(context, from, to, delta);
     }
+    if is_sizing_property(property_id)
+        && let Some(value) = interpolate_calc_size(context, from, to, delta)
+    {
+        return owned(value);
+    }
     if let (Some(resolved_from), Some(resolved_to)) = (
         resolve_root_animation_color(context, from),
         resolve_root_animation_color(context, to),
@@ -7384,6 +7537,7 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
                 keyframes_by_value,
                 context: FfiAnimationContext {
                     allow_discrete: sample_context.allow_discrete,
+                    allow_keyword_size_interpolation: sample_context.allow_keyword_size_interpolation,
                     current_color: None,
                     has_length_resolution_context: sample_context.has_length_resolution_context,
                     length_resolution_context: sample_context.length_resolution_context,
@@ -7757,6 +7911,7 @@ mod tests {
         };
         FfiAnimationContext {
             allow_discrete,
+            allow_keyword_size_interpolation: false,
             current_color: None,
             has_length_resolution_context: false,
             length_resolution_context: FfiAnimationLengthResolutionContext {

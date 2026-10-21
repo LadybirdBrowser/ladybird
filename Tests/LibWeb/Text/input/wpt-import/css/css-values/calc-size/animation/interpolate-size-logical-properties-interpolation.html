@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>max-height interpolation with interpolate-size: allow-keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-max-height">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+:root {
+  interpolate-size: allow-keywords;
+}
+.parent {
+  height: 200px;
+  max-height: 300px;
+}
+.target {
+  width: 100px;
+  height: 50px;
+  max-height: 100px;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 125px;
+  height: 75px;
+}
+
+</style>
+
+<body>
+<template id="target-template">
+  <div>
+    <div class="target"></div>
+  </div>
+</template>
+</body>
+
+<script>
+
+test_interpolation({
+  property: 'block-size',
+  from: 'max-content', /* 75px */
+  to: '25px',
+}, [
+  {at: -0.3, expect: '90px'},
+  {at: 0, expect: '75px'},
+  {at: 0.3, expect: '60px'},
+  {at: 0.6, expect: '45px'},
+  {at: 1, expect: '25px'},
+  {at: 1.5, expect: '0px'}
+]);
+
+test_interpolation({
+  property: 'inline-size',
+  from: 'max-content', /* 125px */
+  to: neutralKeyframe, /* 100px */
+}, [
+  {at: -0.3, expect: '132.5px'},
+  {at: 0, expect: '125px'},
+  {at: 0.3, expect: '117.5px'},
+  {at: 0.6, expect: '110px'},
+  {at: 1, expect: '100px'},
+  {at: 1.5, expect: '87.5px'}
+]);
+
+test_interpolation({
+  property: 'max-block-size',
+  from: neutralKeyframe, /* 100px */
+  to: 'fit-content',
+}, [
+  {at: -0.3, expect: 'calc-size(fit-content, 130px + size * -0.3)'},
+  {at: 0, expect: 'calc-size(fit-content, 100px + size * 0)'},
+  {at: 0.3, expect: 'calc-size(fit-content, 70px + size * 0.3)'},
+  {at: 0.6, expect: 'calc-size(fit-content, 40px + size * 0.6)'},
+  {at: 1, expect: 'calc-size(fit-content, 0px + size * 1)'},
+  {at: 1.5, expect: 'calc-size(fit-content, -50px + size * 1.5)'}
+]);
+
+test_interpolation({
+  property: 'max-inline-size',
+  from: 'max-content',
+  to: '100px',
+}, [
+  {at: -0.3, expect: 'calc-size(max-content, -30px + size * 1.3)'},
+  {at: 0, expect: 'calc-size(max-content, 0px + size * 1)'},
+  {at: 0.3, expect: 'calc-size(max-content, 30px + size * 0.7)'},
+  {at: 0.6, expect: 'calc-size(max-content, 60px + size * 0.4)'},
+  {at: 1, expect: 'calc-size(max-content, 100px + size * 0)'},
+  {at: 1.5, expect: 'calc-size(max-content, 150px + size * -0.5)'}
+]);
+
+test_interpolation({
+  property: 'min-block-size',
+  from: '200px',
+  to: 'min-content',
+}, [
+  {at: -0.3, expect: 'calc-size(min-content, 260px + size * -0.3)'},
+  {at: 0, expect: 'calc-size(min-content, 200px + size * 0)'},
+  {at: 0.3, expect: 'calc-size(min-content, 140px + size * 0.3)'},
+  {at: 0.6, expect: 'calc-size(min-content, 80px + size * 0.6)'},
+  {at: 1, expect: 'calc-size(min-content, 0px + size * 1)'},
+  {at: 1.5, expect: 'calc-size(min-content, -100px + size * 1.5)'}
+]);
+
+test_interpolation({
+  property: 'min-inline-size',
+  from: neutralKeyframe, /* auto */
+  to: '100px',
+}, [
+  {at: -0.3, expect: 'calc-size(auto, -30px + size * 1.3)'},
+  {at: 0, expect: 'calc-size(auto, 0px + size * 1)'},
+  {at: 0.3, expect: 'calc-size(auto, 30px + size * 0.7)'},
+  {at: 0.6, expect: 'calc-size(auto, 60px + size * 0.4)'},
+  {at: 1, expect: 'calc-size(auto, 100px + size * 0)'},
+  {at: 1.5, expect: 'calc-size(auto, 150px + size * -0.5)'}
+]);
+
+</script>

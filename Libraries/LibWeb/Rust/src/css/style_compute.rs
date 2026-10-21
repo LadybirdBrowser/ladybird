@@ -6130,6 +6130,10 @@ impl AnimationSampleInput<'_> {
     ) -> crate::css::animation::FfiAnimationContext<'_> {
         let mut context = crate::css::animation::FfiAnimationContext {
             allow_discrete: length_resolution_context.is_some(),
+            allow_keyword_size_interpolation: crate::css::animation::allows_keyword_size_interpolation(
+                self.longhand_table,
+                None,
+            ),
             current_color: Some(&self.current_color),
             has_length_resolution_context: length_resolution_context.is_some(),
             length_resolution_context: length_resolution_context

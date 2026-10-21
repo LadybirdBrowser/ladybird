@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>test for which value of interpolate-size is used</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+for (let allow of [false, true]) {
+  for (let from_keyword of [false, true]) {
+    let used_interpolate_size = allow ? "allow-keywords" : "numeric-only";
+    let other_interpolate_size = allow ? "numeric-only" : "allow-keywords";
+    let from_width = from_keyword ? "min-content" : "100px";
+    let to_width = from_keyword ? "100px" : "min-content";
+
+    test(t => {
+      let e = document.createElement("div");
+      e.id = "t1";
+      document.body.append(e);
+      t.add_cleanup(() => e.remove());
+
+      let s = document.createElement("style");
+      s.append(`
+        #t1 {
+          interpolate-size: ${other_interpolate_size};
+          width: ${from_width};
+          transition: width 10s 1000s step-end;
+        }
+        #t1[title] {
+          width: ${to_width};
+          interpolate-size: ${used_interpolate_size};
+        }
+      `);
+
+      document.head.append(s);
+      t.add_cleanup(() => s.remove());
+
+      let cs = getComputedStyle(e);
+      assert_equals(cs.width, from_keyword ? "0px" : "100px", "width before change");
+      e.title="a title";
+      assert_equals(cs.width, (allow ^ from_keyword) ? "100px" : "0px", "width after change");
+    }, `Use the after-change value of interpolate-size: ${used_interpolate_size} when starting CSS transition from ${from_width} to ${to_width}`);
+
+    test(t => {
+      let e = document.createElement("div");
+      e.id = "t2";
+      document.body.append(e);
+      t.add_cleanup(() => e.remove());
+
+      let s = document.createElement("style");
+      s.append(`
+        @keyframes kf2 {
+          0% {
+            width: ${from_width};
+            interpolate-size: ${other_interpolate_size};
+          }
+
+          100% {
+            width: ${to_width};
+            interpolate-size: ${other_interpolate_size};
+          }
+        }
+        #t2 {
+          interpolate-size: ${used_interpolate_size};
+          animation: kf2 10s -1s linear;
+        }
+      `);
+
+      document.head.append(s);
+      t.add_cleanup(() => s.remove());
+
+      let cs = getComputedStyle(e);
+      let expected = from_keyword ? 0 : 100;
+      if (allow) {
+        expected = expected * 0.9 + (100 - expected) * 0.1;
+      }
+      assert_equals(cs.width, `${expected}px`, "width with animation");
+
+    }, `Use the non-animation value of interpolate-size: ${used_interpolate_size} when starting CSS animation from ${from_width} to ${to_width}`);
+  }
+}
+</script>

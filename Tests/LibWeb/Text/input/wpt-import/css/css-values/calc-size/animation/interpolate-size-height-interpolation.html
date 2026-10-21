@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>height interpolation with interpolate-size: allow-keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-height">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+:root {
+  interpolate-size: allow-keywords;
+}
+.parent {
+  height: 200px;
+}
+.target {
+  width: 100px;
+  height: 150px;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 100px;
+  height: 50px;
+}
+</style>
+
+<body></body>
+
+<script>
+
+test_interpolation({
+  property: 'height',
+  from: 'initial', /* auto, which is 50px */
+  to: '90px',
+}, [
+  {at: -0.3, expect: '38px'},
+  {at: 0, expect: '50px'},
+  {at: 0.3, expect: '62px'},
+  {at: 0.6, expect: '74px'},
+  {at: 1, expect: '90px'},
+  {at: 1.5, expect: '110px'}
+]);
+
+test_interpolation({
+  property: 'height',
+  from: 'unset', /* auto, which is 50px */
+  to: '10px',
+}, [
+  {at: -0.3, expect: '62px'},
+  {at: 0, expect: '50px'},
+  {at: 0.3, expect: '38px'},
+  {at: 0.6, expect: '26px'},
+  {at: 1, expect: '10px'},
+  {at: 1.5, expect: '0px'} // height can't be negative
+]);
+
+test_interpolation({
+  property: 'height',
+  from: '0px',
+  to: 'auto' /* 50px */
+}, [
+  {at: -0.3, expect: '0px'}, // height can't be negative
+  {at: 0, expect: '0px'},
+  {at: 0.3, expect: '15px'},
+  {at: 0.6, expect: '30px'},
+  {at: 1, expect: '50px'},
+  {at: 1.5, expect: '75px'}
+]);
+
+test_interpolation({
+  property: 'height',
+  from: 'auto', /* 50px */
+  to: '10px',
+}, [
+  {at: -0.3, expect: '62px'},
+  {at: 0, expect: '50px'},
+  {at: 0.3, expect: '38px'},
+  {at: 0.6, expect: '26px'},
+  {at: 1, expect: '10px'},
+  {at: 1.5, expect: '0px'} // height can't be negative
+]);
+
+test_interpolation({
+  property: 'height',
+  from: 'min-content', /* 50px */
+  to: 'inherit', /* 200px */
+}, [
+  {at: -0.3, expect: '5px'},
+  {at: 0, expect: '50px'},
+  {at: 0.3, expect: '95px'},
+  {at: 0.6, expect: '140px'},
+  {at: 1, expect: '200px'},
+  {at: 1.5, expect: '275px'}
+]);
+
+// both 50px but not interpolable
+test_no_interpolation({
+  property: 'height',
+  from: 'auto',
+  to: 'min-content',
+});
+
+test_interpolation({
+  property: 'height',
+  from: 'fit-content', /* 50px */
+  to: '10px',
+}, [
+  {at: -0.3, expect: '62px'},
+  {at: 0, expect: '50px'},
+  {at: 0.3, expect: '38px'},
+  {at: 0.6, expect: '26px'},
+  {at: 1, expect: '10px'},
+  {at: 1.5, expect: '0px'} // height can't be negative
+]);
+
+// both 50px but not interpolable
+test_no_interpolation({
+  property: 'height',
+  from: 'max-content',
+  to: 'fit-content',
+});
+
+test_no_interpolation({
+  property: 'height',
+  from: 'max-content',
+  to: 'stretch',
+});
+
+test_interpolation({
+  property: 'height',
+  from: 'max-content', /* 50px */
+  to: neutralKeyframe, /* 150px */
+}, [
+  {at: -0.3, expect: '20px'},
+  {at: 0, expect: '50px'},
+  {at: 0.3, expect: '80px'},
+  {at: 0.6, expect: '110px'},
+  {at: 1, expect: '150px'},
+  {at: 1.5, expect: '200px'}
+]);
+
+test_interpolation({
+  property: 'height',
+  from: neutralKeyframe, /* 150px */
+  to: 'fit-content', /* 50px */
+}, [
+  {at: -0.3, expect: '180px'},
+  {at: 0, expect: '150px'},
+  {at: 0.3, expect: '120px'},
+  {at: 0.6, expect: '90px'},
+  {at: 1, expect: '50px'},
+  {at: 1.5, expect: '0px'}
+]);
+
+</script>

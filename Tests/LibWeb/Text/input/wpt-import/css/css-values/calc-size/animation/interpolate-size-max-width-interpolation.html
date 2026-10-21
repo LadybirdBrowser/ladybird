@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>max-width interpolation with interpolate-size: allow-keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-max-width">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#interpolate-size">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+:root {
+  interpolate-size: allow-keywords;
+}
+.parent {
+  max-width: 200px;
+}
+.target {
+  width: 175px;
+  height: 10px;
+  max-width: 150px;
+}
+.target::before {
+  display: block;
+  content: "";
+  width: 100px;
+  height: 50px;
+}
+</style>
+
+<body></body>
+
+<script>
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'initial',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'unset',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'none',
+  to: '20px',
+});
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'stretch',
+  to: 'none',
+});
+
+test_interpolation({
+  property: 'max-width',
+  from: 'fit-content', /* (100px) */
+  to: '50px',
+}, [
+  {at: -0.3, expect: 'calc-size(fit-content, -15px + size * 1.3)'},
+  {at: 0, expect: 'calc-size(fit-content, 0px + size * 1)'},
+  {at: 0.3, expect: 'calc-size(fit-content, 15px + size * 0.7)'},
+  {at: 0.6, expect: 'calc-size(fit-content, 30px + size * 0.4)'},
+  {at: 1, expect: 'calc-size(fit-content, 50px + size * 0)'},
+  {at: 1.5, expect: 'calc-size(fit-content, 75px + size * -0.5)'}
+]);
+
+test_no_interpolation({
+  property: 'max-width',
+  from: 'max-content',
+  to: 'min-content',
+});
+
+test_interpolation({
+  property: 'max-width',
+  from: 'min-content', /* (100px) */
+  to: neutralKeyframe, /* 150px */
+}, [
+  {at: -0.3, expect: 'calc-size(min-content, -45px + size * 1.3)'},
+  {at: 0, expect: 'calc-size(min-content, 0px + size * 1)'},
+  {at: 0.3, expect: 'calc-size(min-content, 45px + size * 0.7)'},
+  {at: 0.6, expect: 'calc-size(min-content, 90px + size * 0.4)'},
+  {at: 1, expect: 'calc-size(min-content, 150px + size * 0)'},
+  {at: 1.5, expect: 'calc-size(min-content, 225px + size * -0.5)'}
+]);
+
+test_interpolation({
+  property: 'max-width',
+  from: neutralKeyframe, /* 150px */
+  to: 'fit-content', /* (100px) */
+}, [
+  {at: -0.3, expect: 'calc-size(fit-content, 195px + size * -0.3)'},
+  {at: 0, expect: 'calc-size(fit-content, 150px + size * 0)'},
+  {at: 0.3, expect: 'calc-size(fit-content, 105px + size * 0.3)'},
+  {at: 0.6, expect: 'calc-size(fit-content, 60px + size * 0.6)'},
+  {at: 1, expect: 'calc-size(fit-content, 0px + size * 1)'},
+  {at: 1.5, expect: 'calc-size(fit-content, -75px + size * 1.5)'}
+]);
+
+</script>
