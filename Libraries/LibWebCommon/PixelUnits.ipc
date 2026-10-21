@@ -1,0 +1,23 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <LibWebCommon/PixelUnits.h>
+
+[ExistingCpp, Accessors]
+struct Web::DevicePixelPoint {
+    Web::DevicePixels x;
+    Web::DevicePixels y;
+}
+
+[ExistingCpp, Accessors]
+struct Web::DevicePixelSize {
+    Web::DevicePixels width;
+    Web::DevicePixels height;
+}
+
+[ExistingCpp, Accessors]
+struct Web::DevicePixelRect {
+    Web::DevicePixels x;
+    Web::DevicePixels y;
+    Web::DevicePixels width;
+    Web::DevicePixels height;
+}
