@@ -18,9 +18,15 @@ parse_deps = false
 [parse.expand]
 all_features = false
 
+[export]
+# Opaque to C++, which names each by a void pointer (see below).
+exclude = ["SyntaxNode"]
+
 [export.mangle]
 rename_types = "PascalCase"
 
 [export.rename]
 # A style engine handle is opaque to C++.
 "StyleEngineHandle" = "const void*"
+# So is a parsed syntax, which C++ holds by pointer.
+"SyntaxNode" = "void"
