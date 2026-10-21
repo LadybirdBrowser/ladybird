@@ -29,10 +29,12 @@
         internals.beginInputTrace();
         await scrollSettled(frame.contentDocument, async () => {
             await internals.wheelThroughUIProcess(100, 75, 0, 0, true, "ongoing");
-            await internals.wheelThroughUIProcess(100, 75, 0, 100, true, "ongoing");
-            await internals.wheelThroughUIProcess(100, 75, 0, 100, true, "ongoing");
-            await internals.wheelThroughUIProcess(100, 75, 0, 100, true, "momentum");
-            await internals.wheelThroughUIProcess(100, 75, 0, 0, true, "ended");
+            await Promise.all([
+                internals.wheelThroughUIProcess(100, 75, 0, 100, true, "ongoing"),
+                internals.wheelThroughUIProcess(100, 75, 0, 100, true, "ongoing"),
+                internals.wheelThroughUIProcess(100, 75, 0, 100, true, "momentum"),
+                internals.wheelThroughUIProcess(100, 75, 0, 0, true, "ended"),
+            ]);
         });
         printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
         println(`frame scrollY: ${frame.contentWindow.scrollY}`);

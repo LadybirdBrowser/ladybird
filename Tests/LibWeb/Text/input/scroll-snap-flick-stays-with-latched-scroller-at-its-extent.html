@@ -38,12 +38,14 @@
         // The finger scrolls the inner scroller to its extent, and the momentum of the flick stays with it: a gesture
         // keeps the scroller its first step hit, so it does not chain on to the snap container around it.
         await scrollSettled(inner, async () => {
-            await internals.wheel(50, 50, 0, 50, true, "ongoing");
-            await internals.wheel(50, 50, 0, 50, true, "ongoing");
-            await internals.wheel(50, 50, 0, 100, true, "momentum");
-            await internals.wheel(50, 50, 0, 60, true, "momentum");
-            await internals.wheel(50, 50, 0, 30, true, "momentum");
-            await internals.wheel(50, 50, 0, 0, true, "ended");
+            await Promise.all([
+                internals.wheel(50, 50, 0, 50, true, "ongoing"),
+                internals.wheel(50, 50, 0, 50, true, "ongoing"),
+                internals.wheel(50, 50, 0, 100, true, "momentum"),
+                internals.wheel(50, 50, 0, 60, true, "momentum"),
+                internals.wheel(50, 50, 0, 30, true, "momentum"),
+                internals.wheel(50, 50, 0, 0, true, "ended"),
+            ]);
         });
         println(`inner scroll offset: ${inner.scrollLeft},${inner.scrollTop}`);
         println(`snap container scroll offset: ${scroller.scrollLeft},${scroller.scrollTop}`);

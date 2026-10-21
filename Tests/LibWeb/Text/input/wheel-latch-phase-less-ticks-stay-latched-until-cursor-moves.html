@@ -24,9 +24,11 @@
 
         // Mouse wheel ticks carry no gesture phase; ticks in quick succession at one spot are one gesture, which the
         // nested scroller absorbs once it reaches its extent.
-        await internals.wheel(50, 50, 0, 150);
-        await internals.wheel(50, 50, 0, 150);
-        await internals.wheel(50, 50, 0, 100);
+        await Promise.all([
+            internals.wheel(50, 50, 0, 150),
+            internals.wheel(50, 50, 0, 150),
+            internals.wheel(50, 50, 0, 100),
+        ]);
         println(`nested.scrollTop after three ticks: ${nested.scrollTop}`);
         println(`window.scrollY after three ticks: ${window.scrollY}`);
 
