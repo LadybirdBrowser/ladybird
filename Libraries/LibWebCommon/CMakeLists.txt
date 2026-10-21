@@ -101,6 +101,8 @@ invoke_py_generator(
                  "${LADYBIRD_SOURCE_DIR}/Meta/Utils/utils.py"
 )
 
+compile_ipc(PixelUnits.ipc PixelUnitsCodecs.h)
+
 # NB: The protocols between the UI process and the processes it hosts web content in only use LibWebCommon types, so
 #     both sides generate their endpoints from here.
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Services/WebContent)

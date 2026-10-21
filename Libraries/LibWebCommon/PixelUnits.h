@@ -561,19 +561,6 @@ WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Web::CSSPixelPoint const& v
 template<>
 WEBCOMMON_API ErrorOr<Web::CSSPixelPoint> decode(Decoder& decoder);
 
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelPoint const& value);
-template<>
-WEBCOMMON_API ErrorOr<Web::DevicePixelPoint> decode(Decoder& decoder);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelSize const& value);
-template<>
-WEBCOMMON_API ErrorOr<Web::DevicePixelSize> decode(Decoder& decoder);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelRect const& value);
-template<>
-WEBCOMMON_API ErrorOr<Web::DevicePixelRect> decode(Decoder& decoder);
-
 }
+
+#include <LibWebCommon/PixelUnitsCodecs.h>
