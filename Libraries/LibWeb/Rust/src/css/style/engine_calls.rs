@@ -302,19 +302,17 @@ impl EngineWrite {
                 inheritable,
                 inheritable_store,
             } => {
-                let pointer = |store: &Option<super::custom_property_environments::RetainedCustomPropertyStore>| {
-                    store.as_ref().map_or(std::ptr::null(), |store| store.pointer())
-                };
-                // SAFETY: The write retains both stores.
-                unsafe {
-                    super::bridge::note_custom_property_environment(
-                        engine,
-                        identity,
-                        pointer(&store),
-                        inheritable,
-                        pointer(&inheritable_store),
-                    );
-                }
+                super::bridge::note_custom_property_environment(
+                    engine,
+                    identity,
+                    store
+                        .as_ref()
+                        .map(super::custom_property_environments::RetainedCustomPropertyStore::store),
+                    inheritable,
+                    inheritable_store
+                        .as_ref()
+                        .map(super::custom_property_environments::RetainedCustomPropertyStore::store),
+                );
             }
             Self::AbsorbElementStyleInput {
                 node,

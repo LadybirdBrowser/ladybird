@@ -74,49 +74,23 @@ struct MemoizedSubstitution {
 }
 
 /// One strong reference to a custom-property store, released with the handle.
-pub(crate) struct RetainedCustomPropertyStore(*const c_void);
-
-// SAFETY: The pointer is a raw `Arc<CustomPropertyStore>`, so the reference count this handle
-// owns is atomic, and `CustomPropertyStore` is itself `Send + Sync` (see the safety note on its
-// definition: store nodes are immutable after construction and only borrowed while a step
-// resolves substitution text). The handle exposes nothing but `pointer()`; it is cloned nowhere
-// and dropped only by the retained catalog and the walk's pending table, both of which are
-// settled by the serial installer.
-unsafe impl Send for RetainedCustomPropertyStore where CustomPropertyStore: Send + Sync {}
-unsafe impl Sync for RetainedCustomPropertyStore where CustomPropertyStore: Send + Sync {}
+#[derive(Clone)]
+pub(crate) struct RetainedCustomPropertyStore(Arc<CustomPropertyStore>);
 
 impl RetainedCustomPropertyStore {
     /// # Safety
     /// `store` must be a live raw `Arc` pointer to a `CustomPropertyStore`.
     pub(super) unsafe fn from_borrowed(store: *const c_void) -> Self {
-        unsafe { Arc::increment_strong_count(store.cast::<CustomPropertyStore>()) };
-        Self(store)
+        let store = store.cast::<CustomPropertyStore>();
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            Arc::increment_strong_count(store);
+            Self(Arc::from_raw(store))
+        }
     }
 
-    /// # Safety
-    /// `store` must be a live raw `Arc` pointer whose one strong reference this handle takes over.
-    unsafe fn from_transferred(store: *const c_void) -> Self {
-        Self(store)
-    }
-
-    pub(super) fn pointer(&self) -> *const c_void {
-        self.0
-    }
-}
-
-/// A fork's handle holds its own strong reference.
-impl Clone for RetainedCustomPropertyStore {
-    fn clone(&self) -> Self {
-        // SAFETY: The handle owns a strong reference, so the store is live.
-        unsafe { Arc::increment_strong_count(self.0.cast::<CustomPropertyStore>()) };
-        Self(self.0)
-    }
-}
-
-impl Drop for RetainedCustomPropertyStore {
-    fn drop(&mut self) {
-        // SAFETY: The handle owns exactly one strong reference taken at construction.
-        unsafe { Arc::decrement_strong_count(self.0.cast::<CustomPropertyStore>()) };
+    pub(super) fn store(&self) -> &Arc<CustomPropertyStore> {
+        &self.0
     }
 }
 
@@ -215,10 +189,20 @@ impl CustomPropertyEnvironments {
 
     /// Keep the store behind an environment while a record names it. The first publication of an
     /// identity decides its store; an identity never changes what it resolves to.
+    pub(super) fn retain(&mut self, identity: u64, store: Option<&Arc<CustomPropertyStore>>) {
+        let Some(store) = store.filter(|_| identity != 0) else {
+            return;
+        };
+        self.stores
+            .entry(identity)
+            .or_insert_with(|| RetainedCustomPropertyStore(Arc::clone(store)));
+    }
+
+    /// [`Self::retain`], for a store C++ names by its raw `Arc` pointer.
     ///
     /// # Safety
     /// `store` must be null or a live raw `Arc` pointer to a `CustomPropertyStore`.
-    pub(super) unsafe fn retain(&mut self, identity: u64, store: *const c_void) {
+    pub(super) unsafe fn retain_raw(&mut self, identity: u64, store: *const c_void) {
         if identity == 0 || store.is_null() {
             return;
         }
@@ -228,26 +212,24 @@ impl CustomPropertyEnvironments {
     }
 
     /// The store behind an environment, whether C++ published it or the engine resolved it.
-    pub(super) fn store(&self, identity: u64) -> Option<*const c_void> {
+    pub(super) fn store(&self, identity: u64) -> Option<&Arc<CustomPropertyStore>> {
         if identity == 0 {
             return None;
         }
         self.stores
             .get(&identity)
-            .map(RetainedCustomPropertyStore::pointer)
-            .or_else(|| {
-                self.engine
-                    .get(&identity)
-                    .map(|environment| environment.store.pointer())
-            })
+            .map(RetainedCustomPropertyStore::store)
+            .or_else(|| self.engine.get(&identity).map(|environment| environment.store.store()))
     }
 
     /// Keep the environment a child inherits from `identity`, which C++ made without the custom
     /// properties a registration keeps from inheriting.
-    ///
-    /// # Safety
-    /// `store` must be null or a live raw `Arc` pointer to a `CustomPropertyStore`.
-    pub(super) unsafe fn note_inheritable(&mut self, identity: u64, inheritable: u64, store: *const c_void) {
+    pub(super) fn note_inheritable(
+        &mut self,
+        identity: u64,
+        inheritable: u64,
+        store: Option<&Arc<CustomPropertyStore>>,
+    ) {
         if identity == 0 {
             return;
         }
@@ -256,7 +238,7 @@ impl CustomPropertyEnvironments {
             self.inheritable.remove(&identity);
             return;
         }
-        unsafe { self.retain(inheritable, store) };
+        self.retain(inheritable, store);
         self.inheritable.insert(identity, inheritable);
     }
 
@@ -271,14 +253,8 @@ impl CustomPropertyEnvironments {
         let Some(overlay_store) = overlay_store else {
             return base;
         };
-        // SAFETY: The stores are live while the identities naming them are.
-        let store = unsafe {
-            CustomPropertyStore::animated_values_over(
-                &*overlay_store.cast::<CustomPropertyStore>(),
-                self.store(base).map(|store| &*store.cast::<CustomPropertyStore>()),
-            )
-        };
-        let identity = self.mint(Arc::into_raw(Arc::new(store)).cast(), base);
+        let store = CustomPropertyStore::animated_values_over(overlay_store, self.store(base).map(Arc::as_ref));
+        let identity = self.mint(Arc::new(store), base);
         self.overlays_moved.insert((overlay, base), identity);
         identity
     }
@@ -301,10 +277,10 @@ impl CustomPropertyEnvironments {
     }
 
     /// An engine-resolved environment's store and the environment it was resolved over.
-    pub(super) fn engine_environment(&self, identity: u64) -> Option<(*const c_void, u64)> {
+    pub(super) fn engine_environment(&self, identity: u64) -> Option<(&Arc<CustomPropertyStore>, u64)> {
         self.engine
             .get(&identity)
-            .map(|environment| (environment.store.pointer(), environment.parent))
+            .map(|environment| (environment.store.store(), environment.parent))
     }
 
     pub(super) fn memoized(&self, inputs: &EnvironmentInputs) -> Option<u64> {
@@ -339,42 +315,36 @@ impl CustomPropertyEnvironments {
     /// give it an identity of the engine's own. What its children inherit is the store without
     /// the custom properties `registry` keeps from inheriting: `parent` again when nothing else
     /// is left that `parent` does not hold.
-    ///
-    /// # Safety
-    /// `store` must be a live raw `Arc` pointer whose one strong reference is transferred here,
-    /// and `parent_store` null or a live one.
-    pub(super) unsafe fn adopt_engine_environment(
+    pub(super) fn adopt_engine_environment(
         &mut self,
-        store: *const c_void,
+        store: Arc<CustomPropertyStore>,
         parent: u64,
-        parent_store: *const c_void,
+        parent_store: Option<&CustomPropertyStore>,
         registry: &CustomPropertyRegistry,
     ) -> u64 {
+        let inheritable = store.inheritable(registry);
         let identity = self.mint(store, parent);
-        let resolved = unsafe { &*store.cast::<CustomPropertyStore>() };
-        if let Some(inheritable) = resolved.inheritable(registry) {
+        if let Some(inheritable) = inheritable {
             let parent_holds_every_value = inheritable.own_values.iter().all(|(&name, entry)| {
-                unsafe { parent_store.cast::<CustomPropertyStore>().as_ref() }
-                    .is_some_and(|parent| parent.value_is_identical(name, entry.value.pointer().cast()))
+                parent_store.is_some_and(|parent| parent.value_is_identical(name, entry.value.pointer().cast()))
             });
             let inheritable = if parent_holds_every_value {
                 parent
             } else {
-                self.mint(Arc::into_raw(inheritable).cast(), parent)
+                self.mint(inheritable, parent)
             };
             self.inheritable.insert(identity, inheritable);
         }
         identity
     }
 
-    fn mint(&mut self, store: *const c_void, parent: u64) -> u64 {
+    fn mint(&mut self, store: Arc<CustomPropertyStore>, parent: u64) -> u64 {
         self.minted += 1;
         let identity = ENGINE_ENVIRONMENT_IDENTITY_BIT | self.minted;
         self.engine.insert(
             identity,
             EngineEnvironment {
-                // SAFETY: The caller transfers the store's one strong reference.
-                store: unsafe { RetainedCustomPropertyStore::from_transferred(store) },
+                store: RetainedCustomPropertyStore(store),
                 parent,
             },
         );
