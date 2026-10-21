@@ -320,8 +320,12 @@ impl Shape {
         shape
     }
 
-    fn new_from_previous_shape_with_prototype(previous_shape: &Shape, new_prototype: Option<Gc<Object>>) -> Self {
-        let shape = Self::new(previous_shape.realm());
+    fn new_from_previous_shape_with_prototype(
+        previous_shape: &Shape,
+        realm: Gc<Realm>,
+        new_prototype: Option<Gc<Object>>,
+    ) -> Self {
+        let shape = Self::new(realm);
         shape
             .flags
             .set(previous_shape.flags.get() & shape_flag::HAS_PARAMETER_MAP);
@@ -614,12 +618,36 @@ impl Shape {
             }
             return existing_shape;
         }
+        let new_shape = self.build_prototype_transition(vm, self.realm(), new_prototype);
+        if !self.is_prototype_shape() {
+            let target = GcWeak::new(vm.heap(), new_shape);
+            self.with_rare_data(|rare_data| rare_data.prototype_transitions.insert(prototype, target));
+        }
+        if let Some(cache) = cache {
+            cache.set(self.as_gc(), prototype, new_shape);
+        }
+        new_shape
+    }
+
+    /// Like create_prototype_transition(), for an object that moves to `realm`. The transition caches are keyed without
+    /// the realm, so the result is not cached.
+    pub fn create_prototype_transition_into_realm(
+        &self,
+        vm: &Vm,
+        realm: Gc<Realm>,
+        new_prototype: Option<Gc<Object>>,
+    ) -> Gc<Shape> {
+        self.mark_unstable(vm);
+        self.build_prototype_transition(vm, realm, new_prototype)
+    }
+
+    fn build_prototype_transition(&self, vm: &Vm, realm: Gc<Realm>, new_prototype: Option<Gc<Object>>) -> Gc<Shape> {
         if let Some(new_prototype) = new_prototype {
             new_prototype.convert_to_prototype_if_needed(vm);
         }
         let new_shape = vm
             .heap()
-            .allocate(Self::new_from_previous_shape_with_prototype(self, new_prototype));
+            .allocate(Self::new_from_previous_shape_with_prototype(self, realm, new_prototype));
         if self.is_dictionary() && self.property_count() > MAX_DESCRIPTOR_COUNT {
             new_shape.become_dictionary_shape();
             self.copy_properties_to_dictionary_shape(&new_shape);
@@ -629,13 +657,6 @@ impl Shape {
             new_shape.set_descriptors(self.descriptors());
         }
         self.invalidate_prototype_if_needed_for_new_prototype(vm, new_shape);
-        if !self.is_prototype_shape() {
-            let target = GcWeak::new(vm.heap(), new_shape);
-            self.with_rare_data(|rare_data| rare_data.prototype_transitions.insert(prototype, target));
-        }
-        if let Some(cache) = cache {
-            cache.set(self.as_gc(), prototype, new_shape);
-        }
         new_shape
     }
 
