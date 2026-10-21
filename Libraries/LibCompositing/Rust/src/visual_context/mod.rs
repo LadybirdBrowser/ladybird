@@ -140,6 +140,9 @@ pub struct MaskData {
     pub rect: IntRect,
     pub kind: MaskKind,
     pub origin: MaskLayerOrigin,
+    /// Whether the mask belongs to a box with a backdrop filter, whose effects node then sits
+    /// under the box's masks so that they mask the filtered backdrop along with the content.
+    pub masks_backdrop: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

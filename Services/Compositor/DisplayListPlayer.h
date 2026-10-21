@@ -72,7 +72,7 @@ private:
     virtual void push_clip_path(Gfx::Path const&, Gfx::WindingRule) = 0;
     virtual void push_transform(Gfx::AffineTransform const&) = 0;
     virtual void push_layer(Compositing::ReplayLayer const&) = 0;
-    virtual void push_mask(Compositing::ReplayMask const&) = 0;
+    virtual void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) = 0;
     virtual void pop_mask(Compositing::ReplayMask const&, Compositing::EffectNodeIndex) = 0;
     virtual void pop() = 0;
     virtual void push_device_space_plane_clip(Gfx::Path const&) = 0;

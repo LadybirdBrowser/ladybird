@@ -1564,11 +1564,23 @@ sk_sp<SkImageFilter> DisplayListPlayerSkia::image_filter_from_bytes(ReadonlyByte
     });
 }
 
-void DisplayListPlayerSkia::push_mask(ReplayMask const& mask)
+// A mask that applies to a box's filtered backdrop starts its layer with that backdrop, read from the
+// layer's parent, as push_layer() does for an unmasked box. The box's opacity and blend mode then apply
+// to the masked backdrop and content together.
+void DisplayListPlayerSkia::push_mask(ReplayMask const& mask, ReplayLayer const* backdrop)
 {
     auto& canvas = surface().canvas();
     canvas.save();
     canvas.clipRect(to_skia_rect(mask.rect.to_type<float>()), true);
+    if (backdrop && backdrop->backdrop_filter_bytes_size) {
+        SkPaint paint;
+        if (backdrop->opacity < 1.0f)
+            paint.setAlphaf(backdrop->opacity);
+        if (backdrop->blend_mode != Gfx::CompositingAndBlendingOperator::Normal)
+            paint.setBlender(Gfx::to_skia_blender(backdrop->blend_mode));
+        canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &paint, backdrop_image_filter(*backdrop, true).get(), 0));
+        return;
+    }
     canvas.saveLayer(nullptr, nullptr);
 }
 

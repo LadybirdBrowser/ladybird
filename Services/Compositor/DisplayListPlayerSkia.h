@@ -66,7 +66,7 @@ private:
     void push_clip_path(Gfx::Path const&, Gfx::WindingRule) override;
     void push_transform(Gfx::AffineTransform const&) override;
     void push_layer(Compositing::ReplayLayer const&) override;
-    void push_mask(Compositing::ReplayMask const&) override;
+    void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) override;
     void pop_mask(Compositing::ReplayMask const&, Compositing::EffectNodeIndex) override;
     void pop() override;
     void push_device_space_plane_clip(Gfx::Path const&) override;
