@@ -169,6 +169,7 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
 
     // AD-HOC: The normalization of the specified timing of the associated effect depends on the associated timeline.
     //         This must be done before calling set_current_time_for_bindings() to ensure consistent units
+    m_normalized_attachment_interval = attachment_interval();
     if (m_effect)
         m_effect->normalize_specified_timing();
 
@@ -344,6 +345,19 @@ WebIDL::ExceptionOr<void> Animation::set_start_time_for_bindings(NullableCSSNumb
 }
 
 // https://drafts.csswg.org/web-animations-2/#auto-aligning-start-time
+// NB: The effect's timing is normalized against the attachment interval, which moves with the timeline's scroll
+//     container and subject. That holds whether or not the start time is auto-aligned, e.g. for a paused animation.
+void Animation::normalize_timing_against_attachment_interval()
+{
+    auto interval = attachment_interval();
+    if (!interval.has_value() || m_normalized_attachment_interval == *interval)
+        return;
+    m_normalized_attachment_interval = *interval;
+    if (m_effect)
+        m_effect->normalize_specified_timing();
+    invalidate_effect();
+}
+
 void Animation::calculate_auto_aligned_start_time()
 {
     VERIFY(m_timeline && m_timeline->is_progress_based());
@@ -364,15 +378,16 @@ void Animation::calculate_auto_aligned_start_time()
     if (play_state() == AnimationPlayState::Paused && m_hold_time.has_value())
         return;
 
-    // 5. FIXME: Let start offset be the resolved timeline time corresponding to the start of the animation attachment
-    //           range. In the case of view timelines, it requires a calculation based on the proportion of the cover
-    //           range.
-    auto start_offset = TimeValue { TimeValue::Type::Percentage, 0 };
+    normalize_timing_against_attachment_interval();
+    auto interval = attachment_interval().value();
 
-    // 6. FIXME: Let end offset be the resolved timeline time corresponding to the end of the animation attachment
-    //           range. In the case of view timelines, it requires a calculation based on the proportion of the cover
-    //           range.
-    auto end_offset = TimeValue { TimeValue::Type::Percentage, 100 };
+    // 5. Let start offset be the resolved timeline time corresponding to the start of the animation attachment range.
+    //    In the case of view timelines, it requires a calculation based on the proportion of the cover range.
+    auto start_offset = interval.start;
+
+    // 6. Let end offset be the resolved timeline time corresponding to the end of the animation attachment range. In
+    //    the case of view timelines, it requires a calculation based on the proportion of the cover range.
+    auto end_offset = interval.end;
 
     // 7. Set start time to start offset if effective playback rate ≥ 0, and end offset otherwise.
     if (effective_playback_rate() >= 0.0)
@@ -382,6 +397,27 @@ void Animation::calculate_auto_aligned_start_time()
 
     // 8. Clear hold time.
     m_hold_time = {};
+}
+
+void Animation::set_range(AnimationAttachmentRange const& range)
+{
+    if (m_range == range)
+        return;
+    m_range = range;
+    if (!m_timeline || !m_timeline->is_progress_based())
+        return;
+    m_normalized_attachment_interval = attachment_interval();
+    if (m_effect)
+        m_effect->normalize_specified_timing();
+    calculate_auto_aligned_start_time();
+    invalidate_effect();
+}
+
+Optional<AttachmentInterval> Animation::attachment_interval() const
+{
+    if (!m_timeline || !m_timeline->is_progress_based())
+        return {};
+    return m_timeline->interval_for_attachment_range(m_range);
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-current-time
@@ -1218,8 +1254,10 @@ void Animation::update()
     // https://drafts.csswg.org/scroll-animations-1/#event-loop
     // When updating timeline current time, the start time of any attached animation is conditionally updated. For each
     // attached animation, run the procedure for calculating an auto-aligned start time.
-    if (m_timeline && m_timeline->is_progress_based())
+    if (m_timeline && m_timeline->is_progress_based()) {
+        normalize_timing_against_attachment_interval();
         calculate_auto_aligned_start_time();
+    }
 
     // Prevent unnecessary work if the animation is already finished and can't exit the finished state due to timeline
     // changes

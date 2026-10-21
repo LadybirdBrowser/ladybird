@@ -195,9 +195,9 @@ TimeValue AnimationEffect::intrinsic_iteration_duration() const
     else {
         // Return(100% - start delay - end delay) / iteration count
         // Note : Presently start and end delays are zero until such time as percentage based delays are supported.
-        auto one_hundred_percent = TimeValue { TimeValue::Type::Percentage, 100.0 };
-
-        return (one_hundred_percent - m_start_delay - m_end_delay) / m_iteration_count;
+        // AD-HOC: An effect fills its animation's attachment range rather than the whole timeline, which is what the
+        //         timeline duration is here. This matches WebKit.
+        return (timeline_duration().value() - m_start_delay - m_end_delay) / m_iteration_count;
     }
 }
 
@@ -214,6 +214,12 @@ Optional<TimeValue> AnimationEffect::timeline_duration() const
     auto timeline = associated_timeline();
     if (!timeline)
         return {};
+
+    // AD-HOC: The duration of a progress-based timeline, as an animation attached to a range of it sees it, is the
+    //         length of its attachment range. This matches WebKit.
+    //         An attachment range whose end comes before its start is empty.
+    if (auto interval = m_associated_animation->attachment_interval(); interval.has_value())
+        return max(interval->end - interval->start, TimeValue { TimeValue::Type::Percentage, 0 });
 
     return timeline->duration();
 }

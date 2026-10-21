@@ -214,6 +214,20 @@ void ScrollTimeline::update_current_time(double)
     set_current_time(TimeValue { TimeValue::Type::Percentage, progress * 100 });
 }
 
+AttachmentInterval ScrollTimeline::interval_for_attachment_range(AnimationAttachmentRange const& range) const
+{
+    // NB: A scroll progress timeline has no named timeline ranges, so each edge is measured along the entire timeline,
+    //     whose length is the maximum scroll offset. This matches WebKit.
+    auto max_scroll_offset = m_last_max_scroll_offset.value_or(0);
+    auto time_of = [&](TimelineRangeEdge const& edge) {
+        auto percentage = edge.offset_percentage;
+        if (max_scroll_offset != 0)
+            percentage += edge.offset_px / max_scroll_offset * 100;
+        return TimeValue { TimeValue::Type::Percentage, percentage };
+    };
+    return { time_of(range.start), time_of(range.end) };
+}
+
 ScrollTimeline::ScrollTimeline(DOM::Document& document, Source source, ScrollAxis axis)
     : AnimationTimeline(document)
     , m_source(source)

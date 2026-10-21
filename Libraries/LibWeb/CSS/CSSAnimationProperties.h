@@ -10,6 +10,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Animations/TimelineRange.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
@@ -46,6 +47,7 @@ struct AnimationProperties {
     AnimationComposition composition;
     Utf16FlyString name;
     AnimationTimelineSource timeline;
+    Animations::AnimationAttachmentRange range;
     // The computed `animation-timing-function` the easing was parsed out of, which the style engine
     // compares the next computation's against.
     RustStyleValueHandle timing_function_value;

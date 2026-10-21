@@ -945,6 +945,10 @@ static AnimationProperties animation_properties_from_ffi(ComputedValuesFFI::FfiC
             .scroller = static_cast<Scroller>(animation.scroll_scroller),
             .axis = static_cast<Axis>(animation.scroll_axis),
         },
+        .range = {
+            .start = { static_cast<Animations::TimelineRangeName>(animation.range_start_name), animation.range_start_px, animation.range_start_percentage },
+            .end = { static_cast<Animations::TimelineRangeName>(animation.range_end_name), animation.range_end_px, animation.range_end_percentage },
+        },
         .timing_function_value = move(timing_function_value),
     };
 }

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="help" src="https://drafts.csswg.org/scroll-animations-1/#named-range-animation-declaration">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../scroll-animations/scroll-timelines/testcommon.js"></script>
+<title>The animation-range-* CSS properties for an animation associated with a scroll timeline</title>
+</head>
+<style>
+
+  @keyframes anim {
+    from { opacity: 0 }
+  }
+
+  #scroller {
+    overflow-y: scroll;
+    width: 100px;
+    height: 100px;
+  }
+
+  #target {
+    width: 100%;
+    height: 200%;
+
+    animation: anim auto linear;
+    animation-timeline: scroll();
+    animation-range-start: 10px;
+    animation-range-end: 80px;
+  }
+</style>
+<body>
+  <div id="scroller">
+    <div id="target"></div>
+  </div>
+</body>
+<script>
+
+const animation = document.getAnimations()[0];
+
+test(t => {
+  assert_equals(animation.rangeStart.offset.value, 10);
+  assert_equals(animation.rangeStart.offset.unit, "px");
+}, "The animation-range-start CSS property maps to Animation's 'rangeStart' property");
+
+test(t => {
+    assert_equals(animation.rangeEnd.offset.value, 80);
+    assert_equals(animation.rangeEnd.offset.unit, "px");
+}, "The animation-range-end CSS property maps to Animation's 'rangeEnd' property");
+
+promise_test(async t => {
+  await animation.ready;
+  assert_percents_equal(animation.startTime, 10);
+}, "The auto-aligned start time accounts for the animation-range-start property");
+
+promise_test(async t => {
+  await animation.ready;
+  assert_percents_equal(animation.effect.getComputedTiming().duration, 70);
+}, "The effect duration accounts for the animation-range-* properties");
+
+</script>

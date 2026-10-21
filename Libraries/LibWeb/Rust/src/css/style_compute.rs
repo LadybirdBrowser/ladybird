@@ -2834,6 +2834,14 @@ pub struct FfiComputedAnimation {
     pub timeline_kind: FfiAnimationTimelineKind,
     pub scroll_scroller: u8,
     pub scroll_axis: u8,
+    /// The edges of the animation attachment range, each a `TimelineRangeName` in the host's numbering and an offset
+    /// from the start of that range: a length plus a percentage of the range.
+    pub range_start_name: u8,
+    pub range_start_px: f64,
+    pub range_start_percentage: f64,
+    pub range_end_name: u8,
+    pub range_end_px: f64,
+    pub range_end_percentage: f64,
     /// The index, in the list of CSS animations the host already holds for this element or
     /// pseudo-element, of the animation this definition claims, or -1 where it asks for a new one.
     pub matched_existing_index: i32,
@@ -4832,6 +4840,48 @@ fn animation_timeline_descriptor(value: &StyleValueData) -> (FfiAnimationTimelin
     }
 }
 
+/// One edge of a computed animation attachment range, as the host takes it: the `TimelineRangeName` it is measured in,
+/// and its offset from the start of that range as a length plus a percentage of the range. `normal` is the start or the
+/// end of the entire timeline.
+/// https://drafts.csswg.org/scroll-animations-1/#animation-range-start
+fn animation_range_edge(value: &StyleValueData, default_percentage: f64) -> (u8, f64, f64) {
+    let range_name = |keyword: u16| match keyword {
+        keyword::COVER => 1,
+        keyword::CONTAIN => 2,
+        keyword::ENTRY => 3,
+        keyword::EXIT => 4,
+        keyword::ENTRY_CROSSING => 5,
+        keyword::EXIT_CROSSING => 6,
+        keyword::SCROLL => 7,
+        _ => 0,
+    };
+    let offset = |value: &StyleValueData| match value {
+        StyleValueData::Percentage { value } => (0.0, *value),
+        value => {
+            let offset = crate::css::computed_value_views::LengthPercentageRef::over(value);
+            let px = offset.to_px(CssPixels::default()).to_double();
+            (px, offset.to_px(CssPixels::from_integer(100)).to_double() - px)
+        }
+    };
+    match value {
+        StyleValueData::Keyword { keyword } => (range_name(*keyword), 0.0, default_percentage),
+        StyleValueData::ValueList { values, .. } => {
+            let [name, length_percentage] = values.as_slice() else {
+                unreachable!("computed animation range edge must be a range name and an offset")
+            };
+            let StyleValueData::Keyword { keyword } = name.data() else {
+                unreachable!("computed animation range edge must start with a range name")
+            };
+            let (px, percentage) = offset(length_percentage.data());
+            (range_name(*keyword), px, percentage)
+        }
+        value => {
+            let (px, percentage) = offset(value);
+            (0, px, percentage)
+        }
+    }
+}
+
 /// Which of an element's animation lists a computation belongs to, in the host's own numbering:
 /// zero for the element itself, and the pseudo-element's value plus one for each pseudo-element.
 fn animation_slot(pseudo_kind: u8) -> crate::css::style::animations::AnimationSlot {
@@ -4990,6 +5040,8 @@ fn build_computed_animation_list(
     let fill_mode_values = computed_value_list(table, prop::ANIMATION_FILL_MODE);
     let composition_values = computed_value_list(table, prop::ANIMATION_COMPOSITION);
     let timeline_values = computed_value_list(table, prop::ANIMATION_TIMELINE);
+    let range_start_values = computed_value_list(table, prop::ANIMATION_RANGE_START);
+    let range_end_values = computed_value_list(table, prop::ANIMATION_RANGE_END);
 
     // The name of each definition, for matching against the animations the host holds.
     let mut definition_names = smallvec::SmallVec::<[&crate::css::css_string::CssString; 1]>::new();
@@ -5019,6 +5071,10 @@ fn build_computed_animation_list(
         };
         let (timeline_kind, scroll_scroller, scroll_axis) =
             animation_timeline_descriptor(timeline_values[index % timeline_values.len()].data());
+        let (range_start_name, range_start_px, range_start_percentage) =
+            animation_range_edge(range_start_values[index % range_start_values.len()].data(), 0.0);
+        let (range_end_name, range_end_px, range_end_percentage) =
+            animation_range_edge(range_end_values[index % range_end_values.len()].data(), 100.0);
         animations.push(FfiComputedAnimation {
             duration_is_auto,
             duration,
@@ -5035,6 +5091,12 @@ fn build_computed_animation_list(
             timeline_kind,
             scroll_scroller,
             scroll_axis,
+            range_start_name,
+            range_start_px,
+            range_start_percentage,
+            range_end_name,
+            range_end_px,
+            range_end_percentage,
             matched_existing_index: crate::css::style::animations::NO_MATCHED_ANIMATION,
             keyframe_set: resolve_keyframes(name.units()).map_or(std::ptr::null(), |set| set as *const c_void),
         });

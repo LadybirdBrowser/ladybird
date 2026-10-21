@@ -65,6 +65,7 @@ private:
         double delay;
         AnimationFillMode fill_mode;
         AnimationComposition composition;
+        Animations::AnimationAttachmentRange range;
 
         bool operator==(AppliedCSSProperties const&) const = default;
     };

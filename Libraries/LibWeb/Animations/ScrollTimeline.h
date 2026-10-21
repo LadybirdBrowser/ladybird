@@ -60,6 +60,7 @@ public:
     Optional<FollowedScroller> const& followed_scroller() const { return m_followed_scroller; }
 
     virtual bool is_progress_based() const override { return true; }
+    virtual AttachmentInterval interval_for_attachment_range(AnimationAttachmentRange const&) const override;
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const override { return false; }
 
 private:
