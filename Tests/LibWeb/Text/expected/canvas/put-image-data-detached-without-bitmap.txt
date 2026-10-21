@@ -1,0 +1,5 @@
+0x0 canvas: InvalidStateError
+0x0 canvas, dirty rectangle: InvalidStateError
+0x0 canvas, clean ImageData: no throw
+0x0 OffscreenCanvas: InvalidStateError
+0x0 OffscreenCanvas, dirty rectangle: InvalidStateError
