@@ -138,10 +138,14 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         //    a c e
         //    b d f
         //    0 0 1
-        // NB: That is the identity matrix multiplied with the matrix.
-        self.drawing_state_mut().transform = AffineTransform::identity();
-        self.flush_transform();
-        self.multiply_transform(a, b, c, d, e, f);
+        self.set_current_transform(AffineTransform::new(
+            float(a),
+            float(b),
+            float(c),
+            float(d),
+            float(e),
+            float(f),
+        ));
         Ok(())
     }
 
@@ -157,14 +161,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         }
 
         // 3. Reset the current transformation matrix to matrix.
-        let original_transform = {
-            let mut state = self.drawing_state_mut();
-            core::mem::replace(&mut state.transform, matrix.to_affine_transform())
-        };
-
-        self.transform_path(original_transform);
-
-        self.flush_transform();
+        self.set_current_transform(matrix.to_affine_transform());
         Ok(())
     }
 
@@ -172,8 +169,33 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     pub(crate) fn reset_transform(&self, _: &mut CallContext) -> WebIdlResult<()> {
         // The resetTransform() method, when invoked, must reset the current transformation matrix to the identity
         // matrix.
-        self.drawing_state_mut().transform = AffineTransform::identity();
-        self.flush_transform();
+        self.set_current_transform(AffineTransform::identity());
         Ok(())
+    }
+
+    /// Replaces the current transformation matrix, which leaves the current default path where it is on the output
+    /// bitmap.
+    fn set_current_transform(&self, transform: AffineTransform) {
+        let original_transform = core::mem::replace(&mut self.drawing_state_mut().transform, transform);
+        self.keep_path_in_place(original_transform);
+        self.flush_transform();
+    }
+
+    /// Moves the current default path from the coordinates of the original transformation matrix to those of the
+    /// current one, after a change of the matrix that is not a multiplication with another, so that the points of
+    /// the path stay where they were on the output bitmap when they were added.
+    pub(crate) fn keep_path_in_place(&self, original_transform: AffineTransform) {
+        let transform = self.drawing_state().transform;
+        if transform.values == original_transform.values {
+            return;
+        }
+        // NB: A path cannot be kept in the coordinates of a matrix that is not invertible, so it stays as it is when it
+        //     changes to or from one, as it does for transform().
+        if original_transform.inverse().is_none() {
+            return;
+        }
+        if let Some(inverse) = transform.inverse() {
+            self.transform_path(multiply_transforms(inverse, original_transform));
+        }
     }
 }

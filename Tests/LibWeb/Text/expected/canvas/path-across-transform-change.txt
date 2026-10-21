@@ -1,0 +1,5 @@
+No change: 255 255 0 0
+resetTransform(): 255 255 0 0
+setTransform(1, 0, 0, 1, 30, 0): 255 255 0 0
+setTransform({ e: 30 }): 255 255 0 0
+restore(): 255 255 0 0

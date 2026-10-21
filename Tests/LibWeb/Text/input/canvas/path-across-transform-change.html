@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The points of the current default path stay where they were on the bitmap when they were added, whatever
+    // resetTransform(), setTransform() and restore() do to the current transformation matrix later.
+    function run(label, change) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 60;
+        canvas.height = 60;
+        const context = canvas.getContext("2d");
+        context.save();
+        context.scale(2, 2);
+        context.rect(0, 0, 10, 10);
+        change(context);
+        context.fill();
+        const alphaAt = (x, y) => context.getImageData(x, y, 1, 1).data[3];
+        println(`${label}: ${[alphaAt(5, 5), alphaAt(15, 15), alphaAt(25, 25), alphaAt(35, 5)].join(" ")}`);
+    }
+
+    test(() => {
+        run("No change", () => {});
+        run("resetTransform()", context => context.resetTransform());
+        run("setTransform(1, 0, 0, 1, 30, 0)", context => context.setTransform(1, 0, 0, 1, 30, 0));
+        run("setTransform({ e: 30 })", context => context.setTransform({ e: 30 }));
+        run("restore()", context => context.restore());
+    });
+</script>
