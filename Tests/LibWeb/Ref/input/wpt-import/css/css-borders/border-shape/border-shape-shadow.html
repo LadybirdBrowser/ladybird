@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-shadow-ref.html">
+<meta name="fuzzy" content="maxDifference=0-80;totalPixels=0-600">
+<style>
+body {
+    margin: 0;
+}
+#target {
+    width: 200px;
+    height: 200px;
+    border-shape: xywh(0% 0% 100% 100%);
+    position: relative;
+    background: green;
+    box-shadow: 10px 20px 0 10px purple;
+    border: 10px solid black;
+}
+</style>
+<div id="target">
+</div>

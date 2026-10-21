@@ -1079,6 +1079,33 @@ impl DisplayListRecorder {
         self.append_command(&shadow, &[]);
     }
 
+    /// Paints a box shadow cast from the shape `shape_path`, outside the shape, or inside it when `inner`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn paint_path_box_shadow(
+        &mut self,
+        color: Color,
+        blur_radius: i32,
+        spread_distance: f32,
+        offset: FloatPoint,
+        shape_path: &libgfx_rust::path::OwnedPath,
+        inner: bool,
+        force_dark_role: ForceDarkRole,
+    ) {
+        let color = self.resolve_color(color, force_dark_role);
+        let mut payload = CommandPayloadBuilder::new::<PaintPathBoxShadow>(&self.builder);
+        let shape_path_data = payload.append_data(&shape_path.serialize_to_bytes(), std::mem::align_of::<u32>());
+        let command = PaintPathBoxShadow {
+            color,
+            blur_radius,
+            spread_distance,
+            offset,
+            shape_path_bounding_rect: FloatRect::from_array(shape_path.bounding_box()),
+            shape_path_data,
+            inner,
+        };
+        self.append_command(&command, payload.inline_data());
+    }
+
     pub fn paint_inner_box_shadow(&mut self, mut shadow: PaintInnerBoxShadow, force_dark_role: ForceDarkRole) {
         shadow.color = self.resolve_color(shadow.color, force_dark_role);
         self.append_command(&shadow, &[]);

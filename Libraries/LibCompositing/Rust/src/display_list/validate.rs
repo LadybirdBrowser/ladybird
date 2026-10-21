@@ -270,6 +270,7 @@ fn command_struct_size(command_type: DisplayListCommandType) -> usize {
         T::PaintConicGradient => size_of::<PaintConicGradient>(),
         T::PaintOuterBoxShadow => size_of::<PaintOuterBoxShadow>(),
         T::PaintInnerBoxShadow => size_of::<PaintInnerBoxShadow>(),
+        T::PaintPathBoxShadow => size_of::<PaintPathBoxShadow>(),
         T::PaintTextShadow => size_of::<PaintTextShadow>(),
         T::FillRectWithRoundedCorners => size_of::<FillRectWithRoundedCorners>(),
         T::FillRoundedRectRing => size_of::<FillRoundedRectRing>(),
@@ -403,6 +404,10 @@ fn validate_command_fields(
             p.array_span_at::<DisplayListGlyph>(offset_of!(PaintTextShadow, glyphs))?;
             p.array_span_at::<TextShadowLayer>(offset_of!(PaintTextShadow, layers))?;
             p.enum_at::<Orientation>(offset_of!(PaintTextShadow, orientation))?;
+        }
+        T::PaintPathBoxShadow => {
+            p.span_at(offset_of!(PaintPathBoxShadow, shape_path_data))?;
+            p.bool_at(offset_of!(PaintPathBoxShadow, inner))?;
         }
         T::FillPath => {
             p.span_at(offset_of!(FillPath, path_data))?;

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+body { margin: 20px; background: white; display: flex; flex-wrap: wrap; gap: 40px; }
+div { width: 120px; height: 80px; background: #fc6; }
+.bevel { border-radius: 24px; corner-shape: bevel; box-shadow: 8px 8px 0 4px rgba(0,0,255,.5); }
+.squircle { border-radius: 30px; corner-shape: squircle; box-shadow: 0 10px 20px rgba(0,0,0,.5); }
+.scoop { border-radius: 24px; corner-shape: scoop; box-shadow: 0 0 0 6px green; }
+.hollow { border-radius: 24px; corner-shape: bevel; background: none; border: 2px solid black; box-shadow: 10px 10px 10px red; }
+.tip { --r:16px;--ap:50%;--ah:8px;--aw:8px; background: #0d0f12; border: 2px solid white; box-shadow: 0 1px 2px rgba(0,0,0,.2),0 3px 6px rgba(0,0,0,.2),0 9px 18px rgba(0,0,0,.2),0 27px 54px rgba(0,0,0,.2);
+ border-shape: shape(from var(--r) 0,hline to calc(100% - var(--r)),curve to right var(--r) with right top,vline to calc(100% - (var(--r) + var(--ah))),curve to calc(100% - var(--r)) calc(100% - var(--ah)) with right calc(100% - var(--ah)),hline to calc(var(--ap) + var(--aw)),line by calc(var(--aw) * -1) var(--ah),line by calc(var(--aw) * -1) calc(var(--ah) * -1),hline to var(--r),curve to left calc(100% - (var(--r) + var(--ah))) with left calc(100% - var(--ah)),vline to var(--r),curve to var(--r) top with left top); }
+.inset { border-radius: 24px; corner-shape: bevel; border: 4px solid #333; box-shadow: inset 6px 6px 8px 2px rgba(0,0,200,.6); }
+</style>
+<div class="bevel"></div><div class="squircle"></div><div class="scoop"></div><div class="hollow"></div><div class="tip"></div><div class="inset"></div>

@@ -17,6 +17,7 @@
 #include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
 #include <core/SkPathEffect.h>
+#include <core/SkPathUtils.h>
 #include <core/SkPicture.h>
 #include <core/SkPictureRecorder.h>
 #include <core/SkRRect.h>
@@ -808,6 +809,48 @@ void DisplayListPlayerSkia::play_command(PaintOuterBoxShadow const& command)
     paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, command.blur_radius / 2));
     auto shadow_rounded_rect = to_skia_rrect(command.shadow_rect, command.shadow_corner_radii);
     canvas.drawRRect(shadow_rounded_rect, paint);
+    canvas.restore();
+}
+
+// An outer shadow is drawn outside the box's shape and an inner one inside it, blurred as the rounded rectangle box
+// shadows are.
+void DisplayListPlayerSkia::play_command(PaintPathBoxShadow const& command)
+{
+    auto shape = Gfx::to_skia_path(path_from_data(command.shape_path_data));
+
+    // The spread distance grows the shape of an outer shadow, and shrinks the shape whose outside casts an inner one,
+    // by the outline of a stroke along the shape twice as wide.
+    auto shadow_shape = shape;
+    if (command.spread_distance != 0) {
+        SkPaint outline_paint;
+        outline_paint.setStyle(SkPaint::kStroke_Style);
+        outline_paint.setStrokeWidth(2 * AK::abs(command.spread_distance));
+        outline_paint.setStrokeJoin(SkPaint::kMiter_Join);
+        auto outline = skpathutils::FillPathWithPaint(shape, outline_paint);
+        bool grows = command.inner ? command.spread_distance < 0 : command.spread_distance > 0;
+        if (auto result = Op(shape, outline, grows ? SkPathOp::kUnion_SkPathOp : SkPathOp::kDifference_SkPathOp); result.has_value())
+            shadow_shape = *result;
+    }
+    shadow_shape = shadow_shape.makeOffset(command.offset.x(), command.offset.y());
+
+    if (command.inner) {
+        // Everything outside the shape casts the inner shadow, so it is a rectangle reaching past the blur with the
+        // shape cut out of it.
+        auto margin = AK::abs(command.spread_distance) + AK::abs(command.offset.x()) + AK::abs(command.offset.y()) + command.blur_radius * 2 + 1;
+        auto outside = SkPath::Rect(shape.getBounds().makeOutset(margin, margin));
+        if (auto result = Op(outside, shadow_shape, SkPathOp::kDifference_SkPathOp); result.has_value())
+            shadow_shape = *result;
+    }
+
+    auto& canvas = surface().canvas();
+    canvas.save();
+    canvas.clipPath(shape, command.inner ? SkClipOp::kIntersect : SkClipOp::kDifference, true);
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor(to_skia_color(command.color));
+    if (command.blur_radius > 0)
+        paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, command.blur_radius / 2));
+    canvas.drawPath(shadow_shape, paint);
     canvas.restore();
 }
 

@@ -31,6 +31,7 @@ pub enum DisplayListCommandType {
     PaintConicGradient,
     PaintOuterBoxShadow,
     PaintInnerBoxShadow,
+    PaintPathBoxShadow,
     PaintTextShadow,
     FillRectWithRoundedCorners,
     FillRoundedRectRing,
@@ -103,6 +104,7 @@ impl DisplayListCommandType {
             Self::PaintConicGradient => "PaintConicGradient",
             Self::PaintOuterBoxShadow => "PaintOuterBoxShadow",
             Self::PaintInnerBoxShadow => "PaintInnerBoxShadow",
+            Self::PaintPathBoxShadow => "PaintPathBoxShadow",
             Self::PaintTextShadow => "PaintTextShadow",
             Self::FillRectWithRoundedCorners => "FillRectWithRoundedCorners",
             Self::FillRoundedRectRing => "FillRoundedRectRing",
@@ -987,6 +989,50 @@ impl DisplayListCommand for PaintInnerBoxShadow {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::PaintInnerBoxShadow;
     fn bounding_rect(&self) -> Option<IntRect> {
         Some(self.device_content_rect)
+    }
+}
+
+/// A box shadow of a box whose shape is a path: an outer shadow drawn outside the shape, or an inner one drawn inside
+/// it. The shadow's shape is the box's shape grown by the spread distance for an outer shadow, or what lies outside
+/// the box's shape shrunk by it for an inner one, moved by the offset.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct PaintPathBoxShadow {
+    pub color: Color,
+    pub blur_radius: i32,
+    pub spread_distance: f32,
+    pub offset: FloatPoint,
+    pub shape_path_bounding_rect: FloatRect,
+    pub shape_path_data: DisplayListDataSpan,
+    pub inner: bool,
+}
+ffi_bytes_fields!(PaintPathBoxShadow {
+    color,
+    blur_radius,
+    spread_distance,
+    offset,
+    shape_path_bounding_rect,
+    shape_path_data,
+    inner
+});
+
+impl DisplayListCommand for PaintPathBoxShadow {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::PaintPathBoxShadow;
+    fn bounding_rect(&self) -> Option<IntRect> {
+        let shape_rect = enclosing_int_rect(self.shape_path_bounding_rect);
+        if self.inner {
+            return Some(shape_rect);
+        }
+        // NB: The player grows the shape by the outline of a miter-joined stroke, whose miters reach out to Skia's default
+        //     miter limit of 4 times half the stroke width, so up to 4 times the spread at sharp corners.
+        const MITER_LIMIT: f32 = 4.0;
+        let margin = (self.spread_distance.max(0.0) * MITER_LIMIT).ceil() as i32 + self.blur_radius * 2;
+        let mut shadow_rect = shape_rect.inflated_edges(margin, margin, margin, margin);
+        shadow_rect.x += self.offset.x.floor() as i32;
+        shadow_rect.y += self.offset.y.floor() as i32;
+        shadow_rect.width += 1;
+        shadow_rect.height += 1;
+        Some(shadow_rect)
     }
 }
 

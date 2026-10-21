@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-combined-shadow-ref.html">
+<style>
+body {
+    margin: 0;
+}
+#target {
+    width: 190px;
+    height: 190px;
+    border-shape: xywh(0% 0% 100% 100%);
+    position: relative;
+    background: green;
+    box-shadow: 10px 20px 0 10px blue, inset 0 0 0 10px purple;
+    border: 10px solid black;
+}
+</style>
+<div id="target">
+</div>

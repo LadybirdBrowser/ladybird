@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+svg {
+    display: block;
+    width: 240px;
+    height: 250px;
+}
+</style>
+<svg viewBox="0 0 240 250" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <clipPath id="inner-clip">
+            <rect x="10" y="10" width="190" height="190" />
+        </clipPath>
+    </defs>
+    <!-- Outer shadow: 230x230 at (0,10) -->
+    <rect x="0" y="10" width="230" height="230" fill="blue" />
+
+    <!-- Background: 190x190 at (10,10) -->
+    <rect x="10" y="10" width="190" height="190" fill="green" />
+
+    <!-- Inset shadow: 10px stroke inside the 190x190 rect. Center at (15,15), size 180x180 -->
+    <rect x="10" y="10" width="190" height="190" fill="none" stroke="purple" stroke-width="20" clip-path="url(#inner-clip)" />
+
+    <!-- Border: 10px stroke centered on base path (5,5) 200x200 rect -->
+    <rect x="5" y="5" width="200" height="200" fill="none" stroke="black" stroke-width="10" />
+</svg>
