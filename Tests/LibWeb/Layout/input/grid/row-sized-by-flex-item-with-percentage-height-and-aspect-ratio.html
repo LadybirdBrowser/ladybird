@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    * { margin: 0; padding: 0; }
+    ul {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 300px;
+        list-style: none;
+    }
+    a {
+        display: flex;
+    }
+    div {
+        width: 100%;
+        height: 100%;
+        aspect-ratio: 4 / 3;
+        background: teal;
+    }
+</style>
+<ul>
+    <li><a><div></div></a></li>
+    <li><a><div></div></a></li>
+</ul>
+<p>The paragraph must not overlap the grid.</p>
