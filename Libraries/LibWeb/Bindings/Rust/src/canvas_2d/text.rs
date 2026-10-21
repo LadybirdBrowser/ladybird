@@ -124,7 +124,7 @@ fn translation(x: f32, y: f32) -> AffineTransform {
 }
 
 /// Where text of the width goes relative to the point that it is drawn at, and how much it is condensed to fit in the
-/// maximum width.
+/// maximum width. The text starts at x, around which it is condensed.
 #[allow(
     clippy::cast_possible_truncation,
     reason = "the transform is in floats, as the C++ had it"
@@ -132,6 +132,7 @@ fn translation(x: f32, y: f32) -> AffineTransform {
 pub(crate) fn text_transform(
     state: &DrawingState,
     first_font: &FontHandle,
+    x: f32,
     mut text_width: f32,
     max_width: Option<f64>,
 ) -> AffineTransform {
@@ -146,7 +147,7 @@ pub(crate) fn text_transform(
         && text_width > max_width as f32
     {
         let horizontal_scale = max_width as f32 / text_width;
-        transform = AffineTransform::new(horizontal_scale, 0.0, 0.0, 1.0, 0.0, 0.0);
+        transform = AffineTransform::new(horizontal_scale, 0.0, 0.0, 1.0, x - horizontal_scale * x, 0.0);
         text_width *= horizontal_scale;
     }
 
