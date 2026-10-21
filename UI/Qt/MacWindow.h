@@ -12,12 +12,10 @@
 #include <LibGfx/Forward.h>
 #include <LibWebView/Forward.h>
 
+#include <Qt>
+
+class QDrag;
 class QWidget;
-namespace Gfx {
-
-class Color;
-
-}
 
 namespace Ladybird {
 
@@ -36,6 +34,7 @@ void reapply_appkit_window_control_offsets(QWidget&);
 void install_appkit_event_capture();
 void make_appkit_window_first_responder(QWidget&);
 bool start_appkit_window_drag(QWidget&);
+Qt::DropAction execute_appkit_tab_drag(QWidget&, QDrag&);
 void show_appkit_dictionary_lookup(QWidget&, WebView::DictionaryLookup const&, Gfx::IntPoint);
 Gfx::Color appkit_web_inactive_selection_color();
 Gfx::Color appkit_web_inactive_selection_text_color();
