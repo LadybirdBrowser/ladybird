@@ -485,6 +485,28 @@ TEST_CASE(h264_parameter_sets_can_arrive_separately_and_outlive_their_frames)
     }
 }
 
+TEST_CASE(a_vp9_stream_starting_without_a_keyframe_is_corrupted)
+{
+    auto decoding = open_decoding("./vp9_in_webm.webm"sv, Media::CodecID::VP9);
+    MUST(decoding.demuxer->get_next_sample_for_track(decoding.track));
+    auto inter_frame = MUST(decoding.demuxer->get_next_sample_for_track(decoding.track));
+
+    auto result = decoding.decoder->receive_coded_data(inter_frame, Media::DecodeIntent::Output);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Corrupted);
+}
+
+TEST_CASE(an_h264_stream_without_parameter_sets_is_corrupted)
+{
+    auto decoding = open_decoding("./avc.mp4"sv, Media::CodecID::H264);
+    auto sample = MUST(decoding.demuxer->get_next_sample_for_track(decoding.track));
+    Media::CodedFrame frame_without_configuration { sample.codec_id(), sample.presentation_timestamp(), sample.decode_timestamp(), sample.duration(), sample.flags(), MUST(FixedArray<u8>::create(sample.data())) };
+
+    auto result = decoding.decoder->receive_coded_data(frame_without_configuration, Media::DecodeIntent::Output);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Corrupted);
+}
+
 TEST_CASE(input_after_the_end_of_stream_is_rejected_until_flushed)
 {
     auto decoding = open_decoding("./vp9_in_webm.webm"sv, Media::CodecID::VP9);

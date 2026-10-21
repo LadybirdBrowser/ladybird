@@ -699,7 +699,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
 
     auto format = m_format_state->decoder_format();
     if (!format.has_value())
-        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "The stream has not described a usable format yet"sv);
+        return DecoderError::corrupted("The stream has not described a usable format"sv);
 
     if (m_session != nullptr && CMFormatDescriptionEqual(format->description.ref(), m_session->format_description)) {
         m_format_state->dirty = false;
