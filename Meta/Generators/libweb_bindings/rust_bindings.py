@@ -403,7 +403,7 @@ def write_rust_interface(
         to_unsigned_long_long, to_usv_string,
     }};
     use crate::bindings::interface::{{
-        Inherits, Interface, Ref, Wrapped, construct_arguments, construct_wrapper, define_attribute,
+        Inherits, Interface, Ref, Wrapped, cell_class, construct_arguments, construct_wrapper, define_attribute,
         define_cached_attribute, define_constants, define_interface_object_properties, define_operation,
         define_to_string_tag, define_unimplemented_property, entry_point_arguments, implementation_if,
         implementation_of, prototype_from_new_target, rejected_promise, set_interface_prototype_object_prototype,
@@ -418,7 +418,7 @@ def write_rust_interface(
     pub(crate) const INTERFACE_NAME: u16 = {interface_name_value};
 
     /// The class of the cells of the objects of the interface.
-    static CELL_CLASS: EmbedderClass<Wrapped<Implementation>> = EmbedderClass::new("{interface.name}");
+    static CELL_CLASS: EmbedderClass<Wrapped<Implementation>> = cell_class("{interface.name}");
 
     unsafe extern "C" {{
         static {wrapper_host_class_symbol(interface)}: JSHostClass;

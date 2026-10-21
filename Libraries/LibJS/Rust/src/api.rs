@@ -10,6 +10,7 @@
 //! runtime's own business.
 
 pub use crate::embedding::host::host_object::{HostObject, host_class_of, host_data_of, is_host_instance_of};
+pub use crate::gc::class::ExternalMemorySize;
 pub use crate::gc::embedder_cell::{EmbedderCell, EmbedderClass, EmbedderValue};
 pub use crate::gc::foreign::ForeignCellSlot;
 pub use crate::gc::root::{MarkedVec, Root};
