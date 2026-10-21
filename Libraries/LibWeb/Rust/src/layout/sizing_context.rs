@@ -3321,7 +3321,22 @@ impl<'pass> SizingContext<'pass> {
             return self.content_block_size_from_aspect_ratio(node, self.used(node).content_inline_size.get());
         }
         assert!(!preferred_size.is_auto());
-        let keyword_size = if preferred_size.is_fit_content() {
+        let facts = self.facts(node);
+        let keyword_size = if facts.is_replaced_box()
+            && facts.has_auto_content_box_size()
+            && preferred_size.is_intrinsic_sizing_constraint()
+        {
+            // NB: The intrinsic block sizes of a replaced element are its natural height, or the height that follows
+            //     its used width through its aspect ratio.
+            let intrinsic = self.intrinsic_size_for_replaced_sizing(node);
+            match intrinsic.height {
+                Some(height) if self.style(node).width().is_auto() => Some(height),
+                _ if facts.has_preferred_aspect_ratio() => {
+                    Some(self.content_block_size_from_aspect_ratio(node, self.used(node).content_inline_size.get()))
+                }
+                height => Some(height.unwrap_or_else(|| CssPixels::from_integer(150))),
+            }
+        } else if preferred_size.is_fit_content() {
             Some(self.calculate_fit_content_size(node, SizingAxis::Block, available_space, constraints))
         } else if preferred_size.is_max_content() {
             Some(self.calculate_max_content_block_size(node, available_space.inline_size.to_px_or_zero(), constraints))

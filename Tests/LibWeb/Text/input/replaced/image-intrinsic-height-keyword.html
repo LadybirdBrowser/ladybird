@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    img {
+        display: block;
+    }
+</style>
+<img id="max" style="height: max-content" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='20'/%3E">
+<img id="min" style="height: min-content" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='20'/%3E">
+<img id="fit" style="height: fit-content" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='20'/%3E">
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.onload = () => {
+            for (const id of ["max", "min", "fit"]) {
+                const image = document.getElementById(id);
+                println(`${id}: ${image.offsetWidth}x${image.offsetHeight}`);
+            }
+            done();
+        };
+    });
+</script>
