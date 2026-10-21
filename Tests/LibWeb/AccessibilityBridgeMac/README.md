@@ -46,8 +46,18 @@ CI runs it that way: the macOS Sanitizer build job packs its `Ladybird.app` with
 
 - macOS (Darwin).
 - A Release build of Ladybird (default at `Build/release/bin/Ladybird.app/...`; override with `LADYBIRD_BINARY`).
-- PyObjC frameworks (`pyobjc-framework-ApplicationServices`, `pyobjc-framework-Cocoa`). macOS’s system Python at `/usr/bin/python3` ships with PyObjC preinstalled; **Homebrew’s `python3` typically does not**. The runner auto-detects a Python that has the modules, probing in this order: the `PYTHON` env var, then `python3` on PATH, then `/usr/bin/python3`, then `/Library/Developer/CommandLineTools/usr/bin/python3`. If your `python3` on PATH is Homebrew and lacks PyObjC, either set `PYTHON=/usr/bin/python3` or install PyObjC into your active Python: `python3 -m pip install --user pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa`.
+- PyObjC frameworks (`pyobjc-framework-ApplicationServices`, `pyobjc-framework-Cocoa`). Neither macOS’s system Python at `/usr/bin/python3` nor Homebrew’s `python3` ships with PyObjC. The runner auto-detects a Python that has the modules, probing in this order: the `PYTHON` env var, then `python3` on PATH, then `/usr/bin/python3`, then `/Library/Developer/CommandLineTools/usr/bin/python3`. To install them, create a virtual environment and point `PYTHON` at it:
+
+  ```
+  python3 -m venv ~/.venvs/ladybird-ax
+  ~/.venvs/ladybird-ax/bin/pip install pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa
+  export PYTHON=~/.venvs/ladybird-ax/bin/python3
+  ```
+
+  Create it with a recent Python, such as Homebrew’s: `/usr/bin/python3` is Python 3.9, for which current PyObjC releases ship no prebuilt wheels.
 - **Accessibility permission** for the calling shell/IDE. Grant via System Settings → Privacy & Security → Accessibility. Without it, every AXUIElement read returns `kAXErrorAPIDisabled` — and the harness fails fast with a clear message.
+
+Without PyObjC or the Accessibility permission, `run_tests.sh` exits with status 77, which ctest reports as a skipped test rather than a failure.
 
 ## Flakiness budget
 
