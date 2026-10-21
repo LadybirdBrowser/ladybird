@@ -111,7 +111,7 @@ impl ImageData {
         // 2. If length is not a nonzero integral multiple of four, then throw an "InvalidStateError" DOMException.
         if length == 0 || !length.is_multiple_of(BYTES_PER_PIXEL) {
             return Err(invalid_state_error(
-                b"Source data must have a non-sero length that is a multiple of four.",
+                b"Source data must have a non-zero length that is a multiple of four.",
             ));
         }
 
@@ -172,7 +172,7 @@ impl ImageData {
                     .and_then(|pixels| pixels.checked_mul(BYTES_PER_PIXEL))
                 else {
                     return Err(Exception::index_size_error(Utf16String::from_ascii(
-                        b"The specified image size could not created",
+                        b"The specified image size could not be created",
                     )));
                 };
 
