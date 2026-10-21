@@ -2,8 +2,6 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(async (done) => {
-        internals.setTestTimeout(5000);
-
         const httpServer = httpTestServer();
         const body = `<!DOCTYPE html><body><div id="first">first</div>${" ".repeat(1700)}<div id="last">last</div>`;
         const url = await httpServer.createEcho("GET", "/parser-streams-bytes", {
