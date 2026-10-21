@@ -155,7 +155,8 @@ class UnionMembers:
     string_type: Optional[IDLType] = None
     sequence_type: Optional[IDLParameterizedType] = None
     typed_array_types: List[IDLType] = field(default_factory=list)
-    cpp_interface_types: List[IDLType] = field(default_factory=list)
+    # The interfaces, implemented in either language, in the order of the union.
+    interface_types: List[IDLType] = field(default_factory=list)
 
 
 def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, what: str) -> UnionMembers:
@@ -167,8 +168,8 @@ def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, 
             members.string_type = member_type
         elif member_type.name in TYPED_ARRAY_NAMES:
             members.typed_array_types.append(member_type)
-        elif cpp_interface(member_type, context) is not None:
-            members.cpp_interface_types.append(member_type)
+        elif cpp_interface(member_type, context) is not None or rust_interface(member_type, context) is not None:
+            members.interface_types.append(member_type)
         elif (
             isinstance(member_type, IDLParameterizedType)
             and member_type.name == "sequence"
@@ -333,7 +334,7 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
         dictionary_conversion = (
             f"Ok(Self::{rust_union_variant(dictionary_type)}(<{dictionary_path}>::from_js(vm, value)?))"
         )
-    if members.typed_array_types or members.sequence_type is not None or members.cpp_interface_types:
+    if members.typed_array_types or members.sequence_type is not None or members.interface_types:
         if dictionary_conversion is not None:
             steps.append(
                 f"""            // 3. If V is null or undefined, then:
@@ -345,13 +346,25 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
 """
             )
         steps.append("            if value.is_object() {\n")
-        for interface_type in members.cpp_interface_types:
+        for interface_type in members.interface_types:
             interface = context.interfaces[interface_type.name]
             steps.append(
-                f"""                // 5. If V is a platform object, then:
+                """                // 5. If V is a platform object, then:
                 //     1. If types includes an interface type that V implements, then return the IDL value that is a
                 //        reference to the object V.
-                if implements_cpp_interface(value.as_object(), {cpp_interface_name_constant(interface)}) {{
+"""
+            )
+            if rust_interface(interface_type, context) is not None:
+                interface_path = rust_interface_path(interface)
+                steps.append(
+                    f"""                if is_host_instance_of(&value.as_object(), <{interface_path} as Interface>::wrapper_class()) {{
+                    return Ok(Self::{rust_union_variant(interface_type)}(implementation_of::<{interface_path}>(value.as_object())));
+                }}
+"""
+                )
+                continue
+            steps.append(
+                f"""                if implements_cpp_interface(value.as_object(), {cpp_interface_name_constant(interface)}) {{
                     // SAFETY: The object is a wrapper of an object that implements the interface.
                     let object = unsafe {{ CppInterface::from_wrapper(value.as_object()) }};
                     return Ok(Self::{rust_union_variant(interface_type)}(object));
