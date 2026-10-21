@@ -186,12 +186,28 @@ public:
         return *this;
     }
 
-    AK_MAKE_CONDITIONALLY_COPYABLE(Optional, <T>);
-    AK_MAKE_CONDITIONALLY_MOVABLE(Optional, <T>);
+    AK_MAKE_CONDITIONALLY_NONCOPYABLE(Optional, <T>);
+    AK_MAKE_CONDITIONALLY_NONMOVABLE(Optional, <T>);
     AK_MAKE_CONDITIONALLY_DESTRUCTIBLE(Optional, <T>);
 
+    Optional(Optional const&)
+    requires(IsTriviallyCopyConstructible<T>)
+    = default;
+
+    Optional(Optional&&)
+    requires(IsTriviallyMoveConstructible<T>)
+    = default;
+
+    Optional& operator=(Optional const&)
+    requires(IsTriviallyCopyConstructible<T> && IsTriviallyDestructible<T>)
+    = default;
+
+    Optional& operator=(Optional&&)
+    requires(IsTriviallyMoveConstructible<T> && IsTriviallyDestructible<T> && (IsTriviallyMoveAssignable<T> || !IsMoveAssignable<T>))
+    = default;
+
     ALWAYS_INLINE constexpr Optional(Optional const& other)
-    requires(!IsTriviallyCopyConstructible<T>)
+    requires(IsCopyConstructible<T> && !IsTriviallyCopyConstructible<T>)
         : m_has_value(other.m_has_value)
     {
         if (other.has_value())
@@ -201,7 +217,7 @@ public:
     }
 
     ALWAYS_INLINE constexpr Optional(Optional&& other)
-    requires(!IsTriviallyMoveConstructible<T>)
+    requires(IsMoveConstructible<T> && !IsTriviallyMoveConstructible<T>)
         : m_has_value(other.m_has_value)
     {
         if (other.has_value())
@@ -240,7 +256,7 @@ public:
     }
 
     ALWAYS_INLINE constexpr Optional& operator=(Optional const& other)
-    requires(!IsTriviallyCopyConstructible<T> || !IsTriviallyDestructible<T>)
+    requires(IsCopyConstructible<T> && IsDestructible<T> && (!IsTriviallyCopyConstructible<T> || !IsTriviallyDestructible<T>))
     {
         if (this != &other) {
             clear();
@@ -259,7 +275,7 @@ public:
     // The only (observable) difference between this overload and the next one is that this one calls the move assignment operator when both `this` and `other` have a value.
     // The other overload just unconditionally calls the move constructor.
     ALWAYS_INLINE constexpr Optional& operator=(Optional&& other)
-    requires(IsMoveAssignable<T> && IsMoveConstructible<T> && (!IsTriviallyMoveAssignable<T> || !IsTriviallyMoveConstructible<T> || !IsTriviallyDestructible<T>))
+    requires(IsMoveAssignable<T> && IsMoveConstructible<T> && IsDestructible<T> && (!IsTriviallyMoveAssignable<T> || !IsTriviallyMoveConstructible<T> || !IsTriviallyDestructible<T>))
     {
         if (this != &other) {
             if (has_value() && other.has_value()) {
@@ -278,7 +294,7 @@ public:
     // Allow for move constructible but non-move assignable types, such as those containing const or reference fields,
     // Note: This overload can also handle move assignable types perfectly fine, but the behaviour would be slightly different.
     ALWAYS_INLINE constexpr Optional& operator=(Optional&& other)
-    requires(!IsMoveAssignable<T> && IsMoveConstructible<T> && (!IsTriviallyMoveConstructible<T> || !IsTriviallyDestructible<T>))
+    requires(!IsMoveAssignable<T> && IsMoveConstructible<T> && IsDestructible<T> && (!IsTriviallyMoveConstructible<T> || !IsTriviallyDestructible<T>))
     {
         if (this != &other) {
             clear();

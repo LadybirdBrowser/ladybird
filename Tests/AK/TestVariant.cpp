@@ -101,6 +101,8 @@ TEST_CASE(move_moves)
     public:
         NoCopy() = default;
     };
+    static_assert(!IsCopyConstructible<Variant<NoCopy, int>>);
+    static_assert(!IsCopyAssignable<Variant<NoCopy, int>>);
 
     Variant<NoCopy, int> first_variant { 42 };
     // Should not fail to compile
@@ -227,6 +229,8 @@ struct HoldsFloat {
 
 TEST_CASE(copy_assign)
 {
+    static_assert(IsTriviallyCopyable<Variant<HoldsInt, HoldsFloat>>);
+
     {
         Variant<int, ByteString, float> the_value { 42.0f };
 

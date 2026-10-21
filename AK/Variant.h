@@ -268,12 +268,28 @@ public:
     {
     }
 
-    AK_MAKE_CONDITIONALLY_COPYABLE(Variant, <Ts>&&...);
-    AK_MAKE_CONDITIONALLY_MOVABLE(Variant, <Ts>&&...);
+    AK_MAKE_CONDITIONALLY_NONCOPYABLE(Variant, <Ts>&&...);
+    AK_MAKE_CONDITIONALLY_NONMOVABLE(Variant, <Ts>&&...);
     AK_MAKE_CONDITIONALLY_DESTRUCTIBLE(Variant, <Ts>&&...);
 
+    Variant(Variant const&)
+    requires(IsTriviallyCopyConstructible<Ts> && ...)
+    = default;
+
+    Variant(Variant&&)
+    requires(IsTriviallyMoveConstructible<Ts> && ...)
+    = default;
+
+    Variant& operator=(Variant const&)
+    requires((IsTriviallyCopyConstructible<Ts> && ...) && (IsTriviallyDestructible<Ts> && ...))
+    = default;
+
+    Variant& operator=(Variant&&)
+    requires((IsTriviallyMoveConstructible<Ts> && ...) && (IsTriviallyDestructible<Ts> && ...))
+    = default;
+
     ALWAYS_INLINE Variant(Variant const& old)
-    requires(!(IsTriviallyCopyConstructible<Ts> && ...))
+    requires((IsCopyConstructible<Ts> && ...) && !(IsTriviallyCopyConstructible<Ts> && ...))
         : Detail::MergeAndDeduplicatePacks<Detail::VariantConstructors<Ts, Variant<Ts...>>...>()
         , m_data {}
         , m_index(old.m_index)
@@ -286,7 +302,7 @@ public:
     //       and if a variant with a nontrivial move ctor is moved from, it may or may not be valid
     //       but it will still contain the "moved-from" state of the object it previously contained.
     ALWAYS_INLINE Variant(Variant&& old)
-    requires(!(IsTriviallyMoveConstructible<Ts> && ...))
+    requires((IsMoveConstructible<Ts> && ...) && !(IsTriviallyMoveConstructible<Ts> && ...))
         : Detail::MergeAndDeduplicatePacks<Detail::VariantConstructors<Ts, Variant<Ts...>>...>()
         , m_index(old.m_index)
     {
@@ -300,7 +316,7 @@ public:
     }
 
     ALWAYS_INLINE Variant& operator=(Variant const& other)
-    requires(!(IsTriviallyCopyConstructible<Ts> && ...) || !(IsTriviallyDestructible<Ts> && ...))
+    requires((IsCopyConstructible<Ts> && ...) && (IsDestructible<Ts> && ...) && (!(IsTriviallyCopyConstructible<Ts> && ...) || !(IsTriviallyDestructible<Ts> && ...)))
     {
         if (this != &other) {
             if constexpr (!(IsTriviallyDestructible<Ts> && ...)) {
@@ -313,7 +329,7 @@ public:
     }
 
     ALWAYS_INLINE Variant& operator=(Variant&& other)
-    requires(!(IsTriviallyMoveConstructible<Ts> && ...) || !(IsTriviallyDestructible<Ts> && ...))
+    requires((IsMoveConstructible<Ts> && ...) && (IsDestructible<Ts> && ...) && (!(IsTriviallyMoveConstructible<Ts> && ...) || !(IsTriviallyDestructible<Ts> && ...)))
     {
         if (this != &other) {
             if constexpr (!(IsTriviallyDestructible<Ts> && ...)) {
