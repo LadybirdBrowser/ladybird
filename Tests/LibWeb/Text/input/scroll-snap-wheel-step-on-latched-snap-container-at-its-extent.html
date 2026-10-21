@@ -29,12 +29,15 @@
         await animationFrame();
 
         // The first step takes the snap container to its last snap position, which is also its scroll extent.
-        await internals.wheel(50, 50, 0, 500);
-        println(`snap container scroll offset after the first step: ${snapper.scrollTop}`);
+        const firstStep = internals.wheel(50, 50, 0, 500);
 
         // The next step of the same gesture stays with the snap container at its extent, which consumes it without
         // scrolling anything, and the step's promise still resolves.
-        await internals.wheel(50, 50, 0, 100);
+        const secondStep = internals.wheel(50, 50, 0, 100);
+        await firstStep;
+        println(`snap container scroll offset after the first step: ${snapper.scrollTop}`);
+
+        await secondStep;
         await animationFrame();
         await animationFrame();
         println(`snap container scroll offset after the second step: ${snapper.scrollTop}`);
