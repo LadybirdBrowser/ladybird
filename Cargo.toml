@@ -14,6 +14,7 @@ members = [
     "Libraries/LibTextCodec/Rust",
     "Libraries/LibUnicode/Rust",
     "Libraries/LibURL/Rust",
+    "Libraries/LibWasm/Engine",
     "Libraries/LibWasm/Rust",
     "Libraries/LibWeb/Bindings/Rust",
     "Libraries/LibWeb/ContentBlocker/Rust",

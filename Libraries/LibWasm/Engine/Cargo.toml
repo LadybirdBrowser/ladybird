@@ -1,0 +1,27 @@
+[package]
+name = "libwasm_engine"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[dependencies]
+ak = { path = "../../../AK/Rust" }
+ladybird_allocator = { path = "../../RustAllocator", optional = true }
+libc = "0.2"
+rustc-demangle = "0.1"
+
+[features]
+default = []
+allocator = ["dep:ladybird_allocator"]
+
+[build-dependencies]
+cbindgen = "0.29"
+cc = "1"
+flapc = { path = "../../LibJS/Flap" }
+
+[lints]
+workspace = true

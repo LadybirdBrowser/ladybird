@@ -1022,6 +1022,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "libwasm_engine"
+version = "0.1.0"
+dependencies = [
+ "ak",
+ "cbindgen",
+ "cc",
+ "flapc",
+ "ladybird_allocator",
+ "libc",
+ "rustc-demangle",
+]
+
+[[package]]
 name = "libweb_bindings_rust"
 version = "0.1.0"
 dependencies = [
