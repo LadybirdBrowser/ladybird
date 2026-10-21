@@ -207,8 +207,21 @@ impl BoxFacts {
         };
         // https://drafts.csswg.org/css-borders-4/#corner-shape-rendering
         // An element's overflow area is shaped by its inner contour.
+        // NB: As with rounded corners, a clip in one axis only is not shaped.
         // FIXME: Shape an overflow clip edge that overflow-clip-margin moves off the padding box.
         if let Some(overflow_clip) = &mut facts.overflow_clip
+            && super::node_values::overflow_clips_both_axes(layout_arena, slot)
+            && let Some(border_shape) =
+                crate::painting::border_shape::BorderShape::for_paintable(layout_arena, slot, &converter)
+        {
+            let (path, fill_rule) = border_shape.into_overflow_clip_path();
+            facts.overflow_clip_contour = Some(ClipPathData {
+                path: std::sync::Arc::new(path),
+                bounding_rect: libgfx_rust::enclosing_int_rect(overflow_clip.rect),
+                fill_rule,
+            });
+            overflow_clip.corner_radii = CornerRadii::default();
+        } else if let Some(overflow_clip) = &mut facts.overflow_clip
             && overflow_clip.corner_radii.has_any_radius()
             && let Some(style) = layout_arena.node_style_if_live(slot)
         {

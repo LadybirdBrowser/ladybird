@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/border-shape-one-axis-overflow-clip-is-not-shaped-ref.html">
+<style>
+.box {
+    width: 100px;
+    height: 100px;
+    margin: 50px;
+    overflow-x: clip;
+    border-shape: circle();
+}
+.content {
+    width: 100px;
+    height: 200px;
+    background: green;
+}
+</style>
+<!-- An overflow clip in one axis only is not shaped by border-shape, as it is not rounded by border-radius. -->
+<div class="box"><div class="content"></div></div>

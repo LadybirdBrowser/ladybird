@@ -1,0 +1,23 @@
+<!doctype html>
+<title>CSS Borders: border-shape ellipse() radial-extent keywords reference</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<style>
+  .box {
+    width: 300px;
+    height: 400px;
+    margin: 50px;
+    background: green;
+  }
+  /* closest side: x = min(60, 240) = 60, y = min(80, 320) = 80 */
+  #closest { border-shape: ellipse(60px 80px at 60px 80px); }
+  /* farthest side: x = max(60, 240) = 240, y = max(80, 320) = 320 */
+  #farthest { border-shape: ellipse(240px 320px at 60px 80px); }
+  /* closest x, farthest y */
+  #closest-farthest { border-shape: ellipse(60px 320px at 60px 80px); }
+  /* farthest x, closest y */
+  #farthest-closest { border-shape: ellipse(240px 80px at 60px 80px); }
+</style>
+<div id="closest" class="box"></div>
+<div id="farthest" class="box"></div>
+<div id="closest-farthest" class="box"></div>
+<div id="farthest-closest" class="box"></div>

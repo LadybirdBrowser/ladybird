@@ -1254,6 +1254,16 @@
     ],
     "needs-layout-node-for-resolved-value": true
   },
+  "border-shape": {
+    "style-group": "BorderValues",
+    "affects-accumulated-visual-contexts": true,
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "__comment": "FIXME: The spec animates border-shape by computed value.",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "cascaded-value"
+  },
   "border-spacing": {
     "style-group": "InheritedTableValues",
     "_comment": "Follows the newer definition from: https://drafts.csswg.org/css-tables-3/#border-spacing-property",

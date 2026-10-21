@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	border-radius and corner-shape are NOT reset in computed style when border-shape is specified

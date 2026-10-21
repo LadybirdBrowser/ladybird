@@ -61,7 +61,11 @@ pub(crate) fn paint_phase_mask<O: Observer>(
         {
             phases |= PaintPhase::Background.bit();
         }
-        if facts.paints_border_image || style_queries::has_css_borders(style) {
+        // A border shape fills the area between its two shapes even without border widths.
+        if facts.paints_border_image
+            || style_queries::has_css_borders(style)
+            || crate::painting::border_shape::has_border_shape(style)
+        {
             phases |= PaintPhase::Border.bit();
         }
     }

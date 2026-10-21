@@ -356,6 +356,12 @@ pub(crate) fn border_radii_data(
     slot: NodeSlotId,
 ) -> BorderRadii {
     let border = style.border();
+    // https://drafts.csswg.org/css-borders-4/#border-shape-radius-interaction
+    // When an element's computed value of 'border-shape' is not none, its 'border-radius' is ignored, as if it was set
+    // to 0.
+    if crate::painting::border_shape::has_border_shape(style) {
+        return BorderRadii::default();
+    }
     let has_noninitial_radii = !border_radius_is_initial(&border.border_bottom_left_radius)
         || !border_radius_is_initial(&border.border_bottom_right_radius)
         || !border_radius_is_initial(&border.border_top_left_radius)
@@ -402,6 +408,12 @@ pub(crate) fn piece_border_radii_data(
     present_edges: u8,
 ) -> BorderRadii {
     let border = style.border();
+    // https://drafts.csswg.org/css-borders-4/#border-shape-radius-interaction
+    // When an element's computed value of 'border-shape' is not none, its 'border-radius' is ignored, as if it was set
+    // to 0.
+    if crate::painting::border_shape::has_border_shape(style) {
+        return BorderRadii::default();
+    }
     let has_noninitial_radii = !border_radius_is_initial(&border.border_bottom_left_radius)
         || !border_radius_is_initial(&border.border_bottom_right_radius)
         || !border_radius_is_initial(&border.border_top_left_radius)
@@ -833,10 +845,23 @@ pub(crate) fn may_have_clip(layout_arena: &impl PaintRead, node: NodeSlotId) -> 
         || style.content_visibility() == content_visibility::AUTO
 }
 
-pub(crate) fn compute_clip_data(layout_arena: &impl PaintRead, slot: NodeSlotId, pixel_ratio: f64) -> Option<ClipData> {
+/// Whether a box's overflow clips in both axes, which is when its clipping region follows its corners.
+pub(crate) fn overflow_clips_both_axes(layout_arena: &impl PaintRead, slot: NodeSlotId) -> bool {
+    use crate::css::css_enums::overflow;
+    layout_arena.node_style_if_live(slot).is_some_and(|style| {
+        let (overflow_x, overflow_y) = used_overflow(layout_arena, slot, style);
+        overflow_x != overflow::VISIBLE && overflow_y != overflow::VISIBLE
+    })
+}
+
+/// The overflow-x and overflow-y values a box clips its content with, after paint containment.
+fn used_overflow(
+    layout_arena: &impl PaintRead,
+    slot: NodeSlotId,
+    style: crate::css::computed_value_views::ComputedValuesView<'_>,
+) -> (u8, u8) {
     use crate::css::css_enums::{content_visibility, overflow};
     let node = slot;
-    let style = layout_arena.node_style_if_live(node)?;
     let box_values = style.box_values();
     let mut overflow_x = box_values.overflow_x;
     let mut overflow_y = box_values.overflow_y;
@@ -857,6 +882,14 @@ pub(crate) fn compute_clip_data(layout_arena: &impl PaintRead, slot: NodeSlotId,
         overflow_x = overflow::CLIP;
         overflow_y = overflow::CLIP;
     }
+    (overflow_x, overflow_y)
+}
+
+pub(crate) fn compute_clip_data(layout_arena: &impl PaintRead, slot: NodeSlotId, pixel_ratio: f64) -> Option<ClipData> {
+    use crate::css::css_enums::overflow;
+    let node = slot;
+    let style = layout_arena.node_style_if_live(node)?;
+    let (overflow_x, overflow_y) = used_overflow(layout_arena, node, style);
 
     // https://drafts.csswg.org/css-overflow-3/#propdef-overflow
     // 'clip'

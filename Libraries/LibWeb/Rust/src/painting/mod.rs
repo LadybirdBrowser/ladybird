@@ -5,6 +5,7 @@
  */
 
 pub mod border_radii;
+pub(crate) mod border_shape;
 pub(crate) mod caret;
 pub(crate) mod chrome_geometry;
 pub(crate) mod client_rects;

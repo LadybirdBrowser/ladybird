@@ -1454,6 +1454,15 @@ pub(crate) fn paint_box_borders<O: Observer>(
         return;
     }
     let converter = recorder.converter;
+    if let Some(border_shape) = crate::painting::border_shape::BorderShape::of(
+        recorder.source,
+        paintable,
+        borders_data,
+        converter.device_pixels_per_css_pixel(),
+    ) {
+        paint_border_shape(&mut recorder.recorder, &border_shape, borders_data.force_dark_role);
+        return;
+    }
     let device_border_rect = converter.rounded_device_rect(border_box_rect);
     let corner_radii = border_radii.as_corners(&converter);
     if let Some(style) = recorder.source.node_style_if_live(paintable) {
@@ -1470,6 +1479,54 @@ pub(crate) fn paint_box_borders<O: Observer>(
         }
     }
     paint_all_borders(&mut recorder.recorder, device_border_rect, corner_radii, borders_data);
+}
+
+// https://drafts.csswg.org/css-borders-4/#border-shape-syntax
+// FIXME: Draw the border's line style along the shape. Every style is drawn solid for now.
+fn paint_border_shape(
+    painter: &mut DisplayListRecorder,
+    border_shape: &crate::painting::border_shape::BorderShape,
+    force_dark_role: ForceDarkRole,
+) {
+    use crate::painting::border_shape::BorderShape;
+    match border_shape {
+        // Single shape: the border is rendered as a stroke along the shape's path, with the stroke width determined by
+        // the relevant side's computed border width.
+        BorderShape::Stroke {
+            path,
+            width,
+            color: Some(color),
+            ..
+        } => painter.stroke_path(StrokePathParams {
+            force_dark_role,
+            cap_style: CapStyle::Butt,
+            join_style: JoinStyle::Miter,
+            // INTEROP: Corners of the shape stay sharp however acute they are, as in other engines.
+            miter_limit: 1000.0,
+            dash_array: Vec::new(),
+            dash_offset: 0.0,
+            path,
+            opacity: 1.0,
+            paint_style_or_color: PaintStyleOrColor::Color(*color),
+            thickness: *width,
+            should_anti_alias: ShouldAntiAlias::Yes,
+        }),
+        // Two shapes: the border is rendered as the area between the two paths.
+        BorderShape::Fill { color: Some(color), .. } => {
+            let Some(area) = border_shape.fill_area() else {
+                return;
+            };
+            painter.fill_path(FillPathParams {
+                force_dark_role,
+                path: &area,
+                opacity: 1.0,
+                paint_style_or_color: PaintStyleOrColor::Color(*color),
+                winding_rule: WindingRule::EvenOdd,
+                should_anti_alias: ShouldAntiAlias::Yes,
+            });
+        }
+        _ => {}
+    }
 }
 
 // https://drafts.csswg.org/css-borders-4/#corner-shape-rendering

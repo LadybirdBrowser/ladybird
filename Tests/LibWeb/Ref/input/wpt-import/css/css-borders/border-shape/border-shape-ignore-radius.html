@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>CSS Border Shape: border-radius is ignored when border-shape is specified</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape-radius-interaction">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-ignore-radius-ref.html">
+<style>
+.test {
+    width: 200px;
+    height: 200px;
+    box-sizing: border-box;
+    margin: 50px auto;
+    outline: 1px solid black;
+    border: 10px solid transparent;
+    background: linear-gradient(green, green);
+    /* Outer shape is sharp border-box (inset 0).
+       Inner shape is rounded, inset by 10px (matching the border width). */
+    border-shape: inset(0px) inset(10px round 20px);
+    border-radius: 999px;
+}
+</style>
+<div class="test"></div>

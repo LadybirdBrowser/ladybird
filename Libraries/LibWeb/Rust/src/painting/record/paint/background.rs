@@ -207,7 +207,19 @@ fn paint_background_layers<O: Observer>(
         .node_style_if_live(paintable)
         .map(CornerShapes::of)
         .filter(|shapes| !is_root_element && shapes.needs_contour(border_box_corner_radii));
+    // https://drafts.csswg.org/css-borders-4/#border-shape-radius-interaction
+    // The inner border shape clips the background, and the border radii are ignored.
+    let border_shape_clip = (!is_root_element)
+        .then(|| crate::painting::border_shape::BorderShape::for_paintable(recorder.source, paintable, &converter))
+        .flatten()
+        .map(|border_shape| {
+            let (path, fill_rule) = border_shape.background_clip_path();
+            PendingInlineClip::intersecting_path(path, fill_rule)
+        });
     let contour_clip = |css_rect: CssPixelRect| {
+        if let Some(clip) = &border_shape_clip {
+            return Some(clip.clone());
+        }
         corner_shapes.map(|shapes| {
             let rect = converter.rounded_device_rect(css_rect).to_float();
             let insets = Insets {

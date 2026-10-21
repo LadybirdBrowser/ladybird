@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+.test {
+    width: 200px;
+    height: 200px;
+    box-sizing: border-box;
+    margin: 50px auto;
+    outline: 1px solid black;
+    border: 10px solid transparent;
+    background: linear-gradient(green, green);
+    /* Same border-shape as the test, but with border-radius: 0.
+       If they match, then border-radius on the test was successfully ignored. */
+    border-shape: inset(0px) inset(10px round 20px);
+    border-radius: 0px;
+}
+</style>
+<div class="test"></div>

@@ -1,0 +1,3 @@
+border-shape: circle() circle() border-box: circle() border-box
+border-shape: circle() border-box circle() border-box: circle() border-box
+border-shape: circle() circle(): circle() circle()

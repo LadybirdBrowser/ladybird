@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-inner-outer-ref.html">
+<meta name="fuzzy" content="maxDifference=0-170;totalPixels=0-150">
+<style>
+#target {
+    width: 100px;
+    height: 100px;
+    border-shape: polygon(50% 0, 100% 50%, 50% 100%, 0 50%) circle(20%);
+    border-color: yellow;
+    background: green;
+    border-radius: 10px;
+}
+</style>
+<div id="target"></div>

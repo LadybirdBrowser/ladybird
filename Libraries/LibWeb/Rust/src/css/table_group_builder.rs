@@ -1822,6 +1822,7 @@ fn build_border_group(
             payload.border_top_right_radius = retained(property_id::BORDER_TOP_RIGHT_RADIUS);
             payload.has_noninitial_border_radii = has_noninitial_border_radii;
             payload.border_image_source = retained(property_id::BORDER_IMAGE_SOURCE);
+            payload.border_shape = retained(property_id::BORDER_SHAPE);
             payload.border_image_slice = retained(property_id::BORDER_IMAGE_SLICE);
             payload.border_image_width = retained(property_id::BORDER_IMAGE_WIDTH);
             payload.border_image_outset = retained(property_id::BORDER_IMAGE_OUTSET);

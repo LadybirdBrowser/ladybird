@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['border-shape'] = "circle() none" should not set the property value
+Pass	e.style['border-shape'] = "polygon(bla 10px 10px, 100px 10px, 10px 100px)" should not set the property value
+Pass	e.style['border-shape'] = "shape()" should not set the property value
+Pass	e.style['border-shape'] = "nonsense" should not set the property value
+Pass	e.style['border-shape'] = "1px" should not set the property value
+Pass	e.style['border-shape'] = "circle() padding-box margin-box" should not set the property value
+Pass	e.style['border-shape'] = "padding-box margin-box" should not set the property value
+Pass	e.style['border-shape'] = "padding-box" should not set the property value
+Pass	e.style['border-shape'] = "padding-box circle()" should not set the property value
+Pass	e.style['border-shape'] = "circle() padding-box margin-box circle()" should not set the property value
+Pass	e.style['border-shape'] = "circle() padding-box circle() margin-box circle()" should not set the property value
+Pass	e.style['border-shape'] = "circle() padding-box circle() margin-box padding-box" should not set the property value

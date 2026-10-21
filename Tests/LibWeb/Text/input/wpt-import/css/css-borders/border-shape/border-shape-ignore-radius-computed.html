@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>CSS Border Shape: border-radius is ignored in computed style when border-shape is specified</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape-radius-interaction">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#test {
+    border-shape: inset(0px) inset(0px round 20px);
+    border-radius: 999px;
+    corner-shape: bevel;
+}
+</style>
+<div id="test"></div>
+<script>
+test(() => {
+    const style = getComputedStyle(document.getElementById('test'));
+    assert_not_equals(style.borderShape, 'none', 'borderShape should be parsed successfully');
+    assert_equals(style.borderTopLeftRadius, '999px');
+    assert_equals(style.borderTopRightRadius, '999px');
+    assert_equals(style.borderBottomRightRadius, '999px');
+    assert_equals(style.borderBottomLeftRadius, '999px');
+    assert_equals(style.cornerTopLeftShape, 'superellipse(0)');
+    assert_equals(style.cornerTopRightShape, 'superellipse(0)');
+    assert_equals(style.cornerBottomRightShape, 'superellipse(0)');
+    assert_equals(style.cornerBottomLeftShape, 'superellipse(0)');
+}, "border-radius and corner-shape are NOT reset in computed style when border-shape is specified");
+</script>

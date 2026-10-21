@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<style>
+body {
+  margin: 0;
+}
+.container {
+  display: flex;
+  gap: 40px;
+  padding: 30px;
+}
+.box {
+  width: 100px;
+  height: 100px;
+  background: lightblue;
+  border: 20px solid rgba(255, 0, 0, 0.5);
+  fill: rgba(0, 255, 0, 0.3);
+}
+/* Both should be identical with explicit border-box */
+#double-implicit {
+  border-shape: circle(50%) border-box circle(40%) padding-box;
+}
+#double-explicit {
+  border-shape: circle(50%) border-box circle(40%) padding-box;
+}
+</style>
+<div class="container">
+  <div class="box" id="double-implicit"></div>
+  <div class="box" id="double-explicit"></div>
+</div>

@@ -139,6 +139,7 @@ border-left-width: 0px
 border-right-color: rgb(0, 0, 0)
 border-right-style: none
 border-right-width: 0px
+border-shape: none
 border-start-end-radius: 0px
 border-start-start-radius: 0px
 border-top-color: rgb(0, 0, 0)
@@ -209,7 +210,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2743px
+height: 2756px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto
@@ -335,7 +336,7 @@ top: auto
 touch-action: auto
 transform: none
 transform-box: view-box
-transform-origin: 392px 2190.5px
+transform-origin: 392px 2197px
 transform-style: flat
 transition-behavior: normal
 transition-delay: 0s

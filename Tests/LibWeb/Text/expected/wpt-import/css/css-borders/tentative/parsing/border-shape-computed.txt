@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	Property border-shape value 'none'
+Pass	Property border-shape value 'circle()'
+Pass	Property border-shape value 'circle(closest-corner at center)'
+Pass	Property border-shape value 'circle(closest-corner at 20px 50px)'
+Pass	Property border-shape value 'circle(farthest-corner at center)'
+Pass	Property border-shape value 'ellipse(closest-corner farthest-corner at 20px 50px)'
+Pass	Property border-shape value 'polygon(10px 10px, 100px 10px, 10px 100px)'
+Pass	Property border-shape value 'shape(from 0px 0px, hline to 100px, vline to 100px, close)'
+Pass	Property border-shape value 'circle() circle()'
+Pass	Property border-shape value 'circle() border-box circle() padding-box'
+Pass	Property border-shape value 'circle() polygon(10px 10px, 100px 10px, 10px 100px)'
+Pass	Property border-shape value 'circle(closest-corner) ellipse(farthest-corner closest-corner)'
+Pass	Property border-shape value 'circle() content-box'
+Pass	Property border-shape value 'circle() border-box'
+Pass	Property border-shape value 'circle() border-box polygon(10px 10px, 100px 10px, 10px 100px) border-box'
+Pass	Property border-shape value 'circle() padding-box polygon(10px 10px, 100px 10px, 10px 100px) border-box'
+Pass	Property border-shape value 'circle() padding-box polygon(10px 10px, 100px 10px, 10px 100px) padding-box'
+Pass	Property border-shape value 'circle() polygon(10px 10px, 100px 10px, 10px 100px) border-box'
+Pass	Property border-shape value 'circle() polygon(10px 10px, 100px 10px, 10px 100px) content-box'
+Pass	Property border-shape value 'circle() half-border-box'
+Pass	Property border-shape value 'circle() half-border-box circle() half-border-box'
+Pass	Property border-shape value 'circle() border-box circle() border-box'

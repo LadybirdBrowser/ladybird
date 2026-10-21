@@ -553,14 +553,12 @@ pub(crate) fn shape_to_path(
     path.build()
 }
 
-pub(crate) fn compute_basic_shape_clip_path_data(
-    layout_arena: &impl PaintRead,
-    slot: NodeSlotId,
+/// The device-space path of a computed basic shape whose reference box is `reference_box`, and its fill rule.
+pub(crate) fn basic_shape_device_path(
+    shape: &BasicShapeData,
+    reference_box: CssPixelRect,
     pixel_ratio: f64,
-) -> Option<(OwnedPath, libgfx_rust::IntRect, WindingRule)> {
-    let node = slot;
-    let style = layout_arena.node_style_if_live(node)?;
-    let clip_path = style_queries::handle_value(&style.mask().clip_path)?;
+) -> (OwnedPath, WindingRule) {
     let BasicShapeData {
         kind,
         v0,
@@ -572,24 +570,21 @@ pub(crate) fn compute_basic_shape_clip_path_data(
         points,
         path,
         commands,
-    } = clip_path.basic_shape()?;
-
-    // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
-    let masking_area = paintable_geometry::absolute_border_box_rect(layout_arena, slot);
-    let reference_box = CssPixelRect::new(
+    } = shape;
+    let local_reference_box = CssPixelRect::new(
         CssPixels::from_raw(0),
         CssPixels::from_raw(0),
-        masking_area.width,
-        masking_area.height,
+        reference_box.width,
+        reference_box.height,
     );
     let shape_path = match *kind {
-        basic_shape_kind::INSET => inset_to_path(v0, v1, v2, v3, v4, reference_box),
-        basic_shape_kind::CIRCLE => circle_to_path(v0, v1, reference_box),
-        basic_shape_kind::ELLIPSE => ellipse_to_path(v0, v1, reference_box),
-        basic_shape_kind::POLYGON => polygon_to_path(points, reference_box),
+        basic_shape_kind::INSET => inset_to_path(v0, v1, v2, v3, v4, local_reference_box),
+        basic_shape_kind::CIRCLE => circle_to_path(v0, v1, local_reference_box),
+        basic_shape_kind::ELLIPSE => ellipse_to_path(v0, v1, local_reference_box),
+        basic_shape_kind::POLYGON => polygon_to_path(points, local_reference_box),
         basic_shape_kind::PATH => path.to_gfx_path(),
-        basic_shape_kind::SHAPE => shape_to_path(points.as_slice(), commands.as_slice(), reference_box),
-        _ => unreachable!("computed clip-path basic shape holds an unlowered kind"),
+        basic_shape_kind::SHAPE => shape_to_path(points.as_slice(), commands.as_slice(), local_reference_box),
+        _ => unreachable!("a computed basic shape holds a lowered kind"),
     };
     let resolved_fill_rule = match *kind {
         basic_shape_kind::POLYGON | basic_shape_kind::PATH | basic_shape_kind::SHAPE => {
@@ -597,11 +592,33 @@ pub(crate) fn compute_basic_shape_clip_path_data(
         }
         _ => WindingRule::Nonzero,
     };
-
-    let translated_path =
-        shape_path.copy_transformed([1.0, 0.0, 0.0, 1.0, masking_area.x.to_float(), masking_area.y.to_float()]);
+    let translated_path = shape_path.copy_transformed([
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        reference_box.x.to_float(),
+        reference_box.y.to_float(),
+    ]);
     let scale = pixel_ratio as f32;
-    let device_path = translated_path.copy_transformed([scale, 0.0, 0.0, scale, 0.0, 0.0]);
+    (
+        translated_path.copy_transformed([scale, 0.0, 0.0, scale, 0.0, 0.0]),
+        resolved_fill_rule,
+    )
+}
+
+pub(crate) fn compute_basic_shape_clip_path_data(
+    layout_arena: &impl PaintRead,
+    slot: NodeSlotId,
+    pixel_ratio: f64,
+) -> Option<(OwnedPath, libgfx_rust::IntRect, WindingRule)> {
+    let node = slot;
+    let style = layout_arena.node_style_if_live(node)?;
+    let clip_path = style_queries::handle_value(&style.mask().clip_path)?;
+    // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
+    let masking_area = paintable_geometry::absolute_border_box_rect(layout_arena, slot);
+    let (device_path, resolved_fill_rule) =
+        basic_shape_device_path(clip_path.basic_shape()?, masking_area, pixel_ratio);
     let converter = DevicePixelConverter::new(pixel_ratio);
     let device_bounding_rect = converter.rounded_device_rect(masking_area);
     Some((device_path, device_bounding_rect, resolved_fill_rule))

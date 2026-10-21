@@ -2456,6 +2456,56 @@ fn border_spacing_pair(single: StyleValueData) -> Arc<StyleValueData> {
     })
 }
 
+/// https://drafts.csswg.org/css-borders-4/#border-shape-geometry-box
+/// The computed value of a border-shape leaves out the reference boxes that are the defaults, and keeps one of two
+/// shapes that are the same against the same box. Returns `None` when the value is already canonical.
+#[allow(clippy::arc_with_non_send_sync)]
+fn canonicalize_border_shape(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
+    let StyleValueData::ValueList { values, .. } = value else {
+        return None;
+    };
+    let mut entries: Vec<(&RetainedStyleValueData, Option<u16>)> = Vec::new();
+    for item in values.as_slice() {
+        match item.data() {
+            StyleValueData::Keyword { keyword } => entries.last_mut()?.1 = Some(*keyword),
+            _ => entries.push((item, None)),
+        }
+    }
+    // A single shape defaults to the half-border-box. Of two, the outer one defaults to the border box, and the inner
+    // one to the padding box.
+    let default_box = |count: usize, index: usize| match (count, index) {
+        (1, _) => keyword::HALF_BORDER_BOX,
+        (_, 0) => keyword::BORDER_BOX,
+        _ => keyword::PADDING_BOX,
+    };
+    if let [(outer, outer_box), (inner, inner_box)] = entries[..]
+        && outer.data() == inner.data()
+        && outer_box.unwrap_or(default_box(2, 0)) == inner_box.unwrap_or(default_box(2, 1))
+    {
+        // NB: An omitted box means something else for a single shape, so this keeps the box the outer shape used.
+        entries = vec![(outer, Some(outer_box.unwrap_or(default_box(2, 0))))];
+    }
+    let count = entries.len();
+    let mut canonical = Vec::with_capacity(count * 2);
+    for (index, (shape, geometry_box)) in entries.into_iter().enumerate() {
+        canonical.push(shape.clone_retained());
+        if let Some(geometry_box) = geometry_box.filter(|&geometry_box| geometry_box != default_box(count, index)) {
+            canonical.push(retained_new(StyleValueData::Keyword { keyword: geometry_box }));
+        }
+    }
+    if canonical.len() == values.as_slice().len() {
+        return None;
+    }
+    if let [only] = &canonical[..] {
+        return Some(Arc::new(only.data().clone()));
+    }
+    Some(Arc::new(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(canonical),
+        separator: 0,
+        collapsible: false,
+    }))
+}
+
 // https://drafts.csswg.org/css-contain-2/#contain-property
 #[allow(clippy::arc_with_non_send_sync)]
 fn collapse_containment_list(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
@@ -4171,6 +4221,21 @@ pub(crate) unsafe fn drive_property_computation(
                         _ => value_data.clone(),
                     };
                     NativeValue::StyleValue(border_spacing_pair(single))
+                }
+                (None, prop::BORDER_SHAPE) => {
+                    let resolution_context =
+                        length_resolution_context.expect("border-shape must compute with a resolution context");
+                    match absolutize_value(value_data, resolution_context, current_effective_color_scheme, results) {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => canonicalize_border_shape(value_data)
+                            .map_or(NativeValue::Unchanged, NativeValue::StyleValue),
+                        Some(crate::css::absolutize::Absolutized::Changed(new_value)) => {
+                            match canonicalize_border_shape(new_value.data()) {
+                                Some(canonical) => NativeValue::StyleValue(canonical),
+                                None => NativeValue::StyleValue(new_value.into_arc()),
+                            }
+                        }
+                        None => NativeValue::Unsupported,
+                    }
                 }
                 (_, prop::CONTAIN) => match collapse_containment_list(value_data) {
                     Some(value) => NativeValue::StyleValue(value),
