@@ -2200,29 +2200,6 @@ impl StyleValueData {
             _ => None,
         }
     }
-
-    pub(crate) fn unresolved_authored_source(&self) -> Option<TokenizerInput<'_>> {
-        let Self::Unresolved { source_text, .. } = self else {
-            return None;
-        };
-        Some(TokenizerInput::from(source_text))
-    }
-
-    pub(crate) fn unresolved_token_source(&self) -> Option<TokenizerInput<'_>> {
-        let Self::Unresolved {
-            source_text,
-            value_comparison_text,
-            ..
-        } = self
-        else {
-            return None;
-        };
-        if value_comparison_text.units().is_empty() {
-            Some(TokenizerInput::from(source_text))
-        } else {
-            Some(TokenizerInput::from(value_comparison_text))
-        }
-    }
 }
 
 impl StyleValueData {

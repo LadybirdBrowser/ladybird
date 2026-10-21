@@ -17,14 +17,13 @@ use std::sync::Arc;
 use ak::ScopeGuard;
 
 use crate::css::calc::CanonicalNumericType;
-use crate::css::css_tokenizer::OwnedToken;
-use crate::css::css_tokenizer::OwnedTokenKind;
-use crate::css::css_tokenizer::tokenize_for_parser;
-use crate::css::css_tokenizer::tokenize_owned;
+use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::function_signature::FunctionSignature;
 use crate::css::parser::arbitrary_substitution::{arbitrary_substitution_function, arguments_are_valid};
-use crate::css::parser::component_value::{ComponentSerializationMode, consume_a_list_of_component_values};
+use crate::css::parser::component_value::{
+    ComponentKind, ComponentSerializationMode, ComponentValue, consume_a_list_of_component_values, trim_whitespace,
+};
 use crate::css::parser::query_parser::{
     FeatureComparison, FfiMediaEnvironment, MatchResult, StyleFeature, StyleRangeValue as ParsedStyleRangeValue,
     parse_and_evaluate_media_if_condition, parse_and_evaluate_supports_if_condition, parse_style_range_from_source,
@@ -152,8 +151,8 @@ struct CustomFunctionDefinition {
     identity: CustomFunctionIdentity,
     scope_identity: usize,
     signature: Arc<FunctionSignature>,
-    parameter_defaults: Vec<Option<Vec<OwnedToken>>>,
-    declarations: Vec<(Vec<u16>, Vec<OwnedToken>, bool)>,
+    parameter_defaults: Vec<Option<Vec<ComponentValue>>>,
+    declarations: Vec<(Vec<u16>, Vec<ComponentValue>, bool)>,
 }
 
 struct CustomFunctionRegistry {
@@ -167,19 +166,19 @@ struct CustomFunctionRegistry {
 #[derive(Clone)]
 struct FunctionLocalRegistration {
     syntax: SyntaxNode,
-    initial_tokens: Option<Vec<OwnedToken>>,
+    initial_tokens: Option<Vec<ComponentValue>>,
     is_result: bool,
 }
 
 #[derive(Clone)]
 struct FunctionLocalValue {
-    tokens: Vec<OwnedToken>,
+    tokens: Vec<ComponentValue>,
     includes_substitution: bool,
 }
 
 struct FunctionLocalScope {
     function_identity: CustomFunctionIdentity,
-    resolved_value_cache: Rc<RefCell<HashMap<Vec<u16>, Vec<OwnedToken>>>>,
+    resolved_value_cache: Rc<RefCell<HashMap<Vec<u16>, Vec<ComponentValue>>>>,
     values: HashMap<Vec<u16>, FunctionLocalValue>,
     registrations: Rc<HashMap<Vec<u16>, FunctionLocalRegistration>>,
 }
@@ -841,8 +840,12 @@ pub(crate) enum NativeVarResolution {
     NotHandled,
 }
 
+fn parse_substitution_values<'a>(input: impl Into<TokenizerInput<'a>>) -> Option<Vec<ComponentValue>> {
+    consume_a_list_of_component_values(tokenize_for_parser(input)).ok()
+}
+
 enum TokenResolution {
-    Resolved(Vec<OwnedToken>),
+    Resolved(Vec<ComponentValue>),
     Invalid,
     Cyclic,
     NotHandled,
@@ -850,7 +853,7 @@ enum TokenResolution {
 
 impl TokenResolution {
     fn from_source<'a>(source: impl Into<crate::css::css_tokenizer::TokenizerInput<'a>>) -> Self {
-        Self::Resolved(tokenize_owned(source))
+        parse_substitution_values(source).map_or(Self::Invalid, Self::Resolved)
     }
 }
 
@@ -1010,81 +1013,12 @@ pub unsafe extern "C" fn rust_style_query_dependencies_take(
     }
 }
 
-type CustomPropertyTokenCache = HashMap<*const StyleValueData, (Arc<[OwnedToken]>, bool, bool)>;
+type CustomPropertyTokenCache = HashMap<*const StyleValueData, Arc<[ComponentValue]>>;
 
 pub(crate) struct VarResolutionEnvironment {
     attributes: HashMap<Vec<u16>, Vec<u16>>,
     custom_functions: CustomFunctionRegistry,
     token_cache: CustomPropertyTokenCache,
-}
-
-fn matching_close(kind: &OwnedTokenKind) -> Option<OwnedTokenKind> {
-    match kind {
-        OwnedTokenKind::Function(_) | OwnedTokenKind::OpenParen => Some(OwnedTokenKind::CloseParen),
-        OwnedTokenKind::OpenSquare => Some(OwnedTokenKind::CloseSquare),
-        OwnedTokenKind::OpenCurly => Some(OwnedTokenKind::CloseCurly),
-        _ => None,
-    }
-}
-
-fn find_matching_close(tokens: &[OwnedToken], open_index: usize) -> Option<usize> {
-    let mut expected_closes = vec![matching_close(&tokens[open_index].kind)?];
-    for (index, token) in tokens.iter().enumerate().skip(open_index + 1) {
-        if let Some(close) = matching_close(&token.kind) {
-            expected_closes.push(close);
-            continue;
-        }
-        if expected_closes.last() == Some(&token.kind) {
-            expected_closes.pop();
-            if expected_closes.is_empty() {
-                return Some(index);
-            }
-        }
-    }
-    None
-}
-
-fn find_top_level_comma(tokens: &[OwnedToken]) -> Option<usize> {
-    let mut index = 0;
-    while index < tokens.len() {
-        if matches!(tokens[index].kind, OwnedTokenKind::Comma) {
-            return Some(index);
-        }
-        if matching_close(&tokens[index].kind).is_some() {
-            index = find_matching_close(tokens, index)? + 1;
-        } else {
-            index += 1;
-        }
-    }
-    None
-}
-
-fn find_top_level_source(tokens: &[OwnedToken], source: &[u8]) -> Option<usize> {
-    let mut index = 0;
-    while index < tokens.len() {
-        if tokens[index].source.equals_ascii(source) {
-            return Some(index);
-        }
-        if matching_close(&tokens[index].kind).is_some() {
-            index = find_matching_close(tokens, index)? + 1;
-        } else {
-            index += 1;
-        }
-    }
-    None
-}
-
-fn trim_whitespace(mut tokens: &[OwnedToken]) -> &[OwnedToken] {
-    while matches!(
-        tokens.first().map(|token| &token.kind),
-        Some(OwnedTokenKind::Whitespace)
-    ) {
-        tokens = &tokens[1..];
-    }
-    while matches!(tokens.last().map(|token| &token.kind), Some(OwnedTokenKind::Whitespace)) {
-        tokens = &tokens[..tokens.len() - 1];
-    }
-    tokens
 }
 
 fn source_ends_with_comment(source: crate::css::css_tokenizer::TokenizerInput<'_>) -> bool {
@@ -1100,26 +1034,22 @@ fn source_ends_with_comment(source: crate::css::css_tokenizer::TokenizerInput<'_
     }
 }
 
-fn single_css_wide_keyword(tokens: &[OwnedToken]) -> Option<&[u16]> {
-    let [
-        OwnedToken {
-            kind: OwnedTokenKind::Ident(keyword),
-            ..
-        },
-    ] = trim_whitespace(tokens)
-    else {
+fn single_css_wide_keyword(tokens: &[ComponentValue]) -> Option<&[u16]> {
+    let [value] = trim_whitespace(tokens) else {
         return None;
     };
+    let keyword = value.ident()?;
     (keyword.eq_ignore_ascii_case("inherit")
         || keyword.eq_ignore_ascii_case("initial")
         || keyword.eq_ignore_ascii_case("unset")
         || keyword.eq_ignore_ascii_case("revert")
         || keyword.eq_ignore_ascii_case("revert-layer"))
-    .then_some(keyword.as_slice())
+    .then_some(keyword)
 }
 
-fn tokens_for_custom_property_value(data: &StyleValueData) -> (Vec<OwnedToken>, bool, bool) {
-    if let StyleValueData::Unresolved {
+fn tokens_for_unresolved_custom_property_value(data: &StyleValueData) -> (&[ComponentValue], bool, bool) {
+    let StyleValueData::Unresolved {
+        components,
         presence_attr,
         presence_dashed_function,
         presence_env,
@@ -1127,56 +1057,55 @@ fn tokens_for_custom_property_value(data: &StyleValueData) -> (Vec<OwnedToken>, 
         presence_inherit,
         presence_var,
         contains_attr_tainted_values,
+        source_text,
         ..
     } = data
-    {
-        let mut tokens = tokenize_owned(
-            data.unresolved_token_source()
-                .expect("unresolved values provide token source"),
-        );
+    else {
+        unreachable!("expected an unresolved custom property value");
+    };
 
-        let authored_source = data
-            .unresolved_authored_source()
-            .expect("unresolved values provide authored source");
+    let mut values = components.as_slice();
 
-        if source_ends_with_comment(authored_source) {
-            while matches!(tokens.last().map(|token| &token.kind), Some(OwnedTokenKind::Whitespace)) {
-                tokens.pop();
-            }
+    // Discard trailing comments
+    if source_ends_with_comment(TokenizerInput::from(source_text)) {
+        while values.last().is_some_and(ComponentValue::is_whitespace) {
+            values = &values[..values.len() - 1];
         }
-        return (
-            tokens,
-            *presence_var
-                || *presence_attr
-                || *presence_dashed_function
-                || *presence_env
-                || *presence_if
-                || *presence_inherit,
-            *contains_attr_tainted_values,
-        );
     }
-    let source = crate::css::serialize::serialize_style_value_to_utf16(data);
-    (tokenize_owned(&source), false, false)
+
+    (
+        values,
+        *presence_var
+            || *presence_attr
+            || *presence_dashed_function
+            || *presence_env
+            || *presence_if
+            || *presence_inherit,
+        *contains_attr_tainted_values,
+    )
 }
 
-fn cached_tokens_for_custom_property_value(
+fn resolve_typed_custom_property_value(
     data: &StyleValueData,
     context: &mut ASFResolutionContext<'_>,
-) -> (Arc<[OwnedToken]>, bool, bool) {
+) -> TokenResolution {
     let key = std::ptr::from_ref(data);
-    if let Some(cached) = context.token_cache.as_deref().and_then(|cache| cache.get(&key)) {
-        return cached.clone();
+    if let Some(tokens) = context.token_cache.as_deref().and_then(|cache| cache.get(&key)) {
+        return TokenResolution::Resolved(tokens.to_vec());
     }
-    let (tokens, includes_substitution, contains_attr_tainted_values) = tokens_for_custom_property_value(data);
-    let result = (Arc::from(tokens), includes_substitution, contains_attr_tainted_values);
+    let source = crate::css::serialize::serialize_style_value_to_utf16(data);
+    let tokens: Arc<[ComponentValue]> = parse_substitution_values(&source)
+        .expect("serialized style values tokenize correctly")
+        .into();
     if let Some(cache) = context.token_cache.as_deref_mut() {
-        cache.insert(key, result.clone());
+        cache.insert(key, Arc::clone(&tokens));
     }
-    result
+    TokenResolution::Resolved(tokens.to_vec())
 }
 
-fn tokens_for_function_value(data: &StyleValueData) -> (Vec<OwnedToken>, bool) {
+fn tokens_for_function_value(data: &StyleValueData) -> (Vec<ComponentValue>, bool) {
     if let StyleValueData::Unresolved {
+        components,
         presence_attr,
         presence_dashed_function,
         presence_env,
@@ -1187,10 +1116,7 @@ fn tokens_for_function_value(data: &StyleValueData) -> (Vec<OwnedToken>, bool) {
     } = data
     {
         return (
-            tokenize_owned(
-                data.unresolved_token_source()
-                    .expect("unresolved values provide token source"),
-            ),
+            trim_whitespace(components.as_slice()).to_vec(),
             *presence_var
                 || *presence_attr
                 || *presence_dashed_function
@@ -1200,7 +1126,10 @@ fn tokens_for_function_value(data: &StyleValueData) -> (Vec<OwnedToken>, bool) {
         );
     }
     let source = crate::css::serialize::serialize_style_value_to_utf16(data);
-    (tokenize_owned(&source), false)
+    (
+        parse_substitution_values(&source).expect("serialized style values form valid component values"),
+        false,
+    )
 }
 
 fn custom_function_registry(
@@ -1314,7 +1243,10 @@ fn compute_element_custom_property(
     CUSTOM_PROPERTY_COMPUTATIONS.with(|count| count.set(count.get() + 1));
 
     let entry = &store.own_values[&name_raw];
-    let (tokens, includes_substitution, tainted) = cached_tokens_for_custom_property_value(entry.value.data(), context);
+    let (tokens, includes_substitution, tainted) = match entry.value.data() {
+        data @ StyleValueData::Unresolved { .. } => tokens_for_unresolved_custom_property_value(data),
+        _ => (&[][..], false, false),
+    };
 
     let value = if includes_substitution {
         let guarded_contexts = GuardedSubstitutionContexts {
@@ -1346,7 +1278,7 @@ fn compute_element_custom_property(
         let result = substitute_arbitrary_substitution_functions(
             Some(store),
             Some(registry),
-            &tokens,
+            tokens,
             &mut property_context,
             recursion_depth,
             Some(SubstitutionContextDependency::Property(name.to_vec(), None)),
@@ -1449,18 +1381,21 @@ pub(crate) fn resolve_element_custom_properties(
 }
 
 fn computed_property_tokens(value: &RetainedStyleValueData, context: &mut ASFResolutionContext) -> TokenResolution {
-    if matches!(value.data(), StyleValueData::GuaranteedInvalid) {
-        return TokenResolution::Invalid;
+    match value.data() {
+        StyleValueData::GuaranteedInvalid => TokenResolution::Invalid,
+        data @ StyleValueData::Unresolved { .. } => {
+            let (tokens, _, tainted) = tokens_for_unresolved_custom_property_value(data);
+            context.contains_attr_tainted_values |= tainted;
+            TokenResolution::Resolved(tokens.to_vec())
+        }
+        data => resolve_typed_custom_property_value(data, context),
     }
-    let (tokens, _, tainted) = tokens_for_custom_property_value(value.data());
-    context.contains_attr_tainted_values |= tainted;
-    TokenResolution::Resolved(tokens)
 }
 
 fn registration_accepts_tokens(
     registry: &CustomPropertyRegistry,
     registration: &RegisteredCustomProperty,
-    tokens: &[OwnedToken],
+    tokens: &[ComponentValue],
 ) -> bool {
     matches!(registration.syntax, SyntaxNode::Universal)
         || registry
@@ -1538,7 +1473,7 @@ fn resolve_css_wide_keyword(
 fn normalize_function_tokens(
     registry: Option<&CustomPropertyRegistry>,
     syntax: &SyntaxNode,
-    tokens: &[OwnedToken],
+    tokens: &[ComponentValue],
 ) -> TokenResolution {
     if matches!(syntax, SyntaxNode::Universal) {
         return TokenResolution::Resolved(tokens.to_vec());
@@ -1743,8 +1678,6 @@ fn resolve_custom_property_with_lookup(
     if matches!(data, StyleValueData::GuaranteedInvalid) {
         return TokenResolution::Invalid;
     }
-    let (source, includes_var, contains_attr_tainted_values) = cached_tokens_for_custom_property_value(data, context);
-    context.contains_attr_tainted_values |= contains_attr_tainted_values;
     // https://drafts.csswg.org/css-cascade-5/#inheritance
     // The inherited value of a property on an element is the computed value of the property on the element’s parent
     // element.
@@ -1752,19 +1685,25 @@ fn resolve_custom_property_with_lookup(
         || lookup == CustomPropertyLookup::ExplicitInheritance
         || store.is_some_and(|store| !std::ptr::eq(store, owner))
     {
-        return TokenResolution::Resolved(source.to_vec());
+        return computed_property_tokens(&entry.value, context);
     }
-    let result = if includes_var {
-        substitute_arbitrary_substitution_functions(
-            store,
-            registry,
-            &source,
-            context,
-            recursion_depth + 1,
-            Some(substitution_context),
-        )
+    let result = if matches!(data, StyleValueData::Unresolved { .. }) {
+        let (source, includes_var, contains_attr_tainted_values) = tokens_for_unresolved_custom_property_value(data);
+        context.contains_attr_tainted_values |= contains_attr_tainted_values;
+        if includes_var {
+            substitute_arbitrary_substitution_functions(
+                store,
+                registry,
+                source,
+                context,
+                recursion_depth + 1,
+                Some(substitution_context),
+            )
+        } else {
+            TokenResolution::Resolved(source.to_vec())
+        }
     } else {
-        TokenResolution::Resolved(source.to_vec())
+        resolve_typed_custom_property_value(data, context)
     };
     if let TokenResolution::Resolved(tokens) = &result
         && let Some(keyword) = single_css_wide_keyword(tokens)
@@ -1792,7 +1731,7 @@ fn resolve_custom_property_with_lookup(
 fn replace_var_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    arguments: &[OwnedToken],
+    arguments: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
@@ -1800,7 +1739,7 @@ fn replace_var_function(
     // 1. Let el be the element that the style containing the var() function is being applied to.
     //    Let first arg be the first <declaration-value> in arguments.
     //    Let second arg be the <declaration-value>? passed after the comma, or null if there was no comma.
-    let comma = find_top_level_comma(arguments);
+    let comma = arguments.iter().position(ComponentValue::is_comma);
     let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
 
     // 2. Substitute arbitrary substitution functions in first arg, then parse it as a <custom-property-name>.
@@ -1812,12 +1751,7 @@ fn replace_var_function(
         TokenResolution::NotHandled => return TokenResolution::NotHandled,
     };
     let name = match trim_whitespace(&substituted_first) {
-        [
-            OwnedToken {
-                kind: OwnedTokenKind::Ident(name),
-                ..
-            },
-        ] if name.starts_with_ascii("--") => Some(name.as_slice()),
+        [value] => value.ident().filter(|name| name.starts_with_ascii("--")),
         _ => None,
     };
     if let Some(name) = name {
@@ -1838,12 +1772,12 @@ fn replace_var_function(
 fn replace_inherit_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    arguments: &[OwnedToken],
+    arguments: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-values-5/#replace-an-inherit-function
-    let comma = find_top_level_comma(arguments);
+    let comma = arguments.iter().position(ComponentValue::is_comma);
     let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
     let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
         TokenResolution::Resolved(tokens) => tokens,
@@ -1851,12 +1785,7 @@ fn replace_inherit_function(
         TokenResolution::NotHandled => return TokenResolution::NotHandled,
     };
     let name = match trim_whitespace(&substituted_first) {
-        [
-            OwnedToken {
-                kind: OwnedTokenKind::Ident(name),
-                ..
-            },
-        ] if name.starts_with_ascii("--") => Some(name.as_slice()),
+        [value] => value.ident().filter(|name| name.starts_with_ascii("--")),
         _ => None,
     };
     if let Some(name) = name {
@@ -1895,12 +1824,12 @@ fn replace_inherit_function(
 fn replace_env_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    arguments: &[OwnedToken],
+    arguments: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-env/#substitute-an-env
-    let comma = find_top_level_comma(arguments);
+    let comma = arguments.iter().position(ComponentValue::is_comma);
     let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
     let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
         TokenResolution::Resolved(tokens) => tokens,
@@ -1909,29 +1838,22 @@ fn replace_env_function(
         TokenResolution::NotHandled => return TokenResolution::NotHandled,
     };
     let first_argument = trim_whitespace(&substituted_first);
-    let Some(name) = (match first_argument.first() {
-        Some(OwnedToken {
-            kind: OwnedTokenKind::Ident(name),
-            ..
-        }) => Some(name.as_slice()),
-        _ => None,
-    }) else {
+    let Some(name) = first_argument.first().and_then(ComponentValue::ident) else {
         return TokenResolution::Invalid;
     };
     let Some(indices) = (|| {
         let mut indices = Vec::new();
         for token in trim_whitespace(&first_argument[1..]) {
-            if matches!(token.kind, OwnedTokenKind::Whitespace) {
+            if token.is_whitespace() {
                 continue;
             }
-            if !matches!(token.kind, OwnedTokenKind::Number) {
+            let ComponentKind::Token(ParserTokenKind::Number { value, number_type }) = token.kind else {
+                return None;
+            };
+            if number_type == CssNumberType::Number || !(0.0..=f64::from(i32::MAX)).contains(&value) {
                 return None;
             }
-            let index = String::from_utf16_lossy(&token.source.to_vec())
-                .parse::<i32>()
-                .ok()
-                .filter(|index| *index >= 0)?;
-            indices.push(index);
+            indices.push(value as i32);
         }
         Some(indices)
     })() else {
@@ -1970,15 +1892,15 @@ enum ConditionEvaluation {
 
 #[derive(Debug)]
 enum ParsedBooleanExpression {
-    Test(Vec<OwnedToken>),
+    Test(Vec<ComponentValue>),
     Not(Box<ParsedBooleanExpression>),
     And(Vec<ParsedBooleanExpression>),
     Or(Vec<ParsedBooleanExpression>),
 }
 
 fn parse_boolean_expression(
-    tokens: &[OwnedToken],
-    validate_test: &mut impl FnMut(&[OwnedToken]) -> bool,
+    tokens: &[ComponentValue],
+    validate_test: &mut impl FnMut(&[ComponentValue]) -> bool,
 ) -> Option<ParsedBooleanExpression> {
     let tokens = trim_whitespace(tokens);
     if tokens.is_empty() {
@@ -1987,13 +1909,11 @@ fn parse_boolean_expression(
     if validate_test(tokens) {
         return Some(ParsedBooleanExpression::Test(tokens.to_vec()));
     }
-    if matches!(
-        tokens.first(),
-        Some(OwnedToken {
-            kind: OwnedTokenKind::Ident(keyword),
-            ..
-        }) if keyword.eq_ignore_ascii_case("not")
-    ) {
+    if tokens
+        .first()
+        .and_then(ComponentValue::ident)
+        .is_some_and(|keyword| keyword.eq_ignore_ascii_case("not"))
+    {
         return Some(ParsedBooleanExpression::Not(Box::new(parse_boolean_group(
             &tokens[1..],
             validate_test,
@@ -2003,16 +1923,10 @@ fn parse_boolean_expression(
     let mut combinator = None;
     let mut groups = Vec::new();
     let mut group_start = 0;
-    let mut index = 0;
-    while index < tokens.len() {
-        if matching_close(&tokens[index].kind).is_some() {
-            let close = find_matching_close(tokens, index)?;
-            index = close + 1;
-            continue;
-        }
-        let current = match &tokens[index].kind {
-            OwnedTokenKind::Ident(keyword) if keyword.eq_ignore_ascii_case("and") => Some(true),
-            OwnedTokenKind::Ident(keyword) if keyword.eq_ignore_ascii_case("or") => Some(false),
+    for (index, token) in tokens.iter().enumerate() {
+        let current = match token.ident() {
+            Some(keyword) if keyword.eq_ignore_ascii_case("and") => Some(true),
+            Some(keyword) if keyword.eq_ignore_ascii_case("or") => Some(false),
             _ => None,
         };
         if let Some(current) = current {
@@ -2023,7 +1937,6 @@ fn parse_boolean_expression(
             groups.push(parse_boolean_group(&tokens[group_start..index], validate_test)?);
             group_start = index + 1;
         }
-        index += 1;
     }
     let Some(combinator) = combinator else {
         return parse_boolean_group(tokens, validate_test);
@@ -2037,21 +1950,24 @@ fn parse_boolean_expression(
 }
 
 fn parse_boolean_group(
-    tokens: &[OwnedToken],
-    validate_test: &mut impl FnMut(&[OwnedToken]) -> bool,
+    tokens: &[ComponentValue],
+    validate_test: &mut impl FnMut(&[ComponentValue]) -> bool,
 ) -> Option<ParsedBooleanExpression> {
     let tokens = trim_whitespace(tokens);
-    if matches!(tokens.first().map(|token| &token.kind), Some(OwnedTokenKind::OpenParen))
-        && find_matching_close(tokens, 0) == Some(tokens.len() - 1)
+    if let [value] = tokens
+        && let ComponentKind::SimpleBlock {
+            opening: ParserTokenKind::OpenParen,
+            values,
+        } = &value.kind
     {
-        return parse_boolean_expression(&tokens[1..tokens.len() - 1], validate_test);
+        return parse_boolean_expression(values, validate_test);
     }
     validate_test(tokens).then(|| ParsedBooleanExpression::Test(tokens.to_vec()))
 }
 
 fn evaluate_parsed_boolean_expression(
     expression: &ParsedBooleanExpression,
-    evaluate_test: &mut impl FnMut(&[OwnedToken]) -> ConditionEvaluation,
+    evaluate_test: &mut impl FnMut(&[ComponentValue]) -> ConditionEvaluation,
 ) -> ConditionEvaluation {
     match expression {
         ParsedBooleanExpression::Test(tokens) => evaluate_test(tokens),
@@ -2085,8 +2001,8 @@ fn evaluate_parsed_boolean_expression(
 fn registered_style_query_values_are_equal(
     registry: &CustomPropertyRegistry,
     syntax: &SyntaxNode,
-    computed_tokens: &[OwnedToken],
-    query_tokens: &[OwnedToken],
+    computed_tokens: &[ComponentValue],
+    query_tokens: &[ComponentValue],
     resolution_context: &mut ASFResolutionContext,
 ) -> bool {
     let random_function_index = RandomFunctionIndex::default();
@@ -2231,17 +2147,9 @@ fn evaluate_style_range_value(
             context.note_style_query_dependency(name);
             resolve_custom_property(store, registry, name, context, recursion_depth + 1)
         }
-        ParsedStyleRangeValue::Components(values) => substitute_arbitrary_substitution_functions(
-            store,
-            registry,
-            &tokenize_owned(&serialize_component_values_to_utf16(
-                values,
-                ComponentSerializationMode::Normalized,
-            )),
-            context,
-            recursion_depth + 1,
-            None,
-        ),
+        ParsedStyleRangeValue::Components(values) => {
+            substitute_arbitrary_substitution_functions(store, registry, values, context, recursion_depth + 1, None)
+        }
     };
     let resolved = match resolution {
         TokenResolution::Resolved(tokens) => tokens,
@@ -2313,36 +2221,31 @@ fn evaluate_style_range(
     ConditionEvaluation::Match(true)
 }
 
-fn has_comparison(tokens: &[OwnedToken]) -> bool {
-    tokens.iter().any(|token| {
-        token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
+fn has_comparison(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| match &value.kind {
+        ComponentKind::Token(_) => value.is_delim(b'<') || value.is_delim(b'>') || value.is_delim(b'='),
+        ComponentKind::Function { values, .. } | ComponentKind::SimpleBlock { values, .. } => has_comparison(values),
     })
 }
 
-fn validate_style_feature(tokens: &[OwnedToken]) -> bool {
+fn validate_style_feature(tokens: &[ComponentValue]) -> bool {
     let tokens = trim_whitespace(tokens);
     // A `<style-feature-value>` is a `<declaration-value>`, which holds no top-level `!`.
-    if find_top_level_source(tokens, b"!").is_some() {
+    if tokens.iter().any(|value| value.is_delim(b'!')) {
         return false;
     }
     if has_comparison(tokens) {
         return true;
     }
-    let colon = find_top_level_source(tokens, b":");
+    let colon = tokens.iter().position(ComponentValue::is_colon);
     let name_tokens = trim_whitespace(&tokens[..colon.unwrap_or(tokens.len())]);
-    matches!(
-        name_tokens,
-        [OwnedToken {
-            kind: OwnedTokenKind::Ident(_),
-            ..
-        }]
-    )
+    matches!(name_tokens, [value] if value.ident().is_some())
 }
 
 fn evaluate_style_feature(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    tokens: &[OwnedToken],
+    tokens: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> ConditionEvaluation {
@@ -2354,15 +2257,12 @@ fn evaluate_style_feature(
         };
         return evaluate_style_range(store, registry, &range, context, recursion_depth + 1);
     }
-    let colon = find_top_level_source(tokens, b":");
+    let colon = tokens.iter().position(ComponentValue::is_colon);
     let name_tokens = trim_whitespace(&tokens[..colon.unwrap_or(tokens.len())]);
-    let [
-        OwnedToken {
-            kind: OwnedTokenKind::Ident(name),
-            ..
-        },
-    ] = name_tokens
-    else {
+    let [name] = name_tokens else {
+        return ConditionEvaluation::Invalid;
+    };
+    let Some(name) = name.ident() else {
         return ConditionEvaluation::Invalid;
     };
     let query = colon.map(|colon| &tokens[colon + 1..]);
@@ -2374,7 +2274,7 @@ fn evaluate_named_style_feature(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     name: &[u16],
-    query: Option<&[OwnedToken]>,
+    query: Option<&[ComponentValue]>,
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> ConditionEvaluation {
@@ -2412,7 +2312,7 @@ fn evaluate_named_style_feature(
             registry,
             &registration.syntax,
             computed,
-            &tokenize_owned(initial),
+            &parse_substitution_values(initial).expect("registered initial value has valid components"),
             context,
         ));
     };
@@ -2429,7 +2329,9 @@ fn evaluate_named_style_feature(
                 .as_ref()
                 .and_then(|registration| registration.initial_tokens.clone())
                 .or_else(|| {
-                    registration.and_then(|registration| registration.initial_source.as_ref().map(tokenize_owned))
+                    registration.and_then(|registration| {
+                        registration.initial_source.as_ref().and_then(parse_substitution_values)
+                    })
                 })
         } else {
             let local_scope = local_registration
@@ -2461,7 +2363,13 @@ fn evaluate_named_style_feature(
                     context,
                 )
             }
-            (Some(computed), Some(expected)) => trim_whitespace(&computed) == trim_whitespace(&expected),
+            (Some(computed), Some(expected)) => {
+                serialize_component_values_to_utf16(trim_whitespace(&computed), ComponentSerializationMode::Normalized)
+                    == serialize_component_values_to_utf16(
+                        trim_whitespace(&expected),
+                        ComponentSerializationMode::Normalized,
+                    )
+            }
             _ => false,
         });
     }
@@ -2480,7 +2388,10 @@ fn evaluate_named_style_feature(
             registry, syntax, &computed, query, context,
         ));
     }
-    ConditionEvaluation::Match(serialize_tokens(trim_whitespace(&computed)) == serialize_tokens(query))
+    ConditionEvaluation::Match(
+        serialize_component_values_to_utf16(trim_whitespace(&computed), ComponentSerializationMode::Normalized)
+            == serialize_component_values_to_utf16(query, ComponentSerializationMode::Normalized),
+    )
 }
 
 /// Evaluate a container query's style feature against a container's retained style: its
@@ -2507,11 +2418,7 @@ pub(crate) fn evaluate_retained_container_style_feature(
     let result = match feature {
         StyleFeature::Boolean(name) => evaluate_named_style_feature(store, registry, name, None, &mut context, 0),
         StyleFeature::Plain { name, value, .. } => {
-            let query = tokenize_owned(&serialize_component_values_to_utf16(
-                value,
-                ComponentSerializationMode::Normalized,
-            ));
-            evaluate_named_style_feature(store, registry, name, Some(&query), &mut context, 0)
+            evaluate_named_style_feature(store, registry, name, Some(value), &mut context, 0)
         }
         StyleFeature::Range { .. } => evaluate_style_range(store, registry, feature, &mut context, 0),
     };
@@ -2527,7 +2434,7 @@ pub(crate) fn evaluate_retained_container_style_feature(
 fn evaluate_style_query(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    tokens: &[OwnedToken],
+    tokens: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> ConditionEvaluation {
@@ -2539,19 +2446,16 @@ fn evaluate_style_query(
     })
 }
 
-fn validate_if_test(tokens: &[OwnedToken]) -> bool {
+fn validate_if_test(tokens: &[ComponentValue]) -> bool {
     let test = trim_whitespace(tokens);
-    let Some(OwnedTokenKind::Function(name)) = test.first().map(|token| &token.kind) else {
+    let [test] = test else {
         return false;
     };
-    let Some(close) = find_matching_close(test, 0) else {
+    let Some((name, values)) = test.function() else {
         return false;
     };
-    if close != test.len() - 1 {
-        return false;
-    }
     if name.eq_ignore_ascii_case("style") {
-        return parse_boolean_expression(&test[1..close], &mut validate_style_feature).is_some();
+        return parse_boolean_expression(values, &mut validate_style_feature).is_some();
     }
     true
 }
@@ -2559,17 +2463,12 @@ fn validate_if_test(tokens: &[OwnedToken]) -> bool {
 fn evaluate_if_condition(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    tokens: &[OwnedToken],
+    tokens: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> ConditionEvaluation {
-    if matches!(
-        trim_whitespace(tokens),
-        [OwnedToken {
-            kind: OwnedTokenKind::Ident(keyword),
-            ..
-        }] if keyword.eq_ignore_ascii_case("else")
-    ) {
+    if matches!(trim_whitespace(tokens), [value] if value.ident().is_some_and(|keyword| keyword.eq_ignore_ascii_case("else")))
+    {
         return ConditionEvaluation::Match(true);
     }
     let Some(expression) = parse_boolean_expression(tokens, &mut validate_if_test) else {
@@ -2577,18 +2476,15 @@ fn evaluate_if_condition(
     };
     evaluate_parsed_boolean_expression(&expression, &mut |test| {
         let test = trim_whitespace(test);
-        let OwnedTokenKind::Function(name) = &test[0].kind else {
-            unreachable!("validated if condition test")
-        };
-        let close = test.len() - 1;
+        let (name, values) = test[0].function().expect("validated if condition test");
         if name.eq_ignore_ascii_case("style") {
-            return evaluate_style_query(store, registry, &test[1..close], context, recursion_depth + 1);
+            return evaluate_style_query(store, registry, values, context, recursion_depth + 1);
         }
         if name.eq_ignore_ascii_case("media") {
             let Some(environment) = context.media_environment else {
                 return ConditionEvaluation::NotHandled;
             };
-            let source = serialize_tokens(&test[1..close]);
+            let source = serialize_tokens(values);
             return match parse_and_evaluate_media_if_condition(&source, environment) {
                 Some(MatchResult::True) => ConditionEvaluation::Match(true),
                 Some(MatchResult::False | MatchResult::Unknown) => ConditionEvaluation::Match(false),
@@ -2599,7 +2495,7 @@ fn evaluate_if_condition(
             let Some(parse_context) = context.parse_context else {
                 return ConditionEvaluation::NotHandled;
             };
-            let source = serialize_tokens(&test[1..close]);
+            let source = serialize_tokens(values);
             return match parse_and_evaluate_supports_if_condition(&source, parse_context) {
                 Some(MatchResult::True) => ConditionEvaluation::Match(true),
                 Some(MatchResult::False | MatchResult::Unknown) => ConditionEvaluation::Match(false),
@@ -2610,22 +2506,11 @@ fn evaluate_if_condition(
     })
 }
 
-fn split_function_arguments(tokens: &[OwnedToken]) -> Vec<&[OwnedToken]> {
+fn split_function_arguments(tokens: &[ComponentValue]) -> Vec<&[ComponentValue]> {
     if trim_whitespace(tokens).is_empty() {
         return Vec::new();
     }
-    let mut arguments = Vec::new();
-    let mut start = 0;
-    loop {
-        let remaining = &tokens[start..];
-        let Some(comma) = find_top_level_comma(remaining) else {
-            arguments.push(remaining);
-            break;
-        };
-        arguments.push(&remaining[..comma]);
-        start += comma + 1;
-    }
-    arguments
+    tokens.split(ComponentValue::is_comma).collect()
 }
 
 // https://drafts.csswg.org/css-mixins/#resolve-function-styles
@@ -2896,7 +2781,7 @@ fn replace_a_dashed_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     name: &[u16],
-    arguments: &[OwnedToken],
+    arguments: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
@@ -2941,12 +2826,13 @@ fn replace_a_dashed_function(
     for arg in argument_slices {
         let mut argument = trim_whitespace(arg);
         // NB: Braces disambiguate an argument that contains a top-level comma; they are not part of the argument value.
-        if matches!(
-            argument.first().map(|token| &token.kind),
-            Some(OwnedTokenKind::OpenCurly)
-        ) && find_matching_close(argument, 0) == Some(argument.len() - 1)
+        if let [value] = argument
+            && let ComponentKind::SimpleBlock {
+                opening: ParserTokenKind::OpenCurly,
+                values,
+            } = &value.kind
         {
-            argument = &argument[1..argument.len() - 1];
+            argument = values;
         }
 
         substituted_arguments.push(substitute_tokens(
@@ -2979,18 +2865,20 @@ fn replace_a_dashed_function(
 fn replace_if_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    arguments: &[OwnedToken],
+    arguments: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-values-5/#replace-an-if-function
     let mut branch_start = 0;
     while branch_start < arguments.len() {
-        let branch_length =
-            find_top_level_source(&arguments[branch_start..], b";").unwrap_or(arguments.len() - branch_start);
+        let branch_length = arguments[branch_start..]
+            .iter()
+            .position(|value| value.is(&ParserTokenKind::Semicolon))
+            .unwrap_or(arguments.len() - branch_start);
         let branch_end = branch_start + branch_length;
         let branch = &arguments[branch_start..branch_end];
-        let Some(colon) = find_top_level_source(branch, b":") else {
+        let Some(colon) = branch.iter().position(ComponentValue::is_colon) else {
             return TokenResolution::Invalid;
         };
         let condition = match substitute_tokens(store, registry, &branch[..colon], context, recursion_depth + 1) {
@@ -3024,49 +2912,46 @@ enum AttrSyntaxParseFailure {
     SyntaxSpecified,
 }
 
-fn parse_attr_syntax(tokens: &[OwnedToken]) -> Result<(Vec<u16>, AttrSyntax), AttrSyntaxParseFailure> {
+fn parse_attr_syntax(tokens: &[ComponentValue]) -> Result<(Vec<u16>, AttrSyntax), AttrSyntaxParseFailure> {
     let tokens = trim_whitespace(tokens);
-    let Some(first) = tokens.first() else {
-        return Err(AttrSyntaxParseFailure::SyntaxOmitted);
-    };
-    let OwnedTokenKind::Ident(name) = &first.kind else {
+    let Some(name) = tokens.first().and_then(ComponentValue::ident) else {
         return Err(AttrSyntaxParseFailure::SyntaxOmitted);
     };
     let rest = trim_whitespace(&tokens[1..]);
     if rest.is_empty() {
-        return Ok((name.clone(), AttrSyntax::Omitted));
+        return Ok((name.to_vec(), AttrSyntax::Omitted));
     }
-    if let OwnedTokenKind::Ident(syntax) = &rest[0].kind {
+    if let Some(syntax) = rest[0].ident() {
         let syntax = if syntax.eq_ignore_ascii_case("raw-string") {
             AttrSyntax::RawString
         } else if syntax.eq_ignore_ascii_case("number") {
             AttrSyntax::Number
         } else if crate::css::parser::value_parser::is_dimension_unit(syntax) {
-            AttrSyntax::Unit(syntax.clone())
+            AttrSyntax::Unit(syntax.to_vec())
         } else {
             return Err(AttrSyntaxParseFailure::SyntaxOmitted);
         };
         if rest.len() != 1 {
             return Err(AttrSyntaxParseFailure::SyntaxSpecified);
         }
-        return Ok((name.clone(), syntax));
+        return Ok((name.to_vec(), syntax));
     }
-    if matches!(rest[0].kind, OwnedTokenKind::Delim(37)) {
+    if rest[0].is_delim(b'%') {
         if rest.len() != 1 {
             return Err(AttrSyntaxParseFailure::SyntaxSpecified);
         }
-        return Ok((name.clone(), AttrSyntax::Unit(vec![u16::from(b'%')])));
+        return Ok((name.to_vec(), AttrSyntax::Unit(vec![u16::from(b'%')])));
     }
-    if matches!(&rest[0].kind, OwnedTokenKind::Function(function) if function.eq_ignore_ascii_case("type"))
-        && let Some(close) = find_matching_close(rest, 0)
+    if let Some((function, values)) = rest[0].function()
+        && function.eq_ignore_ascii_case("type")
     {
-        let Some(syntax) = parse_syntax(&serialize_tokens(&rest[1..close]), false) else {
+        let Some(syntax) = parse_syntax(&serialize_tokens(values), false) else {
             return Err(AttrSyntaxParseFailure::SyntaxOmitted);
         };
-        if close != rest.len() - 1 {
+        if rest.len() != 1 {
             return Err(AttrSyntaxParseFailure::SyntaxSpecified);
         }
-        return Ok((name.clone(), AttrSyntax::Syntax(syntax)));
+        return Ok((name.to_vec(), AttrSyntax::Syntax(syntax)));
     }
     Err(AttrSyntaxParseFailure::SyntaxOmitted)
 }
@@ -3075,18 +2960,18 @@ fn parse_attr_value_with_syntax(
     registry: Option<&CustomPropertyRegistry>,
     source: &[u16],
     syntax: &SyntaxNode,
-) -> Option<Vec<OwnedToken>> {
+) -> Option<Vec<ComponentValue>> {
     let registry = registry?;
     let random_function_index = RandomFunctionIndex::default();
     let parsed = parse_with_syntax(&registry.parse_context(&random_function_index), source, syntax)?;
     let serialized = crate::css::serialize::serialize_style_value_to_utf16(&parsed);
-    Some(tokenize_owned(&serialized))
+    parse_substitution_values(&serialized)
 }
 
 fn attr_fallback(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    arguments: &[OwnedToken],
+    arguments: &[ComponentValue],
     comma: Option<usize>,
     syntax_was_omitted: bool,
     context: &mut ASFResolutionContext,
@@ -3104,12 +2989,12 @@ fn attr_fallback(
 fn replace_attr_function(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    arguments: &[OwnedToken],
+    arguments: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
     // https://drafts.csswg.org/css-values-5/#replace-an-attr-function
-    let comma = find_top_level_comma(arguments);
+    let comma = arguments.iter().position(ComponentValue::is_comma);
     let first_argument = &arguments[..comma.unwrap_or(arguments.len())];
     let substituted_first = match substitute_tokens(store, registry, first_argument, context, recursion_depth + 1) {
         TokenResolution::Resolved(tokens) => tokens,
@@ -3156,16 +3041,14 @@ fn replace_attr_function(
     };
 
     let resolved = match syntax {
-        AttrSyntax::Omitted | AttrSyntax::RawString => tokenize_owned(
-            crate::css::css_tokenizer::TokenizerInput::Utf16(&crate::css::serialize::serialize_string(attribute_value)),
-        ),
+        AttrSyntax::Omitted | AttrSyntax::RawString => parse_substitution_values(TokenizerInput::Utf16(
+            &crate::css::serialize::serialize_string(attribute_value),
+        ))
+        .expect("serialized string tokenizes correctly"),
         AttrSyntax::Number => {
             if !matches!(
-                trim_whitespace(&tokenize_owned(attribute_value)),
-                [OwnedToken {
-                    kind: OwnedTokenKind::Number,
-                    ..
-                }]
+                trim_whitespace(&parse_substitution_values(attribute_value).unwrap_or_default()),
+                [value] if matches!(value.kind, ComponentKind::Token(ParserTokenKind::Number { .. }))
             ) {
                 return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
             }
@@ -3177,11 +3060,8 @@ fn replace_attr_function(
         }
         AttrSyntax::Unit(unit) => {
             if !matches!(
-                trim_whitespace(&tokenize_owned(attribute_value)),
-                [OwnedToken {
-                    kind: OwnedTokenKind::Number,
-                    ..
-                }]
+                trim_whitespace(&parse_substitution_values(attribute_value).unwrap_or_default()),
+                [value] if matches!(value.kind, ComponentKind::Token(ParserTokenKind::Number { .. }))
             ) {
                 return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
             }
@@ -3191,13 +3071,16 @@ fn replace_attr_function(
             };
             let mut source = serialize_tokens(&number);
             source.extend_from_slice(&unit);
-            tokenize_owned(crate::css::css_tokenizer::TokenizerInput::Utf16(&source))
+            parse_substitution_values(&source).expect("serialized number and unit form a component value")
         }
         AttrSyntax::Syntax(syntax) => {
+            let Some(values) = parse_substitution_values(attribute_value) else {
+                return attr_fallback(store, registry, arguments, comma, false, context, recursion_depth);
+            };
             let substituted = match substitute_arbitrary_substitution_functions(
                 store,
                 registry,
-                &tokenize_owned(attribute_value),
+                &values,
                 context,
                 recursion_depth + 1,
                 Some(SubstitutionContextDependency::Attribute(attribute_name.clone())),
@@ -3219,8 +3102,13 @@ fn replace_attr_function(
     TokenResolution::Resolved(resolved)
 }
 
-fn is_substitution_function(kind: &OwnedTokenKind) -> bool {
-    matches!(kind, OwnedTokenKind::Function(name) if name.starts_with_ascii("--") || name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("if") || name.eq_ignore_ascii_case("inherit"))
+fn is_substitution_function(name: &[u16]) -> bool {
+    name.starts_with_ascii("--")
+        || name.eq_ignore_ascii_case("var")
+        || name.eq_ignore_ascii_case("attr")
+        || name.eq_ignore_ascii_case("env")
+        || name.eq_ignore_ascii_case("if")
+        || name.eq_ignore_ascii_case("inherit")
 }
 
 /// Whether a function's arguments are, or are made into, a URL.
@@ -3230,19 +3118,35 @@ fn function_takes_a_url(name: &[u16]) -> bool {
         .any(|url_function| name.eq_ignore_ascii_case(url_function))
 }
 
-fn token_is_a_url(kind: &OwnedTokenKind) -> bool {
-    match kind {
-        OwnedTokenKind::Url => true,
-        OwnedTokenKind::Function(name) => function_takes_a_url(name),
+fn component_contains_url(value: &ComponentValue) -> bool {
+    match &value.kind {
+        ComponentKind::Token(ParserTokenKind::Url(_)) => true,
+        ComponentKind::Function { name, values } => {
+            function_takes_a_url(name.as_ref()) || values.iter().any(component_contains_url)
+        }
+        ComponentKind::SimpleBlock { values, .. } => values.iter().any(component_contains_url),
         _ => false,
     }
+}
+
+/// Count the underlying tokens, including the delimiters of functions and blocks.
+fn component_token_count(values: &[ComponentValue]) -> usize {
+    values
+        .iter()
+        .map(|value| match &value.kind {
+            ComponentKind::Token(_) => 1,
+            ComponentKind::Function { values, .. } | ComponentKind::SimpleBlock { values, .. } => {
+                2 + component_token_count(values)
+            }
+        })
+        .sum()
 }
 
 // Step 2 of https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
 fn substitute_tokens(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    tokens: &[OwnedToken],
+    values: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
@@ -3252,47 +3156,45 @@ fn substitute_tokens(
     }
 
     let mut output = Vec::new();
-    let mut index = 0;
+    let mut token_count = component_token_count(values);
     let mut is_cyclic = false;
-    while index < tokens.len() {
-        let Some(close_index) = matching_close(&tokens[index].kind).and_then(|_| find_matching_close(tokens, index))
-        else {
-            output.push(tokens[index].clone());
-            index += 1;
-            continue;
+    for value in values {
+        let (name, contents) = match &value.kind {
+            ComponentKind::Token(_) => {
+                output.push(value.clone());
+                continue;
+            }
+            ComponentKind::Function { name, values } => (Some(name.as_ref()), values.as_ref()),
+            ComponentKind::SimpleBlock { values, .. } => (None, values.as_ref()),
         };
-
-        let contents = &tokens[index + 1..close_index];
-        let substitutes = is_substitution_function(&tokens[index].kind);
+        token_count -= 2 + component_token_count(contents);
+        let substitutes = name.is_some_and(is_substitution_function);
         // Step 2.3: Parse the function's argument grammar before running its replacement algorithm.
-        if let OwnedTokenKind::Function(name) = &tokens[index].kind
-            && let Some(function) = arbitrary_substitution_function(name)
-            && !consume_a_list_of_component_values(tokenize_for_parser(&serialize_tokens(contents)))
-                .is_ok_and(|values| arguments_are_valid(function, &values))
+        if let Some(function) = name.and_then(arbitrary_substitution_function)
+            && !arguments_are_valid(function, contents)
         {
             return TokenResolution::Invalid;
         }
         let tainted_before = std::mem::take(&mut context.contains_attr_tainted_values);
         let in_url_function = context.in_url_function;
-        context.in_url_function |=
-            matches!(&tokens[index].kind, OwnedTokenKind::Function(name) if function_takes_a_url(name));
-        let resolved = match &tokens[index].kind {
-            OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("var") => {
+        context.in_url_function |= name.is_some_and(function_takes_a_url);
+        let resolved = match name {
+            Some(name) if name.eq_ignore_ascii_case("var") => {
                 replace_var_function(store, registry, contents, context, recursion_depth)
             }
-            OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("attr") => {
+            Some(name) if name.eq_ignore_ascii_case("attr") => {
                 replace_attr_function(store, registry, contents, context, recursion_depth)
             }
-            OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("inherit") => {
+            Some(name) if name.eq_ignore_ascii_case("inherit") => {
                 replace_inherit_function(store, registry, contents, context, recursion_depth)
             }
-            OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("env") => {
+            Some(name) if name.eq_ignore_ascii_case("env") => {
                 replace_env_function(store, registry, contents, context, recursion_depth)
             }
-            OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("if") => {
+            Some(name) if name.eq_ignore_ascii_case("if") => {
                 replace_if_function(store, registry, contents, context, recursion_depth)
             }
-            OwnedTokenKind::Function(name) if name.starts_with_ascii("--") => {
+            Some(name) if name.starts_with_ascii("--") => {
                 replace_a_dashed_function(store, registry, name, contents, context, recursion_depth)
             }
             _ => substitute_tokens(store, registry, contents, context, recursion_depth + 1),
@@ -3307,7 +3209,7 @@ fn substitute_tokens(
             && substitutes
             && tainted
             && context.function_local_scopes.is_empty()
-            && (in_url_function || resolved.iter().any(|token| token_is_a_url(&token.kind)))
+            && (in_url_function || resolved.iter().any(component_contains_url))
         {
             context.uses_attr_tainted_url = true;
         }
@@ -3316,32 +3218,41 @@ fn substitute_tokens(
             TokenResolution::Invalid => return TokenResolution::Invalid,
             TokenResolution::Cyclic => {
                 is_cyclic = true;
-                index = close_index + 1;
                 continue;
             }
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
-
-        if !substitutes {
-            output.push(tokens[index].clone());
-        }
         let resolved_start = usize::from(
-            matches!(output.last().map(|token| &token.kind), Some(OwnedTokenKind::Whitespace))
-                && matches!(
-                    resolved.first().map(|token| &token.kind),
-                    Some(OwnedTokenKind::Whitespace)
-                ),
+            substitutes
+                && output.last().is_some_and(ComponentValue::is_whitespace)
+                && resolved.first().is_some_and(ComponentValue::is_whitespace),
         );
-        output.extend(resolved.into_iter().skip(resolved_start));
-        if !substitutes {
-            output.push(tokens[close_index].clone());
+        token_count += component_token_count(&resolved[resolved_start..]);
+        if substitutes {
+            output.extend(resolved.into_iter().skip(resolved_start));
+        } else {
+            token_count += 2;
+            let kind = match &value.kind {
+                ComponentKind::Function { name, .. } => ComponentKind::Function {
+                    name: name.clone(),
+                    values: resolved.into_boxed_slice(),
+                },
+                ComponentKind::SimpleBlock { opening, .. } => ComponentKind::SimpleBlock {
+                    opening: opening.clone(),
+                    values: resolved.into_boxed_slice(),
+                },
+                ComponentKind::Token(_) => unreachable!(),
+            };
+            output.push(ComponentValue {
+                kind,
+                original_source_text: value.original_source_text.clone(),
+                ..*value
+            });
         }
-        let remaining_token_count = tokens.len() - close_index - 1;
-        if output.len() + remaining_token_count > MAX_SUBSTITUTED_TOKEN_COUNT {
+        if token_count > MAX_SUBSTITUTED_TOKEN_COUNT {
             context.substitution_limit_hits += 1;
             return TokenResolution::Invalid;
         }
-        index = close_index + 1;
     }
     if is_cyclic {
         TokenResolution::Cyclic
@@ -3354,7 +3265,7 @@ fn substitute_tokens(
 fn substitute_arbitrary_substitution_functions(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    tokens: &[OwnedToken],
+    tokens: &[ComponentValue],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
     substitution_context: Option<SubstitutionContextDependency>,
@@ -3382,59 +3293,8 @@ fn substitute_arbitrary_substitution_functions(
     }
 }
 
-// https://drafts.csswg.org/css-syntax/#serialization
-fn needs_comment_between(first: &OwnedTokenKind, second: &OwnedTokenKind) -> bool {
-    let second_is_common = matches!(
-        second,
-        OwnedTokenKind::Url
-            | OwnedTokenKind::BadUrl
-            | OwnedTokenKind::Number
-            | OwnedTokenKind::Percentage
-            | OwnedTokenKind::Dimension
-            | OwnedTokenKind::Cdc
-    );
-    let second_is_ident = matches!(second, OwnedTokenKind::Ident(_));
-    let second_is_function = matches!(second, OwnedTokenKind::Function(_));
-    let common = second_is_common || second_is_ident;
-
-    match first {
-        OwnedTokenKind::Ident(_) => {
-            second_is_function || matches!(second, OwnedTokenKind::OpenParen | OwnedTokenKind::Delim(45)) || common
-        }
-        OwnedTokenKind::AtKeyword
-        | OwnedTokenKind::Hash
-        | OwnedTokenKind::Dimension
-        | OwnedTokenKind::Delim(35 | 45) => second_is_function || matches!(second, OwnedTokenKind::Delim(45)) || common,
-        OwnedTokenKind::Number => second_is_function || matches!(second, OwnedTokenKind::Delim(37)) || common,
-        OwnedTokenKind::Delim(64) => {
-            second_is_function
-                || matches!(second, OwnedTokenKind::Delim(45))
-                || second_is_ident
-                || matches!(
-                    second,
-                    OwnedTokenKind::Url | OwnedTokenKind::BadUrl | OwnedTokenKind::Cdc
-                )
-        }
-        OwnedTokenKind::Delim(46 | 43) => matches!(
-            second,
-            OwnedTokenKind::Number | OwnedTokenKind::Percentage | OwnedTokenKind::Dimension
-        ),
-        OwnedTokenKind::Delim(47) => matches!(second, OwnedTokenKind::Delim(42)),
-        _ => false,
-    }
-}
-
-fn serialize_tokens(tokens: &[OwnedToken]) -> Vec<u16> {
-    let mut output = Vec::new();
-    for (index, token) in tokens.iter().enumerate() {
-        token.source.append_to(&mut output);
-        if let Some(next) = tokens.get(index + 1)
-            && needs_comment_between(&token.kind, &next.kind)
-        {
-            output.extend(b"/**/".iter().copied().map(u16::from));
-        }
-    }
-    output
+fn serialize_tokens(tokens: &[ComponentValue]) -> Vec<u16> {
+    serialize_component_values_to_utf16(tokens, ComponentSerializationMode::Normalized)
 }
 
 /// What a substitution reads beyond the value it substitutes.
@@ -3498,8 +3358,11 @@ pub(crate) fn resolve_vars(
         token_cache: Some(token_cache),
         ..Default::default()
     };
+    if !matches!(value_data, StyleValueData::Unresolved { .. }) {
+        return NativeVarResolution::NotHandled;
+    }
     let (source, includes_substitution, contains_attr_tainted_values) =
-        cached_tokens_for_custom_property_value(value_data, &mut context);
+        tokens_for_unresolved_custom_property_value(value_data);
     // A value holding no substitution function has nothing to resolve: it is invalid at
     // computed-value time, as every caller takes an unresolved value it cannot substitute.
     if !includes_substitution {
@@ -3507,7 +3370,7 @@ pub(crate) fn resolve_vars(
     }
     context.contains_attr_tainted_values = contains_attr_tainted_values;
     let result =
-        substitute_arbitrary_substitution_functions(store, registry, &source, &mut context, 0, substitution_context);
+        substitute_arbitrary_substitution_functions(store, registry, source, &mut context, 0, substitution_context);
     match result {
         // A custom property carries its taint to the values that substitute it; another property is invalid where a
         // tainted value reaches a URL.
@@ -3589,13 +3452,10 @@ mod tests {
     }
 
     fn substitute_without_custom_properties(source: &str) -> TokenResolution {
-        substitute_tokens(
-            None,
-            None,
-            &tokenize_owned(source.as_bytes()),
-            &mut ASFResolutionContext::default(),
-            0,
-        )
+        let Some(values) = parse_substitution_values(source.as_bytes()) else {
+            return TokenResolution::Invalid;
+        };
+        substitute_tokens(None, None, &values, &mut ASFResolutionContext::default(), 0)
     }
 
     fn substitute_with_attributes(source: &str, attributes: &[(&str, &str)]) -> (TokenResolution, bool) {
@@ -3607,7 +3467,13 @@ mod tests {
             attributes: Some(&attributes),
             ..Default::default()
         };
-        let result = substitute_tokens(None, None, &tokenize_owned(source.as_bytes()), &mut context, 0);
+        let result = substitute_tokens(
+            None,
+            None,
+            &parse_substitution_values(source.as_bytes()).unwrap(),
+            &mut context,
+            0,
+        );
         (result, context.contains_attr_tainted_values)
     }
 
@@ -3660,7 +3526,7 @@ mod tests {
             substitute_arbitrary_substitution_functions(
                 None,
                 None,
-                &tokenize_owned(b"var(--root, fallback)"),
+                &parse_substitution_values(b"var(--root, fallback)").unwrap(),
                 &mut context,
                 0,
                 Some(SubstitutionContextDependency::Property(utf16("--root"), None)),
@@ -3740,7 +3606,11 @@ mod tests {
                     return_type: Arc::new(SyntaxNode::Universal),
                 }),
                 parameter_defaults: vec![None],
-                declarations: vec![(utf16("result"), tokenize_owned(b"var(--value)"), true)],
+                declarations: vec![(
+                    utf16("result"),
+                    parse_substitution_values(b"var(--value)").unwrap(),
+                    true,
+                )],
             }],
             visible: vec![(1, 0)],
         };
@@ -3748,9 +3618,13 @@ mod tests {
             custom_functions: Some(&functions),
             ..Default::default()
         };
-        let TokenResolution::Resolved(tokens) =
-            substitute_tokens(None, None, &tokenize_owned(b"--echo(12px)"), &mut context, 0)
-        else {
+        let TokenResolution::Resolved(tokens) = substitute_tokens(
+            None,
+            None,
+            &parse_substitution_values(b"--echo(12px)").unwrap(),
+            &mut context,
+            0,
+        ) else {
             panic!("expected custom function substitution");
         };
         assert_eq!(serialize_tokens(&tokens), utf16("12px"));
@@ -3767,7 +3641,7 @@ mod tests {
                 return_type: Arc::new(SyntaxNode::Universal),
             }),
             parameter_defaults: Vec::new(),
-            declarations: vec![(utf16("result"), tokenize_owned(result), true)],
+            declarations: vec![(utf16("result"), parse_substitution_values(result).unwrap(), true)],
         };
         // The document (scope 1) defines --inner, a shadow tree (scope 2) defines --outer and an
         // --inner of its own. A call from the document reaches --outer, whose body calls --inner
@@ -3787,7 +3661,7 @@ mod tests {
                 ..Default::default()
             };
             let TokenResolution::Resolved(tokens) =
-                substitute_tokens(None, None, &tokenize_owned(source), &mut context, 0)
+                substitute_tokens(None, None, &parse_substitution_values(source).unwrap(), &mut context, 0)
             else {
                 panic!("expected custom function substitution");
             };
@@ -3807,8 +3681,8 @@ mod tests {
 
     #[test]
     fn recognizes_substituted_css_wide_keywords() {
-        assert!(single_css_wide_keyword(&tokenize_owned(b"  inherit ")).is_some());
-        assert!(single_css_wide_keyword(&tokenize_owned(b"inherit green")).is_none());
+        assert!(single_css_wide_keyword(&parse_substitution_values(b"  inherit ").unwrap()).is_some());
+        assert!(single_css_wide_keyword(&parse_substitution_values(b"inherit green").unwrap()).is_none());
     }
 
     #[test]
@@ -3835,11 +3709,12 @@ mod tests {
 
     #[test]
     fn accepts_all_dimension_units_and_rejects_unknown_units() {
-        let Ok((_, AttrSyntax::Unit(unit))) = parse_attr_syntax(&tokenize_owned(b"data-value FR")) else {
+        let Ok((_, AttrSyntax::Unit(unit))) = parse_attr_syntax(&parse_substitution_values(b"data-value FR").unwrap())
+        else {
             panic!("expected flex unit syntax");
         };
         assert_eq!(unit, utf16("FR"));
-        assert!(parse_attr_syntax(&tokenize_owned(b"data-value unknown-unit")).is_err());
+        assert!(parse_attr_syntax(&parse_substitution_values(b"data-value unknown-unit").unwrap()).is_err());
     }
 
     #[test]
@@ -3850,12 +3725,26 @@ mod tests {
             attribute_names_are_ascii_case_insensitive: true,
             ..Default::default()
         };
-        let TokenResolution::Resolved(tokens) =
-            substitute_tokens(None, None, &tokenize_owned(b"attr(DATA-VALUE)"), &mut context, 0)
-        else {
+        let TokenResolution::Resolved(tokens) = substitute_tokens(
+            None,
+            None,
+            &parse_substitution_values(b"attr(DATA-VALUE)").unwrap(),
+            &mut context,
+            0,
+        ) else {
             panic!("expected case-insensitive attribute substitution");
         };
         assert_eq!(serialize_tokens(&tokens), utf16("\"hello\""));
+    }
+
+    #[test]
+    fn substitution_limit_counts_tokens_inside_components() {
+        // The contents reach the token limit; the block's delimiters put it over.
+        let source = format!("[{}]", "a ".repeat(MAX_SUBSTITUTED_TOKEN_COUNT / 2));
+        assert!(matches!(
+            substitute_without_custom_properties(&source),
+            TokenResolution::Invalid
+        ));
     }
 
     #[test]
