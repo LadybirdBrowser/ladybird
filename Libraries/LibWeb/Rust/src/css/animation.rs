@@ -922,6 +922,11 @@ unsafe fn handled_borrowed_value(value: &StyleValueData) -> AnimationValueResult
     })
 }
 
+/// A handled result holding a copy of `value`, a keyword or display value, which is cheap to copy.
+fn handled_copied_value(value: &StyleValueData) -> AnimationValueResult {
+    handled_retained_value(RetainedStyleValueData::from_owned(value.clone()))
+}
+
 fn discrete_value(
     context: Option<&FfiAnimationContext>,
     from: &StyleValueData,
@@ -948,7 +953,7 @@ fn interpolate_visibility(
     };
 
     if from_keyword == to_keyword {
-        return unsafe { handled_borrowed_value(from) };
+        return handled_copied_value(from);
     }
 
     // https://drafts.csswg.org/web-animations-1/#animating-visibility
@@ -965,7 +970,7 @@ fn interpolate_visibility(
         } else {
             to
         };
-        return unsafe { handled_borrowed_value(value) };
+        return handled_copied_value(value);
     }
 
     discrete_value(context, from, to, delta)
@@ -984,7 +989,7 @@ fn interpolate_content_visibility(
     };
 
     if from_keyword == to_keyword {
-        return unsafe { handled_borrowed_value(from) };
+        return handled_copied_value(from);
     }
 
     // https://drafts.csswg.org/css-contain/#content-visibility-animation
@@ -1003,7 +1008,7 @@ fn interpolate_content_visibility(
         } else {
             from
         };
-        return unsafe { handled_borrowed_value(value) };
+        return handled_copied_value(value);
     }
 
     discrete_value(context, from, to, delta)
@@ -1020,7 +1025,7 @@ fn interpolate_display(
     };
 
     if from_raw == to_raw {
-        return unsafe { handled_borrowed_value(from) };
+        return handled_copied_value(from);
     }
 
     // https://drafts.csswg.org/css-display-4/#display-animation
@@ -1043,7 +1048,7 @@ fn interpolate_display(
         } else {
             from
         };
-        return unsafe { handled_borrowed_value(value) };
+        return handled_copied_value(value);
     }
 
     discrete_value(context, from, to, delta)
@@ -1081,7 +1086,7 @@ fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> 
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
     {
-        return unsafe { handled_borrowed_value(from) };
+        return handled_copied_value(from);
     }
 
     // https://drafts.csswg.org/css-transforms-2/#propdef-scale
@@ -1303,7 +1308,7 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
     {
-        return unsafe { handled_borrowed_value(from) };
+        return handled_copied_value(from);
     }
 
     // https://drafts.csswg.org/css-transforms-2/#propdef-translate
@@ -1364,7 +1369,7 @@ fn interpolate_individual_rotate(
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
     {
-        return unsafe { handled_borrowed_value(from) };
+        return handled_copied_value(from);
     }
 
     // https://drafts.csswg.org/css-transforms-2/#propdef-rotate
