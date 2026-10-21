@@ -399,6 +399,14 @@ fn smallest(a: f64, b: f64) -> f64 {
     if b < a { b } else { a }
 }
 
+/// Whether two progress-based timeline times, in percent, are the same but for floating point error.
+fn is_within_progress_tolerance(a: f64, b: f64) -> bool {
+    (a - b).abs() < PROGRESS_TOLERANCE
+}
+
+/// Must match `Animations::progress_timeline_tolerance` in the host.
+const PROGRESS_TOLERANCE: f64 = 1e-6;
+
 /// The timing the host sampled each of an element's effects with, by the effect's identity.
 pub(crate) type SampledEffectTimings = Box<[(u64, EffectTiming)]>;
 
@@ -466,18 +474,26 @@ impl EffectTiming {
             false => unconstrained_time,
         };
 
-        // https://www.w3.org/TR/web-animations-1/#animation-effect-phases-and-states
+        // https://drafts.csswg.org/web-animations-2/#at-timeline-boundary
+        let at_timeline_boundary = timing.has_timeline_boundaries
+            && timeline_time.is_some_and(|time| {
+                is_within_progress_tolerance(time, timing.minimum_timeline_time)
+                    || is_within_progress_tolerance(time, timing.maximum_timeline_time)
+            });
+
+        // https://drafts.csswg.org/web-animations-2/#animation-effect-phases-and-states
         let backwards = timing.playback_rate < 0.0;
         let phase = match local_time {
             None => Phase::Idle,
             Some(local_time) => {
                 let before_active_boundary_time = largest(smallest(timing.start_delay, end_time), 0.0);
                 let after_active_boundary_time = largest(smallest(timing.start_delay + active_duration, end_time), 0.0);
-                if local_time < before_active_boundary_time || (backwards && local_time == before_active_boundary_time)
+                if local_time < before_active_boundary_time
+                    || (backwards && local_time == before_active_boundary_time && !at_timeline_boundary)
                 {
                     Phase::Before
                 } else if local_time > after_active_boundary_time
-                    || (!backwards && local_time == after_active_boundary_time)
+                    || (!backwards && local_time == after_active_boundary_time && !at_timeline_boundary)
                 {
                     Phase::After
                 } else {
@@ -773,6 +789,9 @@ mod tests {
                 has_timeline_scroller: true,
                 timeline_scroller_is_vertical: true,
                 timeline_scroller: 7,
+                has_timeline_boundaries: false,
+                minimum_timeline_time: 0.0,
+                maximum_timeline_time: 0.0,
                 iteration_duration: 100.0,
                 ..timing_at(25.0).timing
             },

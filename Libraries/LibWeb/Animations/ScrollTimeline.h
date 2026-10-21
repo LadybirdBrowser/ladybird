@@ -61,6 +61,10 @@ public:
 
     virtual bool is_progress_based() const override { return true; }
     virtual AttachmentInterval interval_for_attachment_range(AnimationAttachmentRange const&) const override;
+
+    // NB: The minimum and the maximum scroll offsets.
+    virtual Optional<TimeValue> minimum_timeline_time() const override { return TimeValue { TimeValue::Type::Percentage, 0 }; }
+    virtual Optional<TimeValue> maximum_timeline_time() const override { return TimeValue { TimeValue::Type::Percentage, 100 }; }
     virtual bool can_convert_a_timeline_time_to_an_origin_relative_time() const override { return false; }
 
 private:
