@@ -554,6 +554,7 @@ impl Store {
                     type_identity,
                     host: std::ptr::null(),
                     vector_storage: std::ptr::null(),
+                    native_entry: 0,
                 },
                 ty,
                 vector_storage: Box::new([]),
@@ -701,6 +702,7 @@ impl Store {
                     tags: std::ptr::null(),
                     function_count: 0,
                     memory_count: 0,
+                    context: &raw mut *self.context,
                 },
                 module: module.clone(),
                 functions: Vec::new(),
@@ -802,6 +804,7 @@ impl Store {
                         } else {
                             std::ptr::null()
                         },
+                        native_entry: 0,
                     },
                     ty,
                     vector_storage,

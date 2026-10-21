@@ -1,0 +1,12 @@
+[package]
+name = "libwasm_module"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+
+[lints]
+workspace = true

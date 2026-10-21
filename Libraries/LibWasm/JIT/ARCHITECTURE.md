@@ -1,0 +1,301 @@
+# The LibWasm optimizing JIT
+
+This document describes how the WebAssembly JIT works. It is a living document: every change to the
+compiler's structure updates it. Where it and the code disagree, one of them has a bug.
+
+The compiler is the `libwasm_jit` crate (`Libraries/LibWasm/JIT`). It is a pure compiler: it takes
+one function of a validated module and returns machine code, touching no heap and no store, so it
+runs on any thread. Besides the compiler, the crate has what compiled code calls at run time: the
+functions for bulk operations (`runtime.rs`) and the host stubs (`stubs.rs`). The runtime side
+(tier-up, installing code, entering it) is not written yet.
+
+## 1. Overview
+
+A compile (`compile()`) runs these phases on one thread, with a `CompileContext` whose storage is
+reused from one compile to the next:
+
+| Phase | Where | What it does |
+|---|---|---|
+| Decode and build | `decode.rs`, `builder/` | One forward pass over the validated, quickened body. Produces typed SSA with phis, folding and value numbering as it goes. |
+| Cleanup | `passes/cleanup.rs` | Removes trivial phis to a fixed point, dead pure nodes, and fuses branches with the comparisons only they use. |
+| Loop invariant code motion | `passes/licm.rs` | Finds the nodes of call-free loops that compute the same value in every iteration. |
+| Scheduling | `passes/schedule.rs` | Rebuilds the node arena in linear order without the dead nodes, with the invariant nodes at the end of their loop's preheader, optionally numbering values over the dominator tree on the way (`passes/gvn.rs`). |
+| Liveness | `regalloc/liveness.rs` | One interval per value in linear order, extended over loops. |
+| Allocation | `regalloc/` | One forward walk in linear order. Its verifier simulates every register. |
+| Code generation | `codegen/x86_64/` | Lowers every node with its registers, then edge stubs, trap stubs, jump tables and constants. |
+
+`Options::verify_ir` checks the IR after building and after cleanup (`ir/verify.rs`), and the
+register allocation (`regalloc/verify.rs`).
+
+The JIT is meant to compile every function that validates, of any size: a hot function that does
+not compile would run interpreted forever. Until the JIT gets there, functions that use something it
+does not compile yet fail with `CompileFailure::Unsupported` and stay interpreted: exceptions, GC,
+atomics, accesses of memories without guard pages, and the SIMD instructions outside the slice
+`builder/simd.rs` lists. Nothing fails for its size, depth, number of locals or
+register pressure.
+
+## 2. Decoding
+
+`Decoder` reads one instruction at a time from a validated, quickened body
+(`libwasm_engine::quickening`): plain loads and stores access memory 0, which is a memory32 with
+guard pages, and the bounds-checked forms are `0xFF` instructions. It reads every instruction the
+engine validates, so that the builder can skip unreachable code of any kind.
+
+## 3. The IR
+
+A `Func` is a list of blocks in linear order, which is the order of the WebAssembly code. Every
+forward edge goes to a later block, and every loop is a contiguous range of blocks (`Func::loops`)
+that only its header is entered at. That makes linear order a topological order of the forward
+edges, so dominators take one pass (`passes/dominators.rs`).
+
+Nodes live in one arena and are named by their index, a `Value`. A `Node` is 16 bytes: an op, a
+type, eight bits of flags and three 32-bit arguments, which are inputs or immediates as the op's
+`Shape` says. Ops with more inputs keep them in `Func::operands`. A block owns a contiguous range of
+nodes, its body, that ends with its terminator; nodes are created in order, so the index of a body
+node is its position in linear order. Phis are linked into their block's list through their third
+argument, and may sit anywhere in the arena. Successors and predecessors are ranges of flat arrays.
+
+Types: i32, i64, f32, f64, v128, references (zero for null; a funcref is the function's
+`FunctionHeader`) and pointers (for addresses the code computes). Constants,
+parameters, the instance and the memory base have no code where they are: constants are
+rematerialized at every use, and the others arrive in registers or slots at the entry. A node has
+no room for a v128 constant, so `Const128` names one in `Func::constants`, as `Shuffle` does its lane
+indices.
+
+Effects (`Node::effect()`): `Pure` nodes compute a value and may be shared or removed; `Read` nodes
+read memory or globals and may trap; `Write` nodes write state or may trap (division and trapping
+truncations, unless their flags say they cannot), and are neither removed nor moved.
+
+| Op | What it does |
+|---|---|
+| Const32, Const64 | A constant of the node's type (its bits in the arguments). |
+| Const128 | A v128 constant, from `Func::constants`. |
+| Param, Instance, MemoryBase | The function's parameters, its `InstanceData` and the base of its memory 0. |
+| Phi | One input per predecessor, in predecessor order. |
+| Forward | A phi that turned out trivial; gone after cleanup. |
+| Add ... Rotr, DivS ... RemU, Clz, Ctz, Popcnt, Eqz, Extend*, Wrap | Integer arithmetic of the node's type. Division traps where the divisor is zero, and signed division where it overflows. |
+| Compare | An integer comparison (flags: `IntCondition`), as an i32. |
+| FAdd ... FNearest, FloatCompare | Float arithmetic and comparison (`FloatCondition`). |
+| TruncS, TruncU, TruncSatS, TruncSatU, ConvertS, ConvertU, Demote, Promote, Reinterpret | Conversions to the node's type from the input's. The plain truncations trap on NaN and out of range values. |
+| Select | Input 1 where input 0 is nonzero, else input 2. |
+| InstanceField, LoadPointer | Pointers in instance data that never change, like `globals` and `globals[i]`, and type identities. |
+| Offset | A pointer plus a constant, like the address of a segment. |
+| ReadField, WriteField | Fields of runtime data that change, like the size of a memory or table, or a segment's length. |
+| TableElement, TableStore | A table's element, after checking the index against its size. |
+| GlobalGet, GlobalSet | A global's value, through its storage pointer. Gets of immutable globals are pure. |
+| Load, Store | Memory 0 at base + zero-extended index + offset; may trap. |
+| VectorUnary, VectorBinary, VectorTernary | SIMD operations, by their sub-opcode: splats, lane-wise arithmetic, comparisons, shifts by an i32, bitselect, and reductions to an i32. |
+| ExtractLane, ReplaceLane, Shuffle | Lane access, and `i8x16.shuffle`. |
+| VectorLoad | A SIMD load of memory 0, by its sub-opcode (whole, extending, splatting or zero-filling); may trap. |
+| CalleeInstance | The instance a call of a function passes: the header's, or the caller's for host functions. |
+| CheckFunction, CheckNull | The checks of `call_indirect` (null, then type identity, then the subtype check of GC types) and of references that must not be null. |
+| Call | A call through a `FunctionHeader`, direct or not; its value is the first result. |
+| Helper | A call of a function of the runtime, which takes its operands in the context and may return a trap code. |
+| CallResult | A further result of the call right before it. Never removed, since the results' places depend on them all. |
+| Jump, Branch, BranchCompare, BranchFloatCompare, BrTable, Return, Trap, TailCall | Terminators. A branch goes to its first successor where its condition holds. |
+
+## 4. Building SSA
+
+The builder (`builder/mod.rs`) keeps an operand stack of values. Locals become SSA values with
+Braun et al.'s algorithm ("Simple and Efficient Construction of SSA Form"), specialized for
+structured control flow:
+
+- The merge block of a `block` or `if` is created at its `end`, when every branch to it is known,
+  so it is sealed from the start. Branches to a label whose block does not exist yet leave their
+  successor slot open, and the `end` fills it in. Only loop headers are unsealed while their body is
+  built; their `end` seals them.
+- A read of a local first looks at a dense cache of each local's last definition, tagged with its
+  block. Older definitions move into a function-wide table from (block, local) to value when the
+  cache entry is overwritten. A read that finds neither walks the predecessors with an explicit
+  stack, memoizing what it finds, and makes incomplete phis in unsealed loop headers.
+- A merge a read cannot come back around to (one outside every loop whose header is sealed) gets a
+  phi only if its predecessors' values differ; elsewhere the phi is made first, so that cycles end at
+  it, and forwarded if it turns out trivial. A read that reaches a finished loop that never writes
+  the local goes straight to the loop's entry: each loop records the locals it and the loops in it
+  write. Large functions with many merges and loops otherwise spent most of their build time making
+  and forwarding phis nobody needs.
+- Phis that turn out trivial become `Forward` nodes, which cleanup removes to a fixed point.
+- Values on the operand stack that flow into a merge become phis, as the block type says.
+- Unreachable code is skipped by decoding, tracking only nesting.
+- After a loop, the code goes on in a block of its own, so that the loop's blocks end where it does.
+- The quickened v128 forms of `local.get` and the like (`0xF4` to `0xFA`) build like the plain ones,
+  since values carry their types. SIMD instructions keep their sub-opcode in the IR
+  (`builder/simd.rs`), so that one node kind per shape carries all of them.
+
+Nodes fold as they are created (`builder/fold.rs`): integer constant folding and algebraic
+identities, constants to the right, `eqz` of a comparison as the inverted comparison, and divisions
+by constants that cannot trap. Floats are not folded, since NaN payloads are observable.
+
+Pure nodes are value numbered in a table whose entries are undone when the construct that made them
+ends, so every hit dominates its use. Constants are numbered function-wide. Global values are
+numbered too, keyed by epochs that `global.set` of the global and calls advance; a loop advances
+them at its header, since its body may write any global before the header runs again, and
+`global.set` makes the stored value the global's known value.
+
+The builder's maps are `table::Table`s, whose emptying costs nothing, so that small functions after
+a large one do not pay for its capacity.
+
+## 5. Cleanup
+
+`passes/cleanup.rs` forwards trivial phis to a fixed point, rewrites every use of a forwarded phi,
+counts uses, removes pure nodes without uses (transitively), and unlinks dead phis. Then a branch on
+a comparison (or `eqz`) in its own block that nothing else uses compares itself
+(`BranchCompare`, `BranchFloatCompare`).
+
+## 6. Loop invariant code motion and scheduling
+
+`passes/licm.rs` finds, for each node in a loop, the outermost loop it is invariant in: a pure node
+none of whose inputs that loop defines (or each of which moves out of it too), or the value of a
+global the loop does not set. Pure nodes never trap, so they may run where the loop would not have.
+Memory loads stay, since one could trap. Loops that call keep everything: a call clobbers every
+register, so a value computed before the loop would be reloaded from its slot in every iteration,
+which costs what computing it again does.
+
+`passes/schedule.rs` then rebuilds the node arena: the entry values first, in the entry block's
+range, then every block's live body nodes in order, with the nodes that move to it before its
+terminator (the block entering a loop always ends in a jump to its header), and the phis last,
+outside every block's range. Inputs are renumbered, so a node's index is its position again, and
+dead nodes are gone for the phases after it.
+
+**Global value numbering** (`passes/gvn.rs`, with `Options::gvn`) runs in scheduling's walk: a node
+computing what a node of a dominating block computed is replaced by it, keeping entries for as long
+as their block dominates the walk, unlike the builder, which forgets what a construct numbered when
+it ends. Reads are numbered by alias class, with epochs that the class's writes advance: memory
+loads by one that stores and calls advance, global values by one per global that its `global.set`
+advances and one that calls advance; a block continues the epochs of the previous block only if
+that is its only predecessor. It is off by default: real modules have almost nothing for it, 0.1%
+of godot's nodes, and it costs 7 to 16 ns per code byte.
+
+## 7. Register allocation
+
+The allocator (`regalloc/`) follows libjs_jit's: one forward walk over the blocks in linear order.
+
+**Liveness** (`regalloc/liveness.rs`) is one interval per value: from its definition to its last
+use, extended over every loop that uses it but does not contain its definition, since loops are
+contiguous and entered at their header only. Positions: body node `n` is at `4n + 2`, phis are
+defined at `4 * start` of their block, and the moves into a successor's phis happen at `4 * end - 1`,
+after the terminator, so that a phi's input is still where the terminator left it. Intervals
+over-approximate liveness in the "holes" of structured code, like an `else` arm between a
+definition and its use. An interval can even span a merge that some paths reach without the
+definition (a `block` the definition's branch skips); the value is dead there, so merges keep only
+the values whose definitions dominate them.
+
+**Register classes.** General purpose registers hold integers and pointers; xmm registers hold
+floats and vectors alike. A v128 takes 16 bytes in memory: two slots, and 16-byte moves
+(`Move::vector`). `Options::stress_registers` gives values only a few registers of each class, so
+that most of them spill, for testing.
+
+**The walk.** Each node's constraints (`constraints()`) say which inputs need registers, which may
+be immediates, which need fixed registers, what it clobbers and where its output goes. Fixed inputs
+and temps are placed first; an input of the same node in the way moves to another free register.
+When no register is free, the value used furthest in the future is evicted. Inside a loop, the
+values the rest of the iteration uses come first, then those the next iteration reads, then those
+used after the loop. Values first used by a call argument or a return value prefer that register.
+
+**Spilling** happens at the definition: a value that ever needs a stack slot gets one for its whole
+life, and code generation stores it right after defining it, so a slot always holds its value once
+it has one. Parameters use their home slots and the instance its frame header slot. Every value
+live across a call gets a slot, since calls clobber every register.
+
+**Blocks.** A block with one predecessor starts with that predecessor's registers. A merge starts
+with those of its last predecessor (usually the fallthrough), and a loop header with those of the
+block entering the loop, without the values the loop only carries through that have a slot already.
+Their phis get registers free there, preferably the input's own from that predecessor. Every other
+edge moves its values into place, as parallel moves with cycles broken through a slot; back edges
+get theirs when their source block ends.
+
+**The verifier** (`regalloc/verify.rs`) simulates every register from the state each block starts
+with, checks that every input is where the allocation says, and that every edge's moves produce its
+target's state, with phis replaced by their inputs.
+
+## 8. Calls and frames
+
+`convention.rs` defines the calling convention between compiled functions on x86-64:
+
+- Integer parameters go in rdi, rsi, rdx, rcx, r8 and r9, float and vector ones in xmm0 to xmm7, in
+  order. Every parameter has a home slot in the caller's outgoing area, at the callee's fp + 8 * the
+  slots of the parameters before it (a v128 takes two, as on the interpreter's operand stack), where
+  the parameters that do not fit in registers are passed.
+- Integer results come back in rax and rdx, float and vector ones in xmm0 and xmm1. The others go to
+  a result area whose address the caller passes in the slot after the parameters' home slots, each
+  at 8 * the slots of the results before it.
+- r14 holds the callee's instance, r15 the base of its memory 0, and r10 its `FunctionHeader`,
+  whose native entry the call goes through.
+- Every register but rsp and rbp is caller-saved, so the instance and memory base are SSA values
+  the allocator may spill like any other. rsp is 16-byte aligned at the call.
+- i32 values are zero-extended to 64 bits in registers and slots, so memory indices serve as they
+  are; every i32 operation is a 32-bit instruction, which zero-extends its result.
+
+A compiled frame has fp = the caller's rsp at the call: the return address at fp - 8, the caller's
+fp at fp - 16 (the order the interpreter's frame headers will take, design section 6), the instance
+at `FRAME_INSTANCE`, then the spill slots, and the outgoing area at rsp. After a call, rsp is
+recomputed from fp, which also undoes whatever a callee's tail calls did to it.
+
+The prologue writes the instance to the frame and checks the new rsp against the stack limit of
+the store's `ExecutionContext`, which `InstanceData::context` points at, trapping with
+`TRAP_STACK_EXHAUSTED`. `RuntimeInfo` has the trap exit.
+
+**Calls.** Every call goes through `FunctionHeader::native_entry`. A direct call of a function of
+the same instance passes the caller's instance and memory base; any other call (imports,
+`call_indirect`, `call_ref`) passes the callee's, from its header (`CalleeInstance`). `call_indirect`
+checks the index against the table's size, the element for null, and its type identity against the
+expected one inline; a mismatch goes to an out-of-line check of the runtime types' displays, which
+only GC modules' subtypes pass.
+
+**Host functions** have a host stub of their signature as their native entry (`stubs.rs`). It
+builds a frame like a compiled function's, lays the arguments out as the interpreter's operand stack
+would hold them, calls `wasm_runtime_call_host`, and loads the results. A host function has no
+instance, so it is called with the caller's, through which the stub finds the context. The frame it
+passes as the one an exception unwinds from has no instance, so that the runtime does not walk
+compiled frames.
+
+**Tail calls** place their operands as a call does, then copy the stack arguments (and the result
+area pointer, which the caller's caller passed) from the outgoing area into the incoming one, from
+the highest slot down, since the incoming area is the higher one. If they need more slots than the
+function was called with, the return address and saved fp move down first by the difference,
+rounded to 16 bytes. Then they restore fp and jump to the callee's native entry.
+
+**Runtime functions** (`Helper`) take the instance in rdi and their operands in the next argument
+registers, which the code stores into the context's `arguments`; they clobber what the host ABI
+does not preserve, so values stay in rbx and r12 to r15 across them. Growing calls the engine's
+helpers; fill, copy and init of memories and tables call the JIT's (`runtime.rs`), which return 0 or
+the trap code.
+
+## 9. Code generation
+
+`codegen/x86_64/` lowers the blocks in linear order with x86-64-v3 instructions (VEX three-operand
+float arithmetic, BMI1/BMI2 shifts and rotates, lzcnt, tzcnt, popcnt, and AVX2 for vectors), from
+libjs_jit's encoders and the additions in its `asm/x86_64/extended.rs`, whose `vex()` encodes any
+VEX instruction from its opcode (`codegen/x86_64/vector.rs` names the SIMD ones). After each node, a value with a slot is stored
+there; a phi in a register with a slot is stored where its block starts.
+
+- **Edges.** A jump moves its values and jumps unless its target comes next. A two-way branch whose
+  taken edge needs moves jumps to a stub that moves them; its other edge moves inline. Where the
+  taken target comes next and needs no moves, the condition is inverted. `br_table` is a jump table
+  of 32-bit offsets, with stubs for the edges that need moves.
+- **Traps** jump to one stub per trap code, which puts the code in edi and jumps to
+  `RuntimeInfo::trap_exit` with rbp still the trapping frame's fp. Memory accesses rely on guard
+  pages: the runtime's fault handler turns faults in compiled code into the same trap exit.
+- **Data**: float constants and masks live in a constant pool after the code, jump tables before
+  it, both reached rip-relative, so the code is position independent. The runtime is reached
+  through absolute addresses.
+
+## 10. Testing
+
+- `cargo test -p libwasm_jit`: unit tests, and the decoder and execution tests over the spec
+  testsuite's modules when the build directory has them.
+- `examples/spec_check.rs` (and `tests/execution.rs`, with and without `stress_registers`) runs the
+  spec testsuite's scripts in two stores, one where calls into compiled functions run the compiled
+  code, and compares results, traps, memories, tables (by which elements are null) and globals with
+  the interpreter's. `tests/harness` has a session per thread: a code space whose start is the trap
+  exit, a trampoline per signature, host stubs, and a stub for functions that did not compile, which
+  traps with a code of its own; binding a module's instance points the engine's function headers at
+  the code.
+- `examples/smith_check.rs` does the same for random modules from `wasm-tools smith` in the subset
+  the JIT compiles, calling every exported function with random arguments.
+- `examples/run_kernel.rs` times calls of one function, compiled or interpreted, for the run time
+  effect of optimizations while the JIT has no runtime; `examples/kernels/` has loops for them.
+- `examples/compile_all.rs` compiles every function of modules and reports coverage, the CPU time
+  of compiling the functions the JIT compiles on one thread and on several, per byte and per phase
+  (`Options::stats`), the slowest large function, the cost of small ones, and nodes, slots and moves
+  per byte; with `--verify` it checks every phase.

@@ -51,6 +51,11 @@ IN_ONE_LIBRARY = {
         {"libweb_bindings_rust"},
         "a dependency of libweb_bindings_rust alone, whose archive LibWeb's library links",
     ),
+    "libwasm_engine": (
+        {"libwasm_jit"},
+        "a dev-dependency of libwasm_jit alone, whose tests run compiled code against it; the engine is the one Rust "
+        "archive of LibWasm's library (Libraries/LibWasm/CMakeLists.txt)",
+    ),
 }
 
 # libweb_rust: `file:name` -> why the state is fine on a thread other than the document's.
