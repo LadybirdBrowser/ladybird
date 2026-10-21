@@ -189,6 +189,15 @@ def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, 
     return members
 
 
+def rust_numeric_literal(literal: Optional[str], idl_type_name: str) -> Optional[str]:
+    """The Rust literal of a number of the IDL, if it is a value of the numeric type."""
+    if idl_type_name in FLOATING_POINT_TYPES and literal is not None and DECIMAL_LITERAL.fullmatch(literal):
+        return f"{literal}_{FLOATING_POINT_TYPES[idl_type_name]}"
+    if idl_type_name in INTEGER_TYPES:
+        return rust_integer_literal(literal, idl_type_name)
+    return None
+
+
 def rust_default_value(
     member: Union[OperationParameter, DictionaryMember], context: GenerationContext, what: str
 ) -> str:
@@ -204,12 +213,9 @@ def rust_default_value(
         return f'Utf16String::from_ascii(b"{string}")'
     if name == "boolean" and default_value in ("true", "false"):
         return default_value
-    if name in FLOATING_POINT_TYPES and default_value is not None and DECIMAL_LITERAL.fullmatch(default_value):
-        return f"{default_value}_{FLOATING_POINT_TYPES[name]}"
-    if name in INTEGER_TYPES:
-        integer_literal = rust_integer_literal(default_value, name)
-        if integer_literal is not None:
-            return integer_literal
+    numeric_literal = rust_numeric_literal(default_value, name)
+    if numeric_literal is not None:
+        return numeric_literal
     dictionary = resolved_dictionary(member.type, context)
     if dictionary is not None and default_value == "{}":
         # NB: The C++ bindings do not run the conversion for a missing argument either, so the members of the default
@@ -219,15 +225,22 @@ def rust_default_value(
     if enumeration is not None and default_value is not None and default_value[1:-1] in enumeration.values:
         variant = rust_enumeration_variant(default_value[1:-1], enumeration)
         return f"{rust_enumeration_path(enumeration, context)}::{variant}"
-    if isinstance(member.type, IDLUnionType) and is_named_union(member.type, context) and default_value == "{}":
-        dictionary_type = union_members_by_kind(member.type, context, what).dictionary_type
-        if dictionary_type is not None:
+    if isinstance(member.type, IDLUnionType) and is_named_union(member.type, context):
+        union_members = union_members_by_kind(member.type, context, what)
+        union_path = rust_union_path(member.type, context, what)
+        dictionary_type = union_members.dictionary_type
+        if dictionary_type is not None and default_value == "{}":
             dictionary = context.dictionaries[dictionary_type.name]
-            union_path = rust_union_path(member.type, context, what)
             return (
                 f"{union_path}::{rust_union_variant(dictionary_type)}"
                 f"(<{rust_dictionary_path(dictionary, context)}>::empty())"
             )
+        # NB: A number is a value of the numeric member that the conversion to the union takes, as the C++ bindings
+        #     take the default value of such a union to be.
+        numeric_type = union_members.numeric_type
+        numeric_literal = None if numeric_type is None else rust_numeric_literal(default_value, numeric_type.name)
+        if numeric_type is not None and numeric_literal is not None:
+            return f"{union_path}::{rust_union_variant(numeric_type)}({numeric_literal})"
     raise UnsupportedByRustBindings(
         f"{what} has the default value {default_value}, which the Rust bindings do not have"
     )
