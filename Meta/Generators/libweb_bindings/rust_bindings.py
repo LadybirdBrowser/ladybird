@@ -773,21 +773,25 @@ def write_rust_attribute_setter(
     the this value is checked, and a missing value is undefined instead of an error."""
     name = attribute.attribute.name
     what = f"{interface.name}.{name}"
-    if context.enumeration(attribute.attribute.type) is not None:
-        # NB: The setter of such an attribute ignores a value that is not one of the enumeration's instead of throwing.
-        raise UnsupportedByRustBindings(
-            f"{what} is not read only and has an enumeration type, which the Rust bindings do not handle yet"
-        )
     conversion = rust_to_idl_value(
         attribute.attribute.type, attribute.attribute.extended_attributes, "value", name, context, what
     )
+    if context.enumeration(attribute.attribute.type) is not None:
+        # NB: The setter of an attribute of an enumeration type ignores a value that is not one of the enumeration's,
+        #     https://webidl.spec.whatwg.org/#dfn-attribute-setter, and, as the C++ bindings do, a value whose
+        #     conversion throws.
+        conversion = f"""let Ok(idl_value) = {conversion} else {{
+            return Ok(Value::UNDEFINED);
+        }};"""
+    else:
+        conversion = f"let idl_value = {conversion}?;"
     out.write(
         f"""
     fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let value = vm.argument(0);
         let (implementation, mut cx) = this_implementation(vm)?;
         let type_error_realm_scope = vm.type_error_realm_scope(cx.realm());
-        let idl_value = {conversion}?;
+        {conversion}
         drop(type_error_realm_scope);
         Implementation::{attribute.setter_method}(&implementation, &mut cx, idl_value)
             .map_err(|exception| exception.throw(&cx))?;
