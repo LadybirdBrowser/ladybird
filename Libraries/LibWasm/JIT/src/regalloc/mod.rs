@@ -32,6 +32,15 @@ use liveness::{Liveness, NO_HINT, block_start_position, node_position, predecess
 pub const NO_REGISTER: u8 = u8::MAX;
 /// An input that code generation uses as an immediate.
 pub const CONSTANT_INPUT: u8 = u8::MAX - 1;
+/// An input that code generation reads from its spill slot, as the memory operand of the instruction.
+pub const SLOT_INPUT: u8 = u8::MAX - 2;
+
+/// OPTIMIZATION: A spilled input is read from its slot by the instruction itself unless it is needed again within
+/// this many positions (four per node), where loading it into a register once serves both uses.
+const SLOT_INPUT_REUSE_DISTANCE: u32 = 4 * 8;
+
+/// OPTIMIZATION: Parallel moves up to this many are ordered by rescanning them, more by counting their readers.
+const SMALL_PARALLEL_MOVE: usize = 8;
 
 /// No spill slot.
 pub const NO_SLOT: i32 = i32::MIN;
@@ -153,6 +162,8 @@ struct Constraints {
     /// Whether the output may take the first input's register where that input dies, as two-address instructions
     /// want.
     reuse_first: bool,
+    /// The inputs code generation may read from their slots (`SLOT_INPUT`), as a mask.
+    slot_inputs: u8,
 }
 
 /// Whether constant `value` fits an instruction as an immediate: sign-extended 32 bits for 64-bit operations.
@@ -186,12 +197,14 @@ fn constraints(func: &Func, value: Value) -> Constraints {
         temps: [Temp::None; 2],
         clobbers: 0,
         reuse_first: false,
+        slot_inputs: 0,
     };
     let input_type = |index: usize| func.node(func.inputs(value)[index]).ty;
     match node.op {
         Op::Add | Op::Sub | Op::And | Op::Or | Op::Xor | Op::Mul => {
             constraints.inputs[1] = Input::RegisterOrConstant;
             constraints.reuse_first = true;
+            constraints.slot_inputs = 0b010;
         }
         Op::Shl | Op::ShrS | Op::ShrU => constraints.inputs[1] = Input::RegisterOrConstant,
         Op::Rotl | Op::Rotr => {
@@ -210,7 +223,11 @@ fn constraints(func: &Func, value: Value) -> Constraints {
             let quotient = matches!(node.op, Op::DivS | Op::DivU);
             constraints.output = Output::Fixed(if quotient { RAX } else { RDX });
         }
-        Op::Compare | Op::BranchCompare => constraints.inputs[1] = Input::RegisterOrConstant,
+        Op::Compare | Op::BranchCompare => {
+            constraints.inputs[1] = Input::RegisterOrConstant;
+            constraints.slot_inputs = 0b010;
+        }
+        Op::FAdd | Op::FSub | Op::FMul | Op::FDiv => constraints.slot_inputs = 0b010,
         Op::FloatCompare => {
             if matches!(
                 crate::ir::FloatCondition::from_flags(node.flags),
@@ -295,12 +312,14 @@ fn constraints(func: &Func, value: Value) -> Constraints {
             if node.op == Op::VectorBinary && codegen::x86_64::is_vector_shift(node.args[2]) {
                 constraints.inputs[1] = Input::RegisterOrConstant;
             }
+            // NB: The operands that may be constants in the constant pool may be in their slots just as well.
             let constants = codegen::x86_64::vector_constant_inputs(func, value);
             for (index, input) in constraints.inputs.iter_mut().enumerate() {
                 if constants & (1 << index) != 0 {
                     *input = Input::RegisterOrVectorConstant;
                 }
             }
+            constraints.slot_inputs = constants;
         }
         _ => {}
     }
@@ -328,6 +347,8 @@ pub struct Allocator {
     current_block: BlockId,
     pending: Vec<Move>,
     resolved: Vec<Move>,
+    /// How many pending moves read each location, in `resolve_many()`.
+    readers: crate::table::Table<u64>,
     places: Vec<Place>,
     types: Vec<Type>,
     /// The inputs of the node being allocated, whose registers only it may take.
@@ -783,6 +804,11 @@ impl Allocator {
     fn resolve(&mut self, func: &Func, allocation: &mut Allocation) {
         let _ = func;
         self.resolved.clear();
+        if self.pending.len() > SMALL_PARALLEL_MOVE {
+            self.resolve_many(allocation);
+            allocation.moves.extend_from_slice(&self.resolved);
+            return;
+        }
         while !self.pending.is_empty() {
             let ready = self
                 .pending
@@ -814,6 +840,67 @@ impl Allocator {
             }
         }
         allocation.moves.extend_from_slice(&self.resolved);
+    }
+
+    /// `resolve()` for many moves, like the edges into a merge with many phis: it counts the readers of each
+    /// location, so that finding the moves whose destination nobody reads any more takes one pass, not one per move.
+    fn resolve_many(&mut self, allocation: &mut Allocation) {
+        fn key(location: Location) -> u64 {
+            match location {
+                Location::Register(register) => (1 << 40) | u64::from(register),
+                Location::Slot(slot) => (2 << 40) | u64::from(slot as u32),
+                Location::Outgoing(index) => (3 << 40) | u64::from(index),
+                Location::ResultArea(index) => (4 << 40) | u64::from(index),
+                Location::Constant(value) => (5 << 40) | u64::from(value),
+            }
+        }
+        let readers = &mut self.readers;
+        readers.clear();
+        let add = |readers: &mut crate::table::Table<u64>, location: Location, delta: i64| {
+            let count = i64::from(readers.get(key(location)).unwrap_or(0)) + delta;
+            readers.insert(key(location), count as u32);
+        };
+        for pending in &self.pending {
+            add(readers, pending.from, 1);
+        }
+        while !self.pending.is_empty() {
+            let mut progress = false;
+            let mut index = 0;
+            while index < self.pending.len() {
+                if readers.get(key(self.pending[index].to)).unwrap_or(0) == 0 {
+                    let ready = self.pending.swap_remove(index);
+                    add(readers, ready.from, -1);
+                    self.resolved.push(ready);
+                    progress = true;
+                } else {
+                    index += 1;
+                }
+            }
+            if progress || self.pending.is_empty() {
+                continue;
+            }
+            // Every destination is still a source: the moves form cycles. Save one destination in the cycle slot.
+            if allocation.cycle_slot == NO_SLOT {
+                // NB: Two slots, in case the value is a v128.
+                allocation.slot_count += 2;
+                allocation.cycle_slot = convention::spill_slot_offset(allocation.slot_count - 1);
+            }
+            let saved = self.pending[0].to;
+            let temp = Location::Slot(allocation.cycle_slot);
+            let vector = self.pending[0].vector;
+            self.resolved.push(Move {
+                from: saved,
+                to: temp,
+                vector,
+            });
+            for pending in &mut self.pending {
+                if pending.from == saved {
+                    pending.from = temp;
+                    add(readers, saved, -1);
+                    add(readers, temp, 1);
+                }
+            }
+        }
     }
 
     // Nodes.
@@ -896,6 +983,21 @@ impl Allocator {
         }
     }
 
+    /// Whether the node being allocated should read `input`, one of its inputs that may be a memory operand, from its
+    /// slot: it is in no register, the node takes it once, and it is not needed again soon.
+    fn reads_from_slot(&self, func: &Func, allocation: &Allocation, input: Value) -> bool {
+        if func.node(input).op.is_constant()
+            || self.value_registers[input as usize] != NO_REGISTER
+            || allocation.slots[input as usize] == NO_SLOT
+            || self.inputs.iter().filter(|other| **other == input).count() != 1
+        {
+            return false;
+        }
+        self.liveness
+            .next_use(input, self.position)
+            .is_none_or(|next| next > self.position + SLOT_INPUT_REUSE_DISTANCE)
+    }
+
     /// Puts `input` in some register for a node, with the registers in `blocked` taken.
     fn register_input(&mut self, func: &Func, allocation: &mut Allocation, input: Value, blocked: u32) -> Register {
         let float = is_float(func.node(input).ty);
@@ -964,6 +1066,9 @@ impl Allocator {
                 }
                 Input::RegisterOrVectorConstant if func.node(input).op == Op::Const128 => {
                     registers[index] = CONSTANT_INPUT;
+                }
+                _ if constraints.slot_inputs & (1 << index) != 0 && self.reads_from_slot(func, allocation, input) => {
+                    registers[index] = SLOT_INPUT;
                 }
                 _ => {
                     let register = self.register_input(func, allocation, input, blocked);

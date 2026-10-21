@@ -10,7 +10,7 @@
 //! by their inputs). Slots belong to one value each and are written where it is defined, so reading a value from
 //! its own slot is always right.
 
-use super::{Allocation, CONSTANT_INPUT, Location, NO_REGISTER, REGISTER_COUNT, call_result_types};
+use super::{Allocation, CONSTANT_INPUT, Location, NO_REGISTER, REGISTER_COUNT, SLOT_INPUT, call_result_types};
 use crate::convention::{self, Place};
 use crate::ir::{BlockId, Func, NONE, Op, Shape, Value};
 use crate::passes::cleanup::Liveliness;
@@ -147,6 +147,11 @@ pub fn verify(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> 
                     };
                     for (index, &input) in inputs.iter().enumerate().take(count) {
                         let register = record.inputs[index];
+                        if register == SLOT_INPUT {
+                            let slot = allocation.slots[input as usize];
+                            simulation.check_holds(Location::Slot(slot), input, &format!("v{value} input {index}"));
+                            continue;
+                        }
                         if register == CONSTANT_INPUT {
                             if !func.node(input).op.is_constant() {
                                 simulation.error(format!("v{value} takes v{input} as an immediate"));
@@ -237,6 +242,7 @@ pub fn dump(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> St
     let register = |register: u8| match register {
         NO_REGISTER => "-".to_string(),
         CONSTANT_INPUT => "#".to_string(),
+        SLOT_INPUT => "[slot]".to_string(),
         _ => name(&Location::Register(register)),
     };
     let moves = |moves: &[super::Move]| {

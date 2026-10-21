@@ -150,6 +150,10 @@ struct Totals {
 }
 
 fn main() {
+    harness::run_main(checked_main);
+}
+
+fn checked_main() {
     let mut count = 100;
     let mut seed = 1u64;
     let mut keep = None;
@@ -273,10 +277,7 @@ fn main() {
         totals.compiled += compiled.entries[first..].iter().filter(|entry| **entry != 0).count();
         totals.runnable += compiled.runnable[first..].iter().filter(|runnable| **runnable).count();
         for failure in compiled.failures.iter().flatten() {
-            let what = match failure {
-                libwasm_jit::CompileFailure::Unsupported { what, .. } => *what,
-                libwasm_jit::CompileFailure::CodeGeneration => "code generation",
-            };
+            let what = failure.reason();
             *totals.unsupported.entry(what).or_default() += 1;
         }
         let mut exports = interpreted

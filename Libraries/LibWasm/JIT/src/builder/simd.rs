@@ -11,8 +11,7 @@
 //! products are their deterministic counterparts, which they become here, so that they share those nodes' value
 //! numbers and code.
 
-use super::{Builder, unsupported};
-use crate::CompileFailure;
+use super::Builder;
 use crate::decode::{Decoder, MemoryArgument};
 use crate::ir::{Func, LoadKind, Node, Op, Type, Value};
 use libwasm_module::Module;
@@ -90,12 +89,9 @@ impl Builder {
         sub_opcode: u32,
         checked: bool,
         decoder: &Decoder<'_>,
-        pc: usize,
-    ) -> Result<(), CompileFailure> {
+    ) {
         let sub_opcode = canonical(sub_opcode);
-        let Some(kind) = simd_kind(sub_opcode) else {
-            return unsupported(pc, "an unknown SIMD instruction");
-        };
+        let kind = simd_kind(sub_opcode).expect("validation rejects unknown SIMD instructions");
         let value = match kind {
             SimdKind::Load { size } => {
                 let index = Self::resolve(func, self.pop());
@@ -112,7 +108,7 @@ impl Builder {
                 let index = Self::resolve(func, self.pop());
                 let address = self.simd_address(func, module, checked, decoder.simd_argument(), index, 4);
                 self.store(func, address, value, 4);
-                return Ok(());
+                return;
             }
             SimdKind::LoadLane { size } => {
                 // A scalar load, and its value replacing the lane.
@@ -148,7 +144,7 @@ impl Builder {
                 let scalar = self.pure(func, Node::new(Op::ExtractLane, ty, 0, [vector, extract, lane]));
                 let address = self.simd_address(func, module, checked, decoder.simd_argument(), index, size_log2);
                 self.store(func, address, scalar, size_log2);
-                return Ok(());
+                return;
             }
             SimdKind::Const => {
                 let bits = u128::from_le_bytes(decoder.simd_bytes());
@@ -214,6 +210,5 @@ impl Builder {
             }
         };
         self.push(value);
-        Ok(())
     }
 }

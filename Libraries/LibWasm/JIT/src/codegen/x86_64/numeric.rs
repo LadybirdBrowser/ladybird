@@ -11,7 +11,7 @@ use crate::asm::x86_64::{AluOp, BitCount, BitwiseOp, Cond, FloatOp, Precision, R
 use crate::asm::{Address, Fpr, Gpr, Width};
 use crate::convention::Register;
 use crate::ir::{FLAG_CANNOT_TRAP, FloatCondition, IntCondition, Op, Type, Value};
-use crate::regalloc::CONSTANT_INPUT;
+use crate::regalloc::{CONSTANT_INPUT, SLOT_INPUT};
 use libwasm_module::abi::{TRAP_INTEGER_DIVIDE_BY_ZERO, TRAP_INTEGER_OVERFLOW, TRAP_INVALID_CONVERSION};
 
 /// The sign bit of a float type.
@@ -43,7 +43,13 @@ impl CodeGenerator<'_> {
             Op::Xor => self.logic(value, AluOp::Xor, ty, output, a, b),
             Op::Mul => {
                 let (dst, a_register) = (gpr(output), gpr(a));
-                if b == CONSTANT_INPUT {
+                if b == SLOT_INPUT {
+                    let address = self.input_slot(node.args[1]);
+                    if output != a {
+                        self.asm.mov_rr(width(ty), dst, a_register);
+                    }
+                    self.asm.imul_rm(width(ty), dst, &address);
+                } else if b == CONSTANT_INPUT {
                     let immediate = self.immediate(value, 1) as i32;
                     self.asm.imul_rri(width(ty), dst, a_register, immediate);
                 } else if output == a {
@@ -148,7 +154,12 @@ impl CodeGenerator<'_> {
                     Op::FMul => FloatOp::Mul,
                     _ => FloatOp::Div,
                 };
-                self.asm.vfloat_rrr(op, precision(ty), fpr(output), fpr(a), fpr(b));
+                if b == SLOT_INPUT {
+                    let address = self.input_slot(node.args[1]);
+                    self.asm.vfloat_rrm(op, precision(ty), fpr(output), fpr(a), &address);
+                } else {
+                    self.asm.vfloat_rrr(op, precision(ty), fpr(output), fpr(a), fpr(b));
+                }
             }
             Op::FSqrt => self
                 .asm
@@ -203,9 +214,20 @@ impl CodeGenerator<'_> {
         }
     }
 
+    /// `dst = a op [slot of input 1]`, for an input the allocator left in its slot.
+    fn alu_slot(&mut self, value: Value, op: AluOp, ty: Type, output: Register, a: Register) {
+        let address = self.input_slot(self.func.inputs(value)[1]);
+        if output != a {
+            self.asm.mov_rr(width(ty), gpr(output), gpr(a));
+        }
+        self.asm.alu_rm(op, width(ty), gpr(output), &address);
+    }
+
     fn add(&mut self, value: Value, ty: Type, output: Register, a: Register, b: Register) {
         let (dst, a_register) = (gpr(output), gpr(a));
-        if b == CONSTANT_INPUT {
+        if b == SLOT_INPUT {
+            self.alu_slot(value, AluOp::Add, ty, output, a);
+        } else if b == CONSTANT_INPUT {
             let immediate = self.immediate(value, 1) as i32;
             if output == a {
                 self.asm.add_ri(width(ty), dst, immediate);
@@ -227,7 +249,9 @@ impl CodeGenerator<'_> {
 
     fn sub(&mut self, value: Value, ty: Type, output: Register, a: Register, b: Register) {
         let (dst, a_register) = (gpr(output), gpr(a));
-        if b == CONSTANT_INPUT {
+        if b == SLOT_INPUT {
+            self.alu_slot(value, AluOp::Sub, ty, output, a);
+        } else if b == CONSTANT_INPUT {
             let immediate = self.immediate(value, 1) as i32;
             if output != a {
                 self.asm.mov_rr(width(ty), dst, a_register);
@@ -246,7 +270,9 @@ impl CodeGenerator<'_> {
 
     fn logic(&mut self, value: Value, op: AluOp, ty: Type, output: Register, a: Register, b: Register) {
         let (dst, a_register) = (gpr(output), gpr(a));
-        if b == CONSTANT_INPUT {
+        if b == SLOT_INPUT {
+            self.alu_slot(value, op, ty, output, a);
+        } else if b == CONSTANT_INPUT {
             let immediate = self.immediate(value, 1) as i32;
             if output != a {
                 self.asm.mov_rr(width(ty), dst, a_register);

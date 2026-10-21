@@ -705,10 +705,18 @@ mod platform {
         Ok(nanoseconds_of(&time))
     }
 
+    // NB: The libc crate does not bind getentropy() for musl, whose C library has it.
+    #[cfg(target_env = "musl")]
+    unsafe extern "C" {
+        fn getentropy(buffer: *mut libc::c_void, length: libc::size_t) -> libc::c_int;
+    }
+    #[cfg(not(target_env = "musl"))]
+    use libc::getentropy;
+
     pub fn fill_with_random(bytes: &mut [u8]) -> Result<(), Errno> {
         // getentropy() fills at most 256 bytes at a time.
         for chunk in bytes.chunks_mut(256) {
-            if unsafe { libc::getentropy(chunk.as_mut_ptr().cast(), chunk.len()) } != 0 {
+            if unsafe { getentropy(chunk.as_mut_ptr().cast(), chunk.len()) } != 0 {
                 return Err(last_errno());
             }
         }
