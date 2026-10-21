@@ -537,7 +537,10 @@ DecoderErrorOr<void> Reader::parse_sample_table_box(Streamer& streamer, BoxHeade
         } else if (child.type == FourCC { "ctts" }) {
             TRY(read_entries(tables.composition_offsets, 64, [&]() -> DecoderErrorOr<CompositionOffsetEntry> {
                 auto sample_count = TRY(streamer.read<u32>());
-                i64 offset = full_box.version == 1 ? static_cast<i64>(TRY(streamer.read<i32>())) : TRY(streamer.read<u32>());
+                // AD-HOC: ISO/IEC 14496-12 makes version 0 offsets unsigned, but muxers write negative offsets into
+                //         version 0 boxes too, which would put those samples over two billion ticks late. So, read
+                //         the offsets of either version as signed.
+                i64 offset = TRY(streamer.read<i32>());
                 return CompositionOffsetEntry { sample_count, offset };
             }));
         } else if (child.type == SAMPLE_TO_CHUNK_BOX) {
@@ -906,14 +909,8 @@ DecoderErrorOr<void> Reader::parse_track_fragment_box(Streamer& streamer, BoxHea
                 return DecoderError::corrupted("Track Run box appeared before the Track Fragment Header box"sv);
 
             auto full_box = TRY(read_full_box_header(streamer));
-            bool has_signed_composition_time_offsets;
-            if (full_box.version == 0) {
-                has_signed_composition_time_offsets = false;
-            } else if (full_box.version == 1) {
-                has_signed_composition_time_offsets = true;
-            } else {
+            if (full_box.version > 1)
                 return DecoderError::corrupted("Track Run box has an unsupported version"sv);
-            }
             if ((full_box.flags & TRACK_RUN_FIRST_SAMPLE_FLAGS_PRESENT) != 0 && (full_box.flags & TRACK_RUN_SAMPLE_FLAGS_PRESENT) != 0)
                 return DecoderError::corrupted("Track Run box has conflicting sample flags"sv);
             auto sample_count = TRY(streamer.read<u32>());
@@ -999,12 +996,9 @@ DecoderErrorOr<void> Reader::parse_track_fragment_box(Streamer& streamer, BoxHea
                     }
                     if (has_sample_flags)
                         run.sample_flags.unchecked_append(TRY(streamer.read<u32>()));
-                    if (has_composition_time_offsets) {
-                        if (has_signed_composition_time_offsets)
-                            run.sample_composition_time_offsets.unchecked_append(TRY(streamer.read<i32>()));
-                        else
-                            run.sample_composition_time_offsets.unchecked_append(TRY(streamer.read<u32>()));
-                    }
+                    // AD-HOC: As in the Composition Offset box, read version 0 offsets as signed.
+                    if (has_composition_time_offsets)
+                        run.sample_composition_time_offsets.unchecked_append(TRY(streamer.read<i32>()));
                     total_data_size += size;
                     total_duration += duration;
                 }

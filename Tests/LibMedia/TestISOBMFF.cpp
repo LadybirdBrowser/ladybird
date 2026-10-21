@@ -556,7 +556,7 @@ TEST_CASE(preserves_mp3_in_mp4a_without_decoder_specific_configuration)
     }
 }
 
-static void append_seek_test_tables(ByteBuffer& bytes, u8 size_width = 0, u32 data_offset = 8, bool mark_sync_samples = true)
+static void append_seek_test_tables(ByteBuffer& bytes, u8 size_width = 0, u32 data_offset = 8, bool mark_sync_samples = true, u8 composition_offset_version = 1)
 {
     auto times = begin_box(bytes, "stts");
     append_full_box_header(bytes);
@@ -566,7 +566,7 @@ static void append_seek_test_tables(ByteBuffer& bytes, u8 size_width = 0, u32 da
     finish_box(bytes, times);
 
     auto compositions = begin_box(bytes, "ctts");
-    append_full_box_header(bytes, 1);
+    append_full_box_header(bytes, composition_offset_version);
     append_u32(bytes, 6);
     for (i32 offset : { 0, 2, -1, -1, 2, -1 }) {
         append_u32(bytes, 1);
@@ -722,6 +722,23 @@ TEST_CASE(demuxes_sample_tables_in_decode_order_with_signed_composition_offsets)
     EXPECT_EQ(demuxer->get_next_sample_for_track(track).error().category(), Media::DecoderErrorCategory::EndOfStream);
 }
 
+TEST_CASE(demuxes_negative_composition_offsets_from_a_version_0_box)
+{
+    ByteBuffer bytes;
+    auto data = begin_box(bytes, "mdat");
+    for (u8 i = 0; i < 6; ++i)
+        bytes.append(i);
+    finish_box(bytes, data);
+    append_video_movie(bytes, "vp09", append_vp9_configuration_box, ColourBoxOrder::None, [](ByteBuffer& bytes) { append_seek_test_tables(bytes, 0, 8, true, 0); });
+
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(bytes);
+    auto demuxer = MUST(Media::ISOBMFF::ISOBMFFDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video)).value();
+    MUST(demuxer->create_context_for_track(track));
+    for (i64 timestamp : { 0, 3, 1, 2, 6, 4 })
+        EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).presentation_timestamp(), AK::Duration::from_seconds(timestamp));
+}
+
 TEST_CASE(seeks_by_pts_and_skips_seeks_that_do_not_improve_position)
 {
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(seek_test_file());
@@ -821,7 +838,7 @@ TEST_CASE(iterates_compact_and_variable_sample_sizes_with_large_chunk_offsets)
     }
 }
 
-TEST_CASE(normalizes_composition_offset_versions_without_losing_unsigned_values)
+TEST_CASE(reads_composition_offsets_as_signed_in_either_version)
 {
     for (u8 version : { 0, 1 }) {
         ByteBuffer bytes;
@@ -837,7 +854,7 @@ TEST_CASE(normalizes_composition_offset_versions_without_losing_unsigned_values)
         auto const& offsets = movie.tracks.get(1).value()->sample_tables->composition_offsets.value();
         EXPECT_EQ(offsets.size(), 1u);
         EXPECT_EQ(offsets[0].sample_count, 100u);
-        EXPECT_EQ(offsets[0].sample_offset, version == 0 ? 0xffff'ffffLL : -1LL);
+        EXPECT_EQ(offsets[0].sample_offset, -1);
     }
 }
 
@@ -1145,6 +1162,43 @@ TEST_CASE(resolves_track_run_samples_taken_entirely_from_defaults)
     EXPECT_EQ(first.data_size, 1u);
     EXPECT_EQ(second.data_position, first.data_position + 1);
     EXPECT_EQ(second.decode_timestamp - first.decode_timestamp, AK::Duration::from_time_units(1, 1, 1'000));
+}
+
+TEST_CASE(resolves_negative_composition_offsets_from_a_version_0_track_run)
+{
+    ByteBuffer bytes;
+    auto movie_fragment = begin_box(bytes, "moof");
+    append_movie_fragment_header(bytes);
+    auto track_fragment = begin_box(bytes, "traf");
+
+    auto track_fragment_header = begin_box(bytes, "tfhd");
+    append_full_box_header(bytes);
+    append_u32(bytes, 1);
+    finish_box(bytes, track_fragment_header);
+
+    auto decode_time = begin_box(bytes, "tfdt");
+    append_full_box_header(bytes);
+    append_u32(bytes, 10);
+    finish_box(bytes, decode_time);
+
+    auto track_run = begin_box(bytes, "trun");
+    append_full_box_header(bytes, 0, 0x000801); // data offset, composition offsets
+    append_u32(bytes, 2);
+    append_u32(bytes, 0);
+    append_u32(bytes, 2);
+    append_u32(bytes, static_cast<u32>(-1));
+    finish_box(bytes, track_run);
+
+    finish_box(bytes, track_fragment);
+    finish_box(bytes, movie_fragment);
+
+    auto streamer = streamer_for(bytes);
+    auto header = MUST(Media::ISOBMFF::Reader::read_box_header(streamer));
+    auto fragment = MUST(Media::ISOBMFF::Reader::parse_movie_fragment_box(streamer, header, fragment_contexts()));
+    Media::ISOBMFF::FragmentSampleIterator samples { move(fragment) };
+    EXPECT_EQ(samples.peek().presentation_timestamp, AK::Duration::from_milliseconds(12));
+    samples.advance();
+    EXPECT_EQ(samples.peek().presentation_timestamp, AK::Duration::from_milliseconds(10));
 }
 
 TEST_CASE(rejects_overflowing_track_run_data_position)
