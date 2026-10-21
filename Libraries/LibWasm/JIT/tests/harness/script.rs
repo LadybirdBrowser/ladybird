@@ -14,6 +14,7 @@ use libwasm_engine::types::{FuncType, GlobalType, Limits, MemoryType, RefType, T
 use libwasm_jit::Options;
 use serde_json::Value as Json;
 use std::collections::{BTreeSet, HashMap};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -233,6 +234,46 @@ struct Script<'a> {
     name: String,
     options: Options,
     runtime: bool,
+    /// Where `--dump` writes what the interpreter did in every action.
+    dump: Option<&'a mut dyn std::io::Write>,
+}
+
+/// A value as `--dump` writes it: the same on every architecture, so NaNs of scalar types and the addresses of
+/// references are left out.
+fn dump_value(value: &Value) -> String {
+    match value {
+        Value::F32(bits) if f32::from_bits(*bits).is_nan() => "f32:nan".to_string(),
+        Value::F64(bits) if f64::from_bits(*bits).is_nan() => "f64:nan".to_string(),
+        Value::Ref(0) => "ref:null".to_string(),
+        Value::Ref(bits) if bits & 1 != 0 => format!("ref:i31:{bits:x}"),
+        Value::Ref(_) => "ref:nonnull".to_string(),
+        other => format!("{other:?}"),
+    }
+}
+
+/// The memories, tables and globals of an instance, as `--dump` writes them: a hash of the memories' bytes, which
+/// table elements are null, and the globals.
+fn dump_state(store: &Store, instance: InstanceAddress) -> String {
+    let instance = store.instance(instance);
+    let mut text = String::new();
+    for memory in &instance.memories {
+        let bytes = store.memory(*memory).bytes();
+        let hash = bytes.iter().fold(0xcbf2_9ce4_8422_2325u64, |hash, byte| {
+            (hash ^ u64::from(*byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+        text.push_str(&format!(" m{}:{hash:x}", bytes.len()));
+    }
+    for table in &instance.tables {
+        let elements = &store.table(*table).elements;
+        let hash = elements.iter().fold(0xcbf2_9ce4_8422_2325u64, |hash, element| {
+            (hash ^ u64::from(*element == 0)).wrapping_mul(0x0100_0000_01b3)
+        });
+        text.push_str(&format!(" t{}:{hash:x}", elements.len()));
+    }
+    for global in &instance.globals {
+        text.push_str(&format!(" g:{}", dump_value(&store.global(*global).get())));
+    }
+    text
 }
 
 impl Script<'_> {
@@ -329,6 +370,19 @@ impl Script<'_> {
                     return;
                 };
                 let expected = outcome(self.interpreted.invoke(*interpreted, &arguments));
+                if let Some(dump) = self.dump.as_mut() {
+                    let result = match &expected {
+                        Outcome::Values(values) => values.iter().map(dump_value).collect::<Vec<_>>().join(" "),
+                        Outcome::Trap(code) => format!("trap {code}"),
+                    };
+                    // NB: How deep the stack gets before it is exhausted differs, and so does what the code did on the way.
+                    let state = if expected == Outcome::Trap(libwasm_engine::abi::TRAP_STACK_EXHAUSTED) {
+                        String::new()
+                    } else {
+                        dump_state(&self.interpreted, self.modules[index].interpreted)
+                    };
+                    let _ = writeln!(dump, "{}:{line} {field:?} => {result} |{state}", self.name);
+                }
                 let loaded = &mut self.modules[index];
                 let function = function_index(&self.jit, *jit, loaded.jit);
                 let actual = match (function, &mut loaded.compiled) {
@@ -460,6 +514,18 @@ pub fn scripts(paths: &[String]) -> Vec<PathBuf> {
 /// Runs the scripts at `paths`. With `runtime`, the JIT's store runs every call through the runtime, which compiles
 /// what `LIBWASM_JIT` says, instead of calling compiled code directly.
 pub fn run(paths: &[String], verbose: bool, options: Options, runtime: bool) -> Totals {
+    run_with_dump(paths, verbose, options, runtime, None)
+}
+
+/// `run()`, writing what the interpreter did in every action to `dump`: a file that should be the same on every
+/// architecture.
+pub fn run_with_dump(
+    paths: &[String],
+    verbose: bool,
+    options: Options,
+    runtime: bool,
+    mut dump: Option<&mut dyn std::io::Write>,
+) -> Totals {
     let mut totals = Totals::default();
     for path in scripts(paths) {
         let Ok(text) = std::fs::read_to_string(&path) else {
@@ -487,6 +553,7 @@ pub fn run(paths: &[String], verbose: bool, options: Options, runtime: bool) -> 
             name: path.file_name().unwrap().to_string_lossy().into_owned(),
             options,
             runtime,
+            dump: dump.as_mut().map(|dump| &mut **dump as &mut dyn std::io::Write),
         };
         runner.run(&script);
     }

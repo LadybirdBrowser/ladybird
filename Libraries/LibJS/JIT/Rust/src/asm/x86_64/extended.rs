@@ -219,6 +219,25 @@ impl Assembler {
         );
     }
 
+    /// `vaddss`/`vsubss`/... `dst, lhs, [address]` (and the `sd` forms).
+    pub fn vfloat_rrm(&mut self, op: FloatOp, precision: Precision, dst: Fpr, lhs: Fpr, address: &Address) {
+        self.vex_instruction(
+            precision.scalar_prefix(),
+            VexMap::Map0F,
+            false,
+            op as u8,
+            dst.0,
+            lhs.0,
+            Rm::Mem(*address),
+            0,
+        );
+    }
+
+    /// `imul dst, [address]`.
+    pub fn imul_rm(&mut self, width: Width, dst: Gpr, address: &Address) {
+        self.op_rm(width, &[0x0f, 0xaf], dst.0, address);
+    }
+
     /// `vroundss`/`vroundsd dst, src, src, mode`.
     pub fn vround(&mut self, precision: Precision, dst: Fpr, src: Fpr, rounding: Rounding) {
         let opcode = match precision {
@@ -550,6 +569,22 @@ mod tests {
             "vsqrtsd xmm1, xmm2, xmm11" => |a| a.vfloat_rrr(FloatOp::Sqrt, Precision::Double, XMM1, XMM2, XMM11);
             "vroundss xmm1, xmm1, xmm1, 8" => |a| a.vround(Precision::Single, XMM1, XMM1, Rounding::Nearest);
             "vroundsd xmm9, xmm2, xmm2, 0xb" => |a| a.vround(Precision::Double, XMM9, XMM2, Rounding::TowardZero);
+            "vaddsd xmm1, xmm2, qword ptr [rbp-0x48]" => |a| a.vfloat_rrm(
+                FloatOp::Add,
+                Precision::Double,
+                XMM1,
+                XMM2,
+                &Address::new(RBP, -0x48)
+            );
+            "vmulss xmm9, xmm10, dword ptr [r13+8]" => |a| a.vfloat_rrm(
+                FloatOp::Mul,
+                Precision::Single,
+                XMM9,
+                XMM10,
+                &Address::new(R13, 8)
+            );
+            "imul eax, dword ptr [rbp-0x10]" => |a| a.imul_rm(W32, RAX, &Address::new(RBP, -0x10));
+            "imul r9, qword ptr [rbp-0x18]" => |a| a.imul_rm(W64, R9, &Address::new(RBP, -0x18));
             "vucomiss xmm1, xmm2" => |a| a.vucomis(Precision::Single, XMM1, XMM2);
             "vucomisd xmm9, xmm12" => |a| a.vucomis(Precision::Double, XMM9, XMM12);
         });

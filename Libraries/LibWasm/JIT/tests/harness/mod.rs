@@ -27,6 +27,23 @@ use std::collections::HashMap;
 use std::mem::offset_of;
 use std::sync::Arc;
 
+/// Runs a program's `main` on a thread of its own where the C library is musl, whose pthread_getattr_np() finds the
+/// main thread's stack by probing it page by page with mremap(), which never ends under qemu-user. Elsewhere it runs
+/// `main` as it is.
+pub fn run_main<T: Send + 'static>(main: impl FnOnce() -> T + Send + 'static) -> T {
+    #[cfg(target_env = "musl")]
+    {
+        std::thread::Builder::new()
+            .stack_size(8 << 20)
+            .spawn(main)
+            .expect("start the main thread")
+            .join()
+            .expect("the main thread panicked")
+    }
+    #[cfg(not(target_env = "musl"))]
+    main()
+}
+
 /// The trap code of a call that reached a function the JIT did not compile.
 pub const TRAP_NOT_COMPILED: u32 = 100;
 

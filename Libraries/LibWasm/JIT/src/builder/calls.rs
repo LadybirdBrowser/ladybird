@@ -11,8 +11,7 @@
 //! the callee's instance, found from its header, and that instance's memory base. Host functions have no instance;
 //! they get the caller's, through which their stub finds the runtime.
 
-use super::{Builder, instance_offset, ir_type, unsupported};
-use crate::CompileFailure;
+use super::{Builder, instance_offset, ir_type};
 use crate::ir::{Func, NONE, Node, Op, Type, Value};
 use libwasm_module::Module;
 use libwasm_module::abi::{InstanceData, TRAP_NULL_REFERENCE, TRAP_UNDEFINED_ELEMENT, TRAP_UNINITIALIZED_ELEMENT};
@@ -70,14 +69,7 @@ impl Builder {
         self.instance_pointer(func, offset_of!(InstanceData, functions), function, Type::Ref)
     }
 
-    pub(super) fn call(
-        &mut self,
-        func: &mut Func,
-        module: &Module,
-        function: u32,
-        kind: CallKind,
-        pc: usize,
-    ) -> Result<(), CompileFailure> {
+    pub(super) fn call(&mut self, func: &mut Func, module: &Module, function: u32, kind: CallKind) {
         let ty = module.function_type(function).expect("functions have function types");
         let header = self.instance_pointer(func, offset_of!(InstanceData, functions), function, Type::Pointer);
         let (instance, memory_base) = if function < module.imported_function_count {
@@ -85,7 +77,7 @@ impl Builder {
         } else {
             (self.instance, self.memory_base)
         };
-        self.emit_call(func, ty, [header, instance, memory_base], function, kind, pc)
+        self.emit_call(func, ty, [header, instance, memory_base], function, kind);
     }
 
     pub(super) fn call_indirect(
@@ -95,8 +87,7 @@ impl Builder {
         type_index: u32,
         table: u32,
         kind: CallKind,
-        pc: usize,
-    ) -> Result<(), CompileFailure> {
+    ) {
         let ty = module.types[type_index as usize]
             .as_func()
             .expect("call_indirect has a function type");
@@ -122,17 +113,10 @@ impl Builder {
             ),
         );
         let (instance, memory_base) = self.callee_instance(func, element);
-        self.emit_call(func, ty, [element, instance, memory_base], NONE, kind, pc)
+        self.emit_call(func, ty, [element, instance, memory_base], NONE, kind);
     }
 
-    pub(super) fn call_ref(
-        &mut self,
-        func: &mut Func,
-        module: &Module,
-        type_index: u32,
-        kind: CallKind,
-        pc: usize,
-    ) -> Result<(), CompileFailure> {
+    pub(super) fn call_ref(&mut self, func: &mut Func, module: &Module, type_index: u32, kind: CallKind) {
         let ty = module.types[type_index as usize]
             .as_func()
             .expect("call_ref has a function type");
@@ -142,7 +126,7 @@ impl Builder {
             Node::new(Op::CheckNull, Type::None, TRAP_NULL_REFERENCE as u8, [reference, 0, 0]),
         );
         let (instance, memory_base) = self.callee_instance(func, reference);
-        self.emit_call(func, ty, [reference, instance, memory_base], NONE, kind, pc)
+        self.emit_call(func, ty, [reference, instance, memory_base], NONE, kind);
     }
 
     /// The instance and memory base a call of the function whose header is `header` passes.
@@ -170,11 +154,7 @@ impl Builder {
         [header, instance, memory_base]: [Value; 3],
         function: u32,
         kind: CallKind,
-        pc: usize,
-    ) -> Result<(), CompileFailure> {
-        if ty.results.iter().chain(&ty.params).any(|ty| ir_type(*ty).is_none()) {
-            return unsupported(pc, "a call with values of a type the JIT does not compile");
-        }
+    ) {
         let argument_count = ty.params.len();
         let start = func.operands.len() as u32;
         func.operands.extend_from_slice(&[header, instance, memory_base]);
@@ -201,7 +181,7 @@ impl Builder {
                 &[],
             );
             self.set_unreachable();
-            return Ok(());
+            return;
         }
         let call = Self::append(func, node);
         if !ty.results.is_empty() {
@@ -214,6 +194,5 @@ impl Builder {
         }
         self.call_epoch += 1;
         self.check_exception(func, call);
-        Ok(())
     }
 }

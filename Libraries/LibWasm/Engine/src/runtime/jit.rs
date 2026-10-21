@@ -23,13 +23,14 @@
 //!   installs finished code when the interpreter asks it again, which it does every few calls or loop iterations of a
 //!   function whose compile is pending.
 //!
-//! `LIBWASM_JIT` configures it, as a comma-separated list: `off` (the default for now), `on` (tier up hot functions),
-//! `threshold=N` (tier up once calls and loop iterations cost N, 1000 by default), `forced` (tier up at the first call
-//! or loop), `eager` (compile every function when its module is instantiated), and `perf-map` (write
-//! `/tmp/perf-PID.map` for `perf`), `verify-ir` (check every compile's IR and register allocation), `stress-osr`
-//! (tier up at loops only, where they start, so that as many loops as can continue compiled), `sync` (compile on the
-//! thread that runs the code, as `forced` and `stress-osr` do too), and `threads=N` (the number of compile threads,
-//! one per processor core but one by default).
+//! `LIBWASM_JIT` configures it, as a comma-separated list: `off` (run everything interpreted), `on` (tier up hot
+//! functions, the default), `threshold=N` (tier up once calls and loop iterations cost N, 1000 by default), `forced`
+//! (tier up at the first call or loop), `eager` (compile every function when its module is instantiated),
+//! `perf-map` (write `/tmp/perf-PID.map` for `perf`), `verify-ir` (check every compile's IR and register allocation),
+//! `stress-osr` (tier up at loops only, where they start, so that as many loops as can continue compiled),
+//! `stress-nested-osr` (the same, at loops in other loops only), `sync` (compile on the thread that runs the code, as
+//! `forced` and `stress-osr` do too), and `threads=N` (the number of compile threads, one per processor core but one by
+//! default).
 
 use super::ranges::RangeSet;
 use super::{FunctionAddress, FunctionInstance, InstanceAddress, Store, Trap, Value};
@@ -53,6 +54,8 @@ pub struct Options {
     pub verify_ir: bool,
     /// Tier up at loops only, at the first iteration, so that loops continue compiled (OSR) as often as they can.
     pub stress_osr: bool,
+    /// Like `stress_osr`, but only at loops in other loops, which the frame enters through the loops around them.
+    pub stress_nested_osr: bool,
     /// Compile on the thread that runs the code, and run the code as soon as it is compiled.
     pub sync: bool,
     /// The number of compile threads, or 0 for one per processor core but one.
@@ -63,6 +66,7 @@ impl Options {
     fn compile_options(self) -> libwasm_jit::Options {
         libwasm_jit::Options {
             verify_ir: self.verify_ir,
+            stress_nested_osr: self.stress_nested_osr,
             ..libwasm_jit::Options::default()
         }
     }
@@ -72,6 +76,7 @@ pub fn options() -> Options {
     static OPTIONS: OnceLock<Options> = OnceLock::new();
     *OPTIONS.get_or_init(|| {
         let mut options = Options {
+            enabled: true,
             threshold: DEFAULT_THRESHOLD,
             ..Options::default()
         };
@@ -92,10 +97,11 @@ pub fn options() -> Options {
                     "sync" => options.sync = true,
                     "perf-map" => options.perf_map = true,
                     "verify-ir" => options.verify_ir = true,
-                    "stress-osr" => {
+                    "stress-osr" | "stress-nested-osr" => {
                         options.enabled = true;
                         options.sync = true;
                         options.stress_osr = true;
+                        options.stress_nested_osr = option.trim() == "stress-nested-osr";
                         options.threshold = 1;
                     }
                     other => {

@@ -8,7 +8,7 @@
 //!
 //! ```text
 //! compile_all [--threads N] [--runs N] [--verify] [--stress-registers] [--no-licm] [--gvn] [--quiet]
-//!             [--dump-ir FUNCTION] [--dump-asm] MODULE|DIRECTORY...
+//!             [--dump-ir FUNCTION [--osr PC]] [--dump-asm] MODULE|DIRECTORY...
 //! ```
 //!
 //! A first pass finds the functions the JIT compiles; every measurement after it compiles only those, so that time
@@ -18,7 +18,7 @@
 //! function per byte among those of at least 1 KiB, the cost of the smallest functions, and the nodes, stack slots
 //! and moves per byte. Module decoding and validation are not included.
 
-use libwasm_jit::{CompileContext, CompileFailure, CompileRequest, Options, PHASES, RuntimeInfo, Stats};
+use libwasm_jit::{CompileContext, CompileRequest, Options, PHASES, RuntimeInfo, Stats};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -61,6 +61,8 @@ struct Arguments {
     runs: usize,
     options: Options,
     dump: Option<u32>,
+    /// With --dump-ir, the OSR compile at the loop at this module offset.
+    osr: Option<u32>,
     quiet: bool,
     paths: Vec<String>,
 }
@@ -71,6 +73,7 @@ fn parse_arguments() -> Arguments {
         runs: 3,
         options: Options::default(),
         dump: None,
+        osr: None,
         quiet: false,
         paths: Vec::new(),
     };
@@ -85,6 +88,7 @@ fn parse_arguments() -> Arguments {
             "--gvn" => arguments.options.gvn = true,
             "--quiet" => arguments.quiet = true,
             "--dump-asm" => arguments.options.dump_asm = true,
+            "--osr" => arguments.osr = Some(iterator.next().and_then(|n| n.parse().ok()).expect("--osr PC")),
             "--dump-ir" => {
                 arguments.dump = Some(
                     iterator
@@ -179,19 +183,44 @@ fn main() {
             options.dump_ir = !arguments.quiet;
             options.stats = true;
             let request = CompileRequest {
-                osr: None,
+                osr: arguments.osr,
                 module: module.clone(),
                 function,
                 runtime: RUNTIME,
                 options,
             };
+            // NB: The phases are the best of `--runs` compiles, the first of which also dumps.
+            let mut best = None::<Vec<u64>>;
+            for _ in 1..arguments.runs {
+                let quiet = CompileRequest {
+                    osr: None,
+                    module: module.clone(),
+                    function,
+                    runtime: RUNTIME,
+                    options: Options {
+                        dump_ir: false,
+                        ..options
+                    },
+                };
+                if let Ok(compiled) = libwasm_jit::compile(&mut context, &quiet) {
+                    let ticks = compiled.stats.ticks.to_vec();
+                    best = Some(match best {
+                        Some(best) => best.iter().zip(&ticks).map(|(a, b)| *a.min(b)).collect(),
+                        None => ticks,
+                    });
+                }
+            }
             match libwasm_jit::compile(&mut context, &request) {
                 Ok(compiled) => {
                     let body = &module.code[(function - first) as usize];
                     let bytes = f64::from(body.code.end - body.code.start);
+                    let ticks = match best {
+                        Some(best) => best.iter().zip(compiled.stats.ticks).map(|(a, b)| *a.min(&b)).collect(),
+                        None => compiled.stats.ticks.to_vec(),
+                    };
                     let phases = libwasm_jit::PHASES
                         .iter()
-                        .zip(compiled.stats.ticks)
+                        .zip(ticks)
                         .map(|(phase, ticks)| format!("{phase} {:.1}", ticks as f64 / ticks_per_ns / bytes))
                         .collect::<Vec<_>>();
                     println!(
@@ -222,8 +251,7 @@ fn main() {
             };
             match libwasm_jit::compile(&mut context, &request) {
                 Ok(_) => compiled.push(first + index),
-                Err(CompileFailure::Unsupported { what, .. }) => *failures.entry(what).or_default() += 1,
-                Err(CompileFailure::CodeGeneration) => *failures.entry("code generation failed").or_default() += 1,
+                Err(failure) => *failures.entry(failure.reason()).or_default() += 1,
             }
         }
         let size = |function: u32| {

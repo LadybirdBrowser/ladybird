@@ -37,6 +37,10 @@ fn parse(argument: &str) -> Value {
 }
 
 fn main() {
+    harness::run_main(checked_main);
+}
+
+fn checked_main() {
     let mut arguments = std::env::args().skip(1);
     let path = arguments.next().expect("MODULE");
     let function: u32 = arguments

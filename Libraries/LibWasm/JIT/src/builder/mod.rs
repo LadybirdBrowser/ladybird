@@ -31,7 +31,6 @@ mod memories;
 mod simd;
 mod tables;
 
-use crate::CompileFailure;
 use crate::decode::{BlockType, Decoder, Instruction};
 use crate::ir::{BlockId, Func, IntCondition, LoadKind, Loop, NONE, Node, Op, Type, Value};
 use crate::ir::{FLAG_IMMUTABLE, FloatCondition};
@@ -200,32 +199,53 @@ pub struct Builder {
     defined: u32,
 }
 
-/// An OSR compile: the function as a continuation of an interpreter frame at an outermost loop.
+/// An OSR compile: the function as a continuation of an interpreter frame at a loop.
 ///
 /// Its only parameter is the frame's fp. Its entry block branches, on a constant, to a block that loads the frame's
-/// locals and operand stack and jumps to the loop's header, and to the function's code as it starts, which never
-/// runs. That keeps the entry block dominating everything. At the loop's header, every value on the operand stack
-/// becomes a phi of the two ways in, and the back edges.
+/// locals and operand stack and jumps to the header of the outermost loop around the frame's position, and to the
+/// function's code as it starts, which never runs. That keeps the entry block dominating everything. Every loop
+/// entered this way has a second way in, from the frame, besides its entry and back edges, and every value on the
+/// operand stack at its header becomes a phi of them.
+///
+/// A loop in other loops is entered through them, so that each loop keeps a single header: each loop around it starts
+/// with a branch on a flag (a local of its own, which only the way in from the frame sets), which goes from the header
+/// to the next loop in, through a block that loads the operand stack at that loop from the frame.
 #[derive(Default)]
 struct Osr {
     /// The module offset of the loop instruction.
     pc: u32,
     /// The types of the operand stack at the loop, from bottom to top, parameters included.
     stack_types: Vec<Type>,
-    /// While probing: whether the loop was found, reachable and in no other loop.
+    /// The module offsets of the loops around it, outermost first, and how many of them have been entered.
+    around: Vec<u32>,
+    entered: usize,
+    /// While probing: whether the loop was found and reachable, and the loops open where the probe is.
     found: bool,
     probing: bool,
-    /// The block that loads the frame, the slot of its jump to the header, and the values it loaded from the
-    /// operand stack.
+    open_loops: Vec<u32>,
+    /// The frame's fp, and the local that flags the way in from the frame (see above).
+    frame: Value,
+    flag: u32,
+    /// The block that jumps to the next loop to enter from the frame, the slot of that jump, and the values the
+    /// operand stack has at that loop's header, from the frame.
     block: BlockId,
     slot: u32,
     stack: Vec<Value>,
+    /// The loops entered from the frame.
+    entries: Vec<OsrEntry>,
+}
+
+/// A loop an OSR compile enters from the frame: its index, the indices of its entry edge and its edge from the frame,
+/// and the phis of the values below its parameters (phi, value from the entry, value from the frame).
+struct OsrEntry {
     loop_index: u32,
     entry_edge: u32,
     edge: u32,
-    /// The phis of the values below the loop's parameters: (phi, value from the start, value from the frame).
     below: Vec<(Value, Value, Value)>,
 }
+
+/// Where an OSR compile enters a function: the types of the operand stack at the loop, and the loops around it.
+pub type OsrEntryPoint = (Vec<Type>, Vec<u32>);
 
 /// The fp offset of the local slot `local` of an interpreter frame.
 fn frame_local_offset(local: u32) -> i32 {
@@ -234,10 +254,6 @@ fn frame_local_offset(local: u32) -> i32 {
 
 fn key(block: BlockId, local: u32) -> u64 {
     (u64::from(block) << 32) | u64::from(local)
-}
-
-fn unsupported<T>(pc: usize, what: &'static str) -> Result<T, CompileFailure> {
-    Err(CompileFailure::Unsupported { pc: pc as u32, what })
 }
 
 fn instance_offset(offset: usize) -> u32 {
@@ -273,28 +289,22 @@ impl Builder {
     }
 
     /// Builds the IR of the defined function `index` (counting imports) of `module` into `func`.
-    pub fn build(&mut self, module: &Module, index: u32, func: &mut Func) -> Result<(), CompileFailure> {
+    pub fn build(&mut self, module: &Module, index: u32, func: &mut Func) {
         self.osr = None;
-        self.build_function(module, index, func)
+        self.build_function(module, index, func);
     }
 
-    /// The types of the operand stack at the loop at module offset `pc`, if it is reachable and in no other loop,
-    /// which an OSR compile needs. Builds the function into `func` to find out.
-    pub fn probe_osr(
-        &mut self,
-        module: &Module,
-        index: u32,
-        pc: u32,
-        func: &mut Func,
-    ) -> Result<Option<Vec<Type>>, CompileFailure> {
+    /// The types of the operand stack at the loop at module offset `pc`, and the loops around it, if an OSR compile
+    /// can enter it: if it is reachable and in no legacy handler. Builds the function into `func` to find out.
+    pub fn probe_osr(&mut self, module: &Module, index: u32, pc: u32, func: &mut Func) -> Option<OsrEntryPoint> {
         self.osr = Some(Osr {
             pc,
             probing: true,
             ..Osr::default()
         });
-        self.build_function(module, index, func)?;
+        self.build_function(module, index, func);
         let osr = self.osr.take().expect("the probe is there");
-        Ok(osr.found.then_some(osr.stack_types))
+        osr.found.then_some((osr.stack_types, osr.around))
     }
 
     /// Builds the OSR compile of the function at the loop at `pc`, whose operand stack has `stack_types` there (see
@@ -304,25 +314,24 @@ impl Builder {
         module: &Module,
         index: u32,
         pc: u32,
-        stack_types: Vec<Type>,
+        (stack_types, around): OsrEntryPoint,
         func: &mut Func,
-    ) -> Result<(), CompileFailure> {
+    ) {
         self.osr = Some(Osr {
             pc,
             stack_types,
-            loop_index: NONE,
+            around,
             ..Osr::default()
         });
-        let result = self.build_function(module, index, func);
+        self.build_function(module, index, func);
         self.osr = None;
-        result
     }
 
     fn is_osr_compile(&self) -> bool {
         self.osr.as_ref().is_some_and(|osr| !osr.probing)
     }
 
-    fn build_function(&mut self, module: &Module, index: u32, func: &mut Func) -> Result<(), CompileFailure> {
+    fn build_function(&mut self, module: &Module, index: u32, func: &mut Func) {
         self.clear();
         func.clear();
         let defined = (index - module.imported_function_count) as usize;
@@ -331,22 +340,16 @@ impl Builder {
         let ty = module.function_type(index).expect("functions have function types");
         let start = body.code.start as usize;
         for &param in &ty.params {
-            let Some(param) = ir_type(param) else {
-                return unsupported(start, "a parameter of a type the JIT does not compile");
-            };
+            let param = ir_type(param).expect("the JIT has a type for every value");
             func.params.push(param);
             self.local_types.push(param);
         }
         for &result in &ty.results {
-            let Some(result) = ir_type(result) else {
-                return unsupported(start, "a result of a type the JIT does not compile");
-            };
+            let result = ir_type(result).expect("the JIT has a type for every value");
             func.results.push(result);
         }
         for &(count, local) in &body.locals {
-            let Some(local) = ir_type(local) else {
-                return unsupported(start, "a local of a type the JIT does not compile");
-            };
+            let local = ir_type(local).expect("the JIT has a type for every value");
             self.local_types.extend(std::iter::repeat_n(local, count as usize));
         }
         self.current.resize(self.local_types.len(), (NONE, NONE));
@@ -365,7 +368,7 @@ impl Builder {
                 self.params.push(value);
             }
         }
-        let results = self.push_types(&ty.results)?;
+        let results = self.push_types(&ty.results);
         self.controls.push(Control {
             kind: ControlKind::Function,
             params: (0, 0),
@@ -392,17 +395,31 @@ impl Builder {
             let pc = decoder.position();
             let instruction = decoder.decode();
             if self.controls.last().expect("there is a construct").unreachable {
-                self.skip(func, module, &instruction, &mut decoder, pc)?;
+                self.skip(func, module, &instruction, &mut decoder, pc);
                 continue;
             }
-            self.instruction(func, module, instruction, &decoder, pc)?;
+            self.instruction(func, module, instruction, &decoder, pc);
         }
-        Ok(())
     }
 
     // Blocks.
 
     /// Makes the entry of an OSR compile (see `Osr`) and returns the block the function's code starts in.
+    /// Loads the bottom values of the operand stack of the interpreter frame at `frame`, of types `types`.
+    fn load_frame_stack(func: &mut Func, frame: Value, types: &[Type]) -> Vec<Value> {
+        let mut offset = -(libwasm_module::abi::FRAME_HEADER_SIZE as i32);
+        let mut stack = Vec::with_capacity(types.len());
+        for &ty in types {
+            // The operand stack grows down from the frame header; a value's lowest slot is its first.
+            offset -= 8 * ty.slots() as i32;
+            stack.push(Self::append(
+                func,
+                Node::new(Op::FrameLoad, ty, 0, [frame, offset as u32, 0]),
+            ));
+        }
+        stack
+    }
+
     fn enter_osr(&mut self, func: &mut Func) -> BlockId {
         let param_types = std::mem::take(&mut func.params);
         func.params.push(Type::Pointer);
@@ -448,19 +465,17 @@ impl Builder {
             );
             self.write_local(local, value);
         }
+        let flag = self.local_types.len() as u32;
+        self.local_types.push(Type::I32);
+        self.current.push((NONE, NONE));
+        let one = self.constant(func, Type::I32, 1);
+        self.write_local(flag, one);
         let stack_types = std::mem::take(&mut self.osr.as_mut().expect("this is an OSR compile").stack_types);
-        let mut offset = -(libwasm_module::abi::FRAME_HEADER_SIZE as i32);
-        let mut stack = Vec::with_capacity(stack_types.len());
-        for &ty in &stack_types {
-            // The operand stack grows down from the frame header; a value's lowest slot is its first.
-            offset -= 8 * ty.slots() as i32;
-            stack.push(Self::append(
-                func,
-                Node::new(Op::FrameLoad, ty, 0, [frame, offset as u32, 0]),
-            ));
-        }
+        let stack = Self::load_frame_stack(func, frame, &stack_types);
         let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
         let osr = self.osr.as_mut().expect("this is an OSR compile");
+        osr.frame = frame;
+        osr.flag = flag;
         osr.block = from_frame;
         osr.slot = slot;
         osr.stack = stack;
@@ -778,9 +793,12 @@ impl Builder {
                 continue;
             }
             let loop_index = func.blocks[frame.block as usize].loop_index;
-            let osr_loop = self.osr.as_ref().map_or(NONE, |osr| osr.loop_index);
+            let entered_from_frame = self
+                .osr
+                .as_ref()
+                .is_some_and(|osr| osr.entries.iter().any(|entry| entry.loop_index == loop_index));
             if self.may_be_on_cycle(func, frame.block)
-                && loop_index != osr_loop
+                && !entered_from_frame
                 && self.loop_writes.get(key(loop_index, local)).is_none()
             {
                 // OPTIMIZATION: Everywhere in a loop that does not write the local, it has the value it entered
@@ -883,31 +901,26 @@ impl Builder {
 
     // Types and labels.
 
-    fn push_types(&mut self, types: &[ValType]) -> Result<(u32, u32), CompileFailure> {
+    fn push_types(&mut self, types: &[ValType]) -> (u32, u32) {
         let start = self.types.len() as u32;
         for &ty in types {
-            let Some(ty) = ir_type(ty) else {
-                return Err(CompileFailure::Unsupported {
-                    pc: 0,
-                    what: "a block of a type the JIT does not compile",
-                });
-            };
+            let ty = ir_type(ty).expect("the JIT has a type for every value");
             self.types.push(ty);
         }
-        Ok((start, types.len() as u32))
+        (start, types.len() as u32)
     }
 
-    fn block_signature(&mut self, module: &Module, block_type: BlockType) -> Result<Signature, CompileFailure> {
+    fn block_signature(&mut self, module: &Module, block_type: BlockType) -> Signature {
         match block_type {
-            BlockType::Empty => Ok(((0, 0), (0, 0))),
-            BlockType::Value(value) => Ok(((0, 0), self.push_types(&[value])?)),
+            BlockType::Empty => ((0, 0), (0, 0)),
+            BlockType::Value(value) => ((0, 0), self.push_types(&[value])),
             BlockType::Function(index) => {
                 let function: &FuncType = module.types[index as usize]
                     .as_func()
                     .expect("block types are functions");
-                let params = self.push_types(&function.params)?;
-                let results = self.push_types(&function.results)?;
-                Ok((params, results))
+                let params = self.push_types(&function.params);
+                let results = self.push_types(&function.results);
+                (params, results)
             }
         }
     }
@@ -974,7 +987,7 @@ impl Builder {
         instruction: &Instruction,
         decoder: &mut Decoder<'_>,
         pc: usize,
-    ) -> Result<(), CompileFailure> {
+    ) {
         match instruction {
             Instruction::Else
             | Instruction::End
@@ -987,9 +1000,8 @@ impl Builder {
                 while depth > 0 {
                     depth += crate::decode::nesting_change(&decoder.decode());
                 }
-                Ok(())
             }
-            _ => Ok(()),
+            _ => {}
         }
     }
 
@@ -1000,7 +1012,7 @@ impl Builder {
         instruction: Instruction,
         decoder: &Decoder<'_>,
         pc: usize,
-    ) -> Result<(), CompileFailure> {
+    ) {
         use Instruction as I;
         match instruction {
             I::Nop => {}
@@ -1013,30 +1025,37 @@ impl Builder {
                 self.set_unreachable();
             }
             I::Block(block_type) => {
-                let (params, results) = self.block_signature(module, block_type)?;
+                let (params, results) = self.block_signature(module, block_type);
                 self.push_control(ControlKind::Block, params, results, NONE);
             }
             I::Loop(block_type) => {
-                let (params, results) = self.block_signature(module, block_type)?;
+                let (params, results) = self.block_signature(module, block_type);
                 let at_osr_loop = self.osr.as_ref().is_some_and(|osr| osr.pc == pc as u32);
-                if at_osr_loop && self.osr.as_ref().is_some_and(|osr| osr.probing) {
+                if self.osr.as_ref().is_some_and(|osr| osr.probing) {
                     // NB: A legacy handler's exception is no value the frame has, so loops in handlers do not OSR.
-                    let outermost = !self
-                        .controls
-                        .iter()
-                        .any(|control| matches!(control.kind, ControlKind::Loop | ControlKind::Catch));
+                    let in_handler = self.controls.iter().any(|control| control.kind == ControlKind::Catch);
                     let stack_types = self.stack.iter().map(|value| func.node(*value).ty).collect();
                     let osr = self.osr.as_mut().expect("probing");
-                    osr.found = outermost;
-                    osr.stack_types = stack_types;
-                }
-                self.begin_loop(func, params, results);
-                if at_osr_loop && self.is_osr_compile() {
-                    self.enter_osr_loop(func);
+                    if at_osr_loop {
+                        osr.found = !in_handler;
+                        osr.stack_types = stack_types;
+                        osr.around = osr.open_loops.clone();
+                    }
+                    osr.open_loops.push(pc as u32);
+                    self.begin_loop(func, params, results, None);
+                } else if let Some(osr) = &self.osr
+                    && osr
+                        .around
+                        .get(osr.entered)
+                        .map_or(at_osr_loop, |around| *around == pc as u32)
+                {
+                    self.enter_osr_loop(func, params, results, at_osr_loop);
+                } else {
+                    self.begin_loop(func, params, results, None);
                 }
             }
             I::If(block_type) => {
-                let (params, results) = self.block_signature(module, block_type)?;
+                let (params, results) = self.block_signature(module, block_type);
                 self.begin_if(func, params, results);
             }
             I::Else => self.begin_else(func),
@@ -1059,7 +1078,7 @@ impl Builder {
                 self.branch(func, depth);
                 self.set_unreachable();
             }
-            I::Call(function) => self.call(func, module, function, CallKind::Normal, pc)?,
+            I::Call(function) => self.call(func, module, function, CallKind::Normal),
             I::Drop => {
                 self.pop();
             }
@@ -1093,7 +1112,7 @@ impl Builder {
                 self.write_local(local, value);
                 self.note_loop_write(func.blocks[self.current_block as usize].loop_index, local);
             }
-            I::GlobalGet(global) => self.global_get(func, module, global, pc)?,
+            I::GlobalGet(global) => self.global_get(func, module, global),
             I::GlobalSet(global) => self.global_set(func, global),
             I::Access { opcode, argument } => {
                 debug_assert_eq!(argument.memory, 0, "plain accesses are of memory 0");
@@ -1147,21 +1166,21 @@ impl Builder {
             I::MemorySize(memory) => self.memory_size(func, module, memory),
             I::MemoryGrow(memory) => self.memory_grow(func, module, memory),
             I::CallIndirect { type_index, table } => {
-                self.call_indirect(func, module, type_index, table, CallKind::Normal, pc)?;
+                self.call_indirect(func, module, type_index, table, CallKind::Normal);
             }
-            I::CallRef(type_index) => self.call_ref(func, module, type_index, CallKind::Normal, pc)?,
-            I::ReturnCall(function) => self.call(func, module, function, CallKind::Tail, pc)?,
+            I::CallRef(type_index) => self.call_ref(func, module, type_index, CallKind::Normal),
+            I::ReturnCall(function) => self.call(func, module, function, CallKind::Tail),
             I::ReturnCallIndirect { type_index, table } => {
-                self.call_indirect(func, module, type_index, table, CallKind::Tail, pc)?;
+                self.call_indirect(func, module, type_index, table, CallKind::Tail);
             }
-            I::ReturnCallRef(type_index) => self.call_ref(func, module, type_index, CallKind::Tail, pc)?,
+            I::ReturnCallRef(type_index) => self.call_ref(func, module, type_index, CallKind::Tail),
             I::TryTable(block_type) => {
-                let (params, results) = self.block_signature(module, block_type)?;
+                let (params, results) = self.block_signature(module, block_type);
                 let clauses: Vec<[u32; 3]> = decoder.catch_clauses().collect();
                 self.begin_try_table(params, results, &clauses);
             }
             I::Try(block_type) => {
-                let (params, results) = self.block_signature(module, block_type)?;
+                let (params, results) = self.block_signature(module, block_type);
                 self.begin_try(module, params, results, decoder.position());
             }
             I::Catch(_) | I::CatchAll => self.begin_catch(func, module),
@@ -1242,12 +1261,11 @@ impl Builder {
                     quickening::DROP_V128 => I::Drop,
                     _ => I::Select,
                 };
-                return self.instruction(func, module, plain, decoder, pc);
+                self.instruction(func, module, plain, decoder, pc);
             }
-            I::Simd { sub_opcode, checked } => return self.simd(func, module, sub_opcode, checked, decoder, pc),
+            I::Simd { sub_opcode, checked } => self.simd(func, module, sub_opcode, checked, decoder),
             I::Atomic(sub_opcode) => self.atomic(func, module, sub_opcode, decoder),
         }
-        Ok(())
     }
 
     fn numeric(&mut self, func: &mut Func, opcode: u8) {
@@ -1354,11 +1372,21 @@ impl Builder {
         });
     }
 
-    fn begin_loop(&mut self, func: &mut Func, params: (u32, u32), results: (u32, u32)) {
+    /// Begins a loop, entered from the current block, or from `entry`, a block and the slot of its jump, which
+    /// is already made.
+    fn begin_loop(&mut self, func: &mut Func, params: (u32, u32), results: (u32, u32), entry: Option<(BlockId, u32)>) {
         let header = self.new_block(func);
         // NB: The header is created before the loop's control, so it takes the enclosing loop; fixed up below.
-        self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[header]);
-        let entry = self.current_block;
+        let entry = match entry {
+            Some((block, slot)) => {
+                func.successors[slot as usize] = header;
+                block
+            }
+            None => {
+                self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[header]);
+                self.current_block
+            }
+        };
         self.sealed[header as usize] = false;
         let loop_index = func.loops.len() as u32;
         let parent = func.blocks[header as usize].loop_index;
@@ -1399,40 +1427,104 @@ impl Builder {
         self.call_epoch += 1;
     }
 
-    /// Makes the loop just begun the one an OSR compile enters (see `Osr`).
-    fn enter_osr_loop(&mut self, func: &mut Func) {
+    /// Begins a loop an OSR compile enters from the frame (see `Osr`): the loop the frame is at if `target`, else a
+    /// loop around it.
+    fn enter_osr_loop(&mut self, func: &mut Func, params: (u32, u32), results: (u32, u32), target: bool) {
+        let height = self.stack.len() - params.1 as usize;
+        let mut osr = self.osr.take().expect("this is an OSR compile");
+        let first = osr.entered == 0;
+        let mut entry = None;
+        if !first {
+            // The way in from the frame comes from the branch of the loop around this one, through a block that loads
+            // the operand stack this loop starts with. It goes before the loop's header, in linear order.
+            let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+            entry = Some((self.current_block, slot));
+            let load = self.new_block(func);
+            Self::set_predecessors(func, load, &[osr.block]);
+            func.successors[osr.slot as usize] = load;
+            self.start_block(func, load);
+            let count = if target { osr.stack_types.len() } else { height };
+            osr.stack = Self::load_frame_stack(func, osr.frame, &osr.stack_types[..count]);
+            if !target {
+                // The flag is up again for this loop's header, which branches on it.
+                let one = self.constant(func, Type::I32, 1);
+                self.write_local(osr.flag, one);
+            }
+            osr.block = load;
+            osr.slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+        }
+        // The values the loop's parameters have from the frame, which only the loop the frame is at needs.
+        if !target {
+            osr.stack.truncate(height);
+            for index in 0..params.1 {
+                let ty = self.types[(params.0 + index) as usize];
+                let zero = self.constant(func, ty, 0);
+                osr.stack.push(zero);
+            }
+        }
+        self.begin_loop(func, params, results, entry);
         let index = self.controls.len() - 1;
         let control = self.controls[index];
         let header = control.block;
-        let height = control.height as usize;
-        let mut osr = self.osr.take().expect("this is an OSR compile");
         func.successors[osr.slot as usize] = header;
         // The edge from the frame comes second, after the one from the function's start and before every back edge.
         let values = self.edge_values.len() as u32;
         self.edge_values.extend_from_slice(&osr.stack[height..]);
-        osr.entry_edge = control.edges;
+        let entry_edge = control.edges;
         self.edges.push(Edge {
             block: osr.block,
             slot: NONE,
             values,
             next: control.edges,
         });
-        osr.edge = self.edges.len() as u32 - 1;
-        self.controls[index].edges = osr.edge;
-        osr.loop_index = control.loop_index;
+        let edge = self.edges.len() as u32 - 1;
+        self.controls[index].edges = edge;
+        let mut below = Vec::with_capacity(height);
         for position in 0..height {
             let normal = Self::resolve(func, self.stack[position]);
             let phi = Self::new_phi(func, header, func.node(normal).ty);
-            osr.below.push((phi, normal, osr.stack[position]));
+            below.push((phi, normal, osr.stack[position]));
             self.stack[position] = phi;
         }
+        osr.entries.push(OsrEntry {
+            loop_index: control.loop_index,
+            entry_edge,
+            edge,
+            below,
+        });
+        osr.entered += 1;
+        let flag = osr.flag;
         self.osr = Some(osr);
-        // Nothing numbered before the loop dominates the code after it any more. Every construct still open forgets
-        // what is numbered from here on when it ends, the loop included.
+        // Nothing numbered before the loop dominates the code after it any more, since the way in from the frame
+        // skips it. Every construct still open forgets what is numbered from here on when it ends, the loop included.
         self.unnumber(0);
         for control in &mut self.controls {
             control.numbering_mark = 0;
         }
+        if target {
+            return;
+        }
+        // A loop around the one the frame is at: from the frame, go on to the next loop in.
+        let block = self.current_block;
+        let set = self.read_local(func, block, flag);
+        let slot = self.terminate(func, Node::new(Op::Branch, Type::None, 0, [set, 0, 0]), &[NONE, NONE]);
+        let onward = self.new_block(func);
+        Self::set_predecessors(func, onward, &[block]);
+        func.successors[slot as usize] = onward;
+        self.start_block(func, onward);
+        // The flag is down from here on, so that no back edge or exit of a loop carries it.
+        let zero = self.constant(func, Type::I32, 0);
+        self.write_local(flag, zero);
+        let onward_slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+        let body = self.new_block(func);
+        Self::set_predecessors(func, body, &[block]);
+        func.successors[slot as usize + 1] = body;
+        self.start_block(func, body);
+        self.write_local(flag, zero);
+        self.note_loop_write(control.loop_index, flag);
+        let osr = self.osr.as_mut().expect("this is an OSR compile");
+        osr.block = onward;
+        osr.slot = onward_slot;
     }
 
     fn begin_if(&mut self, func: &mut Func, params: (u32, u32), results: (u32, u32)) {
@@ -1568,6 +1660,11 @@ impl Builder {
 
     fn end_loop(&mut self, func: &mut Func, index: usize) {
         let control = self.controls[index];
+        if let Some(osr) = self.osr.as_mut()
+            && osr.probing
+        {
+            osr.open_loops.pop();
+        }
         let header = control.block;
         let reachable = !control.unreachable;
         // The back edges are the loop label's edges but the first, which enters the loop.
@@ -1619,15 +1716,14 @@ impl Builder {
             Self::try_remove_trivial_phi(func, phi);
         }
         if let Some(osr) = &self.osr
-            && osr.loop_index == control.loop_index
-            && control.loop_index != NONE
+            && let Some(entry) = osr.entries.iter().find(|entry| entry.loop_index == control.loop_index)
         {
-            for &(phi, normal, from_frame) in &osr.below {
+            for &(phi, normal, from_frame) in &entry.below {
                 let start = func.operands.len() as u32;
                 for &edge in &self.scratch_values {
-                    let value = if edge == osr.entry_edge {
+                    let value = if edge == entry.entry_edge {
                         normal
-                    } else if edge == osr.edge {
+                    } else if edge == entry.edge {
                         from_frame
                     } else {
                         phi
@@ -1821,11 +1917,9 @@ impl Builder {
         )
     }
 
-    fn global_get(&mut self, func: &mut Func, module: &Module, global: u32, pc: usize) -> Result<(), CompileFailure> {
+    fn global_get(&mut self, func: &mut Func, module: &Module, global: u32) {
         let ty = module.global_space[global as usize];
-        let Some(value_type) = ir_type(ty.value) else {
-            return unsupported(pc, "a global of a type the JIT does not compile");
-        };
+        let value_type = ir_type(ty.value).expect("the JIT has a type for every value");
         let storage = self.global_storage(func, global);
         let value = if ty.mutable {
             let key = numbering_key(&Node::new(
@@ -1850,7 +1944,6 @@ impl Builder {
             )
         };
         self.push(value);
-        Ok(())
     }
 
     fn global_set(&mut self, func: &mut Func, global: u32) {

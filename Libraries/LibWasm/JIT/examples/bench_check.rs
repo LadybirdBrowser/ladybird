@@ -115,6 +115,10 @@ fn instantiate(module: &Arc<libwasm_engine::Module>, interpreted: bool) -> Optio
 }
 
 fn main() {
+    harness::run_main(checked_main);
+}
+
+fn checked_main() {
     if std::env::var_os("LIBWASM_JIT").is_none() {
         // SAFETY: Nothing else runs yet.
         unsafe { std::env::set_var("LIBWASM_JIT", "eager") };

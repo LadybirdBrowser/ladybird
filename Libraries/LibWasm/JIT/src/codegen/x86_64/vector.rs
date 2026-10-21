@@ -16,7 +16,7 @@ use crate::asm::x86_64::{Cond, VexMap, VexOpcode, VexOperand, VexPrefix};
 use crate::asm::{Address, Width};
 use crate::convention::Register;
 use crate::ir::{Func, Op, Type, Value};
-use crate::regalloc::CONSTANT_INPUT;
+use crate::regalloc::{CONSTANT_INPUT, SLOT_INPUT};
 use libwasm_module::opcode::simd::*;
 
 const fn op(prefix: VexPrefix, map: VexMap, opcode: u8) -> VexOpcode {
@@ -472,10 +472,13 @@ impl CodeGenerator<'_> {
     /// Input `index` of vector node `value` as an operand: its register, or the constant pool entry of a v128 constant
     /// the allocator left where it is.
     fn vector_input(&mut self, value: Value, index: usize, register: Register) -> VexOperand {
+        let func = self.func;
+        if register == SLOT_INPUT {
+            return VexOperand::Memory(self.input_slot(func.inputs(value)[index]));
+        }
         if register != CONSTANT_INPUT {
             return VexOperand::Register(fpr(register).0);
         }
-        let func = self.func;
         let constant = func.node(func.inputs(value)[index]);
         debug_assert_eq!(constant.op, Op::Const128);
         VexOperand::Label(self.constant_label(func.constants[constant.args[0] as usize]))

@@ -35,10 +35,20 @@ use std::sync::Arc;
 /// Why a function was not compiled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompileFailure {
-    /// The function uses something the JIT does not compile yet, at module offset `pc`.
-    Unsupported { pc: u32, what: &'static str },
+    /// An OSR compile at a loop it cannot enter, at module offset `pc`: one that is unreachable, or in a legacy
+    /// handler, whose exception the interpreter frame has no value for. The frame goes on in the interpreter.
+    NoOsrEntry { pc: u32 },
     /// The assembler could not finish the code.
     CodeGeneration,
+}
+
+impl CompileFailure {
+    pub fn reason(self) -> &'static str {
+        match self {
+            CompileFailure::NoOsrEntry { .. } => "no OSR entry at the loop",
+            CompileFailure::CodeGeneration => "code generation failed",
+        }
+    }
 }
 
 /// Options of a compile.
@@ -57,6 +67,8 @@ pub struct Options {
     /// Replace nodes that compute what a dominating node computed already, beyond what building does (`passes/gvn.rs`).
     /// Off by default: it finds about 0.1% of the nodes of real modules redundant, for 7 to 16 ns per code byte.
     pub gvn: bool,
+    /// Refuse OSR compiles at loops in no other loop, so that tests reach the loops in them.
+    pub stress_nested_osr: bool,
 }
 
 /// The addresses of the runtime compiled code reaches, which are constants of the process.
@@ -164,20 +176,18 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
         }
     };
     match request.osr {
-        None => context.builder.build(module, request.function, &mut context.func)?,
+        None => context.builder.build(module, request.function, &mut context.func),
         Some(pc) => {
-            let Some(stack_types) = context
+            let Some(entry) = context
                 .builder
-                .probe_osr(module, request.function, pc, &mut context.func)?
+                .probe_osr(module, request.function, pc, &mut context.func)
+                .filter(|(_, around)| !request.options.stress_nested_osr || !around.is_empty())
             else {
-                return Err(CompileFailure::Unsupported {
-                    pc,
-                    what: "OSR at a loop that is unreachable or in another loop",
-                });
+                return Err(CompileFailure::NoOsrEntry { pc });
             };
             context
                 .builder
-                .build_osr(module, request.function, pc, stack_types, &mut context.func)?;
+                .build_osr(module, request.function, pc, entry, &mut context.func);
         }
     }
     lap(0, &mut stats);

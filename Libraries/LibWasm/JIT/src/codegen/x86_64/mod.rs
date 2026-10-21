@@ -654,8 +654,19 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// `cmp a, b` of type `ty`, `b` an immediate when it is the constant `b_value`.
+    /// The slot of `input`, an input the allocator left there for the node to read (`SLOT_INPUT`).
+    fn input_slot(&self, input: Value) -> Address {
+        let slot = self.allocation.slots[input as usize];
+        debug_assert!(slot != NO_SLOT, "v{input} has no slot");
+        Address::new(FP, slot)
+    }
+
     fn compare(&mut self, ty: Type, a: Register, b: Register, b_value: Value) {
-        if b == crate::regalloc::CONSTANT_INPUT {
+        if b == crate::regalloc::SLOT_INPUT {
+            let address = self.input_slot(b_value);
+            self.asm
+                .alu_rm(crate::asm::x86_64::AluOp::Cmp, width(ty), gpr(a), &address);
+        } else if b == crate::regalloc::CONSTANT_INPUT {
             let bits = self.func.node(b_value).constant().expect("a constant");
             self.asm.cmp_ri(width(ty), gpr(a), bits as i32);
         } else {
