@@ -6,6 +6,29 @@
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
 
 [ExistingCpp]
+enum WebView::AccessibilityNodeData::CheckedState : u8 {
+    NotApplicable,
+    Unchecked,
+    Checked,
+    Mixed,
+}
+
+[ExistingCpp]
+enum WebView::AccessibilityNodeData::ExpandedState : u8 {
+    NotApplicable,
+    Collapsed,
+    Expanded,
+}
+
+[ExistingCpp]
+enum WebView::AccessibilityNodeData::PressedState : u8 {
+    NotApplicable,
+    NotPressed,
+    Pressed,
+    Mixed,
+}
+
+[ExistingCpp]
 struct WebView::AccessibilityNodeData {
     i64 id;
     i64 parent_id;
