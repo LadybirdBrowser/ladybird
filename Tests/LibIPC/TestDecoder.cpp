@@ -7,12 +7,15 @@
 #include <AK/ByteBuffer.h>
 #include <AK/MemoryStream.h>
 #include <AK/NumericLimits.h>
+#include <AK/Optional.h>
 #include <AK/Queue.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/System.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
 #include <LibTest/TestCase.h>
 
@@ -120,3 +123,27 @@ TEST_CASE(decode_anonymous_buffer_refuses_a_size_larger_than_its_backing)
     EXPECT(decode_with_claimed_size(1 * MiB).is_error());
 }
 #endif
+
+TEST_CASE(sizes_are_bounded_before_contents_and_only_within_the_value)
+{
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder { buffer };
+    MUST(encoder.encode("123456789"sv));
+    MUST(encoder.encode(Optional<String> {}));
+    MUST(encoder.encode("123456789"sv));
+    auto bytes = buffer.take_data();
+
+    {
+        FixedMemoryStream stream { bytes.span() };
+        Queue<IPC::Attachment> attachments;
+        IPC::Decoder decoder { stream, attachments };
+        EXPECT(decoder.decode_with_max_size<String>(8).is_error());
+    }
+
+    FixedMemoryStream stream { bytes.span() };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+    EXPECT_EQ(MUST(decoder.decode_with_max_size<String>(9)), "123456789"sv);
+    EXPECT(!MUST(decoder.decode_with_max_size<Optional<String>>(4)).has_value());
+    EXPECT_EQ(MUST(decoder.decode<String>()), "123456789"sv);
+}

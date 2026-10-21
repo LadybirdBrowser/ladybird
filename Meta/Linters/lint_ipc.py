@@ -6,6 +6,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
+import re
 import sys
 
 from collections import defaultdict
@@ -18,6 +19,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from Utils.utils import string_hash
 
 ENDPOINT_PREFIX = "endpoint "
+TYPE_DECLARATION = re.compile(r"(\[[^\]]*\]\s*)?(struct|enum|variant)\s")
 
 
 def main() -> int:
@@ -35,11 +37,14 @@ def main() -> int:
 
     for path in args.ipc_files:
         endpoint_name = ""
+        declares_types = False
 
         try:
             with open(path, "r", encoding="utf-8") as ipc_file:
                 for line in ipc_file:
                     line = line.strip()
+                    if TYPE_DECLARATION.match(line):
+                        declares_types = True
                     if not line.startswith(ENDPOINT_PREFIX):
                         continue
 
@@ -51,6 +56,10 @@ def main() -> int:
                     endpoint_name = remaining
         except OSError as error:
             report_error(f"Cannot open '{path}': {error}")
+            continue
+
+        # NB: A file may declare only types, which have no magic number.
+        if not endpoint_name and declares_types:
             continue
 
         if not endpoint_name:
