@@ -1347,7 +1347,11 @@ void TabBar::start_tab_drag(int index)
         QApplication::instance()->installEventFilter(&cancellation_filter);
     });
 
+#if defined(AK_OS_MACOS)
+    auto action = execute_appkit_tab_drag(*this, *drag);
+#else
     auto action = drag->exec(Qt::MoveAction, Qt::MoveAction);
+#endif
     QApplication::instance()->removeEventFilter(&cancellation_filter);
 
     static auto const is_wayland = QGuiApplication::platformName().startsWith("wayland");

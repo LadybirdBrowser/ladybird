@@ -6,11 +6,14 @@
 
 #include <UI/Qt/MacWindow.h>
 
+#include <AK/ScopeGuard.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Size.h>
 #include <QAbstractNativeEventFilter>
 #include <QCoreApplication>
+#include <QDrag>
+#include <QGuiApplication>
 #include <QMouseEvent>
 #include <QPointer>
 #include <QWidget>
@@ -484,6 +487,43 @@ bool start_appkit_window_drag(QWidget& widget)
 
     [window performWindowDragWithEvent:event];
     return true;
+}
+
+Qt::DropAction execute_appkit_tab_drag(QWidget& widget, QDrag& drag)
+{
+    if (QGuiApplication::platformName() != "cocoa")
+        return drag.exec(Qt::MoveAction, Qt::MoveAction);
+
+    auto* view = reinterpret_cast<NSView*>(widget.window()->winId());
+    auto* window = view.window;
+    if (!window)
+        return drag.exec(Qt::MoveAction, Qt::MoveAction);
+
+    // Qt's Cocoa backend calls this synchronous AppKit API with slideBack:YES. Dropping outside a tab strip is
+    // rejected by AppKit, so exec() waits for the slide-back animation before we can create the detached window.
+    // Override only the source window's class, and restore it as soon as this tab drag finishes.
+    auto window_class = object_getClass(window);
+    auto* selector = @selector(dragImage:at:offset:event:pasteboard:source:slideBack:);
+    auto* method = class_getInstanceMethod(window_class, selector);
+    if (!method)
+        return drag.exec(Qt::MoveAction, Qt::MoveAction);
+
+    // Add an override if the method is inherited, so we don't replace NSWindow's implementation globally.
+    class_addMethod(window_class, selector, method_getImplementation(method), method_getTypeEncoding(method));
+    method = class_getInstanceMethod(window_class, selector);
+
+    auto original_implementation = method_getImplementation(method);
+    auto original_drag_image = reinterpret_cast<void (*)(id, SEL, NSImage*, NSPoint, NSSize, NSEvent*, NSPasteboard*, id, BOOL)>(original_implementation);
+    auto implementation = imp_implementationWithBlock(^(NSWindow* receiver, NSImage* image, NSPoint location, NSSize offset, NSEvent* event, NSPasteboard* pasteboard, id source, BOOL slide_back) {
+        original_drag_image(receiver, selector, image, location, offset, event, pasteboard, source, receiver == window ? NO : slide_back);
+    });
+    method_setImplementation(method, implementation);
+    ScopeGuard restore_implementation = [&]() {
+        method_setImplementation(method, original_implementation);
+        imp_removeBlock(implementation);
+    };
+
+    return drag.exec(Qt::MoveAction, Qt::MoveAction);
 }
 
 void show_appkit_dictionary_lookup(QWidget& widget, WebView::DictionaryLookup const& lookup, Gfx::IntPoint position)
