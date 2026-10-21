@@ -7,8 +7,11 @@
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/DOMException.h>
 #include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 // What the Rust bindings of the interfaces implemented in Rust ask of LibWeb's C++ bindings, declared on the Rust
@@ -38,6 +41,7 @@ JSObject* web_bindings_rust_wrapper_for(void* realm, void* cell);
 void web_bindings_set_rust_wrapper(void* realm, void* cell, JSObject* wrapper);
 JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason);
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
+JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
 
 void* web_bindings_wrapper_world(void* realm, bool* is_main_world)
 {
@@ -63,6 +67,13 @@ bool web_bindings_object_implements_interface(JSObject* object, u16 interface_na
 {
     auto* wrappable = wrappable_impl_from(JS::HostABI::object_from_abi(object));
     return wrappable && wrappable->implements_interface(static_cast<InterfaceName>(interface_name));
+}
+
+JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto exception = WebIDL::DOMException::create(FlyString::from_utf8_without_validation(name), Utf16String::from_raw(message));
+    return JS::HostABI::object_to_abi(wrap(host_defined_wrapper_world(js_realm), js_realm, exception).ptr());
 }
 
 JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason)

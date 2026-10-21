@@ -454,7 +454,7 @@ def write_rust_interface(
     fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let (implementation, mut cx) = this_implementation(vm)?;
         let result = Implementation::{attribute.getter_method}(&implementation, &mut cx)
-            .map_err(|exception| exception.throw(vm))?;
+            .map_err(|exception| exception.throw(&cx))?;
         {conversion}
     }}
 """
@@ -679,7 +679,7 @@ def write_rust_attribute_setter(
         let idl_value = {conversion}?;
         drop(type_error_realm_scope);
         Implementation::{attribute.setter_method}(&implementation, &mut cx, idl_value)
-            .map_err(|exception| exception.throw(vm))?;
+            .map_err(|exception| exception.throw(&cx))?;
         Ok(Value::UNDEFINED)
     }}
 """
@@ -707,7 +707,7 @@ def write_rust_operation(
         # NB: An operation that returns nothing has no result to name, and the conversion of nothing is undefined.
         steps.write(
             f"""        {call}
-            .map_err(|exception| exception.throw(vm))?;
+            .map_err(|exception| exception.throw(&cx))?;
         Ok(Value::UNDEFINED)
 """
         )
@@ -718,7 +718,7 @@ def write_rust_operation(
             conversion = rust_to_js_value(operation.return_type, "result", "&cx", context, what)
         steps.write(
             f"""        let result = {call}
-            .map_err(|exception| exception.throw(vm))?;
+            .map_err(|exception| exception.throw(&cx))?;
         {conversion}
 """
         )
@@ -760,7 +760,7 @@ def write_rust_constructor(
     out.write(
         f"""        let mut cx = CallContext::new(vm, realm);
         let implementation =
-            Implementation::{constructor.method}(&mut cx{arguments}).map_err(|exception| exception.throw(vm))?;
+            Implementation::{constructor.method}(&mut cx{arguments}).map_err(|exception| exception.throw(&cx))?;
         Ok(Value::from_object(construct_wrapper(vm, realm, prototype, implementation)))
     }}
 """
