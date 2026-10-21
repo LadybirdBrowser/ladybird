@@ -1300,8 +1300,21 @@ fn compute_element_custom_property(
     let (tokens, includes_substitution, tainted) = cached_tokens_for_custom_property_value(entry.value.data(), context);
 
     let (value, is_cyclic) = if includes_substitution {
+        let guarded_contexts = GuardedSubstitutionContexts {
+            contexts: Rc::new(RefCell::new(
+                context
+                    .guarded_contexts
+                    .contexts
+                    .borrow()
+                    .iter()
+                    .take_while(|context| !matches!(&context.dependency, SubstitutionContextDependency::Function(_)))
+                    .cloned()
+                    .collect(),
+            )),
+        };
+
         let mut property_context = ASFResolutionContext {
-            guarded_contexts: context.guarded_contexts.clone(),
+            guarded_contexts,
             contains_attr_tainted_values: tainted,
             in_url_function: false,
             uses_attr_tainted_url: false,

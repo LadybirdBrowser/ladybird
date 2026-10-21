@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+    <style>
+        @function --read-first() {
+            result: var(--first-value);
+        }
+
+        #property-cycle {
+            --first-value: var(--second-value);
+            --second-value: --read-first();
+
+            /* This should resolve to GIV since there is a cycle of --first-value and --second-value */
+            --value: var(--second-value, GIV);
+        }
+
+        @function --maybe-read-first(--condition: <integer>) {
+            result: if(style(--condition: 1): var(--first-value); else: RESOLVED);
+        }
+
+        #inherited-property {
+            --first-value: --maybe-read-first(0);
+            --second-value: --maybe-read-first(1);
+
+            /* This should NOT resolve to GIV since there is no cycle, the --first-value read within --maybe-read-first(1) reads the already computed value */
+            --value: var(--second-value, GIV);
+        }
+
+        #inherited-property-reversed {
+            --second-value: --maybe-read-first(1);
+            --first-value: --maybe-read-first(0);
+
+            /* This should NOT resolve to GIV for the same reason as above - regardless of actual computation order */
+            --value: var(--second-value, GIV);
+        }
+
+        @function --outer() {
+            --first-value: --maybe-read-first(0);
+            --second-value: --maybe-read-first(1);
+
+            /* This should also NOT resolve to GIV for the same reason as above */
+            result: var(--second-value, GIV);
+        }
+
+        #inherited-function-local-property {
+            --value: --outer();
+        }
+
+        @function --outer-reversed() {
+            --second-value: --maybe-read-first(1);
+            --first-value: --maybe-read-first(0);
+
+            /* This should also NOT resolve to GIV for the same reason as above */
+            result: var(--second-value, GIV);
+        }
+
+        #inherited-function-local-property-reversed {
+            --value: --outer-reversed();
+        }
+
+        #self-reference {
+            --first-value: --maybe-read-first(1);
+
+            /* This should resolve to GIV due to --first-value referring to itself */
+            --value: var(--first-value, GIV);
+        }
+
+        @function --read-attribute(--condition) {
+            result: attr(data-value type(*));
+        }
+
+        #inherited-attribute {
+            --first-value: --read-attribute(no);
+            --second-value: --read-attribute(yes);
+            --value: var(--second-value, GIV);
+        }
+
+        #inherited-attribute-reversed {
+            --second-value: --read-attribute(yes);
+            --first-value: --read-attribute(no);
+            --value: var(--second-value, GIV);
+        }
+
+        #attribute-property-cycle {
+            --first-value: attr(data-value type(*));
+            --second-value: var(--first-value);
+            --value: var(--second-value, GIV);
+        }
+
+        #attribute-recursion {
+            --first-value: attr(data-value type(*));
+            --value: var(--first-value, GIV);
+        }
+    </style>
+    <div id="property-cycle"></div>
+    <div id="inherited-property"></div>
+    <div id="inherited-property-reversed"></div>
+    <div id="inherited-function-local-property"></div>
+    <div id="inherited-function-local-property-reversed"></div>
+    <div id="self-reference"></div>
+    <!-- Computing --first-value must not retain the attr() guard from --read-attribute(yes). -->
+    <div id="inherited-attribute" data-value="if(style(--condition: no): RESOLVED; else: var(--first-value))"></div>
+    <div
+        id="inherited-attribute-reversed"
+        data-value="if(style(--condition: no): RESOLVED; else: var(--first-value))"
+    ></div>
+    <div id="attribute-property-cycle" data-value="var(--second-value)"></div>
+    <div id="attribute-recursion" data-value="attr(data-value type(*))"></div>
+    <script src="../../include.js"></script>
+    <script>
+        test(() => {
+            let cases = [
+                "property-cycle",
+                "inherited-property",
+                "inherited-property-reversed",
+                "inherited-function-local-property",
+                "inherited-function-local-property-reversed",
+                "self-reference",
+                "inherited-attribute",
+                "inherited-attribute-reversed",
+                "attribute-property-cycle",
+                "attribute-recursion",
+            ];
+
+            for (let id of cases) {
+                println(id + ": " + getComputedStyle(document.getElementById(id)).getPropertyValue("--value"));
+            }
+        });
+    </script>
+</html>
