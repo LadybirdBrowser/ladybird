@@ -1,0 +1,3 @@
+XHR Content-Type header: ["text/plain"]
+EventSource lastEventId: "\t one two \t"
+EventSource Last-Event-ID header: ["one two"]

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+
+        const xhrURL = await server.createEcho("POST", "/request-header-values-with-surrounding-whitespace-xhr", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "$HEADERS",
+            reflect_headers_in_body: true,
+        });
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", xhrURL);
+        xhr.send(new Blob(["x"]).slice(0, 1, " text/plain "));
+        await new Promise(resolve => (xhr.onloadend = resolve));
+        println(`XHR Content-Type header: ${JSON.stringify(JSON.parse(xhr.responseText)["Content-Type"])}`);
+
+        const eventSourceURL = await server.createEcho("GET", "/request-header-values-with-surrounding-whitespace-event-source", {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream", "Access-Control-Allow-Origin": "*" },
+            body: "id: \t one two \t\nretry: 0\ndata: $HEADERS\n\n",
+            reflect_headers_in_body: true,
+        });
+        const source = new EventSource(eventSourceURL);
+        const event = await new Promise(resolve => {
+            let messages = 0;
+            source.onmessage = event => {
+                if (++messages === 2)
+                    resolve(event);
+            };
+        });
+        source.close();
+        println(`EventSource lastEventId: ${JSON.stringify(event.lastEventId)}`);
+        println(`EventSource Last-Event-ID header: ${JSON.stringify(JSON.parse(event.data)["Last-Event-ID"])}`);
+    });
+</script>
