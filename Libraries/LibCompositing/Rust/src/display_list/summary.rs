@@ -136,7 +136,21 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         | T::CompositorSnapContainer
         | T::CompositorSnapArea
         | T::CompositorScrollChainingBarrier
-        | T::CompositorNestedContextWheelRegion => {}
+        | T::CompositorNestedContextWheelRegion
+        // The display list of a page holds none of the commands of the canvas 2D stream.
+        | T::Canvas2DFillPath
+        | T::Canvas2DStrokePath
+        | T::Canvas2DDrawGlyphRun
+        | T::Canvas2DClearRect
+        | T::Canvas2DDrawImageFrame
+        | T::Canvas2DDrawCanvas
+        | T::Canvas2DDrawVideoFrame
+        | T::Canvas2DSetTransform
+        | T::Canvas2DSave
+        | T::Canvas2DRestore
+        | T::Canvas2DClipPath
+        | T::Canvas2DReset
+        | T::Canvas2DClearCanvas => {}
     }
 }
 
@@ -274,7 +288,21 @@ fn command_blend(
         | T::CompositorSnapContainer
         | T::CompositorSnapArea
         | T::CompositorScrollChainingBarrier
-        | T::CompositorNestedContextWheelRegion => None,
+        | T::CompositorNestedContextWheelRegion
+        // The display list of a page holds none of the commands of the canvas 2D stream.
+        | T::Canvas2DFillPath
+        | T::Canvas2DStrokePath
+        | T::Canvas2DDrawGlyphRun
+        | T::Canvas2DClearRect
+        | T::Canvas2DDrawImageFrame
+        | T::Canvas2DDrawCanvas
+        | T::Canvas2DDrawVideoFrame
+        | T::Canvas2DSetTransform
+        | T::Canvas2DSave
+        | T::Canvas2DRestore
+        | T::Canvas2DClipPath
+        | T::Canvas2DReset
+        | T::Canvas2DClearCanvas => None,
     }
 }
 

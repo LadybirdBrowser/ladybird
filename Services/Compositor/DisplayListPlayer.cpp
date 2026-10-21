@@ -107,6 +107,11 @@ void DisplayListPlayer::play_command_bytes(DisplayListCommandType command_type, 
         break;
         ENUMERATE_DISPLAY_LIST_COMMANDS(PLAY_DISPLAY_LIST_COMMAND)
 #undef PLAY_DISPLAY_LIST_COMMAND
+#define REJECT_CANVAS_2D_COMMAND(command_type) case DisplayListCommandType::command_type:
+        ENUMERATE_CANVAS_2D_COMMANDS(REJECT_CANVAS_2D_COMMAND)
+#undef REJECT_CANVAS_2D_COMMAND
+        // NB: The display list of a page never holds a command of the canvas 2D stream; validation rejects one.
+        VERIFY_NOT_REACHED();
     }
 }
 

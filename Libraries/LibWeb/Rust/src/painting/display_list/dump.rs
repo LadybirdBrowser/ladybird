@@ -664,6 +664,20 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             )
             .unwrap();
         }
+        // The display list of a page holds none of the commands of the canvas 2D stream.
+        DisplayListCommandType::Canvas2DFillPath
+        | DisplayListCommandType::Canvas2DStrokePath
+        | DisplayListCommandType::Canvas2DDrawGlyphRun
+        | DisplayListCommandType::Canvas2DClearRect
+        | DisplayListCommandType::Canvas2DDrawImageFrame
+        | DisplayListCommandType::Canvas2DDrawCanvas
+        | DisplayListCommandType::Canvas2DDrawVideoFrame
+        | DisplayListCommandType::Canvas2DSetTransform
+        | DisplayListCommandType::Canvas2DSave
+        | DisplayListCommandType::Canvas2DRestore
+        | DisplayListCommandType::Canvas2DClipPath
+        | DisplayListCommandType::Canvas2DReset
+        | DisplayListCommandType::Canvas2DClearCanvas => {}
     }
 }
 

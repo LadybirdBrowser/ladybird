@@ -449,12 +449,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     .into_iter()
     .map(String::from)
     .collect();
-    let mut after_includes = String::from("\n#define ENUMERATE_DISPLAY_LIST_COMMANDS(V)");
-    for name in display_list_command_type_variants(&commands_source)? {
-        after_includes.push_str(&format!(" \\\n    V({name})"));
+    // The commands of the canvas 2D stream go into a list of their own, as only the canvas player plays them.
+    let variants = display_list_command_type_variants(&commands_source)?;
+    let mut after_includes = String::new();
+    for (macro_name, canvas_2d) in [
+        ("ENUMERATE_DISPLAY_LIST_COMMANDS", false),
+        ("ENUMERATE_CANVAS_2D_COMMANDS", true),
+    ] {
+        after_includes.push_str(&format!("\n#define {macro_name}(V)"));
+        for name in variants.iter().filter(|name| name.starts_with("Canvas2D") == canvas_2d) {
+            after_includes.push_str(&format!(" \\\n    V({name})"));
+        }
+        after_includes.push('\n');
     }
     after_includes.push_str(&format!(
-        "\n\nnamespace Compositing {{\n\n// Every record and every payload starts at a multiple of this.\nconstexpr size_t display_list_payload_alignment = {};\n\n}}",
+        "\nnamespace Compositing {{\n\n// Every record and every payload starts at a multiple of this.\nconstexpr size_t display_list_payload_alignment = {};\n\n}}",
         display_list_payload_alignment(&manifest_dir.join("src/display_list/builder.rs"))?
     ));
     commands_config.after_includes = Some(after_includes);

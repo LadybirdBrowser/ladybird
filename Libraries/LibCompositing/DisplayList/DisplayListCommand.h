@@ -48,6 +48,7 @@ static_assert(IsTriviallyCopyable<TextShadowLayer>);
     static_assert(IsTriviallyCopyable<command>); \
     static_assert(alignof(command) <= display_list_payload_alignment);
 ENUMERATE_DISPLAY_LIST_COMMANDS(VERIFY_DISPLAY_LIST_COMMAND)
+ENUMERATE_CANVAS_2D_COMMANDS(VERIFY_DISPLAY_LIST_COMMAND)
 #undef VERIFY_DISPLAY_LIST_COMMAND
 
 }
