@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>CSS Borders Reference: border-shape polygon stroke miter limit</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<style>
+  .test {
+    width: 66px;
+    height: 150px;
+    margin: 50px 20px;
+    display: inline-block;
+    overflow: visible;
+  }
+
+  .t1 {
+    border: 20px solid transparent;
+  }
+
+  .t2 {
+    border: 19px solid transparent;
+  }
+</style>
+<!-- For .test t1 -->
+<svg class="test t1" viewBox="0 0 66 150">
+  <polygon points="-20,-20 86,170 86,-20 -20,170" fill="none" stroke="green" stroke-width="20"
+    stroke-miterlimit="1000" />
+</svg>
+<!-- For .test t2 -->
+<svg class="test t2" viewBox="0 0 66 150">
+  <polygon points="-19,-19 85,169 85,-19 -19,169" fill="none" stroke="green" stroke-width="19"
+    stroke-miterlimit="1000" />
+</svg>
+<!-- For .test-path t1 -->
+<svg class="test t1" viewBox="0 0 66 150">
+  <polygon points="-20,-20 86,170 86,-20 -20,170" fill="none" stroke="green" stroke-width="20"
+    stroke-miterlimit="1000" />
+</svg>
+<!-- For .test-shape t1 -->
+<svg class="test t1" viewBox="0 0 66 150">
+  <polygon points="-20,-20 86,170 86,-20 -20,170" fill="none" stroke="green" stroke-width="20"
+    stroke-miterlimit="1000" />
+</svg>
+<!-- For .test-shape t2 -->
+<svg class="test t2" viewBox="0 0 66 150">
+  <polygon points="-19,-19 85,169 85,-19 -19,169" fill="none" stroke="green" stroke-width="19"
+    stroke-miterlimit="1000" />
+</svg>

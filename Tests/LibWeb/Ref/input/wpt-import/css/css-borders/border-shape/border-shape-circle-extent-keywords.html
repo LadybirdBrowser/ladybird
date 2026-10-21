@@ -1,0 +1,22 @@
+<!doctype html>
+<title>CSS Borders: border-shape circle() radial-extent keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="help" href="https://drafts.csswg.org/css-images-3/#typedef-radial-size">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-circle-extent-keywords-ref.html">
+<meta name="assert" content="circle() radial-extent keywords resolve to the distance to the closest/farthest side or corner.">
+<style>
+  .box {
+    width: 300px;
+    height: 400px;
+    margin: 50px;
+    background: green;
+  }
+  #closest-side { border-shape: circle(closest-side at 60px 80px); }
+  #farthest-side { border-shape: circle(farthest-side at 60px 80px); }
+  #closest-corner { border-shape: circle(closest-corner at 60px 80px); }
+  #farthest-corner { border-shape: circle(farthest-corner at 60px 80px); }
+</style>
+<div id="closest-side" class="box"></div>
+<div id="farthest-side" class="box"></div>
+<div id="closest-corner" class="box"></div>
+<div id="farthest-corner" class="box"></div>

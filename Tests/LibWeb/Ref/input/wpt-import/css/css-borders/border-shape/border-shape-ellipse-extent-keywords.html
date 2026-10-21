@@ -1,0 +1,22 @@
+<!doctype html>
+<title>CSS Borders: border-shape ellipse() radial-extent keywords</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="help" href="https://drafts.csswg.org/css-images-3/#typedef-radial-size">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-ellipse-extent-keywords-ref.html">
+<meta name="assert" content="ellipse() per-axis radial-extent keywords resolve to the distance to the closest/farthest side in each axis.">
+<style>
+  .box {
+    width: 300px;
+    height: 400px;
+    margin: 50px;
+    background: green;
+  }
+  #closest { border-shape: ellipse(closest-side closest-side at 60px 80px); }
+  #farthest { border-shape: ellipse(farthest-side farthest-side at 60px 80px); }
+  #closest-farthest { border-shape: ellipse(closest-side farthest-side at 60px 80px); }
+  #farthest-closest { border-shape: ellipse(farthest-side closest-side at 60px 80px); }
+</style>
+<div id="closest" class="box"></div>
+<div id="farthest" class="box"></div>
+<div id="closest-farthest" class="box"></div>
+<div id="farthest-closest" class="box"></div>

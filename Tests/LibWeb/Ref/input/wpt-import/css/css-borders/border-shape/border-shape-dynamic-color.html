@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>CSS Borders Test: dynamic border-color update</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-dynamic-color-ref.html">
+<style>
+  #target {
+    width: 200px;
+    height: 200px;
+    box-sizing: border-box;
+    background: green;
+    color: red;
+    border-shape: inset(0px) inset(0px round 100px);
+  }
+
+  .transparent-border {
+    border-color: transparent;
+  }
+</style>
+<div id="target"></div>
+<script>
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.getElementById('target').classList.add('transparent-border');
+      document.documentElement.classList.remove('reftest-wait');
+    });
+  });
+</script>
+
+</html>

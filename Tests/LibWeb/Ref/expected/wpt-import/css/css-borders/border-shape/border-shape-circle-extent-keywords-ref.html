@@ -1,0 +1,23 @@
+<!doctype html>
+<title>CSS Borders: border-shape circle() radial-extent keywords reference</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<style>
+  .box {
+    width: 300px;
+    height: 400px;
+    margin: 50px;
+    background: green;
+  }
+  /* closest side is the left edge: min(60, 300-60, 80, 400-80) = 60 */
+  #closest-side { border-shape: circle(60px at 60px 80px); }
+  /* farthest side is the bottom edge: max(60, 300-60, 80, 400-80) = 320 */
+  #farthest-side { border-shape: circle(320px at 60px 80px); }
+  /* closest corner is (0,0): hypot(60, 80) = 100 */
+  #closest-corner { border-shape: circle(100px at 60px 80px); }
+  /* farthest corner is (300,400): hypot(240, 320) = 400 */
+  #farthest-corner { border-shape: circle(400px at 60px 80px); }
+</style>
+<div id="closest-side" class="box"></div>
+<div id="farthest-side" class="box"></div>
+<div id="closest-corner" class="box"></div>
+<div id="farthest-corner" class="box"></div>

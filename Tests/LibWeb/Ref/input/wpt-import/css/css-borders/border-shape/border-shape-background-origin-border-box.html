@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>CSS Borders Test: border-shape with background-origin</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-background-origin-border-box-ref.html">
+<meta name="fuzzy" content="maxDifference=0-98;totalPixels=0-500">
+<style>
+  .test {
+    display: inline-block;
+    width: 100px;
+    height: 100px;
+    box-sizing: border-box;
+    margin: 30px 20px;
+    background: linear-gradient(green, green) red;
+    background-origin: border-box;
+    background-repeat: no-repeat;
+    border: 30px solid;
+    border-shape: inset(0px) border-box;
+  }
+
+  .t1 {
+    border-color: rgba(0, 128, 0, 1);
+    border-style: dotted;
+  }
+
+  .t2 {
+    border-color: rgba(0, 128, 0, 1);
+  }
+
+  .t3 {
+    border-color: rgba(0, 128, 0, 1);
+    background-repeat: repeat;
+  }
+
+  .t4 {
+    border-color: rgba(0, 128, 0, 1);
+    border-shape: circle(50%) border-box;
+  }
+</style>
+<p>This should be a green background, no red.</p>
+<div class="test t1"></div>
+<div class="test t2"></div>
+<div class="test t3"></div>
+<div class="test t4"></div>

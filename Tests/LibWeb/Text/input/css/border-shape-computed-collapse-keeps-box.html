@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- Two equal shapes collapse into one, which keeps the box the outer shape used. -->
+<div style="border-shape: circle() circle() border-box"></div>
+<div style="border-shape: circle() border-box circle() border-box"></div>
+<div style="border-shape: circle() circle()"></div>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll("div"))
+            println(`${element.getAttribute("style")}: ${getComputedStyle(element).borderShape}`);
+    });
+</script>

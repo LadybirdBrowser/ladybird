@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>CSS Borders Shape: border-shape overscroll with solid background</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-overflow-solid-background-ref.html">
+<meta name=fuzzy content="0-200;0-360">
+<style>
+  .bs-target {
+    overflow-y: scroll;
+    will-change: transform;
+    width: 100px;
+    height: 100px;
+    border-shape: circle(50% at 50% 50%);
+    background: green;
+  }
+  .forcescroll {
+    width: 25px;
+    height: 400px;
+    background: linear-gradient(pink, blue);
+  }
+</style>
+<div class="bs-target">
+  <div class="forcescroll"></div>
+</div>

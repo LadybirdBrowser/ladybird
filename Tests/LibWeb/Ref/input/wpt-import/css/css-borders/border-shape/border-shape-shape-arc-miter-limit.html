@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>CSS Borders Test: border-shape shape() with arc uses default stroke miter limit</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-shape-arc-miter-limit-ref.html">
+<meta name="fuzzy" content="maxDifference=0-10;totalPixels=0-50">
+<style>
+  .test {
+    box-sizing: border-box;
+    border-shape: shape(from 50% 10%, arc to 90% 80% of 80px ccw, arc to 10% 80% of 80px ccw, arc to 50% 10% of 80px ccw, close) border-box;
+    width: 100px;
+    height: 100px;
+    margin: 50px;
+    display: inline-block;
+    border: 10px solid green;
+  }
+</style>
+<div class="test"></div>

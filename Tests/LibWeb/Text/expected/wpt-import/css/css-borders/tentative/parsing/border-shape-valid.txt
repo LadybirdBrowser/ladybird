@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['border-shape'] = "none" should set the property value
+Pass	e.style['border-shape'] = "circle()" should set the property value
+Pass	e.style['border-shape'] = "circle(closest-corner at 20px 50px)" should set the property value
+Pass	e.style['border-shape'] = "circle(farthest-corner at center)" should set the property value
+Pass	e.style['border-shape'] = "ellipse(closest-corner farthest-corner at 20px 50px)" should set the property value
+Pass	e.style['border-shape'] = "polygon(10px 10px, 100px 10px, 10px 100px)" should set the property value
+Pass	e.style['border-shape'] = "shape(from 0px 0px, hline to 100px, vline to 100px, close)" should set the property value
+Pass	e.style['border-shape'] = "circle() circle()" should set the property value
+Pass	e.style['border-shape'] = "circle() polygon(10px 10px, 100px 10px, 10px 100px)" should set the property value
+Pass	e.style['border-shape'] = "circle(closest-corner) ellipse(farthest-corner closest-corner)" should set the property value
+Pass	e.style['border-shape'] = "circle() border-box circle() content-box" should set the property value
+Pass	e.style['border-shape'] = "circle() margin-box circle() view-box" should set the property value

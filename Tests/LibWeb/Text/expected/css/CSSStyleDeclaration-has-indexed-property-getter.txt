@@ -141,6 +141,7 @@ All properties associated with getComputedStyle(document.body):
     "border-right-color",
     "border-right-style",
     "border-right-width",
+    "border-shape",
     "border-start-end-radius",
     "border-start-start-radius",
     "border-top-color",

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>CSS Borders Test: border-shape polygon stroke keeps miter joins</title>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-polygon-miter-limit-ref.html">
+<style>
+  .test {
+    border-shape: polygon(0% 0%, 100% 100%, 100% 0%, 0% 100%) border-box;
+    width: 66px;
+    height: 150px;
+    margin: 50px 20px;
+    display: inline-block;
+  }
+
+  .test-path {
+    border-shape: path("M 0 0 L 106 190 L 106 0 L 0 190 Z") border-box;
+    width: 66px;
+    height: 150px;
+    margin: 50px 20px;
+    display: inline-block;
+  }
+
+  .test-shape {
+    border-shape: shape(from 0% 0%, line to 100% 100%, line to 100% 0%, line to 0% 100%, close) border-box;
+    width: 66px;
+    height: 150px;
+    margin: 50px 20px;
+    display: inline-block;
+  }
+
+  .t1 {
+    border: 20px solid green;
+  }
+
+  .t2 {
+    border: 19px solid green;
+  }
+</style>
+<div class="test t1"></div>
+<div class="test t2"></div>
+<div class="test-path t1"></div>
+<div class="test-shape t1"></div>
+<div class="test-shape t2"></div>

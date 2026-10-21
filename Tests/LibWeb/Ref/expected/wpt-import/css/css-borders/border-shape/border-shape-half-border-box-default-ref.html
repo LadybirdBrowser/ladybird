@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+body {
+  margin: 0;
+}
+.container {
+  display: flex;
+  gap: 32px;
+  padding: 20px;
+}
+.target {
+  width: 100px;
+  height: 100px;
+  background: lightblue;
+}
+/* Circle with explicit half-border-box */
+#circle {
+  border: 10px solid red;
+  border-shape: circle(50%) half-border-box;
+}
+/* Ellipse with asymmetric borders and explicit half-border-box */
+#ellipse {
+  border-top: 8px solid green;
+  border-right: 12px solid green;
+  border-bottom: 8px solid green;
+  border-left: 12px solid green;
+  border-shape: ellipse(50% 50%) half-border-box;
+}
+/* Inset with uniform borders and explicit half-border-box */
+#inset {
+  border: 15px solid blue;
+  border-shape: inset(10% round 20%) half-border-box;
+}
+</style>
+<div class="container">
+  <div class="target" id="circle"></div>
+  <div class="target" id="ellipse"></div>
+  <div class="target" id="inset"></div>
+</div>

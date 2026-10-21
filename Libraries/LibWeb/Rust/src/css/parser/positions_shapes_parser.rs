@@ -1336,6 +1336,63 @@ fn shape_box(value: &ComponentValue) -> Option<StyleValueData> {
         })
 }
 
+// https://drafts.csswg.org/css-borders-4/#propdef-border-shape
+// none | [ <basic-shape> <geometry-box>? ]{1,2}
+fn parse_border_shape(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
+    let significant = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if let [only] = significant[..]
+        && let Some(none) = keyword_value(only, &[keyword::NONE])
+    {
+        return Some(none);
+    }
+    // https://drafts.fxtf.org/css-masking-1/#typedef-geometry-box
+    let geometry_box = |value: &ComponentValue| {
+        let ident = value.ident()?;
+        [
+            "content-box",
+            "padding-box",
+            "border-box",
+            "margin-box",
+            "fill-box",
+            "stroke-box",
+            "view-box",
+            "half-border-box",
+        ]
+        .iter()
+        .any(|accepted| equals_ascii_case_insensitive(ident, accepted.as_bytes()))
+        .then(|| keyword_from_ascii_case_insensitive(ident))
+        .flatten()
+        .map(|keyword| StyleValueData::Keyword { keyword })
+    };
+    let mut items = Vec::new();
+    let mut shape_count = 0;
+    let mut index = 0;
+    while index < significant.len() {
+        items.push(parse_basic_shape(
+            context,
+            property,
+            std::slice::from_ref(significant[index]),
+        )?);
+        shape_count += 1;
+        index += 1;
+        if let Some(box_value) = significant.get(index).and_then(|value| geometry_box(value)) {
+            items.push(box_value);
+            index += 1;
+        }
+    }
+    if shape_count == 0 || shape_count > 2 {
+        return None;
+    }
+    if items.len() == 1 {
+        return items.pop();
+    }
+    Some(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(items.into_iter().map(retained).collect()),
+        separator: 0,
+        collapsible: false,
+    })
+}
+
 fn parse_shape_outside(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
     if let Some(value) = values
         .iter()
@@ -1834,6 +1891,8 @@ pub(crate) fn parse_geometry_property(
             return ParseOutcome::NotHandled;
         }
         parse_legacy_rect(context, property, values)
+    } else if property == property_id::BORDER_SHAPE {
+        parse_border_shape(context, property, values)
     } else if property == property_id::SHAPE_OUTSIDE {
         let is_shape_outside_value = values.iter().find(|value| !value.is_whitespace()).is_some_and(|value| {
             value.ident().is_some_and(|ident| {

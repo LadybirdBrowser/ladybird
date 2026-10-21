@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>border-shape: collapsed shape clips background fully</title>
+<link rel="author" title="Jason Leo" href="mailto:cgqaq@chromium.org">
+<link rel="author" title="一丝" href="mailto:yiorsi@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-collapsed-shape-clips-background-ref.html">
+<style>
+  .test {
+    margin: 10px;
+    display: inline-block;
+    width: 200px;
+    height: 200px;
+    box-sizing: border-box;
+    border: 1px solid green;
+    background: green;
+  }
+
+  .inner {
+    box-sizing: border-box;
+    background: linear-gradient(red, red);
+    border: 10px solid transparent;
+  }
+
+  .t1 .inner {
+    height: 100%;
+    border-shape: inset(100px);
+  }
+  .t2 .inner {
+    height: 200px;
+    border-shape: circle(0%);
+  }
+  .t3 .inner {
+    height: 100%;
+    background: red;
+    border-shape: inset(0) circle(0%);
+  }
+</style>
+
+<div class="test t1">
+  <div class="inner"></div>
+</div>
+<div class="test t2">
+  <div class="inner"></div>
+</div>
+<div class="test t3">
+  <div class="inner"></div>
+</div>

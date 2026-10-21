@@ -255,6 +255,7 @@ pub struct BorderValues {
     pub corner_top_left_shape: f64,
     pub corner_top_right_shape: f64,
     pub border_image_source: ComputedStyleValueHandle,
+    pub border_shape: ComputedStyleValueHandle,
     pub border_image_slice: ComputedStyleValueHandle,
     pub border_image_width: ComputedStyleValueHandle,
     pub border_image_outset: ComputedStyleValueHandle,

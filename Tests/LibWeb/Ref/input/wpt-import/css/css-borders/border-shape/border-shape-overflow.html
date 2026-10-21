@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#border-shape">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-borders/border-shape/border-shape-overflow-ref.html">
+<meta name="fuzzy" content="maxDifference=0-96;totalPixels=0-256">
+<style>
+#target {
+    width: 100px;
+    height: 100px;
+    border-shape: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+}
+#inner {
+    background: green;
+    position: absolute;
+    inset: 0;
+}
+</style>
+<div id="target">
+    <div id="inner"></div>
+</div>

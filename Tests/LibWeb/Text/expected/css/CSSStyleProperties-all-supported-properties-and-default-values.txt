@@ -349,6 +349,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'border-right-style': 'none'
 'borderRightWidth': '0px'
 'border-right-width': '0px'
+'borderShape': 'none'
+'border-shape': 'none'
 'borderSpacing': '0px'
 'border-spacing': '0px'
 'borderStartEndRadius': '0px'
