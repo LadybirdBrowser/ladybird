@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	View timeline with px based inset.
+Pass	View timeline with percent based inset.
+Pass	view timeline with inset auto.
+Pass	view timeline inset as string
+Pass	view timeline with invalid inset

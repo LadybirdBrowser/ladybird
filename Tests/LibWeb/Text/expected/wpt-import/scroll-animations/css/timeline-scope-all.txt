@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Fail	timeline-scope:all scopes all names (basic)
+Fail	timeline-scope:all scopes all names (multiple)
+Pass	Inner scope is isolated from outer scope

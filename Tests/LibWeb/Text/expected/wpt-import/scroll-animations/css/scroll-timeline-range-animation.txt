@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Animation with ranges [initial, initial]
+Pass	Animation with ranges [0%, 100%]
+Pass	Animation with ranges [10%, 100%]
+Pass	Animation with ranges [0%, 50%]
+Pass	Animation with ranges [10%, 50%]
+Pass	Animation with ranges [150px, 75em]
+Pass	Animation with ranges [calc(1% + 135px), calc(70em + 50px)]
+Pass	Animation with ranges [calc(1% + 135px), calc(70em + 50px)] (scoped)

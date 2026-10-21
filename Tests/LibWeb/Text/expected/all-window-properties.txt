@@ -560,6 +560,7 @@ ValidityState
 VideoPlaybackQuality
 VideoTrack
 VideoTrackList
+ViewTimeline
 ViewTransition
 VisualViewport
 WeakMap

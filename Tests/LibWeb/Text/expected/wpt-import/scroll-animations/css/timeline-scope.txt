@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+11 Pass
+1 Fail
+Pass	Timelines are visible by default
+Pass	Descendant can attach to a timeline under the same timeline-scope
+Pass	Timeline outside of the target's scope subtree is inaccessible
+Pass	Timeline lookups isn't stopped by timeline-scope if the name doesn't match
+Pass	Timeline under a different timeline-scope subtree is not visible to the target.
+Pass	Timeline with a different timeline-scope is not visible to the target.
+Pass	Dynamically re-attaching
+Pass	Dynamically detaching
+Fail	Removing/inserting element with attaching timeline
+Pass	Ancestor attached element becoming display:none/block
+Pass	A timline scope in the ancestor chain
+Pass	Timeline search prioritizes ancestors

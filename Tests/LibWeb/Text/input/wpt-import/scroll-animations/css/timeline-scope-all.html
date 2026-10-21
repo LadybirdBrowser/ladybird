@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<title>Behavior of timeline-scope:all</title>
+<link rel="help" src="https://github.com/w3c/csswg-drafts/issues/7759">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+
+<main id=main></main>
+<script>
+  async function inflate(t, template) {
+    t.add_cleanup(() => main.replaceChildren());
+    return runAndWaitForFrameUpdate(() => {
+       main.append(template.content.cloneNode(true));
+    });
+  }
+  async function scrollTop(e, value) {
+    e.scrollTop = value;
+    await waitForNextFrame();
+  }
+</script>
+<style>
+  @keyframes anim {
+    from { width: 0px; }
+    to { width: 200px; }
+  }
+  .scroller {
+    overflow-y: hidden;
+    width: 200px;
+    height: 200px;
+  }
+  .scroller > .content {
+    margin: 400px 0px;
+    width: 100px;
+    height: 100px;
+    background-color: green;
+  }
+  .target {
+    background-color: coral;
+    width: 0px;
+    animation: anim auto linear;
+  }
+  .scope-all {
+    timeline-scope: all;
+  }
+</style>
+
+<template id=timeline_scope_all_basic>
+  <div class="scope-all">
+    <div class=target style="animation-timeline:--mytimeline">Test</div>
+  </div>
+  <div class=scroller style="scroll-timeline-name:--mytimeline">
+    <div class=content></div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, timeline_scope_all_basic);
+    let target = main.querySelector('.target');
+
+    const anim = target.getAnimations()[0];
+    assert_false(!!anim.timeline);
+  }, 'timeline-scope:all scopes all names (basic)');
+</script>
+
+
+<template id=timeline_scope_all_multiple>
+  <div class="scope-all">
+    <div class=target style="animation-timeline:--t1">Test</div>
+    <div class=target style="animation-timeline:--t2">Test</div>
+  </div>
+  <div class=scroller style="scroll-timeline-name:--t1, --t2">
+    <div class=content></div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, timeline_scope_all_multiple);
+    let scroller = main.querySelector('.scroller');
+    let target1 = main.querySelector('.target:nth-child(1)');
+    let target2 = main.querySelector('.target:nth-child(2)');
+
+    const anim1 = target1.getAnimations()[0];
+    assert_false(!!anim1.timeline);
+    const anim2 = target2.getAnimations()[0];
+    assert_false(!!anim2.timeline);
+  }, 'timeline-scope:all scopes all names (multiple)');
+</script>
+
+
+<!--
+  This test has one element with timeline-scope:all inside another
+  element with timeline-scope:all, each associated with different scrollers
+  (at different scroll offsets).
+-->
+<template id=inner_scope_isolation>
+  <div class=scope-all>
+    <div class=target style="animation-timeline:--t1">Test</div>
+    <div class=scroller style="scroll-timeline: --t1">
+      <div class=content>
+        <!-- Inner scope -->
+        <div class=scope-all>
+          <div class=target style="animation-timeline:--t1">Test</div>
+          <div class=scroller style="scroll-timeline: --t1">
+            <div class=content></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+  promise_test(async (t) => {
+    await inflate(t, inner_scope_isolation);
+    let outer_scroller = main.querySelector('.scroller');
+    let inner_scroller = main.querySelector('.scroller .scroller');
+    let outer_target = main.querySelector('.target');
+    let inner_target = main.querySelector('.scroller .target');
+    await scrollTop(outer_scroller, 350); // 50%
+    await scrollTop(inner_scroller, 140); // 20%
+    assert_equals(getComputedStyle(outer_target).width, '100px'); // 0px => 200px, 50%
+    // Timeline lookup stopped by the inner scope.
+    assert_equals(getComputedStyle(inner_target).width, '40px'); // 0px => 200px, 20%
+  }, 'Inner scope is isolated from outer scope');
+</script>

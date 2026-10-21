@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Default source for a View timeline is the nearest scroll ancestor to the subject
+Pass	View timeline ignores explicitly set source
+Pass	View timeline source is null when display:none

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html id="top">
+<meta charset="utf-8">
+<title>View timeline current-time</title>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#viewtimeline-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="../../scroll-animations/scroll-timelines/testcommon.js"></script>
+<script src="../../scroll-animations/view-timelines/testcommon.js"></script>
+<style>
+  #container {
+    border:  10px solid lightgray;
+    overflow-y: scroll;
+    height:  200px;
+    width: 200px;
+  }
+  .spacer {
+    height:  800px;
+  }
+  #target {
+    background-color:  green;
+    height:  200px;
+    width:  100px;
+  }
+</style>
+<body>
+  <div id="container">
+    <div id="leading-space" class="spacer"></div>
+    <div id="target"></div>
+    <div id="trailing-space" class="spacer"></div>
+  </div>
+</body>
+<script type="text/javascript">
+  promise_test(async t => {
+    container.scrollTop = 0;
+    await waitForNextFrame();
+
+    const anim = CreateViewTimelineOpacityAnimation(t, target);
+    const timeline = anim.timeline;
+    await anim.ready;
+
+    // Initially before start-offset and animation effect is in the before
+    // phase.
+    assert_percents_equal(timeline.currentTime, -150,
+                          "Timeline's currentTime at container start boundary");
+    assert_percents_equal(anim.currentTime, -150,
+                          "Animation's currentTime at container start boundary");
+    assert_equals(getComputedStyle(target).opacity, "1",
+                  'Effect is inactive in the before phase');
+
+    // Advance to the start offset, which triggers entry to the active phase.
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 600;
+    });
+    assert_percents_equal(timeline.currentTime, 0,
+                          "Timeline's current time at start offset");
+    assert_percents_equal(anim.currentTime, 0,
+                          "Animation's current time at start offset");
+    assert_equals(getComputedStyle(target).opacity, '0.3',
+                  'Effect at the start of the active phase');
+
+    // Advance to the midpoint of the animation.
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 800;
+    });
+    assert_percents_equal(timeline.currentTime, 50,
+                          "Timeline's currentTime at midpoint");
+    assert_percents_equal(anim.currentTime, 50,
+                          "Animation's currentTime at midpoint");
+    assert_equals(getComputedStyle(target).opacity,'0.5',
+                  'Effect at the midpoint of the active range');
+
+    // Advance to the end of the animation.
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 1000;
+    });
+    assert_percents_equal(timeline.currentTime, 100,
+                          "Timeline's currentTime at end offset");
+    assert_percents_equal(anim.currentTime, 100,
+                          "Animation's currentTime at end offset");
+    assert_equals(getComputedStyle(target).opacity, '1',
+                  'Effect is in the after phase at effect end time');
+
+    // Advance to the scroll limit.
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 1600;
+    });
+    assert_percents_equal(timeline.currentTime, 250,
+                          "Timeline's currentTime at scroll limit");
+    // Hold time set when the animation finishes, which clamps the value of
+    // the animation's currentTime.
+    assert_percents_equal(anim.currentTime, 100,
+                          "Animation's currentTime at scroll limit");
+    // In the after phase, so the effect should not be applied.
+    assert_equals(getComputedStyle(target).opacity, '1',
+                  'After phase at scroll limit');
+  }, 'View timeline with start and end scroll offsets that do not align with ' +
+     'the scroll boundaries' );
+
+  promise_test(async t => {
+    const leading = document.getElementById('leading-space');
+    leading.style = 'display: none';
+    t.add_cleanup(() => {
+      leading.style = null;
+    });
+
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 0;
+    });
+
+    const anim = CreateViewTimelineOpacityAnimation(t, target);
+    const timeline = anim.timeline;
+    await anim.ready;
+
+    assert_percents_equal(timeline.currentTime, 50,
+                          "Timeline's currentTime at container start boundary");
+    assert_percents_equal(anim.currentTime, 50,
+                          "Animation's currentTime at container start boundary");
+    assert_equals(getComputedStyle(target).opacity, "0.5",
+                  'Effect enters active phase at container start boundary');
+
+
+    // Advance to midpoint
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 100;
+    });
+    assert_percents_equal(timeline.currentTime, 75,
+                          "Timeline's current time at midpoint");
+    assert_percents_equal(anim.currentTime, 75,
+                          "Animation's current time at midpoint");
+    assert_equals(getComputedStyle(target).opacity, '0.6',
+                  'Effect at the middle of the active phase');
+
+    // Advance to end-offset
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 200;
+    });
+    assert_percents_equal(timeline.currentTime, 100,
+                          "Timeline's current time at end offset");
+    assert_percents_equal(anim.currentTime, 100,
+                          "Animation's current time at end offset");
+    assert_equals(getComputedStyle(target).opacity, '1',
+                  'Effect inactive at the end offset');
+
+    // Advance to scroll limit.
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 800;
+    });
+    assert_percents_equal(timeline.currentTime, 250,
+                          "Timeline's current time at scroll limit");
+    assert_percents_equal(anim.currentTime, 100,
+                          "Animation's current time at scroll limit");
+    assert_equals(getComputedStyle(target).opacity, '1',
+                  'Effect inactive in the after phase');
+
+  }, 'View timeline does not clamp starting scroll offset at 0');
+
+  promise_test(async t => {
+    const trailing = document.getElementById('trailing-space');
+    trailing.style = 'display: none';
+    t.add_cleanup(() => {
+      trailing.style = null;
+    });
+
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 0;
+    });
+
+    const anim = CreateViewTimelineOpacityAnimation(t, target);
+    const timeline = anim.timeline;
+    await anim.ready;
+
+    // Initially in before phase.
+    assert_percents_equal(timeline.currentTime, -150,
+                          "Timeline's currentTime at container start boundary");
+    assert_percents_equal(anim.currentTime, -150,
+                          "Animation's currentTime at container start boundary");
+    assert_equals(getComputedStyle(target).opacity, "1",
+                  'Effect enters active phase at container start boundary');
+
+    // Advance to start offset.
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 600;
+    });
+    assert_percents_equal(timeline.currentTime, 0,
+                          "Timeline's current time at start offset");
+    assert_percents_equal(anim.currentTime, 0,
+                          "Animation's current time at start offset");
+    assert_equals(getComputedStyle(target).opacity, '0.3',
+                  'Effect at the start of the active phase');
+
+    // Advance to midpoint.
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 700;
+    });
+    assert_percents_equal(timeline.currentTime, 25,
+                          "Timeline's current time at the midpoint");
+    assert_percents_equal(anim.currentTime, 25,
+                          "Animation's current time at the midpoint");
+    assert_equals(getComputedStyle(target).opacity, '0.4',
+                  'Effect at the midpoint of the active phase');
+
+    // Advance to end offset.
+    await runAndWaitForFrameUpdate(() => {
+      container.scrollTop = 800;
+    });
+    assert_percents_equal(timeline.currentTime, 50,
+                          "Timeline's currentTime at max scroll offset");
+    assert_percents_equal(anim.currentTime, 50,
+                          "Animation's currentTime at max scroll offset");
+    // The active-after boundary is inclusive since at the maximum scroll
+    // position.
+    assert_equals(getComputedStyle(target).opacity, "0.5",
+                  'Effect at end of active phase');
+  }, 'View timeline  does not clamp end scroll offset at max scroll');
+</script>
+</html>

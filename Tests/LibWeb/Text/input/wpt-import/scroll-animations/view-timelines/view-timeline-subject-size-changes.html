@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html id="top">
+<meta charset="utf-8">
+<title>View timeline Subject size changes after creation of Animation</title>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#viewtimeline-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="../../scroll-animations/scroll-timelines/testcommon.js"></script>
+<script src="../../scroll-animations/view-timelines/testcommon.js"></script>
+<style>
+  #container {
+    border:  10px solid lightgray;
+    overflow-y: scroll;
+    height:  400px;
+    width: 400px;
+  }
+  .spacer {
+    height:  500px;
+  }
+  #target {
+    background-color:  green;
+    height:  100px;
+    width:  100px;
+  }
+</style>
+<body>
+  <div id="container">
+    <div class="spacer"></div>
+    <div id="target"></div>
+    <div class="spacer"></div>
+  </div>
+</body>
+
+<script type="text/javascript">
+promise_test(async t => {
+  const options = {
+    timeline: { axis: 'y' },
+    animation: {
+      rangeStart: { rangeName: 'entry', offset: CSS.percent(0) },
+      rangeEnd: { rangeName: 'entry', offset: CSS.percent(100) },
+      // Set fill to accommodate floating point precision errors at the
+      // endpoints.
+      fill: 'both'
+    }
+  };
+
+  container.scrollTop = 0;
+  await waitForNextFrame();
+
+  const anim = CreateViewTimelineOpacityAnimation(t, target, options);
+  const timeline = anim.timeline;
+  anim.effect.updateTiming(options.timing);
+  await anim.ready;
+
+  // Advance to the start offset, which triggers entry to the active phase.
+  container.scrollTop = 100;
+  await waitForNextFrame();
+  assert_equals(getComputedStyle(target).opacity, '0.3',
+                `Effect at the start of the active phase`);
+
+  // Advance to the midpoint of the animation.
+  container.scrollTop = 150;
+  await waitForNextFrame();
+  assert_equals(getComputedStyle(target).opacity,'0.5',
+                `Effect at the midpoint of the active range`);
+
+  // Since the height of the target is cut in half, the animation should be at the end now.
+  target.style.height = '50px';
+  await waitForNextFrame();
+  assert_equals(getComputedStyle(target).opacity, '0.7',
+                `Effect at the end of the active range`);
+
+  // Advance to the midpoint of the animation again.
+  container.scrollTop = 125;
+  await waitForNextFrame();
+  assert_equals(getComputedStyle(target).opacity,'0.5',
+                `Effect at the midpoint of the active range again`);
+
+  }, 'View timeline with subject size change after the creation of the animation');
+</script>

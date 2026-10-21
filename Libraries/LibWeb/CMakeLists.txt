@@ -9,8 +9,10 @@ set(SOURCES
     Animations/TimeValue.cpp
     Animations/DocumentTimeline.cpp
     Animations/KeyframeEffect.cpp
+    Animations/NamedTimelines.cpp
     Animations/PseudoElementParsing.cpp
     Animations/ScrollTimeline.cpp
+    Animations/ViewTimeline.cpp
     ARIA/AriaData.cpp
     ARIA/ARIAMixin.cpp
     ARIA/AttributeNames.cpp

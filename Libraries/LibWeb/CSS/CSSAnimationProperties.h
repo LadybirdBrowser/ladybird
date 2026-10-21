@@ -27,11 +27,15 @@ struct AnimationTimelineSource {
         Document,
         None,
         Scroll,
+        View,
+        Named,
     };
 
     Kind kind { Kind::Document };
     Scroller scroller {};
     Axis axis {};
+    Animations::ViewTimelineInset view_inset {};
+    Utf16FlyString name {};
 
     bool operator==(AnimationTimelineSource const&) const = default;
 };

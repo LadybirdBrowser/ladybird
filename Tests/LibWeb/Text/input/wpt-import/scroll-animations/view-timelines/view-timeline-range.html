@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html id="top">
+<meta charset="utf-8">
+<title>View timeline delay</title>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#viewtimeline-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<script src="../../scroll-animations/scroll-timelines/testcommon.js"></script>
+<script src="../../scroll-animations/view-timelines/testcommon.js"></script>
+<style>
+  #container {
+    border:  10px solid lightgray;
+    overflow-x: scroll;
+    height:  200px;
+    width: 200px;
+  }
+  #content {
+    display:  flex;
+    flex-flow:  row nowrap;
+    justify-content:  flex-start;
+    width:  1800px;
+    margin: 0;
+  }
+  .spacer {
+    width:  800px;
+    display:  inline-block;
+  }
+  #target {
+    background-color:  green;
+    height:  100px;
+    width:  100px;
+    display:  inline-block;
+    font-size: 10px;
+  }
+</style>
+<body>
+  <div id="container">
+    <div id="content">
+      <div class="spacer"></div>
+      <div id="target"></div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+</body>
+<script type="text/javascript">
+  promise_test(async t => {
+    // Delays are associated with the animation and not with the timeline.
+    // Thus adjusting the delays has no effect on the timeline offsets.  The
+    // offsets always correspond to the 'cover' range.
+    const verifyTimelineOffsets = anim => {
+      const timeline = anim.timeline;
+      assert_px_equals(timeline.startOffset, 600, 'startOffset');
+      assert_px_equals(timeline.endOffset, 900, 'endOffset');
+    };
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'cover', offset: CSS.percent(0) } ,
+      rangeEnd: { rangeName: 'cover', offset: CSS.percent(100) },
+      startOffset: 600,
+      endOffset: 900
+    }).then(anim => {
+      verifyTimelineOffsets(anim);
+    });
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'contain', offset: CSS.percent(0) } ,
+      rangeEnd: { rangeName: 'contain', offset: CSS.percent(100) },
+      startOffset: 700,
+      endOffset: 800
+    }).then(anim => {
+      verifyTimelineOffsets(anim);
+    });
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'entry', offset: CSS.percent(0) },
+      rangeEnd: { rangeName: 'entry', offset: CSS.percent(100) },
+      startOffset: 600,
+      endOffset: 700
+    });
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'entry-crossing', offset: CSS.percent(0) },
+      rangeEnd: { rangeName: 'entry-crossing', offset: CSS.percent(100) },
+      startOffset: 600,
+      endOffset: 700
+    });
+    await runTimelineRangeTest(t, {
+      rangeStart:  { rangeName: 'exit', offset: CSS.percent(0) },
+      rangeEnd: { rangeName: 'exit', offset: CSS.percent(100) },
+      startOffset: 800,
+      endOffset: 900
+    });
+    await runTimelineRangeTest(t, {
+      rangeStart:  { rangeName: 'exit-crossing', offset: CSS.percent(0) },
+      rangeEnd: { rangeName: 'exit-crossing', offset: CSS.percent(100) },
+      startOffset: 800,
+      endOffset: 900
+    });
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'contain', offset: CSS.percent(-50) },
+      rangeEnd: { rangeName: 'entry', offset: CSS.percent(200) },
+      startOffset: 650,
+      endOffset: 800
+    });
+  }, 'View timeline with range as <name> <percent> pair.' );
+
+  promise_test(async t => {
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'entry' },
+      rangeEnd: { rangeName: 'exit' },
+      startOffset: 600,
+      endOffset: 900
+    });
+    await runTimelineRangeTest(t, {
+      rangeStart: { offset: CSS.percent(0) },
+      rangeEnd: { offset: CSS.percent(100) },
+      startOffset: 600,
+      endOffset: 900
+    });
+  }, 'View timeline with range and inferred name or offset.' );
+
+  promise_test(async t => {
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'cover', offset: CSS.px(20) } ,
+      rangeEnd: { rangeName: 'cover', offset: CSS.px(100) },
+      startOffset: 620,
+      endOffset: 700
+    });
+
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'contain', offset: CSS.px(20) } ,
+      rangeEnd: { rangeName: 'contain', offset: CSS.px(100) },
+      startOffset: 720,
+      endOffset: 800
+    });
+
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'entry', offset: CSS.px(20) } ,
+      rangeEnd: { rangeName: 'entry', offset: CSS.px(100) },
+      startOffset: 620,
+      endOffset: 700
+    });
+
+    await runTimelineRangeTest(t, {
+      rangeStart: { rangeName: 'exit', offset: CSS.px(20) } ,
+      rangeEnd: { rangeName: 'exit', offset: CSS.px(80) },
+      startOffset: 820,
+      endOffset: 880
+    });
+
+  }, 'View timeline with range as <name> <px> pair.' );
+
+  test(t => {
+    const timeline = new ViewTimeline({subject: target, axis: 'block'});
+    const anim = target.animate(
+      null,
+      {
+        timeline: timeline,
+        rangeStart: {
+          rangeName: 'cover',
+          offset: new CSSUnitValue(1, 'in'),
+        },
+      },
+    );
+    t.add_cleanup(() => { anim.cancel(); });
+
+    assert_equals(anim.rangeStart.offset.unit, 'px');
+    assert_equals(anim.rangeStart.offset.value, 96);
+  }, 'View timeline range accepts absolute units.');
+
+  promise_test(async t => {
+    await runTimelineRangeTest(t, {
+      rangeStart: {
+        rangeName: 'contain',
+        offset: new CSSMathSum(CSS.percent(0), CSS.px(20))
+      },
+      rangeEnd: {
+        rangeName: 'contain',
+        offset: new CSSMathSum(CSS.percent(100), CSS.px(-10))
+      },
+      startOffset: 720,
+      endOffset: 790
+    });
+
+  }, 'View timeline with range as <name> <percent+px> pair.' );
+
+  promise_test(async t => {
+    await runTimelineRangeTest(t, {
+      rangeStart: "contain -50%",
+      rangeEnd: "entry 200%",
+      startOffset: 650,
+      endOffset: 800
+    });
+
+    await runTimelineRangeTest(t, {
+      rangeStart: "contain 20px",
+      rangeEnd: "contain 100px",
+      startOffset: 720,
+      endOffset: 800
+    });
+
+    await runTimelineRangeTest(t, {
+      rangeStart: "contain calc(sign(1000px - 1px) * 20px)",
+      rangeEnd: "contain calc(100%)",
+      startOffset: 720,
+      endOffset: 800
+    });
+
+    await runTimelineRangeTest(t, {
+      rangeStart: "contain calc(0% + 20px)",
+      rangeEnd: "contain calc(100% - 10px)",
+      startOffset: 720,
+      endOffset: 790
+    });
+
+    await runTimelineRangeTest(t, {
+      rangeStart: "exit 20px",
+      rangeEnd: "exit 80px",
+      startOffset: 820,
+      endOffset: 880
+    });
+  }, 'View timeline with range as strings.');
+
+  promise_test(async t => {
+    const timeline = new ViewTimeline({subject: target, axis: 'block'});
+    assert_throws_js(TypeError, () => {
+      let anim = target.animate(
+        null,
+        {
+          timeline: timeline,
+          rangeStart: "exit 2em",
+          rangeEnd: "exit 8em",
+        },
+      );
+      t.add_cleanup(() => { anim?.cancel(); });
+    }, 'Invalid font-relative units');
+
+    assert_throws_js(TypeError, () => {
+      let anim = target.animate(
+        null,
+        {
+          timeline: timeline,
+          rangeStart: "cover 2vh",
+          rangeEnd: "cover calc(100% - 2vw)",
+        },
+      );
+      t.add_cleanup(() => { anim?.cancel(); });
+    }, 'Invalid viewport units');
+
+    for (const [offset, description] of [
+      [new CSSMathSum(CSS.percent(0), CSS.em(2)), 'font-relative'],
+      [new CSSMathSum(CSS.percent(0), CSS.vw(2)), 'viewport'],
+    ]) {
+      assert_throws_js(TypeError, () => {
+        target.animate(null, {timeline: timeline, rangeStart: {offset}});
+      }, `Invalid CSSNumericValue with ${description} units`);
+    }
+  }, 'View timeline with range using relative units.');
+
+</script>

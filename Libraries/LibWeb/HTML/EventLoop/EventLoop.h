@@ -58,6 +58,10 @@ class WEB_API EventLoop : public JS::Cell {
     };
 
 public:
+    // Whether the style transaction of a document in a rendering update may fly beside the event loop, or what keeps it
+    // in step.
+    Layout::RustFFI::FfiFlightBlocker style_flight_blocker(DOM::Document&) const;
+
     struct RenderingSchedulerCounters {
         u64 update_requests { 0 };
         u64 coalesced_update_requests { 0 };
@@ -211,7 +215,6 @@ private:
     };
     void update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, u64 update_serial, TakenLayout = TakenLayout::UpToDate);
     void finish_rendering_update(double update_start_time);
-    Layout::RustFFI::FfiFlightBlocker style_flight_blocker(DOM::Document&) const;
     void resume_rendering_update_in_flight();
     void finish_ended_rendering_update_in_flight();
     bool finish_ended_rendering_update_as_its_layout_flew();

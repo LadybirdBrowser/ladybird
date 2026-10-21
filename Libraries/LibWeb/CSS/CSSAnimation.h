@@ -39,6 +39,11 @@ public:
     virtual WebIDL::ExceptionOr<void> set_range_start_for_bindings(Animations::TimelineRangeBindingValue const&) override;
     virtual WebIDL::ExceptionOr<void> set_range_end_for_bindings(Animations::TimelineRangeBindingValue const&) override;
 
+    // Looks the named timeline the animation follows up again.
+    void update_named_timeline();
+    // A removed animation no longer follows its named timeline.
+    void stop_following_named_timeline() { m_named_timeline_source.clear(); }
+
     virtual WebIDL::ExceptionOr<void> set_start_time_for_bindings(Animations::NullableCSSNumberish const&) override;
     virtual WebIDL::ExceptionOr<void> set_current_time_for_bindings(Animations::NullableCSSNumberish const&) override;
     virtual WebIDL::ExceptionOr<void> set_playback_rate(double) override;
@@ -101,6 +106,14 @@ private:
     size_t m_animation_name_index { 0 };
 
     void mark_script_play_state_override();
+
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    struct NamedTimelineSource {
+        Utf16FlyString name;
+        DOM::AbstractElement target;
+    };
+    Optional<NamedTimelineSource> m_named_timeline_source;
 };
 
 }

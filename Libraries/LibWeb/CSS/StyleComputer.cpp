@@ -30,6 +30,7 @@
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
+#include <LibWeb/Animations/ViewTimeline.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
@@ -935,6 +936,8 @@ static AnimationProperties animation_properties_from_ffi(ComputedValuesFFI::FfiC
     static_assert(to_underlying(AnimationTimelineSource::Kind::Document) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::Document));
     static_assert(to_underlying(AnimationTimelineSource::Kind::None) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::None));
     static_assert(to_underlying(AnimationTimelineSource::Kind::Scroll) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::Scroll));
+    static_assert(to_underlying(AnimationTimelineSource::Kind::View) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::View));
+    static_assert(to_underlying(AnimationTimelineSource::Kind::Named) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::Named));
     return {
         .duration = move(duration),
         .timing_function = EasingFunction::from_style_value(timing_function),
@@ -949,6 +952,8 @@ static AnimationProperties animation_properties_from_ffi(ComputedValuesFFI::FfiC
             .kind = static_cast<AnimationTimelineSource::Kind>(animation.timeline_kind),
             .scroller = static_cast<Scroller>(animation.scroll_scroller),
             .axis = static_cast<Axis>(animation.scroll_axis),
+            .view_inset = Animations::view_timeline_inset_from_ffi(animation.view_inset),
+            .name = animation.timeline_name ? css_string_from_rust(animation.timeline_name) : Utf16FlyString {},
         },
         .range = {
             .start = { static_cast<Animations::TimelineRangeName>(animation.range_start_name), animation.range_start_px, animation.range_start_percentage },
@@ -1035,8 +1040,10 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
     // Once an animation has started it continues until it ends or the animation-name is removed
     // NB: An animation no definition claimed is one whose animation-name entry has gone.
     for (size_t i = 0; i < existing_animations.size(); ++i) {
-        if (!existing_animation_was_claimed[i])
+        if (!existing_animation_was_claimed[i]) {
             existing_animations[i]->cancel(Animations::Animation::ShouldInvalidate::No);
+            existing_animations[i]->stop_following_named_timeline();
+        }
     }
 
     // NB: We create animations in reverse definition order so flip it back.

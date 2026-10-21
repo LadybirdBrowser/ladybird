@@ -44,6 +44,7 @@
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Animations/NamedTimelines.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/Bindings/Document.h>
@@ -981,6 +982,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_lazy_load_intersection_observer);
     visitor.visit(m_visual_viewport);
     visitor.visit(m_default_timeline);
+    visitor.visit(m_named_timelines);
     visitor.visit(m_scripts_to_execute_when_parsing_has_finished);
     visitor.visit(m_scripts_to_execute_in_order_as_soon_as_possible);
     visitor.visit(m_scripts_to_execute_as_soon_as_possible);
@@ -8049,6 +8051,13 @@ GC::Ref<Animations::DocumentTimeline> Document::timeline()
     if (!m_default_timeline)
         m_default_timeline = Animations::DocumentTimeline::create(*this, 0.0);
     return *m_default_timeline;
+}
+
+Animations::NamedTimelines& Document::named_timelines()
+{
+    if (!m_named_timelines)
+        m_named_timelines = Animations::NamedTimelines::create(*this);
+    return *m_named_timelines;
 }
 
 void Document::associate_with_timeline(GC::Ref<Animations::AnimationTimeline> timeline)

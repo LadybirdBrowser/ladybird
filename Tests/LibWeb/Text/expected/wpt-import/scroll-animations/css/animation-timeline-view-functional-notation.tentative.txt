@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+9 Pass
+9 Fail
+Pass	animation-timeline: view() without timeline range name
+Pass	animation-timeline: view(50px) without timeline range name
+Pass	animation-timeline: view(auto 50px) without timeline range name
+Pass	animation-timeline: view(inline) without timeline range name
+Pass	animation-timeline: view(x) without timeline range name
+Pass	animation-timeline: view(y) without timeline range name
+Pass	animation-timeline: view(x 50px) without timeline range name
+Pass	animation-timeline: view(50px), view(inline 50px) without timeline range name
+Pass	animation-timeline: view(inline) changes to view(inline 50px), withouttimeline range name
+Fail	animation-timeline: view()
+Fail	animation-timeline: view(50px)
+Fail	animation-timeline: view(auto 50px)
+Fail	animation-timeline: view(inline)
+Fail	animation-timeline: view(x)
+Fail	animation-timeline: view(y)
+Fail	animation-timeline: view(x 50px)
+Fail	animation-timeline: view(), view(inline)
+Fail	animation-timeline: view(inline) changes to view(inline 50px)

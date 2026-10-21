@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @keyframes anim { from { translate: 0px; } to { translate: 100px; } }
+    .scroller { overflow: scroll; width: 100px; height: 100px; }
+    .content { height: 300px; }
+    #target { animation: anim 1s linear; animation-timeline: --t; }
+</style>
+<div id="host"><div id="slotted" class="scroller" style="scroll-timeline: --t"><div class="content"></div></div></div>
+<div id="target"></div>
+<script>
+    // The last timeline defined in flat tree order wins, as the spec says. The slotted child comes after the shadow tree's scroller
+    // in shadow-including order, but before it in flat tree order, where it takes the slot's place.
+    asyncTest(async done => {
+        const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>.scroller { overflow: scroll; width: 100px; height: 100px; } .content { height: 300px; }</style>
+            <slot></slot>
+            <div id="in-shadow" class="scroller" style="scroll-timeline: --t"><div class="content"></div></div>`;
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const source = document.getElementById("target").getAnimations()[0].timeline.source;
+        println(`source: ${source === shadow.getElementById("in-shadow") ? "in-shadow" : source && source.id}`);
+        done();
+    });
+</script>

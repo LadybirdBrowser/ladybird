@@ -1,0 +1,6 @@
+rangeStart var(--x): TypeError
+rangeStart inherit: TypeError
+rangeStart entry var(--x): TypeError
+rangeStart {}: normal
+inset var(--x): TypeError
+inset inherit: TypeError

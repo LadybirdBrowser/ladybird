@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 25 tests
+
+18 Pass
+7 Fail
+Pass	view-timeline-inset with one value
+Pass	view-timeline-inset with two values
+Pass	view-timeline-inset with em values
+Pass	view-timeline-inset with percentage values
+Pass	view-timeline-inset with negative values
+Pass	view-timeline-inset with horizontal scroller
+Pass	view-timeline-inset with block scroller
+Pass	view-timeline-inset with inline scroller
+Pass	view-timeline-inset:auto, block
+Pass	view-timeline-inset:auto, block, vertical-lr
+Fail	view-timeline-inset:auto, block, vertical-rl
+Pass	view-timeline-inset:auto, inline
+Pass	view-timeline-inset:auto, inline, vertical-rl
+Pass	view-timeline-inset:auto, inline, vertical-lr
+Fail	view-timeline-inset:auto, inline, rtl
+Fail	view-timeline-inset:auto, inline, vertical-rl, rtl
+Fail	view-timeline-inset:auto, inline, vertical-lr, rtl
+Pass	view-timeline-inset:auto, y
+Pass	view-timeline-inset:auto, y, vertical-rl
+Fail	view-timeline-inset:auto, y, vertical-rl, rtl
+Pass	view-timeline-inset:auto, x
+Fail	view-timeline-inset:auto, x, rtl
+Pass	view-timeline-inset:auto, x, vertical-lr
+Fail	view-timeline-inset:auto, x, vertical-rl
+Pass	view-timeline-inset:auto, mix

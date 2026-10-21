@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html id="top">
+<meta charset="utf-8">
+<title>View timeline source</title>
+<link rel="help" href="https://drafts.csswg.org/scroll-animations-1/#viewtimeline-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../web-animations/testcommon.js"></script>
+<style>
+#outer {
+  height: 400px;
+  width: 400px;
+  overflow: clip;
+}
+
+#inner {
+  height: 300px;
+  width: 300px;
+  overflow: clip;
+}
+
+#outer.scroller,
+#inner.scroller {
+  overflow: scroll;
+}
+
+#spacer {
+  height: 1000px;
+}
+
+#target {
+  background: green;
+  height: 40px;
+  width: 40px;
+}
+</style>
+<body>
+  <div id="outer" class="scroller">
+    <div id="inner" class="scroller">
+      <div id="target"></div>
+      <div id="spacer"></div>
+    </div>
+  </div>
+</body>
+<script>
+'use strict';
+
+function resetScrollers() {
+  inner.classList.add('scroller');
+  outer.classList.add('scroller');
+}
+
+function assert_source_id(viewTimeline, expected) {
+  const source = viewTimeline.source;
+  assert_true(!!source, 'No source');
+  assert_equals(source.id, expected);
+}
+
+promise_test(async t => {
+  t.add_cleanup(resetScrollers);
+  const viewTimeline = new ViewTimeline({ subject: target });
+  assert_equals(viewTimeline.subject, target);
+  assert_source_id(viewTimeline, 'inner');
+
+  inner.classList.remove('scroller');
+  assert_source_id(viewTimeline, 'outer');
+
+  outer.classList.remove('scroller');
+  assert_source_id(viewTimeline, 'top');
+}, 'Default source for a View timeline is the nearest scroll ' +
+   'ancestor to the subject');
+
+promise_test(async t => {
+  t.add_cleanup(resetScrollers);
+  const viewTimeline =
+      new ViewTimeline({ source: outer, subject: target });
+  assert_equals(viewTimeline.subject, target);
+  assert_source_id(viewTimeline, 'inner');
+}, 'View timeline ignores explicitly set source');
+
+promise_test(async t => {
+  t.add_cleanup(resetScrollers);
+  const viewTimeline =
+      new ViewTimeline({ subject: target });
+  assert_equals(viewTimeline.subject, target);
+  assert_source_id(viewTimeline, 'inner');
+
+  target.style = "display: none";
+  assert_equals(viewTimeline.source, null);
+
+}, 'View timeline source is null when display:none');
+
+</script>
+</html>
