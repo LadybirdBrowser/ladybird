@@ -4,8 +4,6 @@ set(SOURCES
     BitmapExport.cpp
     BitmapSequence.cpp
     CMYKBitmap.cpp
-    CanvasCommandList.cpp
-    CanvasCommandPlayer.cpp
     Color.cpp
     ColorConversion.cpp
     ColorSpace.cpp
