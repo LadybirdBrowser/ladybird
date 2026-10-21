@@ -22,6 +22,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
@@ -266,6 +267,7 @@ static void request_frame_for_first_recorded_input(StyleEngine const& style_engi
 {
     if (style_engine.has_recorded_input() || !style_computer)
         return;
+    set_rendering_pending(style_computer->document(), RenderingPendingReason::NeedsRenderingUpdate, 1);
     style_computer->document().page().client().request_frame();
 }
 

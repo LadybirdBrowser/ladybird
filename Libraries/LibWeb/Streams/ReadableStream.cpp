@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/BindingsGlue.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
@@ -135,6 +136,12 @@ void serialize_readable_stream_with_transfer(JS::Realm& realm, HTML::TransferDat
 namespace Web::Streams {
 
 ReadableStream::~ReadableStream() = default;
+
+void ReadableStream::finalize()
+{
+    complete_rendering_pending_stream(*this);
+    Base::finalize();
+}
 
 void ReadableStream::visit_edges(GC::Cell::Visitor& visitor)
 {

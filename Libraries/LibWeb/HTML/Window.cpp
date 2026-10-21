@@ -86,6 +86,7 @@
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/RequestIdleCallback/IdleDeadline.h>
@@ -294,7 +295,11 @@ void Window::for_each_active(Function<IterationDecision(Window&)> callback)
 void run_animation_frame_callbacks(DOM::Document& document, double now)
 {
     // FIXME: Bring this closer to the spec.
-    document.window()->animation_frame_callback_driver().run(now);
+    auto& driver = document.window()->animation_frame_callback_driver();
+    set_rendering_pending(document, RenderingPendingReason::ScheduledAnimationFrameCallbacks, 0);
+    driver.run(now);
+    if (Core::StatsLog::the())
+        set_rendering_pending(document, RenderingPendingReason::ScheduledAnimationFrameCallbacks, driver.callback_count());
 }
 
 // NB: A GC cell, so that the window's two idle callback lists trace the handler, and with it the WebIDL callback the
@@ -2130,6 +2135,8 @@ WebIDL::UnsignedLong Window::request_animation_frame(AnimationFrameCallbackHandl
 {
     // FIXME: Make this fully spec compliant. Currently implements a mix of 'requestAnimationFrame()' and 'run the animation frame callbacks'.
     auto handle = animation_frame_callback_driver().add(GC::create_function(GC::Heap::the(), move(callback)));
+    if (Core::StatsLog::the())
+        set_rendering_pending(associated_document(), RenderingPendingReason::ScheduledAnimationFrameCallbacks, animation_frame_callback_driver().callback_count());
     page().client().request_frame();
     return handle;
 }
@@ -2142,8 +2149,11 @@ void Window::cancel_animation_frame(WebIDL::UnsignedLong handle)
 
     // 2. Let callbacks be this's target object's map of animation frame callbacks.
     // 3. Remove callbacks[handle].
-    if (m_animation_frame_callback_driver)
+    if (m_animation_frame_callback_driver) {
         (void)m_animation_frame_callback_driver->remove(handle);
+        if (Core::StatsLog::the())
+            set_rendering_pending(associated_document(), RenderingPendingReason::ScheduledAnimationFrameCallbacks, m_animation_frame_callback_driver->callback_count());
+    }
 }
 
 AnimationFrameCallbackDriver& Window::animation_frame_callback_driver()

@@ -82,6 +82,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
@@ -4654,6 +4655,7 @@ void LocalNavigable::set_viewport_intersection(CSSPixelRect intersection)
     if (m_viewport_intersection == intersection)
         return;
     m_viewport_intersection = intersection;
+    set_rendering_pending_displayed(*this, !intersection.is_empty());
 
     // Intersection observations only run when the document renders, so ask for one.
     if (auto document = active_document()) {
@@ -6452,7 +6454,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
             page().client().device_pixel_ratio(),
             Compositing::WindowResizingInProgress::No);
 
-        m_needs_repaint = true;
+        set_needs_repaint();
         m_needs_to_record_display_list = true;
         presenter().forget_compositor_display_list();
     }
@@ -6595,6 +6597,7 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
         || !compositor_display_list_paint_config.has_value()
         || !(compositor_display_list_paint_config.value() == paint_config);
     auto sealed = seal_presentation(*document, paint_config, should_record_display_list);
+    set_rendering_pending(*document, RenderingPendingReason::NeedsRenderingUpdate, 0);
     if (!should_record_display_list) {
         commit_unrecorded_frame(read, *document, move(sealed));
         return true;
@@ -6793,6 +6796,12 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
     auto const hit_test_list_stands = landing == Layout::RustFFI::FfiRecordingLanding::LandedBehindRows ? Painting::HitTestListStands::No : Painting::HitTestListStands::Yes;
     Painting::take_recording_trace_if_pending(read, *document);
     document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, [&] { return sealed->published->referenced_resources; });
+}
+
+void LocalNavigable::record_rendering_invalidation()
+{
+    if (auto document = active_document())
+        set_rendering_pending(*document, RenderingPendingReason::NeedsRenderingUpdate, 1);
 }
 
 void LocalNavigable::paint_next_frame()

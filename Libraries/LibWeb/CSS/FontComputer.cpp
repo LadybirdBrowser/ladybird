@@ -30,6 +30,7 @@
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
 namespace Web::CSS {
@@ -461,8 +462,10 @@ void FontComputer::record_font_input_changes(ReadonlySpan<Utf16FlyString> family
     auto& style_engine = document().style_computer().style_engine();
     if (style_engine.may_have_deferred_geometry_transaction())
         document().flush_deferred_style_change_event();
-    if (!style_engine.has_recorded_input())
+    if (!style_engine.has_recorded_input()) {
+        set_rendering_pending(document(), RenderingPendingReason::NeedsRenderingUpdate, 1);
         document().page().client().request_frame();
+    }
     StyleEngineFFI::style_engine_record_font_input_changes(style_engine.host(), family_name_lengths, family_name_units, font_list_addresses);
 }
 

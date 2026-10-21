@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
@@ -56,6 +57,7 @@ SharedResourceRequest::~SharedResourceRequest() = default;
 
 void SharedResourceRequest::finalize()
 {
+    end_rendering_pending_operation(this);
     Base::finalize();
 
     m_callbacks.clear();
@@ -228,6 +230,7 @@ void SharedResourceRequest::add_callbacks(Function<void()> on_finish, Function<v
 
 void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, IsSVGImage is_svg_image, ByteBuffer data, bool image_data_is_cors_cross_origin)
 {
+    begin_rendering_pending_operation(this, *m_document, RenderingPendingReason::ImageDecodes);
     // AD-HOC: At this point, things gets very ad-hoc.
     // FIXME: Bring this closer to spec.
 
@@ -289,6 +292,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
 
 void SharedResourceRequest::handle_failed_fetch()
 {
+    end_rendering_pending_operation(this);
     m_state = State::Failed;
     m_load_event_delayer.clear();
     m_fetch_controller = nullptr;
@@ -306,6 +310,7 @@ void SharedResourceRequest::handle_stopped_fetch()
     if (m_state != State::Fetching)
         return;
 
+    end_rendering_pending_operation(this);
     m_state = State::Stopped;
     remove_from_document();
     m_load_event_delayer.clear();
@@ -319,6 +324,7 @@ void SharedResourceRequest::handle_stopped_fetch()
 
 void SharedResourceRequest::handle_successful_resource_load()
 {
+    end_rendering_pending_operation(this);
     m_state = State::Finished;
     m_load_event_delayer.clear();
     m_fetch_controller = nullptr;

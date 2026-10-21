@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
@@ -120,6 +121,7 @@ void ResizeObserver::observe(DOM::Element& target, ResizeObserverOptions options
     m_document->register_resize_observer({}, *this);
     m_is_registered = true;
 
+    set_rendering_pending(*m_document, RenderingPendingReason::NeedsRenderingUpdate, 1);
     m_document->page().client().request_frame();
     update_activity_root();
 }

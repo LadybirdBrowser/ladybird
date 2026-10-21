@@ -41,6 +41,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
@@ -69,6 +70,12 @@ Page::Page(GC::Ref<PageClient> client)
 }
 
 Page::~Page() = default;
+
+void Page::finalize()
+{
+    forget_rendering_pending(*this);
+    Base::finalize();
+}
 
 void Page::acquire_screen_wake_lock()
 {

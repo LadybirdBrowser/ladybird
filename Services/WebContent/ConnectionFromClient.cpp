@@ -86,6 +86,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Loader/SourceHighlighter.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
@@ -220,6 +221,17 @@ void ConnectionFromClient::stop_hosting_navigable(Web::PageId page_id, Web::HTML
     if (auto page = this->page(page_id); page.has_value()) {
         page->page().stop_hosting(navigable_id, move(replicated_state));
         page->page().client().request_frame();
+    }
+}
+
+void ConnectionFromClient::set_rendering_stats_displayed(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, bool displayed)
+{
+    if (!Core::StatsLog::the())
+        return;
+    if (auto page = this->page(page_id); page.has_value()) {
+        auto* navigable = as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr());
+        if (navigable && navigable->is_local_root())
+            Web::set_rendering_pending_ancestors_displayed(*navigable, displayed);
     }
 }
 

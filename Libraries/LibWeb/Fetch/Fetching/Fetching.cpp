@@ -62,6 +62,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
@@ -365,6 +366,9 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         // 2. Append record to request’s client’s fetch group’s fetch records.
         request.client()->fetch_group().append(record);
     }
+
+    if (Core::StatsLog::the() && client_window && request.is_subresource_request())
+        begin_rendering_pending_operation(fetch_params->controller().ptr(), client_window->associated_document(), RenderingPendingReason::ResourceFetchesInFlight);
 
     // 15. Run main fetch given fetchParams.
     (void)main_fetch(realm, fetch_params);
@@ -903,6 +907,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         auto process_response_end_of_body_task = GC::create_function(GC::Heap::the(), [&fetch_params, &response] {
             // 1. Set fetchParams’s request’s done flag.
             fetch_params.request()->set_done(true);
+            end_rendering_pending_operation(fetch_params.controller().ptr());
 
             // 2. If fetchParams’s process response end-of-body is non-null, then run fetchParams’s process response
             //    end-of-body given response.
@@ -934,6 +939,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     // 5. Let internalResponse be response, if response is a network error; otherwise response’s internal response.
     auto internal_response = response.is_network_error() ? GC::Ref { response } : response.unsafe_response();
+
+    if (Core::StatsLog::the() && internal_response->body())
+        track_rendering_pending_stream(fetch_params.controller().ptr(), *internal_response->body()->stream());
 
     auto algorithms = fetch_params.algorithms();
 
@@ -1007,9 +1015,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
         // 2. Let processBodyError be this step: run fetchParams’s process response consume body given response and
         //    failure.
-        auto process_body_error = GC::create_function(GC::Heap::the(), [algorithms, &response, setup_report_timing_steps](JS::Value) {
+        auto process_body_error = GC::create_function(GC::Heap::the(), [algorithms, &response, controller = fetch_params.controller(), setup_report_timing_steps](JS::Value) {
             // AD-HOC: See comment on setup_report_timing_steps above.
             setup_report_timing_steps();
+            // NB: A failed read does not always close or error the body's stream, which would otherwise end this.
+            end_rendering_pending_operation(controller.ptr());
             (algorithms->process_response_consume_body())(response, Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag {});
         });
 

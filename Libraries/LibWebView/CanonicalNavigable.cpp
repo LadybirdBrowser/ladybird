@@ -954,6 +954,34 @@ void CanonicalNavigable::discard_pending_host(WebContentPage const& page)
         abandon_populated_document(move(document_state));
 }
 
+void CanonicalNavigable::set_stats_displayed(bool displayed)
+{
+    if (exchange(m_stats_displayed, displayed) != displayed)
+        send_stats_displayed_to_hosts();
+}
+
+void CanonicalNavigable::send_stats_displayed_to_hosts() const
+{
+    // An embedding change also changes the eligibility of hosted descendants.
+    RefPtr<WebContentPage> host = has_remote_host() ? &remote_host() : nullptr;
+    if (host)
+        send_stats_displayed_to(*host);
+    for_each_pending_host([&](WebContentPage& pending_host) {
+        if (&pending_host != host.ptr())
+            send_stats_displayed_to(pending_host);
+    });
+    for (auto const& child : children())
+        child->send_stats_displayed_to_hosts();
+}
+
+void CanonicalNavigable::send_stats_displayed_to(WebContentPage& host) const
+{
+    bool displayed = true;
+    for (auto const* ancestor = this; ancestor->parent(); ancestor = ancestor->parent())
+        displayed &= ancestor->m_stats_displayed;
+    host.async_set_rendering_stats_displayed(id(), displayed);
+}
+
 void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio)
 {
     m_viewport_rect = viewport_rect;
@@ -978,6 +1006,8 @@ void CanonicalNavigable::send_viewport_to_host() const
 void CanonicalNavigable::send_viewport_to(WebContentPage& host) const
 {
     host.async_set_hosted_root_viewport(id(), m_viewport_rect->size(), m_viewport_intersection, m_device_pixel_ratio);
+    if (Core::StatsLog::the())
+        send_stats_displayed_to(host);
 }
 
 void CanonicalNavigable::set_hosted_state(Web::HTML::HostedNavigableState state)
