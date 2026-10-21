@@ -146,6 +146,49 @@ impl CascadePriority {
         }
     }
 
+    /// The priority below every declaration's.
+    #[must_use]
+    pub fn lowest() -> Self {
+        Self {
+            origin_importance: 0,
+            context: 0,
+            element_attachment: ElementAttachment::Rule,
+            layer: 0,
+            specificity: Specificity::default(),
+            scope_proximity: 0,
+            sheet_rank: 0,
+            rule_rank: 0,
+        }
+    }
+
+    /// Whether a `revert` or `revert-layer` declared at this priority rolls back past a declaration
+    /// at `other`, so that the declaration takes no part in what the property reverts to.
+    #[must_use]
+    pub fn reverts_past(&self, operator: CascadeOperator, other: &Self) -> bool {
+        // UA, user, and author, in the order `CascadeStratum` groups origins.
+        let origin_group = |origin_importance: u8| match origin_importance {
+            0 | 8 => 0,
+            1 | 7 => 1,
+            _ => 2,
+        };
+        match operator {
+            // https://drafts.csswg.org/css-cascade-5/#valdef-all-revert
+            CascadeOperator::Revert => origin_group(other.origin_importance) >= origin_group(self.origin_importance),
+            // https://drafts.csswg.org/css-cascade-5/#valdef-all-revert-layer
+            CascadeOperator::RevertLayer => {
+                // NB: Inline styles occupy a separate cascade step, even though they share the implicit outer
+                //     layer's rank with unlayered style rules, so a revert-layer in them only rolls back other
+                //     inline styles. This matches CascadeStratum::is_below().
+                other.origin_importance == self.origin_importance
+                    && other.context == self.context
+                    && other.layer == self.layer
+                    && (self.element_attachment != ElementAttachment::InlineStyle
+                        || other.element_attachment == ElementAttachment::InlineStyle)
+            }
+            _ => false,
+        }
+    }
+
     /// Where among an element's encapsulation contexts an author declaration's priority places it:
     /// the `context_depth` it was built from. `None` for the other origins.
     #[must_use]

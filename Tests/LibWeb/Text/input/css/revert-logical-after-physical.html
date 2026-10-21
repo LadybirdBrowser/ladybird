@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #rule { margin-left: 3px; margin-inline-start: revert; }
+    #rule-layer { margin-left: 3px; margin-inline-start: revert-layer; }
+    #under-inline-revert-layer { margin-left: 5px; }
+</style>
+<!-- A logical property that reverts to nothing computes as unset, but still wins over its physical
+     counterpart declared before it. -->
+<div id="rule"></div>
+<div id="rule-layer"></div>
+<div id="inline" style="margin-left: 3px; margin-inline-start: revert"></div>
+<!-- A revert-layer in inline style only rolls back other inline style, so the rule's margin-left
+     still applies below it. -->
+<div id="under-inline-revert-layer" style="margin-inline-start: revert-layer"></div>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll("div"))
+            println(`${element.id}: ${getComputedStyle(element).marginLeft}`);
+    });
+</script>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .same-rule { all: unset; border: revert; }
+    .later-rule { all: unset; }
+    .later-rule { border: revert; }
+    .longhands { all: unset; border-top-width: revert; border-top-style: revert; }
+    .logical-later { border-top: revert; border-block-start: unset; }
+</style>
+<!-- A physical property that reverts keeps its own place in the cascade relative to its logical
+     associate, which `all` declares, so it rolls back to the user agent's value. -->
+<button class="same-rule">same-rule</button>
+<button class="later-rule">later-rule</button>
+<button class="longhands">longhands</button>
+<button class="logical-later">logical-later</button>
+<script>
+    test(() => {
+        for (const button of document.querySelectorAll("button")) {
+            const style = getComputedStyle(button);
+            println(`${button.className}: ${style.borderTopWidth} ${style.borderTopStyle}`);
+        }
+    });
+</script>

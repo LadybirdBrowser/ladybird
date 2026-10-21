@@ -86,11 +86,23 @@ impl WinnerDeclaration {
     }
 }
 
+/// A winner that rolled back below a `revert` or `revert-layer`, as it was declared.
+#[derive(Clone, Copy)]
+pub(super) struct RevertedDeclaration {
+    /// The reverting declaration's priority and its index in its block.
+    pub(super) position: (CascadePriority, usize),
+    pub(super) operator: CascadeOperator,
+}
+
 #[derive(Default)]
 pub(in crate::css::style) struct WinnerStore {
     // NB: Cascade order supplies both source slots and logical/physical tie breaking.
     declarations: Vec<WinnerDeclaration>,
     by_property: Vec<u16>,
+    /// Each declaration's priority and index in its block, when known, and the declarations that
+    /// reverted, by their index in `declarations`.
+    positions: Vec<(CascadePriority, usize)>,
+    reverted_declarations: Vec<(usize, RevertedDeclaration)>,
     /// A style query read the sibling position while substituting these declarations.
     pub(super) reads_sibling_position: bool,
 }
@@ -106,8 +118,47 @@ impl WinnerStore {
         Self {
             declarations,
             by_property,
+            positions: Vec::new(),
+            reverted_declarations: Vec::new(),
             reads_sibling_position: false,
         }
+    }
+
+    pub(super) fn set_reverted_declarations(
+        &mut self,
+        positions: Vec<(CascadePriority, usize)>,
+        reverted_declarations: Vec<(usize, RevertedDeclaration)>,
+    ) {
+        debug_assert_eq!(positions.len(), self.declarations.len());
+        // NB: The positions only order declarations against a revert, so a store without one keeps none.
+        if reverted_declarations.is_empty() {
+            return;
+        }
+        self.positions = positions;
+        self.reverted_declarations = reverted_declarations;
+    }
+
+    fn reverted_declaration(&self, index: usize) -> Option<&RevertedDeclaration> {
+        self.reverted_declarations
+            .iter()
+            .find_map(|(reverted_index, reverted)| (*reverted_index == index).then_some(reverted))
+    }
+
+    /// https://drafts.csswg.org/css-logical/#box
+    /// Whether the declaration at `reverting` reverted past the one at `other`, its counterpart in a
+    /// logical property group: declared later than `other`, the revert leaves the group's value as if
+    /// `other` were not declared either.
+    fn reverts_past_counterpart(&self, reverting: usize, other: usize) -> bool {
+        let Some(reverted) = self.reverted_declaration(reverting) else {
+            return false;
+        };
+        if self.reverted_declaration(other).is_some() {
+            return false;
+        }
+        let Some(other_position) = self.positions.get(other) else {
+            return false;
+        };
+        reverted.position > *other_position && reverted.position.0.reverts_past(reverted.operator, &other_position.0)
     }
 
     /// NB: Compare the resolved declarations while retaining context-dependent computation guards.
@@ -383,6 +434,16 @@ impl CascadedValues for WinnerView<'_> {
 
     fn property_with_higher_priority(&self, first: u16, second: u16) -> u16 {
         match (self.store.declaration(first), self.store.declaration(second)) {
+            (Some((first_index, _)), Some((second_index, _)))
+                if self.store.reverts_past_counterpart(first_index, second_index) =>
+            {
+                first
+            }
+            (Some((first_index, _)), Some((second_index, _)))
+                if self.store.reverts_past_counterpart(second_index, first_index) =>
+            {
+                second
+            }
             (Some((first_index, _)), Some((second_index, _))) if first_index >= second_index => first,
             (Some(_), None) => first,
             _ => second,
