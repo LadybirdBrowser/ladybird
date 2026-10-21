@@ -196,15 +196,57 @@ def is_unnamed_union_of_cpp_interfaces(idl_type: IDLType, context: GenerationCon
     )
 
 
-def union_typedef_name(idl_type: IDLUnionType, context: GenerationContext, what: str) -> str:
-    """The name of the typedef that names the union. The generator resolves typedefs before it converts types, and the
-    Rust type of a union needs a name, so the typedef is found again by its type."""
-    names = union_typedef_names(idl_type, context)
-    if not names:
-        raise UnsupportedByRustBindings(f"{what} has the union type {idl_type}, which no typedef names")
-    if len(names) > 1:
-        raise UnsupportedByRustBindings(f"{what} has the union type {idl_type}, which the typedefs {names} all name")
-    return names[0]
+def idl_type_name(idl_type: IDLType, what: str) -> str:
+    """The name the Rust bindings give the type: Path2DOrDOMString for (Path2D or DOMString),
+    UnrestrictedDoubleSequence for sequence<unrestricted double>."""
+    if isinstance(idl_type, IDLUnionType):
+        name = "Or".join(idl_type_name(member_type, what) for member_type in idl_type.member_types)
+    elif isinstance(idl_type, IDLParameterizedType):
+        if idl_type.name != "sequence":
+            raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings have no name for")
+        name = f"{idl_type_name(idl_type.parameters[0], what)}Sequence"
+    else:
+        name = "".join(word[:1].upper() + word[1:] for word in idl_type.name.split(" "))
+    return f"{name}OrNull" if idl_type.nullable else name
+
+
+def member_types_of_interface(interface: Interface) -> List[IDLType]:
+    """The types that the attributes, operations and constructors of an interface or a mixin name."""
+    types = [attribute.type for attribute in interface.regular_attributes + interface.static_attributes]
+    for operation in interface.regular_operations + interface.static_operations:
+        types.append(operation.return_type)
+        types.extend(parameter.type for parameter in operation.parameters)
+    for constructor in interface.constructors:
+        types.extend(parameter.type for parameter in constructor.parameters)
+    return types
+
+
+def unnamed_union_idl_path(idl_type: IDLUnionType, context: GenerationContext, what: str) -> Path:
+    """The IDL file of a union that no typedef names: the file of the mixin, or else of the interface or the
+    dictionary, whose members name it. An interface has the members of the mixins that it includes, so a union that
+    a mixin names is the mixin's."""
+    union_type = idl_type.without_nullable()
+
+    def name_the_union(types: Iterable[IDLType]) -> bool:
+        return any(
+            nested_type.without_nullable() == union_type
+            for named_type in types
+            for nested_type in named_type.nested_types()
+        )
+
+    paths = {mixin.path for mixin in context.mixins.values() if name_the_union(member_types_of_interface(mixin))}
+    if not paths:
+        for module in context.modules:
+            if module.interface is not None and name_the_union(member_types_of_interface(module.interface)):
+                paths.add(module.path)
+            if any(name_the_union(member.type for member in dictionary.members) for dictionary in module.dictionaries):
+                paths.add(module.path)
+    if len(paths) != 1:
+        raise UnsupportedByRustBindings(
+            f"{what} has the union type {idl_type}, which no typedef names and which the IDL files "
+            f"{sorted(str(path) for path in paths)} name, so that no one module defines its enum"
+        )
+    return paths.pop()
 
 
 def runtime_union_type(idl_type: IDLType, context: GenerationContext) -> Optional[str]:
@@ -227,7 +269,7 @@ def member_other_than_undefined(idl_type: IDLType) -> Optional[IDLType]:
 
 
 def is_named_union(idl_type: IDLType, context: GenerationContext) -> bool:
-    """Whether the Rust type of the union is an enum that the module of the typedef of the union defines."""
+    """Whether the Rust type of the union is an enum that the module of an IDL file defines, rust_union_path()."""
     return (
         isinstance(idl_type, IDLUnionType)
         and runtime_union_type(idl_type, context) is None
@@ -237,11 +279,11 @@ def is_named_union(idl_type: IDLType, context: GenerationContext) -> bool:
 
 
 def rust_union_variant(member_type: IDLType) -> str:
-    """The variant of a member of a union in the enum of the union, which has the name of the type of the member. A
-    union has at most one sequence type, whose variant is Sequence."""
+    """The variant of a member of a union in the enum of the union, which has the type name of the member, such as
+    DOMString or UnrestrictedDouble. A union has at most one sequence type, whose variant is Sequence."""
     if isinstance(member_type, IDLParameterizedType) and member_type.name == "sequence":
         return "Sequence"
-    return member_type.name.replace(" ", "")
+    return idl_type_name(member_type, f"the union member {member_type}")
 
 
 def rust_enumeration_path(enumeration: Enumeration, context: GenerationContext) -> str:
@@ -265,8 +307,16 @@ def rust_enumeration_variant(value: str, enumeration: Enumeration) -> str:
 
 def rust_union_path(idl_type: IDLUnionType, context: GenerationContext, what: str) -> str:
     """The Rust path of the enum of a union, which is in the module of the IDL file whose typedef names the union:
-    crate::url_pattern::url_pattern::URLPatternInput."""
-    name = union_typedef_name(idl_type, context, what)
+    crate::url_pattern::url_pattern::URLPatternInput. The generator resolves typedefs before it converts types, so
+    the typedef is found again by its type. A union that no typedef names has its type name, in the module of the
+    IDL file that names it: crate::html::path2d::Path2DOrDOMString."""
+    names = union_typedef_names(idl_type, context)
+    if len(names) > 1:
+        raise UnsupportedByRustBindings(f"{what} has the union type {idl_type}, which the typedefs {names} all name")
+    if not names:
+        idl_path = unnamed_union_idl_path(idl_type, context, what)
+        return f"{rust_module_path(idl_path)}::{idl_type_name(idl_type.without_nullable(), what)}"
+    name = names[0]
     for module in context.modules:
         if any(typedef.name == name for typedef in module.typedefs):
             return f"{rust_module_path(module.path)}::{name}"
