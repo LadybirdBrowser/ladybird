@@ -365,8 +365,7 @@ void EventSource::reestablish_the_connection()
                 // 1. Let lastEventIDValue be the EventSource object's last event ID string, encoded as UTF-8.
                 auto last_event_id_value = m_last_event_id.to_utf8();
                 // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
-                auto header = HTTP::Header::isomorphic_encode("Last-Event-ID"sv, last_event_id_value);
-                request->header_list()->set(move(header));
+                request->header_list()->set({ "Last-Event-ID"sv, last_event_id_value.to_byte_string() });
             }
 
             // 4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this
