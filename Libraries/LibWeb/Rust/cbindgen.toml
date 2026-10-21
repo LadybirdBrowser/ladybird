@@ -29,6 +29,7 @@ rename_types = "PascalCase"
 [export.rename]
 # An ak::Span is laid out as an AK ReadonlySpan, which C++ passes it as.
 "Span" = "AK::ReadonlySpan"
+"SpanMut" = "AK::Span"
 # A style engine handle is opaque to C++.
 "StyleEngineHandle" = "const void*"
 # So is a parsed syntax, which C++ holds by pointer.

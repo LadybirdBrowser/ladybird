@@ -97,27 +97,18 @@ fn font_matching_order(
     length
 }
 
-/// # Safety
-///
-/// `candidates` and `order` must point to `count` readable and writable elements respectively, and
-/// `count` must not be zero.
+/// Writes the order to try `candidates` in to `order`, which holds as many entries, and answers how many it wrote.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_font_matching_order(
-    candidates: *const FfiFontMatchingCandidate,
-    count: usize,
+pub extern "C" fn rust_font_matching_order(
+    candidates: ak::Span<'_, FfiFontMatchingCandidate>,
     weight: i32,
     width: u32,
     slope: i32,
-    order: *mut usize,
+    order: ak::SpanMut<'_, usize>,
 ) -> usize {
-    // SAFETY: Guaranteed by the caller.
-    let (candidates, order) = unsafe {
-        (
-            ak::slice_from_raw_parts(candidates, count),
-            ak::slice_from_raw_parts_mut(order, count),
-        )
-    };
-    font_matching_order(candidates, weight, width, slope, order)
+    let order = order.into_slice();
+    assert_eq!(candidates.as_slice().len(), order.len());
+    font_matching_order(candidates.as_slice(), weight, width, slope, order)
 }
 
 #[cfg(test)]
