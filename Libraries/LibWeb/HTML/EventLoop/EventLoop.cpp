@@ -42,6 +42,7 @@
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -163,6 +164,13 @@ void EventLoop::process()
 {
     if (execution_paused())
         return;
+
+    if (Core::StatsLog::the())
+        begin_rendering_pending_task();
+    ScopeGuard pending_task = [] {
+        if (Core::StatsLog::the())
+            end_rendering_pending_task();
+    };
 
     // 1. Let oldestTask and taskStartTime be null.
     GC::Ptr<Task> oldest_task;
@@ -1199,6 +1207,8 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         // AD-HOC: Script that ran earlier in this rendering update may have spun the event loop and run tasks that
         //         detached doc from its navigable (e.g. after its iframe was removed).
         auto lay_out_first = taken_layout == TakenLayout::UpToDate ? LocalNavigable::LayOutFirst::Yes : LocalNavigable::LayOutFirst::No;
+        if (Core::StatsLog::the() && navigable && !navigable->needs_repaint())
+            did_update_rendering(*doc);
         if (!navigable || !navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate, lay_out_first))
             continue;
         ++m_rendering_scheduler_counters.paints;
@@ -1570,6 +1580,9 @@ void EventLoop::perform_a_microtask_checkpoint()
     // 7. Set the event loop's performing a microtask checkpoint to false.
     m_performing_a_microtask_checkpoint = false;
 
+    if (Core::StatsLog::the())
+        flush_rendering_pending();
+
     // FIXME: 8. Record timing info for microtask checkpoint.
 }
 
@@ -1621,6 +1634,7 @@ void EventLoop::add_stats(JsonObject& values) const
 
 void EventLoop::unregister_document(Badge<DOM::Document>, DOM::Document& document)
 {
+    forget_rendering_stats(document);
     bool did_remove = m_documents.remove_first_matching([&](auto& entry) { return entry.ptr().ptr() == &document; });
     VERIFY(did_remove);
 }

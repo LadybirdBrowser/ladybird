@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibCore/StatsLog.h>
 #include <LibJS/Runtime/Set.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/FontFaceSet.h>
@@ -58,6 +59,11 @@ public:
     Vector<NonnullRefPtr<FontFaceState>>& loading_fonts() { return m_loading_fonts; }
     Vector<NonnullRefPtr<FontFaceState>>& loaded_fonts() { return m_loaded_fonts; }
     Vector<NonnullRefPtr<FontFaceState>>& failed_fonts() { return m_failed_fonts; }
+    void did_change_loading_fonts()
+    {
+        if (Core::StatsLog::the())
+            record_loading_fonts();
+    }
 
     GC::Ref<WebIDL::Promise> ready();
     HTML::EnvironmentSettingsObject& relevant_settings_object() const { return *m_environment; }
@@ -70,6 +76,8 @@ public:
     void switch_to_loaded();
 
 private:
+    void record_loading_fonts();
+
     enum class AllowCSSConnected {
         No,
         Yes,

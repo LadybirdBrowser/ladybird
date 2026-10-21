@@ -23,6 +23,7 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/BindingsGlue.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
@@ -873,6 +874,7 @@ void readable_stream_close(ReadableStream& stream)
 
     // 2. Set stream.[[state]] to "closed".
     stream.set_state(ReadableStream::State::Closed);
+    complete_rendering_pending_stream(stream);
 
     // 3. Let reader be stream.[[reader]].
     auto reader = stream.reader();
@@ -907,6 +909,7 @@ void readable_stream_error(ReadableStream& stream, JS::Value error)
 
     // 2. Set stream.[[state]] to "errored".
     stream.set_state(ReadableStream::State::Errored);
+    complete_rendering_pending_stream(stream);
 
     // 3. Set stream.[[storedError]] to e.
     stream.set_stored_error(error);
@@ -1397,6 +1400,7 @@ void readable_stream_default_controller_close(ReadableStreamDefaultController& c
 
     // 3. Set controller.[[closeRequested]] to true.
     controller.set_close_requested(true);
+    complete_rendering_pending_stream(*stream);
 
     // 4. If controller.[[queue]] is empty,
     if (controller.queue().is_empty()) {
@@ -1725,6 +1729,8 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_close(JS::Realm& realm
     // 2. If controller.[[closeRequested]] is true or stream.[[state]] is not "readable", return.
     if (controller.close_requested() || stream->state() != ReadableStream::State::Readable)
         return {};
+
+    complete_rendering_pending_stream(*stream);
 
     // 3. If controller.[[queueTotalSize]] > 0,
     if (controller.queue_total_size() > 0.0) {

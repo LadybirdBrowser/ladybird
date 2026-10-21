@@ -76,6 +76,12 @@
 #include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 
+namespace Web {
+
+struct RenderingStats;
+
+}
+
 namespace Web::Compositor {
 
 struct FlightPresentation;
@@ -1516,6 +1522,9 @@ public:
 
     void set_caret_hit_test_debug_rect(Optional<CSSPixelRect>);
 
+    RenderingStats* rendering_stats() const { return m_rendering_stats.ptr(); }
+    RenderingStats& ensure_rendering_stats() const;
+
     void set_needs_to_record_display_list();
     void set_needs_to_record_display_list_keeping_hit_test_display_list();
 
@@ -1823,6 +1832,7 @@ private:
     RefPtr<Layout::NodeArena> m_layout_node_arena;
     NonnullOwnPtr<CommitMessages> m_commit_messages;
     OwnPtr<Painting::DocumentPaintState> m_paint_state;
+    mutable OwnPtr<RenderingStats> m_rendering_stats;
     NonnullRefPtr<Painting::ChromeWidgetRegistry> m_chrome_widget_registry;
 
     GC::Ptr<Node> m_hovered_node;

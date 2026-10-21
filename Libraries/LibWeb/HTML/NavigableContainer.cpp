@@ -31,6 +31,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::HTML {
@@ -105,6 +106,7 @@ void NavigableContainer::create_new_child_navigable()
     // 9. Set element's content navigable to navigable.
     m_content_navigable = navigable;
     m_reported_content_navigable_viewport = {};
+    m_reported_stats_displayed = {};
     navigable->set_container({}, this);
 
     publish_dom_paint_facts();
@@ -306,6 +308,7 @@ void NavigableContainer::destroy_the_child_navigable()
     // 3. Set container's content navigable to null.
     m_content_navigable = nullptr;
     m_reported_content_navigable_viewport = {};
+    m_reported_stats_displayed = {};
     navigable->set_container({}, nullptr);
     document().schedule_html_parser_end_check();
     publish_dom_paint_facts();
@@ -512,6 +515,15 @@ static CSSPixelRect transform_rect_to_local(Layout::Node const& layout_node, CSS
     return { top_left, { bottom_right.x() - top_left.x(), bottom_right.y() - top_left.y() } };
 }
 
+void NavigableContainer::report_stats_displayed(bool displayed)
+{
+    set_rendering_pending_displayed(*m_content_navigable, displayed);
+    if (m_reported_stats_displayed == displayed)
+        return;
+    m_reported_stats_displayed = displayed;
+    document().page().client().page_did_update_frame_stats_displayed(m_content_navigable->id(), displayed);
+}
+
 void NavigableContainer::report_content_navigable_viewport_rect(Layout::BegunRead const& read)
 {
     if (!m_content_navigable)
@@ -522,8 +534,11 @@ void NavigableContainer::report_content_navigable_viewport_rect(Layout::BegunRea
     if (!document().layout_is_up_to_date())
         return;
     auto const* layout_node = this->layout_node(read);
-    if (!layout_node || !Painting::is_navigable_container_viewport_paintable(*layout_node))
+    if (!layout_node || !Painting::is_navigable_container_viewport_paintable(*layout_node)) {
+        if (Core::StatsLog::the())
+            report_stats_displayed(false);
         return;
+    }
 
     // The content navigable's viewport is the container's content box, which keeps its size under the transforms
     // above the container. Those place its origin in the viewport of the local root through the viewports of the
@@ -540,8 +555,11 @@ void NavigableContainer::report_content_navigable_viewport_rect(Layout::BegunRea
         // Each container's box is a read of the render state of its own document.
         Layout::ForcedReadScope container_read { container->document() };
         auto const* container_layout_node = container->layout_node(container_read);
-        if (!container_layout_node || !Painting::is_navigable_container_viewport_paintable(*container_layout_node))
+        if (!container_layout_node || !Painting::is_navigable_container_viewport_paintable(*container_layout_node)) {
+            if (Core::StatsLog::the())
+                report_stats_displayed(false);
             return;
+        }
         // The content box's origin is the origin of the child's viewport, and the transforms above the container
         // apply to the child as they do to the container.
         auto container_position = Painting::absolute_position(*container_layout_node);
@@ -563,6 +581,12 @@ void NavigableContainer::report_content_navigable_viewport_rect(Layout::BegunRea
     for (auto const* container_layout_node : containers.in_reverse())
         visible = transform_rect_to_local(*container_layout_node, visible).translated(-Painting::absolute_position(*container_layout_node));
     visible.intersect({ {}, content_box.size() });
+    if (Core::StatsLog::the()) {
+        bool displayed = !visible.is_empty() && !document().navigable()->has_inclusive_ancestor_with_visibility_hidden();
+        if (auto const* values = style_group<CSS::ComputedValues::InheritedBoxValues>())
+            displayed &= static_cast<CSS::Visibility>(values->visibility) != CSS::Visibility::Hidden;
+        report_stats_displayed(displayed);
+    }
 
     // The report is in the device pixels the content is laid out in, so a change of zoom level reports again.
     auto& page = document().page();

@@ -55,6 +55,7 @@ public:
     // in the viewport of the local root, and tells that navigable the part of it the top-level viewport shows. Both
     // are reported whenever they change.
     void report_content_navigable_viewport_rect(Layout::BegunRead const& read);
+    bool stats_displayed() const { return m_reported_stats_displayed.value_or(false); }
 
 protected:
     NavigableContainer(DOM::Document&, DOM::QualifiedName);
@@ -80,6 +81,9 @@ private:
     virtual void finalize() override;
 
     static void finish_destroying_the_child_navigable(Navigable&);
+
+    void report_stats_displayed(bool);
+    Optional<bool> m_reported_stats_displayed;
 
     bool m_potentially_delays_the_load_event { true };
 

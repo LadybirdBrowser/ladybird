@@ -87,6 +87,7 @@ private:
     FetchController();
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void finalize() override;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-state
     // state (default "ongoing")

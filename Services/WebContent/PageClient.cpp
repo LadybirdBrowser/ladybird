@@ -406,6 +406,11 @@ void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_fr
     client().async_did_create_child_frame(m_id, parent_frame_id, container_document.id(), frame_id, replicated_state, initial_history_entry, origin, environment_id, document_id);
 }
 
+void PageClient::page_did_update_frame_stats_displayed(Web::HTML::CrossProcessId frame_id, bool displayed)
+{
+    client().async_did_update_frame_stats_displayed(m_id, frame_id, displayed);
+}
+
 void PageClient::page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection)
 {
     client().async_did_update_child_frame_viewport(m_id, frame_id, viewport_rect, viewport_intersection, page().client().device_pixel_ratio());

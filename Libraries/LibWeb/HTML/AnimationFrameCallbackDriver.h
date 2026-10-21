@@ -24,6 +24,7 @@ class WEB_API AnimationFrameCallbackDriver final : public JS::Cell {
     using Callback = GC::Ref<GC::Function<void(double)>>;
 
 public:
+    size_t callback_count() const { return m_callbacks.size(); }
     [[nodiscard]] static GC::Ref<AnimationFrameCallbackDriver> create();
 
     [[nodiscard]] WebIDL::UnsignedLong add(Callback handler);

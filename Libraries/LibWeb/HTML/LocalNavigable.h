@@ -18,6 +18,7 @@
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Scrolling/SmoothScrollAnimation.h>
 #include <LibCore/Forward.h>
+#include <LibCore/StatsLog.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/Bindings/Navigation.h>
@@ -318,8 +319,16 @@ public:
     // which gives it back.
     Compositor::NavigablePresenter& presenter();
 
+    bool stats_ancestors_displayed() const { return m_stats_ancestors_displayed; }
+    bool update_stats_ancestors_displayed(bool displayed) { return exchange(m_stats_ancestors_displayed, displayed) != displayed; }
+
     bool needs_repaint() const { return m_needs_repaint; }
-    void set_needs_repaint() { m_needs_repaint = true; }
+    void set_needs_repaint()
+    {
+        m_needs_repaint = true;
+        if (Core::StatsLog::the())
+            record_rendering_invalidation();
+    }
     bool needs_to_record_display_list() const { return m_needs_to_record_display_list; }
     void set_needs_to_record_display_list() { m_needs_to_record_display_list = true; }
     void repaint_after_compositor_process_reconnect();
@@ -423,6 +432,8 @@ protected:
     Variant<Empty, Traversal, Utf16String> m_ongoing_navigation;
 
 private:
+    void record_rendering_invalidation();
+
     // A rendering update's recording that flies beside the event loop, with what its frame is finished with.
     struct RecordingInFlight;
 
@@ -580,6 +591,7 @@ private:
     Vector<Utf16String> m_queued_javascript_url_navigations;
 
     bool m_is_svg_page { false };
+    bool m_stats_ancestors_displayed { false };
     bool m_needs_repaint { true };
     bool m_needs_to_record_display_list { true };
 

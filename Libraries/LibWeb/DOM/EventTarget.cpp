@@ -54,6 +54,7 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
@@ -333,12 +334,16 @@ static void wake_animation_frame_pump_for_animation_event_listener(EventTarget& 
         return;
 
     if (auto* window = as_if<HTML::Window>(event_target)) {
+        if (Core::StatsLog::the())
+            set_rendering_pending(window->associated_document(), RenderingPendingReason::NeedsRenderingUpdate, 1);
         window->associated_document().page().client().request_frame();
         return;
     }
 
-    if (auto* node = as_if<Node>(event_target))
+    if (auto* node = as_if<Node>(event_target)) {
+        set_rendering_pending(node->document(), RenderingPendingReason::NeedsRenderingUpdate, 1);
         node->document().page().client().request_frame();
+    }
 }
 
 static void prepare_to_observe_css_animation_events(EventTarget& event_target, DOMEventListener const& listener)

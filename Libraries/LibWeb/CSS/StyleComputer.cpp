@@ -100,6 +100,7 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/StyleValueRustFFI.h>
@@ -1299,6 +1300,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions(Layout::
     if (!newly_started_transition_effects.is_empty()) {
         // NB: Construction does not invalidate animated style because the effects were just evaluated. Request the
         //     first animation frame directly so timeline updates can schedule subsequent animated style updates.
+        set_rendering_pending(*m_document, RenderingPendingReason::NeedsRenderingUpdate, 1);
         m_document->page().client().request_frame();
         if (!had_pending_animated_style_update)
             m_document->clear_needs_animated_style_update();

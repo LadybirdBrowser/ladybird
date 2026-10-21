@@ -64,6 +64,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/EventNames.h>
@@ -459,6 +460,10 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
     image.visit(
         // -> Blob
         [&](GC::Ref<FileAPI::Blob> blob) {
+            if (Core::StatsLog::the()) {
+                if (auto* window = window_from_global_object(realm.global_object()))
+                    begin_rendering_pending_operation(GC::as_cell(p.ptr()), window->associated_document(), RenderingPendingReason::ImageDecodes);
+            }
             // Run these step in parallel:
             Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [=]() {
                 // 1. Let imageData be the result of reading image's data. If an error occurs during reading of the
@@ -472,6 +477,8 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                 // image (as given by image's type attribute) giving the official type.
 
                 auto on_failed_decode = [p = GC::Root(*p)](Error&) {
+                    if (Core::StatsLog::the())
+                        end_rendering_pending_operation(GC::as_cell(p.ptr()));
                     // 3. If imageData is not in a supported image file format (e.g., it's not an image at all), or if
                     //    imageData is corrupted in some fatal way such that the image dimensions cannot be obtained
                     //    (e.g., a vector graphic with no natural size), then queue a global task, using the bitmap
@@ -485,6 +492,8 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                 };
 
                 auto on_successful_decode = [image_bitmap = GC::Root(*image_bitmap), p = GC::Root(*p), sx, sy, sw, sh, options](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+                    if (Core::StatsLog::the())
+                        end_rendering_pending_operation(GC::as_cell(p.ptr()));
                     // 4. Set imageBitmap's bitmap data to imageData, cropped to the source rectangle with formatting.
                     // If this is an animated image, imageBitmap's bitmap data must only be taken from the default image
                     // of the animation (the one that the format defines is to be used when animation is not supported

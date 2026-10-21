@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -46,6 +47,16 @@ GC::Ref<FontFaceSet> FontFaceSet::create(HTML::EnvironmentSettingsObject& enviro
     HTML::TemporaryExecutionContext temporary_execution_context { realm };
     auto font_face_set = GC::Heap::the().allocate<FontFaceSet>(environment);
     return font_face_set;
+}
+
+void FontFaceSet::record_loading_fonts()
+{
+    if (!Core::StatsLog::the())
+        return;
+    auto* window = HTML::window_from_global_object(relevant_settings_object().global_object());
+    if (!window || window->associated_document().fonts().ptr() != this)
+        return;
+    set_rendering_pending(window->associated_document(), RenderingPendingReason::FontLoads, m_loading_fonts.size());
 }
 
 FontFaceSet::FontFaceSet(HTML::EnvironmentSettingsObject& environment)
@@ -113,6 +124,7 @@ void FontFaceSet::add_css_connected_font(NonnullRefPtr<FontFaceState> face)
 
         // 2. Append font to the FontFaceSet’s [[LoadingFonts]] list.
         m_loading_fonts.append(*face);
+        did_change_loading_fonts();
     }
 }
 
@@ -217,6 +229,7 @@ bool FontFaceSet::remove_font_face(NonnullRefPtr<FontFaceState> face, AllowCSSCo
     // 4. If font is present in the FontFaceSet’s [[LoadingFonts]] list, remove it.
     //    If font was the last item in that list (and so the list is now empty), switch the FontFaceSet to loaded.
     bool was_in_loading_fonts = m_loading_fonts.remove_all_matching([face](auto const& entry) { return entry == face; });
+    did_change_loading_fonts();
     if (was_in_loading_fonts && m_loading_fonts.is_empty())
         switch_to_loaded();
 
@@ -246,6 +259,7 @@ void FontFaceSet::clear()
     //    then switch the FontFaceSet to loaded.
     if (!m_loading_fonts.is_empty()) {
         m_loading_fonts.clear();
+        did_change_loading_fonts();
         switch_to_loaded();
     }
 }

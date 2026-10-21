@@ -21,6 +21,7 @@
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/ValueParserRustFFI.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -220,6 +221,7 @@ void IntersectionObserver::observe(DOM::Element& target)
     // AD-HOC: Registering an observation changes whether transforms can remain compositor driven. Bring any pending
     //         throttled animation state to a point where compositor eligibility can be updated by the requested frame.
     target.document().flush_throttled_animation_style_update_for_node(target);
+    set_rendering_pending(*m_document, RenderingPendingReason::NeedsRenderingUpdate, 1);
     m_document->page().client().request_frame();
 }
 

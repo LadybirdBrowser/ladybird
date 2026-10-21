@@ -113,6 +113,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     set_browsing_context_group(Web::PageId page_id, u64 browsing_context_group_id) =|
     discard_provisional_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     stop_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
+    set_rendering_stats_displayed(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, bool displayed) =|
     set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize size, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio) =|
     run_beforeunload_check(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Optional<Web::HTML::SessionHistoryEntryDescriptor> target_entry, Optional<Web::HTML::UserNavigationInvolvement> user_involvement_for_navigate_event, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     discard_embedded_page(Web::PageId page_id) =|

@@ -14,6 +14,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -21,6 +22,13 @@ namespace Web::Fetch::Infrastructure {
 GC_DEFINE_ALLOCATOR(FetchController);
 
 FetchController::FetchController() = default;
+
+void FetchController::finalize()
+{
+    // A discarded response can leave an ongoing controller without a stop or end-of-body task.
+    end_rendering_pending_operation(this);
+    Base::finalize();
+}
 
 GC::Ref<FetchController> FetchController::create()
 {
@@ -171,6 +179,7 @@ void FetchController::stop_fetch()
 // https://fetch.spec.whatwg.org/#concept-http-network-fetch
 void FetchController::stop_request()
 {
+    end_rendering_pending_operation(this);
     VERIFY(m_state != State::Ongoing);
     if (m_pending_request) {
         m_pending_request->stop();

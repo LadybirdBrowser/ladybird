@@ -320,6 +320,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
 
             // 2. Append font face to the FontFaceSet’s [[LoadingFonts]] list.
             font_face_set->loading_fonts().append(font_face);
+            font_face_set->did_change_loading_fonts();
         }
 
         // 3. Asynchronously, attempt to parse the data in it as a font.
@@ -352,6 +353,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
                     // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item in
                     //    that list (and so the list is now empty), switch the FontFaceSet to loaded.
                     font_face_set->loading_fonts().remove_all_matching([font](auto const& entry) { return entry == font; });
+                    font_face_set->did_change_loading_fonts();
                     if (font_face_set->loading_fonts().is_empty())
                         font_face_set->switch_to_loaded();
                 }
@@ -377,6 +379,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
                     // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item in
                     //    that list (and so the list is now empty), switch the FontFaceSet to loaded.
                     font_face_set->loading_fonts().remove_all_matching([font](auto const& entry) { return entry == font; });
+                    font_face_set->did_change_loading_fonts();
                     if (font_face_set->loading_fonts().is_empty())
                         font_face_set->switch_to_loaded();
                 }
@@ -914,6 +917,7 @@ void FontFaceState::load_for_style()
             if (font_face_set->loading_fonts().is_empty())
                 font_face_set->switch_to_loading();
             font_face_set->loading_fonts().append(*this);
+            font_face_set->did_change_loading_fonts();
         }
     }
 
@@ -979,6 +983,7 @@ void FontFaceState::did_load(RefPtr<Gfx::Typeface const> maybe_typeface)
             // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
             //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
             font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == NonnullRefPtr<FontFaceState> { *this }; });
+            font_face_set->did_change_loading_fonts();
             if (font_face_set->loading_fonts().is_empty())
                 font_face_set->switch_to_loaded();
         }
@@ -1004,6 +1009,7 @@ void FontFaceState::did_load(RefPtr<Gfx::Typeface const> maybe_typeface)
             // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
             //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
             font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == NonnullRefPtr<FontFaceState> { *this }; });
+            font_face_set->did_change_loading_fonts();
             if (font_face_set->loading_fonts().is_empty())
                 font_face_set->switch_to_loaded();
         }

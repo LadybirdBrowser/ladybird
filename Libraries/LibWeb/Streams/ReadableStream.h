@@ -121,6 +121,7 @@ private:
     ReadableStream();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
+    virtual void finalize() override;
 
     GC::Ptr<JS::Realm> m_realm;
     GC::Ptr<JS::Realm> m_result_realm;

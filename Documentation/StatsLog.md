@@ -113,6 +113,7 @@ form `namespace:local`, preserving their exact values in floating-point JSON con
 | `DOMContentLoaded` | WebContent | `page_id` (integer), `navigable_id` (cross-process ID string), `document_id` (cross-process ID string), `url` (string) |
 | `load` | WebContent | Same fields as `DOMContentLoaded` |
 | `frame` | Compositor | `page_id` (integer), `changed` (boolean), `damage_x`, `damage_y`, `damage_width`, `damage_height` (integer device pixels) |
+| `rendering_pending` | WebContent | `page_id` (integer), `navigable_id` (cross-process ID string), `pending` (boolean), `reasons` (object of integer counts) |
 | `gc` | WebContent or WebWorker | `collection`, `duration_ns`, `pause_duration_ns`, `sweep_duration_ns`, `bytes_before`, `bytes_after`, `live_cell_bytes`, `live_external_bytes` (integers) |
 
 Navigation starts are recorded when the browser admits a navigation. Lifecycle markers are recorded
@@ -122,8 +123,10 @@ start without new lifecycle events. Canceled navigations may never produce lifec
 Detached documents and decoded SVG image documents do not produce lifecycle markers.
 
 GC events are written after sweeping finishes. Durations measure active collection work, excluding
-idle time between incremental sweep slices. Byte counts describe the heap's existing accounting,
-not process RSS.
+idle time between incremental sweep slices. `pause_duration_ns` includes marking, finalization and
+synchronous sweep or incremental-sweep setup.
+`sweep_duration_ns` sums incremental block sweeps; `duration_ns` is their sum. `bytes_before` and
+`bytes_after` count owned heap block bytes, including unused slots. They are not process RSS.
 
 The compositor records a frame immediately before publishing its rendered surface to the browser.
 GPU work has completed, or on Metal has been scheduled for the receiving surface to wait on.
@@ -135,11 +138,53 @@ produce identical colors. No readback or pixel hashing is performed. Fully suppr
 produce events. The last changed frame after a bounded quiet period gives a conservative estimate of
 when the page finished painting. Animation and media can keep producing changed frames indefinitely.
 
+## Pending rendering work
+
+`rendering_pending` reports the page's active documents hosted in this WebContent process. Changes
+coalesce across an HTML task and its microtasks, or at the Core event-loop boundary for other engine
+callbacks. The first snapshot establishes state; subsequent snapshots are written only when totals
+change. Replace snapshots by `(pid, page_id)` and combine live pages sharing `navigable_id` for
+isolated frames. Absence of a snapshot is unknown, not idle.
+
+Detached, destroyed and decoded SVG image documents are excluded. Hidden documents and frames with
+no displayed viewport are excluded from every counter. Display eligibility uses the existing
+container viewport report, visibility state and local-root viewport intersection. This excludes
+zero-size, offscreen and undisplayed frames; it does not test pixel occlusion by other elements.
+A newly attached child contributes after its first displayed viewport report. A stats-only display
+eligibility notification is routed through the browser to isolated hosts, including descendants when
+an embedding changes. It carries no presentation identities and does not change viewport geometry,
+web visibility or rendering decisions.
+
+`pending` is true when any of these `reasons` is nonzero. All keys are always present:
+
+| Reason | Count |
+| --- | --- |
+| `needs_rendering_update` | Documents with an invalidation not consumed by a presentation commit or a no-op rendering update |
+| `image_decodes` | Initial shared image decodes and window `createImageBitmap(Blob)` operations awaiting completion, failure or stop |
+| `font_loads` | Entries in document `FontFaceSet` loading lists |
+| `style_sheet_loads` | Pending stylesheet-request delayers plus pending CSS import rules |
+| `resource_fetches_in_flight` | Window-client fetches through final response source completion, failure or cancellation |
+| `scheduled_animation_frame_callbacks` | Window callbacks awaiting the next animation-frame callback batch |
+| `load_event_delayers` | Existing document load-event delayers |
+| `document_loads` | Documents whose readiness is not yet `complete` |
+
+Counters describe engine registrations and overlap intentionally. Fetch completion observes the final
+response's original body source, so unread queued bytes do not keep a completed transfer pending.
+Operations are keyed by their GC cell and hold a weak document reference. Completion, cancellation
+and finalization remove registrations without retaining resources or documents. Changes take O(1)
+bookkeeping; snapshots aggregate the attached documents without walking DOM or layout trees.
+
+`pending: false` covers tracked work at that boundary. It does not mean a committed recording has
+reached the browser. Combine it with lifecycle and frame events and a bounded quiet period. It does
+not cover future timers, input, worker activity, animation or video frames. An ongoing animation-frame
+callback loop remains pending. These signals do not promise permanent visual quiescence.
+
 ## Sandboxing and overhead
 
 Each helper opens its own file before installing its sandbox. Linux retains the open descriptor;
 macOS grants write access to that exact file. Sandboxes remain enabled. The directory must be
-absolute and files must be regular files. Symlinks are rejected.
+absolute and files must be regular files. Symlinks are rejected. The macOS ProcessReaper is a system-library-only watchdog without an engine
+event loop and does not participate in stats logging.
 
 Logging disabled leaves no logger, sampling timer or pending-work state. Hooks check a
 constant-initialized thread-local pointer before collecting statistics. Logging enabled adds JSON

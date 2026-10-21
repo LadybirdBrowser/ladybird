@@ -9,6 +9,7 @@
 #include <AK/JsonObject.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/StatsLog.h>
 #include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
@@ -2141,6 +2142,16 @@ void WebContentPage::did_change_navigable_container_state(Web::HTML::CrossProces
     if (!navigable.has_value() || !holds_container_of(*navigable, "did_change_navigable_container_state"sv))
         return;
     navigable->update_container_state(move(state));
+}
+
+void WebContentPage::did_update_frame_stats_displayed(Web::HTML::CrossProcessId frame_id, bool displayed)
+{
+    if (!Core::StatsLog::the())
+        return;
+    auto child_frame = traversable().find(frame_id);
+    if (!child_frame.has_value() || !holds_container_of(*child_frame, "did_update_frame_stats_displayed"sv))
+        return;
+    child_frame->set_stats_displayed(displayed);
 }
 
 void WebContentPage::did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio)
