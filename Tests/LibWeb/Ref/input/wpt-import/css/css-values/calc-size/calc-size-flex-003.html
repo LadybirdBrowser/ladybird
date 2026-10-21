@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#min-size-auto">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-values/calc-size/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="display: flex; width: 0px; height: 100px;">
+  <!-- The auto min-size is 60px (the content-size suggestion), then through the calc-size() is 100px. -->
+  <div style="min-width: calc-size(auto, size + 40px); width: 80px; background: green;">
+    <div style="width: 60px;"></div>
+  </div>
+</div>

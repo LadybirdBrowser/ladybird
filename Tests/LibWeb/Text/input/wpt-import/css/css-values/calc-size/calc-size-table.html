@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>calc-size() with an intrinsic basis on a table</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+  .shrink { display: inline-block; }
+  table { border-spacing: 0; }
+  td { padding: 0; width: 60px; height: 20px; background: #ccc; }
+</style>
+
+<div id="log"></div>
+<div id="container"></div>
+
+<script>
+// Every expectation is derived from what this UA reports for the basis keyword on the same table, so
+// nothing here depends on a particular intrinsic width.
+const cases = [
+  { basis: "max-content", width: "calc-size(max-content, size)",        expected: ref => ref },
+  { basis: "max-content", width: "calc-size(max-content, size * 2)",    expected: ref => ref * 2 },
+  { basis: "max-content", width: "calc-size(max-content, size + 25px)", expected: ref => ref + 25 },
+  { basis: "min-content", width: "calc-size(min-content, size)",        expected: ref => ref },
+  { basis: "min-content", width: "calc-size(min-content, size + 25px)", expected: ref => ref + 25 },
+  { basis: "max-content", width: "calc-size(max-content, 90px)",        expected: () => 90,
+    note: "calculation never mentions size" },
+];
+
+const container = document.getElementById("container");
+
+function addTable(width) {
+  const shrink = document.createElement("div");
+  shrink.className = "shrink";
+  shrink.innerHTML = "<table><tr><td></td></tr></table>";
+  shrink.firstChild.style.width = width;
+  container.appendChild(shrink);
+  return shrink;
+}
+
+// One reference per basis keyword, measured rather than assumed.
+const references = {
+  "max-content": addTable("max-content"),
+  "min-content": addTable("min-content"),
+};
+
+for (const testCase of cases)
+  testCase.shrink = addTable(testCase.width);
+
+for (const testCase of cases) {
+  const label = "width: " + testCase.width + (testCase.note ? " — " + testCase.note : "");
+
+  test(() => {
+    const reference = references[testCase.basis].getBoundingClientRect().width;
+    assert_equals(testCase.shrink.getBoundingClientRect().width, testCase.expected(reference),
+                  "against a " + testCase.basis + " reference of " + reference + "px");
+  }, "shrink-to-fit parent of a table with " + label);
+}
+</script>

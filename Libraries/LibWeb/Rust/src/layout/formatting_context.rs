@@ -1295,7 +1295,7 @@ fn flex_self_block_size_resolution_space(
         return None;
     }
     let style = sizing.style(node);
-    if !style.display().is_flex_inside() || !style.min_height().is_auto() {
+    if !style.display().is_flex_inside() || !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
         return None;
     }
     if sizing.facts(node).document_in_quirks_mode() {
@@ -1440,7 +1440,7 @@ fn dimension_block_level_root(
     }
     let mut measured_content_block_size = None;
     if sizing.should_treat_block_size_as_auto(node, available_space, constraints)
-        && !style.min_height().is_auto()
+        && !crate::layout::sizing_context::is_plain_auto(style.min_height())
         && lays_out_content_against_min_block_size(NodeFacts::new(&run.callbacks, node), fc_type)
     {
         let content_block_size =

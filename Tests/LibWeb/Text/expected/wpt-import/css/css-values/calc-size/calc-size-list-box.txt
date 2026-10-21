@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	shrink-to-fit parent of a list box with width: calc-size(max-content, size)
+Pass	shrink-to-fit parent of a list box with width: calc-size(max-content, size * 2)
+Pass	shrink-to-fit parent of a list box with width: calc-size(max-content, size + 25px)
+Pass	shrink-to-fit parent of a list box with width: calc-size(min-content, size)
+Pass	shrink-to-fit parent of a list box with width: calc-size(min-content, size + 25px)
+Pass	shrink-to-fit parent of a drop-down box with width: calc-size(max-content, size)
+Pass	shrink-to-fit parent of a drop-down box with width: calc-size(max-content, size * 2)
+Pass	shrink-to-fit parent of a drop-down box with width: calc-size(max-content, size + 25px)
+Pass	shrink-to-fit parent of a drop-down box with width: calc-size(min-content, size)
+Pass	shrink-to-fit parent of a drop-down box with width: calc-size(min-content, size + 25px)

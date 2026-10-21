@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 19 tests
+
+18 Pass
+1 Fail
+Pass	computedStyleMap serialization of width: calc-size(auto, size)
+Pass	computedStyleMap serialization of width: calc-size(fit-content, size)
+Pass	computedStyleMap serialization of height: calc-size(min-content, size * 2)
+Fail	computedStyleMap serialization of max-width: calc-size(max-content, size / 2)
+Pass	computedStyleMap serialization of max-height: calc-size(fit-content, 30px + size / 2)
+Pass	computedStyleMap serialization of width: calc-size(fit-content, 50% + size / 2)
+Pass	computedStyleMap serialization of width: calc-size(any, 30px)
+Pass	computedStyleMap serialization of width: calc-size(any, 25em)
+Pass	computedStyleMap serialization of width: calc-size(any, 40%)
+Pass	computedStyleMap serialization of width: calc-size(any, 50px + 30%)
+Pass	computedStyleMap serialization of width: calc-size(any, min(30px, 2em))
+Pass	computedStyleMap serialization of width: calc-size(10px, sign(size) * size)
+Pass	computedStyleMap serialization of width: calc-size(30px, 25em)
+Pass	computedStyleMap serialization of width: calc-size(calc-size(any, 30px), size)
+Pass	computedStyleMap serialization of width: calc-size(calc-size(any, 30px), 25em)
+Pass	computedStyleMap serialization of width: calc-size(calc-size(2in, 30px), 25em)
+Pass	computedStyleMap serialization of width: calc-size(calc-size(min-content, 30px), 25em)
+Pass	computedStyleMap serialization of width: calc-size(calc-size(min-content, size), size)
+Pass	computedStyleMap serialization of width: calc-size(calc-size(fit-content, size * 2), size)

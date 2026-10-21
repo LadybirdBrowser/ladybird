@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 33 tests
+
+33 Pass
+Pass	used width, width: max-content — keyword on its own, for comparison
+Pass	shrink-to-fit parent, width: max-content — keyword on its own, for comparison
+Pass	used width, width: calc-size(max-content, size) — identity
+Pass	shrink-to-fit parent, width: calc-size(max-content, size) — identity
+Pass	used width, width: calc-size(max-content, size * 2)
+Pass	shrink-to-fit parent, width: calc-size(max-content, size * 2)
+Pass	used width, width: calc-size(min-content, size / 2)
+Pass	shrink-to-fit parent, width: calc-size(min-content, size / 2)
+Pass	used width, width: calc-size(min-content, size + 15px)
+Pass	shrink-to-fit parent, width: calc-size(min-content, size + 15px)
+Pass	used width, width: calc-size(fit-content, size + 10px)
+Pass	shrink-to-fit parent, width: calc-size(fit-content, size + 10px)
+Pass	used width, width: calc-size(max-content, 90px) — calculation never mentions size
+Pass	shrink-to-fit parent, width: calc-size(max-content, 90px) — calculation never mentions size
+Pass	used width, width: calc-size(calc-size(min-content, size * 2), size + 5px) — nested: the outer size is the inner result
+Pass	shrink-to-fit parent, width: calc-size(calc-size(min-content, size * 2), size + 5px) — nested: the outer size is the inner result
+Pass	used width, width: calc-size(auto, size) — an auto basis is the intrinsic width
+Pass	shrink-to-fit parent, width: calc-size(auto, size) — an auto basis is the intrinsic width
+Pass	used width, width: calc-size(auto, size * 2)
+Pass	shrink-to-fit parent, width: calc-size(auto, size * 2)
+Pass	used width, width: calc-size(auto, size / 2)
+Pass	shrink-to-fit parent, width: calc-size(auto, size / 2)
+Pass	used width, width: calc-size(auto, size + 15px)
+Pass	shrink-to-fit parent, width: calc-size(auto, size + 15px)
+Pass	the image has the intrinsic width the expectations are built on
+Pass	used height, height: calc-size(auto, size)
+Pass	width from the aspect ratio, height: calc-size(auto, size)
+Pass	used height, height: calc-size(auto, size * 2)
+Pass	width from the aspect ratio, height: calc-size(auto, size * 2)
+Pass	used height, height: calc-size(max-content, size / 2)
+Pass	width from the aspect ratio, height: calc-size(max-content, size / 2)
+Pass	used height, height: calc-size(min-content, size + 10px)
+Pass	width from the aspect ratio, height: calc-size(min-content, size + 10px)

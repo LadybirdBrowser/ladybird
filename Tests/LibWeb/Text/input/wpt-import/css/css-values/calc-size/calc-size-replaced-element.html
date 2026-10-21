@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>calc-size() with an intrinsic basis on a replaced element</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+  .shrink { display: inline-block; }
+  .shrink > img { display: block; }
+</style>
+
+<div id="log"></div>
+<div id="container"></div>
+
+<script>
+// A 60x20 image, so max-content and min-content are both 60px and every expectation below is exact.
+const SRC = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='20'%3E%3C/svg%3E";
+const INTRINSIC = 60;
+
+const cases = [
+  { width: "max-content",                          expected: 60,  note: "keyword on its own, for comparison" },
+  { width: "calc-size(max-content, size)",         expected: 60,  note: "identity" },
+  { width: "calc-size(max-content, size * 2)",     expected: 120 },
+  { width: "calc-size(min-content, size / 2)",     expected: 30 },
+  { width: "calc-size(min-content, size + 15px)",  expected: 75 },
+  { width: "calc-size(fit-content, size + 10px)",  expected: 70 },
+  { width: "calc-size(max-content, 90px)",         expected: 90,  note: "calculation never mentions size" },
+  { width: "calc-size(calc-size(min-content, size * 2), size + 5px)", expected: 125, note: "nested: the outer size is the inner result" },
+  { width: "calc-size(auto, size)",                expected: 60,  note: "an auto basis is the intrinsic width" },
+  { width: "calc-size(auto, size * 2)",            expected: 120 },
+  { width: "calc-size(auto, size / 2)",            expected: 30 },
+  { width: "calc-size(auto, size + 15px)",         expected: 75 },
+];
+
+// The image is 60x20, so a height written this way carries the width along through the 3:1 ratio.
+const blockAxisCases = [
+  { height: "calc-size(auto, size)",               expectedHeight: 20, expectedWidth: 60 },
+  { height: "calc-size(auto, size * 2)",           expectedHeight: 40, expectedWidth: 120 },
+  { height: "calc-size(max-content, size / 2)",    expectedHeight: 10, expectedWidth: 30 },
+  { height: "calc-size(min-content, size + 10px)", expectedHeight: 30, expectedWidth: 90 },
+];
+
+const container = document.getElementById("container");
+
+function build() {
+  for (const testCase of cases) {
+    const shrink = document.createElement("div");
+    shrink.className = "shrink";
+    const img = document.createElement("img");
+    img.src = SRC;
+    img.style.width = testCase.width;
+    shrink.appendChild(img);
+    container.appendChild(shrink);
+    testCase.img = img;
+    testCase.shrink = shrink;
+  }
+
+  for (const testCase of blockAxisCases) {
+    const img = document.createElement("img");
+    img.src = SRC;
+    img.style.height = testCase.height;
+    img.style.display = "block";
+    container.appendChild(img);
+    testCase.img = img;
+  }
+}
+
+function run() {
+  for (const testCase of cases) {
+    const label = "width: " + testCase.width + (testCase.note ? " — " + testCase.note : "");
+
+    test(() => {
+      assert_equals(testCase.img.getBoundingClientRect().width, testCase.expected);
+    }, "used width, " + label);
+
+    // The width a replaced element contributes to a shrink-to-fit parent is the result of the
+    // calculation, not the size of its basis keyword.
+    test(() => {
+      assert_equals(testCase.shrink.getBoundingClientRect().width, testCase.expected);
+    }, "shrink-to-fit parent, " + label);
+  }
+
+  test(() => {
+    assert_equals(cases[0].img.getBoundingClientRect().width, INTRINSIC,
+                  "the image is not the size this test assumes");
+  }, "the image has the intrinsic width the expectations are built on");
+
+  for (const testCase of blockAxisCases) {
+    test(() => {
+      assert_equals(testCase.img.getBoundingClientRect().height, testCase.expectedHeight);
+    }, "used height, height: " + testCase.height);
+
+    test(() => {
+      assert_equals(testCase.img.getBoundingClientRect().width, testCase.expectedWidth);
+    }, "width from the aspect ratio, height: " + testCase.height);
+  }
+}
+
+build();
+
+setup({ explicit_done: true });
+addEventListener("load", () => {
+  run();
+  done();
+});
+</script>

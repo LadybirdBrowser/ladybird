@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<title>calc-size() on flex-basis</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-basis-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+  #container {
+    display: flex;
+    flex-direction: row;
+    font-family: 'Ahem';
+    font-size: 20px;
+    width: 500px;
+  }
+  #target {
+    width: 125px;
+    flex-grow: 0;
+    flex-shrink: 0;
+  }
+</style>
+
+<div id="container">
+  <!--
+    Given the contents of #target (and the Ahem font):
+      max-content width is 30ch or 600px
+      min-content width is 20ch or 400px
+  -->
+  <div id="target">ninechars twenty_characters___</div>
+</div>
+
+<script>
+
+setup({explicit_done: true});
+document.fonts.ready.then(()=> {
+  let basic_tests = [
+    /* I think flex layout rules require expectations be greater than width or min-content width */
+    { value: "274px", expected: "274px" },
+    { value: "min-content", expected: "400px" },
+    { value: "fit-content", expected: "500px" },
+    { value: "max-content", expected: "600px" },
+    { value: "content", expected: "600px" },
+    { value: "auto", expected: "125px" },
+    { value: "calc-size(any, 357px)", expected: "357px" },
+    { value: "calc-size(any, 31%)", expected: "155px" },
+    { value: "calc-size(max-content, 31%)", expected: "155px" },
+    { value: "calc-size(fit-content, 172px)", expected: "172px" },
+    { value: "calc-size(37px, 193px)", expected: "193px" },
+    { value: "calc-size(83px, size * 3)", expected: "249px" },
+    { value: "calc-size(min-content, size / 2)", expected: "200px" },
+    { value: "calc-size(max-content, size * 1.2)", expected: "720px" },
+    { value: "calc-size(fit-content, size / 4 + 30px)", expected: "155px" },
+    { value: "calc-size(stretch, size / 2 - 10%)", expected: "200px" },
+    { value: "calc-size(30px, 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(any, 30px), 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(2in, 30px), 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(min-content, 30px), 15em)", expected: "300px" },
+    { value: "calc-size(calc-size(min-content, size), size)", expected: "400px" },
+    { value: "calc-size(auto, size)", expected: "125px" },
+    { value: "calc-size(auto, size * 1.6 + 23px)", expected: "223px" },
+    { value: "calc-size(content, size)", expected: "600px" },
+    { value: "calc-size(content, size / 2)", expected: "300px" },
+    { value: "auto", width_value: "auto", expected: "600px" },
+    { value: "calc-size(auto, size * 2)", width_value: "auto", expected: "1200px" },
+    { value: "auto", width_value: "calc-size(auto, size * 1.5 + 5px)", expected: "905px" },
+    { value: "calc-size(auto, size + 14px)", width_value: "calc-size(auto, size * 1.5)", expected: "914px" },
+    { value: "auto", width_value: "calc-size(max-content, size + 12px)", expected: "612px" },
+    { value: "calc-size(auto, size + 4px)", width_value: "calc-size(fit-content, size + 12px)", expected: "516px" },
+    { value: "472px", width_value: "calc-size(fit-content, size + 12px)", expected: "472px" },
+    { value: "calc-size(content, size * 1.5 + 4px)", width_value: "321px", expected: "904px" },
+  ];
+  const container = document.getElementById("container");
+  const target = document.getElementById("target");
+  const target_cs = getComputedStyle(target);
+  for (const obj of basic_tests) {
+    test((t) => {
+      target.style.removeProperty("flex-basis");
+      target.style.flexBasis = obj.value;
+      assert_not_equals(target.style.flexBasis, "", "flex-basis value is accepted");
+
+      target.style.removeProperty("width");
+      if ("width_value" in obj) {
+        target.style.width = obj.width_value;
+        assert_not_equals(target.style.width, "", "width value is accepted");
+      }
+
+      assert_equals(target_cs.width, obj.expected, "resulting width is correct");
+    }, `resolved value for width resulting from flex-basis: ${obj.value}${obj.width_value ? ` and width: ${obj.width_value}` : ""}`);
+  }
+
+  done();
+});
+
+</script>

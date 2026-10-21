@@ -2506,7 +2506,20 @@ impl<'pass> GridFormattingContext<'pass> {
         )
     }
 
+    /// Whether the grid container's maximum size in an axis is a calc-size() of an intrinsic sizing keyword that
+    /// cannot resolve while the grid measures its intrinsic size, which that keyword would measure again.
+    fn maximum_size_is_unresolvable_during_measurement(&self, axis: Axis) -> bool {
+        let style = self.style(self.run.box_);
+        let maximum = axis.select(style.max_width(), style.max_height());
+        self.run.layout_mode == LayoutMode::IntrinsicSizing
+            && maximum.calc_size().is_some()
+            && maximum.is_intrinsic_sizing_constraint()
+    }
+
     fn grid_container_maximum_size(&self, axis: Axis) -> Option<CssPixels> {
+        if self.maximum_size_is_unresolvable_during_measurement(axis) {
+            return None;
+        }
         let space = self.container_available_space();
         let available = axis.select(space.inline_size, space.block_size);
         let constraints = self.layout_input.unwrap().containing_block_constraints;
@@ -2536,7 +2549,9 @@ impl<'pass> GridFormattingContext<'pass> {
             !computed_values.max_height().is_auto()
         };
 
-        if should_treat_grid_container_maximum_size_as_none {
+        if should_treat_grid_container_maximum_size_as_none
+            || self.maximum_size_is_unresolvable_during_measurement(axis)
+        {
             return None;
         }
         Some(self.calculate_grid_container_maximum_size(axis))
@@ -3107,7 +3122,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 area_constraints,
             ));
         }
-        if !wrapper_style.min_width().is_auto() {
+        if !crate::layout::sizing_context::is_plain_auto(wrapper_style.min_width()) {
             wrapper_size = wrapper_size.max(sizing.calculate_inner_size_for_property(
                 item.box_,
                 SizingAxis::Inline,
@@ -3287,6 +3302,21 @@ impl<'pass> GridFormattingContext<'pass> {
                 )
             };
             let mut resolved = resolve_alignment(size, preferred.is_auto());
+            // https://drafts.csswg.org/css-values-5/#resolving-calc-size
+            // NB: A calc-size() with an auto basis resolves against the size auto gives the item, stretched or not.
+            if preferred.is_auto() && preferred.calc_size().is_some() {
+                let size = self.sizing().resolve_calc_size(
+                    item.box_,
+                    axis.sizing_axis(),
+                    preferred,
+                    resolved.size,
+                    axis.select(
+                        constraints.percentage_basis_inline_size,
+                        constraints.percentage_basis_block_size,
+                    ),
+                );
+                resolved = resolve_alignment(size, false);
+            }
 
             let maximum_is_none = if axis.is_column() {
                 self.sizing()
@@ -3358,7 +3388,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         if self.use_row_alignment_container_size {
             let style = self.style(self.run.box_);
-            if !style.min_height().is_auto() {
+            if !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
                 return self
                     .row_alignment_container_size
                     .max(self.container_used().content_block_size.get());
@@ -3406,7 +3436,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 constraints,
             ));
         }
-        if !style.min_height().is_auto() {
+        if !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
             block_size = block_size.max(sizing.calculate_inner_size_for_property(
                 self.run.box_,
                 SizingAxis::Block,

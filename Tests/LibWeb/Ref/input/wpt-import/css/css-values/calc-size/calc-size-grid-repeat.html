@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#calc-size">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-values/calc-size/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="width: fit-content; background: green; height: 100px;">
+  <!-- During the min/max content size calculation, the min-content isn't resolvable. -->
+  <div style="box-sizing: border-box; padding: 5px; display: grid; grid-template-columns: repeat(auto-fill, 90px); min-width: 60px; max-width: calc-size(min-content, size * 1000);"></div>
+</div>

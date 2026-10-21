@@ -934,7 +934,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
         //    but this time using the value of 'min-width' as the computed value for 'width'.
-        if !style.min_width().is_auto() {
+        if !crate::layout::sizing_context::is_plain_auto(style.min_width()) {
             let minimum =
                 sizing.calculate_inner_inline_size(node, available_space.inline_size, style.min_width(), constraints);
             if inline_size < minimum {
@@ -1804,8 +1804,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             .expect("a block container flow cursor is active");
 
         let style = self.style(node);
-        let box_is_html_element_in_quirks_mode =
-            facts.document_in_quirks_mode() && facts.is_html_html_element() && style.height().is_auto();
+        let box_is_html_element_in_quirks_mode = facts.document_in_quirks_mode()
+            && facts.is_html_html_element()
+            && style.height().is_auto()
+            && style.height().calc_size().is_none();
         let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
             && facts.has_preferred_aspect_ratio()
             && self.sizing().box_is_sized_as_replaced_element(
@@ -2516,6 +2518,18 @@ impl<'pass> BlockFormattingContext<'pass> {
             //       was zero-sized in that axis.
             if self.used(block_container).inline_size_constraint.get() == SizeConstraint::None {
                 let sizing = self.sizing();
+                // https://drafts.csswg.org/css-values-5/#calc-size
+                // For the purpose of sizing (including for intrinsic size contributions), calc-size() resolves to the
+                // result of its calc-size calculation.
+                if style.width().is_auto() {
+                    inline_size = sizing.resolve_calc_size(
+                        block_container,
+                        SizingAxis::Inline,
+                        style.width(),
+                        inline_size,
+                        input.containing_block_constraints.percentage_basis_inline_size,
+                    );
+                }
                 if !sizing.should_treat_max_inline_size_as_none(
                     block_container,
                     available_space.inline_size,
@@ -2535,7 +2549,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 ) {
                     inline_size = limits.clamp(inline_size);
                 }
-                if !style.min_width().is_auto() {
+                if !crate::layout::sizing_context::is_plain_auto(style.min_width()) {
                     inline_size = inline_size.max(sizing.calculate_inner_inline_size(
                         block_container,
                         available_space.inline_size,
@@ -2629,7 +2643,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                         input.containing_block_constraints,
                     ));
                 }
-                if !style.min_width().is_auto() {
+                if !crate::layout::sizing_context::is_plain_auto(style.min_width()) {
                     inline_size = inline_size.max(sizing.calculate_inner_inline_size(
                         fieldset,
                         available_space.inline_size,
@@ -3092,6 +3106,18 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let available_inline_size = AvailableSize::definite(containing_inline_size);
                 let sizing = self.sizing();
                 let style = self.style(block_container);
+                // https://drafts.csswg.org/css-values-5/#calc-size
+                // For the purpose of sizing (including for intrinsic size contributions), calc-size() resolves to the
+                // result of its calc-size calculation.
+                if style.width().is_auto() {
+                    used_inline_size = sizing.resolve_calc_size(
+                        block_container,
+                        SizingAxis::Inline,
+                        style.width(),
+                        used_inline_size,
+                        input.containing_block_constraints.percentage_basis_inline_size,
+                    );
+                }
                 if !sizing.should_treat_max_inline_size_as_none(
                     block_container,
                     input.available_space.inline_size,
@@ -3105,7 +3131,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     );
                     used_inline_size = used_inline_size.min(maximum);
                 }
-                let min_is_auto = style.min_width().is_auto()
+                let min_is_auto = crate::layout::sizing_context::is_plain_auto(style.min_width())
                     || (style.min_width().is_fit_content()
                         && input.available_space.inline_size.is_intrinsic_sizing_constraint())
                     || (style.min_width().is_max_content()
@@ -3453,7 +3479,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             style.max_height(),
             input.containing_block_constraints,
         );
-        if !style.min_height().is_auto() {
+        if !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
             block_size = block_size.max(sizing.calculate_inner_block_size(
                 self.run.box_,
                 input.available_space,
