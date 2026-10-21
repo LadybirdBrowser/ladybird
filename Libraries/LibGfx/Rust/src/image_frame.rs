@@ -59,6 +59,20 @@ impl ImageFrameHandle {
         Self(Arc::new(ImageFrameEntry { snapshot, raw }))
     }
 
+    /// Takes over a frame that C++ allocated with `new` to hand it over, as when it decodes one for Rust.
+    ///
+    /// # Safety
+    ///
+    /// `frame` must point to a live `Gfx::DecodedImageFrame` that C++ allocated with `new`, which nothing uses after
+    /// this.
+    pub unsafe fn adopt(frame: *mut c_void) -> Self {
+        // SAFETY: The caller passes a live frame.
+        let handle = unsafe { Self::retain(frame) };
+        // SAFETY: The caller hands the frame over, and the handle holds a copy of it.
+        unsafe { ladybird_gfx_decoded_image_frame_release(frame) };
+        handle
+    }
+
     #[inline]
     pub fn id(&self) -> u64 {
         self.0.snapshot.id
