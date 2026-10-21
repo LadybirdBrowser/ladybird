@@ -290,6 +290,9 @@ Optional<VideoFrameSurfacePool::AcquiredSlot> VideoFrameSurfacePool::try_acquire
         };
     }
 
+    if (held_slot_count_while_locked() >= MAX_HELD_SLOT_COUNT)
+        return {};
+
     if (!slot_index.has_value()) {
         Optional<u32> unused_slot_index;
         Optional<u32> evictable_slot_index;
@@ -313,19 +316,16 @@ Optional<VideoFrameSurfacePool::AcquiredSlot> VideoFrameSurfacePool::try_acquire
         if (!unused_slot_index.has_value())
             return {};
 
-        auto& unused_slot = m_slots[*unused_slot_index];
-        if (!unused_slot.buffer.is_valid()) {
-            auto buffer_result = Core::AnonymousBuffer::create_with_size(slot_data_offset());
-            if (buffer_result.is_error())
-                return {};
-            unused_slot.buffer = buffer_result.release_value();
-            new (unused_slot.buffer.data<void>()) SlotHeader;
-        }
+        auto buffer_result = Core::AnonymousBuffer::create_with_size(slot_data_offset());
+        if (buffer_result.is_error())
+            return {};
         if (m_slot_indices_by_surface_id.try_set(surface->id(), *unused_slot_index).is_error())
             return {};
 
+        auto& unused_slot = m_slots[*unused_slot_index];
         drop_slot_storage_while_locked(unused_slot);
-        // The slot is announced again, with its new surface, as though its buffer were new.
+        unused_slot.buffer = buffer_result.release_value();
+        new (unused_slot.buffer.data<void>()) SlotHeader;
         unused_slot.allocated_buffer_id++;
         slot_index = unused_slot_index;
     }

@@ -120,11 +120,14 @@ private:
 };
 
 // A pool of surfaces produced by a hardware decoder. The decoder allocates and recycles them, so this pool tracks
-// their identity and lifetime rather than their memory. Its slot count is what bounds how many frames a hardware
-// decoder may have in flight, since the platform's own allocator will keep handing out surfaces indefinitely.
+// their identity and lifetime rather than their memory. Each slot stands for one surface, and the decoder recycles
+// more surfaces than it can have held at once, so the pool remembers more slots than it lets be held. The held slot
+// count is what bounds how many frames a hardware decoder may have in flight, since the platform's own allocator will
+// keep handing out surfaces indefinitely.
 class MEDIACODECS_API VideoFrameSurfacePool final : public VideoFrameEntryLedger {
 public:
-    static constexpr u32 MAX_SLOT_COUNT = 8;
+    static constexpr u32 MAX_HELD_SLOT_COUNT = 8;
+    static constexpr u32 MAX_SLOT_COUNT = 32;
 
     static ErrorOr<NonnullRefPtr<VideoFrameSurfacePool>> create();
 
@@ -153,7 +156,7 @@ private:
 // adoptions, by lending a frame onward, are this process's own, so they are not released to the other process.
 class MEDIACODECS_API VideoFrameRelayPool final : public VideoFrameEntryLedger {
 public:
-    static constexpr u32 MAX_SLOT_COUNT = 16;
+    static constexpr u32 MAX_SLOT_COUNT = max(VideoFramePool::MAX_SLOT_COUNT, VideoFrameSurfacePool::MAX_SLOT_COUNT);
 
     // Called once for each adoption of a slot, once the slot is no longer held here at all.
     using AdoptionReleasedCallback = Function<void(u32 slot_index)>;
