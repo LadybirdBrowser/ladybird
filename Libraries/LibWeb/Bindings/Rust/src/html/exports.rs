@@ -9,6 +9,7 @@
 //! is the cell of an object of the interface that the name of the function says.
 
 use core::ffi::c_void;
+use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libcompositing_rust::display_list::canvas_2d::Paint;
@@ -17,14 +18,17 @@ use libcompositing_rust::display_list::commands::{Canvas2DPaintKind, Canvas2DPat
 use libgfx_rust::AffineTransform;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::path::PathMut;
-use libjs_rust::api::Vm;
+use libjs_rust::api::{RawNativeFunctionResult, Value, Vm};
 
 use super::canvas_gradient::CanvasGradient;
 use super::canvas_path::{self, CanvasPathError, RoundRectRadius};
 use super::canvas_pattern::CanvasPattern;
+use super::image_data::{ImageData, ImageDataSettings};
 use super::path2d::Path2D;
+use super::predefined_color_space::PredefinedColorSpace;
 use super::text_metrics::{TextMeasurements, TextMetrics};
-use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi};
+use crate::bindings::CallContext;
+use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, realm_arguments};
 
 /// # Safety
 ///
@@ -418,4 +422,72 @@ pub unsafe extern "C" fn web_path2d_path(path: *mut c_void) -> *const c_void {
     let path: &Path2D = unsafe { object_from_abi(path) };
     // SAFETY: The caller keeps the path from changing while it reads it.
     unsafe { path.path_unguarded() }.as_raw()
+}
+
+/// Creates an ImageData of the size, with transparent black pixels, in the realm, as the 2D contexts do, and stores
+/// its cell, or throws what initializing an ImageData throws.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `realm` a live realm.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_data_create(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    width: u32,
+    height: u32,
+    has_color_space: bool,
+    color_space: PredefinedColorSpace,
+    out_image_data: &mut *mut c_void,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    let mut cx = CallContext::new(vm, realm);
+    let settings = ImageDataSettings {
+        color_space: has_color_space.then_some(color_space),
+    };
+    let result = ImageData::create(&mut cx, width, height, Some(&settings)).map(|image_data| {
+        *out_image_data = cell_into_abi(image_data);
+        Value::UNDEFINED
+    });
+    RawNativeFunctionResult::from_completion(result.map_err(|exception| exception.throw(&cx)))
+}
+
+/// # Safety
+///
+/// `image_data` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_data_width(image_data: *mut c_void) -> u32 {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageData>(image_data) }.size().0
+}
+
+/// # Safety
+///
+/// `image_data` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_data_height(image_data: *mut c_void) -> u32 {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageData>(image_data) }.size().1
+}
+
+/// # Safety
+///
+/// `image_data` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_data_is_detached(image_data: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageData>(image_data) }.is_detached()
+}
+
+/// The first byte of the pixels of the ImageData, or null if its buffer is detached or its data has no room for them.
+///
+/// # Safety
+///
+/// `image_data` must be a live cell. The pixels are valid until script runs.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_data_pixels(image_data: *mut c_void) -> *mut u8 {
+    // SAFETY: The caller passes a live cell.
+    let image_data = unsafe { object_from_abi::<ImageData>(image_data) };
+    image_data.pixels().map_or(core::ptr::null_mut(), NonNull::as_ptr)
 }

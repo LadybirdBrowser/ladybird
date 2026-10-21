@@ -19,7 +19,6 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/TextAlignment.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/DOMRectReadOnly.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -791,15 +790,18 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> Canvas2DContextBase::get_image_data(int 
         return image_data;
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
-    auto image_data_bitmap = TRY_OR_THROW_OOM(realm().vm(), image_data->bitmap());
-    if (pixels->format() != image_data_bitmap->format() || pixels->alpha_type() != image_data_bitmap->alpha_type() || pixels->size() != source_rect_intersected.size())
+    // NB: The pixels of imageData are RGBA8888 and unpremultiplied.
+    auto* image_data_pixels = image_data->pixels();
+    VERIFY(image_data_pixels);
+    if (pixels->format() != Gfx::BitmapFormat::RGBA8888 || pixels->alpha_type() != Gfx::AlphaType::Unpremultiplied || pixels->size() != source_rect_intersected.size())
         return image_data;
 
     // The readback only covers the part of the source rectangle that is inside the output bitmap.
     auto destination_location = source_rect_intersected.location() - source_rect.location();
+    auto destination_pitch = static_cast<size_t>(image_data->width()) * sizeof(u32);
     auto row_size = static_cast<size_t>(pixels->width()) * sizeof(u32);
     for (int y = 0; y < pixels->height(); ++y) {
-        auto* destination_row = image_data_bitmap->scanline_u8(destination_location.y() + y) + destination_location.x() * sizeof(u32);
+        auto* destination_row = image_data_pixels + (destination_location.y() + y) * destination_pitch + destination_location.x() * sizeof(u32);
         memcpy(destination_row, pixels->scanline_u8(y), row_size);
     }
 
@@ -811,7 +813,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> Canvas2DContextBase::get_image_data(int 
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata-short
-WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_data, float dx, float dy)
+WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_data, int dx, int dy)
 {
     // The putImageData(imageData, dx, dy) method steps are to put pixels from an ImageData onto a bitmap,
     // given imageData, this's output bitmap, dx, dy, 0, 0, imageData's width, and imageData's height.
@@ -822,7 +824,7 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_d
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata
-WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_data, float x, float y, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
+WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_data, int x, int y, int dirty_x, int dirty_y, int dirty_width, int dirty_height)
 {
     // The putImageData(imageData, dx, dy, dirtyX, dirtyY, dirtyWidth, dirtyHeight) method steps are to put pixels
     // from an ImageData onto a bitmap, given imageData, this's output bitmap, dx, dy, dirtyX, dirtyY, dirtyWidth, and
@@ -834,26 +836,31 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::put_image_data(ImageData& image_d
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context2d-putimagedata-common
-WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_onto_a_bitmap(ImageData& image_data, Canvas2DRecorder& recorder, float dx, float dy, float dirty_x, float dirty_y, float dirty_width, float dirty_height)
+WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_onto_a_bitmap(ImageData& image_data, Canvas2DRecorder& recorder, int dx, int dy, int dirty_x_argument, int dirty_y_argument, int dirty_width_argument, int dirty_height_argument)
 {
     // 1. Let buffer be imageData's data attribute value's [[ViewedArrayBuffer]] internal slot.
-    auto* buffer = image_data.data()->viewed_array_buffer();
-
     // 2. If IsDetachedBuffer(buffer) is true, then throw an "InvalidStateError" DOMException
-    if (buffer->is_detached())
+    if (image_data.is_detached())
         return WebIDL::InvalidStateError::create("ImageData's underlying buffer is detached"_utf16);
+
+    // NB: The arguments are IDL longs. Do the arithmetic below in 64 bits, so that it neither overflows nor loses
+    //     precision.
+    i64 dirty_x = dirty_x_argument;
+    i64 dirty_y = dirty_y_argument;
+    i64 dirty_width = dirty_width_argument;
+    i64 dirty_height = dirty_height_argument;
 
     // 3. If dirtyWidth is negative, then let dirtyX be dirtyX+dirtyWidth, and let dirtyWidth be equal to the
     //    absolute magnitude of dirtyWidth.
     if (dirty_width < 0) {
         dirty_x += dirty_width;
-        dirty_width = abs(dirty_width);
+        dirty_width = -dirty_width;
     }
     // If dirtyHeight is negative, then let dirtyY be dirtyY+dirtyHeight, and let dirtyHeight be equal to the absolute
     // magnitude of dirtyHeight.
     if (dirty_height < 0) {
         dirty_y += dirty_height;
-        dirty_height = abs(dirty_height);
+        dirty_height = -dirty_height;
     }
 
     // 4. If dirtyX is negative, then let dirtyWidth be dirtyWidth+dirtyX, and let dirtyX be 0.
@@ -888,19 +895,34 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_ont
     //    set the pixel with coordinate (dx+x, dy+y) in bitmap to the color of the pixel at coordinate (x, y) in the
     //    imageData data structure's bitmap, converted from imageData's colorSpace to the color space of bitmap using
     //    'relative-colorimetric' rendering intent.
-    auto dst_rect = Gfx::FloatRect { dx + dirty_x, dy + dirty_y, dirty_width, dirty_height };
+    auto* source_pixels = image_data.pixels();
+    if (!source_pixels)
+        return WebIDL::InvalidStateError::create("ImageData's underlying buffer is detached or out-of-bounds"_utf16);
+    // NB: Only the pixels that land inside the output bitmap are set, so only copy those. Also keep the source
+    //     rectangle inside imageData here, whatever the steps above computed, before reading its pixels.
+    i64 source_left = max(max(dirty_x, -static_cast<i64>(dx)), static_cast<i64>(0));
+    i64 source_top = max(max(dirty_y, -static_cast<i64>(dy)), static_cast<i64>(0));
+    i64 source_right = min(min(dirty_x + dirty_width, static_cast<i64>(m_size.width()) - dx), static_cast<i64>(image_data.width()));
+    i64 source_bottom = min(min(dirty_y + dirty_height, static_cast<i64>(m_size.height()) - dy), static_cast<i64>(image_data.height()));
+    if (source_left >= source_right || source_top >= source_bottom)
+        return {};
+    // NB: The destination rectangle is inside the output bitmap, so its coordinates fit in an int.
+    auto destination_rect = Gfx::IntRect {
+        static_cast<int>(source_left + dx),
+        static_cast<int>(source_top + dy),
+        static_cast<int>(source_right - source_left),
+        static_cast<int>(source_bottom - source_top),
+    };
+
     // NOTE: The ImageData buffer is mutable from script and the recorded draw is only
     //       serialized at flush time, so snapshot the dirty pixels at call time. The
     //       snapshot is shareable so that flushing to the Compositor passes the pixels
     //       by file descriptor instead of copying them again.
-    auto source_rect = Gfx::IntRect { dirty_x, dirty_y, dirty_width, dirty_height };
-    auto source_bitmap_or_error = image_data.bitmap();
-    if (source_bitmap_or_error.is_error())
-        return WebIDL::InvalidStateError::create("ImageData's underlying buffer is detached or out-of-bounds"_utf16);
-    auto source_bitmap = source_bitmap_or_error.release_value();
-    auto bitmap_snapshot = MUST(Gfx::Bitmap::create_shareable(source_bitmap->format(), source_bitmap->alpha_type(), source_rect.size()));
-    for (int y = 0; y < source_rect.height(); ++y)
-        __builtin_memcpy(bitmap_snapshot->scanline(y), source_bitmap->scanline(source_rect.y() + y) + source_rect.x(), static_cast<size_t>(source_rect.width()) * sizeof(Gfx::RawPixel));
+    auto source_pitch = static_cast<size_t>(image_data.width()) * sizeof(u32);
+    auto bitmap_snapshot = TRY_OR_THROW_OOM(realm().vm(), Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, destination_rect.size()));
+    for (int y = 0; y < destination_rect.height(); ++y)
+        __builtin_memcpy(bitmap_snapshot->scanline(y), source_pixels + static_cast<size_t>(source_top + y) * source_pitch + static_cast<size_t>(source_left) * sizeof(u32), static_cast<size_t>(destination_rect.width()) * sizeof(Gfx::RawPixel));
+    auto dst_rect = destination_rect.to_type<float>();
     recorder.save();
     recorder.set_transform({});
     // NB: Step 7 sets each destination pixel to the source pixel: putImageData replaces the pixels (including their

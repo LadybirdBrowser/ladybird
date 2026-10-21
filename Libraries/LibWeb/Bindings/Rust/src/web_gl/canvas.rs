@@ -17,12 +17,11 @@ use super::host::Frame;
 use super::pixel_unpacking::PixelUnpackState;
 use crate::bindings::conversions::CppInterface;
 
-/// In the order of the C++ enum of the same name.
+/// The sources of texture images that are implemented in C++, in the order of the C++ enum of the same name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum TexImageSourceKind {
     ImageBitmap,
-    ImageData,
     HTMLImageElement,
     HTMLCanvasElement,
     HTMLVideoElement,
@@ -52,6 +51,14 @@ unsafe extern "C" {
     fn web_webgl_read_tex_image_source(
         source_wrapper: *mut c_void,
         source_kind: TexImageSourceKind,
+        format: u32,
+        r#type: u32,
+        out_frame: *mut *mut c_void,
+    ) -> u8;
+    fn web_webgl_read_tex_image_pixels(
+        pixels: *const u8,
+        width: u32,
+        height: u32,
         format: u32,
         r#type: u32,
         out_frame: *mut *mut c_void,
@@ -139,6 +146,29 @@ pub(crate) fn read_tex_image_source(
             &raw mut frame,
         )
     };
+    tex_image_source_frame(result, frame)
+}
+
+/// The frame of a copy of the pixels of an ImageData, for the format and the type.
+///
+/// # Safety
+///
+/// `pixels` must be the width × height RGBA8888 pixels of the ImageData, which no script may change during the call.
+pub(crate) unsafe fn read_tex_image_pixels(
+    pixels: NonNull<u8>,
+    width: u32,
+    height: u32,
+    format: u32,
+    r#type: u32,
+) -> TexImageSourceFrame {
+    let mut frame = core::ptr::null_mut();
+    // SAFETY: The caller passes the pixels, and the frame is stored when the function returns that there is one.
+    let result =
+        unsafe { web_webgl_read_tex_image_pixels(pixels.as_ptr(), width, height, format, r#type, &raw mut frame) };
+    tex_image_source_frame(result, frame)
+}
+
+fn tex_image_source_frame(result: u8, frame: *mut c_void) -> TexImageSourceFrame {
     match result {
         TEX_IMAGE_SOURCE_RESULT_FRAME => {
             let frame = NonNull::new(frame).expect("LibWeb returns the frame");

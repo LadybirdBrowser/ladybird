@@ -31,6 +31,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PredefinedColorSpace.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Crypto/CryptoKey.h>
@@ -202,7 +203,7 @@ inline JS::Realm& test_realm()
 }
 
 template<typename T>
-requires(IsBaseOf<Web::Bindings::Wrappable, T>)
+requires(IsBaseOf<Web::Bindings::Wrappable, T> || Web::Bindings::RustInterfaceHandle<T>)
 inline T& unwrap_wrappable(JS::Value value)
 {
     VERIFY(value.is_object());
@@ -223,6 +224,14 @@ inline Web::HTML::StorageSerializationRecord storage_serialize(GC::Ref<T> object
     auto& realm = test_realm();
     auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, GC::Ref<Web::Bindings::Wrappable> { object });
     return MUST(Web::HTML::structured_serialize_for_storage(realm.vm(), JS::Value(wrapper.ptr())));
+}
+
+template<Web::Bindings::RustInterfaceHandle T>
+inline Web::HTML::StorageSerializationRecord storage_serialize(GC::Ref<T> object)
+{
+    auto& realm = test_realm();
+    auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, object);
+    return MUST(Web::HTML::structured_serialize_for_storage(realm.vm(), JS::Value(static_cast<JS::Object*>(wrapper.ptr()))));
 }
 
 template<typename T>

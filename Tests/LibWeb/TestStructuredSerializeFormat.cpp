@@ -601,8 +601,9 @@ TEST_CASE(image_serializables_encode_to_frozen_bytes)
     auto& realm = test_realm();
 
     {
-        auto pixels = MUST(JS::Uint8ClampedArray::create(realm, 4));
-        auto image = MUST(Web::HTML::ImageData::create(realm, pixels, 1));
+        auto image = MUST(Web::HTML::ImageData::create(realm, 1, 1));
+        auto image_wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, image);
+        auto pixels = GC::Ref { MUST(image_wrapper->get("data"_utf16_fly_string)).as_object() };
 
         // Build the data sub-value from the live typed array.
         auto data_body = serialized_object_body(pixels);

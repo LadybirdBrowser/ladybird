@@ -1,0 +1,30 @@
+ImageData: [object ImageData], 2x1, srgb
+data: [object Uint8ClampedArray], 8 bytes, same object true
+settings: display-p3
+invalid color space: TypeError
+zero width: IndexSizeError
+zero height: IndexSizeError
+too large: IndexSizeError
+one argument: TypeError
+from data: 2x1, data is the array true
+from data with height: 2
+from data, wrong height: IndexSizeError
+from data, width not dividing: IndexSizeError
+from data, zero width: IndexSizeError
+from data, not a multiple of four: InvalidStateError
+from data, empty: InvalidStateError
+from detached data: InvalidStateError
+from a Uint8Array: IndexSizeError
+from shared data: TypeError
+wide: 70000x1, 280000 bytes
+wide getImageData: 70000x1, 10,20,30,255,10,20,30,255,0,0,0,0
+wide putImageData: 200,200,200,200,200,200,200,200
+wide putImageData, huge dirty rectangle: undefined
+wide createImageBitmap: InvalidStateError, Image size is too large
+tall putImageData past the end: 0,0,0,0
+clone: true, 2x1, display-p3, 255,0,0,255,0,255,0,128
+clone has its own data: true
+a cloned ImageData is cloned once: true
+texImage2D from ImageData: 255,0,0,255,0,255,0,128
+texImage2D keeps the pixels of the call: 1,2,3,4,5,6,7,8
+texImage2D from an ImageData with detached data: INVALID_VALUE

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function outcome(f) {
+        try {
+            const result = f();
+            return `${result}`;
+        } catch (error) {
+            return error.name;
+        }
+    }
+
+    function errorName(gl, error) {
+        for (const name of ["NO_ERROR", "INVALID_ENUM", "INVALID_VALUE", "INVALID_OPERATION"]) {
+            if (gl[name] === error)
+                return name;
+        }
+        return `0x${error.toString(16)}`;
+    }
+
+    // Uploads the source to a 2x1 texture and reads the texture back.
+    function uploadAndReadBack(gl, source) {
+        while (gl.getError() !== gl.NO_ERROR) {
+        }
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+        const error = errorName(gl, gl.getError());
+        if (error !== "NO_ERROR")
+            return error;
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        const pixels = new Uint8Array(8);
+        gl.readPixels(0, 0, 2, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return Array.from(pixels).join(",");
+    }
+
+    asyncTest(async done => {
+        // The constructors.
+        const imageData = new ImageData(2, 1);
+        println(`ImageData: ${Object.prototype.toString.call(imageData)}, ${imageData.width}x${imageData.height}, ${imageData.colorSpace}`);
+        println(`data: ${Object.prototype.toString.call(imageData.data)}, ${imageData.data.length} bytes, same object ${imageData.data === imageData.data}`);
+        println(`settings: ${new ImageData(1, 1, { colorSpace: "display-p3" }).colorSpace}`);
+        println(`invalid color space: ${outcome(() => new ImageData(1, 1, { colorSpace: "rec2020" }))}`);
+        println(`zero width: ${outcome(() => new ImageData(0, 1))}`);
+        println(`zero height: ${outcome(() => new ImageData(1, 0))}`);
+        println(`too large: ${outcome(() => new ImageData(65536, 65536))}`);
+        println(`one argument: ${outcome(() => new ImageData(1))}`);
+
+        const data = new Uint8ClampedArray([1, 2, 3, 4, 5, 6, 7, 8]);
+        const fromData = new ImageData(data, 2);
+        println(`from data: ${fromData.width}x${fromData.height}, data is the array ${fromData.data === data}`);
+        println(`from data with height: ${new ImageData(data, 1, 2).height}`);
+        println(`from data, wrong height: ${outcome(() => new ImageData(data, 2, 2))}`);
+        println(`from data, width not dividing: ${outcome(() => new ImageData(data, 3))}`);
+        println(`from data, zero width: ${outcome(() => new ImageData(data, 0))}`);
+        println(`from data, not a multiple of four: ${outcome(() => new ImageData(new Uint8ClampedArray(6), 1))}`);
+        println(`from data, empty: ${outcome(() => new ImageData(new Uint8ClampedArray(0), 1))}`);
+        const detached = new Uint8ClampedArray(4);
+        detached.buffer.transfer();
+        println(`from detached data: ${outcome(() => new ImageData(detached, 1))}`);
+        println(`from a Uint8Array: ${outcome(() => new ImageData(new Uint8Array(4), 1))}`);
+        println(`from shared data: ${outcome(() => new ImageData(new Uint8ClampedArray(new SharedArrayBuffer(4)), 1))}`);
+
+        // An ImageData wider than a bitmap can be.
+        const wide = new ImageData(70000, 1);
+        println(`wide: ${wide.width}x${wide.height}, ${wide.data.length} bytes`);
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 2;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "rgb(10, 20, 30)";
+        context.fillRect(0, 0, 2, 2);
+        const wideRead = context.getImageData(0, 0, 70000, 1);
+        println(`wide getImageData: ${wideRead.width}x${wideRead.height}, ${Array.from(wideRead.data.slice(0, 12)).join(",")}`);
+        context.putImageData(new ImageData(new Uint8ClampedArray(70000 * 4).fill(200), 70000, 1), -1, 1);
+        println(`wide putImageData: ${Array.from(context.getImageData(0, 1, 2, 1).data).join(",")}`);
+        println(`wide putImageData, huge dirty rectangle: ${outcome(() => context.putImageData(wide, 0, 0, -2147483648, -2147483648, 2147483647, 2147483647))}`);
+        try {
+            await createImageBitmap(wide);
+            println("wide createImageBitmap: resolved");
+        } catch (error) {
+            println(`wide createImageBitmap: ${error.name}, ${error.message}`);
+        }
+
+        // The dirty rectangle of putImageData() is clamped to the ImageData in integers. In floats, 16777219 rounds
+        // to 16777220, which left the dirty rectangle one row past the end of the pixels.
+        const tall = new ImageData(1, 16777219);
+        const tallCanvas = document.createElement("canvas");
+        tallCanvas.width = tallCanvas.height = 1;
+        const tallContext = tallCanvas.getContext("2d");
+        tallContext.putImageData(tall, 0, -16777219, 0, 16777219, 1, 1);
+        println(`tall putImageData past the end: ${Array.from(tallContext.getImageData(0, 0, 1, 1).data).join(",")}`);
+
+        // Structured cloning.
+        const original = new ImageData(new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 128]), 2, 1, { colorSpace: "display-p3" });
+        const clone = structuredClone(original);
+        println(`clone: ${clone instanceof ImageData}, ${clone.width}x${clone.height}, ${clone.colorSpace}, ${Array.from(clone.data).join(",")}`);
+        println(`clone has its own data: ${clone.data !== original.data}`);
+        const nested = structuredClone({ first: original, second: original });
+        println(`a cloned ImageData is cloned once: ${nested.first === nested.second}`);
+
+        // WebGL reads its pixels.
+        const gl = document.createElement("canvas").getContext("webgl");
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+        println(`texImage2D from ImageData: ${uploadAndReadBack(gl, original)}`);
+        const changing = new ImageData(new Uint8ClampedArray([1, 2, 3, 4, 5, 6, 7, 8]), 2, 1);
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, changing);
+        changing.data.fill(9);
+        changing.data.buffer.transfer();
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        const uploaded = new Uint8Array(8);
+        gl.readPixels(0, 0, 2, 1, gl.RGBA, gl.UNSIGNED_BYTE, uploaded);
+        println(`texImage2D keeps the pixels of the call: ${Array.from(uploaded).join(",")}`);
+        println(`texImage2D from an ImageData with detached data: ${uploadAndReadBack(gl, changing)}`);
+        done();
+    });
+</script>
