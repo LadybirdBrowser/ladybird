@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#images-2
-[Exposed=(Window,Worker), Serializable, Transferable]
+[Exposed=(Window,Worker), Serializable, Transferable, ImplementedIn=Rust]
 interface ImageBitmap {
     readonly attribute unsigned long width;
     readonly attribute unsigned long height;

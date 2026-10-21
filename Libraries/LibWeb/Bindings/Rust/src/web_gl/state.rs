@@ -14,7 +14,9 @@ use core::ops::Deref;
 
 use libjs_rust::api::{ForeignCellSlot, Gc, Realm, Trace, Visitor, Vm};
 
-use super::canvas::{Canvas, TexImageSourceFrame, TexImageSourceKind, read_tex_image_pixels, read_tex_image_source};
+use super::canvas::{
+    Canvas, TexImageSourceFrame, TexImageSourceKind, read_tex_image_frame, read_tex_image_pixels, read_tex_image_source,
+};
 use super::constants::{
     GL_BROWSER_DEFAULT_WEBGL, GL_CONTEXT_LOST_WEBGL, GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_NO_ERROR,
 };
@@ -358,9 +360,12 @@ impl ContextState {
         //        bitmap's origin-clean flag is set to false, a SECURITY_ERR exception must be thrown. See Origin
         //        Restrictions.
         let source_frame = match *source {
-            TexImageSource::ImageBitmap(object) => {
-                read_tex_image_source(object, TexImageSourceKind::ImageBitmap, format, r#type)
-            }
+            TexImageSource::ImageBitmap(image_bitmap) => match image_bitmap.frame() {
+                Some(image_frame) => read_tex_image_frame(&image_frame, format, r#type),
+                // If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE error is
+                // generated.
+                None => TexImageSourceFrame::InvalidValue,
+            },
             TexImageSource::ImageData(image_data) => match image_data.pixels() {
                 Some(pixels) => {
                     let (width, height) = image_data.size();

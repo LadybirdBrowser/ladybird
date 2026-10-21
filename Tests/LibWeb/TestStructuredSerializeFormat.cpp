@@ -617,8 +617,7 @@ TEST_CASE(image_serializables_encode_to_frozen_bytes)
 
     {
         auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 2, 2 }));
-        auto image_bitmap = Web::HTML::ImageBitmap::create();
-        image_bitmap->set_bitmap(bitmap);
+        auto image_bitmap = Web::HTML::ImageBitmap::create(bitmap);
 
         // Use the bitmap's actual pitch and data size.
         ReadonlyBytes data { bitmap->scanline_u8(0), bitmap->data_size() };
@@ -634,9 +633,13 @@ static GC::Ref<JS::Object> wrap_image_bitmap(JS::Realm& realm, GC::Ref<Web::HTML
 
 static GC::Ref<Web::HTML::ImageBitmap> create_image_bitmap(NonnullRefPtr<Gfx::Bitmap> bitmap)
 {
-    auto image_bitmap = Web::HTML::ImageBitmap::create();
-    image_bitmap->set_bitmap(move(bitmap));
-    return image_bitmap;
+    return Web::HTML::ImageBitmap::create(move(bitmap));
+}
+
+// The transfer-receiving steps of an ImageBitmap, which create the ImageBitmap.
+static Web::WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> receive_image_bitmap(JS::Realm& realm, Web::HTML::TransferDataDecoder& decoder)
+{
+    return Web::Bindings::create_transferred_platform_object(Web::HTML::TransferType::ImageBitmap, realm, decoder);
 }
 
 static Vector<JS::Value> deserialize_transfer_data_holders(JS::Realm& realm, Web::HTML::SerializedTransferRecord& record)
@@ -868,8 +871,7 @@ TEST_CASE(image_bitmap_transfer_rejects_invalid_shared_pixels)
         Web::HTML::TransferDataDecoder decoder { move(holder) };
         if (buffers)
             decoder.set_shared_buffers(*buffers);
-        auto receiver = Web::HTML::ImageBitmap::create();
-        return receiver->transfer_receiving_steps(realm, decoder);
+        return receive_image_bitmap(realm, decoder);
     };
     EXPECT(!receive(&shared_buffers, 0, 0, Gfx::BitmapFormat::BGRA8888, 16).is_error());
     EXPECT(receive(nullptr, 0, 0, Gfx::BitmapFormat::BGRA8888, 16).is_error());
@@ -884,8 +886,9 @@ TEST_CASE(image_bitmap_transfer_rejects_invalid_shared_pixels)
 TEST_CASE(image_bitmap_transfer_protects_against_backing_truncation)
 {
     auto& realm = test_realm();
-    auto source = create_image_bitmap(MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 16, 1 })));
-    source->bitmap()->set_pixel(0, 0, Gfx::Color::Red);
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 16, 1 }));
+    bitmap->set_pixel(0, 0, Gfx::Color::Red);
+    auto source = create_image_bitmap(bitmap);
     auto wrapper = wrap_image_bitmap(realm, source);
     Array<GC::Ref<JS::Object>, 1> transfer { wrapper };
     auto record = MUST(Web::HTML::structured_serialize_with_transfer(realm, wrapper, transfer));
@@ -904,8 +907,8 @@ TEST_CASE(image_bitmap_transfer_protects_against_backing_truncation)
     Web::HTML::TransferDataDecoder decoder { move(record.transfer_data_holders[0]) };
     EXPECT_EQ(MUST(decoder.decode<Web::HTML::TransferType>()), Web::HTML::TransferType::ImageBitmap);
     decoder.set_shared_buffers(record.shared_buffers);
-    auto receiver = Web::HTML::ImageBitmap::create();
-    MUST(receiver->transfer_receiving_steps(realm, decoder));
+    auto received = MUST(receive_image_bitmap(realm, decoder));
+    auto& receiver = unwrap_wrappable<Web::HTML::ImageBitmap>(JS::Value(static_cast<JS::Object*>(received.ptr())));
 #    if defined(AK_OS_LINUX)
     auto const seals = fcntl(buffer.fd(), F_GET_SEALS);
     EXPECT(seals >= 0);
@@ -917,8 +920,8 @@ TEST_CASE(image_bitmap_transfer_protects_against_backing_truncation)
 #    else
     EXPECT_EQ(ftruncate(buffer.fd(), 0), 0);
 #    endif
-    EXPECT_EQ(receiver->bitmap()->get_pixel(0, 0), Gfx::Color::Red);
-    receiver->close();
+    EXPECT_EQ(receiver.bitmap()->get_pixel(0, 0), Gfx::Color::Red);
+    receiver.close();
 }
 #endif
 
@@ -939,9 +942,7 @@ TEST_CASE(image_bitmap_transfer_rejects_unsealed_backing)
     MUST(holder.encode(Gfx::AlphaType::Premultiplied));
     Web::HTML::TransferDataDecoder decoder { move(holder) };
     decoder.set_shared_buffers(shared_buffers);
-    auto receiver = Web::HTML::ImageBitmap::create();
-    EXPECT(receiver->transfer_receiving_steps(realm, decoder).is_error());
-    EXPECT_EQ(receiver->bitmap(), nullptr);
+    EXPECT(receive_image_bitmap(realm, decoder).is_error());
     EXPECT_EQ(ftruncate(shared_buffers[0].fd(), 0), 0);
 }
 #endif
@@ -960,8 +961,7 @@ TEST_CASE(image_bitmap_transfer_rejects_invalid_inline_pixels)
         MUST(holder.encode(Gfx::AlphaType::Premultiplied));
         MUST(holder.encode(pixels));
         Web::HTML::TransferDataDecoder decoder { move(holder) };
-        auto receiver = Web::HTML::ImageBitmap::create();
-        return receiver->transfer_receiving_steps(realm, decoder);
+        return receive_image_bitmap(realm, decoder);
     };
     Array<u8, 4> pixels {};
     EXPECT(!receive(Gfx::BitmapFormat::BGRA8888, 4, pixels).is_error());

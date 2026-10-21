@@ -1,0 +1,10 @@
+ImageBitmap: [object ImageBitmap], 2x1
+cloned ImageBitmap: 2x1, 255,0,0,255,0,255,0,128
+closed ImageBitmap: 0x0
+clone of a closed ImageBitmap: 0x0
+transfer of a closed ImageBitmap: DataCloneError
+drawImage of a closed ImageBitmap: InvalidStateError
+ImageBitmap without bitmap data: 0x0
+createImageBitmap from it: InvalidStateError
+texImage2D from ImageBitmap: 255,0,0,255,0,255,0,128
+texImage2D from a closed ImageBitmap: INVALID_VALUE

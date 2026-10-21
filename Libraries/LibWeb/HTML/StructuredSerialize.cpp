@@ -2353,10 +2353,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
             MUST(data_holder.encode(interface_name));
 
             // 4. Perform the appropriate transfer steps for the interface identified by interfaceName, given transferable and dataHolder.
-            if (interface_name == TransferType::ImageBitmap)
-                TRY(Bindings::impl_from<ImageBitmap>(transferable.ptr())->transfer_steps(data_holder, image_bitmap_pixels.has_value() ? &image_bitmap_pixels.value() : nullptr));
-            else
-                TRY(transferable_object.transfer_steps(realm, data_holder, image_bitmap_pixels.has_value() ? &image_bitmap_pixels.value() : nullptr));
+            TRY(transferable_object.transfer_steps(realm, data_holder, image_bitmap_pixels.has_value() ? &image_bitmap_pixels.value() : nullptr));
 
             // 5. Set transferable.[[Detached]] to true.
             transferable_object.set_detached();

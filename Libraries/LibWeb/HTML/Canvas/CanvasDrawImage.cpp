@@ -85,10 +85,7 @@ Optional<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource con
             return Gfx::DecodedImageFrame { *bitmap };
         },
         [](GC::Ref<ImageBitmap> const& source) -> Optional<Gfx::DecodedImageFrame> {
-            auto bitmap = source->bitmap();
-            if (!bitmap)
-                return {};
-            return Gfx::DecodedImageFrame { *bitmap };
+            return source->frame();
         },
         [](GC::Ref<OffscreenCanvas> const& source) -> Optional<Gfx::DecodedImageFrame> {
             auto bitmap = source->get_bitmap_from_surface();

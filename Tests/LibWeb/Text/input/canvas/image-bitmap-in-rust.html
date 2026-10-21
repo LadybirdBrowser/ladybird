@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function outcome(f) {
+        try {
+            const result = f();
+            return `${result}`;
+        } catch (error) {
+            return error.name;
+        }
+    }
+
+    function pixelsOfBitmap(bitmap) {
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext("2d");
+        context.drawImage(bitmap, 0, 0);
+        return Array.from(context.getImageData(0, 0, canvas.width, canvas.height).data).join(",");
+    }
+
+    function errorName(gl, error) {
+        for (const name of ["NO_ERROR", "INVALID_ENUM", "INVALID_VALUE", "INVALID_OPERATION"]) {
+            if (gl[name] === error)
+                return name;
+        }
+        return `0x${error.toString(16)}`;
+    }
+
+    // Uploads the source to a 2x1 texture and reads the texture back.
+    function uploadAndReadBack(gl, source) {
+        while (gl.getError() !== gl.NO_ERROR) {
+        }
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+        const error = errorName(gl, gl.getError());
+        if (error !== "NO_ERROR")
+            return error;
+        const framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        const pixels = new Uint8Array(8);
+        gl.readPixels(0, 0, 2, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return Array.from(pixels).join(",");
+    }
+
+    asyncTest(async done => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 2;
+        const context = canvas.getContext("2d");
+        const original = new ImageData(new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 128]), 2, 1);
+
+        const bitmap = await createImageBitmap(original);
+        println(`ImageBitmap: ${Object.prototype.toString.call(bitmap)}, ${bitmap.width}x${bitmap.height}`);
+        const clonedBitmap = structuredClone(bitmap);
+        println(`cloned ImageBitmap: ${clonedBitmap.width}x${clonedBitmap.height}, ${pixelsOfBitmap(clonedBitmap)}`);
+        const closed = await createImageBitmap(original);
+        closed.close();
+        println(`closed ImageBitmap: ${closed.width}x${closed.height}`);
+        println(`clone of a closed ImageBitmap: ${outcome(() => { const c = structuredClone(closed); return `${c.width}x${c.height}`; })}`);
+        println(`transfer of a closed ImageBitmap: ${outcome(() => structuredClone(closed, { transfer: [closed] }))}`);
+        println(`drawImage of a closed ImageBitmap: ${outcome(() => context.drawImage(closed, 0, 0))}`);
+
+        // An ImageBitmap of an OffscreenCanvas without pixels has no bitmap data.
+        const empty = new OffscreenCanvas(0, 0);
+        empty.getContext("2d");
+        const emptyBitmap = empty.transferToImageBitmap();
+        println(`ImageBitmap without bitmap data: ${emptyBitmap.width}x${emptyBitmap.height}`);
+        try {
+            await createImageBitmap(emptyBitmap);
+            println("createImageBitmap from it: resolved");
+        } catch (error) {
+            println(`createImageBitmap from it: ${error.name}`);
+        }
+
+        // WebGL reads its pixels.
+        const gl = document.createElement("canvas").getContext("webgl");
+        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+        println(`texImage2D from ImageBitmap: ${uploadAndReadBack(gl, bitmap)}`);
+        println(`texImage2D from a closed ImageBitmap: ${uploadAndReadBack(gl, closed)}`);
+        done();
+    });
+</script>

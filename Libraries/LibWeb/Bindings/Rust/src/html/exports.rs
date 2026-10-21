@@ -23,6 +23,7 @@ use libjs_rust::api::{RawNativeFunctionResult, Value, Vm};
 use super::canvas_gradient::CanvasGradient;
 use super::canvas_path::{self, CanvasPathError, RoundRectRadius};
 use super::canvas_pattern::CanvasPattern;
+use super::image_bitmap::ImageBitmap;
 use super::image_data::{ImageData, ImageDataSettings};
 use super::path2d::Path2D;
 use super::predefined_color_space::PredefinedColorSpace;
@@ -490,4 +491,66 @@ pub unsafe extern "C" fn web_image_data_pixels(image_data: *mut c_void) -> *mut 
     // SAFETY: The caller passes a live cell.
     let image_data = unsafe { object_from_abi::<ImageData>(image_data) };
     image_data.pixels().map_or(core::ptr::null_mut(), NonNull::as_ptr)
+}
+
+/// `frame` is a Gfx::DecodedImageFrame that the caller lends for the call, which the ImageBitmap keeps a copy of as its
+/// bitmap data, or null for none.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, and `frame` a live frame or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_create(vm: *mut c_void, frame: *const c_void) -> *mut c_void {
+    // SAFETY: The caller passes the live VM.
+    let vm = unsafe { vm_from_abi(vm) };
+    // SAFETY: The caller passes a live frame.
+    let frame = (!frame.is_null()).then(|| unsafe { ImageFrameHandle::retain(frame) });
+    cell_into_abi(ImageBitmap::create(vm, frame))
+}
+
+/// # Safety
+///
+/// `image_bitmap` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_width(image_bitmap: *mut c_void) -> u32 {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.width_of_bitmap()
+}
+
+/// # Safety
+///
+/// `image_bitmap` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_height(image_bitmap: *mut c_void) -> u32 {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.height_of_bitmap()
+}
+
+/// # Safety
+///
+/// `image_bitmap` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_is_detached(image_bitmap: *mut c_void) -> bool {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.is_detached()
+}
+
+/// # Safety
+///
+/// `image_bitmap` must be a live cell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_close(image_bitmap: *mut c_void) {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.close_bitmap();
+}
+
+/// The Gfx::DecodedImageFrame of the bitmap data of the ImageBitmap, or null if it has none.
+///
+/// # Safety
+///
+/// `image_bitmap` must be a live cell. The frame is valid until the bitmap data is unset, by close() or a transfer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_image_bitmap_frame(image_bitmap: *mut c_void) -> *const c_void {
+    // SAFETY: The caller passes a live cell.
+    unsafe { object_from_abi::<ImageBitmap>(image_bitmap) }.raw_frame()
 }
