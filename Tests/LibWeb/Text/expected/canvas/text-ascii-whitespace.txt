@@ -1,0 +1,16 @@
+tab: measureText(): true
+tab: fillText(): true
+tab: fillText() with maxWidth: true
+tab: strokeText(): true
+line feed: measureText(): true
+line feed: fillText(): true
+line feed: fillText() with maxWidth: true
+line feed: strokeText(): true
+form feed: measureText(): true
+form feed: fillText(): true
+form feed: fillText() with maxWidth: true
+form feed: strokeText(): true
+carriage return: measureText(): true
+carriage return: fillText(): true
+carriage return: fillText() with maxWidth: true
+carriage return: strokeText(): true
