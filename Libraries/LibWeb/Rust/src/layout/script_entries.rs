@@ -38,19 +38,17 @@ fn read_rows<R>(host: &DocumentHost, read: impl FnOnce(&PaintSource<'_>) -> R) -
 
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, and
-/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
+/// The callback must be sound to call with `context`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_script_client_rects(
     host: &DocumentHost,
     layout_node: NodeSlotId,
-    rect_to_viewport_transform: FfiRectToViewportTransform,
+    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
     context: *mut c_void,
     push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
 ) {
     read_rows(host, |arena| {
-        let rect_to_viewport_transform =
-            unsafe { crate::painting::ffi::rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
+        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
         crate::painting::client_rects::for_each_client_rect(
             arena,
             layout_node,
@@ -63,39 +61,29 @@ pub unsafe extern "C" fn layout_script_client_rects(
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and
-/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_bounding_client_rect(
+pub extern "C" fn layout_script_bounding_client_rect(
     host: &DocumentHost,
     layout_node: NodeSlotId,
-    rect_to_viewport_transform: FfiRectToViewportTransform,
+    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
     out: &mut FfiCssPixelRect,
 ) {
     *out = read_rows(host, |arena| {
-        let rect_to_viewport_transform =
-            unsafe { crate::painting::ffi::rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
+        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
         crate::painting::client_rects::bounding_client_rect(arena, layout_node, rect_to_viewport_transform.as_ref())
             .into()
     });
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and
-/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_script_transform_subtree_is_clipped_outside(
+pub extern "C" fn layout_script_transform_subtree_is_clipped_outside(
     host: &DocumentHost,
     target: NodeSlotId,
     root_bounds: FfiCssPixelRect,
-    rect_to_viewport_transform: FfiRectToViewportTransform,
+    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
 ) -> bool {
     read_rows(host, |arena| {
-        let rect_to_viewport_transform =
-            unsafe { crate::painting::ffi::rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
+        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
         crate::painting::intersection_observer::transform_subtree_is_clipped_outside(
             arena,
             target,
@@ -107,8 +95,7 @@ pub unsafe extern "C" fn layout_script_transform_subtree_is_clipped_outside(
 
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, and
-/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
+/// The callback must be sound to call with `context`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
     host: &DocumentHost,
@@ -116,7 +103,7 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
     target_rect: FfiCssPixelRect,
     intersection_root: NodeSlotId,
     root_bounds: FfiCssPixelRect,
-    rect_to_viewport_transform: FfiRectToViewportTransform,
+    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
     context: *mut c_void,
     inflate_scroll_container_clip_rect_by_scroll_margin: unsafe extern "C" fn(
         *mut c_void,
@@ -125,8 +112,7 @@ pub unsafe extern "C" fn layout_script_intersection_observer_intersection_rect(
     out: &mut FfiCssPixelRect,
 ) {
     *out = read_rows(host, |arena| {
-        let rect_to_viewport_transform =
-            unsafe { crate::painting::ffi::rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
+        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
         crate::painting::intersection_observer::intersection_rect(
             arena,
             target,
@@ -160,9 +146,7 @@ pub extern "C" fn layout_script_can_compute_client_rects_without_visual_context_
 
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, used on the document
-/// thread, and
-/// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
+/// The callback must be sound to call with `context`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_script_text_range_rects(
     host: &DocumentHost,
@@ -172,14 +156,13 @@ pub unsafe extern "C" fn layout_script_text_range_rects(
     range_end_offset: usize,
     filter_dom_start: usize,
     filter_dom_end: usize,
-    rect_to_viewport_transform: FfiRectToViewportTransform,
+    rect_to_viewport_transform: FfiRectToViewportTransform<'_>,
     context: *mut c_void,
     push_rect: unsafe extern "C" fn(*mut c_void, FfiCssPixelRect),
 ) {
     read_rows(host, |arena| {
         let paintable_rows = arena;
-        let rect_to_viewport_transform =
-            unsafe { crate::painting::ffi::rect_to_viewport_transform_from_ffi(&rect_to_viewport_transform) };
+        let rect_to_viewport_transform = rect_to_viewport_transform.transform();
 
         let fragments = arena.text_fragments(primary);
         let node_slots = fragments.as_slice();
