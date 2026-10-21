@@ -635,8 +635,7 @@ Optional<String> Application::system_font_family() const
 BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
 {
     auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, traversable);
-    if (show_window != ShowWindow::WithoutActivating)
-        set_active_window(*window);
+    set_active_window(*window);
     QObject::connect(window, &QObject::destroyed, m_application.ptr(), [this, window] {
         if (m_active_window == window)
             m_active_window = nullptr;
@@ -649,18 +648,14 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
     }
 
     window->set_window_rect(configuration.x, configuration.y, configuration.width, configuration.height);
-    if (show_window != ShowWindow::No) {
-        if (show_window == ShowWindow::WithoutActivating)
-            window->setAttribute(Qt::WA_ShowWithoutActivating);
+    if (show_window == ShowWindow::Yes) {
         if (configuration.maximized == true)
             window->showMaximized();
         else
             window->show();
 
-        if (show_window == ShowWindow::Yes) {
-            window->activateWindow();
-            window->raise();
-        }
+        window->activateWindow();
+        window->raise();
     }
 
     size_t initial_url_index = 0;

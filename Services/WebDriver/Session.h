@@ -74,10 +74,15 @@ public:
     String const& current_window_handle() const { return m_current_window_handle; }
     bool test_hooks_enabled() const { return m_options.enable_test_hooks; }
 
+    bool has_window_handle(StringView handle) const { return m_windows.contains(handle); }
+    using WindowHandleBecameAvailableCallbackID = u64;
+    // Registrations are dispatched at most once. Callers must remove them when handling a timeout.
+    WindowHandleBecameAvailableCallbackID add_window_handle_became_available_callback(String const& handle, Function<void()> callback, Function<void()> on_session_close);
+    void remove_window_handle_became_available_callback(String const& handle, WindowHandleBecameAvailableCallbackID);
+
     Web::WebDriver::Response get_timeouts() const;
     Web::WebDriver::Response set_timeouts(JsonValue);
     NonnullRefPtr<WebDriverPromise> close_window();
-    NonnullRefPtr<WebDriverPromise> new_window(JsonValue payload);
     NonnullRefPtr<WebDriverPromise> switch_to_window(StringView);
     Web::WebDriver::Response get_window_handles() const;
 
@@ -109,6 +114,7 @@ private:
     NonnullRefPtr<WebDriverPromise> run_content_command(Web::WebDriver::SessionBrowsingContext, StringView name, JsonValue payload, Vector<String> arguments);
     ErrorOr<void> create_server();
     void remove_window(StringView window_handle);
+    void dispatch_window_handle_became_available_callbacks(String const& window_handle);
     void reject_pending_browser_commands();
     void arm_browser_startup_timeout(NonnullRefPtr<ServerPromise>);
     void cancel_browser_startup_timeout();
@@ -159,6 +165,14 @@ private:
     Web::WebDriver::TimeoutsConfiguration m_timeouts;
     Optional<JsonValue> m_timeouts_configuration;
     bool m_strict_file_interactiblity { false };
+
+    struct WindowHandleBecameAvailableCallback {
+        WindowHandleBecameAvailableCallbackID id;
+        Function<void()> callback;
+        Function<void()> on_session_close;
+    };
+    HashMap<String, Vector<WindowHandleBecameAvailableCallback>> m_window_handle_became_available_callbacks;
+    WindowHandleBecameAvailableCallbackID m_next_window_handle_became_available_callback_id { 1 };
 };
 
 NonnullRefPtr<Session::WebDriverPromise> continue_with_promise(NonnullRefPtr<Session::WebDriverPromise>, Function<NonnullRefPtr<Session::WebDriverPromise>()>);

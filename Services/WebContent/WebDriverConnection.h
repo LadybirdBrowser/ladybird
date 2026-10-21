@@ -48,6 +48,7 @@ private:
     Web::WebDriver::Response get_current_url();
     Web::WebDriver::Response get_title();
     Web::WebDriver::Response close_window();
+    Web::WebDriver::Response new_window(JsonValue payload);
     Web::WebDriver::Response switch_to_frame(JsonValue payload);
     Web::WebDriver::Response get_window_rect();
     Web::WebDriver::Response set_window_rect(JsonValue payload);
