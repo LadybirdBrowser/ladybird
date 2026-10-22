@@ -201,6 +201,7 @@ RENDER_STATE_ALLOWED = {
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:FLIGHT_FINISHED": "set once before the first job is submitted, which a stage thread calls when one finishes; read-only after",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:STYLE_LAYOUT_THREAD": "the process's one StyleLayout thread, which every thread hands its jobs to",
     f"{RENDER_STATE_CRATE}/src/paint_stage.rs:PAINT_THREAD": "the process's one Paint thread, which every thread hands its jobs to, and the stage only its own jobs reach",
+    f"{RENDER_STATE_CRATE}/src/render_state/clock/render_clock.rs:RENDER_CLOCK": "the process's one render clock thread, which every thread hands its jobs to, and the channel and armed contexts only its own jobs reach",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:THREAD": "test only",
 }
 

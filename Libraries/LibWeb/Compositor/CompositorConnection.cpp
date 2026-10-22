@@ -6,6 +6,7 @@
 
 #include <AK/QuickSort.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 
 #include <AK/Debug.h>
 #include <AK/Mutex.h>
@@ -18,7 +19,6 @@
 #include <LibIPC/Limits.h>
 #include <LibIPC/Transport.h>
 #include <LibMediaClient/Client.h>
-#include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/Page.h>
@@ -115,8 +115,16 @@ void CompositorConnection::attach_render_clock(IPC::TransportHandle handle)
 {
     if (!can_send_message_to_compositor())
         return;
-    if (auto result = RenderClock::the().attach(move(handle)); result.is_error())
-        dbgln("Failed to attach the render clock to the compositor: {}", result.error());
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+    auto rights = handle.release_mach_rights();
+    auto attached = Layout::RustFFI::render_clock_attach_mach_rights(rights.receive_right.release(), rights.send_right.release());
+#elif defined(AK_OS_WINDOWS)
+    auto attached = Layout::RustFFI::render_clock_attach_descriptor(reinterpret_cast<intptr_t>(to_handle(handle.release_fd())));
+#else
+    auto attached = Layout::RustFFI::render_clock_attach_descriptor(handle.release_fd());
+#endif
+    if (!attached)
+        dbgln("Failed to attach the render clock to the compositor");
 }
 
 void CompositorConnection::set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id)

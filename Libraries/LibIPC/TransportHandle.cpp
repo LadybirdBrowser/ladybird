@@ -38,6 +38,13 @@ ErrorOr<NonnullOwnPtr<Transport>> TransportHandle::create_transport() const
     return make<Transport>(move(m_receive_right), move(m_send_right));
 }
 
+TransportHandle::MachRights TransportHandle::release_mach_rights()
+{
+    VERIFY(MACH_PORT_VALID(m_receive_right.port()));
+    VERIFY(m_send_right.port() != MACH_PORT_NULL);
+    return { move(m_receive_right), move(m_send_right) };
+}
+
 ErrorOr<TransportHandlePair> TransportHandle::create_pair()
 {
     auto port_a_receive_right = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
@@ -93,6 +100,11 @@ TransportHandle::TransportHandle(File file)
 ErrorOr<NonnullOwnPtr<Transport>> TransportHandle::create_transport() const
 {
     return Transport::adopt_fd(m_file.take_fd());
+}
+
+int TransportHandle::release_fd()
+{
+    return m_file.take_fd();
 }
 
 ErrorOr<TransportHandlePair> TransportHandle::create_pair()

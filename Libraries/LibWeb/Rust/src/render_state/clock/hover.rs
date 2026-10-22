@@ -46,22 +46,6 @@ pub struct FfiHoverPlanInputs {
     pub effect_timing_count: usize,
 }
 
-unsafe extern "C" {
-    /// Hands the render clock a pointer move over the compositor context of a same-process iframe's document, as the
-    /// compositor hands it those over the page's: the context, the position in the context's device pixels, or none
-    /// where the pointer left it, the buttons held, whether the compositor scrolled since the frame, and the input
-    /// event id. Any thread may call it, and it ignores a context it has no lane for.
-    safe fn web_render_clock_hand_pointer_move(
-        context: u64,
-        has_position: bool,
-        x: f32,
-        y: f32,
-        buttons: u32,
-        scrolled_since_frame: bool,
-        input_event_id: u64,
-    );
-}
-
 /// The cursor of a page, which the host hands a hover with its plan: what the page asks its client to show, and the
 /// calls that reach it from any thread. The cursor is retained for as long as a plan holds it.
 #[repr(C)]
@@ -237,16 +221,7 @@ impl HoverPlan {
 /// Hands the render clock the pointer move `pointer` over the compositor context `context`, at `position` in its device
 /// pixels, or out of it.
 fn hand_pointer_to_context(context: u64, position: Option<FloatPoint>, pointer: PendingPointer) {
-    let position_or_origin = position.unwrap_or(FloatPoint { x: 0.0, y: 0.0 });
-    web_render_clock_hand_pointer_move(
-        context,
-        position.is_some(),
-        position_or_origin.x,
-        position_or_origin.y,
-        pointer.buttons,
-        pointer.scrolled_since_frame,
-        pointer.input_event_id,
-    );
+    super::render_clock::hand_pointer_move(context, PendingPointer { position, ..pointer });
 }
 
 /// Where the render clock heard the pointer went.
@@ -1411,28 +1386,6 @@ fn cursor_for_hit(state: &mut RenderState, hit: CursorHit) -> Option<u8> {
         cursor_predefined::AUTO => cursor_predefined::DEFAULT,
         predefined => predefined,
     })
-}
-
-/// Hands the clock lane `ticks` belong to where the pointer went: to `x`, `y` in device pixels where `has_position`,
-/// or out of the context, beside the mouse event with the input event id `input_event_id`, and answers what the lane
-/// wants next, as a `PointerAnswer`.
-///
-#[unsafe(no_mangle)]
-pub extern "C" fn clock_ticks_pointer_moved(
-    ticks: &super::ClockTicks,
-    has_position: bool,
-    x: f32,
-    y: f32,
-    buttons: u32,
-    scrolled_since_frame: bool,
-    input_event_id: u64,
-) -> u8 {
-    ticks.pointer_moved(PendingPointer {
-        position: has_position.then_some(FloatPoint { x, y }),
-        buttons,
-        scrolled_since_frame,
-        input_event_id,
-    }) as u8
 }
 
 /// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, as the compositor would,

@@ -34,3 +34,7 @@ rename_types = "PascalCase"
 "StyleEngineHandle" = "const void*"
 # So is a parsed syntax, which C++ holds by pointer.
 "SyntaxNode" = "void"
+
+[defines]
+# What C++ sees of the platforms an export is only on. These need no include, unlike AK/Platform.h's.
+"target_vendor = apple" = "__APPLE__"

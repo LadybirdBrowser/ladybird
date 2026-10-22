@@ -61,6 +61,7 @@ use std::sync::{Arc, Mutex};
 mod effects;
 pub(crate) mod hover;
 mod lane;
+mod render_clock;
 pub(crate) use hover::PendingPointer;
 pub(crate) use lane::LaneDelivery;
 pub(super) use lane::{LaneSlot, note_host_write, retire_slot, seal_plan, take_lanes_in};
@@ -1577,42 +1578,6 @@ impl ClockRecorder {
 /// Hands the lanes `ticks` belong to a display tick at `frame_time_nanoseconds`, at which the compositor had scrolled to
 /// the `scroll_offset_count` offsets at `scroll_offsets`, and answers whether they want the next one.
 ///
-/// # Safety
-///
-/// `ticks` must come from `document_host_clock_ticks` and not be released yet, and `scroll_offsets` must hold
-/// `scroll_offset_count` offsets.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn clock_ticks_tick(
-    ticks: *const ClockTicks,
-    frame_time_nanoseconds: i64,
-    scroll_offsets: *const FfiScrollOffset,
-    scroll_offset_count: usize,
-) -> bool {
-    // SAFETY: Guaranteed by the caller, whose reference this borrows.
-    let ticks = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(ticks) });
-    // SAFETY: Guaranteed by the caller.
-    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offset_count) };
-    ticks.tick(frame_time_nanoseconds, scroll_offsets)
-}
-
-/// Gives up the reference `ticks` holds.
-///
-/// # Safety
-///
-/// `ticks` must come from `document_host_clock_ticks`, and be released once.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn clock_ticks_release(ticks: *const ClockTicks) {
-    // SAFETY: Guaranteed by the caller.
-    drop(unsafe { Arc::from_raw(ticks) });
-}
-
-/// A reference to the ticks the render clock hands the lanes of `host`'s document, which the caller releases with
-/// `clock_ticks_release`.
-#[unsafe(no_mangle)]
-pub extern "C" fn document_host_clock_ticks(host: &DocumentHost) -> *const ClockTicks {
-    Arc::into_raw(Arc::clone(host.clock_ticks()))
-}
-
 /// Drops the plan of the lane of the frame `host`'s document presented last, for the rendering update with the serial
 /// number `update`, which leaves it none. The plan is the host's, so this reads nothing of the render state.
 #[unsafe(no_mangle)]

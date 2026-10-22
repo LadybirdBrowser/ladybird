@@ -2976,6 +2976,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/painting/ffi.rs"),
             manifest_dir.join("src/render_state/clock.rs"),
             manifest_dir.join("src/render_state/clock/hover.rs"),
+            manifest_dir.join("src/render_state/clock/render_clock.rs"),
             manifest_dir.join("src/layout/script_entries.rs"),
             manifest_dir.join("src/painting/paint_changes.rs"),
             manifest_dir.join("src/painting/ffi/main_thread_entries.rs"),

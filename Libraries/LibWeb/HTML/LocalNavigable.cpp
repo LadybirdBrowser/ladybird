@@ -23,7 +23,6 @@
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
-#include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
@@ -77,6 +76,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/XMLSerializer.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -6732,7 +6732,7 @@ void LocalNavigable::arm_clock_lane(TickNow tick_now)
 {
     // A test injects its ticks itself. The lanes of a same-process iframe's document still hear of the pointer moves the
     // lane of the document around it hands them, which wait for a tick the test injects.
-    bool const manual = Compositor::RenderClock::the().is_manual_for_testing();
+    bool const manual = Layout::RustFFI::render_clock_is_manual_for_testing();
     if (manual && is_local_root())
         return;
     auto document = active_document();
@@ -6741,11 +6741,10 @@ void LocalNavigable::arm_clock_lane(TickNow tick_now)
     auto* arena = document->layout_node_arena_if_created();
     if (!arena)
         return;
-    auto handle = adopt_ref(*new Compositor::ClockTicksHandle { Layout::RustFFI::document_host_clock_ticks(arena->host()) });
     Optional<i64> tick_now_at;
     if (tick_now == TickNow::Yes && !manual)
         tick_now_at = static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0);
-    Compositor::RenderClock::the().arm_lane(compositor_context().id(), page().client().maximum_frames_per_second(), move(handle), tick_now_at);
+    Layout::RustFFI::render_clock_arm_lane(compositor_context().id().value(), page().client().maximum_frames_per_second(), arena->host(), tick_now_at.has_value(), tick_now_at.value_or(0));
 }
 
 // Seals what a frame of `document` reads of the document and this navigable where the frame begins: the frame is built
