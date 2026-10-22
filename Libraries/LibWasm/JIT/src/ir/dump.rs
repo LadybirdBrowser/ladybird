@@ -119,8 +119,8 @@ pub fn node_text(func: &Func, value: Value) -> String {
     text
 }
 
-/// The whole function as text. Nodes for which `is_dead` holds are left out.
-pub fn dump(func: &Func, is_dead: &dyn Fn(Value) -> bool) -> String {
+/// The whole function as text.
+pub fn dump(func: &Func) -> String {
     let mut out = String::new();
     let types = |types: &[Type]| types.iter().map(|ty| ty.name()).collect::<Vec<_>>().join(", ");
     writeln!(out, "function ({}) -> ({})", types(&func.params), types(&func.results)).unwrap();
@@ -145,16 +145,13 @@ pub fn dump(func: &Func, is_dead: &dyn Fn(Value) -> bool) -> String {
         }
         out.push('\n');
         for phi in func.phis(block_id) {
-            if func.node(phi).op == Op::Phi && !is_dead(phi) {
+            if func.node(phi).op == Op::Phi {
                 writeln!(out, "  v{phi} = {}", node_text(func, phi)).unwrap();
             }
         }
         for value in block.start..block.end {
             let node = func.node(value);
-            if is_dead(value)
-                || (node.op.is_entry_value() && node.op != Op::Param)
-                || matches!(node.op, Op::Phi | Op::Forward)
-            {
+            if (node.op.is_entry_value() && node.op != Op::Param) || matches!(node.op, Op::Phi | Op::Forward) {
                 continue;
             }
             if node.op.is_terminator() {

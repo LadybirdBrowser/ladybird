@@ -32,7 +32,7 @@ impl Builder {
         atomic: bool,
     ) -> Value {
         let memory64 = module.memory_space[argument.memory as usize].limits.address_type == AddressType::I64;
-        let index = Self::resolve(func, index);
+        let index = func.resolve(index);
         let data = self.memory_data(func, argument.memory);
         let offset = self.constant(func, Type::I64, argument.offset);
         let mut flags = size_log2;
@@ -57,7 +57,7 @@ impl Builder {
     /// A store of `1 << size_log2` bytes of `value` at `address`, a pointer.
     pub(super) fn store_at(&mut self, func: &mut Func, size_log2: u8, address: Value, offset: u32, value: Value) {
         let zero = self.constant(func, Type::I32, 0);
-        let value = Self::resolve(func, value);
+        let value = func.resolve(value);
         let start = func.operands.len() as u32;
         func.operands.extend_from_slice(&[address, zero, value]);
         Self::append(func, Node::new(Op::Store, Type::None, size_log2, [start, 3, offset]));
@@ -144,7 +144,7 @@ impl Builder {
                 self.push(loaded);
             }
             AtomicKind::Store { value, size } => {
-                let stored = Self::resolve(func, self.pop());
+                let stored = func.resolve(self.pop());
                 let index = self.pop();
                 let size_log2 = size.trailing_zeros() as u8;
                 let address = self.checked_address(func, module, argument, index, size_log2, true);
@@ -160,7 +160,7 @@ impl Builder {
                 );
             }
             AtomicKind::ReadModifyWrite { value, size } => {
-                let operand = Self::resolve(func, self.pop());
+                let operand = func.resolve(self.pop());
                 let index = self.pop();
                 let size_log2 = size.trailing_zeros() as u8;
                 let address = self.checked_address(func, module, argument, index, size_log2, true);
@@ -172,8 +172,8 @@ impl Builder {
                 self.push(old);
             }
             AtomicKind::CompareExchange { value, size } => {
-                let replacement = Self::resolve(func, self.pop());
-                let expected = Self::resolve(func, self.pop());
+                let replacement = func.resolve(self.pop());
+                let expected = func.resolve(self.pop());
                 let index = self.pop();
                 let size_log2 = size.trailing_zeros() as u8;
                 let address = self.checked_address(func, module, argument, index, size_log2, true);

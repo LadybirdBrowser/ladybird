@@ -91,7 +91,7 @@ impl Builder {
         let ty = module.types[type_index as usize]
             .as_func()
             .expect("call_indirect has a function type");
-        let index = Self::resolve(func, self.pop());
+        let index = func.resolve(self.pop());
         let table = self.table_data(func, table);
         let element = Self::append(
             func,
@@ -120,7 +120,7 @@ impl Builder {
         let ty = module.types[type_index as usize]
             .as_func()
             .expect("call_ref has a function type");
-        let reference = Self::resolve(func, self.pop());
+        let reference = func.resolve(self.pop());
         Self::append(
             func,
             Node::new(Op::CheckNull, Type::None, TRAP_NULL_REFERENCE as u8, [reference, 0, 0]),
@@ -160,7 +160,7 @@ impl Builder {
         func.operands.extend_from_slice(&[header, instance, memory_base]);
         let top = self.stack.len() - argument_count;
         for position in top..self.stack.len() {
-            let value = Self::resolve(func, self.stack[position]);
+            let value = func.resolve(self.stack[position]);
             func.operands.push(value);
         }
         self.stack.truncate(top);

@@ -46,7 +46,8 @@ pub trait Entity: Sized {
 
 /// An entity, as the address of the entity in its cell. Function references and tag identities are the handles of
 /// their functions and tags, and the interpreter's views of instances, tables, memories, and globals are the first
-/// fields of theirs, so the interpreter's pointers are handles too.
+/// fields of theirs, so the interpreter's pointers are handles too, and a slice of handles is an array of them.
+#[repr(transparent)]
 pub struct Handle<T>(NonNull<T>);
 
 impl<T> Clone for Handle<T> {

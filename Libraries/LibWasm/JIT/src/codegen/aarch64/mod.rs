@@ -29,7 +29,6 @@ use crate::asm::aarch64::{Assembler, Cond, Extend, FloatSize, MemOp, MemOperand,
 use crate::asm::{Fpr, Gpr, Label, Width};
 use crate::convention::{self, Register};
 use crate::ir::{BlockId, FloatCondition, Func, IntCondition, NONE, Op, Type, Value};
-use crate::passes::cleanup::Liveliness;
 use crate::regalloc::{Allocation, Location, Move, NO_REGISTER, NO_SLOT};
 use libwasm_module::abi::{ExecutionContext, InstanceData};
 use std::mem::offset_of;
@@ -147,7 +146,6 @@ struct EdgeStub {
 
 pub struct CodeGenerator<'a> {
     func: &'a Func,
-    liveliness: &'a Liveliness,
     allocation: &'a Allocation,
     runtime: &'a RuntimeInfo,
     asm: Assembler,
@@ -160,22 +158,14 @@ pub struct CodeGenerator<'a> {
     frame_size: u32,
     /// The block whose code is being generated.
     block: BlockId,
-    /// Why the function could not be compiled, if a lowering found out.
-    failure: Option<crate::CompileFailure>,
     exception_sites: Vec<u32>,
 }
 
 impl<'a> CodeGenerator<'a> {
-    pub fn new(
-        func: &'a Func,
-        liveliness: &'a Liveliness,
-        allocation: &'a Allocation,
-        runtime: &'a RuntimeInfo,
-    ) -> Self {
+    pub fn new(func: &'a Func, allocation: &'a Allocation, runtime: &'a RuntimeInfo) -> Self {
         let size = convention::FRAME_HEADER_SIZE as u32 + 8 * allocation.slot_count + allocation.outgoing_size;
         Self {
             func,
-            liveliness,
             allocation,
             runtime,
             asm: Assembler::new(),
@@ -186,7 +176,6 @@ impl<'a> CodeGenerator<'a> {
             edge_stubs: Vec::new(),
             frame_size: size.next_multiple_of(16),
             block: 0,
-            failure: None,
             exception_sites: Vec::new(),
         }
     }
@@ -213,7 +202,7 @@ impl<'a> CodeGenerator<'a> {
             let data = func.blocks[block as usize];
             for value in data.start..data.end {
                 let op = func.node(value).op;
-                if self.liveliness.is_dead(value) || matches!(op, Op::Phi | Op::Forward) || op.is_entry_value() {
+                if op.is_entry_value() {
                     continue;
                 }
                 for item in self.allocation.node_moves(value) {
@@ -225,9 +214,6 @@ impl<'a> CodeGenerator<'a> {
                 if record.output != NO_REGISTER && slot != NO_SLOT {
                     self.store_to_slot(record.output, slot, func.node(value).ty == Type::V128);
                 }
-            }
-            if let Some(failure) = self.failure {
-                return Err(failure);
             }
         }
         self.out_of_line();
@@ -271,7 +257,7 @@ impl<'a> CodeGenerator<'a> {
         let data = func.blocks[0];
         for value in data.start..data.end {
             let node = func.node(value);
-            if self.liveliness.is_dead(value) || !matches!(node.op, Op::Param | Op::MemoryBase) {
+            if !matches!(node.op, Op::Param | Op::MemoryBase) {
                 continue;
             }
             let record = self.allocation.node(value);
@@ -785,10 +771,9 @@ impl<'a> CodeGenerator<'a> {
 /// Generates the code of `func`.
 pub fn generate(
     func: &Func,
-    liveliness: &Liveliness,
     allocation: &Allocation,
     runtime: &RuntimeInfo,
 ) -> Result<Generated, crate::CompileFailure> {
     let _ = (NONE, Shift::Lsl);
-    CodeGenerator::new(func, liveliness, allocation, runtime).generate()
+    CodeGenerator::new(func, allocation, runtime).generate()
 }

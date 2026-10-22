@@ -19,6 +19,7 @@
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Forward.h>
 #include <LibGC/PrimitiveStorage.h>
+#include <LibGC/Ptr.h>
 #include <LibWasm/Export.h>
 
 namespace Wasm::FFI {
@@ -68,8 +69,6 @@ struct ValueType {
 
     static constexpr ValueType scalar(ValueKind kind) { return { kind, HeapKind::Function, false, 0 }; }
     static constexpr ValueType reference(HeapKind heap, bool nullable = true) { return { ValueKind::Reference, heap, nullable, 0 }; }
-
-    bool is_reference() const { return kind == ValueKind::Reference; }
 };
 
 // A value. i32 and f32 bits are zero-extended in `low`, a v128 is `low` and `high`, and a reference is its bits, which
@@ -115,7 +114,7 @@ using Entity = GC::ForeignCell*;
 
 struct Extern {
     ExternKind kind { ExternKind::Function };
-    Entity entity { nullptr };
+    GC::RawPtr<GC::ForeignCell> entity;
 };
 
 struct Limits {
@@ -293,6 +292,8 @@ public:
     // An object that stands for the cell and refers to it then stays the same object while the cell lives.
     void set_host_object(GC::ForeignCell* cell, GC::Cell& object);
     void set_host_object(GC::ForeignCell* cell, GC::ForeignCell& object);
+    // The object set_host_object() gave the cell, or null.
+    void* host_object(GC::ForeignCell* cell) const;
 
     u64 table_size(Entity table);
     ValueType table_element_type(Entity table);

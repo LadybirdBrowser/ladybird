@@ -513,7 +513,7 @@ static mut PREVIOUS: libc::sigaction = unsafe { std::mem::zeroed() };
 static mut PREVIOUS_SIGBUS: libc::sigaction = unsafe { std::mem::zeroed() };
 
 /// The program counter of a signal handler's context, and the register the trap exit takes the trap code in.
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 unsafe fn fault_registers(context: *mut libc::ucontext_t) -> (*mut u64, *mut u64) {
     unsafe {
         let registers = &raw mut (*context).uc_mcontext.gregs;
@@ -521,6 +521,14 @@ unsafe fn fault_registers(context: *mut libc::ucontext_t) -> (*mut u64, *mut u64
             (&raw mut (*registers)[libc::REG_RIP as usize]).cast(),
             (&raw mut (*registers)[libc::REG_RDI as usize]).cast(),
         )
+    }
+}
+
+#[cfg(all(target_arch = "x86_64", target_os = "macos"))]
+unsafe fn fault_registers(context: *mut libc::ucontext_t) -> (*mut u64, *mut u64) {
+    unsafe {
+        let state = &raw mut (*(*context).uc_mcontext).__ss;
+        ((&raw mut (*state).__rip), (&raw mut (*state).__rdi))
     }
 }
 

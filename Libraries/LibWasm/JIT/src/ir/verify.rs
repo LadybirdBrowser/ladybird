@@ -58,9 +58,8 @@ pub fn dominates(idom: &[u32], a: u32, mut b: u32) -> bool {
     }
 }
 
-/// Checks the function. `is_dead` tells which nodes cleanup removed; `after_cleanup` requires that no forwarded
-/// phi is used.
-pub fn verify(func: &Func, is_dead: &dyn Fn(Value) -> bool, after_cleanup: bool) -> Result<(), String> {
+/// Checks the function. `after_cleanup` requires that no forwarded phi is used.
+pub fn verify(func: &Func, after_cleanup: bool) -> Result<(), String> {
     let mut errors = Vec::new();
     let mut error = |message: String| {
         if errors.len() < 20 {
@@ -152,7 +151,7 @@ pub fn verify(func: &Func, is_dead: &dyn Fn(Value) -> bool, after_cleanup: bool)
         let block_id = index as u32;
         for value in (block.start..block.end).chain(func.phis(block_id)) {
             let node = func.node(value);
-            if node.op.is_entry_value() || block_of[value as usize] != block_id || is_dead(value) {
+            if node.op.is_entry_value() || block_of[value as usize] != block_id {
                 continue;
             }
             if after_cleanup && node.op == Op::Forward {
@@ -173,9 +172,6 @@ pub fn verify(func: &Func, is_dead: &dyn Fn(Value) -> bool, after_cleanup: bool)
                 }
                 if after_cleanup && input_node.op == Op::Forward {
                     error(format!("v{value} uses the forwarded phi v{input}"));
-                }
-                if is_dead(input) {
-                    error(format!("v{value} uses the dead v{input}"));
                 }
                 let (use_block, position) = if node.op == Op::Phi {
                     let predecessor = func.predecessors(block_id)[input_index];

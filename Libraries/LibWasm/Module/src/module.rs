@@ -155,10 +155,7 @@ pub struct Module {
 
     // Index spaces, imports first.
     pub imported_function_count: u32,
-    pub imported_table_count: u32,
-    pub imported_memory_count: u32,
     pub imported_global_count: u32,
-    pub imported_tag_count: u32,
     /// The type index of every function.
     pub function_space: Vec<u32>,
     pub table_space: Vec<TableType>,

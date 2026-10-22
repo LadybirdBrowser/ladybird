@@ -7,7 +7,7 @@
 //! The runtime services the interpreter calls for what needs the runtime: growing memories and tables, and calling
 //! host functions. Each takes the execution context, whose `arguments` hold the operands.
 
-use super::{FunctionInstance, FunctionKind, MemoryAddress, Store, TableAddress, Trap, Value};
+use super::{FunctionAddress, FunctionInstance, FunctionKind, MemoryAddress, Store, TableAddress, Trap};
 use crate::abi::{
     ExecutionContext, FRAME_FUNCTION, FRAME_HEADER_SIZE, FRAME_INSTANCE, FRAME_RETURN_IP, FRAME_SAVED_FP, MemoryData,
     TableData,
@@ -15,33 +15,7 @@ use crate::abi::{
 use crate::futex::{self, AtomicWaitResult, WaitWord};
 use crate::validator::{CatchKind, NO_EXCEPTION_LOCAL, NOT_DELEGATED};
 
-/// Export the runtime functions under the names the interpreter calls them by. The interpreter calls them with the
-/// System V calling convention on every x86-64 target, Windows included.
-macro_rules! export_to_interpreter {
-    ($($symbol:ident => $function:ident),* $(,)?) => {
-        $(
-            /// # Safety
-            ///
-            /// Only the interpreter calls this, with the context of the store it runs in.
-            #[cfg(all(target_arch = "x86_64", windows))]
-            #[unsafe(no_mangle)]
-            pub unsafe extern "sysv64" fn $symbol(context: *mut ExecutionContext) -> u64 {
-                unsafe { $function(context) }
-            }
-
-            /// # Safety
-            ///
-            /// Only the interpreter calls this, with the context of the store it runs in.
-            #[cfg(not(all(target_arch = "x86_64", windows)))]
-            #[unsafe(no_mangle)]
-            pub unsafe extern "C" fn $symbol(context: *mut ExecutionContext) -> u64 {
-                unsafe { $function(context) }
-            }
-        )*
-    };
-}
-
-export_to_interpreter! {
+export_runtime_functions! {
     wasm_runtime_memory_grow => memory_grow,
     wasm_runtime_table_grow => table_grow,
     wasm_runtime_call_host => call_host,
@@ -113,43 +87,26 @@ unsafe fn call_host(context: *mut ExecutionContext) -> u64 {
         let return_ip = (*context).arguments[2];
         let frame = (*context).arguments[3];
         let store = store_of(context);
-        let FunctionKind::Host(callback) = &function.kind else {
-            return 0;
-        };
-        let callback = callback.clone();
-        let parameter_slots = function.header.param_slots as usize;
-        let slots = ak::slice_from_raw_parts(top, parameter_slots);
-        // The operand stack grows down, so the first argument is in the highest slots.
-        let mut arguments = Vec::with_capacity(function.ty.params.len());
-        let mut slot = parameter_slots;
-        for &ty in &function.ty.params {
-            slot -= ty.slot_count() as usize;
-            arguments.push(Value::from_slots(ty, &slots[slot..]));
-        }
-        let results = match callback.call(store, &arguments) {
-            Ok(results) => results,
+        let address = FunctionAddress::from_ptr(function);
+        // The results replace the arguments, at the bottom of the arguments' slots.
+        let return_top = top
+            .add(function.header.param_slots as usize)
+            .sub(function.header.result_slots as usize);
+        match store.call_host_slots(address, top, return_top) {
+            Ok(()) => return_top as u64,
             Err(Trap::UncaughtException(exception)) => {
                 // The exception continues in the caller, as if the call instruction had thrown it.
                 if unwind(context, store, exception, frame, return_ip - 1) {
                     return 1;
                 }
                 store.pending_trap = Some(Trap::UncaughtException(exception));
-                return 0;
+                0
             }
             Err(trap) => {
                 store.pending_trap = Some(trap);
-                return 0;
+                0
             }
-        };
-        let mut result_slots = Vec::new();
-        for result in results.iter().rev() {
-            result.push_slots(&mut result_slots);
         }
-        let return_top = top.add(parameter_slots).sub(result_slots.len());
-        for (index, value) in result_slots.iter().enumerate() {
-            *return_top.add(index) = *value;
-        }
-        return_top as u64
     }
 }
 

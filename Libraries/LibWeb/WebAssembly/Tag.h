@@ -21,7 +21,7 @@ public:
     // The Tag object of a tag, which is the same object for as long as it lives.
     static GC::Ref<Tag> from_address(JS::Realm&, Wasm::Runtime::Entity tag);
 
-    Wasm::Runtime::Entity address() const { return m_tag; }
+    Wasm::Runtime::Entity address() const { return m_tag.ptr(); }
 
 private:
     explicit Tag(Wasm::Runtime::Entity tag);
@@ -31,7 +31,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    Wasm::Runtime::Entity m_tag { nullptr };
+    GC::Ptr<GC::ForeignCell> m_tag;
 };
 
 }

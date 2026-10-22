@@ -21,10 +21,10 @@ reused from one compile to the next:
 | Decode and build | `decode.rs`, `builder/` | One forward pass over the validated, quickened body. Produces typed SSA with phis, folding and value numbering as it goes. |
 | Cleanup | `passes/cleanup.rs` | Removes trivial phis to a fixed point, dead pure nodes, and fuses branches with the comparisons only they use. |
 | Loop invariant code motion | `passes/licm.rs` | Finds the nodes of call-free loops that compute the same value in every iteration. |
-| Scheduling | `passes/schedule.rs` | Rebuilds the node arena in linear order without the dead nodes, with the invariant nodes at the end of their loop's preheader, optionally numbering values over the dominator tree on the way (`passes/gvn.rs`). |
+| Scheduling | `passes/schedule.rs` | Rebuilds the node arena in linear order without the dead nodes, with the invariant nodes at the end of their loop's preheader. |
 | Liveness | `regalloc/liveness.rs` | One interval per value in linear order, extended over loops. |
 | Allocation | `regalloc/` | One forward walk in linear order. Its verifier simulates every register. |
-| Code generation | `codegen/x86_64/` | Lowers every node with its registers, then edge stubs, trap stubs, jump tables and constants. |
+| Code generation | `codegen/x86_64/`, `codegen/aarch64/` | Lowers every node with its registers, then edge stubs, trap stubs, jump tables and constants. |
 
 `Options::verify_ir` checks the IR after building and after cleanup (`ir/verify.rs`), and the
 register allocation (`regalloc/verify.rs`).
@@ -170,15 +170,6 @@ terminator (the block entering a loop always ends in a jump to its header), and 
 outside every block's range. Inputs are renumbered, so a node's index is its position again, and
 dead nodes are gone for the phases after it.
 
-**Global value numbering** (`passes/gvn.rs`, with `Options::gvn`) runs in scheduling's walk: a node
-computing what a node of a dominating block computed is replaced by it, keeping entries for as long
-as their block dominates the walk, unlike the builder, which forgets what a construct numbered when
-it ends. Reads are numbered by alias class, with epochs that the class's writes advance: memory
-loads by one that stores and calls advance, global values by one per global that its `global.set`
-advances and one that calls advance; a block continues the epochs of the previous block only if
-that is its only predecessor. It is off by default: real modules have almost nothing for it, 0.1%
-of godot's nodes, and it costs 7 to 16 ns per code byte.
-
 ## 7. Register allocation
 
 The allocator (`regalloc/`) follows libjs_jit's: one forward walk over the blocks in linear order.
@@ -208,18 +199,23 @@ used after the loop. Values first used by a call argument or a return value pref
 **Spilling** happens at the definition: a value that ever needs a stack slot gets one for its whole
 life, and code generation stores it right after defining it, so a slot always holds its value once
 it has one. Parameters use their home slots and the instance its frame header slot. Every value
-live across a call gets a slot, since calls clobber every register.
+live across a call gets a slot, since calls clobber every register. A phi and its inputs (its web)
+share slots wherever their intervals do not overlap, so that the moves into a spilled phi on its
+edges, a loop's back edge above all, are mostly no moves at all.
 
 **Blocks.** A block with one predecessor starts with that predecessor's registers. A merge starts
-with those of its last predecessor (usually the fallthrough), and a loop header with those of the
-block entering the loop, without the values the loop only carries through that have a slot already.
-Their phis get registers free there, preferably the input's own from that predecessor. Every other
-edge moves its values into place, as parallel moves with cycles broken through a slot; back edges
-get theirs when their source block ends.
+with those of the predecessor that keeps the most of its values in registers, so that a path that
+called a function, which leaves none in registers, does not make the others give theirs up; a loop
+header starts with those of the block entering the loop, without the values the loop only carries
+through that have a slot already. Their phis get registers free there, preferably the input's own
+from that predecessor. Every other edge moves its values into place, as parallel moves with cycles
+broken through a slot; back edges get theirs when their source block ends.
 
 **The verifier** (`regalloc/verify.rs`) simulates every register from the state each block starts
 with, checks that every input is where the allocation says, and that every edge's moves produce its
-target's state, with phis replaced by their inputs.
+target's state, with phis replaced by their inputs. It tracks what each block writes to slots, takes
+a slot the block did not write to hold the one of its values live there, and checks that values
+sharing a slot are never live at once.
 
 ## 8. Calls and frames
 
@@ -306,6 +302,10 @@ used, while the object is live.
 
 ## 9. Code generation
 
+There is a backend per target, with the same structure: `codegen/x86_64/` and `codegen/aarch64/`
+(ARMv8.1 with LSE atomics and NEON), each with its own instruction selection for numbers, vectors,
+memory, calls, tables and GC objects. The rest of this section describes the x86-64 one.
+
 `codegen/x86_64/` lowers the blocks in linear order with x86-64-v3 instructions (VEX three-operand
 float arithmetic, BMI1/BMI2 shifts and rotates, lzcnt, tzcnt, popcnt, and AVX2 for vectors), from
 libjs_jit's encoders and the additions in its `asm/x86_64/extended.rs`, whose `vex()` encodes any
@@ -380,8 +380,6 @@ the interpreter and the host. The JIT is on by default; `LIBWASM_JIT` configures
   deterministic imports, and compares results, exit codes, memories, tables and globals.
 - `examples/smith_check.rs` does the same for random modules from `wasm-tools smith` in the subset
   the JIT compiles, calling every exported function with random arguments.
-- `examples/run_kernel.rs` times calls of one function, compiled or interpreted, for the run time
-  effect of optimizations while the JIT has no runtime; `examples/kernels/` has loops for them.
 - `examples/compile_all.rs` compiles every function of modules and reports coverage, the CPU time
   of compiling the functions the JIT compiles on one thread and on several, per byte and per phase
   (`Options::stats`), the slowest large function, the cost of small ones, and nodes, slots and moves

@@ -130,7 +130,7 @@ impl Wasi {
 
     /// Add the WASI function `name` to `store`. Returns None if there is no such function.
     pub fn allocate_function(self: &Rc<Self>, store: &mut Store, name: &str) -> Option<FunctionAddress> {
-        let &(_, signature) = FUNCTIONS.iter().find(|(function, _)| *function == name)?;
+        let &(name, signature) = FUNCTIONS.iter().find(|(function, _)| *function == name)?;
         let (parameters, result) = signature.split_once('>').unwrap_or((signature, ""));
         let to_types = |text: &str| -> Vec<ValType> {
             text.chars()
@@ -142,10 +142,9 @@ impl Wasi {
             results: to_types(result),
         };
         let wasi = self.clone();
-        let name = name.to_string();
         Some(store.allocate_host_function(
             ty,
-            Rc::new(move |store: &mut Store, arguments: &[Value]| wasi.call(store, &name, arguments)),
+            Rc::new(move |store: &mut Store, arguments: &[Value]| wasi.call(store, name, arguments)),
         ))
     }
 
@@ -182,18 +181,14 @@ impl Wasi {
         self.files.borrow().get(&fd).map(|file| Descriptor::Host(file.host_fd))
     }
 
+    /// The host descriptor of `fd`. Paths only reach what is beneath a descriptor the guest has (the capability model):
+    /// the platform functions resolve them beneath the one this returns.
     fn host_fd(&self, fd: u32) -> Result<i32, Errno> {
         match self.descriptor(fd) {
             Some(Descriptor::Host(host_fd)) => Ok(host_fd),
             Some(Descriptor::Preopen(index)) => self.preopen_fd(index),
             None => Err(ERRNO_BADF),
         }
-    }
-
-    /// The host descriptor to resolve paths relative to `fd` from. Paths only reach what is beneath a descriptor the
-    /// guest has (the capability model): the platform functions resolve them beneath it.
-    fn directory_fd(&self, fd: u32) -> Result<i32, Errno> {
-        self.host_fd(fd)
     }
 
     fn preopen_fd(&self, index: usize) -> Result<i32, Errno> {
@@ -293,17 +288,17 @@ impl Wasi {
                 memory.write_u64(a(1), position)
             }
             "path_create_directory" => {
-                let directory = self.directory_fd(a(0))?;
+                let directory = self.host_fd(a(0))?;
                 platform::create_directory(directory, memory.slice(a(1), a(2))?)
             }
             "path_filestat_get" => {
-                let directory = self.directory_fd(a(0))?;
+                let directory = self.host_fd(a(0))?;
                 let follow_symlinks = a(1) & LOOKUP_SYMLINK_FOLLOW != 0;
                 let status = platform::stat_at(directory, memory.slice(a(2), a(3))?, follow_symlinks)?;
                 write_filestat(memory, a(4), &status)
             }
             "path_open" => {
-                let directory = self.directory_fd(a(0))?;
+                let directory = self.host_fd(a(0))?;
                 let options = OpenOptions {
                     follow_symlinks: a(1) & LOOKUP_SYMLINK_FOLLOW != 0,
                     open_flags: a(4) as u16,

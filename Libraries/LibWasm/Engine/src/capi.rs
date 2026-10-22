@@ -8,7 +8,8 @@
 //! access their memories, tables, and globals.
 //!
 //! Modules are reference counted and immutable, so they can be shared across threads. A store and everything in it
-//! belongs to one thread. Addresses index the store's functions, tables, memories, globals, and instances.
+//! belongs to one thread. Entities (functions, tables, memories, globals, tags, and instances) are the addresses of
+//! their cells.
 
 use crate::module::{ExternalKind, ImportDescription, Module};
 use crate::runtime::entity::{Entity, Handle};
@@ -251,7 +252,7 @@ impl WasmExternKind {
     }
 }
 
-/// A function, table, memory, or global of a store.
+/// A function, table, memory, global, or tag of a store.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct WasmExtern {
@@ -370,8 +371,11 @@ fn extern_type_of_import(description: &ImportDescription) -> WasmExternType {
 
 // Modules.
 
-/// A compiled module. The embedder holds it through `wasm_module_retain()` and `wasm_module_release()`.
-pub struct WasmModule(Arc<Module>);
+/// A compiled module, which the embedder holds a reference to until it calls `wasm_module_release()`. Its pointer is
+/// that of an `Arc<Module>`, and it is never dereferenced as itself.
+pub struct WasmModule {
+    _opaque: [u8; 0],
+}
 
 /// Decode and validate a module. Returns null and sets `error` if the module is malformed or invalid.
 ///
@@ -386,7 +390,7 @@ pub unsafe extern "C" fn wasm_module_compile(
 ) -> *const WasmModule {
     let bytes = unsafe { ak::slice_from_raw_parts(bytes, length) };
     match crate::compile(bytes) {
-        Ok(module) => Arc::into_raw(Arc::new(WasmModule(Arc::new(module)))),
+        Ok(module) => Arc::into_raw(Arc::new(module)).cast(),
         Err(compile_error) => {
             write_string(error, &compile_error.to_string());
             std::ptr::null()
@@ -396,22 +400,23 @@ pub unsafe extern "C" fn wasm_module_compile(
 
 /// # Safety
 ///
-/// `module` must be a live module.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn wasm_module_retain(module: *const WasmModule) {
-    unsafe { Arc::increment_strong_count(module) };
-}
-
-/// # Safety
-///
 /// `module` must be a live module, which this releases one reference to.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_module_release(module: *const WasmModule) {
-    unsafe { Arc::decrement_strong_count(module) };
+    unsafe { Arc::decrement_strong_count(module.cast::<Module>()) };
 }
 
 fn module_of<'a>(module: *const WasmModule) -> &'a Module {
-    unsafe { &(*module).0 }
+    unsafe { &*module.cast::<Module>() }
+}
+
+/// A reference of our own to the module of `module`.
+fn module_arc(module: *const WasmModule) -> Arc<Module> {
+    let module = module.cast::<Module>();
+    unsafe {
+        Arc::increment_strong_count(module);
+        Arc::from_raw(module)
+    }
 }
 
 /// # Safety
@@ -833,7 +838,7 @@ pub unsafe extern "C" fn wasm_store_instantiate(
     for import in unsafe { ak::slice_from_raw_parts(imports, import_count) } {
         values.push(import.to_extern_value());
     }
-    let module = unsafe { (*module).0.clone() };
+    let module = module_arc(module);
     match store_of(store).instantiate(module, &values) {
         Ok(address) => {
             unsafe { *instance = address.cell().cast() };
@@ -1237,7 +1242,7 @@ pub unsafe extern "C" fn wasm_store_canonical_value_type(
     if ty.kind != WasmValueKind::Reference || ty.heap != WasmHeapKind::Concrete {
         return ty;
     }
-    let identities = store_of(store).module_type_identities(module_of(module));
+    let identities = store_of(store).module_type_identities_of(&module_arc(module));
     WasmValueType {
         type_index: identities[ty.type_index as usize],
         ..ty
@@ -1440,6 +1445,16 @@ pub unsafe extern "C" fn wasm_store_set_can_block(store: *mut WasmStore, can_blo
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_set_host_object(cell: *mut c_void, object: *mut c_void) {
     unsafe { crate::runtime::heap::set_host_object(cell.cast(), object) };
+}
+
+/// The cell `wasm_set_host_object()` gave `cell` to keep alive, or null.
+///
+/// # Safety
+///
+/// `cell` must be a live cell of a store with a LibGC heap.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_host_object(cell: *mut c_void) -> *mut c_void {
+    unsafe { crate::runtime::heap::host_object(cell) }
 }
 
 // WASI.

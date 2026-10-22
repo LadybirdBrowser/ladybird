@@ -925,15 +925,36 @@ impl Func {
         }
     }
 
-    pub fn inputs_mut(&mut self, value: Value) -> &mut [u32] {
-        let node = &mut self.nodes[value as usize];
-        match node.op.shape() {
-            Shape::Fixed(count) => &mut node.args[..count as usize],
-            Shape::Variadic => {
-                let start = node.args[0] as usize;
-                &mut self.operands[start..start + node.args[1] as usize]
-            }
+    /// The value a forwarded phi stands for, or the value itself.
+    pub fn resolve(&self, mut value: Value) -> Value {
+        while self.nodes[value as usize].op == Op::Forward {
+            value = self.nodes[value as usize].args[0];
         }
+        value
+    }
+
+    /// The value a phi always has, if its inputs are only itself and one other value.
+    pub fn trivial_phi_input(&self, phi: Value) -> Option<Value> {
+        let mut same = NONE;
+        for &input in self.inputs(phi) {
+            let input = self.resolve(input);
+            if input == phi || input == same {
+                continue;
+            }
+            if same != NONE {
+                return None;
+            }
+            same = input;
+        }
+        (same != NONE).then_some(same)
+    }
+
+    /// Makes `phi` stand for `value` from now on.
+    pub fn forward(&mut self, phi: Value, value: Value) {
+        let node = &mut self.nodes[phi as usize];
+        node.op = Op::Forward;
+        node.args[0] = value;
+        node.args[1] = 0;
     }
 
     pub fn predecessors(&self, block: BlockId) -> &[BlockId] {

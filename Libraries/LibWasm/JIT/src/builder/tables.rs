@@ -23,7 +23,7 @@ impl Builder {
         let start = func.operands.len() as u32;
         func.operands.push(self.instance);
         for &operand in operands {
-            func.operands.push(Self::resolve(func, operand));
+            func.operands.push(func.resolve(operand));
         }
         let value = Self::append(
             func,
@@ -83,7 +83,7 @@ impl Builder {
     }
 
     pub(super) fn table_get(&mut self, func: &mut Func, table: u32) {
-        let index = Self::resolve(func, self.pop());
+        let index = func.resolve(self.pop());
         let data = self.table_data(func, table);
         let value = Self::append(
             func,
@@ -98,8 +98,8 @@ impl Builder {
     }
 
     pub(super) fn table_set(&mut self, func: &mut Func, table: u32) {
-        let value = Self::resolve(func, self.pop());
-        let index = Self::resolve(func, self.pop());
+        let value = func.resolve(self.pop());
+        let index = func.resolve(self.pop());
         let data = self.table_data(func, table);
         Self::append(
             func,

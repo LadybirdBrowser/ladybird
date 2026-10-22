@@ -7,6 +7,32 @@
 //! The runtime: the store, which holds what the entities of a thread share (types, runtime types, the interpreter's
 //! context), the entities themselves (see entity.rs), instantiation, and calling into the interpreter.
 
+/// Export the runtime functions that the interpreter and compiled code call, under the names they call them by, with
+/// the System V calling convention on every x86-64 target, Windows included.
+macro_rules! export_runtime_functions {
+    ($($symbol:ident => $function:ident),* $(,)?) => {
+        $(
+            /// # Safety
+            ///
+            /// Only the interpreter and compiled code call this, with the context of the store they run in.
+            #[cfg(all(target_arch = "x86_64", windows))]
+            #[unsafe(no_mangle)]
+            pub unsafe extern "sysv64" fn $symbol(context: *mut ExecutionContext) -> u64 {
+                unsafe { $function(context) }
+            }
+
+            /// # Safety
+            ///
+            /// Only the interpreter and compiled code call this, with the context of the store they run in.
+            #[cfg(not(all(target_arch = "x86_64", windows)))]
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn $symbol(context: *mut ExecutionContext) -> u64 {
+                unsafe { $function(context) }
+            }
+        )*
+    };
+}
+
 pub mod constant;
 pub mod entity;
 pub mod gc;
@@ -19,7 +45,7 @@ pub mod ranges;
 
 use crate::abi::{
     EntryRecord, ExecutionContext, FRAME_HEADER_SIZE, FUNCTION_KIND_HOST, FUNCTION_KIND_WASM,
-    FUNCTION_KIND_WASM_VECTOR, FunctionHeader, InstanceData, MemoryData, SPILL_AREA_SIZE, Segment, TableData,
+    FUNCTION_KIND_WASM_VECTOR, FunctionHeader, InstanceData, SPILL_AREA_SIZE, Segment, TableData,
 };
 use crate::module::{DataMode, ElementItems, ElementMode, ExternalKind, ImportDescription, Module};
 use crate::types::{FuncType, GlobalType, HeapType, RefType, TableType, TypeCanonicalizer, ValType};
@@ -54,18 +80,21 @@ impl Value {
         }
     }
 
+    /// The value's slots in memory order (a v128's low half first), and how many of the two it takes.
+    pub fn to_slots(self) -> ([u64; 2], usize) {
+        match self {
+            Self::I32(value) => ([u64::from(value as u32), 0], 1),
+            Self::I64(value) => ([value as u64, 0], 1),
+            Self::F32(bits) => ([u64::from(bits), 0], 1),
+            Self::F64(bits) | Self::Ref(bits) => ([bits, 0], 1),
+            Self::V128(bits) => ([bits as u64, (bits >> 64) as u64], 2),
+        }
+    }
+
     /// Append the slots of this value in memory order: a v128's low half first.
     pub fn push_slots(self, slots: &mut Vec<u64>) {
-        match self {
-            Self::I32(value) => slots.push(u64::from(value as u32)),
-            Self::I64(value) => slots.push(value as u64),
-            Self::F32(bits) => slots.push(u64::from(bits)),
-            Self::F64(bits) | Self::Ref(bits) => slots.push(bits),
-            Self::V128(bits) => {
-                slots.push(bits as u64);
-                slots.push((bits >> 64) as u64);
-            }
-        }
+        let (value, count) = self.to_slots();
+        slots.extend_from_slice(&value[..count]);
     }
 
     pub fn from_slots(ty: ValType, slots: &[u64]) -> Self {
@@ -80,71 +109,62 @@ impl Value {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Trap {
-    Unreachable,
-    StackExhausted,
-    MemoryOutOfBounds,
-    IntegerDivideByZero,
-    IntegerOverflow,
-    InvalidConversion,
-    UndefinedElement,
-    UninitializedElement,
-    IndirectCallTypeMismatch,
-    TableOutOfBounds,
-    NullReference,
-    CastFailure,
-    ArrayOutOfBounds,
-    UnalignedAtomic,
-    ExpectedSharedMemory,
-    Host(String),
-    UncaughtException(u64),
+/// Declares `Trap`, with a variant for each trap that has a `TRAP_*` code and a message of its own, besides traps of
+/// the host and uncaught exceptions.
+macro_rules! traps {
+    ($($variant:ident = $code:ident, $message:literal;)*) => {
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        pub enum Trap {
+            $($variant,)*
+            Host(String),
+            UncaughtException(u64),
+        }
+
+        impl Trap {
+            fn from_code(code: u32, pending: Option<Trap>) -> Self {
+                match code {
+                    $(crate::abi::$code => Self::$variant,)*
+                    _ => pending
+                        .unwrap_or_else(|| Self::Host("the runtime reported a trap without details".to_string())),
+                }
+            }
+
+            /// The `TRAP_*` code the interpreter and compiled code know the trap by.
+            pub fn code(&self) -> u32 {
+                match self {
+                    $(Self::$variant => crate::abi::$code,)*
+                    Self::Host(_) => crate::abi::TRAP_RUNTIME,
+                    Self::UncaughtException(_) => crate::abi::TRAP_UNCAUGHT_EXCEPTION,
+                }
+            }
+
+            pub fn message(&self) -> String {
+                match self {
+                    $(Self::$variant => $message.to_string(),)*
+                    Self::Host(message) => message.clone(),
+                    Self::UncaughtException(_) => "uncaught exception".to_string(),
+                }
+            }
+        }
+    };
 }
 
-impl Trap {
-    fn from_code(code: u32, pending: Option<Trap>) -> Self {
-        use crate::abi::*;
-        match code {
-            TRAP_UNREACHABLE => Self::Unreachable,
-            TRAP_STACK_EXHAUSTED => Self::StackExhausted,
-            TRAP_MEMORY_OUT_OF_BOUNDS => Self::MemoryOutOfBounds,
-            TRAP_INTEGER_DIVIDE_BY_ZERO => Self::IntegerDivideByZero,
-            TRAP_INTEGER_OVERFLOW => Self::IntegerOverflow,
-            TRAP_INVALID_CONVERSION => Self::InvalidConversion,
-            TRAP_UNDEFINED_ELEMENT => Self::UndefinedElement,
-            TRAP_UNINITIALIZED_ELEMENT => Self::UninitializedElement,
-            TRAP_INDIRECT_CALL_TYPE_MISMATCH => Self::IndirectCallTypeMismatch,
-            TRAP_TABLE_OUT_OF_BOUNDS => Self::TableOutOfBounds,
-            TRAP_NULL_REFERENCE => Self::NullReference,
-            TRAP_CAST_FAILURE => Self::CastFailure,
-            TRAP_ARRAY_OUT_OF_BOUNDS => Self::ArrayOutOfBounds,
-            TRAP_UNALIGNED_ATOMIC => Self::UnalignedAtomic,
-            TRAP_EXPECTED_SHARED_MEMORY => Self::ExpectedSharedMemory,
-            _ => pending.unwrap_or_else(|| Self::Host("the runtime reported a trap without details".to_string())),
-        }
-    }
-
-    pub fn message(&self) -> String {
-        match self {
-            Self::Unreachable => "unreachable".to_string(),
-            Self::StackExhausted => "call stack exhausted".to_string(),
-            Self::MemoryOutOfBounds => "Memory access out of bounds".to_string(),
-            Self::IntegerDivideByZero => "integer divide by zero".to_string(),
-            Self::IntegerOverflow => "integer overflow".to_string(),
-            Self::InvalidConversion => "invalid conversion to integer".to_string(),
-            Self::UndefinedElement => "undefined element".to_string(),
-            Self::UninitializedElement => "uninitialized element".to_string(),
-            Self::IndirectCallTypeMismatch => "indirect call type mismatch".to_string(),
-            Self::TableOutOfBounds => "out of bounds table access".to_string(),
-            Self::NullReference => "null reference".to_string(),
-            Self::CastFailure => "cast failure".to_string(),
-            Self::ArrayOutOfBounds => "out of bounds array access".to_string(),
-            Self::Host(message) => message.clone(),
-            Self::UncaughtException(_) => "uncaught exception".to_string(),
-            Self::UnalignedAtomic => "Unaligned atomic memory access".to_string(),
-            Self::ExpectedSharedMemory => "Expected shared memory".to_string(),
-        }
-    }
+traps! {
+    Unreachable = TRAP_UNREACHABLE, "unreachable";
+    StackExhausted = TRAP_STACK_EXHAUSTED, "call stack exhausted";
+    MemoryOutOfBounds = TRAP_MEMORY_OUT_OF_BOUNDS, "Memory access out of bounds";
+    IntegerDivideByZero = TRAP_INTEGER_DIVIDE_BY_ZERO, "integer divide by zero";
+    IntegerOverflow = TRAP_INTEGER_OVERFLOW, "integer overflow";
+    InvalidConversion = TRAP_INVALID_CONVERSION, "invalid conversion to integer";
+    UndefinedElement = TRAP_UNDEFINED_ELEMENT, "undefined element";
+    UninitializedElement = TRAP_UNINITIALIZED_ELEMENT, "uninitialized element";
+    IndirectCallTypeMismatch = TRAP_INDIRECT_CALL_TYPE_MISMATCH, "indirect call type mismatch";
+    TableOutOfBounds = TRAP_TABLE_OUT_OF_BOUNDS, "out of bounds table access";
+    NullReference = TRAP_NULL_REFERENCE, "null reference";
+    CastFailure = TRAP_CAST_FAILURE, "cast failure";
+    ArrayOutOfBounds = TRAP_ARRAY_OUT_OF_BOUNDS, "out of bounds array access";
+    UnalignedAtomic = TRAP_UNALIGNED_ATOMIC, "Unaligned atomic memory access";
+    ExpectedSharedMemory = TRAP_EXPECTED_SHARED_MEMORY, "Expected shared memory";
 }
 
 pub type FunctionAddress = entity::Handle<FunctionInstance>;
@@ -178,7 +198,7 @@ pub trait HostFunction {
     /// Visit the cells the function refers to, which its function keeps alive.
     fn visit_edges(&self, _visitor: &heap::Visitor) {}
 
-    /// The data of the embedder's of a function made through the C interface.
+    /// The embedder's data of a function made through the C interface.
     fn user_data(&self) -> *mut core::ffi::c_void {
         core::ptr::null_mut()
     }
@@ -277,9 +297,8 @@ impl GlobalInstance {
     }
 
     pub fn set(&mut self, value: Value) {
-        let mut slots = Vec::with_capacity(2);
-        value.push_slots(&mut slots);
-        self.value[..slots.len()].copy_from_slice(&slots);
+        let (slots, count) = value.to_slots();
+        self.value[..count].copy_from_slice(&slots[..count]);
     }
 }
 
@@ -303,11 +322,6 @@ pub struct Instance {
     pub element_segments: Vec<Segment>,
     /// Each data segment, empty once dropped or used by instantiation.
     pub data_segments: Vec<Segment>,
-    function_headers: Vec<*const FunctionHeader>,
-    global_slots: Vec<*mut u64>,
-    table_datas: Vec<*mut TableData>,
-    memory_datas: Vec<*mut MemoryData>,
-    tag_identities: Vec<u64>,
 }
 
 impl Instance {
@@ -341,10 +355,11 @@ pub struct Store {
     /// The type of each store-wide type identity, with its type indices replaced by identities, so that types of
     /// different modules can be compared.
     types: Vec<crate::types::SubType>,
-    /// The identity of each type in `types`: its index. This makes `types` usable as a type context.
-    identities: Vec<u32>,
     /// A trap a runtime function reported, which the interpreter only knows as TRAP_RUNTIME.
     pending_trap: Option<Trap>,
+    /// The module `module_type_identities_of()` was last asked about, and its identities. An embedder asks about
+    /// one module many times in a row while it links its imports.
+    last_module_identities: Option<(std::sync::Weak<Module>, Rc<[u32]>)>,
     /// What runs after `memory.grow` grows a memory.
     pub memory_grow_callback: Option<Rc<dyn Fn(MemoryAddress)>>,
     /// Whether the agent the store runs code for may block, its [[CanBlock]]: `memory.atomic.wait` traps where it
@@ -352,6 +367,8 @@ pub struct Store {
     pub can_block: bool,
     /// The store's compiled code, once it has some.
     jit: Option<jit::StoreJit>,
+    /// How many calls from compiled code into the interpreter are in progress.
+    interpreter_calls_from_native: u32,
 }
 
 impl Default for Store {
@@ -396,15 +413,16 @@ impl Store {
             }),
             canonicalizer: TypeCanonicalizer::new(),
             types: Vec::new(),
-            identities: Vec::new(),
             pending_trap: None,
-            heap: heap::Heap::new(interface, &gc::CELL_FUNCTIONS),
+            last_module_identities: None,
+            heap: heap::Heap::new(interface),
             root_cell: std::ptr::null_mut(),
             root: None,
             rtt_pointers: Vec::new(),
             memory_grow_callback: None,
             can_block: true,
             jit: None,
+            interpreter_calls_from_native: 0,
         }
     }
 
@@ -478,7 +496,6 @@ impl Store {
         }
         let first = self.types.len() as u32;
         for sub_type in group {
-            self.identities.push(self.types.len() as u32);
             self.types.push(sub_type.clone());
         }
         // Types of a group refer to each other, so they all have to be there before their runtime types are made.
@@ -509,6 +526,18 @@ impl Store {
             type_identities.extend(identities);
         }
         type_identities
+    }
+
+    /// `module_type_identities()`, remembered for the last module asked about.
+    pub fn module_type_identities_of(&mut self, module: &Arc<Module>) -> Rc<[u32]> {
+        if let Some((last, identities)) = &self.last_module_identities
+            && last.upgrade().is_some_and(|last| Arc::ptr_eq(&last, module))
+        {
+            return identities.clone();
+        }
+        let identities: Rc<[u32]> = self.module_type_identities(module).into();
+        self.last_module_identities = Some((Arc::downgrade(module), identities.clone()));
+        identities
     }
 
     /// Whether a non-null reference matches `heap`, whose concrete types are identities. References of the any
@@ -547,7 +576,7 @@ impl Store {
     fn type_context(&self) -> crate::validator::TypeContext<'_> {
         crate::validator::TypeContext {
             types: &self.types,
-            identities: &self.identities,
+            identities: None,
         }
     }
 
@@ -635,7 +664,8 @@ impl Store {
             return link_error("wrong number of imports");
         }
 
-        let type_identities = self.module_type_identities(&module);
+        // NB: The embedder usually asked about the module's types while it linked its imports.
+        let type_identities = self.module_type_identities_of(&module).to_vec();
 
         // Types of the store have identities where the module's types have indices.
         let module_identities = type_identities.clone();
@@ -741,12 +771,7 @@ impl Store {
                         length: u64::from(data.bytes.end - data.bytes.start),
                     })
                     .collect(),
-                function_headers: Vec::new(),
-                global_slots: Vec::new(),
                 tags: Vec::new(),
-                tag_identities: Vec::new(),
-                table_datas: Vec::new(),
-                memory_datas: Vec::new(),
             },
         );
         let instance = unsafe { instance_address.get_mut() };
@@ -1016,14 +1041,17 @@ impl Store {
         module: &Module,
         expression: &crate::module::ConstantExpression,
     ) -> Result<u64, InstantiationError> {
+        // NB: Evaluating may allocate in the store, but leaves the instance's vectors as they are.
         let instance = unsafe { instance.get() };
-        let (globals, functions, type_identities) = (
-            instance.globals.clone(),
-            instance.functions.clone(),
-            instance.type_identities.clone(),
-        );
-        match constant::evaluate(self, &globals, &functions, &type_identities, module, expression)
-            .map_err(InstantiationError::Trap)?
+        match constant::evaluate(
+            self,
+            &instance.globals,
+            &instance.functions,
+            &instance.type_identities,
+            module,
+            expression,
+        )
+        .map_err(InstantiationError::Trap)?
         {
             Value::I32(value) => Ok(u64::from(value as u32)),
             Value::I64(value) => Ok(value as u64),
@@ -1095,6 +1123,10 @@ impl Store {
         for argument in arguments.iter().rev() {
             argument.push_slots(&mut argument_slots);
         }
+        // NB: The interpreter reads the function's parameter slots from the arguments, so they must have that many.
+        if arguments.len() != function.ty.params.len() || argument_slots.len() != function.header.param_slots as usize {
+            return Err(Trap::Host("the arguments do not match the function's type".to_string()));
+        }
         let mut result_slots = vec![0u64; function.header.result_slots as usize];
         self.invoke_slots(address, &argument_slots, &mut result_slots)?;
         // The results are laid out as the operand stack holds them, the first one in the highest slots.
@@ -1140,7 +1172,7 @@ impl Store {
         unsafe { interpreter::enter(&mut record) };
         // NB: A trap may have skipped calls into compiled code that held large images.
         jit::release_large_images(large_images);
-        if record.trap != 0 {
+        if record.trap != crate::abi::TRAP_NONE {
             return Err(Trap::from_code(record.trap, self.pending_trap.take()));
         }
         Ok(())
@@ -1153,37 +1185,76 @@ impl Store {
         let callback = callback.clone();
         callback.call(self, arguments)
     }
+
+    /// Calls the host function at `address` with the arguments in `arguments`, its parameter slots in operand stack
+    /// order (the first argument in the highest slots), and writes its result slots in that order to `results`.
+    ///
+    /// # Safety
+    ///
+    /// `arguments` must have the function's parameter slots and `results` room for its result slots. They may
+    /// overlap: every argument is read before a result is written.
+    pub(crate) unsafe fn call_host_slots(
+        &mut self,
+        address: FunctionAddress,
+        arguments: *const u64,
+        results: *mut u64,
+    ) -> Result<(), Trap> {
+        // NB: The function lives in a cell of the heap, not in the store, which the call may change.
+        let function = unsafe { address.get() };
+        let parameter_slots = function.header.param_slots as usize;
+        let slots = unsafe { ak::slice_from_raw_parts(arguments, parameter_slots) };
+        let mut values = Vec::with_capacity(function.ty.params.len());
+        let mut slot = parameter_slots;
+        for &ty in &function.ty.params {
+            slot -= ty.slot_count() as usize;
+            values.push(Value::from_slots(ty, &slots[slot..]));
+        }
+        let (result_count, result_slots) = (function.ty.results.len(), function.header.result_slots as usize);
+        let values = self.call_host(address, &values)?;
+        // NB: Results that do not match the function's type would not fit where they go.
+        let slot_count: usize = values.iter().map(|value| value.to_slots().1).sum();
+        if values.len() != result_count || slot_count != result_slots {
+            return Err(Trap::Host(
+                "a host function returned results that do not match its type".to_string(),
+            ));
+        }
+        let mut next = results;
+        for value in values.iter().rev() {
+            let (value, count) = value.to_slots();
+            unsafe {
+                next.copy_from_nonoverlapping(value.as_ptr(), count);
+                next = next.add(count);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Point the instance's interpreter-visible data at its current contents. The interpreter's view of each entity is at
 /// its handle.
 fn refresh_instance_data(instance: &mut Instance) {
-    instance.function_headers = instance
-        .functions
-        .iter()
-        .map(|address| address.as_ptr().cast_const().cast::<FunctionHeader>())
-        .collect();
-    instance.global_slots = instance.globals.iter().map(|address| address.as_ptr().cast()).collect();
-    instance.table_datas = instance.tables.iter().map(|address| address.as_ptr().cast()).collect();
-    instance.memory_datas = instance
-        .memories
-        .iter()
-        .map(|address| address.as_ptr().cast())
-        .collect();
+    // NB: A handle is the address of its entity's interpreter view (see entity.rs), so the instance's vectors of
+    //     handles are the arrays of views the interpreter indexes.
+    const {
+        assert!(size_of::<FunctionAddress>() == size_of::<*const FunctionHeader>());
+        assert!(core::mem::offset_of!(FunctionInstance, header) == 0);
+        assert!(core::mem::offset_of!(GlobalInstance, value) == 0);
+        assert!(core::mem::offset_of!(TableInstance, data) == 0);
+        assert!(core::mem::offset_of!(memory::MemoryInstance, data) == 0);
+    };
     let data = &mut instance.data;
-    data.functions = instance.function_headers.as_ptr();
-    data.function_count = instance.function_headers.len() as u32;
-    data.globals = instance.global_slots.as_ptr();
-    data.tables = instance.table_datas.as_ptr();
-    data.memories = instance.memory_datas.as_ptr();
-    data.memory_count = instance.memory_datas.len() as u32;
+    data.functions = instance.functions.as_ptr().cast();
+    data.function_count = instance.functions.len() as u32;
+    data.globals = instance.globals.as_ptr().cast();
+    data.tables = instance.tables.as_ptr().cast();
+    data.memories = instance.memories.as_ptr().cast();
+    data.memory_count = instance.memories.len() as u32;
     data.memory0_base = instance
         .memories
         .first()
         .map_or(std::ptr::null_mut(), |address| unsafe { address.get() }.data.base);
     data.type_identities = instance.type_identities.as_ptr();
-    instance.tag_identities = instance.tags.iter().map(|address| address.as_ptr() as u64).collect();
-    instance.data.tags = instance.tag_identities.as_ptr();
+    data.tags = instance.tags.as_ptr().cast();
 }
 
 fn limits_match(current: u64, current_max: Option<u64>, expected: &crate::types::Limits) -> bool {

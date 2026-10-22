@@ -45,14 +45,14 @@ public:
     WebIDL::ExceptionOr<Wasm::Runtime::ValueType> value_type() const;
     WebIDL::ExceptionOr<void> set_value(Wasm::Runtime::Value);
 
-    Wasm::Runtime::Entity address() const { return m_global; }
+    Wasm::Runtime::Entity address() const { return m_global.ptr(); }
 
 private:
     explicit Global(Wasm::Runtime::Entity global);
 
     virtual void visit_edges(Visitor&) override;
 
-    Wasm::Runtime::Entity m_global { nullptr };
+    GC::Ptr<GC::ForeignCell> m_global;
 };
 
 }

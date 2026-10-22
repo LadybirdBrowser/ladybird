@@ -68,9 +68,6 @@ pub struct Options {
     pub stress_registers: bool,
     /// Leave loop invariant code in its loop.
     pub no_licm: bool,
-    /// Replace nodes that compute what a dominating node computed already, beyond what building does (`passes/gvn.rs`).
-    /// Off by default: it finds about 0.1% of the nodes of real modules redundant, for 7 to 16 ns per code byte.
-    pub gvn: bool,
     /// Refuse OSR compiles at loops in no other loop, so that tests reach the loops in them.
     pub stress_nested_osr: bool,
 }
@@ -113,10 +110,9 @@ pub struct CompileRequest {
 pub struct CompileContext {
     pub func: ir::Func,
     builder: builder::Builder,
-    pub liveliness: passes::cleanup::Liveliness,
+    liveliness: passes::cleanup::Liveliness,
     licm: passes::licm::Licm,
     scheduler: passes::schedule::Scheduler,
-    gvn: passes::gvn::Gvn,
     allocator: regalloc::Allocator,
     pub allocation: regalloc::Allocation,
 }
@@ -137,8 +133,6 @@ pub struct Stats {
     pub moves: u32,
     /// The nodes loop invariant code motion moved out of loops.
     pub hoisted: u32,
-    /// The nodes global value numbering replaced.
-    pub eliminated: u32,
 }
 
 /// The time stamp counter, for the phase timers.
@@ -203,12 +197,12 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
     }
     lap(0, &mut stats);
     if request.options.verify_ir
-        && let Err(errors) = ir::verify::verify(&context.func, &|_| false, false)
+        && let Err(errors) = ir::verify::verify(&context.func, false)
     {
         panic!(
             "invalid IR after building function {}:\n{errors}\n{}",
             request.function,
-            ir::dump::dump(&context.func, &|_| false)
+            ir::dump::dump(&context.func)
         );
     }
     passes::cleanup::cleanup(&mut context.func, &mut context.liveliness);
@@ -220,31 +214,22 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
     } else {
         context.licm.run(&context.func, &context.liveliness);
     }
-    let gvn = request.options.gvn.then_some(&mut context.gvn);
-    context.scheduler.run(
-        &mut context.func,
-        &mut context.liveliness,
-        &context.licm.home,
-        gvn,
-        module.global_space.len(),
-    );
+    context
+        .scheduler
+        .run(&mut context.func, &mut context.liveliness, &context.licm.home);
     lap(1, &mut stats);
-    let liveliness = &context.liveliness;
     if request.options.verify_ir
-        && let Err(errors) = ir::verify::verify(&context.func, &|value| liveliness.is_dead(value), true)
+        && let Err(errors) = ir::verify::verify(&context.func, true)
     {
         panic!(
             "invalid IR after cleanup and scheduling of function {}:\n{errors}\n{}",
             request.function,
-            ir::dump::dump(&context.func, &|value| liveliness.is_dead(value))
+            ir::dump::dump(&context.func)
         );
     }
-    context.allocator.allocate_with(
-        &context.func,
-        &context.liveliness,
-        &mut context.allocation,
-        request.options.stress_registers,
-    );
+    context
+        .allocator
+        .allocate(&context.func, &mut context.allocation, request.options.stress_registers);
     lap(3, &mut stats);
     if timed {
         // NB: Liveness runs first in the allocator, which times it.
@@ -252,27 +237,21 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
         stats.ticks[3] = stats.ticks[3].saturating_sub(stats.ticks[2]);
     }
     if request.options.verify_ir
-        && let Err(errors) = regalloc::verify::verify(&context.func, &context.liveliness, &context.allocation)
+        && let Err(errors) = regalloc::verify::verify(&context.func, &context.allocation)
     {
         panic!(
             "invalid register allocation of function {}:\n{errors}\n{}\n{}",
             request.function,
-            ir::dump::dump(&context.func, &|value| liveliness.is_dead(value)),
-            regalloc::verify::dump(&context.func, &context.liveliness, &context.allocation)
+            ir::dump::dump(&context.func),
+            regalloc::verify::dump(&context.func, &context.allocation)
         );
     }
-    let generated = codegen::target::generate(
-        &context.func,
-        &context.liveliness,
-        &context.allocation,
-        &request.runtime,
-    )?;
+    let generated = codegen::target::generate(&context.func, &context.allocation, &request.runtime)?;
     lap(4, &mut stats);
     stats.nodes = context.func.nodes.len() as u32;
     stats.slots = context.allocation.slot_count;
     stats.moves = context.allocation.moves.len() as u32;
     stats.hoisted = if no_licm { 0 } else { context.licm.hoisted };
-    stats.eliminated = if request.options.gvn { context.gvn.eliminated } else { 0 };
     let mut compiled = CompiledFunction {
         code: generated.code,
         frame_size: generated.frame_size,
@@ -283,12 +262,8 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
     if request.options.dump_ir || request.options.dump_asm {
         let mut text = String::new();
         if request.options.dump_ir {
-            text.push_str(&ir::dump::dump(&context.func, &|value| liveliness.is_dead(value)));
-            text.push_str(&regalloc::verify::dump(
-                &context.func,
-                &context.liveliness,
-                &context.allocation,
-            ));
+            text.push_str(&ir::dump::dump(&context.func));
+            text.push_str(&regalloc::verify::dump(&context.func, &context.allocation));
         }
         if request.options.dump_asm {
             let architecture = if cfg!(target_arch = "aarch64") {

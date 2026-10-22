@@ -36,7 +36,6 @@ pub use aarch64::fits_immediate;
 use crate::codegen;
 use crate::convention::{self, Place, Register};
 use crate::ir::{BlockId, Func, NONE, Op, Type, Value};
-use crate::passes::cleanup::Liveliness;
 use liveness::{Liveness, NO_HINT, block_start_position, node_position, predecessor_index};
 
 /// No register.
@@ -49,9 +48,6 @@ pub const SLOT_INPUT: u8 = u8::MAX - 2;
 /// OPTIMIZATION: A spilled input is read from its slot by the instruction itself unless it is needed again within
 /// this many positions (four per node), where loading it into a register once serves both uses.
 const SLOT_INPUT_REUSE_DISTANCE: u32 = 4 * 8;
-
-/// OPTIMIZATION: Parallel moves up to this many are ordered by rescanning them, more by counting their readers.
-const SMALL_PARALLEL_MOVE: usize = 8;
 
 /// No spill slot.
 pub const NO_SLOT: i32 = i32::MIN;
@@ -81,7 +77,7 @@ pub struct Move {
     pub vector: bool,
 }
 
-/// The storage of `resolve_many()`: the pending readers of each location, the pending move that writes each
+/// The storage of `resolve()`: the pending readers of each location, the pending move that writes each
 /// location, the locations read as a v128, the locations whose value went to the cycle slot, which pending moves are
 /// placed, and the moves ready to be placed.
 #[derive(Default)]
@@ -400,25 +396,15 @@ pub struct Allocator {
 use convention::{STRESS_FPRS, STRESS_GPRS};
 
 impl Allocator {
-    /// Allocates registers for `func` into `allocation`.
     /// Allocates registers for `func` into `allocation`, with only a few registers if `stress`.
-    pub fn allocate_with(&mut self, func: &Func, liveliness: &Liveliness, allocation: &mut Allocation, stress: bool) {
-        if stress {
-            self.gprs = &STRESS_GPRS;
-            self.fprs = &STRESS_FPRS;
-        }
-        self.allocate(func, liveliness, allocation);
-        self.gprs = &convention::ALLOCATABLE_GPRS;
-        self.fprs = &convention::ALLOCATABLE_FPRS;
-    }
-
-    pub fn allocate(&mut self, func: &Func, liveliness: &Liveliness, allocation: &mut Allocation) {
-        if self.gprs.is_empty() {
-            self.gprs = &convention::ALLOCATABLE_GPRS;
-            self.fprs = &convention::ALLOCATABLE_FPRS;
-        }
+    pub fn allocate(&mut self, func: &Func, allocation: &mut Allocation, stress: bool) {
+        (self.gprs, self.fprs) = if stress {
+            (&STRESS_GPRS[..], &STRESS_FPRS[..])
+        } else {
+            (&convention::ALLOCATABLE_GPRS[..], &convention::ALLOCATABLE_FPRS[..])
+        };
         let start = crate::ticks();
-        self.liveness.compute(func, liveliness);
+        self.liveness.compute(func);
         self.liveness_ticks = crate::ticks() - start;
         self.dominators.compute(func);
         let count = func.nodes.len();
@@ -443,19 +429,19 @@ impl Allocator {
         self.end_states.resize(func.blocks.len(), [NONE; REGISTER_COUNT]);
         self.header_states.clear();
         self.header_states.resize(func.loops.len(), [NONE; REGISTER_COUNT]);
-        self.find_webs(func, liveliness);
+        self.find_webs(func);
 
         for block in 0..func.blocks.len() as BlockId {
             self.current_block = block;
-            self.start_block(func, liveliness, allocation, block);
+            self.start_block(func, allocation, block);
             allocation.block_states[block as usize] = self.contents;
             let data = func.blocks[block as usize];
             for value in data.start..data.end {
                 let op = func.node(value).op;
-                if liveliness.is_dead(value) || matches!(op, Op::Phi | Op::Forward) || op.is_entry_value() {
+                if op.is_entry_value() {
                     continue;
                 }
-                self.allocate_node(func, liveliness, allocation, value);
+                self.allocate_node(func, allocation, value);
             }
             self.end_states[block as usize] = self.contents;
             let successors_start = data.successors_start;
@@ -531,7 +517,7 @@ impl Allocator {
     // Webs.
 
     /// Puts each phi and its inputs in one web.
-    fn find_webs(&mut self, func: &Func, liveliness: &Liveliness) {
+    fn find_webs(&mut self, func: &Func) {
         self.web_parents.clear();
         self.web_parents.resize(func.nodes.len(), NONE);
         self.web_slots.clear();
@@ -539,7 +525,7 @@ impl Allocator {
         self.slot_values.clear();
         let in_web = |value: Value| {
             let op = func.node(value).op;
-            liveness::is_allocated(func, liveliness, value) && op != Op::Forward && !op.is_entry_value()
+            liveness::is_allocated(func, value) && !op.is_entry_value()
         };
         for block in 0..func.blocks.len() as BlockId {
             for phi in func.phis(block) {
@@ -733,10 +719,10 @@ impl Allocator {
         result
     }
 
-    fn start_block(&mut self, func: &Func, liveliness: &Liveliness, allocation: &mut Allocation, block: BlockId) {
+    fn start_block(&mut self, func: &Func, allocation: &mut Allocation, block: BlockId) {
         self.position = block_start_position(func, block);
         if block == 0 {
-            self.start_entry(func, liveliness, allocation);
+            self.start_entry(func, allocation);
             return;
         }
         let predecessors = func.predecessors(block);
@@ -796,20 +782,16 @@ impl Allocator {
             let slot = edge_slot(func, predecessor, block);
             self.edge_moves(func, allocation, predecessor, block, slot, &state);
         }
-        let _ = liveliness;
         self.set_contents(state);
     }
 
-    fn start_entry(&mut self, func: &Func, liveliness: &Liveliness, allocation: &mut Allocation) {
+    fn start_entry(&mut self, func: &Func, allocation: &mut Allocation) {
         let mut state = [NONE; REGISTER_COUNT];
         self.places.clear();
         convention::parameter_places(&func.params, &mut self.places);
         let data = func.blocks[0];
         for value in data.start..data.end {
             let node = func.node(value);
-            if liveliness.is_dead(value) {
-                continue;
-            }
             match node.op {
                 Op::Instance => state[convention::INSTANCE_REGISTER as usize] = value,
                 Op::MemoryBase => state[convention::MEMORY_BASE_REGISTER as usize] = value,
@@ -935,57 +917,15 @@ impl Allocator {
             return;
         }
         let start = allocation.moves.len() as u32;
-        self.resolve(func, allocation);
+        self.resolve(allocation);
         allocation.edge_moves[slot as usize] = (start, allocation.moves.len() as u32 - start);
     }
 
     /// Orders the parallel moves in `pending` into a sequence with the same effect, appended to the allocation's
-    /// moves. Cycles go through the cycle slot.
-    fn resolve(&mut self, func: &Func, allocation: &mut Allocation) {
-        let _ = func;
-        self.resolved.clear();
-        if self.pending.len() > SMALL_PARALLEL_MOVE {
-            self.resolve_many(allocation);
-            allocation.moves.extend_from_slice(&self.resolved);
-            return;
-        }
-        while !self.pending.is_empty() {
-            let ready = self
-                .pending
-                .iter()
-                .position(|candidate| self.pending.iter().all(|other| other.from != candidate.to));
-            if let Some(index) = ready {
-                let ready = self.pending.swap_remove(index);
-                self.resolved.push(ready);
-                continue;
-            }
-            // Every destination is still a source: the moves form cycles. Save one destination in the cycle slot.
-            if allocation.cycle_slot == NO_SLOT {
-                // NB: Two slots, in case the value is a v128.
-                allocation.slot_count += 2;
-                allocation.cycle_slot = convention::spill_slot_offset(allocation.slot_count - 1);
-            }
-            let saved = self.pending[0].to;
-            let temp = Location::Slot(allocation.cycle_slot);
-            let vector = self.pending[0].vector;
-            self.resolved.push(Move {
-                from: saved,
-                to: temp,
-                vector,
-            });
-            for pending in &mut self.pending {
-                if pending.from == saved {
-                    pending.from = temp;
-                }
-            }
-        }
-        allocation.moves.extend_from_slice(&self.resolved);
-    }
-
-    /// `resolve()` for many moves, like the edges into a merge with many phis, in linear time: it counts the pending
-    /// readers of each location, and places a move once nothing reads its destination any more, which may make the
-    /// move into its source ready in turn.
-    fn resolve_many(&mut self, allocation: &mut Allocation) {
+    /// moves, in linear time: it counts the pending readers of each location, and places a move once nothing reads
+    /// its destination any more, which may make the move into its source ready in turn. Cycles go through the cycle
+    /// slot.
+    fn resolve(&mut self, allocation: &mut Allocation) {
         fn key(location: Location) -> u64 {
             match location {
                 Location::Register(register) => (1 << 40) | u64::from(register),
@@ -995,6 +935,7 @@ impl Allocator {
                 Location::Constant(value) => (5 << 40) | u64::from(value),
             }
         }
+        self.resolved.clear();
         let scratch = &mut self.move_scratch;
         scratch.readers.clear();
         scratch.writers.clear();
@@ -1073,11 +1014,12 @@ impl Allocator {
             scratch.ready.push(unfinished as u32);
         }
         self.pending.clear();
+        allocation.moves.extend_from_slice(&self.resolved);
     }
 
     // Nodes.
 
-    fn allocate_node(&mut self, func: &Func, liveliness: &Liveliness, allocation: &mut Allocation, value: Value) {
+    fn allocate_node(&mut self, func: &Func, allocation: &mut Allocation, value: Value) {
         self.position = node_position(value);
         let node = *func.node(value);
         let moves_start = allocation.moves.len() as u32;
@@ -1091,7 +1033,6 @@ impl Allocator {
             Op::CallResult => self.allocate_call_result(func, allocation, value),
             _ => self.allocate_simple(func, allocation, value),
         }
-        let _ = liveliness;
         let record = &mut allocation.nodes[value as usize];
         record.moves_start = moves_start;
         record.moves_count = allocation.moves.len() as u32 - moves_start;
@@ -1464,7 +1405,6 @@ pub fn edge_slot(func: &Func, from: BlockId, to: BlockId) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::{Allocation, Allocator, Location, Move, NO_SLOT};
-    use crate::ir::Func;
     use std::collections::HashMap;
 
     /// Runs `moves` as `resolve()` orders them, and checks that every destination gets what its source had before.
@@ -1479,7 +1419,7 @@ mod tests {
             to: Location::Register(to),
             vector: false,
         }));
-        allocator.resolve(&Func::default(), &mut allocation);
+        allocator.resolve(&mut allocation);
         let mut state: HashMap<Location, u64> = (0..64)
             .map(|register| (Location::Register(register), u64::from(register)))
             .collect();
@@ -1494,7 +1434,10 @@ mod tests {
 
     #[test]
     fn parallel_moves_keep_their_sources() {
-        // A long chain, one cycle through everything, two cycles, and fan-out from cycle members.
+        // A swap, a short cycle and chain, a long chain, one cycle through everything, two cycles, and fan-out from
+        // cycle members.
+        check(&[(0, 1), (1, 0)]);
+        check(&[(0, 1), (1, 2), (2, 0), (4, 3)]);
         check(&(0..40).map(|index| (index + 1, index)).collect::<Vec<_>>());
         check(&(0..40).map(|index| ((index + 1) % 40, index)).collect::<Vec<_>>());
         let mut two: Vec<(u8, u8)> = (0..10).map(|index| ((index + 1) % 10, index)).collect();

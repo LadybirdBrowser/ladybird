@@ -2,3 +2,4 @@ accessor: function, setter: undefined, enumerable: true, configurable: true
 a Tag: true, the same object: true
 constructing an Exception with it: TypeError
 WebAssembly catches JavaScript exceptions by it: true
+a thrown small integer is an i31 in WebAssembly: true

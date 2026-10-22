@@ -6,15 +6,10 @@
 
 //! Entering the interpreter, and turning faulting memory accesses inside it into traps.
 
-use crate::abi::EntryRecord;
+use crate::abi::{EntryRecord, OPCODE_CALL_ENTRY, OPCODE_ENTER, OPCODE_EXIT};
 
-/// The pseudo-instructions the runtime enters the interpreter at: Enter pushes the arguments, CallEntry calls the
-/// function, and the function returns to Exit, which leaves the interpreter.
-static ENTRY_CODE: [u8; 3] = [0xf0, 0xf3, 0xf1];
-
-/// The opcode of the pseudo-instruction a faulting memory access continues at.
-#[cfg(wasm_interpreter)]
-const MEMORY_FAULT_OPCODE: usize = 0xf2;
+/// The code the runtime enters the interpreter at (see `OPCODE_ENTER`).
+static ENTRY_CODE: [u8; 3] = [OPCODE_ENTER, OPCODE_CALL_ENTRY, OPCODE_EXIT];
 
 // The interpreter uses the System V calling convention on every x86-64 target, Windows included.
 #[cfg(all(wasm_interpreter, not(all(target_arch = "x86_64", windows))))]
@@ -66,7 +61,7 @@ pub fn dispatch_table_entry(opcode: u8) -> usize {
 
 #[cfg(wasm_interpreter)]
 fn memory_fault_handler() -> usize {
-    unsafe { wasm_interpreter_dispatch_table[MEMORY_FAULT_OPCODE] }
+    dispatch_table_entry(crate::abi::OPCODE_MEMORY_FAULT)
 }
 
 /// The CPU features the interpreter's code uses and that the target's baseline guarantees: x86-64-v3 on x86-64, and
