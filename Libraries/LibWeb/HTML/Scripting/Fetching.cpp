@@ -130,7 +130,7 @@ static BytecodeCacheSourceHash bytecode_cache_source_hash(ReadonlyBytes source_b
 
 static ErrorOr<Utf16String> decode_source_text_to_utf16(TextCodec::Decoder& fallback_decoder, StringView input)
 {
-    return TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(fallback_decoder, input);
+    return TextCodec::decode_to_utf16(input, fallback_decoder);
 }
 
 static ErrorOr<Utf16String> decode_source_text_to_utf16(TextCodec::Decoder& fallback_decoder, ReadonlyBytes bytes)
@@ -714,7 +714,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
         // materialize a script straight from the validated cached bytecode without parsing or compiling.
         if (bytecode.has_value()) {
             auto source_encoding = ByteString { extracted_character_encoding };
-            auto source_length = TextCodec::convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(*fallback_decoder, StringView { source_bytes }).release_value_but_fixme_should_propagate_errors();
+            auto source_length = TextCodec::decoded_length_in_utf16_code_units(StringView { source_bytes }, *fallback_decoder).release_value_but_fixme_should_propagate_errors();
             prepare_bytecode_cache_off_thread(settings_object, *bytecode, JS::ProgramType::Script, source_length, *source_hash,
                 [response_url = move(response_url), response_url_string = move(response_url_string),
                     source_byte_storage = move(source_byte_storage),
@@ -1160,7 +1160,7 @@ void fetch_single_module_script(JS::Realm& realm,
                 if (bytecode.has_value()) {
                     auto decoder = TextCodec::decoder_for("UTF-8"sv);
                     VERIFY(decoder.has_value());
-                    auto source_length = TextCodec::convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, StringView { source_bytes }).release_value_but_fixme_should_propagate_errors();
+                    auto source_length = TextCodec::decoded_length_in_utf16_code_units(StringView { source_bytes }, *decoder).release_value_but_fixme_should_propagate_errors();
                     prepare_bytecode_cache_off_thread(settings_object, *bytecode, JS::ProgramType::Module, source_length, *source_hash,
                         [url = move(url), url_string = move(url_string), response_url = move(response_url),
                             module_type_string = move(module_type_string),

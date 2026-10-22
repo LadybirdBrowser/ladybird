@@ -24,7 +24,7 @@ public:
     {
     }
 
-    virtual ErrorOr<String> to_utf8(StringView input, IgnoreBOM, ErrorMode) override;
+    virtual ErrorOr<String> to_utf8(StringView input, ErrorMode) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView input) override;
 
 private:
@@ -36,14 +36,14 @@ private:
 class UTF8Decoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
-    virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode) override;
+    virtual ErrorOr<String> to_utf8(StringView, ErrorMode) override;
     virtual ErrorOr<Utf16String> to_utf16(StringView) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
 };
 
 class UTF16BEDecoder final : public Decoder {
 public:
-    virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode) override;
+    virtual ErrorOr<String> to_utf8(StringView, ErrorMode) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
 
 private:
@@ -52,7 +52,7 @@ private:
 
 class UTF16LEDecoder final : public Decoder {
 public:
-    virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode) override;
+    virtual ErrorOr<String> to_utf8(StringView, ErrorMode) override;
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView) override;
 
 private:
@@ -129,7 +129,7 @@ static void append_decoded_utf16(void* context, u16 const* data, size_t length)
     decode_context.builder.append(Utf16View { reinterpret_cast<char16_t const*>(data), length });
 }
 
-ErrorOr<String> rust_decode_to_utf8(StringView encoding, StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
+ErrorOr<String> rust_decode_to_utf8(StringView encoding, StringView input, ErrorMode error_mode)
 {
     DecodeContext context { .builder = StringBuilder(input.length()) };
     auto succeeded = FFI::textcodec_rust_decode_to_utf8(
@@ -137,7 +137,6 @@ ErrorOr<String> rust_decode_to_utf8(StringView encoding, StringView input, Ignor
         encoding.length(),
         reinterpret_cast<u8 const*>(input.characters_without_null_termination()),
         input.length(),
-        ignore_bom == IgnoreBOM::No,
         error_mode == ErrorMode::Fatal,
         &context,
         append_decoded_bytes);
@@ -162,17 +161,17 @@ ErrorOr<Utf16String> rust_streaming_decode_to_utf16(FFI::TextCodecRustStreamingD
     return context.builder.to_string();
 }
 
-ErrorOr<void> rust_process(StringView encoding, StringView input, IgnoreBOM ignore_bom, Function<ErrorOr<void>(u32)> on_code_point)
+ErrorOr<void> rust_process(StringView encoding, StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    auto utf8 = TRY(rust_decode_to_utf8(encoding, input, ignore_bom, ErrorMode::Replacement));
+    auto utf8 = TRY(rust_decode_to_utf8(encoding, input, ErrorMode::Replacement));
     for (auto code_point : Utf8View { utf8 })
         TRY(on_code_point(code_point));
     return {};
 }
 
-ErrorOr<size_t> rust_length_in_utf16_code_units(StringView encoding, StringView input, IgnoreBOM ignore_bom)
+ErrorOr<size_t> rust_length_in_utf16_code_units(StringView encoding, StringView input)
 {
-    auto utf8 = TRY(rust_decode_to_utf8(encoding, input, ignore_bom, ErrorMode::Replacement));
+    auto utf8 = TRY(rust_decode_to_utf8(encoding, input, ErrorMode::Replacement));
     size_t length = 0;
     for (auto code_point : Utf8View { utf8 })
         length += code_point <= 0xffff ? 1 : 2;
@@ -339,7 +338,7 @@ Optional<StringView> get_standardized_encoding(Utf16View encoding)
 }
 
 // https://encoding.spec.whatwg.org/#bom-sniff
-Optional<Decoder&> bom_sniff_to_decoder(StringView input)
+static Optional<Decoder&> bom_sniff_to_decoder(StringView input)
 {
     // 1. Let BOM be the result of peeking 3 bytes from ioQueue, converted to a byte sequence.
     // 2. For each of the rows in the table below, starting with the first one and going down,
@@ -379,55 +378,55 @@ Optional<Decoder&> bom_sniff_to_decoder(StringView input)
 }
 
 // https://encoding.spec.whatwg.org/#decode
-ErrorOr<String> convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(Decoder& fallback_decoder, StringView input)
+static Decoder& decoder_for_decode(Decoder& fallback_decoder, StringView& input)
 {
-    Decoder* actual_decoder = &fallback_decoder;
-
     // 1. Let BOMEncoding be the result of BOM sniffing ioQueue.
     // 2. If BOMEncoding is non-null:
-    if (auto unicode_decoder = bom_sniff_to_decoder(input); unicode_decoder.has_value()) {
+    if (auto bom_decoder = bom_sniff_to_decoder(input); bom_decoder.has_value()) {
         // 1. Set encoding to BOMEncoding.
-        actual_decoder = &unicode_decoder.value();
-
         // 2. Read three bytes from ioQueue, if BOMEncoding is UTF-8; otherwise read two bytes. (Do nothing with those bytes.)
-        // FIXME: I imagine this will be pretty slow for large inputs, as it's regenerating the input without the first 2/3 bytes.
-        input = input.substring_view(&unicode_decoder.value() == &s_utf8_decoder ? 3 : 2);
+        input = input.substring_view(&bom_decoder.value() == &s_utf8_decoder ? 3 : 2);
+        return bom_decoder.value();
     }
+    return fallback_decoder;
+}
 
-    VERIFY(actual_decoder);
+// https://encoding.spec.whatwg.org/#decode
+ErrorOr<String> decode_to_utf8(StringView input, Decoder& fallback_decoder, ErrorMode error_mode)
+{
+    auto& decoder = decoder_for_decode(fallback_decoder, input);
 
     // 3. Process a queue with an instance of encoding’s decoder, ioQueue, output, and "replacement".
-    // FIXME: This isn't the exact same as the spec, which is written in terms of I/O queues.
-    auto output = TRY(actual_decoder->to_utf8(input, IgnoreBOM::Yes, ErrorMode::Replacement));
-
     // 4. Return output.
-    return output;
+    // NB: XML documents decode with the fatal error mode instead.
+    return decoder.to_utf8(input, error_mode);
 }
 
-ErrorOr<Utf16String> convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(Decoder& fallback_decoder, StringView input)
+// https://encoding.spec.whatwg.org/#decode
+ErrorOr<Utf16String> decode_to_utf16(StringView input, Decoder& fallback_decoder)
 {
-    Decoder* actual_decoder = &fallback_decoder;
-
-    if (auto unicode_decoder = bom_sniff_to_decoder(input); unicode_decoder.has_value()) {
-        actual_decoder = &unicode_decoder.value();
-        input = input.substring_view(&unicode_decoder.value() == &s_utf8_decoder ? 3 : 2);
-    }
-
-    VERIFY(actual_decoder);
-    return actual_decoder->to_utf16(input);
+    auto& decoder = decoder_for_decode(fallback_decoder, input);
+    return decoder.to_utf16(input);
 }
 
-ErrorOr<size_t> convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(Decoder& fallback_decoder, StringView input)
+// https://encoding.spec.whatwg.org/#decode
+ErrorOr<size_t> decoded_length_in_utf16_code_units(StringView input, Decoder& fallback_decoder)
 {
-    Decoder* actual_decoder = &fallback_decoder;
+    auto& decoder = decoder_for_decode(fallback_decoder, input);
+    return decoder.length_in_utf16_code_units(input);
+}
 
-    if (auto unicode_decoder = bom_sniff_to_decoder(input); unicode_decoder.has_value()) {
-        actual_decoder = &unicode_decoder.value();
-        input = input.substring_view(&unicode_decoder.value() == &s_utf8_decoder ? 3 : 2);
-    }
+// https://encoding.spec.whatwg.org/#utf-8-decode
+ErrorOr<Utf16String> utf8_decode_to_utf16(StringView input)
+{
+    // 1. Let buffer be the result of peeking three bytes from ioQueue, converted to a byte sequence.
+    // 2. If buffer is 0xEF 0xBB 0xBF, then read three bytes from ioQueue. (Do nothing with those bytes.)
+    if (input.starts_with("\xEF\xBB\xBF"sv))
+        input = input.substring_view(3);
 
-    VERIFY(actual_decoder);
-    return actual_decoder->length_in_utf16_code_units(input);
+    // 3. Process a queue with an instance of UTF-8’s decoder, ioQueue, output, and "replacement".
+    // 4. Return output.
+    return s_utf8_decoder.to_utf16(input);
 }
 
 // https://encoding.spec.whatwg.org/#get-an-output-encoding
@@ -441,7 +440,7 @@ StringView get_output_encoding(StringView encoding)
     return encoding;
 }
 
-ErrorOr<String> Decoder::to_utf8(StringView input, IgnoreBOM, ErrorMode)
+ErrorOr<String> Decoder::to_utf8(StringView input, ErrorMode)
 {
     StringBuilder builder(input.length());
     TRY(process(input, [&builder](u32 c) { return builder.try_append_code_point(c); }));
@@ -473,19 +472,19 @@ ErrorOr<void> Decoder::process_code_points(StringView input, Function<ErrorOr<vo
     return process(input, move(on_code_point));
 }
 
-ErrorOr<String> RustDecoder::to_utf8(StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
+ErrorOr<String> RustDecoder::to_utf8(StringView input, ErrorMode error_mode)
 {
-    return rust_decode_to_utf8(m_encoding, input, ignore_bom, error_mode);
+    return rust_decode_to_utf8(m_encoding, input, error_mode);
 }
 
 ErrorOr<size_t> RustDecoder::length_in_utf16_code_units(StringView input)
 {
-    return rust_length_in_utf16_code_units(m_encoding, input, IgnoreBOM::Yes);
+    return rust_length_in_utf16_code_units(m_encoding, input);
 }
 
 ErrorOr<void> RustDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    return rust_process(m_encoding, input, IgnoreBOM::Yes, move(on_code_point));
+    return rust_process(m_encoding, input, move(on_code_point));
 }
 
 ErrorOr<void> Latin1Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
@@ -537,12 +536,12 @@ ErrorOr<Utf16String> StreamingDecoder::finish_to_utf16()
 
 ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    return rust_process("UTF-8"sv, input, IgnoreBOM::Yes, move(on_code_point));
+    return rust_process("UTF-8"sv, input, move(on_code_point));
 }
 
-ErrorOr<String> UTF8Decoder::to_utf8(StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
+ErrorOr<String> UTF8Decoder::to_utf8(StringView input, ErrorMode error_mode)
 {
-    return rust_decode_to_utf8("UTF-8"sv, input, ignore_bom, error_mode);
+    return rust_decode_to_utf8("UTF-8"sv, input, error_mode);
 }
 
 ErrorOr<Utf16String> UTF8Decoder::to_utf16(StringView input)
@@ -555,37 +554,37 @@ ErrorOr<Utf16String> UTF8Decoder::to_utf16(StringView input)
 
 ErrorOr<size_t> UTF8Decoder::length_in_utf16_code_units(StringView input)
 {
-    return rust_length_in_utf16_code_units("UTF-8"sv, input, IgnoreBOM::Yes);
+    return rust_length_in_utf16_code_units("UTF-8"sv, input);
 }
 
 ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    return rust_process("UTF-16BE"sv, input, IgnoreBOM::Yes, move(on_code_point));
+    return rust_process("UTF-16BE"sv, input, move(on_code_point));
 }
 
-ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
+ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input, ErrorMode error_mode)
 {
-    return rust_decode_to_utf8("UTF-16BE"sv, input, ignore_bom, error_mode);
+    return rust_decode_to_utf8("UTF-16BE"sv, input, error_mode);
 }
 
 ErrorOr<size_t> UTF16BEDecoder::length_in_utf16_code_units(StringView input)
 {
-    return rust_length_in_utf16_code_units("UTF-16BE"sv, input, IgnoreBOM::Yes);
+    return rust_length_in_utf16_code_units("UTF-16BE"sv, input);
 }
 
 ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    return rust_process("UTF-16LE"sv, input, IgnoreBOM::Yes, move(on_code_point));
+    return rust_process("UTF-16LE"sv, input, move(on_code_point));
 }
 
-ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
+ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input, ErrorMode error_mode)
 {
-    return rust_decode_to_utf8("UTF-16LE"sv, input, ignore_bom, error_mode);
+    return rust_decode_to_utf8("UTF-16LE"sv, input, error_mode);
 }
 
 ErrorOr<size_t> UTF16LEDecoder::length_in_utf16_code_units(StringView input)
 {
-    return rust_length_in_utf16_code_units("UTF-16LE"sv, input, IgnoreBOM::Yes);
+    return rust_length_in_utf16_code_units("UTF-16LE"sv, input);
 }
 
 // https://infra.spec.whatwg.org/#isomorphic-decode

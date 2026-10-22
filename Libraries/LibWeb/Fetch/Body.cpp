@@ -214,11 +214,8 @@ void BodyMixin::text(GC::Ref<WebIDL::Promise> promise) const
     auto& realm = WebIDL::promise_realm(*promise);
     // The text() method steps are to return the result of running consume body with this and UTF-8 decode.
     consume_body(*this, promise, GC::create_function(GC::Heap::the(), [&realm](ByteBuffer bytes) -> WebIDL::ExceptionOr<JS::Value> {
-        auto decoder = TextCodec::decoder_for("UTF-8"sv);
-        VERIFY(decoder.has_value());
-
-        auto utf8_text = MUST(decoder->to_utf8(bytes, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
-        return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(utf8_text));
+        auto text = MUST(TextCodec::utf8_decode_to_utf16(bytes));
+        return JS::PrimitiveString::create(realm.vm(), move(text));
     }));
 }
 

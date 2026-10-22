@@ -35,9 +35,10 @@ enum class ErrorMode {
     Fatal,
 };
 
+// NB: A decoder never removes a BOM. The decode algorithms below do that.
 class TEXTCODEC_API Decoder {
 public:
-    virtual ErrorOr<String> to_utf8(StringView, IgnoreBOM, ErrorMode);
+    virtual ErrorOr<String> to_utf8(StringView, ErrorMode = ErrorMode::Replacement);
     virtual ErrorOr<Utf16String> to_utf16(StringView);
     virtual ErrorOr<size_t> length_in_utf16_code_units(StringView);
     ErrorOr<void> process_code_points(StringView, Function<ErrorOr<void>(u32)>);
@@ -74,14 +75,13 @@ TEXTCODEC_API Optional<Decoder&> decoder_for(Utf16View encoding);
 TEXTCODEC_API Optional<StringView> get_standardized_encoding(StringView encoding);
 TEXTCODEC_API Optional<StringView> get_standardized_encoding(Utf16View encoding);
 
-// This returns the appropriate Unicode decoder for the sniffed BOM or nothing if there is no appropriate decoder.
-TEXTCODEC_API Optional<Decoder&> bom_sniff_to_decoder(StringView);
+// https://encoding.spec.whatwg.org/#decode
+TEXTCODEC_API ErrorOr<String> decode_to_utf8(StringView, Decoder& fallback_decoder, ErrorMode = ErrorMode::Replacement);
+TEXTCODEC_API ErrorOr<Utf16String> decode_to_utf16(StringView, Decoder& fallback_decoder);
+TEXTCODEC_API ErrorOr<size_t> decoded_length_in_utf16_code_units(StringView, Decoder& fallback_decoder);
 
-// NOTE: This has an obnoxious name to discourage usage. Only use this if you absolutely must! For example, XHR in LibWeb uses this.
-// This will use the given decoder unless there is a byte order mark in the input, in which we will instead use the appropriate Unicode decoder.
-TEXTCODEC_API ErrorOr<String> convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(Decoder&, StringView);
-TEXTCODEC_API ErrorOr<Utf16String> convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(Decoder&, StringView);
-TEXTCODEC_API ErrorOr<size_t> convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(Decoder&, StringView);
+// https://encoding.spec.whatwg.org/#utf-8-decode
+TEXTCODEC_API ErrorOr<Utf16String> utf8_decode_to_utf16(StringView);
 
 TEXTCODEC_API StringView get_output_encoding(StringView encoding);
 
