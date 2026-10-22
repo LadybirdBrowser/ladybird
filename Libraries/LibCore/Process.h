@@ -63,7 +63,6 @@ public:
     ~Process();
 
     static ErrorOr<Process> spawn(ProcessSpawnOptions const& options);
-    static Process current();
 
     static ErrorOr<Process> spawn(StringView path, ReadonlySpan<ByteString> arguments);
     static ErrorOr<Process> spawn(StringView path, ReadonlySpan<StringView> arguments);

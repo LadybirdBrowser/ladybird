@@ -131,6 +131,12 @@ void TransportBootstrapMachServer::register_child_transport(pid_t pid, Transport
     m_child_transports.set(pid, move(ports));
 }
 
+void TransportBootstrapMachServer::unregister_child_transport(pid_t pid)
+{
+    MutexLocker locker(m_child_registration_mutex);
+    m_child_transports.remove(pid);
+}
+
 ErrorOr<TransportBootstrapMachServer::BootstrapRequestResult> TransportBootstrapMachServer::handle_bootstrap_request(pid_t pid, Core::MachPort reply_port)
 {
     Optional<TransportBootstrapMachPorts> child_transport;

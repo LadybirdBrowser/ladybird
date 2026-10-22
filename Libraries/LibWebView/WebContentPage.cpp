@@ -437,7 +437,7 @@ void WebContentPage::maybe_record_history_visit_for_current_load(URL::URL const&
 
 void WebContentPage::begin_top_level_load(URL::URL const& url)
 {
-    if (auto process = WebView::Application::the().find_process(client().pid()); process.has_value())
+    if (auto process = WebView::Application::process_manager().find_child(client().child_id()); process.has_value())
         process->set_title(OptionalNone {});
 
     m_history_recorded_url_for_current_load.clear();
@@ -2322,7 +2322,7 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
 
 void WebContentPage::did_change_title(Utf16String title)
 {
-    if (auto process = WebView::Application::the().find_process(client().pid()); process.has_value())
+    if (auto process = WebView::Application::process_manager().find_child(client().child_id()); process.has_value())
         process->set_title(title);
 
     if (displays_tab()) {

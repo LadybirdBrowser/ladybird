@@ -71,7 +71,6 @@
 #include <LibWebCommon/WebView/DictionaryLookup.h>
 #include <LibWebCommon/WebView/Mutation.h>
 #include <LibWebCommon/WebView/PageInfo.h>
-#include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
 
 endpoint WebContentClient routed by Web::PageId page_id

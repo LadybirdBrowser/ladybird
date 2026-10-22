@@ -13,7 +13,9 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Platform/ProcessResourceUsage.h>
 #include <LibCore/Platform/ProcessStatistics.h>
+#include <LibCore/Process.h>
 #include <LibCore/Timer.h>
+#include <LibWebView/ChildIdentity.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessMonitor.h>
@@ -32,14 +34,17 @@ public:
 
     ProcessManager();
 
-    void add_process(Process&&);
+    // Gives the process its child ID and starts watching for its exit.
+    ChildIdentity add_process(Process&&);
     void for_each_process(Function<void(Process&)>);
     void for_each_process_statistics(Function<void(Process&, Core::Platform::ProcessInfo const&)>);
-    Optional<Process> remove_process(pid_t);
+    Optional<Process> remove_process(u64 child_id);
     void remove_all_processes();
     Optional<Process&> find_process(pid_t);
-    void cancel_forced_exit(pid_t);
-    void force_exit_after_timeout(pid_t, int timeout_ms);
+    Optional<Process&> find_child(u64 child_id);
+    ErrorOr<void> terminate_child(u64 child_id, Core::Process::TerminationMode);
+    void cancel_forced_exit(u64 child_id);
+    void force_exit_after_timeout(u64 child_id, int timeout_ms);
 
 #if defined(AK_OS_MACH)
     void set_process_task_name_port(pid_t, Core::MachPort&&);
@@ -55,8 +60,11 @@ private:
     void verify_event_loop() const;
 
     Core::Platform::ProcessStatistics m_statistics;
-    HashMap<pid_t, Process> m_processes;
-    HashMap<pid_t, RefPtr<Core::Timer>> m_forced_exit_timers;
+    HashMap<u64, Process> m_processes;
+    // NB: Exit notifications and statistics name processes by PID.
+    HashMap<pid_t, u64> m_child_ids_by_pid;
+    HashMap<u64, RefPtr<Core::Timer>> m_forced_exit_timers;
+    u64 m_next_child_id { 1 };
     ProcessMonitor m_process_monitor;
     Core::EventLoop* m_creation_event_loop { &Core::EventLoop::current() };
 };

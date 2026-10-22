@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
 #include <AK/WeakPtr.h>
@@ -31,6 +32,7 @@ class WEBVIEW_API Process {
 
 public:
     Process(ProcessType type, RefPtr<IPC::ConnectionBase> connection, Core::Process process);
+    static Process for_browser();
     ~Process();
 
     template<typename ClientType>
@@ -49,8 +51,8 @@ public:
     Optional<Utf16String> const& title() const { return m_title; }
     void set_title(Optional<Utf16String> title) { m_title = move(title); }
 
-    Optional<pid_t> owner_pid() const { return m_owner_pid; }
-    void set_owner_pid(pid_t pid) { m_owner_pid = pid; }
+    Optional<u64> owner_child_id() const { return m_owner_child_id; }
+    void set_owner_child_id(u64 child_id) { m_owner_child_id = child_id; }
 
     template<typename ConnectionFromClient>
     RefPtr<ConnectionFromClient> client()
@@ -69,7 +71,9 @@ public:
     void save_crash_report(Optional<int> exit_status);
     ByteString const& saved_crash_report_name() const { return m_saved_crash_report_name; }
 
-    pid_t pid() const { return m_process.pid(); }
+    pid_t pid() const { return m_pid; }
+    u64 child_id() const { return m_child_id; }
+    void did_register(Badge<ProcessManager>, u64 child_id);
 
     ProcessOutputCapture& output_capture() { return m_output_capture; }
     ProcessOutputCapture const& output_capture() const { return m_output_capture; }
@@ -101,10 +105,16 @@ private:
 
     OwnPtr<Sandbox::ConnectBroker> m_connect_broker;
 #endif
-    Core::Process m_process;
+    Process(ProcessType, pid_t);
+
+    pid_t m_pid { -1 };
+    // NB: The browser's own record has no process of its own to hold. On Windows, holding the process keeps its handle,
+    //     and with it its PID, until this record is gone.
+    Optional<Core::Process> m_process;
+    u64 m_child_id { 0 };
     ProcessType m_type;
     Optional<Utf16String> m_title;
-    Optional<pid_t> m_owner_pid;
+    Optional<u64> m_owner_child_id;
     WeakPtr<IPC::ConnectionBase> m_connection;
     ProcessOutputCapture m_output_capture;
 };
@@ -124,10 +134,12 @@ template<typename ClientType, typename... ClientArguments>
 ErrorOr<Process::ProcessAndClient<ClientType>> Process::spawn(ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output, ClientArguments&&... client_arguments)
 {
     auto [core_process, transport, output_capture] = TRY(spawn_and_connect_to_process(type, options, capture_output));
-    auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(transport), forward<ClientArguments>(client_arguments)... }));
 
-    Process process { type, client, move(core_process) };
+    // NB: Create the record first, so that a failure below ends the helper rather than leaving it running untracked.
+    Process process { type, nullptr, move(core_process) };
     process.m_output_capture = move(output_capture);
+    auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(transport), forward<ClientArguments>(client_arguments)... }));
+    process.m_connection = *client;
     return ProcessAndClient<ClientType> { move(process), client };
 }
 

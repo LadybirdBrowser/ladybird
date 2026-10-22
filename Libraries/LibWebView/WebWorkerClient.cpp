@@ -5,7 +5,6 @@
  */
 
 #include <LibCore/Process.h>
-#include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AudioServerControlClient.h>
 #include <LibWebView/BlobURLStore.h>
@@ -42,8 +41,7 @@ void WebWorkerClient::did_misbehave(StringView message_name, StringView reason)
 
 void WebWorkerClient::terminate_process()
 {
-    if (should_terminate_pid(pid()))
-        (void)Core::Process::terminate_process(pid(), Core::Process::TerminationMode::Forceful);
+    (void)Application::process_manager().terminate_child(child_id(), Core::Process::TerminationMode::Forceful);
 }
 
 void WebWorkerClient::die()
@@ -52,9 +50,7 @@ void WebWorkerClient::die()
     WorkerProcessManager::the().worker_did_die(m_agent_id);
 
     // NB: A worker whose connection is gone does no more work, so a process that outlives its connection is ended.
-    //     Until it is reaped, its process ID is still its own.
-    if (Application::process_manager().find_process(pid()).has_value())
-        terminate_process();
+    terminate_process();
     WorkerProcessManager::the().worker_process_did_exit(*this);
 
     // Otherwise nested workers we own would outlive us, in violation of the HTML spec.

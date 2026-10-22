@@ -67,6 +67,9 @@ enum Column {
     Memory,
 };
 
+// Rows are identified by the process's child ID, which, unlike its PID, never comes to name another process.
+constexpr int ChildIDRole = Qt::UserRole + 1;
+
 class ProcessHeader final : public QHeaderView {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -358,25 +361,25 @@ void ProcessManagerWindow::refresh()
     manager.update_all_process_statistics();
 
     auto scroll_position = m_processes->verticalScrollBar()->value();
-    auto selected_pid = m_processes->currentItem() && m_processes->currentItem()->isSelected() ? m_processes->currentItem()->data(PID, Qt::UserRole) : QVariant {};
+    auto selected_child_id = m_processes->currentItem() && m_processes->currentItem()->isSelected() ? m_processes->currentItem()->data(PID, ChildIDRole) : QVariant {};
     QSignalBlocker selection_blocker(m_processes);
-    HashMap<pid_t, QTreeWidgetItem*> items;
-    HashMap<pid_t, bool> expanded;
+    HashMap<u64, QTreeWidgetItem*> items;
+    HashMap<u64, bool> expanded;
     m_processes->setUpdatesEnabled(false);
     m_processes->setSortingEnabled(false);
     auto detach_items = [&](auto& self, QTreeWidgetItem* parent) -> void {
         while (parent->childCount()) {
             auto* item = parent->child(0);
-            auto pid = static_cast<pid_t>(item->data(PID, Qt::UserRole).toLongLong());
-            expanded.set(pid, item->isExpanded());
+            auto child_id = item->data(PID, ChildIDRole).toULongLong();
+            expanded.set(child_id, item->isExpanded());
             self(self, item);
             parent->takeChild(0);
-            items.set(pid, item);
+            items.set(child_id, item);
         }
     };
     detach_items(detach_items, m_processes->invisibleRootItem());
 
-    HashMap<pid_t, QTreeWidgetItem*> live_items;
+    HashMap<u64, QTreeWidgetItem*> live_items;
     QTreeWidgetItem* browser_item = nullptr;
     double total_cpu = 0;
     u64 total_memory = 0;
@@ -427,12 +430,12 @@ void ProcessManagerWindow::refresh()
         return IterationDecision::Continue;
     });
     manager.for_each_process_statistics([&](auto& process, auto const& statistics) {
-        auto* item = static_cast<ProcessItem*>(items.take(statistics.pid).value_or_lazy_evaluated([] { return new ProcessItem; }));
+        auto* item = static_cast<ProcessItem*>(items.take(process.child_id()).value_or_lazy_evaluated([] { return new ProcessItem; }));
         auto name = qstring_from_ak_string(WebView::process_name_from_type(process.type()));
         if (process.type() == WebView::ProcessType::WebContent || process.type() == WebView::ProcessType::ImageDecoder) {
             auto* label_process = &process;
-            if (process.type() == WebView::ProcessType::ImageDecoder && process.owner_pid().has_value()) {
-                if (auto owner = manager.find_process(*process.owner_pid()); owner.has_value())
+            if (process.type() == WebView::ProcessType::ImageDecoder && process.owner_child_id().has_value()) {
+                if (auto owner = manager.find_child(*process.owner_child_id()); owner.has_value())
                     label_process = &*owner;
             }
             auto page = process_pages.get(label_process->pid());
@@ -465,11 +468,12 @@ void ProcessManagerWindow::refresh()
         item->setText(CPU, locale.toString(statistics.cpu_percent, 'f', 2) + '%');
         item->setText(Memory, locale.formattedDataSize(statistics.memory_usage_bytes, 2));
         item->setData(PID, Qt::UserRole, static_cast<qlonglong>(statistics.pid));
+        item->setData(PID, ChildIDRole, static_cast<qulonglong>(process.child_id()));
         item->setData(CPU, Qt::UserRole, statistics.cpu_percent);
         item->setData(Memory, Qt::UserRole, static_cast<qulonglong>(statistics.memory_usage_bytes));
         for (auto column : { PID, CPU, Memory })
             item->setTextAlignment(column, Qt::AlignRight | Qt::AlignVCenter);
-        live_items.set(statistics.pid, item);
+        live_items.set(process.child_id(), item);
         total_cpu += statistics.cpu_percent;
         total_memory += statistics.memory_usage_bytes;
     });
@@ -482,7 +486,7 @@ void ProcessManagerWindow::refresh()
     m_processes->setCurrentItem(nullptr);
     for (auto& entry : live_items) {
         entry.value->setExpanded(expanded.get(entry.key).value_or(true));
-        if (entry.value->data(PID, Qt::UserRole) == selected_pid)
+        if (entry.value->data(PID, ChildIDRole) == selected_child_id)
             m_processes->setCurrentItem(entry.value);
     }
     m_processes->setSortingEnabled(true);
@@ -531,8 +535,7 @@ void ProcessManagerWindow::update_actions()
         m_end_process_action->setEnabled(false);
         return;
     }
-    auto pid = static_cast<pid_t>(item->data(PID, Qt::UserRole).toLongLong());
-    auto process = m_process_manager.find_process(pid);
+    auto process = m_process_manager.find_child(item->data(PID, ChildIDRole).toULongLong());
     m_copy_pid_action->setEnabled(process.has_value());
     m_end_process_action->setEnabled(process.has_value() && process->type() != WebView::ProcessType::Browser);
 }
@@ -543,7 +546,8 @@ void ProcessManagerWindow::end_selected_process()
     if (!m_end_process_action->isEnabled())
         return;
     auto pid = static_cast<pid_t>(m_processes->currentItem()->data(PID, Qt::UserRole).toLongLong());
-    if (auto result = Core::Process::terminate_process(pid, Core::Process::TerminationMode::Forceful); result.is_error()) {
+    auto child_id = m_processes->currentItem()->data(PID, ChildIDRole).toULongLong();
+    if (auto result = m_process_manager.terminate_child(child_id, Core::Process::TerminationMode::Forceful); result.is_error()) {
         if (!result.error().is_errno() || result.error().code() != ESRCH)
             QMessageBox::warning(this, tr("Unable to end process"), qformatted("Could not end process {}: {}", pid, result.error()));
     }

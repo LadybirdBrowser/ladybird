@@ -69,7 +69,6 @@ set(SOURCES
     WebView/DOMNodeProperties.cpp
     WebView/Geolocation.cpp
     WebView/Mutation.cpp
-    WebView/ProcessHandle.cpp
     WebView/SiteIsolation.cpp
     WebView/Utilities.cpp
 )

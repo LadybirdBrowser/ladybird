@@ -21,7 +21,6 @@
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/WebDriver/Error.h>
-#include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AudioServerControlClient.h>
@@ -168,8 +167,7 @@ void WebContentClient::did_misbehave(StringView message_name, StringView reason)
 {
     m_rejected_ipc = true;
     dbgln("WebContentClient: terminating helper process {}: {} rejected: {}", pid(), message_name, reason);
-    if (should_terminate_pid(pid()))
-        (void)Core::Process::terminate_process(pid(), Core::Process::TerminationMode::Forceful);
+    (void)Application::process_manager().terminate_child(child_id(), Core::Process::TerminationMode::Forceful);
     shutdown();
 }
 
@@ -258,7 +256,7 @@ WebContentPage& WebContentClient::open_page_for_new_top_level_traversable(Web::P
 {
     if (m_detached_page_close_timer)
         m_detached_page_close_timer->stop();
-    Application::process_manager().cancel_forced_exit(pid());
+    Application::process_manager().cancel_forced_exit(child_id());
 
     auto& page = open_page(page_id, traversable);
     traversable.active_document().set_host(page);
@@ -304,7 +302,7 @@ void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalTrav
     auto& page = open_page(page_id, traversable);
     if (m_unassigned_initial_page_id == page_id)
         m_unassigned_initial_page_id.clear();
-    Application::process_manager().cancel_forced_exit(pid());
+    Application::process_manager().cancel_forced_exit(child_id());
 
     page.view().send_preferences_to_page(page);
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
@@ -418,11 +416,11 @@ void WebContentClient::close_server_if_unused()
             m_detached_page_close_timer->stop();
         m_requested_close = true;
         async_close_server();
-        Application::process_manager().force_exit_after_timeout(pid(), close_server_exit_timeout_ms);
+        Application::process_manager().force_exit_after_timeout(child_id(), close_server_exit_timeout_ms);
         return;
     }
 
-    Application::process_manager().force_exit_after_timeout(pid(), detached_page_forced_exit_timeout_ms);
+    Application::process_manager().force_exit_after_timeout(child_id(), detached_page_forced_exit_timeout_ms);
 
     if (!m_detached_page_close_timer) {
         m_detached_page_close_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(detached_page_close_timeout_ms), [this] {

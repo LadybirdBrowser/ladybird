@@ -166,9 +166,10 @@ static ErrorOr<CPUProfiler> launch_cpu_profiler(StringView server_name, pid_t pi
 #endif
 }
 
-// Spawns the helper with the given function, which returns the Process to keep track of, and returns the helper's pid.
+// Spawns the helper with the given function, which returns the Process to keep track of, and returns the helper's
+// identity.
 template<typename SpawnFunction>
-static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteString> arguments, SpawnFunction&& spawn)
+static ErrorOr<ChildIdentity> launch_helper_process(StringView server_name, Vector<ByteString> arguments, SpawnFunction&& spawn)
 {
     auto process_type = WebView::process_type_from_name(server_name);
     auto const& browser_options = WebView::Application::browser_options();
@@ -248,7 +249,6 @@ static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteS
 
         if (!result.is_error()) {
             auto process = result.release_value();
-            auto pid = process.pid();
             if (crash_report)
                 process.set_crash_report(crash_report.release_nonnull());
 #if defined(AK_OS_LINUX)
@@ -261,7 +261,7 @@ static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteS
                 WebView::Application::the().set_cpu_profiler_process(move(profiler.process), move(profiler.control_socket));
             }
 
-            WebView::Application::the().add_child_process(move(process));
+            auto identity = WebView::Application::the().add_child_process(move(process));
 
             if (browser_options.profile_helper_process == process_type && browser_options.profile_tool == ProfileTool::Callgrind) {
                 dbgln();
@@ -270,7 +270,7 @@ static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteS
                 dbgln();
             }
 
-            return pid;
+            return identity;
         }
 
         if (i == candidate_server_paths.size() - 1) {
@@ -289,15 +289,14 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     ClientArguments&&... client_arguments)
 {
     RefPtr<ClientType> client;
-    TRY(launch_helper_process(server_name, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
+    auto identity = TRY(launch_helper_process(server_name, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
         auto [process, new_client] = TRY(WebView::Process::spawn<ClientType>(WebView::process_type_from_name(server_name), options, capture_output, forward<ClientArguments>(client_arguments)...));
-
-        if constexpr (requires { new_client->set_pid(pid_t {}); })
-            new_client->set_pid(process.pid());
-
         client = move(new_client);
         return move(process);
     }));
+
+    if constexpr (requires { client->set_child_identity(ChildIdentity {}); })
+        client->set_child_identity(identity);
     return client.release_nonnull();
 }
 
@@ -389,26 +388,26 @@ ErrorOr<ImageDecoderConnection> launch_image_decoder_process()
     // The decoder parses untrusted images for one client, so it must not see the images of any other. The Browser
     // does not talk to it, and hands its end of the transport to the client.
     OwnPtr<IPC::Transport> transport;
-    auto pid = TRY(launch_helper_process("ImageDecoder"sv, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
+    auto identity = TRY(launch_helper_process("ImageDecoder"sv, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
         auto [process, new_transport] = TRY(WebView::Process::spawn_with_transport(ProcessType::ImageDecoder, options, capture_output));
         transport = move(new_transport);
         return move(process);
     }));
 
-    return ImageDecoderConnection { TRY(transport->release_for_transfer()), pid };
+    return ImageDecoderConnection { TRY(transport->release_for_transfer()), identity.child_id };
 }
 
 template<typename ClientType>
 static void connect_client_to_image_decoder(ClientType& client, ImageDecoderConnection decoder)
 {
-    auto process = Application::process_manager().find_process(decoder.pid);
+    auto process = Application::process_manager().find_child(decoder.child_id);
     VERIFY(process.has_value());
-    process->set_owner_pid(client.pid());
+    process->set_owner_child_id(client.child_id());
     client.async_connect_to_image_decoder(decoder.handle);
 
     // A decoder exits by itself once its client is gone. One that dies before then is replaced, so a crash costs the
     // client the images it was decoding at the time rather than every image after it.
-    Application::the().set_image_decoder_exit_handler(decoder.pid, [weak_client = client.template make_weak_ptr<ClientType>()] {
+    Application::the().set_image_decoder_exit_handler(decoder.child_id, [weak_client = client.template make_weak_ptr<ClientType>()] {
         auto client = weak_client.strong_ref();
         if (!client || !client->is_open())
             return;
