@@ -584,7 +584,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::create_with_settings(HTML::Enviro
             // 4. If headers is a Headers object, then for each header of its header list, append header to this’s headers.
             [&](NonnullRefPtr<HTTP::HeaderList> const& headers) -> WebIDL::ExceptionOr<void> {
                 for (auto const& header : *headers)
-                    TRY(request_object->headers()->append(HTTP::Header::isomorphic_encode(header.name, header.value)));
+                    TRY(request_object->headers()->append(header));
                 return {};
             },
             // 5. Otherwise, fill this’s headers with headers.
