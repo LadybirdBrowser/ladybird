@@ -62,7 +62,6 @@ public:
     bool create_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha);
     CreateWebGLContextResult create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias);
     void destroy_context(Compositing::CanvasId);
-    bool has_context(Compositing::CanvasId) const;
 
     void execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const&, Vector<Compositing::FontResourceId> const& kept_font_ids, Vector<Compositing::DisplayListFontResource> const& added_fonts, Vector<Compositing::DisplayListImageFrameResource> const& image_frames);
     void execute_webgl_commands(Compositing::CanvasId, ReadonlyBytes, Vector<Compositing::WebGL::ImageSourceFrame> const&);

@@ -38,17 +38,12 @@ public:
 
     [[nodiscard]] bool has(StringView key) const;
 
-    [[nodiscard]] bool has_null(StringView key) const;
-    [[nodiscard]] bool has_bool(StringView key) const;
     [[nodiscard]] bool has_string(StringView key) const;
-    [[nodiscard]] bool has_i8(StringView key) const;
     [[nodiscard]] bool has_u8(StringView key) const;
-    [[nodiscard]] bool has_i16(StringView key) const;
     [[nodiscard]] bool has_u16(StringView key) const;
     [[nodiscard]] bool has_i32(StringView key) const;
     [[nodiscard]] bool has_u32(StringView key) const;
     [[nodiscard]] bool has_i64(StringView key) const;
-    [[nodiscard]] bool has_u64(StringView key) const;
     [[nodiscard]] bool has_number(StringView key) const;
     [[nodiscard]] bool has_array(StringView key) const;
     [[nodiscard]] bool has_object(StringView key) const;
@@ -65,9 +60,6 @@ public:
         return {};
     }
 
-    Optional<i8> get_i8(StringView key) const;
-    Optional<u8> get_u8(StringView key) const;
-    Optional<i16> get_i16(StringView key) const;
     Optional<u16> get_u16(StringView key) const;
     Optional<i32> get_i32(StringView key) const;
     Optional<u32> get_u32(StringView key) const;

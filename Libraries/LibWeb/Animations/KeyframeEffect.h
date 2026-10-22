@@ -44,7 +44,6 @@ struct BasePropertyIndexedKeyframe {
 
 CompositeOperation css_animation_composition_to_composite_operation(CSS::AnimationComposition composition);
 CompositeOperationOrAuto css_animation_composition_to_composite_operation_or_auto(CSS::AnimationComposition composition);
-StringView composite_operation_or_auto_to_string(CompositeOperationOrAuto);
 
 // https://www.w3.org/TR/web-animations-1/#dictdef-basekeyframe
 struct BaseKeyframe {

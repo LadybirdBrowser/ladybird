@@ -33,16 +33,6 @@ ErrorOr<void> Thread::set_priority(int priority)
     return {};
 }
 
-ErrorOr<int> Thread::get_priority() const
-{
-    sched_param scheduling_parameters {};
-    int policy;
-    int result = pthread_getschedparam(m_tid, &policy, &scheduling_parameters);
-    if (result != 0)
-        return Error::from_errno(result);
-    return scheduling_parameters.sched_priority;
-}
-
 ByteString Thread::thread_name() const { return m_thread_name; }
 
 pthread_t Thread::tid() const { return m_tid; }

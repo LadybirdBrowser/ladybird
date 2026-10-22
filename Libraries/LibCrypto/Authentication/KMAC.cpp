@@ -12,15 +12,6 @@
 
 namespace Crypto::Authentication {
 
-Optional<KMACKind> KMAC::kind_from_algorithm_name(StringView algorithm_name)
-{
-    if (algorithm_name == "KMAC128"sv)
-        return KMACKind::KMAC128;
-    if (algorithm_name == "KMAC256"sv)
-        return KMACKind::KMAC256;
-    return {};
-}
-
 u32 KMAC::default_key_length(KMACKind kind)
 {
     switch (kind) {

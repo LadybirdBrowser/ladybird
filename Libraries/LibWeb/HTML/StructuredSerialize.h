@@ -181,9 +181,6 @@ WebIDL::ExceptionOr<T> decode_or_throw_data_clone_error(JS::Realm& realm, Struct
     return result.release_value();
 }
 
-// Decode stored text to UTF-8 and reject lone surrogates as DataCloneError.
-WEB_API WebIDL::ExceptionOr<String> decode_utf8_text_or_throw_data_clone_error(JS::Realm& realm, StructuredSerializeReader& reader);
-
 // Pairs each serializable interface with its storage identifier.
 struct SerializableRegistryEntry {
     Bindings::InterfaceName interface_name;

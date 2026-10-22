@@ -63,13 +63,6 @@ void SourceBufferProcessor::run_pending_commands()
     m_running_commands = false;
 }
 
-void SourceBufferProcessor::abandon_buffer_append()
-{
-    m_pending_commands.remove_all_matching([](Command const& command) {
-        return command.has<Commands::BufferAppend>();
-    });
-}
-
 void SourceBufferProcessor::execute(Command& command)
 {
     command.visit(

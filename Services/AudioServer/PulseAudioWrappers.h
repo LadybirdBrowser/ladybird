@@ -125,7 +125,6 @@ public:
     // Cancels the previous begin_write() call.
     ErrorOr<void> cancel_write();
 
-    bool is_suspended() const;
     // Plays back all buffered data and corks the stream. Until resume() is called, no data
     // will be written to the stream.
     ErrorOr<void> drain_and_suspend();

@@ -743,11 +743,6 @@ ErrorOr<void> PulseAudioStream::cancel_write()
     return {};
 }
 
-bool PulseAudioStream::is_suspended() const
-{
-    return m_suspended;
-}
-
 StringView pulse_audio_error_to_string(PulseAudioErrorCode code)
 {
     if (code < PulseAudioErrorCode::OK || code >= PulseAudioErrorCode::Sentinel)

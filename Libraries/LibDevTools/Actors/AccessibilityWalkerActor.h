@@ -29,7 +29,6 @@ public:
     static Optional<Node> parent_of_accessibility_node_for(WeakPtr<AccessibilityWalkerActor> const&, Node const&);
     Optional<Node> parent_of_accessibility_node(Node const&);
 
-    static Optional<Node> root_accessibility_node_for(WeakPtr<AccessibilityWalkerActor> const&);
     Optional<Node> root_accessibility_node();
 
 private:

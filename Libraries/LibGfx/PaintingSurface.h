@@ -67,9 +67,6 @@ public:
     static ErrorOr<NonnullRefPtr<PaintingSurface>> create_from_d3d_texture(NonnullRefPtr<SkiaBackendContext>, NonnullRefPtr<D3DSharedTexture>, Origin = Origin::TopLeft);
 #endif
 
-    NonnullRefPtr<Bitmap> snapshot_bitmap() const;
-    SharedImage snapshot_into_shared_image() const;
-
     void read_into_bitmap(Bitmap&, IntPoint source_position = {}) const;
     void write_from_bitmap(Bitmap const&, IntPoint destination_position = {});
     void copy_from_surface(PaintingSurface&);

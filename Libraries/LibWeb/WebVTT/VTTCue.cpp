@@ -221,30 +221,4 @@ double VTTCue::computed_position()
     return 50;
 }
 
-// https://w3c.github.io/webvtt/#cue-computed-position-alignment
-PositionAlignSetting VTTCue::computed_position_alignment()
-{
-    // 1. If the WebVTT cue position alignment is not auto, then return the value of the WebVTT cue position alignment and abort these
-    //    steps.
-    if (m_position_alignment != PositionAlignSetting::Auto)
-        return m_position_alignment;
-
-    // 2. If the WebVTT cue text alignment is left, return line-left and abort these steps.
-    if (m_text_alignment == AlignSetting::Left)
-        return PositionAlignSetting::LineLeft;
-
-    // 3. If the WebVTT cue text alignment is right, return line-right and abort these steps.
-    if (m_text_alignment == AlignSetting::Right)
-        return PositionAlignSetting::LineRight;
-
-    // FIXME: 4. If the WebVTT cue text alignment is start, return line-left if the base direction of the cue text is left-to-right, line-right
-    //    otherwise.
-
-    // FIXME: 5. If the WebVTT cue text alignment is end, return line-right if the base direction of the cue text is left-to-right, line-left
-    //    otherwise.
-
-    // 6. Otherwise, return center.
-    return PositionAlignSetting::Center;
-}
-
 }

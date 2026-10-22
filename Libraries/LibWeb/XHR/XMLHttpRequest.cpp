@@ -372,11 +372,6 @@ void XMLHttpRequest::set_blob_response_object(GC::Ref<FileAPI::Blob> blob)
     m_cached_response_objects.clear();
 }
 
-bool XMLHttpRequest::response_body_is_null() const
-{
-    return !m_response->body();
-}
-
 // https://xhr.spec.whatwg.org/#text-response
 Utf16String XMLHttpRequest::get_text_response() const
 {

@@ -165,58 +165,6 @@ Vector<ResourceRecord> Message::answers_to(Question const& question) const
     return accepted;
 }
 
-ErrorOr<String> Message::format_for_log() const
-{
-    StringBuilder builder;
-    builder.appendff("ID: {}\n", header.id);
-    builder.appendff("Flags: {} ({:x})\n", header.options.to_string(), header.options.raw);
-    builder.appendff("qdcount: {}, ancount: {}, nscount: {}, arcount: {}\n", header.question_count, header.answer_count, header.authority_count, header.additional_count);
-
-    if (header.question_count > 0) {
-        builder.appendff("Questions:\n");
-        for (auto& q : questions)
-            builder.appendff("    {} {} {}\n", q.name.to_string(), to_string(q.class_), to_string(q.type));
-    }
-
-    if (header.answer_count > 0) {
-        builder.appendff("Answers:\n");
-        for (auto& a : answers) {
-            builder.appendff("    {} {} {}\n", a.name.to_string(), to_string(a.class_), to_string(a.type));
-            a.record.visit(
-                [&](auto const& record) { builder.appendff("        {}\n", MUST(record.to_string())); },
-                [&](ByteBuffer const& raw) {
-                    builder.appendff("        {:hex-dump}\n", raw.bytes());
-                });
-        }
-    }
-
-    if (header.authority_count > 0) {
-        builder.appendff("Authorities:\n");
-        for (auto& a : authorities) {
-            builder.appendff("    {} {} {}\n", a.name.to_string(), to_string(a.class_), to_string(a.type));
-            a.record.visit(
-                [&](auto const& record) { builder.appendff("        {}\n", MUST(record.to_string())); },
-                [&](ByteBuffer const& raw) {
-                    builder.appendff("        {:hex-dump}\n", raw.bytes());
-                });
-        }
-    }
-
-    if (header.additional_count > 0) {
-        builder.appendff("Additional:\n");
-        for (auto& a : additional_records) {
-            builder.appendff("    {} {} {}\n", a.name.to_string(), to_string(a.type), to_string(a.class_));
-            a.record.visit(
-                [&](auto const& record) { builder.appendff("        {}\n", MUST(record.to_string())); },
-                [&](ByteBuffer const& raw) {
-                    builder.appendff("        {:hex-dump}\n", raw.bytes());
-                });
-        }
-    }
-
-    return builder.to_string();
-}
-
 ErrorOr<Question> Question::from_raw(ParseContext& ctx)
 {
     // RFC 1035, 4.1.2. Question section format.

@@ -66,12 +66,4 @@ Optional<u32> Vorbis::Parser::parse_packet_duration_in_samples(ReadonlyBytes pac
     return duration;
 }
 
-Optional<AK::Duration> Vorbis::Parser::parse_packet_duration(ReadonlyBytes packet, u32 sample_rate) const
-{
-    auto duration = parse_packet_duration_in_samples(packet);
-    if (!duration.has_value())
-        return {};
-    return AK::Duration::from_time_units(duration.value(), 1, sample_rate);
-}
-
 }

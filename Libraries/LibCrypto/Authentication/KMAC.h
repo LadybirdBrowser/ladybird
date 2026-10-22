@@ -26,7 +26,6 @@ public:
 
     ~KMAC() = default;
 
-    static Optional<KMACKind> kind_from_algorithm_name(StringView);
     static u32 default_key_length(KMACKind);
 
     ErrorOr<ByteBuffer> sign(

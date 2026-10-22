@@ -70,16 +70,6 @@ ErrorOr<u8> Decoder::read_byte()
     return byte;
 }
 
-ErrorOr<ReadonlyBytes> Decoder::peek_entry_bytes()
-{
-    if (m_stack.is_empty())
-        return Error::from_string_literal("ASN1::Decoder: Reading bytes from an empty stack");
-
-    auto entry = m_stack.last();
-
-    return entry;
-}
-
 ErrorOr<ReadonlyBytes> Decoder::read_bytes(size_t length)
 {
     if (m_stack.is_empty())

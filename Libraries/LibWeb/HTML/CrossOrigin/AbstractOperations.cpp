@@ -143,15 +143,6 @@ Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const
         });
 }
 
-// https://html.spec.whatwg.org/multipage/browsers.html#cross-origin-accessible-window-property-name
-bool is_cross_origin_accessible_window_property_name(JS::PropertyKey const& property_key)
-{
-    // A JavaScript property name P is a cross-origin accessible window property name if it is "window", "self", "location", "close", "closed", "focus", "blur", "frames", "length", "top", "opener", "parent", "postMessage", or an array index property name.
-    static NeverDestroyed<Array<Utf16FlyString, 13>> property_names { Array<Utf16FlyString, 13> {
-        "window"_utf16_fly_string, "self"_utf16_fly_string, "location"_utf16_fly_string, "close"_utf16_fly_string, "closed"_utf16_fly_string, "focus"_utf16_fly_string, "blur"_utf16_fly_string, "frames"_utf16_fly_string, "length"_utf16_fly_string, "top"_utf16_fly_string, "opener"_utf16_fly_string, "parent"_utf16_fly_string, "postMessage"_utf16_fly_string } };
-    return (property_key.is_string() && any_of(*property_names, [&](auto const& name) { return property_key.as_string() == name; })) || property_key.is_number();
-}
-
 // 7.2.3.2 CrossOriginPropertyFallback ( P ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginpropertyfallback-(-p-)
 JS::ThrowCompletionOr<JS::PropertyDescriptor> cross_origin_property_fallback(JS::VM& vm, JS::PropertyKey const& property_key)
 {

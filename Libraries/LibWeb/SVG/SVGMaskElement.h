@@ -35,8 +35,6 @@ public:
 
     virtual CSS::ElementBoxKind box_kind() const override;
 
-    CSSPixelRect resolve_masking_area(CSSPixelRect const& target_object_bounding_box, Gfx::FloatSize const& viewport_size, Gfx::AffineTransform const& user_space_to_css_pixels) const;
-
     MaskContentUnits mask_content_units() const;
     MaskUnits mask_units() const;
     NumberPercentage mask_x() const;

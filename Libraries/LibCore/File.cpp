@@ -55,21 +55,6 @@ ErrorOr<NonnullOwnPtr<File>> File::standard_error()
     return File::adopt_fd(STDERR_FILENO, OpenMode::Write, ShouldCloseFileDescriptor::No);
 }
 
-ErrorOr<NonnullOwnPtr<File>> File::open_file_or_standard_stream(StringView filename, OpenMode mode)
-{
-    if (!filename.is_empty() && filename != "-"sv)
-        return File::open(filename, mode);
-
-    switch (mode) {
-    case OpenMode::Read:
-        return standard_input();
-    case OpenMode::Write:
-        return standard_output();
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 ErrorOr<ByteBuffer> File::read_until_eof(size_t block_size)
 {
     // Note: This is used as a heuristic, it's not valid for devices or virtual files.

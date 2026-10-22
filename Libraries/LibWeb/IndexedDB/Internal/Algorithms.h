@@ -64,12 +64,8 @@ WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm&,
 WebIDL::ExceptionOr<GC::Ptr<IDBCursor>> iterate_a_cursor(JS::Realm&, GC::Ref<IDBCursor>, GC::Ptr<Key> = nullptr, GC::Ptr<Key> = nullptr, u64 = 1);
 JS::Value clear_an_object_store(GC::Ref<ObjectStore>);
 JS::Value retrieve_a_key_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
-WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_values_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
-GC::Ref<JS::Array> retrieve_multiple_keys_from_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
 WebIDL::ExceptionOr<JS::Value> retrieve_a_referenced_value_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>);
 JS::Value retrieve_a_value_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>);
-WebIDL::ExceptionOr<GC::Ref<JS::Array>> retrieve_multiple_referenced_values_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
-GC::Ref<JS::Array> retrieve_multiple_values_from_an_index(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBKeyRange>, Optional<WebIDL::UnsignedLong>);
 void queue_a_database_task(GC::Ref<GC::Function<void()>>);
 bool cleanup_indexed_database_transactions(GC::Ref<HTML::EventLoop>);
 bool is_a_potentially_valid_key_range(JS::Realm&, JS::Value);

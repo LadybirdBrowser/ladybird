@@ -39,6 +39,4 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 };
 
-JS::ThrowCompletionOr<GC::Ptr<WebIDL::CallbackType>> property_to_callback(JS::VM& vm, JS::Value value, JS::PropertyKey const& property_key, WebIDL::OperationReturnsPromise);
-
 }

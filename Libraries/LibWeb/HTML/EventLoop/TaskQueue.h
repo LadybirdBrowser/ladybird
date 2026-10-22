@@ -23,7 +23,6 @@ public:
     size_t size_slow() const { return m_tasks.size_slow() + m_idle_tasks.size_slow(); }
 
     bool has_runnable_tasks() const;
-    bool has_rendering_tasks() const;
 
     void add(GC::Ref<HTML::Task>);
     GC::Ptr<HTML::Task> take_first_runnable();

@@ -134,10 +134,6 @@ public:
 
     FileFilter parse_accept_attribute() const;
 
-    // NOTE: User interaction
-    // https://html.spec.whatwg.org/multipage/input.html#update-the-file-selection
-    void update_the_file_selection(GC::Ref<FileAPI::FileList>);
-
     WebIDL::Long max_length() const;
     WebIDL::ExceptionOr<void> set_max_length(WebIDL::Long);
 

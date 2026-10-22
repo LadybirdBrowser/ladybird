@@ -106,7 +106,6 @@ public:
     AllocatingMemoryStream() = default;
     ~AllocatingMemoryStream();
 
-    void peek_some(Bytes) const;
     ReadonlyBytes peek_some_contiguous() const;
 
     virtual ErrorOr<Bytes> read_some(Bytes) override;

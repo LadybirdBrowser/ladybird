@@ -46,46 +46,6 @@ StringView HttpRequest::method_name() const
     return to_string_view(m_method);
 }
 
-ErrorOr<ByteBuffer> HttpRequest::to_raw_request() const
-{
-    StringBuilder builder;
-    TRY(builder.try_append(method_name()));
-    TRY(builder.try_append(' '));
-    auto path = m_url.serialize_path();
-    VERIFY(!path.is_empty());
-    TRY(builder.try_append(path));
-    if (m_url.query().has_value()) {
-        TRY(builder.try_append('?'));
-        TRY(builder.try_append(*m_url.query()));
-    }
-    TRY(builder.try_append(" HTTP/1.1\r\nHost: "sv));
-    TRY(builder.try_append(m_url.serialized_host()));
-    if (m_url.port().has_value())
-        TRY(builder.try_appendff(":{}", *m_url.port()));
-    TRY(builder.try_append("\r\n"sv));
-    // Start headers.
-    bool has_content_length = m_headers->contains("Content-Length"sv);
-    for (auto const& [name, value] : *m_headers) {
-        TRY(builder.try_append(name));
-        TRY(builder.try_append(": "sv));
-        TRY(builder.try_append(value));
-        TRY(builder.try_append("\r\n"sv));
-    }
-    if (!m_body.is_empty() || method() == Method::POST) {
-        // Add Content-Length header if it's not already present.
-        if (!has_content_length) {
-            TRY(builder.try_appendff("Content-Length: {}\r\n", m_body.size()));
-        }
-        // Finish headers.
-        TRY(builder.try_append("\r\n"sv));
-        TRY(builder.try_append((char const*)m_body.data(), m_body.size()));
-    } else {
-        // Finish headers.
-        TRY(builder.try_append("\r\n"sv));
-    }
-    return builder.to_byte_buffer();
-}
-
 ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(ReadonlyBytes raw_request)
 {
     enum class State {

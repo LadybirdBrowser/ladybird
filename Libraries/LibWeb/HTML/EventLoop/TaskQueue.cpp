@@ -181,13 +181,4 @@ Task const* TaskQueue::last_added_task() const
     return m_last_added_task.ptr();
 }
 
-bool TaskQueue::has_rendering_tasks() const
-{
-    for (auto const& task : m_tasks) {
-        if (task.source() == Task::Source::Rendering)
-            return true;
-    }
-    return false;
-}
-
 }

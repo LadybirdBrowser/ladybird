@@ -354,16 +354,6 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Compositing::Display
     }
 }
 
-void AsyncScrollTree::clear_wheel_hit_test_targets()
-{
-    m_cached_wheel_hit_test_targets.clear();
-    m_cached_main_thread_wheel_event_targets.clear();
-    m_cached_nested_context_wheel_regions.clear();
-    m_cached_blocking_wheel_event_targets.clear();
-    m_cached_scroll_chaining_barriers.clear();
-    m_visual_context_tree_structural_epoch.clear();
-}
-
 static bool rounded_rect_contains_point(Gfx::FloatRect const& rect, Gfx::CornerRadii const& corner_radii, Gfx::FloatPoint position_in_context)
 {
     if (!rect.contains(position_in_context))

@@ -1337,19 +1337,4 @@ CompositeOperationOrAuto css_animation_composition_to_composite_operation_or_aut
     return css_animation_composition_to_bindings_composite_operation_or_auto(composition);
 }
 
-StringView composite_operation_or_auto_to_string(CompositeOperationOrAuto operation)
-{
-    switch (operation) {
-    case CompositeOperationOrAuto::Replace:
-        return "replace"sv;
-    case CompositeOperationOrAuto::Add:
-        return "add"sv;
-    case CompositeOperationOrAuto::Accumulate:
-        return "accumulate"sv;
-    case CompositeOperationOrAuto::Auto:
-        return "auto"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 }

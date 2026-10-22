@@ -24,7 +24,6 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     static ErrorOr<ImmutableBytes> copy(ReadonlyBytes);
-    static ErrorOr<ImmutableBytes> copy_to_readonly_mapping(ReadonlyBytes);
     static ImmutableBytes adopt(ByteBuffer);
     static ImmutableBytes adopt_mapped_file(NonnullOwnPtr<MappedFile>);
     static ImmutableBytes adopt_anonymous_buffer(AnonymousBuffer);

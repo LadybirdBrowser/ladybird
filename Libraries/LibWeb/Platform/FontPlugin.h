@@ -43,7 +43,6 @@ public:
     static void install(FontPlugin&);
 
     RefPtr<Gfx::Font> default_font(float point_size, Optional<Gfx::FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {});
-    Gfx::Font& default_fixed_width_font();
 
     FlyString generic_font_name(GenericFont);
     Vector<FlyString> symbol_font_names();

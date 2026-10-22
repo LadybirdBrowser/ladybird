@@ -225,16 +225,6 @@ void Permissions::query(GC::Ref<JS::Object> permission_desc, GC::Ref<WebIDL::Pro
     }
 }
 
-// https://w3c.github.io/permissions/#dfn-getting-the-current-permission-state
-PermissionState get_current_permission_state(Utf16String const& name, Optional<HTML::EnvironmentSettingsObject&> settings)
-{
-    // 1. Let descriptor be a newly-created PermissionDescriptor with name initialized to name.
-    PermissionDescriptor descriptor { name };
-
-    // 2. Return the permission state of descriptor with settings.
-    return permission_state(descriptor, settings);
-}
-
 // https://w3c.github.io/permissions/#dfn-permission-query-algorithm
 void permission_query_algorithm(PermissionDescriptor const& permission_desc, PermissionStatus& status)
 {

@@ -29,7 +29,6 @@ public:
 
         void reset() const;
         Optional<u32> parse_packet_duration_in_samples(ReadonlyBytes packet) const;
-        Optional<AK::Duration> parse_packet_duration(ReadonlyBytes packet, u32 sample_rate) const;
 
     private:
         explicit Parser(AVVorbisParseContext*);

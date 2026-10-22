@@ -378,24 +378,6 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
     return filter;
 }
 
-// https://html.spec.whatwg.org/multipage/input.html#update-the-file-selection
-void HTMLInputElement::update_the_file_selection(GC::Ref<FileAPI::FileList> files)
-{
-    // 1. Queue an element task on the user interaction task source given element and the following steps:
-    // https://github.com/whatwg/html/issues/1080
-    // INTEROP: Other engines perform these steps synchronously once the user has selected the files.
-
-    set_files(files.ptr());
-
-    // 2. Fire an event named input at the input element, with the bubbles and composed attributes initialized to true.
-    auto input_event = create_event_for_element(*this, EventNames::input, { .bubbles = true, .composed = true });
-    this->dispatch_event(input_event);
-
-    // 3. Fire an event named change at the input element, with the bubbles attribute initialized to true.
-    auto change_event = create_event_for_element(*this, EventNames::change, { .bubbles = true });
-    this->dispatch_event(change_event);
-}
-
 // https://html.spec.whatwg.org/multipage/input.html#show-the-picker,-if-applicable
 static void show_the_picker_if_applicable(HTMLInputElement& element)
 {

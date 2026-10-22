@@ -404,22 +404,6 @@ void ArgsParser::add_option(Option&& option)
     m_options.append(move(option));
 }
 
-void ArgsParser::add_ignored(char const* long_name, char short_name, OptionHideMode hide_mode)
-{
-    Option option {
-        OptionArgumentMode::None,
-        "Ignored",
-        long_name,
-        short_name,
-        nullptr,
-        [](StringView) -> ErrorOr<bool> {
-            return true;
-        },
-        hide_mode,
-    };
-    add_option(move(option));
-}
-
 void ArgsParser::add_option(bool& value, char const* help_string, char const* long_name, char short_name, OptionHideMode hide_mode)
 {
     Option option {

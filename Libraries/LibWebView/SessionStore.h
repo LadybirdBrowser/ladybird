@@ -356,7 +356,6 @@ private:
 
         void set_tab_state(SessionTabId, Optional<SessionHistorySnapshot>, URL::URL, bool dirty);
         void mark_tab_flushed(SessionTabId, size_t current_used_step_index);
-        Optional<SessionHistorySnapshot> take_tab_history(SessionTabId);
         void set_active_tab(SessionTabId);
         void set_tab_order(SessionWindowId, Vector<SessionTabId> const&);
         Optional<SessionWindowId> move_tab(SessionTabId, SessionWindowId, size_t ordinal);

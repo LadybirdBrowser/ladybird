@@ -109,12 +109,4 @@ void DocumentObserver::set_document_visibility_state_observer(Function<void(HTML
         m_document_visibility_state_observer = nullptr;
 }
 
-void DocumentObserver::set_document_page_showing_observer(Function<void(bool)> callback)
-{
-    if (callback)
-        m_document_page_showing_observer = GC::create_function(GC::Heap::the(), move(callback));
-    else
-        m_document_page_showing_observer = nullptr;
-}
-
 }

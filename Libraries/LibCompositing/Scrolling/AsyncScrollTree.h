@@ -131,7 +131,6 @@ public:
     void set_state(AsyncScrollingState&&);
 
     void rebuild_wheel_hit_test_targets(RefPtr<Compositing::DisplayList const> const&, Compositing::AccumulatedVisualContextTree const*, Compositing::ScrollStateSnapshot const&);
-    void clear_wheel_hit_test_targets();
 
     Optional<Gfx::FloatPoint> scroll_offset_for_node(AsyncScrollNodeID, Compositing::ScrollStateSnapshot const&) const;
     Optional<Web::UniqueNodeID> document_id() const;

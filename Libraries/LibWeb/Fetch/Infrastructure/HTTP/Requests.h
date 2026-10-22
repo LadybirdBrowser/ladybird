@@ -308,7 +308,6 @@ public:
     [[nodiscard]] bool destination_is_script_like() const;
 
     [[nodiscard]] bool is_subresource_request() const;
-    [[nodiscard]] bool is_non_subresource_request() const;
     [[nodiscard]] bool is_navigation_request() const;
 
     [[nodiscard]] RedirectTaint redirect_taint() const;

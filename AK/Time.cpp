@@ -55,15 +55,6 @@ unsigned day_of_week(int year, unsigned month, int day)
     return (year + year / 4 - year / 100 + year / 400 + seek_table[month - 1] + day) % 7;
 }
 
-Duration Duration::from_ticks(clock_t ticks, time_t ticks_per_second)
-{
-    auto secs = ticks % ticks_per_second;
-
-    i32 nsecs = 1'000'000'000 * (ticks - (ticks_per_second * secs)) / ticks_per_second;
-    i32 extra_secs = sane_mod(nsecs, 1'000'000'000);
-    return Duration::from_half_sanitized(secs, extra_secs, nsecs);
-}
-
 Duration Duration::from_timespec(const struct timespec& ts)
 {
     i32 nsecs = ts.tv_nsec;

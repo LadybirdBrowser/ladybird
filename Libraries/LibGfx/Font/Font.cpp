@@ -74,15 +74,6 @@ NonnullRefPtr<Font> Font::invisible_variant() const
     return font;
 }
 
-NonnullRefPtr<Font> Font::with_size(float point_size) const
-{
-    if (point_size == m_point_height && point_size == m_point_width)
-        return *const_cast<Font*>(this);
-
-    // FIXME: Should we be discarding m_font_variation_settings and m_shape_features here?
-    return m_typeface->font(point_size);
-}
-
 float Font::pixel_size() const
 {
     return m_pixel_size;
