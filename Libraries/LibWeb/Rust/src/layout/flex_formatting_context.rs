@@ -2874,16 +2874,18 @@ impl<'pass> FlexFormattingContext<'pass> {
 
         // The main-size min-content contribution of a flex item is the larger of its outer min-content size and outer
         // preferred size if that is not auto, clamped by its min/max main size.
-        let intrinsic = if max_content {
-            self.calculate_max_content_main_size(index)
+        // INTEROP: Chrome and Firefox use only the preferred size if that is not auto, like any other box's
+        //          contribution. Taking the larger of the two would make a `width: 40px; flex: 1 1 0` item whose padding
+        //          and content add up to more than 40px stretch its container, e.g. YouTube's voice search button.
+        let size = if self.should_treat_main_size_as_auto(node) {
+            if max_content {
+                self.calculate_max_content_main_size(index)
+            } else {
+                self.calculate_min_content_main_size(index)
+            }
         } else {
-            self.calculate_min_content_main_size(index)
-        };
-        let preferred = self.computed_main_size(node);
-        let larger = if preferred.0.is_auto() {
-            intrinsic
-        } else {
-            intrinsic.max(self.resolve_size_for_axis(index, self.main_axis_is_horizontal(), preferred.0, preferred.1))
+            let (value, property) = self.computed_main_size(node);
+            self.resolve_size_for_axis(index, self.main_axis_is_horizontal(), value, property)
         };
         let clamp_min = if self.has_main_min_size(node) {
             self.specified_main_min_size(index)
@@ -2898,7 +2900,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 AvailableSize::MinContent
             },
         );
-        self.flex_items[index].add_main_margin_box_sizes(css_clamp(larger, clamp_min, clamp_max))
+        self.flex_items[index].add_main_margin_box_sizes(css_clamp(size, clamp_min, clamp_max))
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#intrinsic-sizes

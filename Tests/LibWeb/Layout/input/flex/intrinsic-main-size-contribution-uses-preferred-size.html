@@ -1,0 +1,25 @@
+<!doctype html><style>
+    .wrapper {
+        display: inline-block;
+        vertical-align: top;
+        margin-right: 10px;
+        background: linear-gradient(to right, green 40px, red 40px);
+    }
+    .flex {
+        display: flex;
+    }
+    .item {
+        width: 40px;
+        height: 40px;
+        flex: 1 1 0;
+    }
+    .padded {
+        box-sizing: border-box;
+        padding: 0 16px;
+        min-width: 0;
+    }
+    .content {
+        width: 100px;
+        height: 20px;
+    }
+</style><p>There should be three green squares and no red.</p><div class="wrapper"><div class="flex"><div class="item padded"><div class="content" style="width: 24px"></div></div></div></div><div class="wrapper"><div class="flex"><div class="item"><div class="content"></div></div></div></div><div class="wrapper" style="width: min-content"><div class="flex"><div class="item padded"><div class="content" style="width: 24px"></div></div></div></div>
