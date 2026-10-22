@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+.scroller { overflow: auto; padding: 20px; height: 100px; width: 300px; }
+.sticky { position: sticky; top: 120px; height: 10px; }
+</style>
+<div class="scroller" id="without-overflow">
+    <div class="sticky"></div>
+</div>
+<div class="scroller" id="with-overflow">
+    <div class="sticky"></div>
+    <div style="height: 300px"></div>
+</div>
+<div class="scroller" id="padded-containing-block">
+    <div style="padding-bottom: 30px; height: 50px"><div class="sticky" style="top: 80px"></div></div>
+    <div style="height: 300px"></div>
+</div>
+<div class="scroller" id="sticky-margin">
+    <div style="height: 50px"><div class="sticky" style="top: 80px; margin-bottom: 15px"></div></div>
+    <div style="height: 300px"></div>
+</div>
+<script src="include.js"></script>
+<script>
+test(() => {
+    for (const id of ["without-overflow", "with-overflow", "padded-containing-block", "sticky-margin"]) {
+        const scroller = document.getElementById(id);
+        scroller.scrollTop = 30;
+        const top = scroller.querySelector(".sticky").getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+        println(`${id}: ${top}`);
+    }
+});
+</script>
