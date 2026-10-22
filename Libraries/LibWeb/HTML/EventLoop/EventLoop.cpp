@@ -1657,8 +1657,9 @@ void EventLoop::add_stats(JsonObject& values) const
 void EventLoop::unregister_document(Badge<DOM::Document>, DOM::Document& document)
 {
     forget_rendering_stats(document);
-    bool did_remove = m_documents.remove_first_matching([&](auto& entry) { return entry.ptr().ptr() == &document; });
-    VERIFY(did_remove);
+    // This runs from the document's finalizer, so the GC may already have cleared our weak pointer to it, as well as to
+    // any other document dying in the same collection.
+    m_documents.remove_all_matching([&](auto const& entry) { return !entry || entry.ptr().ptr() == &document; });
 }
 
 void EventLoop::document_navigable_did_change(Badge<DOM::Document>)
