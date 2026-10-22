@@ -1668,6 +1668,9 @@ pub(crate) fn clear_synthetic_pseudo_element_boxes(
     arena: &mut LayoutNodeArena,
     node: StyleNodeID,
 ) {
+    if !arena.has_bound_pseudo_element_rows(node) {
+        return;
+    }
     for generated_for in GENERATED_FOR_AFTER..=crate::layout::node_data::GENERATED_FOR_LAST_SYNTHETIC {
         free_pseudo_element_box(host_calls, arena, node, generated_for);
     }
