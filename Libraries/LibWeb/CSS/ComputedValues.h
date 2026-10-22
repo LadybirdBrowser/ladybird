@@ -1262,26 +1262,22 @@ public:
     ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordView const&, StyleComputer const&, StyleRecordID, bool owns_style_record_pin);
     ~ComputedStyleRecordView();
 
-    explicit operator bool() const { return m_present; }
+    explicit operator bool() const { return m_values.has_value(); }
     ComputedValues const* operator->() const
     {
-        if (!m_present)
+        if (!m_values.has_value())
             return nullptr;
-        return &m_values;
+        return &*m_values;
     }
-    ComputedValues const& operator*() const
-    {
-        VERIFY(m_present);
-        return m_values;
-    }
+    ComputedValues const& operator*() const { return m_values.value(); }
 
 private:
     Optional<ComputedValues> m_base_values;
-    ComputedValues m_values { ComputedValues::BorrowedStyleRecord::Yes };
+    // NB: Only a present view builds its values, so a view of no record costs nothing to make.
+    Optional<ComputedValues> m_values;
     GC::Ptr<StyleComputer const> m_style_computer;
     StyleRecordID m_style_record_identity;
     bool m_owns_style_record_pin { false };
-    bool m_present { false };
 };
 
 class ComputedValues::Mutator final {

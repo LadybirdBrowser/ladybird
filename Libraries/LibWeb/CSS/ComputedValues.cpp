@@ -283,40 +283,40 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
     VERIFY(view.base_payloads);
     auto payloads = ReadonlySpan<void const*> { view.payloads, view.payload_count };
     auto base_payloads = ReadonlySpan<void const*> { view.base_payloads, view.payload_count };
-    m_values.borrow_style_record_payloads(payloads);
+    m_values.emplace(ComputedValues::BorrowedStyleRecord::Yes);
+    m_values->borrow_style_record_payloads(payloads);
     if (view.animation_overlay_identity != 0) {
         m_base_values.emplace(ComputedValues::BorrowedStyleRecord::Yes);
         m_base_values->borrow_style_record_payloads(base_payloads);
-        m_values.m_borrowed_base_values = &*m_base_values;
+        m_values->m_borrowed_base_values = &*m_base_values;
     }
 
-    m_values.m_pseudo_element_styles = view.pseudo_element_styles;
+    m_values->m_pseudo_element_styles = view.pseudo_element_styles;
     auto dependency_flags = static_cast<StyleRecordDependencyFlag>(view.dependency_flags);
-    m_values.m_depends_on_viewport_metrics = has_flag(dependency_flags, StyleRecordDependencyFlag::DependsOnViewportMetrics);
-    m_values.m_font_metrics_depend_on_viewport_metrics = has_flag(dependency_flags, StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
-    m_values.m_in_display_none_subtree = has_flag(dependency_flags, StyleRecordDependencyFlag::InDisplayNoneSubtree);
-    m_values.m_highlight_colors_authored = has_flag(dependency_flags, StyleRecordDependencyFlag::HighlightColorsAuthored);
-    m_values.m_highlight_color_is_current_color = has_flag(dependency_flags, StyleRecordDependencyFlag::HighlightColorIsCurrentColor);
-    m_values.m_computed_longhand_table = view.longhand_table;
-    if (m_values.m_computed_longhand_table)
-        m_values.refresh_computed_longhand_table_views();
+    m_values->m_depends_on_viewport_metrics = has_flag(dependency_flags, StyleRecordDependencyFlag::DependsOnViewportMetrics);
+    m_values->m_font_metrics_depend_on_viewport_metrics = has_flag(dependency_flags, StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
+    m_values->m_in_display_none_subtree = has_flag(dependency_flags, StyleRecordDependencyFlag::InDisplayNoneSubtree);
+    m_values->m_highlight_colors_authored = has_flag(dependency_flags, StyleRecordDependencyFlag::HighlightColorsAuthored);
+    m_values->m_highlight_color_is_current_color = has_flag(dependency_flags, StyleRecordDependencyFlag::HighlightColorIsCurrentColor);
+    m_values->m_computed_longhand_table = view.longhand_table;
+    if (m_values->m_computed_longhand_table)
+        m_values->refresh_computed_longhand_table_views();
     if (view.animated_overlay)
-        m_values.m_animated_properties = adopt_ref(*new AnimatedProperties(static_cast<ComputedValuesFFI::AnimatedOverlay const*>(view.animated_overlay)));
+        m_values->m_animated_properties = adopt_ref(*new AnimatedProperties(static_cast<ComputedValuesFFI::AnimatedOverlay const*>(view.animated_overlay)));
     if (view.animation_overlay_identity != 0) {
-        m_base_values->m_property_important = m_values.m_property_important;
-        m_base_values->m_property_inherited = m_values.m_property_inherited;
-        m_base_values->m_pseudo_element_styles = m_values.m_pseudo_element_styles;
-        m_base_values->m_depends_on_viewport_metrics = m_values.m_depends_on_viewport_metrics;
-        m_base_values->m_font_metrics_depend_on_viewport_metrics = m_values.m_font_metrics_depend_on_viewport_metrics;
-        m_base_values->m_in_display_none_subtree = m_values.m_in_display_none_subtree;
-        m_base_values->m_highlight_colors_authored = m_values.m_highlight_colors_authored;
-        m_base_values->m_highlight_color_is_current_color = m_values.m_highlight_color_is_current_color;
-        m_base_values->m_inheritance_dependent_specified_values = m_values.m_inheritance_dependent_specified_values;
-        m_base_values->m_computed_longhand_table = m_values.m_computed_longhand_table;
+        m_base_values->m_property_important = m_values->m_property_important;
+        m_base_values->m_property_inherited = m_values->m_property_inherited;
+        m_base_values->m_pseudo_element_styles = m_values->m_pseudo_element_styles;
+        m_base_values->m_depends_on_viewport_metrics = m_values->m_depends_on_viewport_metrics;
+        m_base_values->m_font_metrics_depend_on_viewport_metrics = m_values->m_font_metrics_depend_on_viewport_metrics;
+        m_base_values->m_in_display_none_subtree = m_values->m_in_display_none_subtree;
+        m_base_values->m_highlight_colors_authored = m_values->m_highlight_colors_authored;
+        m_base_values->m_highlight_color_is_current_color = m_values->m_highlight_color_is_current_color;
+        m_base_values->m_inheritance_dependent_specified_values = m_values->m_inheritance_dependent_specified_values;
+        m_base_values->m_computed_longhand_table = m_values->m_computed_longhand_table;
         if (m_base_values->m_computed_longhand_table)
             m_base_values->refresh_computed_longhand_table_views();
     }
-    m_present = true;
 }
 
 ComputedStyleRecordView::~ComputedStyleRecordView()
