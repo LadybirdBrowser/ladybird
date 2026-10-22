@@ -1444,16 +1444,17 @@ void HTMLImageElement::restart_the_animation()
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#update-the-source-set
-static void update_the_source_set(DOM::Element& element)
+void update_the_source_set(DOM::Element& element)
 {
     // When asked to update the source set for a given img or link element el, user agents must do the following:
     VERIFY(is<HTMLImageElement>(element) || is<HTMLLinkElement>(element));
 
     // 1. Set el's source set to an empty source set.
-    if (auto* image_element = as_if<HTMLImageElement>(element))
+    if (auto* image_element = as_if<HTMLImageElement>(element)) {
         image_element->set_source_set(SourceSet {});
-    else if (is<HTMLLinkElement>(element))
-        TODO();
+    } else if (auto* link_element = as_if<HTMLLinkElement>(element)) {
+        link_element->set_source_set(SourceSet {});
+    }
 
     // 2. Let elements be « el ».
     GC::RootVector<DOM::Element*> elements;
@@ -1524,10 +1525,12 @@ static void update_the_source_set(DOM::Element& element)
             }
 
             // 10. Set el's source set to the result of creating a source set given default source, srcset, sizes, and img.
-            if (is<HTMLImageElement>(element))
-                static_cast<HTMLImageElement&>(element).set_source_set(SourceSet::create(element, default_source, srcset, sizes, img));
-            else if (is<HTMLLinkElement>(element))
-                TODO();
+            auto source_set = SourceSet::create(element.document(), default_source, srcset, sizes, img);
+            if (auto* image_element = as_if<HTMLImageElement>(element)) {
+                image_element->set_source_set(move(source_set));
+            } else if (auto* link_element = as_if<HTMLLinkElement>(element)) {
+                link_element->set_source_set(move(source_set));
+            }
 
             // 11. Return.
             return;
@@ -1554,7 +1557,7 @@ static void update_the_source_set(DOM::Element& element)
         }
 
         // 7. Parse child's sizes attribute with img, and let source set's source size be the returned value.
-        source_set.m_source_size = parse_a_sizes_attribute(*child, child->attribute(HTML::AttributeNames::sizes).value_or({}), img);
+        source_set.m_source_size = parse_a_sizes_attribute(element.document(), child->attribute(HTML::AttributeNames::sizes).value_or({}), img);
 
         // 8. If child has a type attribute, and its value is an unknown or unsupported MIME type, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::type)) {
@@ -1571,7 +1574,7 @@ static void update_the_source_set(DOM::Element& element)
             img->set_dimension_attribute_source(nullptr);
 
         // 10. Normalize the source densities of source set.
-        source_set.normalize_source_densities(element);
+        source_set.normalize_source_densities(element.document());
 
         // 11. Set el's source set to source set.
         img->set_source_set(move(source_set));

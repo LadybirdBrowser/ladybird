@@ -114,7 +114,7 @@ public:
     RefPtr<StyleValue const> parse_as_descriptor_value(Utf16View, AtRuleID, DescriptorNameAndID const&);
     RefPtr<StyleValue const> parse_primitive_value_from_source(ValueType, Utf16View, NumericRange const& = infinite_range);
 
-    [[nodiscard]] NonnullRefPtr<StyleValue const> parse_as_sizes_attribute(Utf16View, DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
+    [[nodiscard]] NonnullRefPtr<StyleValue const> parse_as_sizes_attribute(Utf16View, HTML::HTMLImageElement const* img = nullptr);
 
     NonnullRefPtr<StyleValue const> parse_with_a_syntax(Utf16View input, RustSyntaxHandle const& syntax);
 

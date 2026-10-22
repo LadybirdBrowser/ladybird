@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const createImage = name => server.createEcho("GET", `/link-preload-image-source-set/${name}.png`, { status: 200, headers: { "Content-Type": "image/png" } });
+        const [fallback, small, large] = await Promise.all([createImage("fallback"), createImage("small"), createImage("large")]);
+
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "image";
+        link.href = fallback;
+        link.setAttribute("imagesrcset", `${small} 200w, ${large} 800w`);
+        link.setAttribute("imagesizes", "100px");
+        await new Promise(resolve => {
+            link.onload = link.onerror = resolve;
+            document.head.appendChild(link);
+        });
+
+        for (const [name, url] of Object.entries({ fallback, small, large })) {
+            const response = await fetch(server.recordedRequestHeadersURL(url));
+            println(`${name}: ${response.ok ? "requested" : "not requested"}`);
+        }
+    });
+</script>

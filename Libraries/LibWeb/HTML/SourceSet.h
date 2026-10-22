@@ -35,7 +35,7 @@ struct ImageSourceAndPixelDensity {
 
 // https://html.spec.whatwg.org/multipage/images.html#source-set
 struct SourceSet {
-    static SourceSet create(DOM::Element const& element, Utf16View default_source, Utf16View srcset, Utf16View sizes, HTML::HTMLImageElement const* img = nullptr);
+    static SourceSet create(DOM::Document const&, Utf16View default_source, Utf16View srcset, Utf16View sizes, HTML::HTMLImageElement const* img = nullptr);
 
     [[nodiscard]] bool is_empty() const;
 
@@ -43,7 +43,7 @@ struct SourceSet {
     [[nodiscard]] ImageSourceAndPixelDensity select_an_image_source(double device_pixel_ratio);
 
     // https://html.spec.whatwg.org/multipage/images.html#normalise-the-source-densities
-    void normalize_source_densities(DOM::Element const&);
+    void normalize_source_densities(DOM::Document const&);
 
     SourceSet();
 
@@ -52,6 +52,6 @@ struct SourceSet {
 };
 
 SourceSet parse_a_srcset_attribute(Utf16View);
-[[nodiscard]] NonnullRefPtr<CSS::StyleValue const> parse_a_sizes_attribute(DOM::Element const& element, Utf16View sizes, HTML::HTMLImageElement const* img = nullptr);
+[[nodiscard]] NonnullRefPtr<CSS::StyleValue const> parse_a_sizes_attribute(DOM::Document const&, Utf16View sizes, HTML::HTMLImageElement const* img = nullptr);
 
 }
