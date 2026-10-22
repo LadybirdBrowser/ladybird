@@ -1431,6 +1431,13 @@ fn dimension_block_level_root(
     let sizing = run.sizing();
     let style = StyleValues::for_node(&run.callbacks, node);
     let mut body_input = body_input_with_inner_available_space(run, input);
+    if let Some(block_size) = input.sizing.forced_content_block_size {
+        let used = run.records.used_values(node);
+        used.set_content_block_size(block_size);
+        used.has_definite_block_size.set(true);
+        body_input.available_space.block_size = AvailableSize::definite(block_size);
+        return body_input;
+    }
     let mut measured_content_block_size = None;
     if sizing.should_treat_block_size_as_auto(node, available_space, constraints)
         && !style.min_height().is_auto()
@@ -1522,7 +1529,7 @@ fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, bo
             .set_content_inline_size(body_result.automatic_content_inline_size);
     }
     let style = StyleValues::for_node(&run.callbacks, node);
-    if !style.display().is_table_inside() {
+    if !style.display().is_table_inside() && input.sizing.forced_content_block_size.is_none() {
         let sizing = run.sizing();
         let resolution_space = sizing.available_space_for_block_size_resolution(
             node,

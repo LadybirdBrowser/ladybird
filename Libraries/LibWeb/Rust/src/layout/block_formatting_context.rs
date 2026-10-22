@@ -1957,11 +1957,21 @@ impl<'pass> BlockFormattingContext<'pass> {
             // Margins of elements that establish new formatting contexts do not collapse with their in-flow children
             self.margin_state.borrow_mut().reset();
 
+            let fills_fieldset = container_facts.is_fieldset_box()
+                && node_facts::node_is_fieldset_content_wrapper(facts.data(), facts.computed_values_view_if_styled())
+                && self.used(block_container).has_definite_block_size();
             let inside_layout_input = LayoutInput {
                 available_space,
                 containing_block_constraints: input.containing_block_constraints,
                 content_box_position_in_bfc_root: None,
                 sizing: RootSizingDirectives {
+                    forced_content_block_size: fills_fieldset.then(|| {
+                        (self.used(block_container).content_block_size.get()
+                            - content_block_offset
+                            - self.used(node).border_box_bottom(false)
+                            - self.used(node).margin_bottom.get())
+                        .max(CssPixels::default())
+                    }),
                     forced_min_border_box_block_size: if is_table_formatting_context {
                         input.sizing.forced_min_border_box_block_size
                     } else {
