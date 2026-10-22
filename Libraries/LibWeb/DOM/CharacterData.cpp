@@ -18,6 +18,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
+#include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::DOM {
@@ -173,6 +174,9 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // it ends it.
     if (has_spelling_markers())
         document().spelling_markers().did_replace_data(as<Text>(*this), offset, count, data.length_in_code_units());
+
+    if (auto* controller = document().writing_suggestion_controller_if_exists(); controller && is<Text>(*this))
+        controller->did_change_text(as<Text>(*this));
 
     // A text node holding nothing leaves its parent `:empty`, so data arriving in it or leaving it
     // moves the parent's emptiness without any node being created or destroyed.

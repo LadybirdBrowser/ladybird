@@ -29,6 +29,7 @@
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Editing/MutationTrackedRange.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLDivElement.h>
@@ -5375,6 +5376,26 @@ bool value_contains_keyword(CSS::StyleValue const& value, CSS::Keyword keyword)
         }
     }
     return value.to_keyword() == keyword;
+}
+
+// Where the user's caret is in text: The focused text control's selection end, or else the selection's focus.
+Optional<CaretTextPosition> caret_text_position(DOM::Document& document)
+{
+    auto focused = document.focused_area();
+    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(focused.ptr())) {
+        auto text = text_control->form_associated_element_to_text_node();
+        if (!text)
+            return {};
+        auto offset = min<size_t>(text_control->selection_end(), text->length_in_utf16_code_units());
+        return CaretTextPosition { *text, offset, text_control->selection_start() == text_control->selection_end() };
+    }
+    auto selection = document.get_selection();
+    if (!selection)
+        return {};
+    auto* text = as_if<DOM::Text>(selection->focus_node().ptr());
+    if (!text)
+        return {};
+    return CaretTextPosition { *text, selection->focus_offset(), selection->is_collapsed() };
 }
 
 // The paragraph around a point in a text node, for triple-click selection and spellchecking. A paragraph is delimited

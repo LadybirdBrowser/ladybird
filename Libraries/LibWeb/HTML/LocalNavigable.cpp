@@ -41,6 +41,7 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Editing/SpellCheckController.h>
+#include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -6083,8 +6084,10 @@ void LocalNavigable::end_input_method_composition(Optional<Utf16View> final_text
     if (!was_active)
         return;
 
-    if (auto document = active_document())
+    if (auto document = active_document()) {
         document->spell_check_controller().did_end_input_method_composition();
+        document->writing_suggestion_controller().did_end_input_method_composition();
+    }
 
     // https://w3c.github.io/uievents/#event-type-compositionend
     // A user agent MUST dispatch this event when a text composition system completes or cancels the current composition
@@ -6189,6 +6192,8 @@ void LocalNavigable::replace_input_method_marked_text(Utf16View text)
     // of text.
     if (!m_input_method_composition_active) {
         document->set_is_input_method_composing(true);
+        if (auto* controller = document->writing_suggestion_controller_if_exists())
+            controller->did_start_input_method_composition();
         m_input_method_composition_active = true;
         // https://w3c.github.io/uievents/#events-composition-canceling
         // If the initial compositionstart event is canceled then the text composition session SHOULD be terminated.

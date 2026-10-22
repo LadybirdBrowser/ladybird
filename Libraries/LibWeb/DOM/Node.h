@@ -135,7 +135,8 @@ enum class SetNeedsLayoutReason {
     X(StyleChange)                                        \
     X(SVGResourceContentChange)                           \
     X(SVGResourceElementRemoved)                          \
-    X(TopLayerMembershipChange)
+    X(TopLayerMembershipChange)                           \
+    X(WritingSuggestionChange)
 
 enum class SetNeedsLayoutTreeUpdateReason {
 #define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASON(e) e,

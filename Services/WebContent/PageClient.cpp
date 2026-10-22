@@ -34,6 +34,7 @@
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeList.h>
+#include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
@@ -207,6 +208,9 @@ void PageClient::set_has_focus(bool has_focus)
             continue;
         if (has_focus && navigable->is_local_root())
             document->reset_cursor_blink_cycle();
+        // A writing suggestion is for the user typing in the window, so leaving the window drops it.
+        if (auto* controller = document->writing_suggestion_controller_if_exists(); controller && !has_focus)
+            controller->dismiss();
         // Focus changes can arrive while layout is invalidated. We only need to invalidate cached paint
         // on the current paintable tree here, without requiring layout to be up to date first.
         if (document->has_committed_viewport_box())
