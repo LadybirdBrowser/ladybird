@@ -13,16 +13,25 @@
 
 namespace TextCodec {
 
+class Encoder;
+
+TEXTCODEC_API Optional<Encoder> encoder_for(StringView label);
+
+// NB: An encoder encodes with the output encoding of its encoding, https://encoding.spec.whatwg.org/#get-an-output-encoding.
 class TEXTCODEC_API Encoder {
 public:
-    virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error) = 0;
+    ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(ReadonlyBytes)> on_bytes, Function<ErrorOr<void>(u32)> on_error) const;
 
-protected:
-    virtual ~Encoder() = default;
+private:
+    friend TEXTCODEC_API Optional<Encoder> encoder_for(StringView);
+
+    explicit Encoder(StringView output_encoding)
+        : m_output_encoding(output_encoding)
+    {
+    }
+
+    StringView m_output_encoding;
 };
-
-TEXTCODEC_API Optional<Encoder&> encoder_for_exact_name(StringView encoding);
-TEXTCODEC_API Optional<Encoder&> encoder_for(StringView label);
 
 TEXTCODEC_API ByteString isomorphic_encode(StringView);
 TEXTCODEC_API ByteString isomorphic_encode(Utf16View);
