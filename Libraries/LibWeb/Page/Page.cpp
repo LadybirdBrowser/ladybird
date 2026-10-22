@@ -249,7 +249,7 @@ void Page::process_screenshot_requests()
                 client.page_did_take_screenshot({});
                 continue;
             }
-            auto rect = enclosing_device_rect(Painting::absolute_border_box_rect(*layout_node));
+            auto rect = enclosing_device_rect(Painting::border_box_rect_of_fragments(*layout_node));
             auto bitmap_or_error = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, rect.size().to_type<int>());
             if (bitmap_or_error.is_error()) {
                 client.page_did_take_screenshot({});

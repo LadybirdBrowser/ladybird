@@ -112,6 +112,11 @@ CSSPixelRect border_box_rect_of_fragments(Layout::Node const& node)
     return rect;
 }
 
+size_t box_fragment_count(Layout::Node const& node)
+{
+    return Layout::RustFFI::layout_script_paintable_box_fragment_count(node.document_host(), committed_row_slot(node));
+}
+
 CSSPixelSize unbroken_border_box_size(Layout::Node const& node)
 {
     CSSPixelSize size;

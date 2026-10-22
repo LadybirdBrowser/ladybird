@@ -135,17 +135,9 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
                 return;
             }
             let context = self.data(paintable).accumulated_visual_context;
-            let fragment_count = paintable_geometry::fragment_count(self.source, paintable);
-            if fragment_count > 1 {
-                for index in 0..fragment_count {
-                    let (rect, radii) = self.fragment_border_box(paintable, index);
-                    self.append_box(paintable, rect, context, radii);
-                }
-                return;
+            for (rect, radii) in self.border_boxes_of_fragments(paintable) {
+                self.append_box(paintable, rect, context, radii);
             }
-            let rect = paintable_geometry::absolute_border_box_rect(self.source, paintable);
-            let radii = self.border_radii(paintable);
-            self.append_box(paintable, rect, context, radii);
             return;
         }
         let facts = self.paintable_facts(paintable);
@@ -364,9 +356,10 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         {
             return;
         }
-        let rect = paintable_geometry::absolute_border_box_rect(self.source, paintable);
         let context = self.data(paintable).accumulated_visual_context;
-        self.append_empty_editable(paintable, rect, context);
+        for rect in paintable_geometry::absolute_border_box_rects_of_fragments(self.source, paintable) {
+            self.append_empty_editable(paintable, rect, context);
+        }
     }
 
     fn fragment(

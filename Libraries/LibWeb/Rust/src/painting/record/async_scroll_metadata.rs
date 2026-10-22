@@ -131,33 +131,32 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return;
         }
         let scale = self.inputs.device_pixels_per_css_pixel;
-        let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.source, paintable),
-            scale,
-        );
-        if rect.is_empty() {
-            return;
-        }
-        let target_scroll_node_index = self.wheel_hit_test_target_scroll_node_index_for(paintable);
-        let corner_radii = self.border_radii(paintable).as_corners(&self.converter);
         let document_id = self.inputs.uncaptured.document_id;
-        if corner_radii.has_any_radius() {
-            self.recorder.compositor_wheel_hit_test_target_with_corner_radii(
-                CompositorWheelHitTestTargetWithCornerRadii {
+        for (border_box_rect, border_radii) in self.border_boxes_of_fragments(paintable) {
+            let rect = css_rect_to_device_rect(border_box_rect, scale);
+            if rect.is_empty() {
+                continue;
+            }
+            let target_scroll_node_index = self.wheel_hit_test_target_scroll_node_index_for(paintable);
+            let corner_radii = border_radii.as_corners(&self.converter);
+            if corner_radii.has_any_radius() {
+                self.recorder.compositor_wheel_hit_test_target_with_corner_radii(
+                    CompositorWheelHitTestTargetWithCornerRadii {
+                        document_id,
+                        target_scroll_node_index,
+                        rect,
+                        corner_radii,
+                    },
+                );
+                continue;
+            }
+            self.recorder
+                .compositor_wheel_hit_test_target(CompositorWheelHitTestTarget {
                     document_id,
                     target_scroll_node_index,
                     rect,
-                    corner_radii,
-                },
-            );
-            return;
+                });
         }
-        self.recorder
-            .compositor_wheel_hit_test_target(CompositorWheelHitTestTarget {
-                document_id,
-                target_scroll_node_index,
-                rect,
-            });
     }
 
     // The compositor passes a wheel on along its scroll nodes, and a scroll container that a wheel can scroll nothing
@@ -182,21 +181,20 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if scroll_node_index_above_barrier == VISUAL_VIEWPORT_NODE_INDEX {
             return;
         }
-        let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.source, paintable),
-            self.inputs.device_pixels_per_css_pixel,
-        );
-        if rect.is_empty() {
-            return;
+        for border_box_rect in paintable_geometry::absolute_border_box_rects_of_fragments(self.source, paintable) {
+            let rect = css_rect_to_device_rect(border_box_rect, self.inputs.device_pixels_per_css_pixel);
+            if rect.is_empty() {
+                continue;
+            }
+            self.recorder
+                .compositor_scroll_chaining_barrier(CompositorScrollChainingBarrier {
+                    document_id: self.inputs.uncaptured.document_id,
+                    scroll_node_index_above_barrier,
+                    rect,
+                    keeps_horizontal_scrolls: !chains_scroll_to_ancestors.horizontal,
+                    keeps_vertical_scrolls: !chains_scroll_to_ancestors.vertical,
+                });
         }
-        self.recorder
-            .compositor_scroll_chaining_barrier(CompositorScrollChainingBarrier {
-                document_id: self.inputs.uncaptured.document_id,
-                scroll_node_index_above_barrier,
-                rect,
-                keeps_horizontal_scrolls: !chains_scroll_to_ancestors.horizontal,
-                keeps_vertical_scrolls: !chains_scroll_to_ancestors.vertical,
-            });
     }
 
     fn record_blocking_wheel_event_region(&mut self, paintable: NodeSlotId) {
@@ -212,28 +210,26 @@ impl<O: Observer> PaintRecorder<'_, O> {
         {
             return;
         }
-        let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.source, paintable),
-            self.inputs.device_pixels_per_css_pixel,
-        );
-        if rect.is_empty() {
-            return;
+        for border_box_rect in paintable_geometry::absolute_border_box_rects_of_fragments(self.source, paintable) {
+            let rect = css_rect_to_device_rect(border_box_rect, self.inputs.device_pixels_per_css_pixel);
+            if rect.is_empty() {
+                continue;
+            }
+            self.blocking_wheel_event_region_count += 1;
+            self.recorder
+                .compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion { rect });
         }
-        self.blocking_wheel_event_region_count += 1;
-        self.recorder
-            .compositor_blocking_wheel_event_region(CompositorBlockingWheelEventRegion { rect });
     }
 
     fn record_main_thread_wheel_event_region(&mut self, paintable: NodeSlotId) {
-        let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.source, paintable),
-            self.inputs.device_pixels_per_css_pixel,
-        );
-        if rect.is_empty() {
-            return;
+        for border_box_rect in paintable_geometry::absolute_border_box_rects_of_fragments(self.source, paintable) {
+            let rect = css_rect_to_device_rect(border_box_rect, self.inputs.device_pixels_per_css_pixel);
+            if rect.is_empty() {
+                continue;
+            }
+            self.recorder
+                .compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion { rect });
         }
-        self.recorder
-            .compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion { rect });
     }
 
     fn kind_of_compositor_scroll_node_recorded_for(
