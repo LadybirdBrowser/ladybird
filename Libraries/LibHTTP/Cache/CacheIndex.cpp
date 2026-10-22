@@ -196,6 +196,11 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
         WHERE last_access_time >= ?
         RETURNING cache_key, vary_key, MAX(data_size, 0) + MAX(associated_data_size, 0) + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers);
     )#"sv));
+    statements.remove_entries_accessed_before = TRY(database.prepare_statement(R"#(
+        DELETE FROM CacheIndex
+        WHERE last_access_time < ?
+        RETURNING cache_key, vary_key, MAX(data_size, 0) + MAX(associated_data_size, 0) + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers);
+    )#"sv));
     statements.remove_all_entries = TRY(database.prepare_statement(R"#(
         DELETE FROM CacheIndex
         RETURNING cache_key, vary_key;
@@ -233,6 +238,13 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
     statements.select_total_estimated_size = TRY(database.prepare_statement(R"#(
         SELECT COALESCE(SUM(MAX(data_size, 0) + MAX(associated_data_size, 0) + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers)), 0)
         FROM CacheIndex;
+    )#"sv));
+
+    statements.select_access_profile = TRY(database.prepare_statement(R"#(
+        SELECT last_access_time / ?1 * ?1 AS bucket, SUM(MAX(data_size, 0) + MAX(associated_data_size, 0) + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers))
+        FROM CacheIndex
+        GROUP BY bucket
+        ORDER BY bucket DESC;
     )#"sv));
 
     auto disk_space = TRY(FileSystem::compute_disk_space(cache_directory));
@@ -435,6 +447,8 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
 
         m_entries.clear();
         m_total_estimated_size = 0;
+        if (on_total_estimated_size_change)
+            on_total_estimated_size_change();
         return;
     }
 
@@ -452,6 +466,24 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
             return {};
         },
         since);
+}
+
+void CacheIndex::remove_entries_accessed_before(UnixDateTime before, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
+{
+    m_database->execute_statement(
+        m_statements.remove_entries_accessed_before,
+        [&](auto statement_id) -> ErrorOr<void> {
+            auto cache_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, 0));
+            auto vary_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, 1));
+            auto removed_size = m_database->result_column<i64>(statement_id, 2);
+            adjust_total_estimated_size(-removed_size);
+            delete_entry(cache_key, vary_key);
+
+            if (on_entry_removed)
+                on_entry_removed(cache_key, vary_key);
+            return {};
+        },
+        before);
 }
 
 void CacheIndex::remove_entries_for_cache_key(u64 cache_key, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
@@ -599,6 +631,9 @@ void CacheIndex::adjust_total_estimated_size(i64 delta)
         m_total_estimated_size = delta > 0 ? NumericLimits<i64>::max() : 0;
     else
         m_total_estimated_size = max<i64>(total.value(), 0);
+
+    if (on_total_estimated_size_change)
+        on_total_estimated_size_change();
 }
 
 void CacheIndex::delete_entry(u64 cache_key, u64 vary_key)
@@ -628,6 +663,27 @@ Requests::CacheSizes CacheIndex::estimate_cache_size_accessed_since(UnixDateTime
         UnixDateTime::earliest());
 
     return sizes;
+}
+
+Vector<Requests::CacheAccessBucket> CacheIndex::access_profile(AK::Duration granularity)
+{
+    Vector<Requests::CacheAccessBucket> buckets;
+
+    auto result = m_database->try_execute_statement(
+        m_statements.select_access_profile,
+        [&](auto statement_id) -> ErrorOr<void> {
+            buckets.append({
+                .last_access_time = m_database->result_column<UnixDateTime>(statement_id, 0),
+                .size = static_cast<u64>(max<i64>(m_database->result_column<i64>(statement_id, 1), 0)),
+            });
+            return {};
+        },
+        max<i64>(granularity.to_milliseconds(), 1));
+
+    if (result.is_error())
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to profile cache accesses:\033[0m {}", result.error());
+
+    return buckets;
 }
 
 void CacheIndex::set_maximum_disk_cache_size(u64 maximum_disk_cache_size)

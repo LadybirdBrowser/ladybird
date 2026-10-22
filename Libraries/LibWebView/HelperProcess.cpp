@@ -595,7 +595,7 @@ void apply_dns_settings(Requests::RequestControlClient& client)
         });
 }
 
-ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, HTTPDiskCacheMode http_disk_cache_mode)
+ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process(ByteString const& cache_path, Optional<Utf16String> const& site, bool sites_have_their_own, HTTPDiskCacheMode http_disk_cache_mode)
 {
     auto const& browser_options = Application::browser_options();
     auto const& request_server_options = Application::request_server_options();
@@ -608,6 +608,8 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
     if (site.has_value()) {
         arguments.append("--site"sv);
         arguments.append(site->to_byte_string());
+    } else if (sites_have_their_own) {
+        arguments.append("--sites-have-their-own"sv);
     }
 
     if (browser_options.disable_sandbox == DisableSandbox::Yes)

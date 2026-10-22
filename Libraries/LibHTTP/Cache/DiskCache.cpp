@@ -464,6 +464,13 @@ void DiskCache::remove_entries_accessed_since(UnixDateTime since)
     });
 }
 
+void DiskCache::remove_entries_accessed_before(UnixDateTime before)
+{
+    m_index.remove_entries_accessed_before(before, [&](auto cache_key, auto vary_key) {
+        delete_entry(cache_key, vary_key);
+    });
+}
+
 // https://httpwg.org/specs/rfc9111.html#invalidation
 void DiskCache::invalidate(Utf16String const& partition, URL::URL const& url)
 {

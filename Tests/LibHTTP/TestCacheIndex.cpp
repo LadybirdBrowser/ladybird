@@ -6,6 +6,7 @@
 
 #include <AK/LexicalPath.h>
 #include <AK/NumericLimits.h>
+#include <AK/QuickSort.h>
 #include <LibCore/Directory.h>
 #include <LibCore/StandardPaths.h>
 #include <LibDatabase/Database.h>
@@ -415,4 +416,42 @@ TEST_CASE(stored_vary_wildcard_does_not_match)
 
     auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
     EXPECT(!reloaded_index.find_entry(1, *request_headers).has_value());
+}
+
+TEST_CASE(access_profile_and_eviction_by_last_access_time)
+{
+    auto state = create_cache_index();
+
+    size_t size_changes = 0;
+    state.index.on_total_estimated_size_change = [&] { ++size_changes; };
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create();
+    auto now = UnixDateTime::now();
+
+    TRY_OR_FAIL(state.index.create_entry(1, 0, "https://example.com/1"_string, request_headers, response_headers, 10, now, now));
+    TRY_OR_FAIL(state.index.create_entry(2, 0, "https://example.com/2"_string, request_headers, response_headers, 20, now, now));
+    TRY_OR_FAIL(state.index.create_entry(3, 0, "https://example.com/3"_string, request_headers, response_headers, 40, now, now));
+    EXPECT_EQ(size_changes, 3u);
+
+    // Entries 1 and 2 were last used in the same minute, entry 3 five minutes later.
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET last_access_time = 60000 WHERE cache_key = 1;"sv));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET last_access_time = 119999 WHERE cache_key = 2;"sv));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET last_access_time = 360000 WHERE cache_key = 3;"sv));
+
+    auto buckets = state.index.access_profile(AK::Duration::from_seconds(60));
+    EXPECT_EQ(buckets.size(), 2u);
+    EXPECT_EQ(buckets[0].last_access_time, UnixDateTime::from_milliseconds_since_epoch(360000));
+    EXPECT_EQ(buckets[0].size, 40u);
+    EXPECT_EQ(buckets[1].last_access_time, UnixDateTime::from_milliseconds_since_epoch(60000));
+    EXPECT_EQ(buckets[1].size, 30u);
+
+    Vector<u64> removed_entries;
+    state.index.remove_entries_accessed_before(UnixDateTime::from_milliseconds_since_epoch(360000), [&](auto cache_key, auto) { removed_entries.append(cache_key); });
+    quick_sort(removed_entries);
+    EXPECT_EQ(removed_entries, (Vector<u64> { 1, 2 }));
+    EXPECT_EQ(state.index.total_estimated_size(), 40u);
+    EXPECT(size_changes >= 5u);
+    EXPECT(state.index.find_entry(3, *request_headers).has_value());
+    EXPECT(!state.index.find_entry(1, *request_headers).has_value());
 }

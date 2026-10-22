@@ -229,6 +229,10 @@ bool ConnectionFromClient::may_use_network_isolation_key(HTTP::NetworkIsolationK
     if (m_site_binding == SiteBinding::Unrestricted)
         return true;
 
+    // A site's RequestServer makes no requests under any other top-level site.
+    if (auto const& site = process_top_level_site(); site.has_value() && key.top_level_site != *site)
+        return false;
+
     // FIXME: The process of the document that starts a navigation makes the navigation's requests, not the process that
     //        will host the new document. Until the UI process makes navigation requests itself, a client may make a
     //        request whose key is that of a navigation to the request's URL. Such keys only reach the partitions of
@@ -810,6 +814,14 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
     m_active_requests.set(request_id, move(request));
 }
 
+// The partition of this RequestServer's disk cache that a key reaches, if any.
+static Optional<Utf16String> disk_cache_partition_for(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key)
+{
+    if (!network_isolation_key.has_value() || !process_keeps_responses_under(network_isolation_key->top_level_site))
+        return {};
+    return network_isolation_key->disk_cache_partition();
+}
+
 Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
 {
     if (!is_valid_associated_data(associated_data)) {
@@ -825,7 +837,7 @@ Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::
     if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
         return { Optional<IPC::File> {}, 0 };
 
-    auto partition = network_isolation_key.has_value() ? network_isolation_key->disk_cache_partition() : OptionalNone {};
+    auto partition = disk_cache_partition_for(network_isolation_key);
     if (!m_disk_cache.has_value() || !partition.has_value() || !data.is_valid())
         return { Optional<IPC::File> {}, 0 };
 
@@ -855,7 +867,7 @@ Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClien
     if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
         return Optional<Core::AnonymousBuffer> {};
 
-    auto partition = network_isolation_key.has_value() ? network_isolation_key->disk_cache_partition() : OptionalNone {};
+    auto partition = disk_cache_partition_for(network_isolation_key);
     if (!m_disk_cache.has_value() || !partition.has_value())
         return Optional<Core::AnonymousBuffer> {};
 

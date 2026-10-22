@@ -17,6 +17,7 @@
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibMain/Main.h>
 #include <LibURL/Parser.h>
+#include <LibURL/Site.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>
@@ -162,6 +163,40 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         cookie.value = "attacker"_string;
         stub.did_update_cookie(move(cookie));
     });
+
+    auto victim_site = URL::Site::serialize_for_partitioning(victim_url.origin()).release_value();
+    expect_rejected("creating a RequestServer client for an unauthorized site"sv, [&](auto& stub, auto) {
+        VERIFY(!stub.did_lose_request_server_connection(victim_site).handle().has_value());
+    });
+
+    // The UI's navigation record permits the destination client before any document is bound to it.
+    auto navigation_view = create_view();
+    auto& navigation_client = navigation_view->page().client();
+    auto& navigation_stub = static_cast<WebContentClientStub&>(navigation_client);
+    auto loader = WebView::NavigationLoader::create(navigation_client.is_private(), Web::HTML::NavigationPopulationRequest {
+                                                                                        .navigable_id = navigation_view->traversable().id(),
+                                                                                        .history_entry = {},
+                                                                                        .source_snapshot_params = Web::HTML::create_navigation_source_snapshot_without_a_source_document(),
+                                                                                        .target_snapshot_params = {},
+                                                                                        .csp_navigation_type = Web::ContentSecurityPolicy::Directives::NavigationType::Other,
+                                                                                        .history_handling = Web::Bindings::NavigationHistoryBehavior::Auto,
+                                                                                        .user_involvement = Web::HTML::UserNavigationInvolvement::None,
+                                                                                        .navigation_id = "authorized-navigation"_utf16,
+                                                                                    });
+    navigation_view->traversable().set_ongoing_navigation({
+        .url = victim_url,
+        .navigation_id = "authorized-navigation"_utf16,
+        .state = WebView::CanonicalNavigation::CreatingNavigationParams { loader },
+        .page = &navigation_view->page(),
+    });
+    expect_rejected("using another renderer's navigation to create a RequestServer client"sv, [&](auto& stub, auto) {
+        VERIFY(!stub.did_lose_request_server_connection(victim_site).handle().has_value());
+    });
+    auto authorized_connection = navigation_stub.did_lose_request_server_connection(victim_site);
+    VERIFY(authorized_connection.handle().has_value());
+    navigation_view->traversable().clear_ongoing_navigation();
+    VERIFY(navigation_stub.did_lose_request_server_connection(victim_site).handle().has_value());
+    VERIFY(navigation_stub.did_lose_request_server_connection({}).handle().has_value());
 
     outln("PASS: renderers cannot read, store or update cookies the way HTTP responses and WebDriver do, nor reach another origin's cookies or blob URL entries");
     return 0;

@@ -16,6 +16,8 @@ namespace RequestServer {
 
 static ControlConnectionFromClient* s_control_connection = nullptr;
 
+static constexpr auto disk_cache_size_report_delay = AK::Duration::from_seconds(2);
+
 ControlConnectionFromClient::ControlConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, RequestServer::ConnectionFromClient::ConnectionMap& connections, RequestServer::ConnectionFromClient::RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache)
     : IPC::ConnectionFromClient<RequestServerControlClientEndpoint, RequestServerControlEndpoint>(*this, move(transport), 0)
     , m_connections(connections)
@@ -25,10 +27,26 @@ ControlConnectionFromClient::ControlConnectionFromClient(NonnullOwnPtr<IPC::Tran
 {
     VERIFY(s_control_connection == nullptr);
     s_control_connection = this;
+
+    if (m_disk_cache.has_value()) {
+        // Coalesce the size changes of a burst of cache writes into one report.
+        m_disk_cache_size_report_timer = Core::Timer::create_single_shot(disk_cache_size_report_delay, [this] {
+            async_disk_cache_size_changed(m_disk_cache->estimated_size());
+        });
+        m_disk_cache->set_on_estimated_size_change([this] {
+            if (!m_disk_cache_size_report_timer->is_active())
+                m_disk_cache_size_report_timer->start();
+        });
+
+        // The cache may have been on disk before this process started.
+        m_disk_cache_size_report_timer->start();
+    }
 }
 
 ControlConnectionFromClient::~ControlConnectionFromClient()
 {
+    if (m_disk_cache.has_value())
+        m_disk_cache->set_on_estimated_size_change(nullptr);
     if (s_control_connection == this)
         s_control_connection = nullptr;
 }
@@ -44,6 +62,10 @@ void ControlConnectionFromClient::die()
 {
     m_performance_timer = nullptr;
     Request::set_performance_monitor_enabled(false);
+
+    if (m_disk_cache.has_value())
+        m_disk_cache->set_on_estimated_size_change(nullptr);
+    m_disk_cache_size_report_timer = nullptr;
 
     if (s_control_connection == this)
         s_control_connection = nullptr;
@@ -207,6 +229,22 @@ void ControlConnectionFromClient::remove_cache_entries_accessed_since(u64 clear_
     AlternativeServiceCache::the().remove_entries_received_since(since);
 
     async_removed_cache_entries(clear_cache_request_id);
+}
+
+void ControlConnectionFromClient::retrieve_cache_access_profile(u64 access_profile_request_id, AK::Duration granularity)
+{
+    Vector<Requests::CacheAccessBucket> buckets;
+
+    if (m_disk_cache.has_value())
+        buckets = m_disk_cache->access_profile(granularity);
+
+    async_retrieved_cache_access_profile(access_profile_request_id, move(buckets));
+}
+
+void ControlConnectionFromClient::remove_cache_entries_accessed_before(UnixDateTime before)
+{
+    if (m_disk_cache.has_value())
+        m_disk_cache->remove_entries_accessed_before(before);
 }
 
 void ControlConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, RequestType request_type, u64 cookie_request_id, String cookie)

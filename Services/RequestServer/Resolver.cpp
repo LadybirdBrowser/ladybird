@@ -25,6 +25,7 @@ void set_default_certificate_path(ByteString default_certificate_path)
 
 static HTTP::ProxyConfiguration g_proxy_configuration;
 static Optional<Utf16String> g_process_top_level_site;
+static bool g_process_sites_have_their_own { false };
 
 HTTP::ProxyConfiguration const& proxy_configuration()
 {
@@ -44,6 +45,18 @@ Optional<Utf16String> const& process_top_level_site()
 void set_process_top_level_site(Optional<Utf16String> site)
 {
     g_process_top_level_site = move(site);
+}
+
+void set_process_sites_have_their_own()
+{
+    g_process_sites_have_their_own = true;
+}
+
+bool process_keeps_responses_under(Utf16String const& top_level_site)
+{
+    if (g_process_top_level_site.has_value())
+        return top_level_site == *g_process_top_level_site;
+    return !g_process_sites_have_their_own;
 }
 
 DNSInfo& DNSInfo::the()

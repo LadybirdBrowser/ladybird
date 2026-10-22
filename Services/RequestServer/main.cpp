@@ -52,6 +52,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView resource_map_path;
     StringView cache_path;
     StringView top_level_site;
+    bool sites_have_their_own = false;
     bool wait_for_debugger = false;
     bool disable_sandbox = false;
 
@@ -66,6 +67,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(resource_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
     args_parser.add_option(cache_path, "Path to the profile cache", "cache-path", 0, "path");
     args_parser.add_option(top_level_site, "The top-level site this RequestServer serves", "site", 0, "site");
+    args_parser.add_option(sites_have_their_own, "Sites have RequestServers of their own; keep none of their responses", "sites-have-their-own");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.parse(arguments);
@@ -131,6 +133,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (!top_level_site.is_empty())
         RequestServer::set_process_top_level_site(Utf16String::from_utf8(top_level_site));
+    else if (sites_have_their_own)
+        RequestServer::set_process_sites_have_their_own();
 
     TRY(RequestServer::initialize_libcurl());
 

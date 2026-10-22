@@ -8,6 +8,7 @@
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibURL/Site.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcement.h>
@@ -24,6 +25,7 @@
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/RequestServerManager.h>
+#include <LibWebView/RequestServerSiteBindings.h>
 
 namespace WebView {
 
@@ -371,10 +373,26 @@ void NavigationLoader::set_response_body_callbacks(Requests::Request& request)
         });
 }
 
-void NavigationLoader::move_response_body_to(RequestServerInstance& request_server, Function<void(bool)> completion_steps)
+void NavigationLoader::move_response_body_to(RequestServerSiteBindings const& host_bindings, Function<void(bool)> completion_steps)
 {
     VERIFY(!m_completion_steps);
     m_completion_steps = move(completion_steps);
+
+    // The host adopts the response through its client of the RequestServer of the document's top-level site.
+    auto top_level_site = m_top_level_site;
+    auto client_id = host_bindings.client_id_for(top_level_site);
+    if (!client_id.has_value()) {
+        top_level_site = {};
+        client_id = host_bindings.client_id();
+    }
+    auto request_server_or_null = client_id.has_value() ? RequestServerManager::the().instance_for_client(*client_id) : nullptr;
+    if (!request_server_or_null) {
+        did_acquire(false);
+        return;
+    }
+    auto& request_server = *request_server_or_null;
+    if (auto* body_handle = response_body_handle(*m_result))
+        body_handle->request_server_top_level_site = top_level_site;
 
     if (request_server.is_retired() || (m_response_body_request_server && m_response_body_request_server->is_retired())) {
         did_acquire(false);
@@ -450,6 +468,8 @@ void NavigationLoader::set_document(CanonicalDocument const& document, Canonical
 {
     VERIFY(m_result.has_value());
     m_result->document_id = document.id();
+    if (auto top_level_origin = document.top_level_origin(); top_level_origin.has_value())
+        m_top_level_site = URL::Site::serialize_for_partitioning(*top_level_origin);
 
     auto* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
     if (!navigation_params)

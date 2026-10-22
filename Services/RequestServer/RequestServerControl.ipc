@@ -30,6 +30,10 @@ endpoint RequestServerControl
     estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) =|
     remove_cache_entries_accessed_since(u64 clear_cache_request_id, UnixDateTime since) =|
 
+    // Supports the UI process's least-recently-used eviction across all RequestServer disk caches.
+    retrieve_cache_access_profile(u64 access_profile_request_id, AK::Duration granularity) =|
+    remove_cache_entries_accessed_before(UnixDateTime before) =|
+
     retrieved_http_cookie(int client_id, u64 request_id, ::RequestServer::RequestType request_type, u64 cookie_request_id, String cookie) =|
     stored_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id) =|
 }

@@ -18,6 +18,7 @@
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibRequests/Request.h>
+#include <LibURL/Site.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/WebDriver/Error.h>
@@ -123,6 +124,9 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPr
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint, WebContentClientPageRoutingStub>(*this, move(transport))
     , m_is_private(is_private)
     , m_session(Application::existing_session(is_private))
+    , m_request_server_site_bindings([this](RequestServerClientConnection& connection, Optional<Utf16String> const& top_level_site) {
+        async_connect_to_request_server(move(connection.handle), connection.client_id, top_level_site);
+    })
     , m_unassigned_initial_page_id(initial_page_id)
     , m_root_navigable_id(root_navigable_id)
     , m_audio_tab_id(allocate_audio_tab_id())
@@ -808,21 +812,34 @@ Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_
     return m_session->hsts_store->is_known_hsts_host(domain);
 }
 
-Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection()
+Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection(Optional<Utf16String> top_level_site)
 {
-    // The replacement client is on the RequestServer the process was using.
-    RefPtr<RequestServerInstance> instance;
-    if (auto client_id = m_request_server_site_bindings.client_id(); client_id.has_value())
-        instance = RequestServerManager::the().instance_for_client(*client_id);
-    auto connection = instance
-        ? RequestServerManager::the().connect_new_client(*instance, *m_session, RequestServer::SiteBinding::Bound)
-        : connect_new_request_server_client(*m_session, RequestServer::SiteBinding::Bound);
+    bool navigation_authorized = false;
+    if (top_level_site.has_value() && !m_request_server_site_bindings.client_id_for(top_level_site).has_value()) {
+        ViewImplementation::for_each_view([&](ViewImplementation& view) {
+            if (!view.has_traversable())
+                return IterationDecision::Continue;
+            auto& traversable = view.traversable();
+            auto navigation = traversable.uncommitted_navigation();
+            if (navigation && navigation->state.has<CanonicalNavigation::CreatingNavigationParams>()
+                && navigation->worker() && &navigation->worker()->client() == this
+                && URL::Site::serialize_for_partitioning(navigation->url.origin()) == *top_level_site)
+                navigation_authorized = true;
+            if (traversable.client_populates_a_history_entry_for_site(*this, *top_level_site))
+                navigation_authorized = true;
+            return navigation_authorized ? IterationDecision::Break : IterationDecision::Continue;
+        });
+    }
+    if (!m_request_server_site_bindings.client_id_for(top_level_site).has_value() && !navigation_authorized) {
+        did_misbehave("did_lose_request_server_connection"sv, "site has neither an existing client nor an authorized navigation"sv);
+        return OptionalNone {};
+    }
+
+    auto connection = m_request_server_site_bindings.replace_client(top_level_site, navigation_authorized);
     if (connection.is_error()) {
         warnln("Unable to connect a replacement RequestServer client: {}", connection.error());
         return OptionalNone {};
     }
-
-    m_request_server_site_bindings.did_connect(connection.value().client_id);
     return move(connection.value().handle);
 }
 

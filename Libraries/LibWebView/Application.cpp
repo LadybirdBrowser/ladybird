@@ -1127,7 +1127,7 @@ void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPriva
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(IsPrivate is_private, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Optional<Web::HTML::SessionHistoryEntryDescriptor> canonical_initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     // The client's WebContentClient picks up this same session when it is created.
-    auto request_server_connection = TRY(connect_new_request_server_client(session_for_new_view(is_private), RequestServer::SiteBinding::Bound));
+    auto session = session_for_new_view(is_private);
     auto image_decoder = TRY(launch_image_decoder_process());
 
     auto cross_process_id_allocator = allocate_cross_process_id_allocator();
@@ -1155,8 +1155,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     if (!navigable_to_adopt.has_value())
         client->set_initial_top_level_history_entry({}, move(initial_history_entry), initial_document_id);
 
-    client->request_server_site_bindings().did_connect(request_server_connection.client_id);
-    client->async_connect_to_request_server(move(request_server_connection.handle), request_server_connection.client_id);
+    TRY(client->request_server_site_bindings().connect(session));
     client->async_set_site_compatibility_data(m_site_compatibility_data);
     connect_to_image_decoder(*client, move(image_decoder));
 
@@ -1239,9 +1238,9 @@ bool Application::request_server_client_may_use_cookies_in(int client_id, URL::U
 
     bool may_use_cookies = false;
     auto check_bindings = [&](RequestServerSiteBindings& bindings) {
-        if (bindings.client_id() != client_id)
+        if (!bindings.has_client(client_id))
             return IterationDecision::Continue;
-        may_use_cookies = bindings.may_use_cookies_under(context->top_level_site, url);
+        may_use_cookies = bindings.may_use_cookies_under(client_id, context->top_level_site, url);
         return IterationDecision::Break;
     };
     WebContentClient::for_each_client([&](WebContentClient& client) { return check_bindings(client.request_server_site_bindings()); });

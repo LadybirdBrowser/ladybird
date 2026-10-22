@@ -71,7 +71,7 @@ public:
     Web::Compositor::CompositorConnection* compositor_process_connection() const;
     void did_destroy_compositor_context(Web::CompositorContextId);
 
-    Function<void(IPC::TransportHandle const&, Optional<int> client_id)> on_request_server_connection;
+    Function<void(IPC::TransportHandle const&, Optional<int> client_id, Optional<Utf16String> const& top_level_site)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
 
     // Asks the Browser to spawn this process's MediaServer if it has none, and to connect a client to it.
@@ -113,7 +113,7 @@ private:
     virtual void run_webdriver_user_prompt_handling(Web::PageId page_id, u64 request_id) override;
     virtual void did_handle_webdriver_mouse_event(Web::PageId page_id, u64 request_id) override;
     virtual void connect_to_web_ui(Web::PageId page_id, IPC::TransportHandle handle) override;
-    virtual void connect_to_request_server(IPC::TransportHandle handle, int client_id) override;
+    virtual void connect_to_request_server(IPC::TransportHandle handle, int client_id, Optional<Utf16String> top_level_site) override;
     virtual void connect_to_test_endpoint(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor_process(IPC::TransportHandle handle, IPC::TransportHandle render_clock_handle) override;

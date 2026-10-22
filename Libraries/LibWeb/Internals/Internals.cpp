@@ -1221,18 +1221,24 @@ bool Internals::set_disk_cache_enabled_for_navigations(bool enabled)
 
 void Internals::simulate_request_server_connection_loss()
 {
-    auto disconnected_client = move(ResourceLoader::the().request_client());
-    auto request_server_died_callback = move(disconnected_client->on_request_server_died);
-    disconnected_client = nullptr;
+    Vector<Optional<Utf16String>> top_level_sites { OptionalNone {} };
+    for (auto& top_level_site : ResourceLoader::the().top_level_sites())
+        top_level_sites.append(move(top_level_site));
 
-    // Synchronously obtain a replacement connection from the UI process, so that this process is not left unable to
-    // load resources.
-    page().client().page_did_lose_request_server_connection();
+    for (auto const& top_level_site : top_level_sites) {
+        auto disconnected_client = ResourceLoader::the().take_client_for_testing(top_level_site);
+        if (!disconnected_client)
+            continue;
+        auto request_server_died_callback = move(disconnected_client->on_request_server_died);
+        disconnected_client = nullptr;
 
-    // A real connection loss defers this callback. Exercise the case where the replacement connection arrives before
-    // that deferred callback runs.
-    if (request_server_died_callback)
-        request_server_died_callback();
+        // Replace the connection synchronously so resource loading can continue.
+        page().client().page_did_lose_request_server_connection(top_level_site);
+
+        // Exercise reconnection before the deferred connection-loss callback runs.
+        if (request_server_died_callback)
+            request_server_died_callback();
+    }
 }
 
 void Internals::simulate_worker_request_server_connection_loss()

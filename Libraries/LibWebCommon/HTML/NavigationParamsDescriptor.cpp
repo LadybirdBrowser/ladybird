@@ -95,6 +95,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationResponseBodyHandle c
 {
     TRY(encoder.encode(handle.request_server_client_id));
     TRY(encoder.encode(handle.request_server_request_id));
+    TRY(encoder.encode(handle.request_server_top_level_site));
     return {};
 }
 
@@ -104,6 +105,7 @@ ErrorOr<Web::HTML::NavigationResponseBodyHandle> decode(Decoder& decoder)
     return Web::HTML::NavigationResponseBodyHandle {
         .request_server_client_id = TRY(decoder.decode<int>()),
         .request_server_request_id = TRY(decoder.decode<u64>()),
+        .request_server_top_level_site = TRY(decoder.decode<Optional<Utf16String>>()),
     };
 }
 

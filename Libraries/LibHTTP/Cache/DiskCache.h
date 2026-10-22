@@ -66,6 +66,12 @@ public:
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
     void remove_entries_accessed_since(UnixDateTime since);
 
+    // Supports least-recently-used eviction across disk caches sharing one size limit.
+    Vector<Requests::CacheAccessBucket> access_profile(AK::Duration granularity) { return m_index.access_profile(granularity); }
+    void remove_entries_accessed_before(UnixDateTime before);
+    u64 estimated_size() const { return m_index.total_estimated_size(); }
+    void set_on_estimated_size_change(Function<void()> callback) { m_index.on_total_estimated_size_change = move(callback); }
+
     void invalidate(Utf16String const& partition, URL::URL const&);
 
     LexicalPath const& cache_directory() const { return m_cache_directory; }

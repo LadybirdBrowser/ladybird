@@ -57,9 +57,15 @@ void set_default_certificate_path(ByteString);
 HTTP::ProxyConfiguration const& proxy_configuration();
 void set_proxy_configuration(HTTP::ProxyConfiguration);
 
-// The top-level site this RequestServer serves, when there is one per site. Only responses for that site go into its
-// disk cache; a response it fetches for another site is on its way to that site's RequestServer.
+// The top-level site this RequestServer serves, when there is one per site.
 Optional<Utf16String> const& process_top_level_site();
 void set_process_top_level_site(Optional<Utf16String>);
+
+// Sites have RequestServers of their own, and this one has no site.
+void set_process_sites_have_their_own();
+
+// Cache only this server's site's responses. A server with no site caches all sites unless they have
+// their own RequestServers; other sites' responses are only in transit to their site's server.
+bool process_keeps_responses_under(Utf16String const& top_level_site);
 
 }

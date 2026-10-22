@@ -22,9 +22,12 @@ void RequestControlClient::die()
         promise->reject(Error::from_string_literal("RequestServer process died"));
     for (auto& [id, promise] : m_pending_clear_cache_requests)
         promise->reject(Error::from_string_literal("RequestServer process died"));
+    for (auto& [id, promise] : m_pending_cache_access_profile_requests)
+        promise->reject(Error::from_string_literal("RequestServer process died"));
 
     m_pending_cache_size_estimations.clear();
     m_pending_clear_cache_requests.clear();
+    m_pending_cache_access_profile_requests.clear();
 
     if (auto request_server_died_callback = move(on_request_server_died)) {
         Core::deferred_invoke([request_server_died_callback = move(request_server_died_callback)]() mutable {
@@ -97,6 +100,30 @@ void RequestControlClient::removed_cache_entries(u64 clear_cache_request_id)
 {
     if (auto promise = m_pending_clear_cache_requests.take(clear_cache_request_id); promise.has_value())
         (*promise)->resolve({});
+}
+
+NonnullRefPtr<Core::Promise<Vector<CacheAccessBucket>>> RequestControlClient::retrieve_cache_access_profile(AK::Duration granularity)
+{
+    auto promise = Core::Promise<Vector<CacheAccessBucket>>::construct();
+
+    auto access_profile_request_id = m_next_cache_access_profile_request_id++;
+    m_pending_cache_access_profile_requests.set(access_profile_request_id, promise);
+
+    async_retrieve_cache_access_profile(access_profile_request_id, granularity);
+
+    return promise;
+}
+
+void RequestControlClient::retrieved_cache_access_profile(u64 access_profile_request_id, Vector<CacheAccessBucket> buckets)
+{
+    if (auto promise = m_pending_cache_access_profile_requests.take(access_profile_request_id); promise.has_value())
+        (*promise)->resolve(move(buckets));
+}
+
+void RequestControlClient::disk_cache_size_changed(u64 size)
+{
+    if (on_disk_cache_size_changed)
+        on_disk_cache_size_changed(size);
 }
 
 }

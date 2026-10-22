@@ -357,13 +357,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         host->async_populate_navigation(weak_loader->request(), weak_loader->take_result());
     };
     // Wait for the destination RequestServer to acknowledge the import before the host adopts it.
-    if (auto client_id = host->client().request_server_site_bindings().client_id(); client_id.has_value()) {
-        if (auto request_server = RequestServerManager::the().instance_for_client(*client_id)) {
-            weak_loader->move_response_body_to(*request_server, move(finish_handoff));
-            return true;
-        }
-    }
-    finish_handoff(false);
+    weak_loader->move_response_body_to(host->client().request_server_site_bindings(), move(finish_handoff));
     return true;
 }
 
