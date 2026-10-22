@@ -3179,21 +3179,10 @@ impl RetainedState {
         if let Some(reads) = self.winner_groups.state_reads(state) {
             return reads;
         }
+        // OPTIMIZATION: An element's own declarations that read nothing between them, as most do, need no winner of
+        //               theirs asked what it reads. Whether they do is looked up once a winner of theirs is met.
+        let mut element_declarations_read_nothing = [None; ElementDeclarationKind::ALL.len()];
         let mut reads = 0;
-        for value in self.state_substitution_values(node, state) {
-            if custom_property_cascade::value_reads_attributes(value.data()) {
-                reads |= cascade::STATE_READS_ATTRIBUTES;
-            }
-            if custom_property_cascade::value_reads_inherited_values(value.data()) {
-                reads |= cascade::STATE_READS_INHERIT_FUNCTION;
-            }
-            if custom_property_cascade::value_reads_conditions(value.data()) {
-                reads |= cascade::STATE_READS_IF_FUNCTION;
-            }
-            if custom_property_cascade::value_calls_custom_functions(value.data()) {
-                reads |= cascade::STATE_READS_CUSTOM_FUNCTION;
-            }
-        }
         // NB: As with the state's summary, what a node that does not find a winner's written value reads says nothing
         //     of other nodes.
         let mut every_value_found = true;
@@ -3210,16 +3199,16 @@ impl RetainedState {
                 }
                 Err(_) => continue,
             };
-            let dependencies = crate::css::style_compute::collect_external_value_dependencies(value.data());
-            if dependencies.uses_tree_counting_function {
-                reads |= cascade::STATE_READS_SIBLING_POSITION;
+            if let WinnerSource::Element(kind) = winner.source
+                && *element_declarations_read_nothing[kind as usize].get_or_insert_with(|| {
+                    self.facts
+                        .element_declarations(node, kind)
+                        .is_some_and(index::ElementDeclarations::read_nothing)
+                })
+            {
+                continue;
             }
-            if dependencies.has_unfixed_random_sharing && value_draws_element_random_base(value.data()) {
-                reads |= cascade::STATE_READS_ELEMENT_RANDOM_BASE;
-            }
-            if dependencies.container_relative_length_unit_mask != 0 {
-                reads |= cascade::STATE_READS_CONTAINER_UNITS;
-            }
+            reads |= written_value_reads(winner.property, value);
         }
         if every_value_found {
             self.winner_groups.note_state_reads(state, reads);
@@ -4659,6 +4648,44 @@ pub(super) enum FullDriveReason {
     /// A style pass gave the row up, and with it what moved under the record that only the pass
     /// saw, such as the viewport.
     PassGivenUp,
+}
+
+/// What a declaration of `property` written as `value` reads beyond the cascade, as `cascade::STATE_READS_*` bits:
+/// what a longhand substitutes from beside its custom-property environment, and what its value reads of the element
+/// and its containers.
+pub(super) fn written_value_reads(property: u16, value: &crate::css::style_value::RetainedStyleValueData) -> u8 {
+    use crate::css::style_value::StyleValueData;
+    let mut reads = 0;
+    if property >= crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+        && matches!(
+            value.data(),
+            StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
+        )
+    {
+        if custom_property_cascade::value_reads_attributes(value.data()) {
+            reads |= cascade::STATE_READS_ATTRIBUTES;
+        }
+        if custom_property_cascade::value_reads_inherited_values(value.data()) {
+            reads |= cascade::STATE_READS_INHERIT_FUNCTION;
+        }
+        if custom_property_cascade::value_reads_conditions(value.data()) {
+            reads |= cascade::STATE_READS_IF_FUNCTION;
+        }
+        if custom_property_cascade::value_calls_custom_functions(value.data()) {
+            reads |= cascade::STATE_READS_CUSTOM_FUNCTION;
+        }
+    }
+    let dependencies = crate::css::style_compute::collect_external_value_dependencies(value.data());
+    if dependencies.uses_tree_counting_function {
+        reads |= cascade::STATE_READS_SIBLING_POSITION;
+    }
+    if dependencies.has_unfixed_random_sharing && value_draws_element_random_base(value.data()) {
+        reads |= cascade::STATE_READS_ELEMENT_RANDOM_BASE;
+    }
+    if dependencies.container_relative_length_unit_mask != 0 {
+        reads |= cascade::STATE_READS_CONTAINER_UNITS;
+    }
+    reads
 }
 
 /// Static checks attached to the original declaration spelling at input preparation.
