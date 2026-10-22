@@ -811,14 +811,8 @@ void repaint_after_style_change(Layout::Node const& node, CSS::RequiredInvalidat
         set_needs_repaint(node, invalidation.invalidates_hit_test_display_list() ? InvalidateDisplayList::PaintCommandsAndHitTestList : InvalidateDisplayList::PaintCommands);
     if (invalidation.repaint_propagated_text_decorations)
         invalidate_propagated_text_decoration_caches(node);
-    if (invalidation.needs_stacking_context_tree_rebuild()) {
-        auto& document = const_cast<DOM::Document&>(node.document());
-        document.schedule_accumulated_visual_context_update(node, DOM::Document::AccumulatedVisualContextUpdateScope::Structure);
-        auto const* table_wrapper_carrying_the_moved_table_properties
-            = display(node).is_table_inside() && node.parent() && node.parent()->is_table_wrapper() ? node.parent() : nullptr;
-        if (table_wrapper_carrying_the_moved_table_properties)
-            document.schedule_accumulated_visual_context_update(*table_wrapper_carrying_the_moved_table_properties, DOM::Document::AccumulatedVisualContextUpdateScope::Structure);
-    }
+    if (invalidation.needs_stacking_context_tree_rebuild())
+        const_cast<DOM::Document&>(node.document()).schedule_accumulated_visual_context_update(node, DOM::Document::AccumulatedVisualContextUpdateScope::Structure);
 }
 
 Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform()

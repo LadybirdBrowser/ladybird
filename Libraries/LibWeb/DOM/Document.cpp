@@ -10996,11 +10996,18 @@ void Document::schedule_accumulated_visual_context_update(Layout::Node const& la
 {
     if (!Painting::has_committed_box(layout_node))
         return;
-    auto slot = Painting::committed_row_slot(layout_node);
-    Layout::RustFFI::render_state_note_visual_context_style_change(
-        layout_node_arena().host(),
-        slot,
-        scope == AccumulatedVisualContextUpdateScope::Structure);
+    auto note_style_change = [&](Layout::Node const& box) {
+        Layout::RustFFI::render_state_note_visual_context_style_change(
+            layout_node_arena().host(),
+            Painting::committed_row_slot(box),
+            scope == AccumulatedVisualContextUpdateScope::Structure);
+    };
+    note_style_change(layout_node);
+    // A table box's wrapper carries table properties of its own, such as its clip and what makes its stacking context,
+    // so the visual contexts they make move with the table's.
+    if (auto const* wrapper = layout_node.parent(); wrapper && wrapper->is_table_wrapper()
+        && Painting::display(layout_node).is_table_inside() && Painting::has_committed_box(*wrapper))
+        note_style_change(*wrapper);
 
     set_needs_accumulated_visual_contexts_update(true);
 }
