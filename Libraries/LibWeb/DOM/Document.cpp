@@ -7140,12 +7140,6 @@ void Document::register_intersection_observer(Badge<IntersectionObserver::Inters
     m_intersection_observers.set(observer);
 }
 
-void Document::unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserver& observer)
-{
-    bool was_removed = m_intersection_observers.remove(observer);
-    VERIFY(was_removed);
-}
-
 bool Document::has_intersection_observation_targets() const
 {
     for (auto const& observer : m_intersection_observers) {
