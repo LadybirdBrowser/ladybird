@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function leb(value) {
+        const bytes = [];
+        do {
+            let byte = value % 128;
+            value = Math.floor(value / 128);
+            if (value !== 0)
+                byte |= 0x80;
+            bytes.push(byte);
+        } while (value !== 0);
+        return bytes;
+    }
+
+    function section(id, contents) {
+        return [id, ...leb(contents.length), ...contents];
+    }
+
+    // A module with one function whose body is `size` bytes long: no locals, then nops up to its end.
+    function moduleWithFunctionOfSize(size) {
+        const prefix = [
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            ...section(1, [0x01, 0x60, 0x00, 0x00]),
+            ...section(3, [0x01, 0x00]),
+        ];
+        const code = [0x01, ...leb(size)];
+        const codeSectionHeader = [10, ...leb(code.length + size)];
+        const bytes = new Uint8Array(prefix.length + codeSectionHeader.length + code.length + size);
+        bytes.set(prefix);
+        bytes.set(codeSectionHeader, prefix.length);
+        bytes.set(code, prefix.length + codeSectionHeader.length);
+        const bodyStart = prefix.length + codeSectionHeader.length + code.length;
+        bytes.fill(0x01, bodyStart + 1, bodyStart + size - 1);
+        bytes[bodyStart] = 0x00;
+        bytes[bodyStart + size - 1] = 0x0b;
+        return bytes;
+    }
+
+    test(() => {
+        println(`Function body of 7654321 bytes: ${WebAssembly.validate(moduleWithFunctionOfSize(7654321))}`);
+        println(`Function body of 7654322 bytes: ${WebAssembly.validate(moduleWithFunctionOfSize(7654322))}`);
+    });
+</script>
