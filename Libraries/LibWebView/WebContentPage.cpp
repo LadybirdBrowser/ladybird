@@ -2470,6 +2470,7 @@ void WebContentPage::did_get_debugger_source_positions(u64 request_id, Vector<De
 void WebContentPage::did_request_alert(Utf16String message)
 {
     did_open_dialog(Web::PendingDialog::Alert, message);
+    view().did_open_user_prompt({});
     if (view().on_request_alert)
         view().on_request_alert(message);
 }
@@ -2502,6 +2503,7 @@ void WebContentPage::did_request_before_unload(String source)
 void WebContentPage::did_request_confirm(Utf16String message)
 {
     did_open_dialog(Web::PendingDialog::Confirm, message);
+    view().did_open_user_prompt({});
     if (view().on_request_confirm)
         view().on_request_confirm(message);
 }
@@ -2509,6 +2511,7 @@ void WebContentPage::did_request_confirm(Utf16String message)
 void WebContentPage::did_request_prompt(Utf16String message, Utf16String default_)
 {
     did_open_dialog(Web::PendingDialog::Prompt, message);
+    view().did_open_user_prompt({});
     if (view().on_request_prompt)
         view().on_request_prompt(message, default_);
 }

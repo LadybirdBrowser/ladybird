@@ -162,6 +162,17 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
             )
             return
 
+        if self.path == "/webdriver-navigation-user-prompt":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                b"""<!doctype html>
+<script>alert("Navigation prompt");</script>
+<p>Loaded</p>"""
+            )
+            return
+
         if self.path == "/webdriver-intercepted-navigation-click":
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
@@ -2013,6 +2024,21 @@ def run_webdriver_intercepted_navigation_click_test(webdriver_port, url):
         request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
+def run_webdriver_navigation_to_user_prompt_test(webdriver_port, url):
+    session_id = create_session(webdriver_port)
+    try:
+        log = [f"WebDriver navigation to user prompt initial: {current_url(webdriver_port, session_id)}"]
+        request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url})
+        prompt_text = request(webdriver_port, "GET", f"/session/{session_id}/alert/text")["value"]
+        if prompt_text != "Navigation prompt":
+            raise AssertionError(f"Expected the navigated-to page's prompt to be open, got {prompt_text!r}")
+
+        request(webdriver_port, "POST", f"/session/{session_id}/alert/accept", {})
+        wait_for_body_text(webdriver_port, session_id, "after accepting the navigation prompt", "Loaded", log)
+    finally:
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
 def run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_port, url_a):
     url_redirect_to_tls_failure = f"http://localhost:{page_port}/redirect-to-tls-failure"
     url_tls_failure = f"https://127.0.0.1:{page_port}/tls-failure"
@@ -2049,6 +2075,10 @@ def run_self_contained_navigation_tests(webdriver_port, page_port, url_a):
     run_webdriver_intercepted_navigation_click_test(
         webdriver_port,
         f"http://localhost:{page_port}/webdriver-intercepted-navigation-click",
+    )
+    run_webdriver_navigation_to_user_prompt_test(
+        webdriver_port,
+        f"http://localhost:{page_port}/webdriver-navigation-user-prompt",
     )
     run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_port, url_a)
 
