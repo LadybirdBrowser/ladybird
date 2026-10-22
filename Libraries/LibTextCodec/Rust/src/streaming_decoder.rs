@@ -18,6 +18,7 @@ pub struct StreamingDecoder {
     encoding: &'static Encoding,
     fatal: bool,
     ignore_bom: bool,
+    bom_seen: bool,
     decoder: Decoder,
 }
 
@@ -27,15 +28,8 @@ impl StreamingDecoder {
             encoding,
             fatal,
             ignore_bom,
-            decoder: Self::new_decoder(encoding, ignore_bom),
-        }
-    }
-
-    fn new_decoder(encoding: &'static Encoding, ignore_bom: bool) -> Decoder {
-        if ignore_bom {
-            encoding.new_decoder_without_bom_handling()
-        } else {
-            encoding.new_decoder_with_bom_removal()
+            bom_seen: false,
+            decoder: encoding.new_decoder_without_bom_handling(),
         }
     }
 
@@ -53,23 +47,65 @@ impl StreamingDecoder {
 
     /// Decodes the next bytes of the input to UTF-16. Unless more of the input follows, the bytes are its end: the
     /// decoder then flushes what it kept, and starts over for the next input, whether or not decoding succeeded.
+    /// A failure discards the rest of the bytes, and with them whatever the decoder kept of them.
     pub fn decode_to_utf16(&mut self, input: &[u8], more_input_follows: bool) -> Result<Vec<u16>, DecodingFailed> {
-        let decoded = self.decode_to_utf16_with_current_decoder(input, !more_input_follows);
-        self.start_over_unless_more_input_follows(more_input_follows);
+        let mut decoded = self.decode_to_utf16_with_current_decoder(input, !more_input_follows);
+        match &mut decoded {
+            Ok(output) => {
+                if self.removes_bom_from_output(output.is_empty(), output.first() == Some(&0xFEFF)) {
+                    output.remove(0);
+                }
+            }
+            Err(DecodingFailed) => self.forget_rest_of_input(),
+        }
+        if !more_input_follows {
+            self.start_over();
+        }
         decoded
     }
 
     /// Decodes the next bytes of the input to UTF-8, like decode_to_utf16().
     pub fn decode_to_utf8(&mut self, input: &[u8], more_input_follows: bool) -> Result<String, DecodingFailed> {
-        let decoded = self.decode_to_utf8_with_current_decoder(input, !more_input_follows);
-        self.start_over_unless_more_input_follows(more_input_follows);
+        let mut decoded = self.decode_to_utf8_with_current_decoder(input, !more_input_follows);
+        match &mut decoded {
+            Ok(output) => {
+                if self.removes_bom_from_output(output.is_empty(), output.starts_with('\u{FEFF}')) {
+                    output.drain(..'\u{FEFF}'.len_utf8());
+                }
+            }
+            Err(DecodingFailed) => self.forget_rest_of_input(),
+        }
+        if !more_input_follows {
+            self.start_over();
+        }
         decoded
     }
 
-    fn start_over_unless_more_input_follows(&mut self, more_input_follows: bool) {
-        if !more_input_follows {
-            // NB: encoding_rs finishes a decoder for good once it has seen the end of its input.
-            self.decoder = Self::new_decoder(self.encoding, self.ignore_bom);
+    // https://encoding.spec.whatwg.org/#concept-td-serialize
+    fn removes_bom_from_output(&mut self, output_is_empty: bool, output_starts_with_bom: bool) -> bool {
+        // NB: The BOM is removed from the output of a call that succeeded, rather than from the input, so that a call
+        //     that fails does not consume it.
+        if self.bom_seen || output_is_empty {
+            return false;
+        }
+        self.bom_seen = true;
+        let is_unicode_encoding = self.encoding == encoding_rs::UTF_8
+            || self.encoding == encoding_rs::UTF_16BE
+            || self.encoding == encoding_rs::UTF_16LE;
+        !self.ignore_bom && is_unicode_encoding && output_starts_with_bom
+    }
+
+    fn start_over(&mut self) {
+        // NB: encoding_rs finishes a decoder for good once it has seen the end of its input.
+        self.decoder = self.encoding.new_decoder_without_bom_handling();
+        self.bom_seen = false;
+    }
+
+    fn forget_rest_of_input(&mut self) {
+        // NB: Every decoder but ISO-2022-JP's resets its own state on an error, so a new decoder only drops the bytes
+        //     encoding_rs kept of the input that the error discards. ISO-2022-JP's mode outlasts its errors.
+        if self.encoding != encoding_rs::ISO_2022_JP {
+            self.decoder = self.encoding.new_decoder_without_bom_handling();
         }
     }
 
@@ -184,10 +220,43 @@ mod tests {
     }
 
     #[test]
-    fn a_failure_in_the_middle_of_the_input_keeps_the_decoder() {
+    fn a_failure_in_the_middle_of_the_input_discards_the_rest_of_its_bytes() {
         let mut decoder = utf8_decoder(true, false);
         assert_eq!(decoder.decode_to_utf16(&[0x61, 0xFF, 0x62], true), Err(DecodingFailed));
         assert_eq!(decoder.decode_to_utf16(&[0x63], true), Ok(utf16("c")));
         assert_eq!(decoder.decode_to_utf16(&[0x64], false), Ok(utf16("d")));
+
+        let mut gb18030 = StreamingDecoder::new(encoding_rs::GB18030, true, false);
+        assert_eq!(gb18030.decode_to_utf16(&[0x81, 0x30, 0xFF], true), Err(DecodingFailed));
+        assert_eq!(gb18030.decode_to_utf16(&[], false), Ok(Vec::new()));
+
+        let mut gb18030 = StreamingDecoder::new(encoding_rs::GB18030, true, false);
+        assert_eq!(gb18030.decode_to_utf8(&[0x81, 0x30, 0xFF], true), Err(DecodingFailed));
+        assert_eq!(gb18030.decode_to_utf8(&[], false), Ok(String::new()));
+    }
+
+    #[test]
+    fn a_failure_keeps_the_byte_order_mark_unseen() {
+        let mut decoder = utf8_decoder(true, false);
+        assert_eq!(decoder.decode_to_utf16(&[0x61, 0xFF], true), Err(DecodingFailed));
+        assert_eq!(decoder.decode_to_utf16(&[0xEF, 0xBB, 0xBF, 0x62], true), Ok(utf16("b")));
+
+        let mut decoder = utf8_decoder(true, false);
+        assert_eq!(decoder.decode_to_utf8(&[0xFF], true), Err(DecodingFailed));
+        assert_eq!(
+            decoder.decode_to_utf8(&[0xEF, 0xBB, 0xBF, 0x62], true),
+            Ok("b".to_string())
+        );
+    }
+
+    #[test]
+    fn a_byte_order_mark_split_over_chunks_is_removed() {
+        let mut decoder = utf8_decoder(false, false);
+        assert_eq!(decoder.decode_to_utf16(&[0xEF, 0xBB], true), Ok(Vec::new()));
+        assert_eq!(decoder.decode_to_utf16(&[0xBF, 0x61], true), Ok(utf16("a")));
+        assert_eq!(
+            decoder.decode_to_utf16(&[0xEF, 0xBB, 0xBF], false),
+            Ok(utf16("\u{FEFF}"))
+        );
     }
 }

@@ -104,8 +104,8 @@ impl TextDecoder {
         //         2. If result is finished, then return the result of running serialize I/O queue with this and
         //            output.
         //         3. Otherwise, if result is error, throw a TypeError.
-        // NB: The decoder of encoding_rs holds the I/O queue and whether the BOM was seen, and is replaced when a
-        //     call that does not stream returns, where step 1 replaces it in the next call.
+        // NB: The decoder holds the I/O queue and whether the BOM was seen, and is replaced when a call that does not
+        //     stream returns, where step 1 replaces it in the next call.
         let mut decoder = self.decoder.borrow_mut();
         let decoded = match &input {
             // SAFETY: Decoding runs no script and allocates no cell, so nothing detaches, resizes or frees the

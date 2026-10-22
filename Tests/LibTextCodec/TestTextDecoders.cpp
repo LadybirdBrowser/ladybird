@@ -171,6 +171,47 @@ TEST_CASE(test_streaming_decoder_utf8_fatal_error_does_not_buffer_later_bytes)
     EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
 }
 
+TEST_CASE(test_streaming_decoder_fatal_error_discards_bytes_kept_by_the_decoder)
+{
+    auto streaming_decoder = TextCodec::StreamingDecoder { "gb18030"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
+
+    EXPECT(streaming_decoder.to_utf8(bytes({ 0x81, 0x30, 0xff })).is_error());
+    EXPECT_EQ(MUST(streaming_decoder.to_utf8({})), ""sv);
+    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+
+    auto utf16_streaming_decoder = TextCodec::StreamingDecoder { "gb18030"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
+
+    EXPECT(utf16_streaming_decoder.to_utf16(bytes({ 0x81, 0x30, 0xff })).is_error());
+    EXPECT_EQ(MUST(utf16_streaming_decoder.to_utf16({})), u""sv);
+    EXPECT_EQ(MUST(utf16_streaming_decoder.finish_to_utf16()), u""sv);
+}
+
+TEST_CASE(test_streaming_decoder_fatal_error_keeps_bom_removal)
+{
+    auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
+
+    EXPECT(streaming_decoder.to_utf8(bytes({ 0xff })).is_error());
+    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xef, 0xbb, 0xbf, 'A' }))), "A"sv);
+
+    auto utf16_streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
+
+    EXPECT(utf16_streaming_decoder.to_utf16(bytes({ 'A', 0xff })).is_error());
+    EXPECT_EQ(MUST(utf16_streaming_decoder.to_utf16(bytes({ 0xef, 0xbb, 0xbf, 'A' }))), u"A"sv);
+}
+
+TEST_CASE(test_streaming_decoder_removes_only_a_leading_bom)
+{
+    auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
+
+    EXPECT_EQ(MUST(streaming_decoder.to_utf16(bytes({ 0xef, 0xbb }))), u""sv);
+    EXPECT_EQ(MUST(streaming_decoder.to_utf16(bytes({ 0xbf, 'A' }))), u"A"sv);
+    EXPECT_EQ(MUST(streaming_decoder.to_utf16(bytes({ 0xef, 0xbb, 0xbf }))), u"\uFEFF"sv);
+
+    auto streaming_decoder_ignoring_bom = TextCodec::StreamingDecoder { "UTF-16LE"sv, TextCodec::IgnoreBOM::Yes, TextCodec::ErrorMode::Replacement };
+
+    EXPECT_EQ(MUST(streaming_decoder_ignoring_bom.to_utf8(bytes({ 0xff, 0xfe, 'A', 0x00 }))), "\uFEFFA"sv);
+}
+
 TEST_CASE(test_streaming_decoder_utf16_odd_byte)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-16LE"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
