@@ -202,10 +202,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         // The -webkit-legacy value behaves identically to collapse, except that it only takes effect if the specified
         // value of the display property is -webkit-box or -webkit-inline-box and the value of the -webkit-box-orient
         // property is vertical.
-        let is_line_clamp_container = computed_continue == continue_value::COLLAPSE
+        let is_line_clamp_container = (computed_continue == continue_value::COLLAPSE
             || (computed_continue == continue_value::_WEBKIT_LEGACY
                 && style.display_before_box_type_transformation().is_webkit_box_inside()
-                && style.webkit_box_orient() == webkit_box_orient::VERTICAL);
+                && style.webkit_box_orient() == webkit_box_orient::VERTICAL))
+            && !NodeFacts::new(&run.callbacks, run.box_).lays_out_in_columns();
         // AD-HOC: Content after a -webkit-legacy clamp point stays scrollable overflow, matching other engines. Sites
         //         detect clamped text by comparing scrollHeight with clientHeight.
         let clamped_content_is_scrollable_overflow =

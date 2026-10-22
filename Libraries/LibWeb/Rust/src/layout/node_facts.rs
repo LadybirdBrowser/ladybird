@@ -463,6 +463,17 @@ pub(crate) fn node_creates_block_formatting_context(
     parent_is_flex_or_grid_container
 }
 
+pub(crate) fn node_lays_out_in_columns(data: &NodeData, style: ComputedValuesView<'_>) -> bool {
+    style.establishes_multi_column_container()
+        && (has_flag(data, NodeFlag::Anonymous) || style.appearance() == crate::css::css_enums::appearance::NONE)
+        && !has_flag(data, NodeFlag::UsesButtonLayout)
+        && !has_flag(data, NodeFlag::IsHtmlInputElement)
+        && !matches!(
+            data.kind.get(),
+            NodeKind::RangeInputBox | NodeKind::TextAreaBox | NodeKind::TextInputBox | NodeKind::TableWrapper
+        )
+}
+
 pub(crate) fn node_is_fieldset_content_wrapper(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
     has_flag(data, NodeFlag::Anonymous)
         && data.kind.get() == NodeKind::BlockContainer
@@ -1107,6 +1118,28 @@ impl<'pass> NodeFacts<'pass> {
             child = child_data.next_sibling.get();
         }
         Node::INVALID
+    }
+
+    pub(crate) fn lays_out_in_columns(&self) -> bool {
+        self.computed_values_view_if_styled()
+            .is_some_and(|view| node_lays_out_in_columns(self.data(), view))
+            && !self.has_fieldset_content_wrapper()
+    }
+
+    fn has_fieldset_content_wrapper(&self) -> bool {
+        let data = self.data();
+        if data.kind.get() != NodeKind::FieldSetBox {
+            return false;
+        }
+        let mut child = data.first_child.get();
+        while !child.is_invalid() {
+            let child_data = self.callbacks.node_data(child);
+            if node_is_fieldset_content_wrapper(child_data, self.callbacks.computed_values_view_if_styled(child)) {
+                return true;
+            }
+            child = child_data.next_sibling.get();
+        }
+        false
     }
 
     pub(crate) fn list_item_marker(&self) -> Node {

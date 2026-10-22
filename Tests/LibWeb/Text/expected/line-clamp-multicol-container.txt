@@ -1,0 +1,5 @@
+standard: 40
+standard-columns: 80
+webkit: 40
+webkit-columns: 80
+webkit-column-width: 80
