@@ -1,0 +1,15 @@
+Ladybird lays out a block container that has an automatic height and a
+min-height once, and clamps its height afterward. It measures content
+first only for other kinds of roots, such as grids, and form controls.
+
+Blink does the same for block containers: Its BlockLayoutAlgorithm
+lays out the children, and then ComputeBlockSizeForFragment() clamps
+the block size. Gecko’s nsBlockFrame::ComputeFinalSize() clamps the
+content block size with ReflowInput::ApplyMinMaxBSize() once reflow is
+done. And WebKit’s RenderBlockFlow::layoutBlock() calls RenderBox::
+updateLogicalHeight(), whose constrainLogicalHeightByMinMax() clamps
+it. None of them lays a block container’s content out a second time
+only to apply its min-height.
+
+For a grid, Blink keeps the min-height inside GridLayoutAlgorithm, as
+grid_min_available_size_ — which Ladybird’s measurement stands in for.
