@@ -6605,12 +6605,16 @@ void Document::abort()
     }
     m_ongoing_navigation_fetch_controller = nullptr;
 
-    for (auto& fetch_record : relevant_settings_object().fetch_group()) {
-        auto controller = fetch_record.fetch_controller();
-        if (!controller || controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
-            continue;
-        controller->stop_fetch();
-        canceled_fetch = true;
+    // AD-HOC: The fetch group belongs to the document's Window. Once the Window is associated with another document,
+    //         as when the initial about:blank document is replaced, its fetches are not in the context of this document.
+    if (auto window = this->window(); window && window->associated_document_if_any().ptr() == this) {
+        for (auto& fetch_record : relevant_settings_object().fetch_group()) {
+            auto controller = fetch_record.fetch_controller();
+            if (!controller || controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
+                continue;
+            controller->stop_fetch();
+            canceled_fetch = true;
+        }
     }
 
     if (canceled_fetch)
