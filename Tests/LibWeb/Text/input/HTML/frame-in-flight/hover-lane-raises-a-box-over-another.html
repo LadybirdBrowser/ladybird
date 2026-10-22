@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #a, #b { position: absolute; top: 0; width: 100px; height: 100px; }
+    #a { left: 0; z-index: 1; background: rgb(0, 0, 255); }
+    #b { left: 50px; z-index: 2; background: rgb(255, 0, 0); }
+    #a:hover { z-index: 10; background: rgb(0, 128, 0); }
+</style>
+<div id="a"></div>
+<div id="b"></div>
+<script>
+    // A lane's hover raises the box it hovers over the one beside it, which the frame it presents paints, and hit tests,
+    // in the new order.
+    asyncTest(async done => {
+        const presentedBy = await whileLaneHovers(() => {
+            internals.injectHoverPointer(25, 50);
+            internals.injectHoverPointer(75, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`a, b hovered: ${a.matches(":hover")} ${b.matches(":hover")}`);
+        done();
+    });
+</script>
