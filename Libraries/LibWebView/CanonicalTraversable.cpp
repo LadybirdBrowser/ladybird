@@ -2257,10 +2257,21 @@ void CanonicalTraversable::finalize_a_same_document_navigation(HistoryOperation&
             return;
         }
 
+        auto replaces_current_entry = target_navigable->current_session_history_entry_is(**entry_to_replace);
+
         // 5.1. Replace entryToReplace with targetEntry in targetEntries.
         // 5.2. Set targetEntry's step to entryToReplace's step.
         auto replaced = m_session_history.replace_session_history_entry(*target_navigable, **entry_to_replace, *target_entry);
         VERIFY(replaced);
+
+        // AD-HOC: A traversal that runs while this replacement waits can move targetNavigable away from
+        //         entryToReplace. Applying the history step would then move targetNavigable to targetEntry, so
+        //         the replacement happens in place only.
+        if (!replaces_current_entry) {
+            m_session_history.update_directive_state_value(target_entry->directive_state_id, target_entry->directive_state_value);
+            finish_history_operation(operation.operation_id);
+            return;
+        }
 
         // 5.3. Set targetStep to traversable's current session history step.
         target_step = current_step;
