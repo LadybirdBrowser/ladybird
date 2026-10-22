@@ -514,12 +514,11 @@ pub fn release_large_images(in_use: usize) {
 /// handler of the interpreter caught it, or 0 if it left the interpreter (see `rethrow_in_interpreter`).
 unsafe fn call_compiled(context: *mut ExecutionContext) -> u64 {
     unsafe {
+        // NB: The compiled code's calls into the runtime and the helpers it calls reuse the context's arguments.
+        let [_, _, return_ip, frame, ..] = (*context).arguments;
         match native::call_compiled(context) {
             Ok(top) => top,
-            Err(exception) => {
-                let [_, _, return_ip, frame, ..] = (*context).arguments;
-                rethrow_in_interpreter(context, store_of(context), exception, frame, return_ip - 1)
-            }
+            Err(exception) => rethrow_in_interpreter(context, store_of(context), exception, frame, return_ip - 1),
         }
     }
 }
@@ -892,6 +891,41 @@ mod native {
             );
             unsafe { odd.get_mut() }.header.tier_up_budget = u32::MAX;
             assert_eq!(store.invoke(even, &[Value::I64(1_000_000)]), Ok(vec![Value::I64(44)]));
+        }
+
+        #[test]
+        fn interpreted_handlers_catch_exceptions_of_compiled_callees_that_called_the_host() {
+            use crate::runtime::{ExternValue, Store, Value};
+            use std::rc::Rc;
+            if !crate::runtime::jit::enabled() {
+                return;
+            }
+            let bytes = include_bytes!("../../tests/fixtures/exceptions_across_tiers.wasm");
+            let module = Arc::new(crate::compile(bytes).expect("the module is valid"));
+            let mut store = Store::new();
+            let host = store.allocate_host_function(
+                crate::types::FuncType {
+                    params: Vec::new(),
+                    results: Vec::new(),
+                },
+                Rc::new(|_: &mut Store, _: &[Value]| Ok(Vec::new())),
+            );
+            let instance = store
+                .instantiate(module, &[ExternValue::Function(host)])
+                .expect("the module instantiates");
+            let export = |name| match store.instance(instance).export(name) {
+                Some(ExternValue::Function(function)) => function,
+                _ => panic!("no function {name}"),
+            };
+            let (throws, catches) = (export("throws"), export("catches"));
+            // NB: The handler runs interpreted, and the function that throws runs compiled and calls the host through
+            //     the runtime adapter first, which uses the context's arguments too.
+            assert_eq!(
+                super::compile_function(&mut store, throws, true),
+                super::CompileState::Compiled
+            );
+            unsafe { catches.get_mut() }.header.tier_up_budget = u32::MAX;
+            assert_eq!(store.invoke(catches, &[]), Ok(vec![Value::I32(42)]));
         }
 
         #[test]
