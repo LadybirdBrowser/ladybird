@@ -443,6 +443,7 @@ public:
     void did_close_browsing_context(Badge<WebContentPage>);
     void run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete);
     void did_complete_webdriver_user_prompt_handling(Badge<WebContentPage>, u64 request_id, Web::WebDriver::Response);
+    void did_open_user_prompt(Badge<WebContentPage>);
     static Optional<ViewImplementation&> find_view_by_handle(StringView);
     void did_change_background_color(Badge<WebContentPage>, Gfx::Color);
     Gfx::Color page_background_color() const { return m_page_background_color; }

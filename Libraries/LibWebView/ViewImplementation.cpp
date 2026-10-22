@@ -3306,6 +3306,11 @@ void ViewImplementation::did_complete_webdriver_user_prompt_handling(Badge<WebCo
         on_complete.value()(move(response));
 }
 
+void ViewImplementation::did_open_user_prompt(Badge<WebContentPage>)
+{
+    complete_webdriver_navigation();
+}
+
 Optional<ViewImplementation&> ViewImplementation::find_view_by_handle(StringView handle)
 {
     for (auto& view : all_views()) {
