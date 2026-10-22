@@ -20,6 +20,10 @@ use crate::types::{
     SubType, TableType, TagType, ValType,
 };
 
+/// The largest a function body may be, its local declarations included, as the JS API's implementation limits say.
+/// This bounds how many values the function's operand stack can hold, and so its frame size.
+const MAX_FUNCTION_SIZE: u32 = 7_654_321;
+
 const SECTION_CUSTOM: u8 = 0;
 const SECTION_TYPE: u8 = 1;
 const SECTION_IMPORT: u8 = 2;
@@ -646,6 +650,9 @@ fn parse_data(reader: &mut Reader<'_>) -> Result<Data> {
 fn parse_function_body(section: &mut Reader<'_>) -> Result<FunctionBody> {
     let size = section.read_u32()?;
     let mut body = section.sub_reader(size as usize)?;
+    if size > MAX_FUNCTION_SIZE {
+        return Err(Error::invalid("function body too large"));
+    }
     let run_count = body.read_u32()?;
     let mut locals = Vec::new();
     let mut declared_local_count = 0u32;
