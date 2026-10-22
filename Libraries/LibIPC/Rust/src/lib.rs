@@ -11,7 +11,11 @@
 #![deny(unsafe_code)]
 
 pub mod attachment;
-#[cfg(unix)]
+#[cfg(windows)]
+mod pipe;
+#[cfg(any(windows, test))]
+mod pipe_frames;
+#[cfg(any(unix, windows))]
 mod receive_queue;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 mod shared_memory;
@@ -21,6 +25,8 @@ mod socket;
 pub mod transport;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 pub mod transport_socket;
+#[cfg(windows)]
+pub mod transport_windows;
 pub mod wire;
 
 /// The most attachments a message may carry, as `IPC::MAX_MESSAGE_FD_COUNT`.
@@ -29,7 +35,7 @@ pub const MAX_MESSAGE_ATTACHMENT_COUNT: usize = 16000;
 /// The largest payload a socket frame or Mach descriptor can represent.
 pub const MAX_MESSAGE_PAYLOAD_SIZE: usize = u32::MAX as usize;
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn validate_message_size(payload_size: usize, attachment_count: usize) -> std::io::Result<()> {
     if payload_size > MAX_MESSAGE_PAYLOAD_SIZE || attachment_count > MAX_MESSAGE_ATTACHMENT_COUNT {
         return Err(std::io::ErrorKind::InvalidInput.into());

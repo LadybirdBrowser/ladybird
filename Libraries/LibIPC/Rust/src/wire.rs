@@ -972,17 +972,20 @@ mod tests {
         assert_eq!(decoded, value);
         assert!(decoded.capacity() <= value.len() * 2);
 
-        let (reader, writer) = std::io::pipe().unwrap();
-        let bytes = 1u32.to_ne_bytes();
-        let attachments = [Attachment::from_fd(OwnedFd::from(writer)).unwrap()];
-        let files = Decoder::new(&bytes, attachments).decode::<Vec<File>>().unwrap();
-        assert_eq!(files.len(), 1);
-        drop(files);
-        drop(reader);
-        assert!(matches!(
-            Decoder::new(&bytes, []).decode::<Vec<File>>(),
-            Err(DecodeError::UnexpectedEnd)
-        ));
+        #[cfg(unix)]
+        {
+            let (reader, writer) = std::io::pipe().unwrap();
+            let bytes = 1u32.to_ne_bytes();
+            let attachments = [Attachment::from_fd(OwnedFd::from(writer)).unwrap()];
+            let files = Decoder::new(&bytes, attachments).decode::<Vec<File>>().unwrap();
+            assert_eq!(files.len(), 1);
+            drop(files);
+            drop(reader);
+            assert!(matches!(
+                Decoder::new(&bytes, []).decode::<Vec<File>>(),
+                Err(DecodeError::UnexpectedEnd)
+            ));
+        }
     }
 
     #[test]

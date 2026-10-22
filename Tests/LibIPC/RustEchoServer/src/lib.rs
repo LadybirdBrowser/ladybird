@@ -16,8 +16,10 @@ mod rust_panic;
 use std::io::Write;
 
 use libipc_rust::EndpointMessage;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 use libipc_rust::transport_socket::TransportSocket as Transport;
+#[cfg(windows)]
+use libipc_rust::transport_windows::TransportWindows as Transport;
 #[cfg(target_vendor = "apple")]
 use libipc_rust::{
     mach::{MachPort, PortRight},
@@ -107,12 +109,27 @@ pub extern "C" fn rust_echo_server_serve(receive_right: u32, send_right: u32) {
 }
 
 /// Serves the endpoint on a thread of its own, taking over a connected Unix domain socket.
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_echo_server_serve(socket_fd: std::os::fd::RawFd) {
     use std::os::fd::FromRawFd;
     // NB: The caller gives up its descriptor of a connected socket, which nothing else owns.
     let socket = unsafe { std::os::unix::net::UnixStream::from_raw_fd(socket_fd) };
     let transport = Transport::new(socket).expect("the transport starts");
+    std::thread::spawn(move || serve(transport));
+}
+
+/// Serves the endpoint on a thread of its own, taking over one end of an overlapped duplex pipe.
+///
+/// # Safety
+///
+/// `pipe` must be an open handle of a connected pipe, which the caller gives up and nothing else owns.
+#[cfg(windows)]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_echo_server_serve(pipe: std::os::windows::io::RawHandle) {
+    use std::os::windows::io::FromRawHandle;
+    // SAFETY: Guaranteed by the caller.
+    let pipe = unsafe { std::os::windows::io::OwnedHandle::from_raw_handle(pipe) };
+    let transport = Transport::new(pipe).expect("the transport starts");
     std::thread::spawn(move || serve(transport));
 }
