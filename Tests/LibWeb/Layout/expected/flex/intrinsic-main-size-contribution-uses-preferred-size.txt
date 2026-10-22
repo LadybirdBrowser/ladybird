@@ -1,0 +1,27 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 96 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 72 0+0+8] children: not-inline
+      BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 47, rect: [8,16 409.703125x16] baseline: 12.796875
+            "There should be three green squares and no red."
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,48] [0+0+0 784 0+0+0] [0+0+0 40 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [8,48 40x40] baseline: 0
+        frag 1 from BlockContainer start: 0, length: 0, rect: [58,48 40x40] baseline: 0
+        frag 2 from BlockContainer start: 0, length: 0, rect: [108,48 40x40] baseline: 0
+        BlockContainer <div.wrapper> at [8,48] inline-block [0+0+0 40 0+0+10] [0+0+0 40 0+0+0] [BFC] children: not-inline
+          Box <div.flex> at [8,48] flex-container(row) [0+0+0 40 0+0+0] [0+0+0 40 0+0+0] [FFC] children: not-inline
+            BlockContainer <div.item.padded> at [24,48] flex-item [0+0+16 8 16+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+              BlockContainer <div.content> at [24,48] [0+0+0 24 0+0+-16] [0+0+0 20 0+0+0] children: not-inline
+        BlockContainer <div.wrapper> at [58,48] inline-block [0+0+0 40 0+0+10] [0+0+0 40 0+0+0] [BFC] children: not-inline
+          Box <div.flex> at [58,48] flex-container(row) [0+0+0 40 0+0+0] [0+0+0 40 0+0+0] [FFC] children: not-inline
+            BlockContainer <div.item> at [58,48] flex-item [0+0+0 40 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+              BlockContainer <div.content> at [58,48] [0+0+0 100 0+0+-60] [0+0+0 20 0+0+0] children: not-inline
+        BlockContainer <div.wrapper> at [108,48] inline-block [0+0+0 40 0+0+10] [0+0+0 40 0+0+0] [BFC] children: not-inline
+          Box <div.flex> at [108,48] flex-container(row) [0+0+0 40 0+0+0] [0+0+0 40 0+0+0] [FFC] children: not-inline
+            BlockContainer <div.item.padded> at [124,48] flex-item [0+0+16 8 16+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+              BlockContainer <div.content> at [124,48] [0+0+0 24 0+0+-16] [0+0+0 20 0+0+0] children: not-inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x96] (z-index: auto)
