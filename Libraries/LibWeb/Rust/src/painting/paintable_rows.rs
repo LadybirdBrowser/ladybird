@@ -320,7 +320,8 @@ pub(crate) struct PaintableRowStore {
     committed_side_data: RefCell<CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>>,
     pub(crate) row_paint_states: RefCell<Vec<RowPaintState>>,
     pub(crate) damage: DamageSet,
-    visual_context_records: RefCell<CowColumn<Option<PaintableVisualContextRecord>, PAINTABLE_SLOTS_PER_CHUNK>>,
+    // NB: Boxed, as most rows have no record, and a row holds no more than a pointer for one.
+    visual_context_records: RefCell<CowColumn<Option<Box<PaintableVisualContextRecord>>, PAINTABLE_SLOTS_PER_CHUNK>>,
     /// The visual context node handles of each row that has a record. They are kept here only, in
     /// a column a frame publishes, so the visual context update and the recording read the same.
     visual_context_node_handles: RefCell<VisualContextNodeHandleColumn>,
@@ -954,7 +955,7 @@ impl LayoutNodeArena {
             return None;
         }
         Ref::filter_map(self.paintable_rows.visual_context_records.borrow(), |records| {
-            records.get(id.slot_index() as usize).and_then(Option::as_ref)
+            records.get(id.slot_index() as usize).and_then(Option::as_deref)
         })
         .ok()
     }
@@ -973,7 +974,8 @@ impl LayoutNodeArena {
             .visual_context_records
             .borrow_mut()
             .row_mut(index)
-            .and_then(|mut record| record.take())?;
+            .and_then(|mut record| record.take())
+            .map(|record| *record)?;
         let node_handles = self
             .paintable_rows
             .visual_context_node_handles
@@ -1005,7 +1007,7 @@ impl LayoutNodeArena {
         self.paintable_rows
             .visual_context_records
             .borrow_mut()
-            .set(id.slot_index() as usize, Some(record));
+            .set(id.slot_index() as usize, Some(Box::new(record)));
         if let Some(inputs) = inputs {
             if self.update_paint_order_inputs(id, inputs) {
                 self.note_paint_order_changed(id);
