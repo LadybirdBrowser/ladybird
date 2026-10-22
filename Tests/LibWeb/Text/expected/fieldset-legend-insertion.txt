@@ -1,0 +1,6 @@
+prepend: legend at 20,0, hit: true
+prepend: matches full rebuild: true
+append: legend at 20,0, hit: true
+append: matches full rebuild: true
+before-legend: legend at 20,0, hit: true
+before-legend: matches full rebuild: true

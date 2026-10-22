@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    fieldset { width: 200px; margin: 0 0 10px; padding: 0; border: 20px solid black; overflow: hidden; }
+    legend { height: 20px; padding: 0; }
+    .content { height: 50px; }
+</style>
+<fieldset id="prepend"><div class="content"></div></fieldset>
+<fieldset id="append"><div class="content"></div></fieldset>
+<fieldset id="before-legend"><legend>First</legend><div class="content"></div></fieldset>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        for (const fieldset of document.querySelectorAll("fieldset")) {
+            const legend = document.createElement("legend");
+            legend.textContent = "Inserted";
+            if (fieldset.id === "append")
+                fieldset.append(legend);
+            else
+                fieldset.prepend(legend);
+            document.body.offsetHeight;
+            const origin = fieldset.getBoundingClientRect();
+            const rect = legend.getBoundingClientRect();
+            println(`${fieldset.id}: legend at ${rect.x - origin.x},${rect.y - origin.y}, hit: ${document.elementFromPoint(rect.x + 2, rect.y + 2) === legend}`);
+            println(`${fieldset.id}: matches full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        }
+    });
+</script>
