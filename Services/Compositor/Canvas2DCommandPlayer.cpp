@@ -6,6 +6,7 @@
 
 #include <AK/Assertions.h>
 #include <Compositor/Canvas2DCommandPlayer.h>
+#include <Compositor/FontSkia.h>
 #include <LibCompositing/DisplayList/Canvas2DTape.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibGfx/Bitmap.h>
@@ -18,6 +19,7 @@
 #include <LibGfx/Path.h>
 #include <LibGfx/SkiaUtils.h>
 #include <core/SkCanvas.h>
+#include <core/SkFont.h>
 #include <core/SkPaint.h>
 
 namespace Compositor {
@@ -167,6 +169,9 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawGlyphRun const& command)
     auto const* font = m_resolvers.font(command.font_id.value());
     if (!font)
         return;
+    auto sk_font = skia_font(*font, 1);
+    if (!sk_font.has_value())
+        return;
     auto paint_style = paint_style_from(command.paint);
     if (!paint_style)
         return;
@@ -175,7 +180,7 @@ void Canvas2DCommandPlayer::play_command(Canvas2DDrawGlyphRun const& command)
     glyphs.ensure_capacity(tape_glyphs.size());
     for (auto const& glyph : tape_glyphs)
         glyphs.unchecked_append({ .position = glyph.position, .glyph_id = glyph.glyph_id });
-    m_painter->draw_glyph_run(*font, glyphs, command.translation, *paint_style, filter_from(command.compositing), command.compositing.global_alpha, command.compositing.compositing_and_blending_operator);
+    m_painter->draw_glyph_run(*font, sk_font.release_value(), glyphs, command.translation, *paint_style, filter_from(command.compositing), command.compositing.global_alpha, command.compositing.compositing_and_blending_operator);
 }
 
 void Canvas2DCommandPlayer::play_command(Canvas2DClearRect const& command)

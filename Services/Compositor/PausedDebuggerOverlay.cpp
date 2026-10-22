@@ -5,6 +5,7 @@
  */
 
 #include <AK/Math.h>
+#include <Compositor/FontSkia.h>
 #include <Compositor/PausedDebuggerOverlay.h>
 #include <LibCompositing/UIOverlays.h>
 #include <LibGfx/Font/Font.h>
@@ -82,8 +83,11 @@ void paint_paused_debugger_overlay(Gfx::PaintingSurface& surface, Gfx::IntSize v
     if (!font)
         font = Gfx::FontDatabase::the().get("SerenitySans"_fly_string, 12, 400, Gfx::FontWidth::Normal, 0);
     paint.setColor(Gfx::to_skia_color(text_color));
-    if (font) {
-        auto skia_font = font->skia_font(static_cast<float>(device_pixel_ratio));
+    Optional<SkFont> maybe_skia_font;
+    if (font)
+        maybe_skia_font = Compositor::skia_font(*font, static_cast<float>(device_pixel_ratio));
+    if (maybe_skia_font.has_value()) {
+        auto const& skia_font = *maybe_skia_font;
         static constexpr auto label = "Paused in debugger"sv;
         auto label_width = skia_font.measureText(label.characters_without_null_termination(), label.length(), SkTextEncoding::kUTF8);
         SkFontMetrics font_metrics;

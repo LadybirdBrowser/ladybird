@@ -20,7 +20,6 @@
 #include <LibIPC/Encoder.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
-#include <core/SkFont.h>
 #include <core/SkStream.h>
 #include <core/SkTypeface.h>
 #include <harfbuzz/hb.h>
@@ -483,42 +482,6 @@ TEST_CASE(typeface_bounding_box_can_be_read_on_several_threads)
         EXPECT_EQ(bounding_box.x_max, expected.x_max);
         EXPECT_EQ(bounding_box.y_max, expected.y_max);
         EXPECT_EQ(bounding_box.units_per_em, expected.units_per_em);
-    }
-}
-
-// Only ThreadSanitizer can catch a memo race here, since fontconfig answers each scale the same way.
-TEST_CASE(hinting_options_can_be_memoized_on_several_threads)
-{
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto font = load_text_font(16);
-    IGNORE_USE_IN_ESCAPING_LAMBDA Array<float, 4> scales { 1, 1.5f, 2, 3 };
-
-    // The memo answers the way a fresh query does: ask, displace it with another scale, ask again.
-    auto fresh = font->skia_font(1);
-    (void)font->skia_font(2);
-    auto memoized = font->skia_font(1);
-    EXPECT_EQ(memoized.getHinting(), fresh.getHinting());
-    EXPECT_EQ(memoized.isForceAutoHinting(), fresh.isForceAutoHinting());
-
-    IGNORE_USE_IN_ESCAPING_LAMBDA Array<Array<SkFont, 4>, 8> fonts;
-    Vector<NonnullRefPtr<Threading::Thread>> threads;
-    for (size_t thread_index = 0; thread_index < fonts.size(); ++thread_index) {
-        auto thread = Threading::Thread::construct("HintingMemo"sv, [&font, &scales, &fonts, thread_index]() {
-            for (size_t scale_index = 0; scale_index < scales.size(); ++scale_index)
-                fonts[thread_index][scale_index] = font->skia_font(scales[scale_index]);
-            return 0;
-        });
-        thread->start();
-        threads.append(move(thread));
-    }
-    for (auto& thread : threads)
-        (void)thread->join();
-
-    for (auto const& thread_fonts : fonts) {
-        for (size_t scale_index = 0; scale_index < scales.size(); ++scale_index) {
-            EXPECT_EQ(thread_fonts[scale_index].getHinting(), fonts[0][scale_index].getHinting());
-            EXPECT_EQ(thread_fonts[scale_index].isForceAutoHinting(), fonts[0][scale_index].isForceAutoHinting());
-            EXPECT_EQ(thread_fonts[scale_index].getSize(), font->pixel_size() * scales[scale_index]);
-        }
     }
 }
 
