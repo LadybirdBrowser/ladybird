@@ -1983,13 +1983,19 @@ impl StyleEngine {
             // The rows settle in the order the host applies them, each after the rows of the batch
             // it inherits from, which it then finds settled rather than still to come.
             if published_nodes.len() > 1 {
-                let ranks = self.tree.style_reaction_order_ranks(published_nodes.iter().copied());
                 let mut rows: Vec<_> = published_nodes
                     .iter()
                     .copied()
                     .zip(previous_cascade_inputs.iter().copied())
                     .collect();
-                rows.sort_unstable_by_key(|(node, _)| ranks[node]);
+                if self.tree.style_reaction_order_ranks_pay_off(rows.len()) {
+                    let ranks = self.tree.style_reaction_order_ranks(published_nodes.iter().copied());
+                    rows.sort_unstable_by_key(|(node, _)| ranks[node]);
+                } else {
+                    rows.sort_unstable_by(|(first, _), (second, _)| {
+                        self.tree.compare_style_reaction_order(*first, *second)
+                    });
+                }
                 for (index, (node, previous_cascade_input)) in rows.into_iter().enumerate() {
                     published_nodes[index] = node;
                     previous_cascade_inputs[index] = previous_cascade_input;

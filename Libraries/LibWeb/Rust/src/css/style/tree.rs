@@ -1785,17 +1785,31 @@ impl StyleNodeTree {
 
     /// Rank a batch in the same dependency order as `compare_style_reaction_order`.
     /// Each ancestor is visited once, even for a deep chain of reacting descendants.
-    pub fn style_reaction_order_ranks(
-        &self,
-        nodes: impl IntoIterator<Item = StyleNodeID>,
-    ) -> HashMap<StyleNodeID, usize> {
-        let mut seen = HashSet::default();
-        let mut children: HashMap<StyleNodeID, Vec<(u8, StyleNodeID)>> = HashMap::default();
+    /// Whether ranking a batch of `count` nodes with [`Self::style_reaction_order_ranks`] costs less than comparing
+    /// them pairwise with [`Self::compare_style_reaction_order`]. The ranks are as long as the highest element slot
+    /// they reach, so a small batch, or one that is small beside the tree, is compared directly instead.
+    #[must_use]
+    pub fn style_reaction_order_ranks_pay_off(&self, count: usize) -> bool {
+        count > 32 && count.saturating_mul(64) >= self.parent.len()
+    }
+
+    pub fn style_reaction_order_ranks(&self, nodes: impl IntoIterator<Item = StyleNodeID>) -> StyleReactionOrderRanks {
+        // NB: Each rank starts out unranked, becomes seen once the node's chain was walked, and is
+        //     assigned in the walk down from the roots.
+        let mut ranks = Vec::new();
+        let mark_seen = |ranks: &mut Vec<usize>, node: StyleNodeID| {
+            let slot = self.element_index(node);
+            if ranks.len() <= slot {
+                ranks.resize(slot + 1, StyleReactionOrderRanks::UNRANKED);
+            }
+            std::mem::replace(&mut ranks[slot], StyleReactionOrderRanks::SEEN) != StyleReactionOrderRanks::SEEN
+        };
+        let mut edges: Vec<(StyleNodeID, u8, StyleNodeID)> = Vec::new();
         let mut roots = Vec::new();
         for mut node in nodes {
-            while seen.insert(node) {
+            while mark_seen(&mut ranks, node) {
                 if let Some((parent, branch)) = self.style_reaction_parent(node) {
-                    children.entry(parent).or_default().push((branch, node));
+                    edges.push((parent, branch, node));
                     node = parent;
                 } else {
                     roots.push(node);
@@ -1803,20 +1817,35 @@ impl StyleNodeTree {
                 }
             }
         }
-        // The existing order uses identity within each branch, not DOM sibling order.
+        // NB: The existing order uses identity within each branch, not DOM sibling order. The edges of
+        //     each parent are a run, with its children in descending order so that the walk, which
+        //     takes the last pending node first, visits them in ascending order.
         roots.sort_unstable_by(|first, second| second.cmp(first));
-        for children in children.values_mut() {
-            children.sort_unstable_by(|first, second| second.cmp(first));
+        edges.sort_unstable_by(|first, second| {
+            first
+                .0
+                .cmp(&second.0)
+                .then_with(|| (second.1, second.2).cmp(&(first.1, first.2)))
+        });
+        // NB: Where each parent's run of edges starts, and where it ends.
+        let mut child_runs = vec![(0_u32, 0_u32); ranks.len()];
+        for (index, &(parent, _, _)) in edges.iter().enumerate() {
+            let run = &mut child_runs[self.element_index(parent)];
+            if run.0 == run.1 {
+                run.0 = index as u32;
+            }
+            run.1 = index as u32 + 1;
         }
-        let mut ranks = HashMap::default();
+        let mut count = 0;
         let mut pending = roots;
         while let Some(node) = pending.pop() {
-            ranks.insert(node, ranks.len());
-            if let Some(children) = children.get(&node) {
-                pending.extend(children.iter().map(|&(_, child)| child));
-            }
+            let slot = self.element_index(node);
+            ranks[slot] = count;
+            count += 1;
+            let (start, end) = child_runs[slot];
+            pending.extend(edges[start as usize..end as usize].iter().map(|&(_, _, child)| child));
         }
-        ranks
+        StyleReactionOrderRanks { ranks }
     }
 
     fn style_reaction_parent(&self, node: StyleNodeID) -> Option<(StyleNodeID, u8)> {
@@ -2072,6 +2101,32 @@ impl Iterator for Preorder<'_> {
             }
         });
         Some(current)
+    }
+}
+
+/// Where each node of a batch, and each node on the chains above them, stands in the order style
+/// reactions apply, indexed by the node.
+pub struct StyleReactionOrderRanks {
+    ranks: Vec<usize>,
+}
+
+impl StyleReactionOrderRanks {
+    const UNRANKED: usize = usize::MAX;
+    const SEEN: usize = usize::MAX - 1;
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.ranks.iter().filter(|&&rank| rank < Self::SEEN).count()
+    }
+}
+
+impl std::ops::Index<&StyleNodeID> for StyleReactionOrderRanks {
+    type Output = usize;
+
+    fn index(&self, node: &StyleNodeID) -> &usize {
+        let rank = &self.ranks[node.element_slot()];
+        assert!(*rank < Self::SEEN, "a node outside the ranked batch has no rank");
+        rank
     }
 }
 

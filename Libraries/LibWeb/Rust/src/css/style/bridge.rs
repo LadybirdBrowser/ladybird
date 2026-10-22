@@ -3215,7 +3215,7 @@ pub(super) fn sort_style_deltas_for_direct_application(engine: &StyleEngine, del
         |delta: &FfiStyleDelta| StyleNodeID::from_raw(delta.style_node).expect("a style delta must name an element");
     // Small batches cost less to compare directly. A large batch names its dependency order once instead of walking
     // both ancestor chains in every sort comparison.
-    if deltas.len() > 32 {
+    if engine.tree.style_reaction_order_ranks_pay_off(deltas.len()) {
         let ranks = engine.tree.style_reaction_order_ranks(deltas.iter().map(node));
         deltas.sort_unstable_by_key(|delta| (ranks[&node(delta)], pseudo_rank(delta)));
         return;
