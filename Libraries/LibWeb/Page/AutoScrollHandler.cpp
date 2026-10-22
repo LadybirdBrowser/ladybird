@@ -41,10 +41,14 @@ static Optional<CSSPixelRect> scrollport_rect_in_viewport(Layout::Node const& la
     auto scrollport = Painting::absolute_padding_box_rect(layout_node);
 
     // The viewport's scrollport is already in viewport coordinates.
-    if (Painting::is_viewport_paintable(layout_node))
-        return scrollport;
+    if (!Painting::is_viewport_paintable(layout_node))
+        scrollport = Painting::transform_rect_to_viewport(layout_node, scrollport);
 
-    return Painting::transform_rect_to_viewport(layout_node, scrollport);
+    // A scrollport smaller than a pixel has no point the mouse can be constrained to.
+    if (scrollport.width() < 1 || scrollport.height() < 1)
+        return {};
+
+    return scrollport;
 }
 
 // Returns scroll speed in CSS pixels per second for each axis, based on how far the mouse is past the auto scroll edge.
