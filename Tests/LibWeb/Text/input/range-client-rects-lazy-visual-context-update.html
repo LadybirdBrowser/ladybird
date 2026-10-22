@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="target" style="width: 100px">hello</div>
+<script>
+    // The client rects of a range over text that no box transforms or scrolls are its absolute rects, which spares the
+    // visual context update a layout left pending. Printing lays the document out, so the lines are printed last.
+    test(() => {
+        const visualContextUpdateCount = () =>
+            internals.accumulatedVisualContextTreeBuildCount() + internals.accumulatedVisualContextIncrementalUpdateCount();
+        const range = document.createRange();
+        range.selectNodeContents(target.firstChild);
+        range.getClientRects();
+        const lines = [];
+        target.style.width = "120px";
+        const before = visualContextUpdateCount();
+        const rects = range.getClientRects();
+        const updates = visualContextUpdateCount() - before;
+        lines.push(`rects: ${rects.length}, at the origin of the text: ${rects[0].left === target.getBoundingClientRect().left}`);
+        lines.push(`visual context updates: ${updates}`);
+        for (const line of lines)
+            println(line);
+    });
+</script>

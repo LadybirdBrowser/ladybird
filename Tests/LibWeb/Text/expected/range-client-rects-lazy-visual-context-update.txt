@@ -1,0 +1,2 @@
+rects: 1, at the origin of the text: true
+visual context updates: 0
