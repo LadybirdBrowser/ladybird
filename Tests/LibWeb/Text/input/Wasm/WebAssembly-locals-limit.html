@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function leb(value) {
+        const bytes = [];
+        do {
+            let byte = value % 128;
+            value = Math.floor(value / 128);
+            if (value !== 0)
+                byte |= 0x80;
+            bytes.push(byte);
+        } while (value !== 0);
+        return bytes;
+    }
+
+    function section(id, contents) {
+        return [id, ...leb(contents.length), ...contents];
+    }
+
+    // A module with one function that has `parameterCount` i32 parameters and declares a run of i32 locals for
+    // each count in `runs`.
+    function moduleWithLocals(parameterCount, runs) {
+        const types = [0x01, 0x60, ...leb(parameterCount), ...new Array(parameterCount).fill(0x7f), 0x00];
+        const body = [...leb(runs.length)];
+        for (const count of runs)
+            body.push(...leb(count), 0x7f);
+        body.push(0x0b);
+        return new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            ...section(1, types),
+            ...section(3, [0x01, 0x00]),
+            ...section(10, [0x01, ...leb(body.length), ...body]),
+        ]);
+    }
+
+    test(() => {
+        println(`50000 locals with the parameters: ${WebAssembly.validate(moduleWithLocals(1, [49999]))}`);
+        println(`50001 locals with the parameters: ${WebAssembly.validate(moduleWithLocals(1, [50000]))}`);
+        println(`50001 locals without parameters: ${WebAssembly.validate(moduleWithLocals(0, [25000, 25001]))}`);
+        println(`84138 locals in two runs: ${WebAssembly.validate(moduleWithLocals(0, [42069, 42069]))}`);
+    });
+</script>
