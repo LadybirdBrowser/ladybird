@@ -572,20 +572,7 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
         result.ensure_level(INVALIDATION_RELAYOUT);
     }
     if property_metadata::property_affects_scrollable_overflow(property)
-        || matches!(
-            property,
-            property_id::SCROLL_SNAP_TYPE
-                | property_id::SCROLL_SNAP_ALIGN
-                | property_id::SCROLL_SNAP_STOP
-                | property_id::SCROLL_MARGIN_TOP
-                | property_id::SCROLL_MARGIN_RIGHT
-                | property_id::SCROLL_MARGIN_BOTTOM
-                | property_id::SCROLL_MARGIN_LEFT
-                | property_id::SCROLL_PADDING_TOP
-                | property_id::SCROLL_PADDING_RIGHT
-                | property_id::SCROLL_PADDING_BOTTOM
-                | property_id::SCROLL_PADDING_LEFT
-        )
+        || property_metadata::property_may_resnap_scroll_container(property)
     {
         result.resnap_scroll_container = true;
     }

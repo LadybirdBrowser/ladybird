@@ -148,8 +148,8 @@ enum class InvalidateLayoutTreeReason {
     X(ElementScroll, false)                         \
     X(ElementScrollHeight, false)                   \
     X(ElementScrollIntoView, false)                 \
-    X(ElementScrollLeft, false)                     \
-    X(ElementScrollTop, false)                      \
+    X(ElementScrollLeft, true)                      \
+    X(ElementScrollTop, true)                       \
     X(ElementScrollWidth, false)                    \
     X(ElementSetScrollLeft, false)                  \
     X(ElementSetScrollTop, false)                   \
@@ -1382,6 +1382,8 @@ public:
     void schedule_scroll_container_resnap() { m_needs_scroll_container_resnap = true; }
     void cancel_scheduled_scroll_container_resnap() { m_needs_scroll_container_resnap = false; }
     [[nodiscard]] bool needs_scroll_container_resnap() const { return m_needs_scroll_container_resnap; }
+    // A re-snap is scheduled after every layout change, but only one with snap areas to re-snap can move a scroll offset.
+    [[nodiscard]] bool has_pending_scroll_container_resnap() const { return m_needs_scroll_container_resnap && m_may_have_scroll_snap_areas; }
     void set_may_have_scroll_snap_areas() { m_may_have_scroll_snap_areas = true; }
     [[nodiscard]] bool may_have_scroll_snap_areas() const { return m_may_have_scroll_snap_areas; }
 

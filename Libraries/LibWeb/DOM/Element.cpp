@@ -3707,7 +3707,7 @@ double Element::scroll_top() const
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     Layout::ForcedReadScope read { document };
-    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollTop);
+    const_cast<Document&>(document).update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementScrollTop);
 
     // 6. If the element is the root element return the value of scrollY on window.
     if (document.document_element() == this)
@@ -3753,7 +3753,7 @@ double Element::scroll_left() const
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     Layout::ForcedReadScope read { document };
-    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollLeft);
+    const_cast<Document&>(document).update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementScrollLeft);
 
     // 6. If the element is the root element return the value of scrollX on window.
     if (document.document_element() == this)

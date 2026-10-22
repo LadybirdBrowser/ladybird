@@ -139,6 +139,25 @@ pub fn property_may_affect_layout_geometry(property_id: u16) -> bool {
     PROPERTY_MAY_AFFECT_LAYOUT_GEOMETRY[longhand_index(property_id)]
 }
 
+/// Whether changing a property may move where a scroll container snaps, besides the properties
+/// which affect its scrollable overflow.
+pub(crate) fn property_may_resnap_scroll_container(property_id: u16) -> bool {
+    matches!(
+        property_id,
+        property_id::SCROLL_SNAP_TYPE
+            | property_id::SCROLL_SNAP_ALIGN
+            | property_id::SCROLL_SNAP_STOP
+            | property_id::SCROLL_MARGIN_TOP
+            | property_id::SCROLL_MARGIN_RIGHT
+            | property_id::SCROLL_MARGIN_BOTTOM
+            | property_id::SCROLL_MARGIN_LEFT
+            | property_id::SCROLL_PADDING_TOP
+            | property_id::SCROLL_PADDING_RIGHT
+            | property_id::SCROLL_PADDING_BOTTOM
+            | property_id::SCROLL_PADDING_LEFT
+    )
+}
+
 pub(crate) fn property_affects_layout(property_id: u16) -> bool {
     PROPERTY_AFFECTS_LAYOUT[longhand_index(property_id)]
 }
@@ -425,6 +444,20 @@ mod tests {
         assert!(property_may_affect_layout_geometry(property_id::SCROLL_TIMELINE_NAME));
         assert!(property_may_affect_layout_geometry(property_id::CONTAINER_NAME));
         assert!(property_may_affect_layout_geometry(property_id::CUSTOM));
+    }
+
+    #[test]
+    fn resnapping_properties_affect_layout_geometry() {
+        // A re-snap moves a scroll offset, and with it every box in the scroll container.
+        for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
+            if property_may_resnap_scroll_container(property_id) {
+                assert!(
+                    property_may_affect_layout_geometry(property_id),
+                    "{}",
+                    property_name(property_id)
+                );
+            }
+        }
     }
 
     #[test]

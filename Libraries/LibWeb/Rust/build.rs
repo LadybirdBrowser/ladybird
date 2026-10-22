@@ -1001,11 +1001,16 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         };
         // Animation controls can select or retime an animation of any property, so their own
         // direct layout metadata cannot bound the geometry they expose. Likewise, container-name
-        // can change which descendant container queries apply without changing its own box, and
-        // color can change SVG bounds when stroke resolves currentColor.
+        // can change which descendant container queries apply without changing its own box,
+        // color can change SVG bounds when stroke resolves currentColor, and the scroll-snap
+        // properties can re-snap a scroll container, which moves every box inside it. A test in
+        // property_metadata.rs checks this against property_may_resnap_scroll_container().
         let may_affect_layout_geometry_indirectly = property_field(name, "style-group")
             .is_some_and(|value| value.as_str() == Some("AnimationValues"))
-            || matches!(name.as_str(), "color" | "container-name");
+            || matches!(
+                name.as_str(),
+                "color" | "container-name" | "scroll-snap-align" | "scroll-snap-stop" | "scroll-snap-type"
+            );
         layout_geometry_effects[index] = metadata_flag("affects-layout", true)
             || metadata_flag("affects-accumulated-visual-contexts", false)
             || metadata_flag("affects-scrollable-overflow", false)
