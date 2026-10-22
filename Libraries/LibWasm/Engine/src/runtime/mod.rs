@@ -334,7 +334,8 @@ pub struct Instance {
     pub globals: Vec<GlobalAddress>,
     pub tags: Vec<TagAddress>,
     pub exports: HashMap<String, ExternValue>,
-    pub type_identities: Vec<u32>,
+    /// The identity of each of the module's types, which the instances of a module share.
+    pub type_identities: Rc<[u32]>,
     /// The references of each passive element segment. The interpreter sees them through `element_segments`.
     pub element_storage: Vec<Vec<u64>>,
     /// How the collector follows the references of each element segment (TRACE_*).
@@ -683,11 +684,10 @@ impl Store {
         }
 
         // NB: The embedder usually asked about the module's types while it linked its imports.
-        let type_identities = self.module_type_identities_of(&module).to_vec();
+        let type_identities = self.module_type_identities_of(&module);
 
         // Types of the store have identities where the module's types have indices.
-        let module_identities = type_identities.clone();
-        let canonical = |value: ValType| value.map_type_indices(&|index| module_identities[index as usize]);
+        let canonical = |value: ValType| value.map_type_indices(&|index| type_identities[index as usize]);
         let canonical_function_type = |ty: &FuncType| FuncType {
             params: ty.params.iter().map(|&param| canonical(param)).collect(),
             results: ty.results.iter().map(|&result| canonical(result)).collect(),
@@ -777,7 +777,7 @@ impl Store {
                 memories: Vec::new(),
                 globals: Vec::new(),
                 exports: HashMap::new(),
-                type_identities,
+                type_identities: type_identities.clone(),
                 element_storage: Vec::new(),
                 element_traces: Vec::new(),
                 element_segments: Vec::new(),
