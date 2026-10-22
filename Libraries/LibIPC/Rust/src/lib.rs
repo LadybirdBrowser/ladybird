@@ -95,4 +95,23 @@ mod tests {
         assert_eq!(a.receive().unwrap().bytes(), [3]);
         assert_eq!(b.receive().unwrap().bytes(), [2]);
     }
+
+    #[test]
+    fn shutting_down_from_another_thread_ends_a_waiting_receive() {
+        let (a, handle) = Transport::create_paired().unwrap();
+        #[cfg(target_vendor = "apple")]
+        let b = Transport::from_handle(handle).unwrap();
+        #[cfg(not(target_vendor = "apple"))]
+        let b = Transport::new(handle).unwrap();
+        let a = std::sync::Arc::new(a);
+        let receiver = {
+            let a = std::sync::Arc::clone(&a);
+            std::thread::spawn(move || a.receive().is_none())
+        };
+        a.shutdown();
+        assert!(receiver.join().unwrap());
+        assert!(!a.is_open());
+        assert!(a.post_message(vec![1], vec![]).is_err());
+        assert!(b.receive().is_none());
+    }
 }

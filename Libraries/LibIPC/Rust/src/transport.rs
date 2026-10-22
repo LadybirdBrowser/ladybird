@@ -169,6 +169,14 @@ impl TransportMachPort {
         self.stop(IoThreadState::Stopped);
     }
 
+    /// Stops sending and receiving, and tells the peer that this end is gone, from any thread that shares the transport.
+    /// Messages not sent yet are dropped, and a `receive()` returns `None` once it has taken what had arrived. Dropping
+    /// the transport still joins its IO thread.
+    pub fn shutdown(&self) {
+        self.shared.set_state(IoThreadState::Stopped);
+        self.shared.wake_io_thread();
+    }
+
     fn stop(&mut self, state: IoThreadState) {
         let Some(io_thread) = self.io_thread.take() else {
             return;

@@ -169,10 +169,16 @@ impl TransportSocket {
         self.close();
     }
 
-    pub fn close(&mut self) {
+    /// Stops sending and receiving, and tells the peer that this end is gone, from any thread that shares the transport.
+    /// Messages not sent yet are dropped, and a `receive()` returns `None` once it has taken what had arrived.
+    pub fn shutdown(&self) {
         self.socket_is_open.store(false, Ordering::Relaxed);
         self.shared.stop_outgoing();
         let _ = self.socket.shutdown(std::net::Shutdown::Both);
+    }
+
+    pub fn close(&mut self) {
+        self.shutdown();
         if let Some(writer) = self.writer.take() {
             let _ = writer.join();
         }
