@@ -308,11 +308,11 @@ private:
     void present_current_paintable_as_layer_contents();
     void update_iosurface_layer_frame();
     void update_iosurface_layer_background_color();
+    void update_iosurface_layer_border();
     void detach_iosurface_layer_from_native_view();
     void destroy_iosurface_layer();
 
     void* m_iosurface_layer { nullptr };
-    bool m_has_rounded_corners { false };
 #endif
 
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET

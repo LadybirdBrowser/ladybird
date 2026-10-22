@@ -1874,6 +1874,9 @@ void WebContentView::update_palette(PaletteMode mode)
     // NB: Every page hosting documents of this tab takes the palette, including the pages of out-of-process iframes.
     //     Their prefers-color-scheme and system colors resolve against it.
     update_system_theme(make_system_theme_from_qt_palette(*this, mode));
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    update_iosurface_layer_border();
+#endif
 }
 
 Core::AnonymousBuffer WebContentView::system_theme()
