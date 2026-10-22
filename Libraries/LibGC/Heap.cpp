@@ -663,15 +663,20 @@ AK::JsonObject Heap::build_graph(ReadonlySpan<FlatPtr> callee_saved_registers)
     return graph;
 }
 
+// This must run before any finalizer, so that no finalizer can reach a dead cell through a weak pointer. Finalizers run
+// in no particular order, so such a cell may already have been finalized, and it may belong to another heap.
+void Heap::clear_weak_pointers_to_dead_cells(bool report)
+{
+    ScopedPhaseTimer timer { report, g_phase_timings.sweep_weak_blocks_us };
+    sweep_weak_blocks();
+    m_weak_pointers_to_dead_cells_are_cleared = true;
+}
+
 void Heap::run_post_mark_phases(bool report)
 {
     {
         ScopedPhaseTimer timer { report, g_phase_timings.finalize_unmarked_cells_us };
         finalize_unmarked_cells();
-    }
-    {
-        ScopedPhaseTimer timer { report, g_phase_timings.sweep_weak_blocks_us };
-        sweep_weak_blocks();
     }
 
     // Prune weak containers while we're still stop-the-world; doing this
@@ -770,7 +775,9 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
                 mark_live_cells(roots);
             }
         }
+        clear_weak_pointers_to_dead_cells(report);
         run_post_mark_phases(report);
+        m_weak_pointers_to_dead_cells_are_cleared = false;
 
         // For CollectEverything we must finish sweeping synchronously so that
         // every cell is collected before the Heap destructor returns. All
@@ -1674,6 +1681,11 @@ void Heap::uproot_cell(Cell* cell)
 
 WeakImpl* Heap::create_weak_impl(void* ptr)
 {
+    // Once weak pointers to dead cells have been cleared, one that is created to a dead cell, e.g. by a finalizer of
+    // this or another heap, must be null as well, or nothing would clear it before the cell is swept.
+    if (m_weak_pointers_to_dead_cells_are_cleared && !static_cast<Cell*>(ptr)->is_marked())
+        return &WeakImpl::the_null_weak_impl;
+
     if (m_usable_weak_blocks.is_empty()) {
         // NOTE: These are leaked on Heap destruction, but that's fine since Heap is tied to process lifetime.
         auto* weak_block = WeakBlock::create();

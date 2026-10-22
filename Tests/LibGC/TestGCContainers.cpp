@@ -32,6 +32,26 @@ class TestCell : public GC::Cell {
 
 GC_DEFINE_ALLOCATOR(TestCell);
 
+class FinalizerObservingCell : public GC::Cell {
+    GC_CELL(FinalizerObservingCell, GC::Cell);
+    GC_DECLARE_ALLOCATOR(FinalizerObservingCell);
+
+public:
+    GC::Weak<TestCell> weak_cell;
+    bool* weak_cell_was_null_while_finalizing { nullptr };
+    bool* weak_to_self_was_null_while_finalizing { nullptr };
+
+private:
+    virtual void finalize() override
+    {
+        Base::finalize();
+        *weak_cell_was_null_while_finalizing = !weak_cell;
+        *weak_to_self_was_null_while_finalizing = !GC::Weak<FinalizerObservingCell> { *this };
+    }
+};
+
+GC_DEFINE_ALLOCATOR(FinalizerObservingCell);
+
 static GC::Heap& test_heap()
 {
     static AK::NeverDestroyed<GC::Heap> heap([](auto&) { });
@@ -605,4 +625,24 @@ TEST_CASE(removed_conservative_hash_table_entry_not_reported)
     table.remove(cell);
 
     EXPECT(!possible_values_contain(table, cell.ptr()));
+}
+
+TEST_CASE(weak_pointers_to_dead_cells_are_null_while_finalizing)
+{
+    auto& heap = test_heap();
+    bool weak_cell_was_null_while_finalizing = false;
+    bool weak_to_self_was_null_while_finalizing = false;
+
+    {
+        auto cell = heap.allocate<TestCell>();
+        auto observer = heap.allocate<FinalizerObservingCell>();
+        observer->weak_cell = cell.ptr();
+        observer->weak_cell_was_null_while_finalizing = &weak_cell_was_null_while_finalizing;
+        observer->weak_to_self_was_null_while_finalizing = &weak_to_self_was_null_while_finalizing;
+    }
+
+    scrub_stack();
+    heap.collect_garbage(GC::Heap::CollectionType::CollectEverything);
+    EXPECT(weak_cell_was_null_while_finalizing);
+    EXPECT(weak_to_self_was_null_while_finalizing);
 }

@@ -244,6 +244,7 @@ private:
 
     void gather_roots(ConservativeScanOrigin const&, HashMap<Cell*, HeapRoot>&, Vector<StackFrameInfo>* out_stack_frames = nullptr, IncludeIncomingCrossHeapMembers = IncludeIncomingCrossHeapMembers::Yes);
     static void mark_live_cells_across(ReadonlySpan<Heap* const>, HashMap<Cell*, HeapRoot>& roots);
+    void clear_weak_pointers_to_dead_cells(bool report);
     void run_post_mark_phases(bool report);
     void gather_conservative_roots(ConservativeScanOrigin const&, HashMap<Cell*, HeapRoot>&, Vector<StackFrameInfo>* out_stack_frames = nullptr);
     void gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr heap_region_start, FlatPtr heap_region_end, FlatPtr stack_reference, FlatPtr stack_top);
@@ -315,6 +316,7 @@ private:
     bool m_should_gc_when_deferral_ends { false };
 
     bool m_collecting_garbage { false };
+    bool m_weak_pointers_to_dead_cells_are_cleared { false };
     CollectionType m_current_collection_type { CollectionType::CollectGarbage };
     StackInfo m_stack_info;
     AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
