@@ -246,6 +246,10 @@ impl FloatCondition {
     }
 }
 
+/// In `Node::flags` of a `Load`, besides its `LoadKind`: the load of an atomic access, which has to be ordered with the
+/// others where plain loads are not (on AArch64).
+pub const LOAD_ATOMIC: u8 = 0x80;
+
 /// How a load reads memory, in `Node::flags` of `Load`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -285,7 +289,7 @@ impl LoadKind {
     ];
 
     pub fn from_flags(flags: u8) -> Self {
-        Self::ALL[flags as usize]
+        Self::ALL[(flags & !LOAD_ATOMIC) as usize]
     }
 
     pub fn size(self) -> u32 {

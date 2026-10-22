@@ -26,6 +26,10 @@ pub mod ir;
 pub mod passes;
 pub mod regalloc;
 pub mod runtime;
+#[cfg(target_arch = "x86_64")]
+pub mod stubs;
+#[cfg(target_arch = "aarch64")]
+#[path = "stubs_aarch64.rs"]
 pub mod stubs;
 pub mod table;
 
@@ -144,7 +148,14 @@ pub fn ticks() -> u64 {
     unsafe {
         core::arch::x86_64::_rdtsc()
     }
-    #[cfg(not(target_arch = "x86_64"))]
+    #[cfg(target_arch = "aarch64")]
+    {
+        let counter: u64;
+        // SAFETY: Reading the virtual counter has no effects.
+        unsafe { core::arch::asm!("mrs {}, cntvct_el0", out(reg) counter, options(nomem, nostack)) };
+        counter
+    }
+    #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
     0
 }
 
@@ -250,7 +261,7 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
             regalloc::verify::dump(&context.func, &context.liveliness, &context.allocation)
         );
     }
-    let generated = codegen::x86_64::generate(
+    let generated = codegen::target::generate(
         &context.func,
         &context.liveliness,
         &context.allocation,
@@ -280,7 +291,12 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
             ));
         }
         if request.options.dump_asm {
-            for line in asm::disassembler::listing(asm::Architecture::X86_64, &compiled.code) {
+            let architecture = if cfg!(target_arch = "aarch64") {
+                asm::Architecture::AArch64
+            } else {
+                asm::Architecture::X86_64
+            };
+            for line in asm::disassembler::listing(architecture, &compiled.code) {
                 text.push_str(&format!("{:6x}  {}\n", line.offset, line.text));
             }
         }

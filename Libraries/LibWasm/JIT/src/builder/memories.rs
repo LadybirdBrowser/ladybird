@@ -10,7 +10,9 @@
 
 use super::{Builder, load_kind, store_size_log2};
 use crate::decode::{Decoder, MemoryArgument};
-use crate::ir::{AtomicOp, CHECKED_ATOMIC, CHECKED_MEMORY64, Func, Helper, LoadKind, Node, Op, Type, Value};
+use crate::ir::{
+    AtomicOp, CHECKED_ATOMIC, CHECKED_MEMORY64, Func, Helper, LOAD_ATOMIC, LoadKind, Node, Op, Type, Value,
+};
 use libwasm_module::Module;
 use libwasm_module::abi::TRAP_EXPECTED_SHARED_MEMORY;
 use libwasm_module::instruction_tables::{AtomicKind, atomic_kind};
@@ -132,8 +134,13 @@ impl Builder {
                     (_, 2) => LoadKind::I32U16,
                     _ => LoadKind::I32U8,
                 };
-                // NB: Plain loads are sequentially consistent on x86-64, where stores are locked exchanges.
-                let loaded = self.load_at(func, kind, ir(value), address, 0);
+                // NB: Plain loads are sequentially consistent on x86-64, where stores are locked exchanges; AArch64
+                //     loads them with acquire semantics.
+                let zero = self.constant(func, Type::I32, 0);
+                let loaded = Self::append(
+                    func,
+                    Node::new(Op::Load, ir(value), kind as u8 | LOAD_ATOMIC, [address, zero, 0]),
+                );
                 self.push(loaded);
             }
             AtomicKind::Store { value, size } => {

@@ -4,19 +4,23 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The calling convention between compiled functions on x86-64, and the layout of their frames.
+//! The calling convention between compiled functions, and the layout of their frames. The registers are the
+//! architecture's (`x86_64`, `aarch64`).
 //!
-//! - Parameters of integer types go in rdi, rsi, rdx, rcx, r8 and r9, in order, and those of float and vector types
-//!   in xmm0 to xmm7. Every parameter has a home slot in the caller's outgoing area, at the callee's fp + 8 * the
-//!   slots of the parameters before it (a v128 takes two, like on the interpreter's operand stack); the parameters
-//!   that do not fit in registers are passed there.
-//! - Results of integer types come back in rax and rdx, and those of float and vector types in xmm0 and xmm1. The
-//!   results that do not fit go to a result area the caller provides, at 8 * the slots of the results before them;
-//!   the caller passes its address in the slot after the parameters' home slots.
-//! - r14 holds the callee's instance and r15 the base of its memory 0 at the call, and r10 its `FunctionHeader`.
-//! - Every register but rsp and rbp is caller-saved. rsp is 16-byte aligned at the call.
+//! - Parameters of integer types go in the integer argument registers, in order, and those of float and vector types
+//!   in the vector argument registers. Every parameter has a home slot in the caller's outgoing area, at the callee's
+//!   fp + 8 * the slots of the parameters before it (a v128 takes two, like on the interpreter's operand stack); the
+//!   parameters that do not fit in registers are passed there.
+//! - Results of integer types come back in the first two integer result registers, and those of float and vector
+//!   types in the first two vector ones. The results that do not fit go to a result area the caller provides, at 8 *
+//!   the slots of the results before them; the caller passes its address in the slot after the parameters' home
+//!   slots.
+//! - `INSTANCE_REGISTER` holds the callee's instance and `MEMORY_BASE_REGISTER` the base of its memory 0 at the call,
+//!   and `CALLEE_REGISTER` its `FunctionHeader`.
+//! - Every register but the stack pointer and fp is caller-saved. The stack pointer is 16-byte aligned at the call.
 //! - A tail call writes its stack arguments into the incoming area and jumps to the callee. If they do not fit, it
-//!   slides the return address and saved fp down first; callers set rsp from fp after every call, which undoes it.
+//!   moves the frame's bottom down first (on x86-64 with the return address and saved fp); callers set the stack
+//!   pointer from fp after every call, which undoes it.
 //! - i32 values are zero-extended to 64 bits in registers and slots; f32 values use the low 32 bits.
 //!
 //! A compiled frame:
@@ -27,99 +31,33 @@
 //!   fp - 16        caller's fp
 //!   fp - 64..-16   the rest of the frame header, of which compiled code only writes FRAME_INSTANCE
 //!   below          spill slots, 8 bytes each, two for a v128
-//!   rsp            outgoing area of calls, 8 bytes per argument (and result area pointer, and result area)
+//!   sp             outgoing area of calls, 8 bytes per argument (and result area pointer, and result area)
 //! ```
 //!
-//! fp is the caller's rsp at the call, and the header is the interpreter's: its first two words are where the call and
-//! `push rbp` put them.
+//! fp is the caller's stack pointer at the call, and the header is the interpreter's: its first two words are where the
+//! call and `push rbp` put them on x86-64, and where `stp x29, x30, [sp, #-16]!` puts them on AArch64.
 
 use crate::ir::Type;
 
-/// Registers as the register allocator numbers them: general purpose registers by their encoding, xmm registers
+#[cfg(target_arch = "aarch64")]
+mod aarch64;
+#[cfg(target_arch = "x86_64")]
+mod x86_64;
+
+#[cfg(target_arch = "aarch64")]
+pub use aarch64::*;
+#[cfg(target_arch = "x86_64")]
+pub use x86_64::*;
+
+/// Registers as the register allocator numbers them: general purpose registers by their encoding, vector registers
 /// from `FPR_BASE` on.
 pub type Register = u8;
 
-pub const FPR_BASE: Register = 16;
+/// A set of registers, by their numbers.
+pub type RegisterMask = u32;
 
-pub const RAX: Register = 0;
-pub const RCX: Register = 1;
-pub const RDX: Register = 2;
-pub const RBX: Register = 3;
-pub const RSP: Register = 4;
-pub const RBP: Register = 5;
-pub const RSI: Register = 6;
-pub const RDI: Register = 7;
-pub const R8: Register = 8;
-pub const R9: Register = 9;
-pub const R10: Register = 10;
-pub const R11: Register = 11;
-pub const R12: Register = 12;
-pub const R13: Register = 13;
-pub const R14: Register = 14;
-pub const R15: Register = 15;
-
-pub const fn xmm(index: u8) -> Register {
-    FPR_BASE + index
-}
-
-pub const GPR_ARGUMENTS: [Register; 6] = [RDI, RSI, RDX, RCX, R8, R9];
-pub const FPR_ARGUMENTS: [Register; 8] = [xmm(0), xmm(1), xmm(2), xmm(3), xmm(4), xmm(5), xmm(6), xmm(7)];
-pub const GPR_RESULTS: [Register; 2] = [RAX, RDX];
-pub const FPR_RESULTS: [Register; 2] = [xmm(0), xmm(1)];
-
-pub const INSTANCE_REGISTER: Register = R14;
-pub const MEMORY_BASE_REGISTER: Register = R15;
-pub const CALLEE_REGISTER: Register = R10;
-
-/// Never allocated: moves between memory locations go through them, and lowerings may clobber them.
-pub const SCRATCH_GPR: Register = R11;
-pub const SCRATCH_FPR: Register = xmm(15);
-
-/// The registers values may live in, in the order the allocator prefers them.
-pub const ALLOCATABLE_GPRS: [Register; 13] = [RAX, RCX, RDX, RSI, RDI, R8, R9, R10, RBX, R12, R13, R14, R15];
-pub const ALLOCATABLE_FPRS: [Register; 15] = [
-    xmm(0),
-    xmm(1),
-    xmm(2),
-    xmm(3),
-    xmm(4),
-    xmm(5),
-    xmm(6),
-    xmm(7),
-    xmm(8),
-    xmm(9),
-    xmm(10),
-    xmm(11),
-    xmm(12),
-    xmm(13),
-    xmm(14),
-];
-
-/// Every allocatable register, as a mask.
-pub const ALLOCATABLE: u32 = {
-    let mut mask = 0;
-    let mut index = 0;
-    while index < ALLOCATABLE_GPRS.len() {
-        mask |= 1 << ALLOCATABLE_GPRS[index];
-        index += 1;
-    }
-    index = 0;
-    while index < ALLOCATABLE_FPRS.len() {
-        mask |= 1 << ALLOCATABLE_FPRS[index];
-        index += 1;
-    }
-    mask
-};
-
-/// Where a call of a function of the runtime (`Op::Helper`) takes its operands: the instance, from which it finds the
-/// context, then the operands, which it stores in the context's `arguments`.
-pub const HELPER_REGISTERS: [Register; 7] = [RDI, RSI, RDX, RCX, R8, R9, R10];
-
-/// The registers a call of a function of the runtime overwrites: those the host ABI does not preserve.
-pub const HOST_CLOBBERS: u32 = {
-    let preserved = (1 << RBX) | (1 << RSP) | (1 << RBP) | (1 << R12) | (1 << R13) | (1 << R14) | (1 << R15);
-    !preserved
-};
+/// The registers the allocator tracks.
+pub const REGISTER_COUNT: usize = 32;
 
 pub fn is_fpr(register: Register) -> bool {
     register >= FPR_BASE

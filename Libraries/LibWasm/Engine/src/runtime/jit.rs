@@ -117,7 +117,7 @@ pub fn options() -> Options {
                 }
             }
         }
-        options.enabled &= cfg!(all(unix, target_arch = "x86_64"));
+        options.enabled &= cfg!(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")));
         options
     })
 }
@@ -316,7 +316,54 @@ pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
     }
 }
 
-#[cfg(not(all(target_os = "linux", target_arch = "x86_64")))]
+/// Redirects a memory fault in compiled code to the trap exit. `context` is the signal handler's.
+///
+/// # Safety
+///
+/// Only the fault handler calls this, with its context.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
+    unsafe {
+        let context = context.cast::<libc::ucontext_t>();
+        let mcontext = &mut (*context).uc_mcontext;
+        let Some(stubs) = native::STUBS.get() else {
+            return false;
+        };
+        if !CODE_RANGES.contains(mcontext.pc as usize) {
+            return false;
+        }
+        mcontext.pc = stubs.trap_exit;
+        mcontext.regs[0] = u64::from(crate::abi::TRAP_MEMORY_OUT_OF_BOUNDS);
+        true
+    }
+}
+
+/// Redirects a memory fault in compiled code to the trap exit. `context` is the signal handler's.
+///
+/// # Safety
+///
+/// Only the fault handler calls this, with its context.
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
+    unsafe {
+        let context = context.cast::<libc::ucontext_t>();
+        let state = &mut (*(*context).uc_mcontext).__ss;
+        let Some(stubs) = native::STUBS.get() else {
+            return false;
+        };
+        if !CODE_RANGES.contains(state.__pc as usize) {
+            return false;
+        }
+        state.__pc = stubs.trap_exit;
+        state.__x[0] = u64::from(crate::abi::TRAP_MEMORY_OUT_OF_BOUNDS);
+        true
+    }
+}
+
+#[cfg(not(any(
+    all(target_os = "linux", target_arch = "x86_64"),
+    all(any(target_os = "linux", target_os = "macos"), target_arch = "aarch64")
+)))]
 pub unsafe fn redirect_fault(_context: *mut libc::c_void) -> bool {
     false
 }
@@ -418,7 +465,7 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
             let words = match *place {
                 Place::Register(_) if params[index].uses_xmm() => {
                     xmms += 1;
-                    ak::slice_from_raw_parts(save_area.add(6 + 2 * (xmms - 1)), 2)
+                    ak::slice_from_raw_parts(save_area.add(convention::GPR_ARGUMENTS.len() + 2 * (xmms - 1)), 2)
                 }
                 Place::Register(_) => {
                     gprs += 1;
@@ -453,7 +500,7 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
             let words = match *place {
                 Place::Register(_) if result_types[index].uses_xmm() => {
                     xmms += 1;
-                    ak::slice_from_raw_parts_mut(save_area.add(6 + 2 * (xmms - 1)), 2)
+                    ak::slice_from_raw_parts_mut(save_area.add(convention::GPR_ARGUMENTS.len() + 2 * (xmms - 1)), 2)
                 }
                 Place::Register(_) => {
                     gprs += 1;
@@ -469,7 +516,7 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
     }
 }
 
-#[cfg(all(unix, target_arch = "x86_64"))]
+#[cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
 mod native {
     use super::{CODE_RANGES, ir_types, value_from_words, words_of_value};
     use crate::abi::{ExecutionContext, FUNCTION_KIND_COMPILED, FunctionHeader, OPCODE_TRAP_FROM_NATIVE};
@@ -538,21 +585,28 @@ mod native {
         used: usize,
     }
 
-    const PAGE_SIZE: usize = 4096;
     const CHUNK_SIZE: usize = 16 << 20;
+
+    fn page_size() -> usize {
+        static PAGE_SIZE: OnceLock<usize> = OnceLock::new();
+        *PAGE_SIZE.get_or_init(|| unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize)
+    }
 
     impl CodeChunk {
         fn new(size: usize) -> Self {
-            let base = unsafe {
-                libc::mmap(
-                    std::ptr::null_mut(),
-                    size,
-                    libc::PROT_READ | libc::PROT_EXEC,
-                    libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
-                    -1,
-                    0,
-                )
-            };
+            // NB: macOS on Apple silicon maps code writable and executable at once, with MAP_JIT, and switches each
+            //     thread's view of it between the two with pthread_jit_write_protect_np().
+            #[cfg(target_os = "macos")]
+            let (protection, flags) = (
+                libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
+                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_JIT,
+            );
+            #[cfg(not(target_os = "macos"))]
+            let (protection, flags) = (
+                libc::PROT_READ | libc::PROT_EXEC,
+                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
+            );
+            let base = unsafe { libc::mmap(std::ptr::null_mut(), size, protection, flags, -1, 0) };
             assert_ne!(base, libc::MAP_FAILED, "no memory for compiled code");
             assert!(
                 CODE_RANGES.add(base as usize, size),
@@ -573,9 +627,18 @@ mod native {
         fn add(&mut self, code: &[u8]) -> u64 {
             let start = self.used.next_multiple_of(16);
             assert!(start + code.len() <= self.size);
-            let first_page = start / PAGE_SIZE * PAGE_SIZE;
-            let length = (start + code.len()).next_multiple_of(PAGE_SIZE) - first_page;
+            #[cfg(target_os = "macos")]
             unsafe {
+                libc::pthread_jit_write_protect_np(0);
+                std::ptr::copy_nonoverlapping(code.as_ptr(), self.base.add(start), code.len());
+                libc::pthread_jit_write_protect_np(1);
+                libwasm_jit::runtime::flush_instruction_cache(self.base as usize + start, code.len());
+            }
+            #[cfg(not(target_os = "macos"))]
+            unsafe {
+                let page_size = page_size();
+                let first_page = start / page_size * page_size;
+                let length = (start + code.len()).next_multiple_of(page_size) - first_page;
                 let region = self.base.add(first_page);
                 assert_eq!(
                     libc::mprotect(region.cast(), length, libc::PROT_READ | libc::PROT_WRITE),
@@ -586,6 +649,7 @@ mod native {
                     libc::mprotect(region.cast(), length, libc::PROT_READ | libc::PROT_EXEC),
                     0
                 );
+                libwasm_jit::runtime::flush_instruction_cache(self.base as usize + start, code.len());
             }
             self.used = start + code.len();
             self.base as u64 + start as u64
@@ -706,7 +770,7 @@ mod native {
         fn add_code(&mut self, code: &[u8]) -> u64 {
             if !self.chunks.last().is_some_and(|chunk| chunk.has_room(code.len())) {
                 self.chunks
-                    .push(CodeChunk::new(CHUNK_SIZE.max(code.len().next_multiple_of(PAGE_SIZE))));
+                    .push(CodeChunk::new(CHUNK_SIZE.max(code.len().next_multiple_of(page_size()))));
             }
             self.chunks.last_mut().expect("there is a chunk").add(code)
         }
@@ -1035,7 +1099,7 @@ mod native {
     }
 }
 
-#[cfg(not(all(unix, target_arch = "x86_64")))]
+#[cfg(not(all(unix, any(target_arch = "x86_64", target_arch = "aarch64"))))]
 mod native {
     use crate::abi::ExecutionContext;
     use crate::runtime::{InstanceAddress, Store};

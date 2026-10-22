@@ -19,9 +19,17 @@
 //!   the inputs from that predecessor. Every other edge into them moves its values into place, as parallel moves.
 //!   Edges from blocks with several successors that need moves get a stub of their own in code generation.
 
+#[cfg(target_arch = "aarch64")]
+mod aarch64;
 pub mod liveness;
 pub mod verify;
 
+#[cfg(target_arch = "aarch64")]
+use aarch64::constraints;
+#[cfg(target_arch = "aarch64")]
+pub use aarch64::fits_immediate;
+
+#[cfg(target_arch = "x86_64")]
 use crate::codegen;
 use crate::convention::{self, Place, Register};
 use crate::ir::{BlockId, Func, NONE, Op, Type, Value};
@@ -128,6 +136,8 @@ impl Allocation {
     }
 }
 
+// NB: AArch64 has no fixed registers and no constant operands in memory.
+#[cfg_attr(target_arch = "aarch64", allow(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Input {
     Register,
@@ -138,6 +148,8 @@ enum Input {
     RegisterOrVectorConstant,
 }
 
+// NB: AArch64 has no fixed registers and no constant operands in memory.
+#[cfg_attr(target_arch = "aarch64", allow(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Output {
     None,
@@ -145,6 +157,8 @@ enum Output {
     Fixed(Register),
 }
 
+// NB: AArch64 has no fixed registers and no constant operands in memory.
+#[cfg_attr(target_arch = "aarch64", allow(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Temp {
     None,
@@ -167,6 +181,7 @@ struct Constraints {
 }
 
 /// Whether constant `value` fits an instruction as an immediate: sign-extended 32 bits for 64-bit operations.
+#[cfg(target_arch = "x86_64")]
 pub fn fits_immediate(func: &Func, value: Value) -> bool {
     let node = func.node(value);
     match node.constant() {
@@ -177,12 +192,14 @@ pub fn fits_immediate(func: &Func, value: Value) -> bool {
 }
 
 /// Whether a constant index and offset of a memory access fit its displacement.
+#[cfg(target_arch = "x86_64")]
 pub fn fits_displacement(func: &Func, index: Value, offset: u32) -> bool {
     func.node(index)
         .constant()
         .is_some_and(|bits| (bits & 0xffff_ffff) + u64::from(offset) <= i32::MAX as u64)
 }
 
+#[cfg(target_arch = "x86_64")]
 fn constraints(func: &Func, value: Value) -> Constraints {
     use convention::{RAX, RCX, RDX};
     let node = func.node(value);
@@ -358,10 +375,7 @@ pub struct Allocator {
     fprs: &'static [Register],
 }
 
-/// With `stress-registers`, the registers values get besides those of fixed constraints: few enough that most
-/// values spill.
-const STRESS_GPRS: [Register; 3] = [convention::RAX, convention::RBX, convention::R12];
-const STRESS_FPRS: [Register; 2] = [convention::xmm(8), convention::xmm(9)];
+use convention::{STRESS_FPRS, STRESS_GPRS};
 
 impl Allocator {
     /// Allocates registers for `func` into `allocation`.
@@ -1162,7 +1176,7 @@ impl Allocator {
             }
         }
         if func.node(value).ty != Type::None {
-            self.define(func, allocation, value, convention::RAX);
+            self.define(func, allocation, value, convention::GPR_RESULTS[0]);
         }
     }
 
