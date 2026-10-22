@@ -9,12 +9,12 @@ use crate::css::color_conversion::{RGB, SRGB};
 use crate::css::css_string::CssString;
 use crate::css::declaration_block;
 use crate::css::style_compute::keyword;
-use crate::css::style_value::{ColorBase, RetainedStyleValueData};
+use crate::css::style_value::{ColorBase, RetainedStyleValueData, shared_style_value};
 use crate::css::value_codes::*;
 use std::sync::Arc;
 
-// The context-free computed form used to identify numeric RGB declarations. Other
-// colors still need element, inherited style, or other computation context.
+// The context-free form used to identify numeric RGB declarations, so that every spelling of one color names one
+// declaration. Other colors still need element, inherited style, or other computation context.
 fn canonical_specified_value(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
     let StyleValueData::ColorFunction {
         color_base,
@@ -41,18 +41,27 @@ fn canonical_specified_value(value: &StyleValueData) -> Option<Arc<StyleValueDat
         Some(StyleValueData::Number { value }) => *value,
         _ => return None,
     };
-    let [channel_0, channel_1, channel_2] =
-        channels.map(|value| RetainedStyleValueData::from_owned(StyleValueData::Number { value: value / 255.0 }));
+    let number = |value| RetainedStyleValueData::from_arc(shared_style_value(StyleValueData::Number { value }));
+    // NB: Whole channels, as every hexadecimal and most functional spellings have, stay in the rgb() form, whose
+    //     numbers are shared; any other channel is named in the srgb form.
+    let whole = channels
+        .iter()
+        .all(|&channel| channel.fract() == 0.0 && (0.0..=255.0).contains(&channel));
+    let (color_type, [channel_0, channel_1, channel_2]) = if whole {
+        (RGB, channels.map(number))
+    } else {
+        (SRGB, channels.map(|value| number(value / 255.0)))
+    };
     Some(Arc::new(StyleValueData::ColorFunction {
         color_base: ColorBase {
             has_color_type: true,
-            color_type: SRGB,
+            color_type,
             color_syntax: COLOR_SYNTAX_MODERN,
         },
         channel_0,
         channel_1,
         channel_2,
-        alpha: RetainedStyleValueData::from_owned(StyleValueData::Number { value: alpha }),
+        alpha: number(alpha),
         has_name: false,
         name: CssString::none(),
         origin_color: RetainedStyleValueData::none(),
