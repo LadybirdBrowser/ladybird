@@ -107,8 +107,8 @@ WebIDL::ExceptionOr<void> TextDecoderStream::decode_and_enqueue_chunk(JS::VM& vm
 
     // Decode this chunk while preserving the streaming decoder's pending state.
     TextDecoderOutputQueue output;
-    TRY(process_an_item(vm, input_copy.bytes(), output));
-    auto decoded = TRY(serialize_io_queue(vm, output));
+    TRY(process_an_item(input_copy.bytes(), output));
+    auto decoded = serialize_io_queue(output);
     return enqueue_decoded_output(vm, decoded);
 }
 
@@ -127,14 +127,14 @@ WebIDL::ExceptionOr<void> TextDecoderStream::flush_and_enqueue(JS::VM& vm)
 
     // 2. Let result be the result of processing an item with item, this’s decoder, decoder’s I/O queue, output, and decoder’s
     //    error mode.
-    auto result = process_an_item(vm, item, output);
+    auto result = process_an_item(item, output);
 
     // 3. If result is finished:
     //     1. Let outputChunk be the result of running serialize I/O queue with decoder and output.
     //     2. If outputChunk is not the empty string, then enqueue outputChunk in decoder’s transform.
     //     3. Return.
     if (!result.is_error()) {
-        auto output_chunk = TRY(serialize_io_queue(vm, output));
+        auto output_chunk = serialize_io_queue(output);
         TRY(enqueue_decoded_output(vm, output_chunk));
         return {};
     }

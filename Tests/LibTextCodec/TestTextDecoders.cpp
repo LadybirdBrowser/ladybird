@@ -33,6 +33,11 @@ static Vector<u32> process_code_points(TextCodec::Decoder decoder, ReadonlyBytes
     return code_points;
 }
 
+static ErrorOr<String> decode_to_utf8(TextCodec::StreamingDecoder& decoder, ReadonlyBytes input, TextCodec::Flush flush = TextCodec::Flush::No)
+{
+    return TRY(decoder.decode(input, flush)).to_utf8();
+}
+
 TEST_CASE(test_utf8_decode)
 {
     auto decoder = decoder_for("UTF-8"sv);
@@ -130,9 +135,9 @@ TEST_CASE(test_streaming_decoder_utf8_mid_sequence)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
 
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 'a', 0xc3 }))), "a"sv);
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xa9, 'b' }))), "éb"sv);
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 'a', 0xc3 }))), "a"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0xa9, 'b' }))), "éb"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_finishes_incomplete_sequence)
@@ -141,95 +146,84 @@ TEST_CASE(test_streaming_decoder_finishes_incomplete_sequence)
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
 
     auto incomplete_sequence = Vector<u8> { 0xc3 };
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes(incomplete_sequence))), ""sv);
-    EXPECT_EQ(MUST(streaming_decoder.finish()), MUST(decoder.to_utf8(bytes(incomplete_sequence))));
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes(incomplete_sequence))), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), MUST(decoder.to_utf8(bytes(incomplete_sequence))));
 }
 
 TEST_CASE(test_streaming_decoder_utf8_invalid_second_byte_tail)
 {
     auto streaming_decoder_for_overlong_three_byte_sequence = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
-    EXPECT_EQ(MUST(streaming_decoder_for_overlong_three_byte_sequence.to_utf8(bytes({ 0xe0, 0x80 }))), "\xef\xbf\xbd\xef\xbf\xbd"sv);
-    EXPECT_EQ(MUST(streaming_decoder_for_overlong_three_byte_sequence.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder_for_overlong_three_byte_sequence, bytes({ 0xe0, 0x80 }))), "\xef\xbf\xbd\xef\xbf\xbd"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder_for_overlong_three_byte_sequence, {}, TextCodec::Flush::Yes)), ""sv);
 
     auto streaming_decoder_for_out_of_range_four_byte_sequence = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
-    EXPECT_EQ(MUST(streaming_decoder_for_out_of_range_four_byte_sequence.to_utf8(bytes({ 0xf4, 0x90 }))), "\xef\xbf\xbd\xef\xbf\xbd"sv);
-    EXPECT_EQ(MUST(streaming_decoder_for_out_of_range_four_byte_sequence.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder_for_out_of_range_four_byte_sequence, bytes({ 0xf4, 0x90 }))), "\xef\xbf\xbd\xef\xbf\xbd"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder_for_out_of_range_four_byte_sequence, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_utf8_valid_second_byte_tail)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
 
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xe0, 0xa0 }))), ""sv);
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x80 }))), "\xe0\xa0\x80"sv);
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0xe0, 0xa0 }))), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0x80 }))), "\xe0\xa0\x80"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_utf8_fatal_error_does_not_buffer_later_bytes)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
 
-    EXPECT(streaming_decoder.to_utf8(bytes({ 0xfd, 0xef })).is_error());
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+    EXPECT(decode_to_utf8(streaming_decoder, bytes({ 0xfd, 0xef })).is_error());
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_fatal_error_discards_bytes_kept_by_the_decoder)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "gb18030"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
 
-    EXPECT(streaming_decoder.to_utf8(bytes({ 0x81, 0x30, 0xff })).is_error());
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8({})), ""sv);
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
-
-    auto utf16_streaming_decoder = TextCodec::StreamingDecoder { "gb18030"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
-
-    EXPECT(utf16_streaming_decoder.to_utf16(bytes({ 0x81, 0x30, 0xff })).is_error());
-    EXPECT_EQ(MUST(utf16_streaming_decoder.to_utf16({})), u""sv);
-    EXPECT_EQ(MUST(utf16_streaming_decoder.finish_to_utf16()), u""sv);
+    EXPECT(decode_to_utf8(streaming_decoder, bytes({ 0x81, 0x30, 0xff })).is_error());
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {})), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_fatal_error_keeps_bom_removal)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
 
-    EXPECT(streaming_decoder.to_utf8(bytes({ 0xff })).is_error());
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xef, 0xbb, 0xbf, 'A' }))), "A"sv);
-
-    auto utf16_streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal };
-
-    EXPECT(utf16_streaming_decoder.to_utf16(bytes({ 'A', 0xff })).is_error());
-    EXPECT_EQ(MUST(utf16_streaming_decoder.to_utf16(bytes({ 0xef, 0xbb, 0xbf, 'A' }))), u"A"sv);
+    EXPECT(decode_to_utf8(streaming_decoder, bytes({ 0xff })).is_error());
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0xef, 0xbb, 0xbf, 'A' }))), "A"sv);
 }
 
 TEST_CASE(test_streaming_decoder_removes_only_a_leading_bom)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-8"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
 
-    EXPECT_EQ(MUST(streaming_decoder.to_utf16(bytes({ 0xef, 0xbb }))), u""sv);
-    EXPECT_EQ(MUST(streaming_decoder.to_utf16(bytes({ 0xbf, 'A' }))), u"A"sv);
-    EXPECT_EQ(MUST(streaming_decoder.to_utf16(bytes({ 0xef, 0xbb, 0xbf }))), u"\uFEFF"sv);
+    EXPECT_EQ(MUST(streaming_decoder.decode(bytes({ 0xef, 0xbb }))), u""sv);
+    EXPECT_EQ(MUST(streaming_decoder.decode(bytes({ 0xbf, 'A' }))), u"A"sv);
+    EXPECT_EQ(MUST(streaming_decoder.decode(bytes({ 0xef, 0xbb, 0xbf }))), u"\uFEFF"sv);
 
     auto streaming_decoder_ignoring_bom = TextCodec::StreamingDecoder { "UTF-16LE"sv, TextCodec::IgnoreBOM::Yes, TextCodec::ErrorMode::Replacement };
 
-    EXPECT_EQ(MUST(streaming_decoder_ignoring_bom.to_utf8(bytes({ 0xff, 0xfe, 'A', 0x00 }))), "\uFEFFA"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder_ignoring_bom, bytes({ 0xff, 0xfe, 'A', 0x00 }))), "\uFEFFA"sv);
 }
 
 TEST_CASE(test_streaming_decoder_utf16_odd_byte)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-16LE"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
 
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x41, 0x00, 0x42 }))), "A"sv);
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x00 }))), "B"sv);
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0x41, 0x00, 0x42 }))), "A"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0x00 }))), "B"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_utf16_surrogate_pair_split)
 {
     auto streaming_decoder = TextCodec::StreamingDecoder { "UTF-16BE"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
 
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x00, 0x41, 0xd8, 0x3d }))), "A"sv);
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xde, 0x00 }))), "😀"sv);
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0x00, 0x41, 0xd8, 0x3d }))), "A"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0xde, 0x00 }))), "😀"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_gb18030_four_byte_tail)
@@ -238,9 +232,9 @@ TEST_CASE(test_streaming_decoder_gb18030_four_byte_tail)
     auto streaming_decoder = TextCodec::StreamingDecoder { "gb18030"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
     auto gb18030_sequence = Vector<u8> { 0x81, 0x30, 0x81, 0x30 };
 
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 'a', 0x81, 0x30, 0x81 }))), "a"sv);
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x30 }))), MUST(decoder.to_utf8(bytes(gb18030_sequence))));
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 'a', 0x81, 0x30, 0x81 }))), "a"sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0x30 }))), MUST(decoder.to_utf8(bytes(gb18030_sequence))));
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_big5_overlapping_trail)
@@ -249,13 +243,13 @@ TEST_CASE(test_streaming_decoder_big5_overlapping_trail)
     auto streaming_decoder = TextCodec::StreamingDecoder { "Big5"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
     auto big5_sequence = Vector<u8> { 0xa4, 0xa4 };
 
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes(big5_sequence))), MUST(decoder.to_utf8(bytes(big5_sequence))));
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes(big5_sequence))), MUST(decoder.to_utf8(bytes(big5_sequence))));
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 
     auto streaming_decoder_for_split_input = TextCodec::StreamingDecoder { "Big5"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
-    EXPECT_EQ(MUST(streaming_decoder_for_split_input.to_utf8(bytes({ 0xa4 }))), ""sv);
-    EXPECT_EQ(MUST(streaming_decoder_for_split_input.to_utf8(bytes({ 0xa4 }))), MUST(decoder.to_utf8(bytes(big5_sequence))));
-    EXPECT_EQ(MUST(streaming_decoder_for_split_input.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder_for_split_input, bytes({ 0xa4 }))), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder_for_split_input, bytes({ 0xa4 }))), MUST(decoder.to_utf8(bytes(big5_sequence))));
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder_for_split_input, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_euc_jp_three_byte_tail)
@@ -264,9 +258,9 @@ TEST_CASE(test_streaming_decoder_euc_jp_three_byte_tail)
     auto streaming_decoder = TextCodec::StreamingDecoder { "EUC-JP"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
     auto euc_jp_sequence = Vector<u8> { 0x8f, 0xa2, 0xaf };
 
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x8f, 0xa2 }))), ""sv);
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xaf }))), MUST(decoder.to_utf8(bytes(euc_jp_sequence))));
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0x8f, 0xa2 }))), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0xaf }))), MUST(decoder.to_utf8(bytes(euc_jp_sequence))));
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_streaming_decoder_shift_jis_tail)
@@ -275,9 +269,9 @@ TEST_CASE(test_streaming_decoder_shift_jis_tail)
     auto streaming_decoder = TextCodec::StreamingDecoder { "Shift_JIS"sv, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement };
     auto shift_jis_sequence = Vector<u8> { 0x82, 0xa0 };
 
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0x82 }))), ""sv);
-    EXPECT_EQ(MUST(streaming_decoder.to_utf8(bytes({ 0xa0 }))), MUST(decoder.to_utf8(bytes(shift_jis_sequence))));
-    EXPECT_EQ(MUST(streaming_decoder.finish()), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0x82 }))), ""sv);
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, bytes({ 0xa0 }))), MUST(decoder.to_utf8(bytes(shift_jis_sequence))));
+    EXPECT_EQ(MUST(decode_to_utf8(streaming_decoder, {}, TextCodec::Flush::Yes)), ""sv);
 }
 
 TEST_CASE(test_utf16le_decode)

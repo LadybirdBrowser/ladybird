@@ -55,22 +55,6 @@ ErrorOr<Utf16String> rust_streaming_decode_to_utf16(FFI::TextCodecRustStreamingD
     return context.builder.to_string();
 }
 
-ErrorOr<String> rust_streaming_decode_to_utf8(FFI::TextCodecRustStreamingDecoder* decoder, ReadonlyBytes input, bool last)
-{
-    DecodeContext context { .builder = StringBuilder(input.size()) };
-    auto succeeded = FFI::textcodec_rust_streaming_decoder_decode_to_utf8(
-        decoder,
-        input.data(),
-        input.size(),
-        last,
-        &context,
-        append_decoded_bytes);
-    if (!succeeded)
-        return Error::from_string_literal("Failed to decode input");
-    TRY(context.result);
-    return context.builder.to_string_without_validation();
-}
-
 }
 
 Optional<Decoder> decoder_for(StringView label)
@@ -272,24 +256,9 @@ StreamingDecoder::~StreamingDecoder()
     FFI::textcodec_rust_streaming_decoder_free(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder));
 }
 
-ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
-{
-    return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, false);
-}
-
-ErrorOr<Utf16String> StreamingDecoder::to_utf16(ReadonlyBytes input, Flush flush)
+ErrorOr<Utf16String> StreamingDecoder::decode(ReadonlyBytes input, Flush flush)
 {
     return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, flush == Flush::Yes);
-}
-
-ErrorOr<String> StreamingDecoder::finish()
-{
-    return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), {}, true);
-}
-
-ErrorOr<Utf16String> StreamingDecoder::finish_to_utf16()
-{
-    return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), {}, true);
 }
 
 // https://infra.spec.whatwg.org/#isomorphic-decode
