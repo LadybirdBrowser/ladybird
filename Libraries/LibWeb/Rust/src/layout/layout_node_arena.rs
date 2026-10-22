@@ -2217,13 +2217,16 @@ impl LayoutNodeArena {
     /// an old row and its replacement both built for the element until the commit that retires the
     /// old one, and both answer for the element meanwhile.
     pub(crate) fn set_element_scroll_offset(&self, element: StyleNodeID, offset: CssPixelPoint) {
-        {
+        let previous_offset = {
             let mut offsets = self.style_node_tables.element_scroll_offsets.borrow_mut();
             if offset == CssPixelPoint::default() {
-                offsets.remove(&element);
+                offsets.remove(&element)
             } else {
-                offsets.insert(element, offset);
+                offsets.insert(element, offset)
             }
+        };
+        if previous_offset.unwrap_or_default() != offset {
+            self.note_scroll_offsets_moved();
         }
         let bound_row = self.bound_row(element);
         if !bound_row.is_invalid() {
@@ -2240,17 +2243,23 @@ impl LayoutNodeArena {
         generated_for: u8,
         offset: CssPixelPoint,
     ) {
-        {
+        let previous_offset = {
             let index = pseudo_element_scroll_offset_index(generated_for);
             let mut offsets = self.style_node_tables.pseudo_element_scroll_offsets.borrow_mut();
             if offset != CssPixelPoint::default() {
-                offsets.entry(generator).or_default()[index] = offset;
+                std::mem::replace(&mut offsets.entry(generator).or_default()[index], offset)
             } else if let Some(element_offsets) = offsets.get_mut(&generator) {
-                element_offsets[index] = offset;
+                let previous_offset = std::mem::replace(&mut element_offsets[index], offset);
                 if element_offsets.iter().all(|&offset| offset == CssPixelPoint::default()) {
                     offsets.remove(&generator);
                 }
+                previous_offset
+            } else {
+                CssPixelPoint::default()
             }
+        };
+        if previous_offset != offset {
+            self.note_scroll_offsets_moved();
         }
         let bound_row = self.bound_pseudo_element_row(generator, generated_for);
         if !bound_row.is_invalid() {
@@ -2260,7 +2269,18 @@ impl LayoutNodeArena {
 
     /// Records what the navigable has scrolled the viewport to.
     pub(crate) fn set_viewport_scroll_offset(&self, offset: CssPixelPoint) {
-        self.viewport_scroll_offset.set(offset);
+        if self.viewport_scroll_offset.replace(offset) != offset {
+            self.note_scroll_offsets_moved();
+        }
+    }
+
+    /// The scroll state reads the offsets the rows hold, so it is read again before it is published next whenever one
+    /// of them moves.
+    fn note_scroll_offsets_moved(&self) {
+        self.paint_state()
+            .borrow_mut()
+            .visual_context
+            .needs_to_refresh_scroll_state = true;
     }
 
     /// Record whether the node sits in the user agent shadow tree of the focused text control.

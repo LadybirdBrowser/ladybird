@@ -32,8 +32,6 @@ use std::sync::Arc;
 pub(crate) enum PaintChange {
     /// What the navigable has scrolled the viewport to.
     SetViewportScrollOffset(CssPixelPoint),
-    /// The scroll containers' offsets moved: the scroll state is read again before it is published next.
-    InvalidateScrollState,
     /// The selection covers `entries`, between the offsets in its start and end text.
     ApplySelection {
         viewport: NodeSlotId,
@@ -127,13 +125,6 @@ impl PaintChange {
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
         match self {
             Self::SetViewportScrollOffset(offset) => arena.set_viewport_scroll_offset(offset),
-            Self::InvalidateScrollState => {
-                arena
-                    .paint_state()
-                    .borrow_mut()
-                    .visual_context
-                    .needs_to_refresh_scroll_state = true;
-            }
             Self::ApplySelection {
                 viewport,
                 entries,
@@ -226,11 +217,6 @@ pub(crate) fn queue(host: &DocumentHost, change: PaintChange) {
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_set_viewport_scroll_offset(host: &DocumentHost, offset: FfiCssPixelPoint) {
     queue(host, PaintChange::SetViewportScrollOffset(offset.into()));
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_invalidate_scroll_state(host: &DocumentHost) {
-    queue(host, PaintChange::InvalidateScrollState);
 }
 
 /// # Safety
