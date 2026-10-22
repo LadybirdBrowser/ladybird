@@ -2330,7 +2330,8 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
     // would find no work to do. A geometry read also seals the before-change style that a later CSS
     // transition starts from, but with no style input pending there is nothing left to seal, so a
     // document that declares transitions does not have to give up its clean reads over it either.
-    if (reads_layout_geometry && is_clean_for_layout_geometry_read(read) && embedding_document_chain_is_clean())
+    // A re-snap only scrolls the document it is pending in, so it does not stop the reads of embedded documents.
+    if (reads_layout_geometry && is_clean_for_layout_geometry_read(read) && !has_pending_scroll_container_resnap() && embedding_document_chain_is_clean())
         return;
 
     auto* document_element = this->document_element();
@@ -2343,6 +2344,7 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
         && !has_size_containers_needing_evaluation_after_layout(read)
         && m_elements_with_pending_top_layer_membership_change.is_empty()
         && !m_top_layer_needs_layout_zone_rebuild
+        && !has_pending_scroll_container_resnap()
         && !style_computer().style_engine().css_transitions_may_observe_style_changes()
         && !may_have_style_query_dependencies) {
         if (embedding_document_chain_is_clean()) {
