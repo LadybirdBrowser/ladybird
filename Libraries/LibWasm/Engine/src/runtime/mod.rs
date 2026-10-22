@@ -80,6 +80,22 @@ impl Value {
         }
     }
 
+    /// Whether the value can be one of type `ty`: one of its kind, and not null where `ty` is not nullable.
+    ///
+    /// NB: The heap type of a reference is the embedder's to check, which knows what the reference is. Its bits do
+    ///     not say which hierarchy it is of: an externref keeps the bits of the anyref it externalizes.
+    pub fn matches(self, ty: ValType) -> bool {
+        match (self, ty) {
+            (Self::I32(_), ValType::I32)
+            | (Self::I64(_), ValType::I64)
+            | (Self::F32(_), ValType::F32)
+            | (Self::F64(_), ValType::F64)
+            | (Self::V128(_), ValType::V128) => true,
+            (Self::Ref(bits), ValType::Ref(ty)) => bits != 0 || ty.nullable,
+            _ => false,
+        }
+    }
+
     /// The value's slots in memory order (a v128's low half first), and how many of the two it takes.
     pub fn to_slots(self) -> ([u64; 2], usize) {
         match self {
@@ -107,6 +123,11 @@ impl Value {
             ValType::V128 => Self::V128(u128::from(slots[0]) | (u128::from(slots[1]) << 64)),
         }
     }
+}
+
+/// Whether `values` can be values of `types`, one of each.
+fn values_match(values: &[Value], types: &[ValType]) -> bool {
+    values.len() == types.len() && values.iter().zip(types).all(|(value, &ty)| value.matches(ty))
 }
 
 /// Declares `Trap`, with a variant for each trap that has a `TRAP_*` code and a message of its own, besides traps of
@@ -1115,6 +1136,10 @@ impl Store {
 
     pub fn invoke(&mut self, address: FunctionAddress, arguments: &[Value]) -> Result<Vec<Value>, Trap> {
         let function = self.function(address);
+        // NB: Code reads the arguments as the function's type says they are, and host functions index them by it.
+        if !values_match(arguments, &function.ty.params) {
+            return Err(Trap::Host("the arguments do not match the function's type".to_string()));
+        }
         if let FunctionKind::Host(_) = function.kind {
             return self.call_host(address, arguments);
         }
@@ -1122,10 +1147,6 @@ impl Store {
         let mut argument_slots = Vec::new();
         for argument in arguments.iter().rev() {
             argument.push_slots(&mut argument_slots);
-        }
-        // NB: The interpreter reads the function's parameter slots from the arguments, so they must have that many.
-        if arguments.len() != function.ty.params.len() || argument_slots.len() != function.header.param_slots as usize {
-            return Err(Trap::Host("the arguments do not match the function's type".to_string()));
         }
         let mut result_slots = vec![0u64; function.header.result_slots as usize];
         self.invoke_slots(address, &argument_slots, &mut result_slots)?;
@@ -1183,7 +1204,14 @@ impl Store {
             unreachable!("only host functions are called through call_host")
         };
         let callback = callback.clone();
-        callback.call(self, arguments)
+        let values = callback.call(self, arguments)?;
+        // NB: Code reads the results as the function's type says they are, and they must fit where they go.
+        if !values_match(&values, &self.function(address).ty.results) {
+            return Err(Trap::Host(
+                "a host function returned results that do not match its type".to_string(),
+            ));
+        }
+        Ok(values)
     }
 
     /// Calls the host function at `address` with the arguments in `arguments`, its parameter slots in operand stack
@@ -1209,15 +1237,7 @@ impl Store {
             slot -= ty.slot_count() as usize;
             values.push(Value::from_slots(ty, &slots[slot..]));
         }
-        let (result_count, result_slots) = (function.ty.results.len(), function.header.result_slots as usize);
         let values = self.call_host(address, &values)?;
-        // NB: Results that do not match the function's type would not fit where they go.
-        let slot_count: usize = values.iter().map(|value| value.to_slots().1).sum();
-        if values.len() != result_count || slot_count != result_slots {
-            return Err(Trap::Host(
-                "a host function returned results that do not match its type".to_string(),
-            ));
-        }
         let mut next = results;
         for value in values.iter().rev() {
             let (value, count) = value.to_slots();
