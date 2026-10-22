@@ -1,0 +1,2 @@
+transparent: size=3072 PASS
+native: size=2048 PASS
