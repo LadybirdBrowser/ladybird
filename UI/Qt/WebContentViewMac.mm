@@ -26,6 +26,7 @@ static CALayer* as_layer(void* layer)
 void WebContentView::set_has_rounded_corners(bool has_rounded_corners)
 {
     m_has_rounded_corners = has_rounded_corners;
+    set_viewport_corner_radius(has_rounded_corners ? WEB_VIEW_CORNER_RADIUS : 0);
     if (m_iosurface_layer)
         as_layer(m_iosurface_layer).cornerRadius = has_rounded_corners ? WEB_VIEW_CORNER_RADIUS : 0;
 }
@@ -49,7 +50,8 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
         layer.opaque = NO;
         layer.masksToBounds = YES;
         layer.cornerRadius = m_has_rounded_corners ? WEB_VIEW_CORNER_RADIUS : 0;
-        layer.cornerCurve = kCACornerCurveContinuous;
+        // NB: The compositor clips the viewport's scrollbars to arcs concentric with circular corners.
+        layer.cornerCurve = kCACornerCurveCircular;
         // Without this every new frame would cross-fade in and geometry changes would slide.
         layer.actions = @ {
             @"contents" : NSNull.null,
