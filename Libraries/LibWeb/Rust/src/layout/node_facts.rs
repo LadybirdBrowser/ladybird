@@ -636,6 +636,15 @@ pub(crate) fn kind_is_block_container(kind: NodeKind) -> bool {
     )
 }
 
+/// A checkbox or radio button that keeps its native appearance. HTML makes both non-devolvable widgets, which CSS UI
+/// says keep that appearance "regardless of any properties that disable native appearance for widgets": their border
+/// and background.
+/// https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-checkbox-and-radio-button-widgets
+/// https://drafts.csswg.org/css-ui/#non-devolvable
+pub(crate) fn kind_is_non_devolvable_widget(kind: NodeKind) -> bool {
+    matches!(kind, NodeKind::CheckBox | NodeKind::RadioButton)
+}
+
 pub(crate) fn kind_is_replaced_box(kind: NodeKind) -> bool {
     matches!(
         kind,
@@ -732,6 +741,7 @@ impl<'pass> NodeFacts<'pass> {
             self.style_payloads
                 .expect("styled node must publish its style container before layout"),
         )
+        .for_kind(self.data().kind.get())
     }
 
     pub(super) fn computed_values_view_if_styled(&self) -> Option<ComputedValuesView<'pass>> {
