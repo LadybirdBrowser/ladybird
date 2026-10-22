@@ -870,7 +870,8 @@ pub(crate) struct RunRootOutcome {
     pub(super) cells: used_values::UsedValuesCellState,
     pub(super) own_metrics_sealed: bool,
     pub(super) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-    pub(super) rare: Option<used_values::UsedValuesRareData>,
+    /// Boxed, as most roots have none and a cached run holds its outcome for as long as it is reusable.
+    pub(super) rare: Option<Box<used_values::UsedValuesRareData>>,
 }
 
 impl RunRootOutcome {
@@ -880,7 +881,7 @@ impl RunRootOutcome {
             record.set_finished_line_data(line_data);
         }
         if let Some(rare) = self.rare {
-            rare.install_present_payloads_into(record);
+            (*rare).install_present_payloads_into(record);
         }
         if self.own_metrics_sealed {
             record.seal_own_metrics();
@@ -1091,7 +1092,7 @@ impl<'pass> FormattingContextRun<'pass> {
             cells: used_values::UsedValuesCellState::capture(record),
             own_metrics_sealed: record.own_metrics_are_sealed(),
             line_data: record.finish_line_data(&self.callbacks),
-            rare: record.rare_data.get().map(std::cell::RefCell::take),
+            rare: record.rare_data.get().map(|rare| Box::new(rare.take())),
         };
         RunOutputs {
             result,
