@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe srcdoc=""></iframe>
+<script>
+    function popstate(window) {
+        return new Promise(resolve => window.addEventListener("popstate", resolve, { once: true }));
+    }
+
+    function hashchange(window) {
+        return new Promise(resolve => window.addEventListener("hashchange", resolve, { once: true }));
+    }
+
+    promiseTest(async () => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        const frame = document.querySelector("iframe").contentWindow;
+
+        frame.location.hash = "a";
+        await hashchange(frame);
+        frame.location.hash = "b";
+        await hashchange(frame);
+
+        // The replacement runs while the traversal back is still under way. It replaces the forward entry, so going
+        // forward again should reach the replaced entry.
+        let traversed = popstate(frame);
+        frame.history.go(-1);
+        frame.history.replaceState(null, "", "about:srcdoc#replaced");
+        await traversed;
+        println(`After going back: ${frame.location.hash}`);
+
+        traversed = popstate(frame);
+        history.go(1);
+        await traversed;
+        println(`After going forward: ${frame.location.hash}`);
+    });
+</script>

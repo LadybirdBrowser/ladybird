@@ -1,0 +1,2 @@
+After going back: #a
+After going forward: #replaced
