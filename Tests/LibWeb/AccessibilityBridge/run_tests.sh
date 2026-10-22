@@ -90,18 +90,17 @@ esac
 
 run_unittest() {
     cd "${SCRIPT_DIR}"
-    exec "${PYTHON_BIN}" -m unittest discover "${discover_args[@]}" -v "${args[@]}"
+    exec "${PYTHON_BIN}" -m unittest discover "${discover_args[@]}" -v ${args[@]+"${args[@]}"}
 }
 
 if (( isolated == 0 )); then
     run_unittest
 fi
 
-# Isolated path: fresh X display + D-Bus session + AT-SPI2 bus.
-: "${XVFB_DISPLAY:=:99}"
+# NB: Isolated path: each run owns its display and the directory containing its AT-SPI2 socket.
 : "${XVFB_SCREEN:=1280x1024x24}"
 
-for tool in Xvfb dbus-run-session; do
+for tool in Xvfb dbus-run-session setsid; do
     if ! command -v "${tool}" >/dev/null 2>&1; then
         echo "error: isolated test run requires ${tool}, which is not on PATH." >&2
         echo "       install the relevant package (xvfb + dbus on Debian/Ubuntu;" >&2
@@ -111,59 +110,57 @@ for tool in Xvfb dbus-run-session; do
     fi
 done
 
-XVFB_SOCKET="/tmp/.X11-unix/X${XVFB_DISPLAY#:}"
+# Ladybird binds its IPC sockets under XDG_RUNTIME_DIR (Core::StandardPaths::runtime_directory), and dbus-run-session
+# binds its bus socket there too. A CI runner without a login session has no runtime directory, and parallel runs must
+# not share one, so every run gets a private runtime directory. It lives directly under /tmp to keep socket paths
+# within the sun_path limit.
+XDG_RUNTIME_DIR="$(mktemp -d "/tmp/ladybird-a11y-XXXXXX")"
+chmod 0700 "${XDG_RUNTIME_DIR}"
+export XDG_RUNTIME_DIR
 
-# Initialize the markers we own so an inherited value can't make the EXIT trap act on something we didn't start.
+# Outer traps: stop what we started and remove the runtime directory, also when ctest stops a run that timed out.
 XVFB_PID=""
-
-if [[ ! -S "${XVFB_SOCKET}" ]]; then
-    XVFB_LOG="$(mktemp "${TMPDIR:-/tmp}/ladybird-xvfb.XXXXXX")"
-    Xvfb "${XVFB_DISPLAY}" -screen 0 "${XVFB_SCREEN}" -nolisten tcp >"${XVFB_LOG}" 2>&1 &
-    XVFB_PID=$!
-    trap 'kill ${XVFB_PID} 2>/dev/null || true' EXIT
-    for _ in $(seq 1 30); do
-        if [[ -S "${XVFB_SOCKET}" ]]; then break; fi
-        sleep 0.1
-    done
-    if [[ ! -S "${XVFB_SOCKET}" ]]; then
-        echo "error: Xvfb failed to come up on ${XVFB_DISPLAY} within 3s." >&2
-        echo "       log: ${XVFB_LOG}" >&2
-        exit 1
-    fi
-fi
-
-export DISPLAY="${XVFB_DISPLAY}"
-export QT_QPA_PLATFORM=xcb
-
-# Ladybird's IPC sockets are bound under XDG_RUNTIME_DIR (Core::StandardPaths::runtime_directory). On a CI runner with
-# no login session, XDG_RUNTIME_DIR is unset and /run/user/<uid> doesn't exist — so the socket bind() fails with ENOENT
-# and Ladybird never reaches the AT-SPI2 registration we wait on. dbus-run-session would have the same problem for its
-# bus socket. Fix both by pointing XDG_RUNTIME_DIR at a per-run scratch directory we own.
-LADYBIRD_RUNTIME_DIR_OWNED=""
-if [[ -z "${XDG_RUNTIME_DIR:-}" ]] || [[ ! -d "${XDG_RUNTIME_DIR}" ]]; then
-    XDG_RUNTIME_DIR="$(mktemp -d -t "ladybird-a11y-runtime-XXXXXX")"
-    chmod 0700 "${XDG_RUNTIME_DIR}"
-    export XDG_RUNTIME_DIR
-    LADYBIRD_RUNTIME_DIR_OWNED=1
-fi
-
-# Outer EXIT trap: kill anything we own — Xvfb (if we started it), and clean up the runtime dir we created. We don't
-# exec into dbus-run-session below; that would wipe this trap and orphan Xvfb past the test's timeout.
+DBUS_SESSION_PID=""
+# shellcheck disable=SC2329 # Invoked by the EXIT trap below.
 cleanup_outer() {
     local rc=$?
-    if [[ -n "${XVFB_PID:-}" ]]; then
+    if [[ -n "${DBUS_SESSION_PID}" ]]; then
+        kill -- "-${DBUS_SESSION_PID}" 2>/dev/null || true
+    fi
+    if [[ -n "${XVFB_PID}" ]]; then
         kill "${XVFB_PID}" 2>/dev/null || true
     fi
-    if [[ -n "${LADYBIRD_RUNTIME_DIR_OWNED:-}" && -n "${XDG_RUNTIME_DIR:-}" ]]; then
-        rm -rf "${XDG_RUNTIME_DIR}" 2>/dev/null || true
-    fi
-    return $rc
+    rm -rf "${XDG_RUNTIME_DIR}"
+    return "${rc}"
 }
 trap cleanup_outer EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+
+# Let Xvfb pick a free display and report its number through -displayfd, so parallel runs never share a display.
+xvfb_log="${XDG_RUNTIME_DIR}/xvfb.log"
+xvfb_display_fifo="${XDG_RUNTIME_DIR}/display"
+mkfifo "${xvfb_display_fifo}"
+exec {xvfb_display_fd}<>"${xvfb_display_fifo}"
+Xvfb -displayfd 3 -screen 0 "${XVFB_SCREEN}" -nolisten tcp 3>"${xvfb_display_fifo}" >"${xvfb_log}" 2>&1 &
+XVFB_PID=$!
+xvfb_display_number=""
+xvfb_deadline=$((SECONDS + 30))
+while ! read -r -t 1 xvfb_display_number <&"${xvfb_display_fd}"; do
+    if ! kill -0 "${XVFB_PID}" 2>/dev/null || (( SECONDS >= xvfb_deadline )); then
+        echo "error: Xvfb exited or failed to come up within 30s. Its log:" >&2
+        cat "${xvfb_log}" >&2 || true
+        exit 1
+    fi
+done
+exec {xvfb_display_fd}>&-
+rm "${xvfb_display_fifo}"
+export DISPLAY=":${xvfb_display_number}"
+export QT_QPA_PLATFORM=xcb
 
 # shellcheck disable=SC2016 # The single-quoted body is intentional — the
 # inner bash -c expands its own $SCRIPT_DIR / $at_spi_bus_launcher etc.
-dbus-run-session -- bash -c '
+setsid dbus-run-session -- bash -c '
     set -euo pipefail
 
     # Inner EXIT trap: SIGTERM the AT-SPI2 daemons we backgrounded. Without this, when python exits: (1) the daemons
@@ -230,4 +227,11 @@ dbus-run-session -- bash -c '
     cd "'"${SCRIPT_DIR}"'"
     # Run python (no exec) so the EXIT trap above fires after unittest finishes and reaps the AT-SPI2 daemons.
     '"${PYTHON_BIN}"' -m unittest discover '"${discover_args[*]}"' -v "$@"
-' -- "${args[@]}"
+' -- ${args[@]+"${args[@]}"} &
+# NB: The session runs in the background in its own process group, and we wait for it. The TERM and INT traps then run
+#     while it is running and can stop the whole group, including the tests and the browsers they started.
+DBUS_SESSION_PID=$!
+rc=0
+wait "${DBUS_SESSION_PID}" || rc=$?
+DBUS_SESSION_PID=""
+exit "${rc}"
