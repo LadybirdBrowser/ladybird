@@ -123,6 +123,16 @@ ViewImplementation::~ViewImplementation()
         CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(*m_top_level_traversable);
 }
 
+pid_t ViewImplementation::web_content_pid() const
+{
+    return page().client().pid();
+}
+
+Vector<HistoryEntry> ViewImplementation::recent_history_entries(size_t limit) const
+{
+    return m_session->history_store->list_entries({}, 0, limit);
+}
+
 CanonicalTraversable& ViewImplementation::traversable() const
 {
     VERIFY(m_top_level_traversable);
@@ -665,6 +675,49 @@ void ViewImplementation::set_zoom(double zoom_level)
 {
     m_zoom_level = clamp_zoom_level(zoom_level);
     update_zoom();
+}
+
+void ViewImplementation::set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second)
+{
+    m_display_id = display_id;
+    m_maximum_frames_per_second = maximum_frames_per_second;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        page.async_set_maximum_frames_per_second(m_maximum_frames_per_second);
+        update_compositor_display_metadata(page);
+    });
+}
+
+void ViewImplementation::update_compositor_display_metadata(WebContentPage& page)
+{
+    Application::the().update_compositor_display_metadata(page.compositor_context_id(), m_display_id, m_maximum_frames_per_second);
+}
+
+static void send_screen_rects_to_page(WebContentPage& page, ViewImplementation::ScreenRects const& screens)
+{
+    page.async_update_screen_rects(screens.rects, screens.available_rects, screens.main_screen_index);
+}
+
+void ViewImplementation::update_screen_rects()
+{
+    auto screens = screen_rects();
+    if (!screens.has_value())
+        return;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        send_screen_rects_to_page(page, *screens);
+    });
+}
+
+void ViewImplementation::update_system_theme(Core::AnonymousBuffer const& theme)
+{
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        page.async_update_system_theme(theme);
+    });
+}
+
+void ViewImplementation::send_system_theme_to_page(WebContentPage& page)
+{
+    if (auto theme = system_theme(); theme.is_valid())
+        page.async_update_system_theme(theme);
 }
 
 void ViewImplementation::reset_zoom()
@@ -2944,6 +2997,8 @@ void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
     Application::the().apply_view_options({}, *this, page);
     send_force_dark(page);
     send_preferences_to_page(page);
+    if (auto screens = screen_rects(); screens.has_value())
+        send_screen_rects_to_page(page, *screens);
 }
 
 void ViewImplementation::prepare_page_for_tab(WebContentPage& page)

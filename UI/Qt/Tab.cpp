@@ -1446,7 +1446,7 @@ QString Tab::title() const
     if (!WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
         return title;
 
-    return QString("%1 [%2]").arg(title).arg(view().page().client().pid());
+    return QString("%1 [%2]").arg(title).arg(view().web_content_pid());
 }
 
 // A tab opened only for a review shows it over a blank page, under the review's own title if it has one, and closing it

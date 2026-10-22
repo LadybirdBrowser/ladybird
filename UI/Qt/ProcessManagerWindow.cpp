@@ -7,10 +7,8 @@
 #include <AK/HashMap.h>
 #include <AK/kmalloc.h>
 #include <LibURL/InternalURLs.h>
-#include <LibWebView/Application.h>
-#include <LibWebView/CanonicalTraversable.h>
-#include <LibWebView/FaviconStore.h>
-#include <LibWebView/ViewImplementation.h>
+#include <LibWebView/ProcessManager.h>
+#include <LibWebView/ProcessSnapshot.h>
 #include <UI/Qt/BrandColors.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
@@ -160,18 +158,18 @@ class ProcessItem final : public QTreeWidgetItem {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    void update_page_icon(WebView::ViewImplementation const* view, QIcon const& fallback)
+    void update_page_icon(WebView::ProcessPageSnapshot const* page, QIcon const& fallback)
     {
-        auto view_id = view ? Optional<u64> { view->view_id() } : Optional<u64> {};
-        auto favicon_hash = view ? view->favicon_hash() : Optional<String> {};
-        auto url = view ? Optional<URL::URL> { view->url() } : Optional<URL::URL> {};
+        auto view_id = page ? Optional<u64> { page->view_id } : Optional<u64> {};
+        auto favicon_hash = page ? page->favicon_hash : Optional<String> {};
+        auto url = page ? Optional<URL::URL> { page->url } : Optional<URL::URL> {};
         if (view_id != m_view_id || favicon_hash != m_favicon_hash || url != m_url) {
             m_view_id = view_id;
             m_favicon_hash = favicon_hash;
             m_url = url;
             m_favicon = {};
-            if (view && favicon_hash.has_value()) {
-                if (auto png = view->session().favicon_store->favicon_png(*favicon_hash); png.has_value())
+            if (page) {
+                if (auto png = WebView::favicon_png_for_page(*page); png.has_value())
                     m_favicon = icon_from_png(png->bytes(), 16);
             }
         }
@@ -357,8 +355,7 @@ void ProcessManagerWindow::hideEvent(QHideEvent* event)
 
 void ProcessManagerWindow::refresh()
 {
-    auto& manager = m_process_manager;
-    manager.update_all_process_statistics();
+    auto processes = WebView::process_snapshots(m_process_manager);
 
     auto scroll_position = m_processes->verticalScrollBar()->value();
     auto selected_child_id = m_processes->currentItem() && m_processes->currentItem()->isSelected() ? m_processes->currentItem()->data(PID, ChildIDRole) : QVariant {};
@@ -394,68 +391,36 @@ void ProcessManagerWindow::refresh()
     auto service_icon = create_chrome_icon(ChromeIcon::WindowRestore, muted_palette);
     auto spare_icon = create_chrome_icon(ChromeIcon::WindowMaximize, muted_palette);
 
-    enum class PageKind {
-        TopLevel,
-        Frame,
-    };
-    struct ProcessPage {
-        WebView::ViewImplementation* view;
-        URL::URL url;
-        PageKind kind;
-    };
-    HashMap<pid_t, ProcessPage> process_pages;
-    WebView::ViewImplementation::for_each_view([&](auto& view) {
-        // An owned view's page shares its owner's process, which the owner's tab already lists.
-        if (view.owner_view_id().has_value())
-            return IterationDecision::Continue;
-        auto active_view = WebView::Application::the().active_web_view();
-        auto priority = [&](auto const& candidate) {
-            if (active_view.has_value() && &*active_view == &candidate)
-                return 2;
-            return candidate.traversable().system_visibility_state() == Web::HTML::VisibilityState::Visible ? 1 : 0;
-        };
-        auto add_page = [&](pid_t pid, URL::URL const& url, PageKind kind) {
-            auto current = process_pages.get(pid);
-            if (!current.has_value() || priority(view) > priority(*current->view)
-                || (priority(view) == priority(*current->view) && view.view_id() < current->view->view_id())
-                || (current->view == &view && kind == PageKind::TopLevel && current->kind == PageKind::Frame))
-                process_pages.set(pid, ProcessPage { &view, url, kind });
-        };
-        add_page(view.page().client().pid(), view.url(), PageKind::TopLevel);
-        view.traversable().for_each_in_subtree([&](auto const& navigable) {
-            if (navigable.has_remote_host() && navigable.replicated_state().has_value())
-                add_page(navigable.remote_host().client().pid(), navigable.replicated_state()->active_document_url, PageKind::Frame);
-            return IterationDecision::Continue;
-        });
-        return IterationDecision::Continue;
-    });
-    manager.for_each_process_statistics([&](auto& process, auto const& statistics) {
-        auto* item = static_cast<ProcessItem*>(items.take(process.child_id()).value_or_lazy_evaluated([] { return new ProcessItem; }));
-        auto name = qstring_from_ak_string(WebView::process_name_from_type(process.type()));
-        if (process.type() == WebView::ProcessType::WebContent || process.type() == WebView::ProcessType::ImageDecoder) {
+    HashMap<u64, WebView::ProcessSnapshot const*> processes_by_child_id;
+    for (auto const& process : processes)
+        processes_by_child_id.set(process.child_id, &process);
+
+    for (auto const& process : processes) {
+        auto* item = static_cast<ProcessItem*>(items.take(process.child_id).value_or_lazy_evaluated([] { return new ProcessItem; }));
+        auto name = qstring_from_ak_string(WebView::process_name_from_type(process.type));
+        if (process.type == WebView::ProcessType::WebContent || process.type == WebView::ProcessType::ImageDecoder) {
             auto* label_process = &process;
-            if (process.type() == WebView::ProcessType::ImageDecoder && process.owner_child_id().has_value()) {
-                if (auto owner = manager.find_child(*process.owner_child_id()); owner.has_value())
-                    label_process = &*owner;
+            if (process.type == WebView::ProcessType::ImageDecoder && process.owner_child_id.has_value()) {
+                if (auto owner = processes_by_child_id.get(*process.owner_child_id); owner.has_value())
+                    label_process = *owner;
             }
-            auto page = process_pages.get(label_process->pid());
-            auto* view = page.has_value() ? page->view : nullptr;
-            bool is_spare = label_process->title().has_value() && *label_process->title() == "(spare)"_utf16;
-            if (view) {
+            auto const& page = label_process->page;
+            bool is_spare = label_process->title.has_value() && *label_process->title == "(spare)"_utf16;
+            if (page.has_value()) {
                 auto site = task_manager_site_label(page->url);
                 if (!site.isEmpty())
                     name += QStringLiteral(" — ") + site;
-            } else if (label_process->title().has_value()) {
-                name += QStringLiteral(" — ") + qstring_from_utf16_string(*label_process->title());
+            } else if (label_process->title.has_value()) {
+                name += QStringLiteral(" — ") + qstring_from_utf16_string(*label_process->title);
             }
-            if (process.type() == WebView::ProcessType::WebContent)
-                item->update_page_icon(page.has_value() && page->url != URL::about_blank() ? view : nullptr, is_spare ? spare_icon : web_content_icon);
+            if (process.type == WebView::ProcessType::WebContent)
+                item->update_page_icon(page.has_value() && page->url != URL::about_blank() ? &*page : nullptr, is_spare ? spare_icon : web_content_icon);
             else
                 item->setIcon(Name, service_icon);
         } else {
-            if (process.title().has_value())
-                name += QStringLiteral(" — ") + qstring_from_utf16_string(*process.title());
-            if (process.type() == WebView::ProcessType::Browser) {
+            if (process.title.has_value())
+                name += QStringLiteral(" — ") + qstring_from_utf16_string(*process.title);
+            if (process.type == WebView::ProcessType::Browser) {
                 browser_item = item;
                 item->setIcon(Name, browser_icon);
             } else {
@@ -464,19 +429,19 @@ void ProcessManagerWindow::refresh()
         }
         item->setText(Name, name);
         item->setToolTip(Name, name);
-        item->setText(PID, QString::number(statistics.pid));
-        item->setText(CPU, locale.toString(statistics.cpu_percent, 'f', 2) + '%');
-        item->setText(Memory, locale.formattedDataSize(statistics.memory_usage_bytes, 2));
-        item->setData(PID, Qt::UserRole, static_cast<qlonglong>(statistics.pid));
-        item->setData(PID, ChildIDRole, static_cast<qulonglong>(process.child_id()));
-        item->setData(CPU, Qt::UserRole, statistics.cpu_percent);
-        item->setData(Memory, Qt::UserRole, static_cast<qulonglong>(statistics.memory_usage_bytes));
+        item->setText(PID, QString::number(process.pid));
+        item->setText(CPU, locale.toString(process.cpu_percent, 'f', 2) + '%');
+        item->setText(Memory, locale.formattedDataSize(process.memory_usage_bytes, 2));
+        item->setData(PID, Qt::UserRole, static_cast<qlonglong>(process.pid));
+        item->setData(PID, ChildIDRole, static_cast<qulonglong>(process.child_id));
+        item->setData(CPU, Qt::UserRole, process.cpu_percent);
+        item->setData(Memory, Qt::UserRole, static_cast<qulonglong>(process.memory_usage_bytes));
         for (auto column : { PID, CPU, Memory })
             item->setTextAlignment(column, Qt::AlignRight | Qt::AlignVCenter);
-        live_items.set(process.child_id(), item);
-        total_cpu += statistics.cpu_percent;
-        total_memory += statistics.memory_usage_bytes;
-    });
+        live_items.set(process.child_id, item);
+        total_cpu += process.cpu_percent;
+        total_memory += process.memory_usage_bytes;
+    }
     for (auto& entry : items)
         delete entry.value;
     for (auto& entry : live_items) {

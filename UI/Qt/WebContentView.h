@@ -148,8 +148,6 @@ public:
     void push_viewport_size();
     void set_device_pixel_ratio(double);
     void set_zoom_level(double);
-    void set_maximum_frames_per_second(double);
-    void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second);
     void set_vertical_tab_overlay_insets(int left, int right);
     void set_bookmarks_bar_overlay_height(int);
     void prepare_for_window_move();
@@ -188,7 +186,8 @@ signals:
 private:
     // ^WebView::ViewImplementation
     virtual void prepare_page_for_navigable(WebView::WebContentPage&) override;
-    virtual void send_system_theme_to_page(WebView::WebContentPage&) override;
+    virtual Core::AnonymousBuffer system_theme() override;
+    virtual Optional<ScreenRects> screen_rects() const override;
     virtual void update_zoom() override;
     virtual Web::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
@@ -217,9 +216,6 @@ private:
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
     void schedule_frame_damage_repaint();
 #endif
-    void update_compositor_display_metadata();
-    void update_compositor_display_metadata(WebView::WebContentPage&);
-
     Web::DevicePixelPoint node_picker_position_for(QSinglePointEvent const&) const;
 
     void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
@@ -232,8 +228,6 @@ private:
     void finish_handling_key_event(Web::KeyEvent const&);
 
     void watch_screen_geometry(QScreen&);
-    void update_screen_rects();
-    void update_screen_rects(WebView::WebContentPage&);
 
     void set_crash_overlay_visible(bool);
     void show_crash_report_review(Optional<ByteString> const& hidden_crash_report_name = {});
