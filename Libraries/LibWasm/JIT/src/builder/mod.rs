@@ -562,7 +562,6 @@ impl Builder {
         value
     }
 
-    /// The value a forwarded phi stands for.
     /// A pure node, or the value of an equal one that dominates the current position.
     fn pure(&mut self, func: &mut Func, node: Node) -> Value {
         let key = numbering_key(&node);
@@ -917,14 +916,14 @@ impl Builder {
         }
     }
 
-    /// Records a branch from the current block to the label of `controls[index]`, carrying the top values of the
-    /// stack, through the successor `slot`.
     /// Ends the current block with a jump to `target`, or to a block the caller sets later if it is NONE, and returns
     /// the jump's successor slot.
     fn jump(&mut self, func: &mut Func, target: BlockId) -> u32 {
         self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[target])
     }
 
+    /// Records a branch from the current block to the label of `controls[index]`, carrying the top values of the
+    /// stack, through the successor `slot`.
     fn add_edge(&mut self, index: usize, slot: u32) {
         let control = self.controls[index];
         let (_, arity) = control.label_arity();
