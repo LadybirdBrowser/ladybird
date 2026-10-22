@@ -8,6 +8,7 @@ from typing import TextIO
 from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import implementation_header_for_interface
 from Generators.libweb_bindings.rust_bindings import rust_entry_point_name
+from Generators.libweb_bindings.rust_bindings import wrapper_host_class_symbol
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Utils.webidl_parser import Interface
 
@@ -82,7 +83,10 @@ def write_structured_serialize_bindings_implementation(out: TextIO, interfaces: 
     )
     for interface in included_interfaces:
         out.write(f"#include <LibWeb/Bindings/{interface.implemented_name}.h>\n")
-        out.write(f"#include <{implementation_header_for_interface(interface)}>\n")
+        # NB: The bindings find the cells of the objects of an interface implemented in Rust by the class of their
+        #     wrappers, which LibWeb/Bindings/<interface>.h declares, so they need no C++ class of the interface.
+        if not is_implemented_in_rust(interface):
+            out.write(f"#include <{implementation_header_for_interface(interface)}>\n")
 
     out.write(
         """
@@ -103,7 +107,7 @@ Optional<TransferablePlatformObject> transferable_from_object(JS::Object& object
     )
     for interface in rust_transferable:
         out.write(
-            f"""    if (auto* cell = Bindings::impl_from<{fully_qualified_name_for_interface(interface)}>(&object))
+            f"""    if (auto* cell = rust_interface_cell_of_wrapper(object, {wrapper_host_class_symbol(interface)}))
         return TransferablePlatformObject {{ .rust_object = cell, .primary_interface = HTML::TransferType::{interface.name} }};
 """
         )
@@ -191,7 +195,7 @@ Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object
     )
     for interface in rust_serializable:
         out.write(
-            f"""    if (auto* cell = Bindings::impl_from<{fully_qualified_name_for_interface(interface)}>(&object))
+            f"""    if (auto* cell = rust_interface_cell_of_wrapper(object, {wrapper_host_class_symbol(interface)}))
         return SerializablePlatformObject {{ .rust_object = cell, .interface_name = InterfaceName::{interface.name}, .realm = &object.shape().realm() }};
 """
         )

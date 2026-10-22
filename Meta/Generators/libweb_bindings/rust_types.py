@@ -236,11 +236,22 @@ def unnamed_union_idl_path(idl_type: IDLUnionType, context: GenerationContext, w
 
     paths = {mixin.path for mixin in context.mixins.values() if name_the_union(member_types_of_interface(mixin))}
     if not paths:
+        interfaces = []
         for module in context.modules:
             if module.interface is not None and name_the_union(member_types_of_interface(module.interface)):
                 paths.add(module.path)
+                interfaces.append(module.interface)
             if any(name_the_union(member.type for member in dictionary.members) for dictionary in module.dictionaries):
                 paths.add(module.path)
+        # NB: A union that an interface and the interfaces that inherit from it name, as the constructors of
+        #     DOMMatrixReadOnly and DOMMatrix do, is the union of the interface that the others inherit from.
+        roots = [
+            interface
+            for interface in interfaces
+            if all(other is interface or other in inheriting_interfaces(interface, context) for other in interfaces)
+        ]
+        if len(roots) == 1 and len(paths) == len(interfaces):
+            paths = {roots[0].path}
     if len(paths) != 1:
         raise UnsupportedByRustBindings(
             f"{what} has the union type {idl_type}, which no typedef names and which the IDL files "
@@ -323,17 +334,18 @@ def rust_union_path(idl_type: IDLUnionType, context: GenerationContext, what: st
     raise RuntimeError(f"No module defines the typedef {name}")
 
 
-def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
-    """The Rust type of the IDL values of the type."""
+def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_result: bool = False) -> str:
+    """The Rust type of the IDL values of the type. A result is a value that the implementation returns, which it
+    creates, so that it knows the interface of an object it returns."""
     unsupported_attributes = set(idl_type.extended_attributes) - SUPPORTED_TYPE_EXTENDED_ATTRIBUTES
     if unsupported_attributes:
         raise UnsupportedByRustBindings(f"{what} has extended attributes {sorted(unsupported_attributes)}")
     if idl_type.nullable:
-        return f"Option<{rust_type(idl_type.without_nullable(), context, what)}>"
+        return f"Option<{rust_type(idl_type.without_nullable(), context, what, is_result)}>"
     name = idl_type.name
     if isinstance(idl_type, IDLParameterizedType):
         if name == "sequence":
-            return f"Vec<{rust_type(idl_type.parameters[0], context, what)}>"
+            return f"Vec<{rust_type(idl_type.parameters[0], context, what, is_result)}>"
         if name == "record":
             key_type, value_type = idl_type.parameters
             if key_type.name not in ("DOMString", "USVString"):
@@ -352,8 +364,9 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str) -> str:
         return "Gc<FunctionObject>"
     interface = rust_interface(idl_type, context)
     if interface is not None:
-        if inheriting_interfaces(interface, context):
-            # NB: An object of such a type is a cell of any of several classes, which Ref<T> cannot express.
+        if inheriting_interfaces(interface, context) and not is_result:
+            # NB: An object of such a type is a cell of any of several classes, which Ref<T> cannot express. An object
+            #     that an implementation returns is one of exactly the interface, whose cell it created.
             raise UnsupportedByRustBindings(
                 f"{what} has the type {idl_type}, an interface that others inherit from, which the Rust bindings do "
                 "not convert yet"
@@ -389,7 +402,7 @@ def rust_result_type(idl_type: IDLType, context: GenerationContext, what: str) -
     promise object, which is the only place the Rust bindings handle a promise type in."""
     if is_promise_type(idl_type) and not idl_type.nullable:
         return "Gc<Object>"
-    return rust_type(idl_type, context, what)
+    return rust_type(idl_type, context, what, is_result=True)
 
 
 def holds_cells(

@@ -259,8 +259,14 @@ def rust_default_value(
     )
 
 
-def dictionary_can_be_empty(dictionary: Dictionary) -> bool:
-    return not any(member.required for member in dictionary.members)
+def dictionary_can_be_empty(context: GenerationContext, dictionary: Dictionary) -> bool:
+    """Whether the dictionary has a value without members: none of its members or of those of the dictionaries it
+    inherits from is required."""
+    return not any(
+        member.required
+        for inherited_dictionary in context.dictionary_inheritance_stack(dictionary)
+        for member in inherited_dictionary.members
+    )
 
 
 def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary: Dictionary) -> None:
@@ -271,6 +277,15 @@ def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary
     keys = []
     conversions = []
     empty_fields = []
+    parent_field = []
+    parent_conversion = ""
+    if dictionary.parent_name:
+        # NB: The struct of a dictionary that inherits from another holds that dictionary's struct in the field
+        #     `parent`, whose members are converted first, step 4 of https://webidl.spec.whatwg.org/#js-dictionary
+        parent_path = rust_dictionary_path(context.dictionaries[dictionary.parent_name], context)
+        parent_field = ["parent"]
+        parent_conversion = f"            let parent = <{parent_path}>::from_js(vm, value)?;\n"
+        empty_fields.append(f"parent: <{parent_path} as EmptyDictionary>::empty()")
     for member in dictionary.members:
         what = f"{dictionary.name}.{member.name}"
         local = rust_local_name(member.name)
@@ -302,7 +317,8 @@ def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary
 """
         )
     fields = ", ".join(
-        f"{rust_identifier(member.name)}: {rust_local_name(member.name)}" for member in dictionary.members
+        parent_field
+        + [f"{rust_identifier(member.name)}: {rust_local_name(member.name)}" for member in dictionary.members]
     )
     out.write(
         f"""
@@ -310,12 +326,12 @@ def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary
     impl FromJs for {path} {{
         fn from_js(vm: &Vm, value: Value) -> ThrowCompletionOr<Self> {{
 {"".join(keys)}            let object = dictionary_object(vm, value, "{dictionary.name}")?;
-{"".join(conversions)}            Ok(Self {{ {fields} }})
+{parent_conversion}{"".join(conversions)}            Ok(Self {{ {fields} }})
         }}
     }}
 """
     )
-    if dictionary_can_be_empty(dictionary):
+    if dictionary_can_be_empty(context, dictionary):
         out.write(
             f"""
     impl EmptyDictionary for {path} {{
