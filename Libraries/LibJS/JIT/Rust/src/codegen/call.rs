@@ -41,11 +41,13 @@ use crate::code::INLINED_CALL_SITE_BIT;
 use crate::code::JitStatus;
 use crate::code::SiteKind;
 use crate::inline_vec::InlineVec;
+use crate::ir::AccessorPart;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
 use crate::snapshot::CellId;
 use crate::snapshot::DirectCallTarget;
+use crate::snapshot::DirectGetterFields;
 use crate::snapshot::EnvironmentTemplateSnapshot;
 use crate::snapshot::InlinedFunctionSnapshot;
 use crate::snapshot::NativeCallTarget;
@@ -1164,10 +1166,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             this_operand,
             &argument_operands,
             next_pc,
-            dst,
+            Some(dst),
             site.as_ref(),
             temps,
-            [slow, check, done],
+            Some(slow),
+            [check, done],
         )?;
 
         // The generic call reads its operands from the frame.
@@ -1190,14 +1193,144 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_load_call_result(node, dst, site.as_ref())
     }
 
+    /// `CallNativeAccessor`: calls the raw native getter or setter that the
+    /// checks before the node established the property has, like
+    /// `CallNative` calls its target, with input 0 as the `this` value and
+    /// input 1 as the setter's argument. The value is the getter's result
+    /// (for the setter, its result too), in the return register.
+    pub(super) fn emit_call_native_accessor(
+        &mut self,
+        node: NodeId,
+        pc: u32,
+        part: AccessorPart,
+        target: NativeCallTarget,
+    ) -> Result<(), CompileFailure> {
+        let invalid = |reason| CompileFailure::InvalidBytecode { pc, reason };
+        let decoded = self.decoded(0, pc)?;
+        let next_pc = decoded.next_pc();
+        let (dst, arguments) = match (part, decoded.instruction) {
+            (AccessorPart::Getter, Instruction::GetById { dst, .. } | Instruction::GetLength { dst, .. }) => {
+                (Some(dst), Vec::new())
+            }
+            (AccessorPart::Setter, Instruction::PutById { .. }) => {
+                (None, vec![CallOperand::Register(self.input(node, 1))])
+            }
+            _ => return Err(invalid("native accessor call of another instruction")),
+        };
+        let this_operand = CallOperand::Register(self.input(node, 0));
+        let temps = [self.temp(node, 0), self.temp(node, 1), self.temp(node, 2)];
+        let check = self.masm.new_label();
+        let done = self.masm.new_label();
+
+        if let (AccessorPart::Getter, Some(fields)) = (part, target.direct_getter) {
+            self.emit_direct_getter_load(self.input(node, 0), fields, temps, done);
+        }
+
+        // Stack traces show the caller at its access.
+        let program_counter = self.frame_field(self.runtime.offsets.execution_context_program_counter);
+        self.masm.store_imm32(&program_counter, pc);
+
+        // NB: The result stays in the return register. Needs no native stack
+        //     check: the prologue made the same check, with the stack pointer
+        //     the code keeps until its epilogue.
+        self.emit_native_frame_call(
+            target,
+            this_operand,
+            &arguments,
+            next_pc,
+            None,
+            None,
+            temps,
+            None,
+            [check, done],
+        )?;
+
+        // NB: A function that threw continues at the next instruction only
+        //     if the frame does, where the getter's destination has its value.
+        self.masm.bind(check);
+        self.emit_continuation_check(next_pc, &[]);
+        if let Some(dst) = dst {
+            let address = self.slot_address(dst.raw())?;
+            self.masm.load64(M::RETURN_GPRS[0], &address);
+        } else {
+            self.masm.move_imm64(M::RETURN_GPRS[0], value::UNDEFINED);
+        }
+        self.masm.bind(done);
+        Ok(())
+    }
+
+    /// The getter of a platform object attribute backed by a field, without
+    /// calling it, as the interpreter reads it: the main world wrapper of the
+    /// field's implementation (or null), into the return register, jumping to
+    /// `done`. Falls through, with `object` intact, where the getter must run:
+    /// for a receiver that is not the main world wrapper of its implementation,
+    /// a field whose implementation has no main world wrapper yet, or a global
+    /// object (which the getter returns as its window proxy).
+    fn emit_direct_getter_load(
+        &mut self,
+        object: Gpr,
+        fields: DirectGetterFields,
+        [receiver, implementation, temp]: [Gpr; 3],
+        done: Label,
+    ) {
+        let offsets = self.runtime.offsets;
+        let layout = self.runtime.layout;
+        let scratch = self.pinned.scratch;
+        let call = self.masm.new_label();
+        let field = |base: Gpr, offset: u32| Address::new(base, offset as i32);
+
+        // NB: An ordinary object made from a wrapper's prototype has the wrapper's shape, but no implementation.
+        self.emit_unbox_cell(receiver, object);
+        self.masm.load16(scratch, &field(receiver, offsets.object_flags));
+        self.masm.branch_test32(
+            Condition::Zero,
+            scratch,
+            u32::from(layout.object_flag_is_platform_object),
+            call,
+        );
+        self.masm
+            .load64(implementation, &field(receiver, fields.wrapper_implementation));
+        self.masm.branch64_imm(Condition::Equal, implementation, 0, call);
+        self.masm
+            .load64(temp, &field(implementation, fields.main_world_wrapper));
+        self.masm.branch64_imm(Condition::Equal, temp, 0, call);
+        self.masm.load64(temp, &field(temp, fields.weak_impl_value));
+        self.masm.branch64(Condition::NotEqual, temp, receiver, call);
+
+        let not_null = self.masm.new_label();
+        self.masm
+            .load64(implementation, &field(implementation, fields.implementation_value));
+        self.masm.branch64_imm(Condition::NotEqual, implementation, 0, not_null);
+        self.masm.move_imm64(M::RETURN_GPRS[0], value::NULL);
+        self.masm.jump(done);
+
+        self.masm.bind(not_null);
+        self.masm
+            .load64(temp, &field(implementation, fields.main_world_wrapper));
+        self.masm.branch64_imm(Condition::Equal, temp, 0, call);
+        self.masm.load64(temp, &field(temp, fields.weak_impl_value));
+        self.masm.branch64_imm(Condition::Equal, temp, 0, call);
+        self.masm.load16(scratch, &field(temp, offsets.object_flags));
+        self.masm.branch_test32(
+            Condition::NonZero,
+            scratch,
+            u32::from(layout.object_flag_is_global_object),
+            call,
+        );
+        self.box_cell_with_tag(M::RETURN_GPRS[0], temp, value::OBJECT_TAG);
+        self.masm.jump(done);
+        self.masm.bind(call);
+    }
+
     /// Calls a raw native function the way the interpreter's `Call` fast
     /// path does: in a lightweight frame without an executable, linked to the
     /// calling frame, whose slots are the arguments, built in `temps`. Jumps
-    /// to `slow` (before anything observable happened) if the native stack is
-    /// too full (the code checked at entry that the interpreter stack has
-    /// room), to `check` once the runtime unwound the frame of a function
-    /// that threw, and to `done` once the result is in `dst`, or for a call
-    /// at an inlined call `site`, in the return register.
+    /// to `slow` (before anything observable happened) if there is one and
+    /// the native stack is too full (the code checked at entry that the
+    /// interpreter stack has room), to `check` once the runtime unwound the
+    /// frame of a function that threw, and to `done` once the result is in
+    /// `dst`, or for a call at an inlined call `site` or without `dst`, in
+    /// the return register.
     #[allow(clippy::too_many_arguments)]
     fn emit_native_frame_call(
         &mut self,
@@ -1205,10 +1338,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         this_operand: CallOperand,
         arguments: &[CallOperand],
         next_pc: u32,
-        dst: crate::bytecode::Operand,
+        dst: Option<crate::bytecode::Operand>,
         site: Option<&InlinedCallSite>,
         [native_frame, temp, other]: [Gpr; 3],
-        [slow, check, done]: [Label; 3],
+        slow: Option<Label>,
+        [check, done]: [Label; 2],
     ) -> Result<(), CompileFailure> {
         let runtime = self.runtime;
         let offsets = runtime.offsets;
@@ -1229,7 +1363,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
         // The native function runs on this native stack, so take the generic
         // path (which throws) if it is nearly exhausted.
-        self.emit_native_stack_check(slow);
+        if let Some(slow) = slow {
+            self.emit_native_stack_check(slow);
+        }
 
         // Allocate the frame on the interpreter stack, above room for the
         // frames of the inlined calls at an inlined call site.
@@ -1283,7 +1419,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 4,
                 u64::from(site.map_or(next_pc, InlinedCallSite::return_pc)),
             ),
-            (offsets.execution_context_caller_dst_raw, 4, u64::from(dst.raw())),
+            (
+                offsets.execution_context_caller_dst_raw,
+                4,
+                u64::from(dst.map_or(Operand::INVALID, |dst| dst.raw())),
+            ),
         ]);
         constants.push((offsets.execution_context_function, 8, target.function.0));
         constants.push((offsets.execution_context_realm, 8, target.realm.0));
@@ -1327,7 +1467,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.store64(&vm_field(offsets.vm_interpreter_stack_top), scratch);
         self.masm
             .store64(&vm_field(offsets.vm_running_execution_context), frame);
-        if site.is_none() {
+        if let (None, Some(dst)) = (site, dst) {
             let destination = self.slot_address(dst.raw())?;
             self.masm.store64(&destination, value_register);
         }

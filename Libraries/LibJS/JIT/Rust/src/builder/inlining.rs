@@ -437,7 +437,7 @@ impl GraphBuilder<'_> {
     /// Makes compiled code check at entry that the interpreter stack has room
     /// for a frame of `bytes` that a call pushes on top of the frames of the
     /// inlined calls it is in, so the call need not check.
-    fn reserve_call_frame(&mut self, bytes: u64) {
+    pub(super) fn reserve_call_frame(&mut self, bytes: u64) {
         let frame_bytes = self.function.inline.as_ref().map_or(0, |call| call.frame_bytes) + bytes;
         self.graph.materialized_frame_bytes = self.graph.materialized_frame_bytes.max(frame_bytes);
     }

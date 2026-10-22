@@ -31,6 +31,7 @@ use crate::code::ResumeMode;
 use crate::snapshot::CellId;
 use crate::snapshot::HelperResult;
 use crate::snapshot::Intrinsic;
+use crate::snapshot::NativeCallTarget;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct NodeId(pub u32);
@@ -574,6 +575,18 @@ pub enum Op {
         pc: u32,
         inlined_frame_bytes: u32,
         stores_operands: bool,
+    },
+    /// The `GetById` or `GetLength` (for the getter) or `PutById` (for the
+    /// setter) at `pc` of the compiled function (never of an inlined call),
+    /// whose checks established that the property is an accessor whose
+    /// `part` is the raw native function `target`: calls it like
+    /// `CallNative` calls its target, with input 0 as the `this` value and
+    /// input 1 (for the setter) as the argument. The value is the getter's
+    /// result (for the setter, its result too).
+    CallNativeAccessor {
+        pc: u32,
+        part: AccessorPart,
+        target: NativeCallTarget,
     },
     /// The running frame's passed argument count, as an int32 value.
     ArgumentCount,
@@ -1491,16 +1504,18 @@ impl Op {
                 reads: Locations::FRAME,
                 ..P::PURE
             },
-            Op::Generic { .. } | Op::CallDirect { .. } | Op::CallNative { .. } | Op::CallForwardingArguments { .. } => {
-                P {
-                    can_lazy_exit: true,
-                    is_call: true,
-                    reads: Locations::ALL,
-                    writes: Locations::ALL,
-                    runs_code: true,
-                    allocates: true,
-                }
-            }
+            Op::Generic { .. }
+            | Op::CallDirect { .. }
+            | Op::CallNative { .. }
+            | Op::CallNativeAccessor { .. }
+            | Op::CallForwardingArguments { .. } => P {
+                can_lazy_exit: true,
+                is_call: true,
+                reads: Locations::ALL,
+                writes: Locations::ALL,
+                runs_code: true,
+                allocates: true,
+            },
             Op::Jump { .. }
             | Op::Branch { .. }
             | Op::BranchTruthy { .. }
@@ -1661,6 +1676,7 @@ impl Op {
             Op::Generic { .. } => "Generic",
             Op::CallDirect { .. } => "CallDirect",
             Op::CallNative { .. } => "CallNative",
+            Op::CallNativeAccessor { .. } => "CallNativeAccessor",
             Op::ArgumentCount => "ArgumentCount",
             Op::LoadFrameField { .. } => "LoadFrameField",
             Op::LoadArgument { .. } => "LoadArgument",

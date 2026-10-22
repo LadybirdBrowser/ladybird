@@ -15,8 +15,8 @@ use libjs_jit::bytecode::{EnvironmentCoordinate, ExceptionHandler, FrameLayout, 
 use libjs_jit::code::ExitKind;
 use libjs_jit::snapshot::{
     AccessorFunctionSnapshot, CallFeedbackSnapshot, CellId, ClosureTemplateSnapshot, CompileOptions, ConstructTarget,
-    DirectCallTarget, EnvironmentTemplateSnapshot, ExecutableSnapshot, FeedbackSnapshot, ForwardedCallSnapshot,
-    Forwarding, FunctionFrameFields, GlobalCacheSnapshot, GlobalValueSnapshot, GlobalsSnapshot,
+    DirectCallTarget, DirectGetterFields, EnvironmentTemplateSnapshot, ExecutableSnapshot, FeedbackSnapshot,
+    ForwardedCallSnapshot, Forwarding, FunctionFrameFields, GlobalCacheSnapshot, GlobalValueSnapshot, GlobalsSnapshot,
     InlinedFunctionSnapshot, InliningLimits, Intrinsic, KeyedFeedbackSnapshot, LexicalEnvironmentTemplateSnapshot,
     NativeCallTarget, ObjectShapeCacheSnapshot, OrdinaryHasInstanceSnapshot, PropertyCacheEntrySnapshot,
     PropertyCacheEntryType, PropertyCacheKind, PropertyCacheSnapshot, ShapeSnapshot, Snapshot, StressOptions,
@@ -36,7 +36,9 @@ use crate::gc::class::Extends;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
-use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject, RawNativeFunction};
+use crate::layout::function_object::{
+    DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, RawNativeFunction,
+};
 use crate::layout::object::{Object, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID, TypedArrayBase};
 use crate::layout::property_lookup_cache::{
     GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
@@ -419,12 +421,18 @@ impl SnapshotBuilder<'_> {
                 .and_then(|value| value.as_accessor().cached_value_key())
                 .and_then(|key| entry.shape?.lookup(&PropertyKey::from_symbol(key)))
                 .map(|metadata| metadata.offset);
-            let accessor_function = entry_accessor_function(slot).map(|function| AccessorFunctionSnapshot {
-                cached_value_offset,
-                function: self.cell(function),
-                intrinsic: intrinsic_of(self.vm, Some(Value::from_object(function.upcast::<Object>()).as_cell())),
-                inline_executable: self
-                    .inline_executable_index(Some(Value::from_object(function.upcast::<Object>()).as_cell()), caller),
+            let accessor_function = entry_accessor_function(slot).map(|function| {
+                let cell = self.cell(function);
+                AccessorFunctionSnapshot {
+                    cached_value_offset,
+                    function: cell,
+                    intrinsic: intrinsic_of(self.vm, Some(Value::from_object(function.upcast::<Object>()).as_cell())),
+                    inline_executable: self.inline_executable_index(
+                        Some(Value::from_object(function.upcast::<Object>()).as_cell()),
+                        caller,
+                    ),
+                    native: self.native_accessor_target(function, cell, entry.direct_getter_validated),
+                }
             });
             entries.push(PropertyCacheEntrySnapshot {
                 entry_type,
@@ -852,9 +860,44 @@ impl SnapshotBuilder<'_> {
                 function: self.cell(function),
                 realm: self.cell(function.realm()),
                 entry,
+                direct_getter: None,
             });
         }
         snapshot
+    }
+
+    /// The target through which JIT code may call an accessor's function, whose cell is `function_cell`, directly,
+    /// if it is a raw native function. Like the interpreter, JIT code reads the value of a direct getter without
+    /// calling it only through a cache entry on which the getter ran (`direct_getter_validated`).
+    fn native_accessor_target(
+        &mut self,
+        function: Gc<FunctionObject>,
+        function_cell: CellId,
+        direct_getter_validated: bool,
+    ) -> Option<NativeCallTarget> {
+        if !RAW_NATIVE_FUNCTIONS_RETURN_IN_REGISTERS {
+            return None;
+        }
+        let native_function = function.downcast::<RawNativeFunction>()?;
+        let entry = native_function.native_function(self.vm)? as usize as u64;
+        let direct_getter = function
+            .downcast::<DirectGetterFunction>()
+            .filter(|_| direct_getter_validated)
+            .map(|getter| {
+                let bytes = |word_offset: u32| word_offset * size_of::<u64>() as u32;
+                DirectGetterFields {
+                    wrapper_implementation: bytes(getter.wrapper_implementation_word_offset.get()),
+                    implementation_value: bytes(getter.implementation_value_word_offset.get()),
+                    main_world_wrapper: bytes(getter.main_world_wrapper_word_offset.get()),
+                    weak_impl_value: bytes(getter.weak_impl_value_word_offset.get()),
+                }
+            });
+        Some(NativeCallTarget {
+            function: function_cell,
+            realm: self.cell(native_function.realm()),
+            entry,
+            direct_getter,
+        })
     }
 
     /// The snapshot of an executable of the snapshot.

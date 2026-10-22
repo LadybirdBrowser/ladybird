@@ -580,6 +580,24 @@ pub struct NativeCallTarget {
     pub realm: CellId,
     /// `ThrowCompletionOr<Value> (*)(VM&)`: the native function.
     pub entry: u64,
+    /// Where the function, a getter of a platform object attribute backed by
+    /// a field, finds the wrapper it would return, if it is one and the
+    /// interpreter validated the cache entry for it (see
+    /// `PropertyLookupCacheEntry::direct_getter_validated`).
+    pub direct_getter: Option<DirectGetterFields>,
+}
+
+/// The byte offsets a `DirectGetterFunction` reads: the implementation of a
+/// wrapper, the field of the implementation the attribute returns, the weak
+/// reference of an implementation to its main world wrapper, and the cell of
+/// that weak reference. The getter returns the main world wrapper of the
+/// field's implementation, or null for a null field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DirectGetterFields {
+    pub wrapper_implementation: u32,
+    pub implementation_value: u32,
+    pub main_world_wrapper: u32,
+    pub weak_impl_value: u32,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -689,6 +707,9 @@ pub struct AccessorFunctionSnapshot {
     /// The index in `Snapshot::executables` of the function's executable,
     /// if it is an inlining candidate.
     pub inline_executable: Option<u32>,
+    /// The function as a raw native function that JIT code may call
+    /// directly, if it is one.
+    pub native: Option<NativeCallTarget>,
 }
 
 /// Built-in functions the compiler recognizes.
@@ -1603,6 +1624,9 @@ pub struct RuntimeLayout {
     pub object_flag_is_typed_array: u16,
     /// `Object::Flag::IsHTMLDDA`.
     pub object_flag_is_htmldda: u16,
+    /// `Object::Flag::IsPlatformObject` and `Object::Flag::IsGlobalObject`.
+    pub object_flag_is_platform_object: u16,
+    pub object_flag_is_global_object: u16,
     /// `Object::Flag::RequiresSlowAddOwnProperty`.
     pub object_flag_requires_slow_add_own_property: u16,
     /// The capacity (u32) of heap named property storage, relative to the

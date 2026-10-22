@@ -209,6 +209,13 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
             let stores = if *stores_operands { " storing operands" } else { "" };
             with_inputs(&format!("CallNative {location}{frames}{stores}"))
         }
+        Op::CallNativeAccessor { pc, part, target } => {
+            let direct = if target.direct_getter.is_some() { " direct" } else { "" };
+            with_inputs(&format!(
+                "CallNativeAccessor @{pc} {part:?} {:#x}{direct}",
+                target.function.0
+            ))
+        }
         Op::AllocateObject {
             shape,
             property_count,

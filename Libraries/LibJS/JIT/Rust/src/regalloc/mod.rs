@@ -397,6 +397,12 @@ fn constraints(node: &Node, registers: &RegisterSet) -> Constraints {
                 constraints.output = OutputConstraint::FixedRegister(registers.return_gpr);
             }
         }
+        // Native accessor calls build the callee's frame in temps, and return
+        // the result.
+        Op::CallNativeAccessor { .. } => {
+            constraints.temps = crate::codegen::DIRECT_CALL_TEMPS;
+            constraints.output = OutputConstraint::FixedRegister(registers.return_gpr);
+        }
         // The object, its shape and the cache entry.
         Op::ProbePropertyCache { .. } | Op::ProbeKeyedCache { .. } => constraints.temps = 3,
         // Those, and the named property storage of property additions.

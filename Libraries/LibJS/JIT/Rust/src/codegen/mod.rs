@@ -1462,6 +1462,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::Generic { opcode, executable, pc } => {
                 self.emit_generic(*opcode, *executable, *pc)?;
             }
+            Op::CallNativeAccessor { pc, part, target } => {
+                self.emit_call_native_accessor(node_id, *pc, *part, *target)?;
+            }
             Op::CallDirect { executable, pc, .. } | Op::CallNative { executable, pc, .. } => {
                 let (executable, pc) = (*executable, *pc);
                 // NB: A call in an inlined callee that does not run without

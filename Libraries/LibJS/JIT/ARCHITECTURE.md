@@ -223,6 +223,7 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | **Calls** | | | | | |
 | CallDirect | A `Call` to its feedback's ECMAScript target, entering its code directly. | L, throws | Any | Any | call, allocates |
 | CallNative | A `Call` to its feedback's native target, in the interpreter's lightweight frame. | L, throws | Any | Any | call, allocates |
+| CallNativeAccessor | The raw native getter (of a `GetById` or `GetLength`) or setter (of a `PutById`) that the checks before it established the property has, called like `CallNative` calls its target. A getter of a platform object attribute backed by a field reads the main world wrapper it would return inline where there is one, if the interpreter validated the cache entries for that. The getter's result (for the setter, its result too). | L, throws | Any | Any | call, allocates |
 | CallForwardingArguments | `f.apply(this, arguments)` with an arguments object never created. | L, throws | Any | Any | call, allocates |
 | CallSlowPath | One bytecode instruction through the interpreter's slow path, on SSA operands, with SSA outputs, with a frame state after the instruction. `saves_registers`: in a cold block, preserving every register. | L unless it saves registers; throws per opcode | Any | Any | call unless it saves registers; allocates |
 | SlowPathOutput | A further output of the `CallSlowPath` right before it, which is its input (the verifier checks that it follows it). | | | | |
