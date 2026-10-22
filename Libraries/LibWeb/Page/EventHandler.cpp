@@ -28,6 +28,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DragDataStore.h>
@@ -1897,8 +1898,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     if (native_editing_binding_resolved)
         native_command_document = m_navigable->active_document();
     auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point, repeat);
-    if (dispatch_result != EventResult::Accepted)
+    if (dispatch_result != EventResult::Accepted) {
+        // A page that handles Tab or Escape itself gets the key, and the writing suggestion is dropped.
+        if (first_is_one_of(key, UIEvents::KeyCode::Key_Tab, UIEvents::KeyCode::Key_Escape)) {
+            if (auto document = m_navigable->active_document(); document && document->writing_suggestion_controller_if_exists())
+                document->writing_suggestion_controller_if_exists()->dismiss();
+        }
         return dispatch_result;
+    }
 
     // https://w3c.github.io/uievents/#event-type-keypress
     // If supported by a user agent, this event MUST be dispatched when a key is pressed down, if and only if that key
@@ -1936,6 +1943,22 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     if (!(modifiers & UIEvents::KeyModifier::Mod_Ctrl)) {
         if (key == UIEvents::KeyCode::Key_Tab) {
+            // Tab types in the writing suggestion that's showing, rather than moving focus. Shift+Tab never does.
+            if (!(modifiers & UIEvents::KeyModifier::Mod_Shift)) {
+                if (auto* controller = document->writing_suggestion_controller_if_exists()) {
+                    if (auto suggestion = controller->accept(); suggestion.has_value()) {
+                        auto* target = document->active_input_events_target();
+                        if (!target)
+                            return EventResult::Handled;
+                        FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, *suggestion));
+                        FIRE(fire_text_input_event(m_navigable, *suggestion));
+                        if (m_navigable->active_document() != document || !document->is_fully_active() || document->active_input_events_target() != target)
+                            return EventResult::Handled;
+                        target->handle_insert(UIEvents::InputTypes::insertText, *suggestion);
+                        return EventResult::Handled;
+                    }
+                }
+            }
             return focus_sequentially(modifiers & UIEvents::KeyModifier::Mod_Shift ? HTML::SequentialFocusDirection::Backward : HTML::SequentialFocusDirection::Forward);
         }
     }
@@ -1946,6 +1969,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         // NB: Exit autoscroll if active before handling other close requests.
         if (m_middle_button_scroll_handler) {
             m_middle_button_scroll_handler = nullptr;
+            return EventResult::Handled;
+        }
+
+        // AD-HOC: The spec treats any Escape keydown that the page doesn't cancel as a close request. But while a
+        //         writing suggestion shows, Escape only dismisses it, as it does in native text fields — so dismissing
+        //         a suggestion in a modal dialog doesn't also close the dialog.
+        if (auto* controller = document->writing_suggestion_controller_if_exists(); controller && controller->showing().has_value()) {
+            controller->dismiss();
             return EventResult::Handled;
         }
 

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="area"></textarea>
+<script>
+    promiseTest(async () => {
+        const area = document.getElementById("area");
+        const watcher = new CloseWatcher();
+        let closed = false;
+        watcher.onclose = () => closed = true;
+
+        internals.sendText(area, "predi");
+        await internals.writingSuggestionSettled();
+        println(`showing: ${internals.writingSuggestion()}`);
+
+        internals.sendKey(area, "Escape");
+        await internals.writingSuggestionSettled();
+        println(`after Escape: ${internals.writingSuggestion()}, closed: ${closed}`);
+
+        internals.sendKey(area, "Escape");
+        println(`after a second Escape: closed: ${closed}`);
+    });
+</script>

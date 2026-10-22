@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="before">
+<textarea id="area"></textarea>
+<input id="after">
+<script>
+    promiseTest(async () => {
+        const TAB = "";
+        const area = document.getElementById("area");
+        let log = [];
+        for (const type of ["beforeinput", "input"])
+            area.addEventListener(type, e => log.push(`${type} ${e.inputType} ${e.data}`));
+
+        const reset = async () => {
+            area.value = "";
+            internals.sendText(area, "predi");
+            await internals.writingSuggestionSettled();
+            log = [];
+        };
+        const show = async label => {
+            await internals.writingSuggestionSettled();
+            println(`${label}:`);
+            println(`  value: ${area.value}`);
+            println(`  focus: ${document.activeElement.id}`);
+            println(`  events: ${log.join(", ") || "(none)"}`);
+            println(`  suggestion: ${internals.writingSuggestion()}`);
+        };
+
+        await reset();
+        internals.sendText(area, TAB);
+        await show("Tab with a suggestion");
+
+        await reset();
+        const cancelTab = e => {
+            if (e.key === "Tab")
+                e.preventDefault();
+        };
+        area.addEventListener("keydown", cancelTab);
+        internals.sendText(area, TAB);
+        await show("Tab canceled by the page");
+        area.removeEventListener("keydown", cancelTab);
+
+        area.value = "";
+        log = [];
+        internals.sendText(area, TAB);
+        await show("Tab without a suggestion");
+
+        await reset();
+        internals.sendText(area, TAB, internals.MOD_SHIFT);
+        await show("Shift+Tab with a suggestion");
+
+        await reset();
+        const cancelInsertion = e => e.preventDefault();
+        area.addEventListener("beforeinput", cancelInsertion);
+        internals.sendText(area, TAB);
+        await show("Insertion canceled by the page");
+    });
+</script>

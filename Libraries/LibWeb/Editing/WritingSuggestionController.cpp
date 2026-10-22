@@ -133,6 +133,17 @@ void WritingSuggestionController::dismiss()
         set_showing({});
 }
 
+Optional<Utf16String> WritingSuggestionController::accept()
+{
+    if (!m_showing.has_value())
+        return {};
+    Optional<Utf16String> remainder;
+    if (caret_is_at_showing_suggestion())
+        remainder = m_showing->remainder;
+    dismiss();
+    return remainder;
+}
+
 void WritingSuggestionController::did_focus(GC::Ptr<DOM::Node>)
 {
     dismiss();
