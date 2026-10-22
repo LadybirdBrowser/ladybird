@@ -357,7 +357,12 @@ the interpreter and the host. The JIT is on by default; `LIBWASM_JIT` configures
 - **Compiled to the rest.** Every other function's native entry is the runtime adapter, which saves
   the argument registers and calls `wasm_runtime_call_from_native`. That runs the callee through
   `Store::invoke` (a nested interpreter entry, or the host function) and puts the results into the
-  saved registers and result area, or returns a trap code, keeping the trap in the store.
+  saved registers and result area, or returns a trap code, keeping the trap in the store. A tail
+  call of WebAssembly code from compiled code that the entry trampoline called, whose adapter frame
+  returns to the trampoline, is not made there: the runtime keeps the callee and its arguments and
+  returns through the trampoline, and the interpreter calls the callee in the compiled function's
+  place (its CallPending pseudo-instruction, or a tail call of the frame an OSR compile continued).
+  So functions that tail call each other across the tiers run in constant stack space.
 - **Traps.** The trap exit stores the code in the context's first argument and the context in the
   trapping frame's header, then continues at the interpreter's TrapFromNative pseudo-instruction
   (opcode 0xEF), which traps like the interpreter does: out of the innermost interpreter entry,

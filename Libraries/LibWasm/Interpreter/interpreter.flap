@@ -307,7 +307,8 @@ inline fn call_host_function(function: u64, return_ip: u64, context_pointer: u64
 
 # Call a function with compiled code, with its arguments on top of the operand stack. The runtime runs it and replaces
 # the arguments with its results; a trap in it leaves the interpreter from the compiled code. An exception it throws
-# continues at the call, as with host functions.
+# continues at the call, as with host functions. A tail call it makes of a function that does not run compiled comes
+# back to the interpreter, which makes it in the compiled function's place (see CallPending).
 inline fn call_compiled_function(function: u64, return_ip: u64, context_pointer: u64) {
     store64([context_pointer, CONTEXT_ARGUMENTS], function);
     let top: u64 = vsp;
@@ -322,6 +323,13 @@ inline fn call_compiled_function(function: u64, return_ip: u64, context_pointer:
     };
     if new_top == 1 @cold {
         resume_at_handler();
+    }
+    if new_top == 2 @cold {
+        let pending_context = context();
+        let mut pending_ip: u64;
+        load64(pending_ip, [pending_context, CONTEXT_ARGUMENT_4]);
+        ip = pending_ip;
+        dispatch;
     }
     vsp = new_top;
     dispatch;
@@ -676,6 +684,41 @@ inline fn tail_call(function: u64) {
     call_function(function, return_ip, context_pointer);
 }
 
+# Call the function that compiled code tail called, which the runtime left in the context's first argument with its
+# argument slots, in operand stack order, where the second points, so that its results end at `end`, and continue at
+# `return_ip` when it returns. Its arguments may need more room than those of the function it replaces.
+inline fn call_pending(end: u64, return_ip: u64) {
+    let context_pointer = context();
+    let mut function: u64;
+    load64(function, [context_pointer, CONTEXT_ARGUMENTS]);
+    let mut arguments_pointer: u64;
+    load64(arguments_pointer, [context_pointer, CONTEXT_ARGUMENT_1]);
+    let mut param_slots: u64;
+    load32(param_slots, [function, FUNCTION_PARAM_SLOTS]);
+    let new_top = end - (param_slots << 3);
+    let current_sp: u64 = sp;
+    # The handlers' spill area is right above the stack pointer, so it must stay below the arguments.
+    let bottom = align_down_16(new_top - SPILL_AREA_SIZE);
+    if bottom < current_sp {
+        let mut limit: u64;
+        load64(limit, [context_pointer, CONTEXT_STACK_LIMIT]);
+        guard bottom >= limit else @cold {
+            trap_with(TRAP_STACK_EXHAUSTED, context_pointer);
+        };
+        probe_stack(current_sp, bottom);
+        sp = bottom;
+    }
+    let arguments: Sequence<u64> = alias(arguments_pointer);
+    let slots: Sequence<u64> = alias(new_top);
+    let mut index: u64 = 0;
+    while index < param_slots {
+        slots[index] = arguments[index];
+        index = index + 1;
+    }
+    vsp = new_top;
+    call_function(function, return_ip, context_pointer);
+}
+
 # Branches.
 
 # Take the branch whose side-table entry is at `entry`, from the instruction at `branch_ip`.
@@ -814,6 +857,18 @@ handler TrapFromNative() @opcode(0xef) {
     trap_with(code, context_pointer);
 }
 
+# Compiled code that call_compiled_function() called, or that continued a frame at a loop, tail called a function that
+# does not run compiled, which the runtime left pending (see call_pending()), with where the results of the function
+# it replaces go in the context's third argument and the address its call returns to in the fourth.
+handler CallPending() @opcode(0xee) {
+    let context_pointer = context();
+    let mut end: u64;
+    load64(end, [context_pointer, CONTEXT_ARGUMENT_2]);
+    let mut return_ip: u64;
+    load64(return_ip, [context_pointer, CONTEXT_ARGUMENT_3]);
+    call_pending(end, return_ip);
+}
+
 # Bytes that are no instruction. Validation rejects every one of them, so this is never reached.
 handler Fallback() @fallback {
     trap(TRAP_UNREACHABLE);
@@ -847,13 +902,31 @@ handler Loop() @opcode(0x03) {
         let frame: u64 = fp;
         store64([context_pointer, CONTEXT_ARGUMENT_3], frame);
         # The runtime may run the rest of the function compiled from here (OSR), leaving its results on the operand
-        # stack.
+        # stack, or a tail call it made pending.
         let results_top: u64 = call_helper(wasm_runtime_tier_up, context_pointer);
         if results_top == 1 {
             resume_at_handler();
         }
         if results_top == 2 {
             trap(TRAP_RUNTIME);
+        }
+        if results_top == 3 {
+            # The frame's compiled code tail called a function that does not run compiled, which replaces the frame.
+            let frame: u64 = fp;
+            let mut saved_stp: u64;
+            load64(saved_stp, [frame, FRAME_SAVED_STP]);
+            stp = saved_stp;
+            let mut saved_memory_base: u64;
+            load64(saved_memory_base, [frame, FRAME_SAVED_MEMORY_BASE]);
+            memory_base = saved_memory_base;
+            let mut saved_fp: u64;
+            load64(saved_fp, [frame, FRAME_SAVED_FP]);
+            fp = saved_fp;
+            let pending_context = context();
+            let mut pending_ip: u64;
+            load64(pending_ip, [pending_context, CONTEXT_ARGUMENT_4]);
+            ip = pending_ip;
+            dispatch;
         }
         if results_top != 0 {
             vsp = results_top;
