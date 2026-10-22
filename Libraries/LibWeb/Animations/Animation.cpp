@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -429,7 +430,7 @@ WebIDL::ExceptionOr<TimelineRangeEdge> parse_timeline_range_edge(DOM::Document& 
         CSS::ComputedValuesFFI::FfiAnimationRangeEdge edge {};
         if (!CSS::ComputedValuesFFI::rust_animation_range_edge(computed->rust_style_value_data(), side == TimelineRangeEdgeSide::End, &edge))
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid timeline range"_utf16 };
-        return TimelineRangeEdge { static_cast<TimelineRangeName>(edge.name), edge.offset_px, edge.offset_percentage };
+        return TimelineRangeEdge { static_cast<TimelineRangeName>(edge.name), edge.offset_px, edge.offset_percentage, retain_calculated_offset(edge.offset_calculated) };
     };
     return value.visit(
         [&](Bindings::TimelineRangeOffset const& offset) -> WebIDL::ExceptionOr<TimelineRangeEdge> {
@@ -467,6 +468,10 @@ static TimelineRangeBindingValue timeline_range_edge_to_bindings(TimelineRangeEd
     GC::Ref<CSS::CSSNumericValue> offset = edge.offset_px == 0 ? GC::Ref<CSS::CSSNumericValue> { percentage } : GC::Ref<CSS::CSSNumericValue> { px };
     if (edge.offset_px != 0 && edge.offset_percentage != 0)
         offset = MUST(CSS::CSSMathSum::create_for_constructor(Vector<CSS::CSSNumberish> { GC::Ref<CSS::CSSNumericValue> { px }, GC::Ref<CSS::CSSNumericValue> { percentage } }));
+    if (edge.calculated_offset) {
+        auto calculated = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(edge.calculated_offset.data()));
+        offset = as<CSS::CSSNumericValue>(*calculated->as_calculated().reify({}));
+    }
 
     Bindings::TimelineRangeOffset range_offset {};
     range_offset.range_name = edge.name == TimelineRangeName::None ? Optional<Utf16String> {} : Utf16String::from_utf8_without_validation(timeline_range_name_to_string(edge.name).bytes());

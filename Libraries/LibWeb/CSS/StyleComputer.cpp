@@ -956,8 +956,8 @@ static AnimationProperties animation_properties_from_ffi(ComputedValuesFFI::FfiC
             .name = animation.timeline_name ? css_string_from_rust(animation.timeline_name) : Utf16FlyString {},
         },
         .range = {
-            .start = { static_cast<Animations::TimelineRangeName>(animation.range_start_name), animation.range_start_px, animation.range_start_percentage },
-            .end = { static_cast<Animations::TimelineRangeName>(animation.range_end_name), animation.range_end_px, animation.range_end_percentage },
+            .start = { static_cast<Animations::TimelineRangeName>(animation.range_start_name), animation.range_start_px, animation.range_start_percentage, Animations::retain_calculated_offset(animation.range_start_calculated) },
+            .end = { static_cast<Animations::TimelineRangeName>(animation.range_end_name), animation.range_end_px, animation.range_end_percentage, Animations::retain_calculated_offset(animation.range_end_calculated) },
         },
         .timing_function_value = move(timing_function_value),
     };

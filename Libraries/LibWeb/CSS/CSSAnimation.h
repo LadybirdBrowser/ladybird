@@ -95,9 +95,10 @@ private:
 
     // What the style computation last computed for this animation, as computed values rather than
     // the easings and enums `m_applied_css_properties` holds, with the keyframe set and the timing
-    // function it names, which the animation retains for as long as it names them.
+    // function and range calculations it names, which the animation retains for as long as it names them.
     StyleEngineFFI::FfiAppliedAnimationDefinition m_applied_definition {};
     RefPtr<Animations::KeyframeEffect::KeyFrameSet const> m_applied_keyframe_set;
+    Animations::AnimationAttachmentRange m_applied_definition_range;
     RustStyleValueHandle m_applied_timing_function_value;
 
     bool m_script_overrode_play_state { false };

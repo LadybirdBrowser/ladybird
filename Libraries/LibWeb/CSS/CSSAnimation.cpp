@@ -158,6 +158,7 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
     //     computation last computed.
     m_applied_keyframe_set = keyframe_set;
     m_applied_timing_function_value = animation_properties.timing_function_value;
+    m_applied_definition_range = animation_properties.range;
     m_applied_definition = {
         .values = {
             .duration_is_auto = animation_properties.duration.has<Utf16String>(),
@@ -182,6 +183,8 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
         },
         .keyframe_set = m_applied_keyframe_set.ptr(),
         .timing_function = m_applied_timing_function_value.data(),
+        .range_start_calculated = m_applied_definition_range.start.calculated_offset.data(),
+        .range_end_calculated = m_applied_definition_range.end.calculated_offset.data(),
     };
 
     auto const update_timeline = !m_ignored_css_properties.contains(PropertyID::AnimationTimeline)

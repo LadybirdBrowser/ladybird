@@ -9,6 +9,7 @@
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <LibWeb/Animations/TimeValue.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 
 namespace Web::Animations {
 
@@ -56,6 +57,12 @@ struct TimelineRangeEdge {
     TimelineRangeName name { TimelineRangeName::None };
     double offset_px { 0 };
     double offset_percentage { 0 };
+    // NB: An offset only a calculation can describe, such as min(50%, 10px), resolves against the size of its range once
+    //     that is known. offset_px and offset_percentage then describe it as it resolves against 0px and 100px.
+    CSS::RustStyleValueHandle calculated_offset {};
+
+    // The offset, in pixels, along a range of the given size.
+    double offset_along(double range_size) const;
 
     bool operator==(TimelineRangeEdge const&) const = default;
 };
@@ -88,9 +95,17 @@ struct ViewTimelineInsetEdge {
     bool is_auto { true };
     double px { 0 };
     double percentage { 0 };
+    // NB: An inset only a calculation can describe, such as min(50%, 10px), resolves against the scrollport size.
+    CSS::RustStyleValueHandle calculated {};
+
+    // The inset, in pixels, of a side that is not auto, in a scrollport of the given size.
+    double resolve(double scrollport_size) const;
 
     bool operator==(ViewTimelineInsetEdge const&) const = default;
 };
+
+// Takes a reference to a calculated offset or inset the style engine hands over, which may be null.
+CSS::RustStyleValueHandle retain_calculated_offset(void const*);
 
 struct ViewTimelineInset {
     ViewTimelineInsetEdge start;

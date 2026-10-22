@@ -236,10 +236,9 @@ AttachmentInterval ScrollTimeline::interval_for_attachment_range(AnimationAttach
     //     whose length is the maximum scroll offset. This matches WebKit.
     auto max_scroll_offset = m_last_max_scroll_offset.value_or(0);
     auto time_of = [&](TimelineRangeEdge const& edge) {
-        auto percentage = edge.offset_percentage;
-        if (max_scroll_offset != 0)
-            percentage += edge.offset_px / max_scroll_offset * 100;
-        return TimeValue { TimeValue::Type::Percentage, percentage };
+        if (max_scroll_offset == 0)
+            return TimeValue { TimeValue::Type::Percentage, edge.offset_percentage };
+        return TimeValue { TimeValue::Type::Percentage, edge.offset_along(max_scroll_offset) / max_scroll_offset * 100 };
     };
     return { time_of(range.start), time_of(range.end) };
 }

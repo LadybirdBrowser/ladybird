@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @keyframes grow { from { width: 0px; } to { width: 100px; } }
+    .scroller { overflow: scroll; width: 100px; height: 100px; }
+    .content { height: 300px; }
+    #scroll-target { animation: grow 1s linear; animation-timeline: scroll(nearest); animation-range: min(50%, 10px) max(50%, 190px); }
+    #view-scroller { height: 200px; }
+    #view-scroller .content { height: 600px; }
+    #view-target { height: 50px; margin-top: 350px; animation: grow 1s linear; animation-timeline: view(min(50%, 10px)); }
+</style>
+<div class="scroller"><div class="content"><div id="scroll-target"></div></div></div>
+<div class="scroller" id="view-scroller"><div class="content"><div id="view-target"></div></div></div>
+<script>
+    // A calculation in an attachment range or a view timeline inset resolves against its range or scrollport size.
+    function nextFrames() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    promiseTest(async () => {
+        await nextFrames();
+        const scrollAnimation = document.getElementById("scroll-target").getAnimations()[0];
+        println(`scroll range: ${scrollAnimation.startTime} ${scrollAnimation.effect.getComputedTiming().endTime}`);
+        println(`rangeStart: ${scrollAnimation.rangeStart.offset}`);
+        document.getElementById("view-scroller").scrollTop = 200;
+        await nextFrames();
+        const viewAnimation = document.getElementById("view-target").getAnimations()[0];
+        println(`view progress: ${viewAnimation.effect.getComputedTiming().progress.toFixed(4)}`);
+    });
+</script>

@@ -12,6 +12,7 @@ set(SOURCES
     Animations/NamedTimelines.cpp
     Animations/PseudoElementParsing.cpp
     Animations/ScrollTimeline.cpp
+    Animations/TimelineRange.cpp
     Animations/ViewTimeline.cpp
     ARIA/AriaData.cpp
     ARIA/ARIAMixin.cpp

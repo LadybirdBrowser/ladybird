@@ -1,0 +1,3 @@
+scroll range: 5% 90%
+rangeStart: min(50%, 10px)
+view progress: 0.1739

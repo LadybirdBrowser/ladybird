@@ -1176,6 +1176,9 @@ pub struct FfiAppliedAnimationDefinition {
     /// The computed `animation-timing-function`, which the animation retains, or null where no plan
     /// has described the animation yet.
     pub timing_function: *const c_void,
+    /// The calculations the edges of the attachment range resolve, which the animation retains, or null.
+    pub range_start_calculated: *const c_void,
+    pub range_end_calculated: *const c_void,
 }
 
 /// What an applied animation definition holds by value.
