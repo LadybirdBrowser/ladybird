@@ -3,9 +3,9 @@
 interface IntersectionObserverEntry {
     // FIXME: constructor(IntersectionObserverEntryInit intersectionObserverEntryInit);
     readonly attribute DOMHighResTimeStamp time;
-    [DirectGetter] readonly attribute DOMRectReadOnly? rootBounds;
-    [DirectGetter] readonly attribute DOMRectReadOnly boundingClientRect;
-    [DirectGetter] readonly attribute DOMRectReadOnly intersectionRect;
+    readonly attribute DOMRectReadOnly? rootBounds;
+    readonly attribute DOMRectReadOnly boundingClientRect;
+    readonly attribute DOMRectReadOnly intersectionRect;
     readonly attribute boolean isIntersecting;
     readonly attribute double intersectionRatio;
     [DirectGetter] readonly attribute Element target;

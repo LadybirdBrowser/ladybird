@@ -11,7 +11,6 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMRect.h>
-#include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>

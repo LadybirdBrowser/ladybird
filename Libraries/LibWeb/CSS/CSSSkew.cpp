@@ -92,17 +92,15 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSSkew::to_matrix() const
     //    As the entries of such a matrix are defined relative to the px unit, if any <length>s in this involved in
     //    generating the matrix are not compatible units with px (such as relative lengths or percentages), throw a
     //    TypeError.
-    auto matrix = Geometry::DOMMatrix::create();
-
-    // NB: to() throws a TypeError if the conversion can't be done.
     auto ax_rad = TRY(m_ax->to("rad"_utf16_fly_string))->value();
     auto ay_rad = TRY(m_ay->to("rad"_utf16_fly_string))->value();
 
-    matrix->set_m21(tanf(ax_rad));
-    matrix->set_m12(tanf(ay_rad));
+    // NB: Gfx::Matrix4x4 is row by row, so the element m21 is in the first row and m12 in the second.
+    auto matrix = Gfx::DoubleMatrix4x4::identity();
+    matrix[0, 1] = tanf(ax_rad);
+    matrix[1, 0] = tanf(ay_rad);
 
-    // 2. Return matrix.
-    return matrix;
+    return Geometry::DOMMatrix::create(matrix, is_2d());
 }
 
 WebIDL::ExceptionOr<void> CSSSkew::set_ax(GC::Ref<CSSNumericValue> ax)

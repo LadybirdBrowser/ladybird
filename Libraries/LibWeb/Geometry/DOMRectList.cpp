@@ -4,53 +4,26 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibGC/Root.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Geometry/DOMRect.h>
+#include <AK/Vector.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geometry/DOMRectList.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Geometry {
 
-GC_DEFINE_ALLOCATOR(DOMRectList);
+extern "C" {
 
-GC::Ref<DOMRectList> DOMRectList::create(Vector<GC::Root<DOMRect>> rect_handles)
-{
-    Vector<GC::Ref<DOMRect>> rects;
-    for (auto& rect : rect_handles)
-        rects.append(*rect);
-    return GC::Heap::the().allocate<DOMRectList>(move(rects));
+// Defined in Bindings/Rust/src/geometry/exports.rs.
+void* web_dom_rect_list_create(JSVM*, ReadonlySpan<Array<double, 4>> rects);
 }
 
-DOMRectList::DOMRectList(Vector<GC::Ref<DOMRect>> rects)
-    : m_rects(move(rects))
+GC::Ref<DOMRectList> DOMRectList::create(ReadonlySpan<Gfx::DoubleRect> rects)
 {
-}
-
-DOMRectList::~DOMRectList() = default;
-
-void DOMRectList::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_rects);
-}
-
-// https://drafts.fxtf.org/geometry-1/#dom-domrectlist-length
-u32 DOMRectList::length() const
-{
-    return m_rects.size();
-}
-
-// https://drafts.fxtf.org/geometry-1/#dom-domrectlist-item
-DOMRect const* DOMRectList::item(u32 index) const
-{
-    // The item(index) method, when invoked, must return null when
-    // index is greater than or equal to the number of DOMRect objects associated with the DOMRectList.
-    // Otherwise, the DOMRect object at index must be returned. Indices are zero-based.
-    if (index >= m_rects.size())
-        return nullptr;
-    return m_rects[index].ptr();
+    Vector<Array<double, 4>> values;
+    values.ensure_capacity(rects.size());
+    for (auto const& rect : rects)
+        values.unchecked_append({ rect.x(), rect.y(), rect.width(), rect.height() });
+    return GC::Ref { *static_cast<DOMRectList*>(web_dom_rect_list_create(JS::HostABI::vm_to_abi(JS::VM::the()), values.span())) };
 }
 
 }

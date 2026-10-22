@@ -66,13 +66,6 @@
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/FileAPI/FileList.h>
-#include <LibWeb/Geometry/DOMMatrix.h>
-#include <LibWeb/Geometry/DOMMatrixReadOnly.h>
-#include <LibWeb/Geometry/DOMPoint.h>
-#include <LibWeb/Geometry/DOMPointReadOnly.h>
-#include <LibWeb/Geometry/DOMQuad.h>
-#include <LibWeb/Geometry/DOMRect.h>
-#include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/MessagePort.h>

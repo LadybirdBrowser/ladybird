@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/Math.h>
@@ -27,7 +28,6 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
-#include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/GraphemeEdgeTracker.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/DataTransfer.h>
@@ -3434,13 +3434,9 @@ void EventHandler::run_activation_behavior(GC::Ref<DOM::Node> node, unsigned but
 
 static bool range_contains_viewport_position(DOM::Range& range, CSSPixelPoint viewport_position)
 {
-    auto rects = range.get_client_rects();
-    for (u32 index = 0; index < rects->length(); ++index) {
-        auto const* rect = rects->item(index);
-        if (Gfx::DoubleRect { rect->x(), rect->y(), rect->width(), rect->height() }.contains(viewport_position.to_type<double>()))
-            return true;
-    }
-    return false;
+    return any_of(range.client_rects(), [&](auto const& rect) {
+        return rect.contains(viewport_position.to_type<double>());
+    });
 }
 
 // https://w3c.github.io/uievents/#maybe-show-context-menu

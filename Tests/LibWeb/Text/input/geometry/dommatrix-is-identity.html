@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`identity: ${new DOMMatrix().isIdentity}`);
+        for (const element of ["m12", "m13", "m14", "m21", "m23", "m24", "m31", "m32", "m34", "m41", "m42", "m43"]) {
+            const matrix = new DOMMatrix();
+            matrix[element] = 2;
+            println(`${element} = 2: ${matrix.isIdentity}`);
+            matrix[element] = -0;
+            println(`${element} = -0: ${matrix.isIdentity}`);
+        }
+        for (const element of ["m11", "m22", "m33", "m44"]) {
+            const matrix = new DOMMatrix();
+            matrix[element] = 2;
+            println(`${element} = 2: ${matrix.isIdentity}`);
+        }
+    });
+</script>

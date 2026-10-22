@@ -8,7 +8,7 @@
 
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Geometry/DOMRect.h>
+#include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::IntersectionObserver {
@@ -18,8 +18,6 @@ class IntersectionObserverEntry final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(IntersectionObserverEntry);
 
 public:
-    static constexpr size_t bounding_client_rect_offset() { return offsetof(IntersectionObserverEntry, m_bounding_client_rect); }
-    static constexpr size_t intersection_rect_offset() { return offsetof(IntersectionObserverEntry, m_intersection_rect); }
     static constexpr size_t target_offset() { return offsetof(IntersectionObserverEntry, m_target); }
     static GC::Ref<IntersectionObserverEntry> create(HighResolutionTime::DOMHighResTimeStamp time, GC::Ptr<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<DOM::Element> target);
 
@@ -27,7 +25,6 @@ public:
 
     HighResolutionTime::DOMHighResTimeStamp time() const { return m_time; }
     GC::Ptr<Geometry::DOMRectReadOnly> root_bounds() const { return m_root_bounds; }
-    static constexpr size_t root_bounds_offset() { return offsetof(IntersectionObserverEntry, m_root_bounds); }
     GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect() const { return m_bounding_client_rect; }
     GC::Ref<Geometry::DOMRectReadOnly> intersection_rect() const { return m_intersection_rect; }
     bool is_intersecting() const { return m_is_intersecting; }

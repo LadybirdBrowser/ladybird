@@ -52,18 +52,12 @@ void SVGAnimatedRect::set_nulled(bool nulled)
 
 void SVGAnimatedRect::set_base_val(Gfx::DoubleRect const& rect)
 {
-    m_base_val->set_x(rect.x());
-    m_base_val->set_y(rect.y());
-    m_base_val->set_width(rect.width());
-    m_base_val->set_height(rect.height());
+    m_base_val->set(rect);
 }
 
 void SVGAnimatedRect::set_anim_val(Gfx::DoubleRect const& rect)
 {
-    m_anim_val->set_x(rect.x());
-    m_anim_val->set_y(rect.y());
-    m_anim_val->set_width(rect.width());
-    m_anim_val->set_height(rect.height());
+    m_anim_val->set(rect);
 }
 
 }

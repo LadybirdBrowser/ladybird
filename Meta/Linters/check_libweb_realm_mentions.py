@@ -50,10 +50,9 @@ ALLOWED_REALM_MENTIONS = {
         "Fetch bodies, headers, requests, responses, and controllers still materialize JS values/streams; the body receiver's delivery and close tasks carry the realm its stream is enqueued and closed in",
     ),
     "FileAPI": (6, 11, "File/Blob/FileReader algorithms still create streams, buffers, and events in selected realms"),
-    "Geometry": (8, 8, "geometry constructors and structured clone still materialize JS-facing geometry objects"),
     "HTML": (
         64,
-        203,
+        202,
         "HTML algorithms still contain structured serialization, including posted-message preparation, canvas, navigation transfer/reconstruction, worker/worklet, and event realm use, and cross-origin Window/Location property functions are created in the current realm; RemoteWindow mirrors Window's postMessage",
     ),
     "IndexedDB": (

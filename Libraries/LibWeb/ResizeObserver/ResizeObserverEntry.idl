@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface ResizeObserverEntry {
     [DirectGetter] readonly attribute Element target;
-    [DirectGetter] readonly attribute DOMRectReadOnly contentRect;
+    readonly attribute DOMRectReadOnly contentRect;
     readonly attribute FrozenArray<ResizeObserverSize> borderBoxSize;
     readonly attribute FrozenArray<ResizeObserverSize> contentBoxSize;
     readonly attribute FrozenArray<ResizeObserverSize> devicePixelContentBoxSize;

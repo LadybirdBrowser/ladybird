@@ -11,12 +11,13 @@
 
 use libgfx_rust::AffineTransform;
 
-use crate::bindings::conversions::CppInterface;
+use crate::bindings::interface::{Ref, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
-use crate::canvas_2d::canvas::create_dom_matrix;
 use crate::canvas_2d::context::{CanvasKind, RenderingContext2D, multiply_transforms, rotated, scaled, translated};
 use crate::canvas_2d::float;
-use crate::geometry::dom_matrix_read_only::{DOMMatrix2DInit, validate_and_fixup_2d};
+use crate::geometry::dictionaries::{DOMMatrix2DInit, validate_and_fixup_2d};
+use crate::geometry::dom_matrix::DOMMatrix;
+use crate::geometry::dom_matrix_read_only::DOMMatrixReadOnly;
 
 fn all_finite(values: &[f64]) -> bool {
     values.iter().all(|value| value.is_finite())
@@ -135,9 +136,13 @@ impl<K: CanvasKind> RenderingContext2D<K> {
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-gettransform
-    pub(crate) fn get_transform(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn get_transform(&self, cx: &mut CallContext) -> WebIdlResult<Ref<DOMMatrix>> {
+        // The getTransform() method, when invoked, must return a newly created DOMMatrix representing a copy of the
+        // current transformation matrix matrix of the context.
         let transform = self.drawing_state().transform;
-        Ok(create_dom_matrix(cx.realm(), transform))
+        let elements = transform.values.map(f64::from);
+        let matrix = DOMMatrix::from_read_only(DOMMatrixReadOnly::create_2d_matrix(elements));
+        Ok(allocate(cx.vm(), matrix))
     }
 
     /// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-settransform

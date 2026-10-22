@@ -4,45 +4,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibWeb/Bindings/DOMRectReadOnly.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geometry/DOMRect.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Geometry {
 
-GC_DEFINE_ALLOCATOR(DOMRect);
+extern "C" {
+
+// Defined in Bindings/Rust/src/geometry/exports.rs.
+void* web_dom_rect_create(JSVM*, double x, double y, double width, double height);
+void web_dom_rect_set(void* rect, double x, double y, double width, double height);
+}
 
 GC::Ref<DOMRect> DOMRect::create(double x, double y, double width, double height)
 {
-    return GC::Heap::the().allocate<DOMRect>(x, y, width, height);
+    return GC::Ref { *static_cast<DOMRect*>(web_dom_rect_create(JS::HostABI::vm_to_abi(JS::VM::the()), x, y, width, height)) };
 }
 
 GC::Ref<DOMRect> DOMRect::create(Gfx::FloatRect const& rect)
 {
-    return GC::Heap::the().allocate<DOMRect>(rect.x(), rect.y(), rect.width(), rect.height());
+    return create(rect.x(), rect.y(), rect.width(), rect.height());
 }
 
-GC::Ref<DOMRect> DOMRect::create()
+void DOMRect::set(Gfx::DoubleRect const& rect)
 {
-    return GC::Heap::the().allocate<DOMRect>();
+    web_dom_rect_set(this, rect.x(), rect.y(), rect.width(), rect.height());
 }
-
-GC::Ref<DOMRect> DOMRect::dom_rect_from_rect(Bindings::DOMRectInit const& other)
-{
-    return create(other.x, other.y, other.width, other.height);
-}
-
-DOMRect::DOMRect(double x, double y, double width, double height)
-    : DOMRectReadOnly(x, y, width, height)
-{
-}
-
-DOMRect::DOMRect()
-    : DOMRectReadOnly()
-{
-}
-
-DOMRect::~DOMRect() = default;
 
 }

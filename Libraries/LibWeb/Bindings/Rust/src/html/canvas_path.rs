@@ -15,7 +15,7 @@ use libgfx_rust::{FloatPoint, FloatSize};
 
 use crate::ak_format::ak_formatted;
 
-use crate::geometry::dom_point_read_only::DOMPointInit;
+use crate::geometry::dictionaries::DOMPointInit;
 
 /// The union (unrestricted double or DOMPointInit) of HTML/Canvas/CanvasPath.idl, a radius of roundRect(), whose
 /// members the bindings convert.

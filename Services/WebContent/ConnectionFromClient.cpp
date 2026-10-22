@@ -59,7 +59,6 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/Gamepad/GamepadRegistry.h>
-#include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -2876,14 +2875,14 @@ static Optional<Gfx::IntPoint> dictionary_lookup_baseline_origin_for_range(Web::
     if (!navigable)
         return {};
 
-    auto rect = range.get_bounding_client_rect();
-    if (rect->width() <= 0 || rect->height() <= 0)
+    auto rect = range.bounding_client_rect();
+    if (rect.width() <= 0 || rect.height() <= 0)
         return {};
 
     auto const& font = layout_node.first_available_font();
     Web::CSSPixelPoint baseline_origin {
-        Web::CSSPixels::nearest_value_for(rect->x()),
-        Web::CSSPixels::nearest_value_for(rect->y() + font.pixel_metrics().ascent),
+        Web::CSSPixels::nearest_value_for(rect.x()),
+        Web::CSSPixels::nearest_value_for(rect.y() + font.pixel_metrics().ascent),
     };
     return page.css_to_device_point(navigable->to_page_position(baseline_origin)).to_type<int>();
 }

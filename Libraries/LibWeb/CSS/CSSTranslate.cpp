@@ -131,16 +131,14 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSTranslate::to_matrix() cons
     //    As the entries of such a matrix are defined relative to the px unit, if any <length>s in this involved in
     //    generating the matrix are not compatible units with px (such as relative lengths or percentages), throw a
     //    TypeError.
-    auto matrix = Geometry::DOMMatrix::create();
+    auto x = TRY(m_x->to("px"_utf16_fly_string))->value();
+    auto y = TRY(m_y->to("px"_utf16_fly_string))->value();
 
-    // NB: to() throws a TypeError if the conversion can't be done.
-    matrix->set_m41(TRY(m_x->to("px"_utf16_fly_string))->value());
-    matrix->set_m42(TRY(m_y->to("px"_utf16_fly_string))->value());
+    double z = 0;
     if (!is_2d())
-        matrix->set_m43(TRY(m_z->to("px"_utf16_fly_string))->value());
+        z = TRY(m_z->to("px"_utf16_fly_string))->value();
 
-    // 2. Return matrix.
-    return matrix;
+    return Geometry::DOMMatrix::create(Gfx::translation_matrix(Vector3<double> { x, y, z }), is_2d());
 }
 
 WebIDL::ExceptionOr<void> CSSTranslate::set_x(GC::Ref<CSSNumericValue> x)

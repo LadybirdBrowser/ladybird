@@ -17,7 +17,7 @@ use super::canvas_path::{
 };
 use crate::bindings::interface::{Ref, Wrappable};
 use crate::bindings::{CallContext, WebIdlResult};
-use crate::geometry::dom_matrix_read_only::{DOMMatrix2DInit, validate_and_fixup_2d};
+use crate::geometry::dictionaries::{DOMMatrix2DInit, validate_and_fixup_2d};
 
 /// The union (Path2D or DOMString) of HTML/Path2D.idl, whose members the bindings convert.
 pub(crate) enum Path2DOrDOMString {

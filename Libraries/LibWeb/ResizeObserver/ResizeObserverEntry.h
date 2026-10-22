@@ -20,7 +20,6 @@ class ResizeObserverEntry : public Bindings::GCAllocatedWrappable {
 
 public:
     static constexpr size_t target_offset() { return offsetof(ResizeObserverEntry, m_target); }
-    static constexpr size_t content_rect_offset() { return offsetof(ResizeObserverEntry, m_content_rect); }
     static WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> create_and_populate(Layout::BegunRead const& read, DOM::Element& target);
 
     GC::Ref<Geometry::DOMRectReadOnly> content_rect() const { return *m_content_rect; }

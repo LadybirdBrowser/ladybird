@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
@@ -1293,15 +1294,20 @@ WebIDL::ExceptionOr<void> Range::delete_contents()
 // https://drafts.csswg.org/cssom-view/#extensions-to-the-range-interface
 GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
 {
+    return Geometry::DOMRectList::create(client_rects());
+}
+
+Vector<Gfx::DoubleRect> Range::client_rects()
+{
     // 1. return an empty DOMRectList object if the range is not in the document
     if (!start_container()->document().navigable())
-        return Geometry::DOMRectList::create({});
+        return {};
 
     auto& document = start_container()->document();
     document.update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
     document.update_paint_and_hit_testing_properties_if_needed();
     Layout::ForcedReadScope read { document };
-    Vector<GC::Root<Geometry::DOMRect>> rects;
+    Vector<Gfx::DoubleRect> rects;
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
     auto rect_to_viewport_transform = Painting::identity_rect_to_viewport_transform();
 
@@ -1362,9 +1368,8 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             if (contains_node(*node) && (!node->parent() || !contains_node(*node->parent()))) {
                 auto const& element = static_cast<DOM::Element const&>(*node);
                 auto const element_rects = element.get_client_rects();
-                for (auto& rect : element_rects) {
-                    rects.append(Geometry::DOMRect::create(static_cast<double>(rect.x()), static_cast<double>(rect.y()), static_cast<double>(rect.width()), static_cast<double>(rect.height())));
-                }
+                for (auto& rect : element_rects)
+                    rects.append(rect.to_type<double>());
             }
         } else if (node_type == NodeType::TEXT_NODE) {
             // 2. For each Text node selected or partially selected by the range (including when the boundary-points
@@ -1408,46 +1413,43 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
                 layout_node->document_host(), Layout::Node::slot_id(layout_node),
                 to_underlying(selection_state), start_offset(), end_offset(), filter_dom_start, filter_dom_end,
                 rect_to_viewport_transform, &rects, [](void* context, CSSPixelRect rect) {
-                    static_cast<Vector<GC::Root<Geometry::DOMRect>>*>(context)->append(Geometry::DOMRect::create(rect.to_type<float>()));
+                    static_cast<Vector<Gfx::DoubleRect>*>(context)->append(rect.to_type<float>().to_type<double>());
                 });
         }
     }
-    return Geometry::DOMRectList::create(move(rects));
+    return rects;
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-range-getboundingclientrect
 GC::Ref<Geometry::DOMRect> Range::get_bounding_client_rect()
 {
+    auto rect = bounding_client_rect();
+    return Geometry::DOMRect::create(rect.x(), rect.y(), rect.width(), rect.height());
+}
+
+Gfx::DoubleRect Range::bounding_client_rect()
+{
     // 1. Let list be the result of invoking getClientRects() on element.
-    auto list = get_client_rects();
+    auto list = client_rects();
 
     // 2. If the list is empty return a DOMRect object whose x, y, width and height members are zero.
-    if (list->length() == 0)
-        return Geometry::DOMRect::create(0, 0, 0, 0);
+    if (list.is_empty())
+        return {};
 
     // 3. If all rectangles in list have zero width or height, return the first rectangle in list.
-    auto all_rectangle_has_zero_width_or_height = true;
-    for (auto i = 0u; i < list->length(); ++i) {
-        auto const& rect = list->item(i);
-        if (rect->width() != 0 && rect->height() != 0) {
-            all_rectangle_has_zero_width_or_height = false;
-            break;
-        }
-    }
+    auto all_rectangle_has_zero_width_or_height = all_of(list, [](auto const& rect) { return rect.width() == 0 || rect.height() == 0; });
     if (all_rectangle_has_zero_width_or_height)
-        return GC::Ref { *const_cast<Geometry::DOMRect*>(list->item(0)) };
+        return list[0];
 
     // 4. Otherwise, return a DOMRect object describing the smallest rectangle that includes all of the rectangles in
     //    list of which the height or width is not zero.
-    auto const* first_rect = list->item(0);
-    auto bounding_rect = Gfx::Rect { first_rect->x(), first_rect->y(), first_rect->width(), first_rect->height() };
-    for (auto i = 1u; i < list->length(); ++i) {
-        auto const& rect = list->item(i);
-        if (rect->width() == 0 || rect->height() == 0)
+    auto bounding_rect = list[0];
+    for (auto const& rect : list.span().slice(1)) {
+        if (rect.width() == 0 || rect.height() == 0)
             continue;
-        bounding_rect.unite({ rect->x(), rect->y(), rect->width(), rect->height() });
+        bounding_rect.unite(rect);
     }
-    return Geometry::DOMRect::create(bounding_rect.to_type<float>());
+    return bounding_rect.to_type<float>().to_type<double>();
 }
 
 WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(TrustedTypes::TrustedHTMLOrString const& string)

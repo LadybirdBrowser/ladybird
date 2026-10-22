@@ -7,42 +7,20 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/DOMPoint.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Geometry/DOMPointReadOnly.h>
-
-namespace Web::Bindings {
-
-struct DOMPointInit;
-
-}
 
 namespace Web::Geometry {
 
-// https://drafts.fxtf.org/geometry/#DOMPoint
-class WEB_API DOMPoint final : public DOMPointReadOnly {
-    WEB_WRAPPABLE(DOMPoint, DOMPointReadOnly);
-    GC_DECLARE_ALLOCATOR(DOMPoint);
+// https://drafts.fxtf.org/geometry/#dompoint
+// The C++ side of a DOMPoint, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/geometry): what C++
+// creates.
+class WEB_API DOMPoint final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(DOMPoint, dom_point)
 
 public:
-    static GC::Ref<DOMPoint> create(double x, double y, double z, double w);
-    static GC::Ref<DOMPoint> create();
-    static GC::Ref<DOMPoint> dom_point_from_point(Bindings::DOMPointInit const&);
-
-    virtual ~DOMPoint() override;
-
-    double x() const { return m_x; }
-    double y() const { return m_y; }
-    double z() const { return m_z; }
-    double w() const { return m_w; }
-
-    void set_x(double x) { m_x = x; }
-    void set_y(double y) { m_y = y; }
-    void set_z(double z) { m_z = z; }
-    void set_w(double w) { m_w = w; }
-
-private:
-    DOMPoint(double x, double y, double z, double w);
-    DOMPoint();
+    static GC::Ref<DOMPoint> create(double x = 0, double y = 0, double z = 0, double w = 1);
 };
 
 }

@@ -17,9 +17,7 @@
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
-#include <LibWeb/Geometry/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
-#include <LibWeb/Geometry/DOMQuad.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/HTML/ImageBitmap.h>
@@ -427,11 +425,7 @@ TEST_CASE(record_wrappers_round_trip_through_ipc)
 TEST_CASE(storage_serializable_object_is_framed_with_interface_then_version)
 {
     (void)test_realm();
-    auto point = Web::Geometry::DOMPoint::create();
-    point->set_x(1.0);
-    point->set_y(2.0);
-    point->set_z(3.0);
-    point->set_w(4.0);
+    auto point = Web::Geometry::DOMPoint::create(1.0, 2.0, 3.0, 4.0);
 
     auto record = storage_serialize(point);
 
@@ -455,11 +449,7 @@ TEST_CASE(storage_serializable_object_is_framed_with_interface_then_version)
 
 TEST_CASE(ipc_serializable_object_has_no_version_framing)
 {
-    auto point = Web::Geometry::DOMPoint::create();
-    point->set_x(1.0);
-    point->set_y(2.0);
-    point->set_z(3.0);
-    point->set_w(4.0);
+    auto point = Web::Geometry::DOMPoint::create(1.0, 2.0, 3.0, 4.0);
 
     auto record = structured_serialize(test_realm().vm(), point);
     Web::HTML::StructuredSerializeReader reader { record };
@@ -538,11 +528,7 @@ TEST_CASE(geometry_serializables_encode_to_frozen_bytes)
 {
     (void)test_realm();
     {
-        auto point = Web::Geometry::DOMPoint::create();
-        point->set_x(1.5);
-        point->set_y(-2.5);
-        point->set_z(3.5);
-        point->set_w(-4.5);
+        auto point = Web::Geometry::DOMPoint::create(1.5, -2.5, 3.5, -4.5);
         Vector<u8> body;
         for (double element : { 1.5, -2.5, 3.5, -4.5 })
             append_little_endian_double(body, element);
@@ -553,11 +539,7 @@ TEST_CASE(geometry_serializables_encode_to_frozen_bytes)
     }
 
     {
-        auto rect = Web::Geometry::DOMRect::create();
-        rect->set_x(10.0);
-        rect->set_y(20.0);
-        rect->set_width(30.0);
-        rect->set_height(40.0);
+        auto rect = Web::Geometry::DOMRect::create(10.0, 20.0, 30.0, 40.0);
         Vector<u8> body;
         for (double element : { 10.0, 20.0, 30.0, 40.0 })
             append_little_endian_double(body, element);
@@ -569,12 +551,12 @@ TEST_CASE(geometry_serializables_encode_to_frozen_bytes)
 
     {
         // Identity 2D matrices serialize six components.
-        auto matrix = Web::Geometry::DOMMatrixReadOnly::create();
         Vector<u8> body;
         body.append(1);
         for (double element : { 1.0, 0.0, 0.0, 1.0, 0.0, 0.0 })
             append_little_endian_double(body, element);
-        expect_storage_encoding(matrix, serializable_storage_record("DOMMatrixReadOnly"sv, 1, body));
+        auto record = serializable_storage_record("DOMMatrixReadOnly"sv, 1, body);
+        expect_storage_encoding(GC::Ref { MUST(storage_deserialize(record)).as_object() }, record);
 
         auto mutable_matrix = Web::Geometry::DOMMatrix::create();
         expect_storage_encoding(mutable_matrix, serializable_storage_record("DOMMatrix"sv, 1, body));
@@ -582,17 +564,15 @@ TEST_CASE(geometry_serializables_encode_to_frozen_bytes)
 
     {
         // DOMQuad serializes its four corner points as nested DOMPoint sub-values.
-        auto quad = Web::Geometry::DOMQuad::create();
         Vector<u8> body;
-        for (auto point : Array { quad->p1(), quad->p2(), quad->p3(), quad->p4() }) {
+        for (int i = 0; i < 4; ++i) {
             Vector<u8> point_body;
-            append_little_endian_double(point_body, point->x());
-            append_little_endian_double(point_body, point->y());
-            append_little_endian_double(point_body, point->z());
-            append_little_endian_double(point_body, point->w());
+            for (double coordinate : { 1.0 + i, 2.0, 3.0, 4.0 })
+                append_little_endian_double(point_body, coordinate);
             frozen_serializable_value(body, "DOMPoint"sv, 1, point_body);
         }
-        expect_storage_encoding(quad, serializable_storage_record("DOMQuad"sv, 1, body));
+        auto record = serializable_storage_record("DOMQuad"sv, 1, body);
+        expect_storage_encoding(GC::Ref { MUST(storage_deserialize(record)).as_object() }, record);
     }
 }
 

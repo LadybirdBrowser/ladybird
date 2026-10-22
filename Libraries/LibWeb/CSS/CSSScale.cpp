@@ -140,17 +140,15 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSScale::to_matrix() const
     //    TypeError.
     // 2. Return matrix.
 
-    auto matrix = Geometry::DOMMatrix::create();
-
     // NB: to() throws a TypeError if the conversion can't be done.
     auto x = TRY(m_x->to("number"_utf16_fly_string))->value();
     auto y = TRY(m_y->to("number"_utf16_fly_string))->value();
 
-    if (is_2d())
-        return matrix->scale_self(x, y, {}, {}, {}, {});
+    double z = 1;
+    if (!is_2d())
+        z = TRY(m_z->to("number"_utf16_fly_string))->value();
 
-    auto z = TRY(m_z->to("number"_utf16_fly_string))->value();
-    return matrix->scale_self(x, y, z, {}, {}, {});
+    return Geometry::DOMMatrix::create(Gfx::scale_matrix(Vector3<double> { x, y, z }), is_2d());
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssscale-x

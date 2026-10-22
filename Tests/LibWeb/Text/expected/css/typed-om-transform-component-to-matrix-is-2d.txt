@@ -1,0 +1,8 @@
+CSSScale(2, 3): is2D true, toMatrix().is2D true
+CSSScale(2, 3, 1): is2D false, toMatrix().is2D false
+CSSTranslate(1px, 2px): is2D true, toMatrix().is2D true
+CSSTranslate(1px, 2px, 0px): is2D false, toMatrix().is2D false
+CSSRotate(45deg): is2D true, toMatrix().is2D true
+CSSRotate(0, 0, 1, 45deg): is2D false, toMatrix().is2D false
+CSSSkew(10deg, 20deg): is2D true, toMatrix().is2D true
+CSSPerspective(none): is2D false, toMatrix().is2D false
