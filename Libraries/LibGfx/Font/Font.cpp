@@ -11,16 +11,8 @@
 #include <AK/TypeCasts.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/TextLayout.h>
 #include <RustFFI.h>
-
-#if defined(USE_FONTCONFIG)
-#    include <LibGfx/Font/GlobalFontConfig.h>
-#endif
-
-#include <core/SkFont.h>
-#include <core/SkFontTypes.h>
 
 #include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
@@ -147,80 +139,6 @@ hb_font_t* Font::create_harfbuzz_font() const
     }
     hb_font_make_immutable(font);
     return font;
-}
-
-#if defined(USE_FONTCONFIG)
-static Optional<FontHintingStyle> s_hinting_override_for_testing;
-
-static SkFontHinting to_skia_hinting(FontHintingStyle style)
-{
-    switch (style) {
-    case FontHintingStyle::None:
-        return SkFontHinting::kNone;
-    case FontHintingStyle::Slight:
-        return SkFontHinting::kSlight;
-    case FontHintingStyle::Normal:
-        return SkFontHinting::kNormal;
-    case FontHintingStyle::Full:
-        return SkFontHinting::kFull;
-    }
-    VERIFY_NOT_REACHED();
-}
-#endif
-
-void force_hinting_for_testing([[maybe_unused]] Optional<FontHintingStyle> style)
-{
-#if defined(USE_FONTCONFIG)
-    s_hinting_override_for_testing = style;
-#endif
-}
-
-#if defined(USE_FONTCONFIG)
-// The scale's bits sit above, bit 0 says the word holds an answer, bits 1 and 2 carry the style
-// and bit 3 the autohinting flag.
-static constexpr u64 hinting_memo_holds_answer = 1;
-
-static u64 encode_hinting_memo(float scale, FontHintingOptions options)
-{
-    return (static_cast<u64>(bit_cast<u32>(scale)) << 32)
-        | hinting_memo_holds_answer
-        | (static_cast<u64>(to_underlying(options.style)) << 1)
-        | (static_cast<u64>(options.force_autohinting) << 3);
-}
-
-FontHintingOptions Font::hinting_options(float scale) const
-{
-    auto memo = m_hinting_memo.load(AK::MemoryOrder::memory_order_relaxed);
-    if ((memo & hinting_memo_holds_answer) != 0 && bit_cast<float>(static_cast<u32>(memo >> 32)) == scale) {
-        return FontHintingOptions {
-            .style = static_cast<FontHintingStyle>((memo >> 1) & 3),
-            .force_autohinting = ((memo >> 3) & 1) != 0,
-        };
-    }
-
-    auto options = GlobalFontConfig::the().hinting_for_font(family(), pixel_size() * scale, weight(), slope());
-    m_hinting_memo.store(encode_hinting_memo(scale, options), AK::MemoryOrder::memory_order_relaxed);
-    return options;
-}
-#endif
-
-SkFont Font::skia_font(float scale) const
-{
-    auto const& sk_typeface = as<TypefaceSkia>(*m_typeface).sk_typeface();
-    auto sk_font = SkFont { sk_ref_sp(sk_typeface), pixel_size() * scale };
-    sk_font.setSubpixel(true);
-
-#if defined(USE_FONTCONFIG)
-    if (s_hinting_override_for_testing.has_value()) {
-        sk_font.setHinting(to_skia_hinting(*s_hinting_override_for_testing));
-    } else {
-        auto options = hinting_options(scale);
-        sk_font.setHinting(to_skia_hinting(options.style));
-        sk_font.setForceAutoHinting(options.force_autohinting);
-    }
-#endif
-
-    return sk_font;
 }
 
 static bool hb_face_has_table(hb_face_t* face, hb_tag_t tag)

@@ -5,6 +5,7 @@
  */
 
 #include <Compositor/ConnectionFromClient.h>
+#include <Compositor/FontSkia.h>
 #include <Compositor/Sandbox.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
@@ -68,7 +69,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         warnln("Could not set main thread QoS: {}", result.error());
 
     if (enable_test_mode)
-        Gfx::force_hinting_for_testing(Gfx::FontHintingStyle::Normal);
+        Compositor::force_font_hinting_for_testing();
 
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(TRY(String::from_utf8(resource_root))));
     if (force_fontconfig)

@@ -279,12 +279,11 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_
     canvas.drawPath(sk_path, paint);
 }
 
-void PainterSkia::draw_glyph_run(Font const& font, ReadonlySpan<CanvasGlyph> glyphs, FloatPoint translation, PaintStyle const& style, Optional<Filter> filter, float global_alpha, CompositingAndBlendingOperator compositing_and_blending_operator)
+void PainterSkia::draw_glyph_run(Font const& font, SkFont sk_font, ReadonlySpan<CanvasGlyph> glyphs, FloatPoint translation, PaintStyle const& style, Optional<Filter> filter, float global_alpha, CompositingAndBlendingOperator compositing_and_blending_operator)
 {
     if (glyphs.is_empty() || font.is_invisible())
         return;
 
-    auto sk_font = font.skia_font(1);
     // NB: Preserve canvas text's fractional baseline and unhinted outline geometry.
     sk_font.setHinting(SkFontHinting::kNone);
     sk_font.setForceAutoHinting(false);

@@ -11,6 +11,7 @@ set(SOURCES
     DisplayListPlayer.cpp
     DisplayListPlayerSkia.cpp
     DisplayListRasterCache.cpp
+    FontSkia.cpp
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp
     ElasticOverscrollController.cpp

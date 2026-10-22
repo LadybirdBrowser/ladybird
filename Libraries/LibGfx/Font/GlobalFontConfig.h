@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGfx/Font/Font.h>
+#include <AK/FlyString.h>
 #include <fontconfig/fontconfig.h>
 
 namespace AK {
@@ -17,6 +17,18 @@ class NeverDestroyed;
 }
 
 namespace Gfx {
+
+enum class FontHintingStyle {
+    None,
+    Slight,
+    Normal,
+    Full,
+};
+
+struct FontHintingOptions {
+    FontHintingStyle style { FontHintingStyle::Normal };
+    bool force_autohinting { false };
+};
 
 class GlobalFontConfig {
 public:

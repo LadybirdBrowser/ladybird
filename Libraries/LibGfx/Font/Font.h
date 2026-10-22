@@ -14,13 +14,13 @@
 #include <AK/FlyString.h>
 #include <AK/Once.h>
 #include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
-#include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/RasterizerData.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/ShapeFeature.h>
 
-class SkFont;
 struct hb_font_t;
 struct hb_buffer_t;
 
@@ -52,20 +52,6 @@ enum FontWidth {
 
 constexpr float text_shaping_resolution = 64;
 
-enum class FontHintingStyle {
-    None,
-    Slight,
-    Normal,
-    Full,
-};
-
-struct FontHintingOptions {
-    FontHintingStyle style { FontHintingStyle::Normal };
-    bool force_autohinting { false };
-};
-
-void force_hinting_for_testing(Optional<FontHintingStyle>);
-
 class Font : public AtomicRefCounted<Font> {
 public:
     Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features);
@@ -89,32 +75,31 @@ public:
 
     Typeface const& typeface() const { return m_typeface; }
 
-    SkFont skia_font(float scale) const;
-
     hb_font_t* harfbuzz_font() const { return m_harfbuzz_font; }
     FontVariationSettings const& variation_settings() const { return m_font_variation_settings; }
     ShapeFeatures const& features() const { return m_shape_features; }
 
     bool is_emoji_font() const;
 
+    // What a rasterizer keeps with this font. The first call makes it.
+    template<typename T, typename Callback>
+    T& rasterizer_data(Callback make) const
+    {
+        call_once(m_rasterizer_data_once, [&] { m_rasterizer_data = make(); });
+        return as<T>(*m_rasterizer_data);
+    }
+
 private:
     bool m_is_invisible { false };
     u64 m_id { 0 };
-
-#if defined(USE_FONTCONFIG)
-    FontHintingOptions hinting_options(float scale) const;
-
-    // The one-entry memo is a single atomic word because a stage that turns text into a path and
-    // the rasterizer that draws it ask the same font for hinting at different scales. Font.cpp
-    // owns the encoding. Either winner is correct: fontconfig's answer is a pure function of the
-    // family, the scaled pixel size, the weight and the slope.
-    mutable Atomic<u64> m_hinting_memo { 0 };
-#endif
 
     hb_font_t* create_harfbuzz_font() const;
     FontPixelMetrics compute_pixel_metrics() const;
 
     hb_font_t* m_harfbuzz_font { nullptr };
+
+    mutable OnceFlag m_rasterizer_data_once;
+    mutable OwnPtr<RasterizerData> m_rasterizer_data;
 
     // A layout pass classifies fonts while the document thread may be doing the same to the same
     // font, so the verdict is a single atomic byte. Either winner is correct: the classification
