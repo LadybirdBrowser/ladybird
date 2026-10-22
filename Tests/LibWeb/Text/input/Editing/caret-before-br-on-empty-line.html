@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .editor { width: 300px; font: 20px/40px monospace; padding: 15px 0 0 25px; }
+    .float { float: left; width: 10px; height: 100px; }
+    .tall { font-size: 40px; line-height: 80px; }
+</style>
+<div class="editor" contenteditable><br></div>
+<div class="editor" contenteditable><div class="float"></div>x<br style="clear: left"><br></div>
+<div class="editor" contenteditable>x<br><span class="tall">y</span><br><br></div>
+<script>
+    test(() => {
+        const selection = getSelection();
+        function rectAt(node, offset) {
+            selection.collapse(node, offset);
+            return internals.currentCaretRect();
+        }
+        for (const [index, editor] of [...document.querySelectorAll(".editor")].entries()) {
+            editor.focus();
+            const breaks = editor.querySelectorAll("br");
+            const lastBreak = breaks[breaks.length - 1];
+            const beforeBreak = rectAt(editor, [...editor.childNodes].indexOf(lastBreak));
+            const text = document.createTextNode("a");
+            editor.insertBefore(text, lastBreak);
+            const inText = rectAt(text, 0);
+            text.remove();
+            println(`editor ${index}: caret before <br> matches text there: ${beforeBreak.x === inText.x && beforeBreak.y === inText.y}`);
+        }
+    });
+</script>
