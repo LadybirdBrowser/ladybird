@@ -60,15 +60,10 @@ void SharedResourceRequest::finalize()
     end_rendering_pending_operation(this);
     Base::finalize();
 
-    m_callbacks.clear();
-    m_load_event_delayer.clear();
-    m_image_data = nullptr;
-    m_fetch_controller = nullptr;
-
-    if (m_document) {
-        remove_from_document();
-        m_document = nullptr;
-    }
+    // Don't release m_load_event_delayer or touch m_document here. While we're in our document's shared resource
+    // requests, the document keeps us alive, so if we're being finalized, it is dying in this same collection and may
+    // already have been finalized itself. The delayer is released by our destructor, after the GC has cleared its weak
+    // pointer to a dead document.
 }
 
 void SharedResourceRequest::remove_from_document()
