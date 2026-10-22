@@ -906,6 +906,7 @@ dependencies = [
  "ladybird_allocator",
  "libcompositing_rust",
  "libgfx_rust",
+ "libipc_rust",
  "liburl_rust",
  "libweb_html_tokenizer",
  "rustc-demangle",

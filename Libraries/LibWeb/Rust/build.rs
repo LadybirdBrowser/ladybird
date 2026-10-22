@@ -2344,6 +2344,75 @@ fn declare_document_host_of_layout_header(config: &mut cbindgen::Config) {
         .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
 }
 
+/// Runs the IPC compiler to generate the Rust code of `definition` into `output`. It honours `PYTHON`, and otherwise
+/// tries `python3`, then `python`, which is what some Windows installs have.
+fn run_ipc_compiler(source_root: &Path, definition: &Path, output: &Path) -> Result<(), Box<dyn Error>> {
+    println!("cargo:rerun-if-env-changed=PYTHON");
+    let generator = source_root.join("Meta/Generators/generate_ipc_definitions.py");
+    println!("cargo:rerun-if-changed={}", generator.display());
+    // NB: The generator imports these from Meta/Utils.
+    for module in ["lexer.py", "utils.py"] {
+        println!(
+            "cargo:rerun-if-changed={}",
+            source_root.join("Meta/Utils").join(module).display()
+        );
+    }
+    let interpreters = match env::var_os("PYTHON") {
+        Some(python) => vec![python],
+        None => vec!["python3".into(), "python".into()],
+    };
+    for interpreter in interpreters {
+        let status = std::process::Command::new(&interpreter)
+            .arg(&generator)
+            .arg("--input")
+            .arg(definition)
+            .arg("--rust-output")
+            .arg(output)
+            .status();
+        match status {
+            Ok(status) if status.success() => return Ok(()),
+            Ok(status) => return Err(format!("generating {} failed: {status}", definition.display()).into()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err("no Python interpreter found to generate IPC endpoints; set PYTHON".into())
+}
+
+/// The IPC endpoints the crate speaks, generated for Rust by the IPC compiler from the same definitions as the C++ code
+/// at the other end. CMake generates them and names them in the environment; a build without CMake, such as a
+/// `cargo test`, generates them here. The crate includes each through the variable that names it.
+fn generate_ipc_endpoints(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn Error>> {
+    const ENDPOINTS: [(&str, &str); 2] = [
+        (
+            "LIBWEB_RENDER_CLOCK_SERVER_ENDPOINT",
+            "Services/Compositor/RenderClockServer.ipc",
+        ),
+        (
+            "LIBWEB_RENDER_CLOCK_CLIENT_ENDPOINT",
+            "Services/Compositor/RenderClockClient.ipc",
+        ),
+    ];
+    let source_root = manifest_dir.join("../../..");
+    for (variable, definition) in ENDPOINTS {
+        println!("cargo:rerun-if-env-changed={variable}");
+        let endpoint = if let Some(path) = env::var_os(variable) {
+            let path = PathBuf::from(path);
+            println!("cargo:rerun-if-changed={}", path.display());
+            path
+        } else {
+            let definition = source_root.join(definition);
+            println!("cargo:rerun-if-changed={}", definition.display());
+            let file_stem = definition.file_stem().ok_or("an IPC definition has no name")?;
+            let output = out_dir.join(Path::new(file_stem).with_extension("rs"));
+            run_ipc_compiler(&source_root, &definition, &output)?;
+            output
+        };
+        println!("cargo:rustc-env={variable}={}", endpoint.display());
+    }
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
@@ -2363,6 +2432,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     generate_keywords(&manifest_dir, &out_dir)?;
     generate_css_enums(&manifest_dir, &out_dir)?;
     generate_transform_functions(&manifest_dir, &out_dir)?;
+    generate_ipc_endpoints(&manifest_dir, &out_dir)?;
 
     let base_config = cbindgen::Config::from_file(manifest_dir.join("cbindgen.toml"))?;
 

@@ -36,8 +36,11 @@ compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorPresentationCli
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorPresentationServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorPresentationServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentServerEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/RenderClockClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/RenderClockServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockServerEndpoint.h)
+# NB: WebContent's end of the render clock is Rust, which LibWeb's Rust crate builds from the Rust outputs.
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/RenderClockClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockClientEndpoint.h
+    RUST_OUTPUT ${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockClientEndpoint.rs)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/RenderClockServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockServerEndpoint.h
+    RUST_OUTPUT ${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockServerEndpoint.rs)
 compile_ipc(FontClient.ipc FontClientEndpoint.h)
 compile_ipc(FontServer.ipc FontServerEndpoint.h)
 

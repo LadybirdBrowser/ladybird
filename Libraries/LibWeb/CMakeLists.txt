@@ -1158,8 +1158,12 @@ import_rust_crate(
     FEATURES ${LIBJS_RUST_FEATURES}
     # The copy of libgfx_rust in this crate, which TestRustCrateCopies reaches by name.
     KEEP_SYMBOLS ladybird_gfx_register_rust_crate_copy
-    # The bindings of the interfaces implemented in Rust, which generating the bindings writes and the crate includes.
-    ENVIRONMENT "LIBWEB_RUST_BINDINGS=${CMAKE_CURRENT_BINARY_DIR}/Bindings/RustBindings.rs"
+    # The bindings of the interfaces implemented in Rust, which generating the bindings writes and the crate includes,
+    # and the IPC endpoints that libweb_rust speaks, which LibCompositing generates.
+    ENVIRONMENT
+        "LIBWEB_RUST_BINDINGS=${CMAKE_CURRENT_BINARY_DIR}/Bindings/RustBindings.rs"
+        "LIBWEB_RENDER_CLOCK_SERVER_ENDPOINT=${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockServerEndpoint.rs"
+        "LIBWEB_RENDER_CLOCK_CLIENT_ENDPOINT=${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockClientEndpoint.rs"
 )
 # The headers that the build script of libweb_rust, which the archive bundles, writes.
 sync_rust_crate_ffi_headers(
@@ -1237,4 +1241,4 @@ endif()
 
 generate_js_bindings(LibWeb)
 # The bindings crate includes the Rust bindings that generating the bindings writes.
-add_dependencies(libweb_bindings_rust-build generate_bindings)
+add_dependencies(libweb_bindings_rust-build generate_bindings generate_RenderClockServerEndpoint.h generate_RenderClockClientEndpoint.h)

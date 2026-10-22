@@ -11,7 +11,9 @@
 //! These codecs carry bytes only: C++ keeps the attachments of a message, so a value that would need one can't go
 //! this way.
 
-use libipc_rust::wire::{Decode, Decoder, Encode, Encoder};
+use crate::css_pixels::CssPixels;
+use crate::display_list::commands::{CompositorContextId, CompositorScrollNodeKind, UniqueNodeId};
+use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
 use std::ffi::c_void;
 
 /// Appends `length` bytes at `bytes` to the C++ `IPC::Encoder` that `encoder` points to.
@@ -44,6 +46,71 @@ pub fn decode_from_cpp<T: Decode>(bytes: &[u8], consumed: &mut usize) -> Option<
     Some(value)
 }
 
+/// `Web::CompositorContextId`: its number.
+impl Encode for CompositorContextId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        self.0.encode(encoder)
+    }
+}
+
+impl Decode for CompositorContextId {
+    const MIN_ENCODED_SIZE: usize = 8;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self(decoder.decode()?))
+    }
+}
+
+/// `Web::UniqueNodeID`: its number.
+impl Encode for UniqueNodeId {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        self.0.encode(encoder)
+    }
+}
+
+impl Decode for UniqueNodeId {
+    const MIN_ENCODED_SIZE: usize = 8;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self(decoder.decode()?))
+    }
+}
+
+/// `Web::AsyncScrollNodeKind`: its value as a byte.
+impl Encode for CompositorScrollNodeKind {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        (*self as u8).encode(encoder)
+    }
+}
+
+impl Decode for CompositorScrollNodeKind {
+    const MIN_ENCODED_SIZE: usize = 1;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        match decoder.decode::<u8>()? {
+            0 => Ok(Self::Viewport),
+            1 => Ok(Self::Element),
+            2 => Ok(Self::PseudoElement),
+            _ => Err(DecodeError::InvalidValue("Web::AsyncScrollNodeKind")),
+        }
+    }
+}
+
+/// `Web::CSSPixels`: its raw fixed-point value.
+impl Encode for CssPixels {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        self.raw_value().encode(encoder)
+    }
+}
+
+impl Decode for CssPixels {
+    const MIN_ENCODED_SIZE: usize = 4;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self::from_raw(decoder.decode()?))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -65,6 +132,24 @@ mod tests {
         assert_eq!(value, [1, 2, 3]);
         assert_eq!(consumed, 4 + 3 * 4);
         assert_eq!(&message[consumed..], [0xaa, 0xbb]);
+    }
+
+    #[test]
+    fn scroll_node_kinds_go_as_their_cpp_values() {
+        for (kind, value) in [
+            (CompositorScrollNodeKind::Viewport, 0u8),
+            (CompositorScrollNodeKind::Element, 1),
+            (CompositorScrollNodeKind::PseudoElement, 2),
+        ] {
+            let mut encoder = Encoder::new();
+            encoder.encode(&kind).unwrap();
+            assert_eq!(encoder.finish().0, [value]);
+            assert_eq!(Decoder::new(&[value], std::iter::empty()).decode(), Ok(kind));
+        }
+        assert_eq!(
+            Decoder::new(&[3], std::iter::empty()).decode::<CompositorScrollNodeKind>(),
+            Err(DecodeError::InvalidValue("Web::AsyncScrollNodeKind"))
+        );
     }
 
     #[test]
