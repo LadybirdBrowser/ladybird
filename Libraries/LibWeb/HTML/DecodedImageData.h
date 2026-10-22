@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibGC/Weak.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ScalingMode.h>
@@ -35,6 +36,9 @@ public:
     protected:
         void register_with_decoded_image_data_if_needed();
         void unregister_with_decoded_image_data_if_needed();
+
+    private:
+        GC::Weak<DecodedImageData> m_registered_image_data;
     };
 
     virtual ~DecodedImageData();
