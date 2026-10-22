@@ -127,14 +127,14 @@ ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<Blo
             // 1. If element is a USVString, run the following sub-steps:
             [&](Utf16String const& string) -> ErrorOr<void> {
                 // 1. Let s be element.
-                auto s = string.utf16_view();
+                auto s = string;
 
                 // 2. If the endings member of options is "native", set s to the result of converting line endings to native of element.
                 if (options.has_value() && options->endings == EndingType::Native)
                     s = TRY(convert_line_endings_to_native(s));
 
                 // 3. Append the result of UTF-8 encoding s to bytes.
-                auto encoded_string = TRY(s.to_utf8());
+                auto encoded_string = s.to_utf8();
                 return bytes.try_append(encoded_string.bytes());
             },
             // 2. If element is a BufferSource, get a copy of the bytes held by the buffer source, and append those bytes to bytes.

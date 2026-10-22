@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const input = "a\r\n".repeat(1024);
+
+        const transparent = new Blob([input], { endings: "transparent" });
+        println(`transparent: size=${transparent.size} ${(await transparent.text()) === input ? "PASS" : "FAIL"}`);
+
+        const native = new Blob([input], { endings: "native" });
+        println(`native: size=${native.size} ${(await native.text()) === "a\n".repeat(1024) ? "PASS" : "FAIL"}`);
+    });
+</script>
