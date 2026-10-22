@@ -40,10 +40,7 @@ String url_encode(Vector<QueryParam> const& tuples, StringView encoding)
     encoding = TextCodec::get_output_encoding(encoding);
 
     auto encoder = TextCodec::encoder_for(encoding);
-    if (!encoder.has_value()) {
-        // NOTE: Fallback to default utf-8 encoder.
-        encoder = TextCodec::encoder_for("utf-8"sv);
-    }
+    VERIFY(encoder.has_value());
 
     // 2. Let output be the empty string.
     StringBuilder output;
