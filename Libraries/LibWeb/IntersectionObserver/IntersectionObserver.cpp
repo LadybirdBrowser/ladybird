@@ -170,13 +170,6 @@ IntersectionObserver::IntersectionObserver(GC::Ptr<WebIDL::CallbackType> callbac
 
 IntersectionObserver::~IntersectionObserver() = default;
 
-void IntersectionObserver::finalize()
-{
-    Base::finalize();
-    if (m_document)
-        m_document->unregister_intersection_observer({}, *this);
-}
-
 void IntersectionObserver::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

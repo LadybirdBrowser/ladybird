@@ -67,7 +67,6 @@ private:
     explicit IntersectionObserver(GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverRoot const& root, GC::Ref<DOM::Document> implicit_root_document, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual void finalize() override;
 
     static Optional<Vector<CSS::LengthPercentage>> parse_a_margin(String);
 

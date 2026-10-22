@@ -1159,7 +1159,6 @@ public:
     void add_speculative_fetch_url(URL::URL url) { m_list_of_speculative_fetch_urls.set(move(url)); }
 
     void register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserver&);
-    void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserver&);
     bool has_intersection_observation_targets() const;
 
     void register_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver&);
