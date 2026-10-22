@@ -2878,6 +2878,17 @@ pub fn big_floor(numerator: &SignedBigInteger, denominator: &SignedBigInteger) -
 /// that abs(k) < abs(y) and x - k = q × y for some integer q.
 pub fn modulo(x: f64, y: f64) -> f64 {
     assert!(y != 0.0 && y.is_finite());
+
+    // OPTIMIZATION: The operands are usually integers that an i64 holds exactly, and their integer remainder is far
+    //               cheaper than the fmod() call that the remainder of doubles compiles to.
+    const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+    let is_safe_integer = |value: f64| value.abs() <= MAX_SAFE_INTEGER && (value as i64) as f64 == value;
+    if is_safe_integer(x) && is_safe_integer(y) {
+        let y = y as i64;
+        let r = (x as i64) % y;
+        return (if r < 0 { r + y } else { r }) as f64;
+    }
+
     let r = x % y;
     if r < 0.0 { r + y } else { r }
 }
