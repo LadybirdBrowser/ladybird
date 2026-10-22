@@ -21,6 +21,7 @@ pub mod ffi;
 pub mod filter_bytes;
 pub mod force_dark;
 pub mod host;
+pub mod ipc;
 pub mod node_slot_id;
 #[cfg(test)]
 mod test_stubs;

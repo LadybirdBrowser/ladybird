@@ -228,29 +228,38 @@ pub unsafe extern "C" fn visual_context_tree_structural_epoch(tree: *const c_voi
     unsafe { tree_from_handle(tree) }.structural_epoch
 }
 
+/// Encodes `tree` into the message that the C++ `IPC::Encoder` at `encoder` builds, through `append`. Answers whether
+/// it encoded.
+///
 /// # Safety
 ///
-/// `tree` must be a live retained tree handle; `append` is called synchronously with `sink`.
+/// `tree` must be a live retained tree handle, and `append` must append to `encoder` before it returns.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_serialize(
+pub unsafe extern "C" fn visual_context_tree_ipc_encode(
     tree: *const c_void,
-    sink: *mut c_void,
+    encoder: *mut c_void,
     append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-) {
-    let bytes = unsafe { tree_from_handle(tree) }.to_bytes();
-    // SAFETY: The C++ sink copies the bytes synchronously.
-    unsafe { append(sink, bytes.as_ptr(), bytes.len()) };
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { crate::ipc::encode_into_cpp(tree_from_handle(tree), encoder, append) }
 }
 
+/// Decodes a tree from the start of `bytes`, the rest of a message that a C++ `IPC::Decoder` reads, and sets
+/// `consumed` to how many bytes it took. Returns a retained tree handle the caller owns, or null when the bytes do not
+/// start with a valid tree.
+///
 /// # Safety
 ///
-/// `bytes` must address `length` readable bytes for the call. Returns a retained tree handle the
-/// caller owns, or null when the bytes do not describe a valid tree.
+/// `bytes` must address `length` readable bytes for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_deserialize(bytes: *const u8, length: usize) -> *const c_void {
+pub unsafe extern "C" fn visual_context_tree_ipc_decode(
+    bytes: *const u8,
+    length: usize,
+    consumed: &mut usize,
+) -> *const c_void {
     // SAFETY: The caller guarantees `bytes` addresses `length` readable bytes.
     let bytes = unsafe { ak::slice_from_raw_parts(bytes, length) };
-    match crate::visual_context::VisualContextTree::from_bytes(bytes) {
+    match crate::ipc::decode_from_cpp::<crate::visual_context::VisualContextTree>(bytes, consumed) {
         Some(tree) => std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
         None => std::ptr::null(),
     }

@@ -26,6 +26,7 @@ use libgfx_rust::{
     Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatMatrix4x4, FloatPoint,
     FloatRect, FloatSize, IntRect, MaskKind, WindingRule,
 };
+use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
 
 const SERIALIZED_TREE_MAGIC: u32 = 0x5443_5641;
 const SERIALIZED_TREE_FORMAT: u32 = 9;
@@ -939,6 +940,24 @@ impl VisualContextTree {
     }
 }
 
+/// A tree goes over IPC as its serialized bytes do in a byte buffer: their size, then the bytes. The decoder reads the
+/// bytes where they are in the message.
+impl Encode for VisualContextTree {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        self.to_bytes().as_slice().encode(encoder)
+    }
+}
+
+impl Decode for VisualContextTree {
+    const MIN_ENCODED_SIZE: usize = 4;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        let size = decoder.decode_size()?;
+        let bytes = decoder.read_bytes(size)?;
+        Self::from_bytes(bytes).ok_or(DecodeError::InvalidValue("visual context tree"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1333,6 +1352,56 @@ mod tests {
         let decoded = VisualContextTree::from_bytes(&bytes).expect("a serialized tree decodes");
         assert!(!decoded.has_visual_animations());
         assert_eq!(decoded.to_bytes(), bytes);
+    }
+
+    #[test]
+    fn a_tree_goes_over_ipc_as_a_byte_buffer_of_its_serialized_bytes() {
+        let tree = tree_with_every_node_kind();
+        let serialized = tree.to_bytes();
+        let mut encoder = Encoder::new();
+        encoder.encode(&tree).unwrap();
+        let (message, attachments) = encoder.finish();
+        assert!(attachments.is_empty());
+        assert_eq!(&message[..4], (serialized.len() as u32).to_ne_bytes());
+        assert_eq!(&message[4..], serialized);
+
+        let mut decoder = Decoder::new(&message, std::iter::empty());
+        let decoded: VisualContextTree = decoder.decode().unwrap();
+        assert!(decoder.is_at_end());
+        assert_eq!(decoded.to_bytes(), serialized);
+    }
+
+    #[test]
+    fn a_tree_that_does_not_fit_its_ipc_size_is_refused() {
+        let serialized = tree_with_every_node_kind().to_bytes();
+        let mut message = (serialized.len() as u32).to_ne_bytes().to_vec();
+        message.extend_from_slice(&serialized);
+
+        // Cut short.
+        let truncated = &message[..message.len() - 1];
+        assert!(
+            Decoder::new(truncated, std::iter::empty())
+                .decode::<VisualContextTree>()
+                .is_err()
+        );
+
+        // A size one byte short leaves the tree's last byte out of it.
+        let mut short = ((serialized.len() - 1) as u32).to_ne_bytes().to_vec();
+        short.extend_from_slice(&serialized);
+        assert_eq!(
+            Decoder::new(&short, std::iter::empty())
+                .decode::<VisualContextTree>()
+                .err(),
+            Some(DecodeError::InvalidValue("visual context tree"))
+        );
+
+        // Bytes that aren't a tree at all.
+        let garbage = [4, 0, 0, 0, 1, 2, 3, 4];
+        assert!(
+            Decoder::new(&garbage, std::iter::empty())
+                .decode::<VisualContextTree>()
+                .is_err()
+        );
     }
 
     #[test]
