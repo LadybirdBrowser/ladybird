@@ -930,7 +930,7 @@ const BOUND_ROWS_PER_CHUNK: usize = 64;
 pub(crate) struct BoundRows {
     elements: CowColumn<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
     texts: CowColumn<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
-    pseudo_elements: Arc<HashMap<(StyleNodeID, u8), NodeSlotId>>,
+    pseudo_elements: Arc<HashMap<StyleNodeID, PseudoElementRows>>,
     viewport: NodeSlotId,
     /// Advanced by every write to the pseudo-element or viewport rows.
     writes: u64,
@@ -940,8 +940,21 @@ pub(crate) struct BoundRows {
 pub(crate) struct PublishedBoundRows {
     elements: ColumnSnapshot<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
     texts: ColumnSnapshot<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
-    pseudo_elements: Arc<HashMap<(StyleNodeID, u8), NodeSlotId>>,
+    pseudo_elements: Arc<HashMap<StyleNodeID, PseudoElementRows>>,
     viewport: NodeSlotId,
+}
+
+/// The rows an element's pseudo-elements are bound to, by kind. An element is in the map only while one of them is
+/// bound, so that one lookup answers for all of its pseudo-elements.
+#[derive(Clone, Copy)]
+struct PseudoElementRows([NodeSlotId; super::node_data::GENERATED_FOR_LAST_SYNTHETIC as usize + 1]);
+
+impl PseudoElementRows {
+    fn row(rows: Option<&Self>, generated_for: u8) -> NodeSlotId {
+        rows.and_then(|rows| rows.0.get(usize::from(generated_for)))
+            .copied()
+            .unwrap_or(NodeSlotId::INVALID)
+    }
 }
 
 impl BoundRows {
@@ -972,10 +985,11 @@ impl BoundRows {
     }
 
     fn pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> NodeSlotId {
-        self.pseudo_elements
-            .get(&(generator, generated_for))
-            .copied()
-            .unwrap_or(NodeSlotId::INVALID)
+        PseudoElementRows::row(self.pseudo_elements.get(&generator), generated_for)
+    }
+
+    fn has_pseudo_element_rows(&self, generator: StyleNodeID) -> bool {
+        self.pseudo_elements.contains_key(&generator)
     }
 
     /// Binds the pseudo-element to `row`, or unbinds it for an invalid one, and answers the row it was bound to.
@@ -984,10 +998,16 @@ impl BoundRows {
         if previous != row {
             self.writes += 1;
             let rows = Arc::make_mut(&mut self.pseudo_elements);
-            if row.is_invalid() {
-                rows.remove(&(generator, generated_for));
-            } else {
-                rows.insert((generator, generated_for), row);
+            let element_rows = rows
+                .entry(generator)
+                .or_insert(PseudoElementRows([NodeSlotId::INVALID; _]));
+            let slot = element_rows
+                .0
+                .get_mut(usize::from(generated_for))
+                .expect("only an element's synthetic pseudo-elements are bound to rows");
+            *slot = row;
+            if element_rows.0.iter().all(|row| row.is_invalid()) {
+                rows.remove(&generator);
             }
         }
         previous
@@ -1025,10 +1045,7 @@ impl PublishedBoundRows {
     }
 
     pub(crate) fn pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> NodeSlotId {
-        self.pseudo_elements
-            .get(&(generator, generated_for))
-            .copied()
-            .unwrap_or(NodeSlotId::INVALID)
+        PseudoElementRows::row(self.pseudo_elements.get(&generator), generated_for)
     }
 
     pub(crate) fn viewport_row(&self) -> NodeSlotId {
@@ -1969,6 +1986,11 @@ impl LayoutNodeArena {
     /// to, if any.
     pub(crate) fn bound_pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> NodeSlotId {
         self.bound_rows.borrow().pseudo_element_row(generator, generated_for)
+    }
+
+    /// Whether any pseudo-element of the element `generator` is bound to a row.
+    pub(crate) fn has_bound_pseudo_element_rows(&self, generator: StyleNodeID) -> bool {
+        self.bound_rows.borrow().has_pseudo_element_rows(generator)
     }
 
     /// The node a row can be bound to, if any.
