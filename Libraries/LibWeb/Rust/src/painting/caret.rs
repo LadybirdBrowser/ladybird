@@ -54,7 +54,15 @@ pub(crate) fn caret_rect_for_position(
     let mut fallback: Option<(NodeSlotId, u32)> = None;
     let mut direct: Option<(NodeSlotId, u32)> = None;
     text_fragment::for_each_fragment_of_nodes(layout_arena, node_slots, |block, index, fragment| {
-        match text_fragment::caret_match(fragment, offset, affinity_is_downstream) {
+        // A caret at the end of the text in front of a writing suggestion is in front of the suggestion, whichever way
+        // it leans: The text after the caret starts only after the suggestion.
+        let caret_match = match text_fragment::caret_match(fragment, offset, affinity_is_downstream) {
+            CaretMatch::SoftWrapFallback if layout_arena.text_precedes_writing_suggestion(fragment.layout_node) => {
+                CaretMatch::Direct
+            }
+            caret_match => caret_match,
+        };
+        match caret_match {
             CaretMatch::None => true,
             CaretMatch::SoftWrapFallback => {
                 if fallback.is_none() {

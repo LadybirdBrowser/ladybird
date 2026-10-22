@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/writing-suggestion-mid-line-ref.html">
+<style>
+    div { font: 20px/1.5 sans-serif; }
+</style>
+<div id="editable" contenteditable>-xyz</div>
+<script>
+    const editable = document.getElementById("editable");
+    editable.focus();
+    getSelection().collapse(editable.firstChild, 0);
+    internals.sendText(editable, "predi");
+    internals.writingSuggestionSettled().then(() => internals.signalTestIsDone("PASS"));
+</script>
+</html>

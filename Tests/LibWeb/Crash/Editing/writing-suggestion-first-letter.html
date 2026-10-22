@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    div::first-letter { color: red; }
+</style>
+<div id="editable" contenteditable></div>
+<script>
+    const editable = document.getElementById("editable");
+    internals.sendText(editable, "p");
+    internals.sendText(editable, "redi");
+    internals.writingSuggestionSettled().then(() => {
+        editable.offsetWidth;
+        document.documentElement.classList.remove("test-wait");
+    });
+</script>
+</html>

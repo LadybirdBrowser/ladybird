@@ -66,6 +66,8 @@ pub(crate) enum LayoutChange {
         element: StyleNodeID,
         offset: CssPixelPoint,
     },
+    /// The writing suggestion showing after the caret, or none.
+    SetWritingSuggestion(Option<super::layout_node_arena::PublishedWritingSuggestion>),
     /// What the pseudo-element of kind `generated_for` on `generator` has scrolled to.
     SetPseudoElementScrollOffset {
         generator: StyleNodeID,
@@ -176,6 +178,7 @@ impl LayoutChange {
             | Self::RecordPartialRelayoutEscape
             | Self::SetAnchorNameElements { .. }
             | Self::SetElementScrollOffset { .. }
+            | Self::SetWritingSuggestion(_)
             | Self::SetPseudoElementScrollOffset { .. }
             | Self::SetIdentityInFocusedTextControl { .. }
             | Self::SvgAttributeFacts { .. }
@@ -266,6 +269,7 @@ impl LayoutChange {
                 elements,
             } => arena.set_anchor_name_elements(scope_host, anchor_name, elements.iter().copied()),
             Self::SetElementScrollOffset { element, offset } => arena.set_element_scroll_offset(element, offset),
+            Self::SetWritingSuggestion(suggestion) => arena.set_writing_suggestion(suggestion),
             Self::SetPseudoElementScrollOffset {
                 generator,
                 generated_for,
@@ -564,6 +568,37 @@ pub extern "C" fn render_state_set_element_scroll_offset(host: &DocumentHost, el
     };
     let offset = offset.into();
     queue(host, LayoutChange::SetElementScrollOffset { element, offset });
+}
+
+/// Publishes the writing suggestion showing after the caret: `remainder` is what it would add at `offset` in the text
+/// node `text`. A zero `text` publishes that none shows.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread, and `remainder` must point at `length` readable code
+/// units.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_set_writing_suggestion(
+    host: &DocumentHost,
+    text: u32,
+    offset: usize,
+    remainder: *const u16,
+    length: usize,
+) {
+    let suggestion = StyleNodeID::from_raw(text).map(|text| {
+        let remainder: &[u16] = if length == 0 {
+            &[]
+        } else {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { ak::slice_from_raw_parts(remainder, length) }
+        };
+        super::layout_node_arena::PublishedWritingSuggestion {
+            text,
+            offset,
+            remainder: remainder.to_vec(),
+        }
+    });
+    queue(host, LayoutChange::SetWritingSuggestion(suggestion));
 }
 
 #[unsafe(no_mangle)]

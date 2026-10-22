@@ -2273,6 +2273,8 @@ fn update_principal_node_descendants(
                     create_first_letter_boxes(host, update.mirror_identity, target);
                 }
             }
+
+            create_writing_suggestion_boxes(host, update.mirror_identity, layout_node);
         }
 
         wrap_fieldset_contents_if_needed(host, layout_node);
@@ -4595,6 +4597,86 @@ fn create_first_letter_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeI
     host.attach_child(wrapper_slot, first_letter_slice, NodeSlotId::INVALID);
     host.attach_child(parent, wrapper, text_node);
     host.attach_child(parent, remainder_slice, text_node);
+    host.arena().detach_child(parent, text_node);
+    host.free_subtree(text_node);
+}
+
+/// Splits the box of the text node the caret is in at the caret, around an inline box that renders the writing
+/// suggestion showing there, so the suggestion takes up space in the line as text would. It's never in the DOM: The
+/// slices on either side keep rendering the DOM text, with source ranges that map its offsets as they do for a
+/// `::first-letter` split.
+fn create_writing_suggestion_boxes(host: &mut TreeBuilderHost<'_>, element: StyleNodeID, layout_node: LayoutNode) {
+    let Some(suggestion) = host.arena().writing_suggestion() else {
+        return;
+    };
+    let is_child_text = host.arena().with_style_store(|engine| {
+        if engine.tree().text_parent(suggestion.text) != Some(element) {
+            return false;
+        }
+        // Text that a `::first-letter` may already split is left alone, so the two splits never meet.
+        let mut ancestor = Some(element);
+        while let Some(current) = ancestor {
+            if engine.has_published_first_letter_style(current) {
+                return false;
+            }
+            ancestor = engine
+                .tree()
+                .parent(current)
+                .map(|parent| engine.tree().host_of(parent).unwrap_or(parent));
+        }
+        true
+    });
+    if !is_child_text {
+        return;
+    }
+    let text_node = host.arena().bound_row(suggestion.text);
+    if text_node.is_invalid()
+        || host.data(text_node).kind.get() != NodeKind::TextNode
+        || host.arena().text_has_source_range(text_node)
+        || !is_inclusive_layout_ancestor_of(host, layout_node, text_node)
+    {
+        return;
+    }
+    let source_length = host
+        .arena()
+        .published_text_source(text_node, false)
+        .data
+        .to_utf16()
+        .len();
+    if suggestion.offset > source_length || suggestion.remainder.is_empty() {
+        return;
+    }
+
+    // The trailing slice takes over the text node's rows, and the leading slice renders the same node without
+    // becoming the row the node is bound to.
+    let trailing_slice = host.stamp_dom_box(NodeKind::TextNode, Some(suggestion.text));
+    let leading_slice = host.arena.allocate_unbound();
+    host.arena()
+        .stamp_dom_row(leading_slice, NodeKind::TextNode, Some(suggestion.text));
+    host.arena().note_rows_share_dom_node(trailing_slice, leading_slice);
+    for slice in [leading_slice, trailing_slice] {
+        host.stamp_text_row_facts(slice, suggestion.text);
+    }
+    host.arena
+        .set_writing_suggestion_slices(leading_slice, trailing_slice, suggestion.offset, source_length);
+    let leading_slice = host.created(leading_slice);
+    let trailing_slice = host.created(trailing_slice);
+
+    let parent = host.parent(text_node);
+    assert!(!parent.is_invalid());
+    let wrapper = host.create_anonymous_box(
+        parent,
+        AnonymousStyleKind::WritingSuggestion,
+        AnonymousStyleOverrides::default(),
+        NodeKind::InlineNode,
+    );
+    let wrapper_slot = wrapper.slot();
+    host.set_children_are_inline(wrapper_slot, true);
+    let suggestion_text = host.stamp_generated_text_box(&suggestion.remainder);
+    host.attach_child(wrapper_slot, host.created(suggestion_text), NodeSlotId::INVALID);
+    host.attach_child(parent, leading_slice, text_node);
+    host.attach_child(parent, wrapper, text_node);
+    host.attach_child(parent, trailing_slice, text_node);
     host.arena().detach_child(parent, text_node);
     host.free_subtree(text_node);
 }
