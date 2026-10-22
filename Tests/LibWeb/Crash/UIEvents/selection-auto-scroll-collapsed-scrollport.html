@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<div id="container" style="overflow: auto; width: 200px; height: 100px">line1<br>line2<br>line3<br>line4<br>line5<br>line6<br>line7<br>line8<br>line9<br>line10</div>
+<script>
+    const rect = container.getBoundingClientRect();
+    internals.mouseDown(rect.x + 10, rect.y + 10);
+
+    container.style.width = "0";
+    container.style.height = "0";
+    container.style.padding = "0";
+    document.body.offsetWidth;
+
+    internals.mouseMove(rect.x + 50, rect.y + 50);
+    internals.mouseUp(rect.x + 50, rect.y + 50);
+</script>
