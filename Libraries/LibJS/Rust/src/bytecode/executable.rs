@@ -683,6 +683,17 @@ impl Drop for PropertyLookupCache {
     }
 }
 
+impl Default for GlobalVariableCache {
+    fn default() -> Self {
+        Self {
+            entry: PropertyLookupCacheEntry::new(),
+            environment_serial_number: Cell::new(0),
+            environment_binding_index: Cell::new(0),
+            has_environment_binding_index: Cell::new(false),
+        }
+    }
+}
+
 impl GlobalVariableCache {
     /// Assigns a default GlobalVariableCache.
     pub fn reset(&self) {
@@ -1209,6 +1220,9 @@ pub struct Executable {
     property_lookup_caches: Box<[PropertyLookupCache]>,
     global_variable_caches: Box<[GlobalVariableCache]>,
     environment_coordinate_caches: Box<[Cell<EnvironmentCoordinate>]>,
+    /// The global variable caches of the dynamic binding accesses that found their binding in the global environment,
+    /// indexed like the environment coordinate caches. Made when the first such access needs one.
+    dynamic_global_variable_caches: OnceCell<Box<[GlobalVariableCache]>>,
     environment_shape_caches: Box<[Cell<Option<Gc<EnvironmentShape>>>]>,
     template_object_caches: Box<[Gc<TemplateObjectCache>]>,
     object_shape_caches: Box<[ObjectShapeCache]>,
@@ -1374,7 +1388,11 @@ impl Executable {
         for cache in &self.property_lookup_caches {
             cache.remove_dead_entries();
         }
-        for cache in &self.global_variable_caches {
+        for cache in self
+            .global_variable_caches
+            .iter()
+            .chain(self.dynamic_global_variable_caches.get().into_iter().flatten())
+        {
             cache.entry.clear_if_it_has_a_dead_cell();
         }
         for cache in &self.object_shape_caches {
@@ -1420,12 +1438,7 @@ impl Executable {
             .map(|_| PropertyLookupCache::new())
             .collect();
         let global_variable_caches: Box<[GlobalVariableCache]> = (0..cache_counts.global_variable_caches)
-            .map(|_| GlobalVariableCache {
-                entry: PropertyLookupCacheEntry::new(),
-                environment_serial_number: Cell::new(0),
-                environment_binding_index: Cell::new(0),
-                has_environment_binding_index: Cell::new(false),
-            })
+            .map(|_| GlobalVariableCache::default())
             .collect();
         let environment_coordinate_caches: Box<[Cell<EnvironmentCoordinate>]> = (0..cache_counts
             .environment_coordinate_caches)
@@ -1467,6 +1480,7 @@ impl Executable {
             property_lookup_caches,
             global_variable_caches,
             environment_coordinate_caches,
+            dynamic_global_variable_caches: OnceCell::new(),
             environment_shape_caches,
             template_object_caches: Box::new([]),
             object_shape_caches: Box::new([]),
@@ -1920,6 +1934,16 @@ impl Executable {
 
     pub fn environment_coordinate_cache(&self, index: u32) -> &Cell<EnvironmentCoordinate> {
         &self.environment_coordinate_caches[index as usize]
+    }
+
+    /// The global variable cache of the dynamic binding access with the environment coordinate cache `index`.
+    pub fn dynamic_global_variable_cache(&self, index: u32) -> &GlobalVariableCache {
+        let caches = self.dynamic_global_variable_caches.get_or_init(|| {
+            (0..self.environment_coordinate_caches.len())
+                .map(|_| GlobalVariableCache::default())
+                .collect()
+        });
+        &caches[index as usize]
     }
 
     pub fn interpreter_tier(&self) -> InterpreterTier {

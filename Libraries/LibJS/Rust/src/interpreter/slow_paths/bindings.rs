@@ -19,6 +19,7 @@ use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
+use crate::layout::property_lookup_cache::GlobalVariableCache;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
     call, get_this_environment, new_object_environment, new_private_environment, perform_import_call,
@@ -379,6 +380,14 @@ fn asm_dynamic_get_binding(
         *dst = value;
         return continue_after_instruction(pc);
     }
+    if let Some(value) = asm_try!(
+        vm,
+        pc,
+        cached_dynamic_global_variable_value(vm, current_environment, identifier_index, strict, cache)
+    ) {
+        *dst = value;
+        return continue_after_instruction(pc);
+    }
 
     let reference = asm_try!(
         vm,
@@ -386,6 +395,7 @@ fn asm_dynamic_get_binding(
         vm.resolve_binding(&get_identifier(vm, identifier_index), strict, None)
     );
     update_environment_coordinate_cache(current_environment, reference.environment_coordinate(), cache.get());
+    update_dynamic_global_variable_cache(vm, current_environment, &reference, cache);
 
     *dst = asm_try!(vm, pc, reference.get_value(vm));
     continue_after_instruction(pc)
@@ -411,6 +421,16 @@ fn asm_dynamic_get_callee_and_this_from_environment(
         *this_value_dst = Value::UNDEFINED;
         return continue_after_instruction(pc);
     }
+    // NB: The global environment has no WithBaseObject, so a global variable is called with an undefined this value.
+    if let Some(callee) = asm_try!(
+        vm,
+        pc,
+        cached_dynamic_global_variable_value(vm, current_environment, identifier_index, strict, cache)
+    ) {
+        *callee_dst = callee;
+        *this_value_dst = Value::UNDEFINED;
+        return continue_after_instruction(pc);
+    }
 
     let reference = asm_try!(
         vm,
@@ -418,6 +438,7 @@ fn asm_dynamic_get_callee_and_this_from_environment(
         vm.resolve_binding(&get_identifier(vm, identifier_index), strict, None)
     );
     update_environment_coordinate_cache(current_environment, reference.environment_coordinate(), cache.get());
+    update_dynamic_global_variable_cache(vm, current_environment, &reference, cache);
 
     let callee = asm_try!(vm, pc, reference.get_value(vm));
 
@@ -433,6 +454,101 @@ fn asm_dynamic_get_callee_and_this_from_environment(
     *callee_dst = callee;
     *this_value_dst = this_value;
     continue_after_instruction(pc)
+}
+
+/// OPTIMIZATION: A dynamic binding access that found its binding in the global environment marks its environment
+/// coordinate cache with an invalid coordinate whose index is the number of hops to the global environment. The
+/// interpreter skips invalid coordinates, so the slow path then looks the variable up through a global variable cache
+/// instead of resolving the binding through every environment on the way.
+fn global_environment_hops(coordinate: EnvironmentCoordinate) -> Option<u32> {
+    (coordinate.hops == EnvironmentCoordinate::INVALID_MARKER
+        && coordinate.index != EnvironmentCoordinate::INVALID_MARKER)
+        .then_some(coordinate.index)
+}
+
+/// Whether the global environment of the running realm is `hops` steps out from `environment` and none of the
+/// environments on the way has a binding of `identifier`. Environments that are not declarative cannot be checked
+/// without running code, so they rule the global environment out. A declarative environment only gets new bindings
+/// after it was made through eval, which marks it permanently screwed by eval, so only those need a lookup.
+fn is_global_environment_at_hops(
+    vm: &Vm,
+    environment: Gc<Environment>,
+    hops: u32,
+    identifier: &Utf16FlyString,
+) -> bool {
+    let mut environment = environment;
+    for _ in 0..hops {
+        let Some(declarative_environment) = environment.as_declarative_environment() else {
+            return false;
+        };
+        if environment.is_permanently_screwed_by_eval()
+            && declarative_environment.find_binding_and_index(identifier).is_some()
+        {
+            return false;
+        }
+        let Some(outer_environment) = environment.outer_environment() else {
+            return false;
+        };
+        environment = outer_environment;
+    }
+    vm.current_realm()
+        .is_some_and(|realm| environment == realm.global_environment().upcast::<Environment>())
+}
+
+/// The value of the global variable a dynamic binding access found in the global environment last time, if the
+/// binding still resolves there. Otherwise this forgets that the access found a global variable, and returns nothing.
+fn cached_dynamic_global_variable_value(
+    vm: &Vm,
+    current_environment: Gc<Environment>,
+    identifier_index: IdentifierTableIndex,
+    strict: Strict,
+    cache: &EnvironmentCoordinateCacheSlot,
+) -> ThrowCompletionOr<Option<Value>> {
+    let Some(hops) = global_environment_hops(cache.get().get()) else {
+        return Ok(None);
+    };
+    let identifier = &cache.executable.identifier_table[identifier_index.0 as usize];
+    if is_global_environment_at_hops(vm, current_environment, hops, identifier) {
+        let global_variable_cache = cache.executable.dynamic_global_variable_cache(cache.index);
+        if let Some(value) = global_variable_value(vm, identifier_index, global_variable_cache, strict)? {
+            return Ok(Some(value));
+        }
+    }
+    cache.get().set(EnvironmentCoordinate::invalid());
+    Ok(None)
+}
+
+/// Remembers that a dynamic binding access found its binding in the global environment, if `reference` says so.
+fn update_dynamic_global_variable_cache(
+    vm: &Vm,
+    current_environment: Gc<Environment>,
+    reference: &Reference,
+    cache: &EnvironmentCoordinateCacheSlot,
+) {
+    if cache.get().get().is_valid() || !reference.is_environment_reference() {
+        return;
+    }
+    let base_environment = reference.base_environment();
+    if !base_environment.is_global_environment() {
+        return;
+    }
+
+    let identifier = reference.name().as_string();
+    let mut hops = 0;
+    let mut environment = current_environment;
+    while environment != base_environment {
+        let Some(outer_environment) = environment.outer_environment() else {
+            return;
+        };
+        environment = outer_environment;
+        hops += 1;
+    }
+    if is_global_environment_at_hops(vm, current_environment, hops, identifier) {
+        cache.get().set(EnvironmentCoordinate {
+            hops: EnvironmentCoordinate::INVALID_MARKER,
+            index: hops,
+        });
+    }
 }
 
 fn running_lexical_environment(vm: &Vm) -> Gc<Environment> {
@@ -727,7 +843,12 @@ pub fn get_global(vm: &Vm, pc: u32, instruction: &op::GetGlobal, values: &mut op
     match asm_try!(
         vm,
         pc,
-        global_variable_value(vm, instruction.identifier, instruction.cache, strict)
+        global_variable_value(
+            vm,
+            instruction.identifier,
+            current_executable(vm).global_variable_cache(instruction.cache),
+            strict
+        )
     ) {
         Some(value) => {
             values.dst = value;
@@ -754,30 +875,32 @@ pub fn typeof_global(
     let value = asm_try!(
         vm,
         pc,
-        global_variable_value(vm, instruction.identifier, instruction.cache, strict)
+        global_variable_value(
+            vm,
+            instruction.identifier,
+            current_executable(vm).global_variable_cache(instruction.cache),
+            strict
+        )
     );
     values.dst = Value::from_string(value.unwrap_or(Value::UNDEFINED).typeof_(vm));
     SlowPathControl::continue_at(pc + op::TypeofGlobal::LENGTH)
 }
 
 /// The value of the global variable `identifier`, a binding of the global declarative environment or a property of the
-/// global object, found through the running executable's global variable cache `cache`, which this updates. Returns
-/// nothing if there is no such variable.
+/// global object, found through the global variable cache `cache`, which this updates. Returns nothing if there is no
+/// such variable.
 fn global_variable_value(
     vm: &Vm,
     identifier: IdentifierTableIndex,
-    cache: u32,
+    cache: &GlobalVariableCache,
     strict: Strict,
 ) -> ThrowCompletionOr<Option<Value>> {
     let binding_object = vm.global_object();
     let declarative_record = vm.global_declarative_environment();
-    let executable = current_executable(vm);
-    let cache_index = cache;
-    let cache = || executable.global_variable_cache(cache_index);
 
     let shape = binding_object.shape();
-    if cache().environment_serial_number.get() == declarative_record.environment_serial_number() {
-        if let Some(entry) = cache().first_entry()
+    if cache.environment_serial_number.get() == declarative_record.environment_serial_number() {
+        if let Some(entry) = cache.first_entry()
             && entry.shape == Some(shape)
             && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
         {
@@ -785,15 +908,15 @@ fn global_variable_value(
             return get_cached_property_value(vm, value, Value::from_object(binding_object)).map(Some);
         }
 
-        if cache().has_environment_binding_index.get() {
+        if cache.has_environment_binding_index.get() {
             return declarative_record
-                .get_binding_value_direct(vm, cache().environment_binding_index.get() as usize)
+                .get_binding_value_direct(vm, cache.environment_binding_index.get() as usize)
                 .map(Some);
         }
     }
 
-    cache().reset();
-    cache()
+    cache.reset();
+    cache
         .environment_serial_number
         .set(declarative_record.environment_serial_number());
 
@@ -802,8 +925,8 @@ fn global_variable_value(
     let mut offset = None;
     if declarative_record.has_binding(&identifier, Some(&mut offset))? {
         let offset = offset.expect("the global declarative record reports the index of its bindings");
-        cache().environment_binding_index.set(offset as u32);
-        cache().has_environment_binding_index.set(true);
+        cache.environment_binding_index.set(offset as u32);
+        cache.has_environment_binding_index.set(true);
         return declarative_record
             .get_binding_value(vm, &identifier, strict == Strict::Yes)
             .map(Some);
@@ -824,7 +947,7 @@ fn global_variable_value(
             && shape == binding_object.shape()
             && shape.dictionary_generation() == dictionary_generation
         {
-            cache().update(PropertyLookupCacheEntryType::GetOwnProperty, |entry| {
+            cache.update(PropertyLookupCacheEntryType::GetOwnProperty, |entry| {
                 entry.shape = Some(shape);
                 entry.property_offset = cacheable_metadata
                     .property_offset
