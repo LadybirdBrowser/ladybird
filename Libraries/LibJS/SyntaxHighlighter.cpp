@@ -101,7 +101,7 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
     auto text = m_client->get_text();
     auto decoder = TextCodec::decoder_for("UTF-8"sv);
     VERIFY(decoder.has_value());
-    auto source = TextCodec::decode_to_utf16(text, *decoder)
+    auto source = TextCodec::decode_to_utf16(text.bytes(), *decoder)
                       .release_value_but_fixme_should_propagate_errors();
 
     Vector<Syntax::TextDocumentSpan> spans;

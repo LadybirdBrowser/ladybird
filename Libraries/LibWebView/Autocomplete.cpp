@@ -538,7 +538,7 @@ static ErrorOr<Vector<String>> parse_yahoo_autocomplete(JsonValue const& json)
 
 ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(SearchSuggestions const& provider, Optional<ByteString const&> content_type, StringView response)
 {
-    auto decoder = [&]() -> Optional<TextCodec::Decoder&> {
+    auto decoder = [&]() -> Optional<TextCodec::Decoder> {
         if (!content_type.has_value())
             return {};
 
@@ -554,9 +554,9 @@ ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(SearchSugge
     }();
 
     if (!decoder.has_value())
-        decoder = TextCodec::decoder_for_exact_name("UTF-8"sv);
+        decoder = TextCodec::decoder_for("UTF-8"sv);
 
-    auto decoded_response = TRY(TextCodec::decode_to_utf8(response, *decoder));
+    auto decoded_response = TRY(TextCodec::decode_to_utf8(response.bytes(), *decoder));
     auto json = TRY(JsonValue::from_string(decoded_response));
 
     switch (provider.response_format) {

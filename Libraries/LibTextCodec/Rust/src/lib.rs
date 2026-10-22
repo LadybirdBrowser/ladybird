@@ -19,6 +19,7 @@ pub use streaming_decoder::{DecodingFailed, StreamingDecoder};
 
 use crate::rust_panic::abort_on_panic;
 use ak::Utf16StringUnits;
+use encoding_rs::CoderResult;
 use encoding_rs::EncoderResult;
 use encoding_rs::Encoding;
 use std::ffi::c_void;
@@ -122,6 +123,82 @@ pub unsafe extern "C" fn textcodec_rust_decode_to_utf8(
             }
             on_bytes(ctx, output.as_bytes().as_ptr(), output.len());
             true
+        })
+    }
+}
+
+/// # Safety
+/// - `encoding_label`/`encoding_label_len` and `input`/`input_len` must be valid byte slices.
+/// - `on_utf16` must not retain `data` beyond the duration of the callback.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn textcodec_rust_decode_to_utf16(
+    encoding_label: *const u8,
+    encoding_label_len: usize,
+    input: *const u8,
+    input_len: usize,
+    ctx: *mut c_void,
+    on_utf16: FfiUtf16Fn,
+) -> bool {
+    unsafe {
+        abort_on_panic(|| {
+            let Some(label) = bytes_from_raw(encoding_label, encoding_label_len) else {
+                return false;
+            };
+            let Some(input) = bytes_from_raw(input, input_len) else {
+                return false;
+            };
+            let Some(encoding) = Encoding::for_label(label) else {
+                return false;
+            };
+            let Ok(output) = StreamingDecoder::new(encoding, false, true).decode_to_utf16(input, false) else {
+                return false;
+            };
+            on_utf16(ctx, output.as_ptr(), output.len());
+            true
+        })
+    }
+}
+
+/// # Safety
+/// - `encoding_label`/`encoding_label_len` and `input`/`input_len` must be valid byte slices.
+/// - `out_length` must be a valid writable pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn textcodec_rust_decoded_length_in_utf16_code_units(
+    encoding_label: *const u8,
+    encoding_label_len: usize,
+    input: *const u8,
+    input_len: usize,
+    out_length: *mut usize,
+) -> bool {
+    unsafe {
+        abort_on_panic(|| {
+            let Some(label) = bytes_from_raw(encoding_label, encoding_label_len) else {
+                return false;
+            };
+            let Some(input) = bytes_from_raw(input, input_len) else {
+                return false;
+            };
+            let Some(encoding) = Encoding::for_label(label) else {
+                return false;
+            };
+            if out_length.is_null() {
+                eprintln!("textcodec_rust_decoded_length_in_utf16_code_units: null output pointer");
+                return false;
+            }
+
+            let mut decoder = encoding.new_decoder_without_bom_handling();
+            let mut output = [0u16; 4096];
+            let mut total_read = 0;
+            let mut length = 0;
+            loop {
+                let (result, read, written, _) = decoder.decode_to_utf16(&input[total_read..], &mut output, true);
+                total_read += read;
+                length += written;
+                if result == CoderResult::InputEmpty {
+                    *out_length = length;
+                    return true;
+                }
+            }
         })
     }
 }

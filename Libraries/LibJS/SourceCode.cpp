@@ -32,7 +32,7 @@ static Utf16String decode_source_bytes(ReadonlyBytes source_bytes, StringView so
     auto decoder = TextCodec::decoder_for(source_encoding);
     VERIFY(decoder.has_value());
 
-    auto code = MUST(TextCodec::decode_to_utf16(StringView { source_bytes }, *decoder));
+    auto code = MUST(TextCodec::decode_to_utf16(source_bytes, *decoder));
     if (code.length_in_code_units() > length_in_code_units)
         return Utf16String::from_utf16(code.utf16_view().substring_view(0, length_in_code_units));
     return code;
