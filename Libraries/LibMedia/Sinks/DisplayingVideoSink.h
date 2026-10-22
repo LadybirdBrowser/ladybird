@@ -50,6 +50,7 @@ public:
 
     virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
     virtual void notify_clock_resumed() override;
+    void seek_back_to_current_time();
 
     DisplayingVideoSinkUpdateResult update(MonotonicTime now);
     RefPtr<VideoFrame> current_frame() const;

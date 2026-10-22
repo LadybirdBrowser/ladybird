@@ -292,7 +292,9 @@ void CompositorState::set_video_sink_ticking(CompositorStateWebContentClient& cl
     auto* sink_state = video_sink_state(client, handle);
     if (!sink_state)
         return;
-    sink_state->should_tick = should_tick;
+    auto was_ticking = exchange(sink_state->should_tick, should_tick);
+    if (should_tick && !was_ticking && sink_state->sink)
+        sink_state->sink->seek_back_to_current_time();
     if (should_tick && sink_state->sink)
         present_contexts_drawing_video_sink(client, handle);
     update_unpainted_video_update_scheduling();

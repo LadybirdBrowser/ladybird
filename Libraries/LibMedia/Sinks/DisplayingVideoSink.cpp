@@ -233,6 +233,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         if (time_is_changing) {
             m_next_frame = nullptr;
             m_seek_status = SeekStatus::InProgress;
+            m_seek_resolution_is_pending_frame_at_target = true;
             m_input->seek(current_time);
             status_to_dispatch = PipelineStatus::Pending;
         } else {
@@ -273,6 +274,19 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 void DisplayingVideoSink::notify_clock_resumed()
 {
     update(MonotonicTime::now());
+}
+
+void DisplayingVideoSink::seek_back_to_current_time()
+{
+    if (m_seek_status != SeekStatus::None)
+        return;
+    auto current_time = m_time_reader.current_time();
+
+    // Don't request a seek to the same frame, or we'll wake upstream while suspended for no reason.
+    if (m_current_frame != nullptr && m_current_frame->contains_timestamp(current_time))
+        return;
+
+    seek(current_time);
 }
 
 RefPtr<VideoFrame> DisplayingVideoSink::current_frame() const

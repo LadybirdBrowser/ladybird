@@ -345,6 +345,86 @@ TEST_CASE(frames_passed_by_a_seek_within_the_cached_frames_are_not_counted)
     EXPECT_EQ(frame_counts.dropped, 0u);
 }
 
+TEST_CASE(resuming_ticking_seeks_past_frames_held_behind_the_clock)
+{
+    never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+    auto seeks_before_resuming = producer->seek_count();
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1040), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    // The displayed frame still covers the clock, so there is nothing to skip.
+    sink->seek_back_to_current_time();
+    EXPECT_EQ(producer->seek_count(), seeks_before_resuming);
+
+    clock->seek(AK::Duration::from_milliseconds(1200));
+    sink->seek_back_to_current_time();
+    EXPECT_EQ(producer->seek_count(), seeks_before_resuming + 1);
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1200), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1200));
+    auto frame_counts = sink->take_frame_counts();
+    EXPECT_EQ(frame_counts.presented, 1u);
+    EXPECT_EQ(frame_counts.dropped, 0u);
+}
+
+TEST_CASE(frames_passed_catching_up_after_resuming_from_suspension_are_not_counted)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    producer->wake();
+
+    // A running clock makes the update resume the input with a seek.
+    clock->seek(AK::Duration::from_milliseconds(2000));
+    clock->resume();
+    auto seeks_before_resuming = producer->seek_count();
+    sink->update(MonotonicTime::now());
+    EXPECT_EQ(producer->seek_count(), seeks_before_resuming + 1);
+    producer->consume();
+
+    // The clock passes the frame at the target before it arrives, and the following frames trail behind it.
+    clock->seek(AK::Duration::from_milliseconds(2100));
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(2000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    clock->seek(AK::Duration::from_milliseconds(2200));
+    for (auto timestamp : { 2040, 2080 })
+        producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(timestamp), AK::Duration::from_milliseconds(40)));
+    sink->update(MonotonicTime::now());
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(2200), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(2200));
+    EXPECT_EQ(sink->take_frame_counts().dropped, 0u);
+}
+
 TEST_CASE(frames_replaced_within_an_update_are_presented_when_the_last_one_is_on_time)
 {
     never_destroyed_event_loop();
