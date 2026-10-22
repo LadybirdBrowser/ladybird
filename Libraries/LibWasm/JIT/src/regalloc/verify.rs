@@ -169,6 +169,7 @@ pub fn verify(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> 
                             simulation.registers[temp as usize] = NONE;
                         }
                     }
+                    #[cfg(target_arch = "x86_64")]
                     if matches!(node.op, Op::DivS | Op::DivU | Op::RemS | Op::RemU) {
                         simulation.registers[convention::RAX as usize] = NONE;
                         simulation.registers[convention::RDX as usize] = NONE;

@@ -17,6 +17,43 @@ use libwasm_module::abi::{
     TRAP_TABLE_OUT_OF_BOUNDS, TableData,
 };
 
+/// Makes instruction fetches see code just written at `start`, `length` bytes. On AArch64 the data cache lines are
+/// cleaned to where instruction fetches see them and the instruction cache lines invalidated; x86-64 keeps its caches
+/// coherent.
+pub fn flush_instruction_cache(start: usize, length: usize) {
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    {
+        unsafe extern "C" {
+            fn sys_icache_invalidate(start: *mut core::ffi::c_void, length: usize);
+        }
+        // SAFETY: The range is code the caller just wrote.
+        unsafe { sys_icache_invalidate(start as *mut core::ffi::c_void, length) };
+    }
+    #[cfg(all(target_arch = "aarch64", not(target_os = "macos")))]
+    // SAFETY: Cache maintenance by address changes no data.
+    unsafe {
+        let cache_type: u64;
+        core::arch::asm!("mrs {}, ctr_el0", out(reg) cache_type, options(nomem, nostack));
+        let data_line = 4usize << ((cache_type >> 16) & 15);
+        let instruction_line = 4usize << (cache_type & 15);
+        let end = start + length;
+        let mut line = start & !(data_line - 1);
+        while line < end {
+            core::arch::asm!("dc cvau, {}", in(reg) line, options(nostack));
+            line += data_line;
+        }
+        core::arch::asm!("dsb ish", options(nostack));
+        let mut line = start & !(instruction_line - 1);
+        while line < end {
+            core::arch::asm!("ic ivau, {}", in(reg) line, options(nostack));
+            line += instruction_line;
+        }
+        core::arch::asm!("dsb ish", "isb", options(nostack));
+    }
+    #[cfg(not(target_arch = "aarch64"))]
+    let _ = (start, length);
+}
+
 /// The address of the function `helper` calls.
 pub fn helper_address(helper: Helper, runtime: &RuntimeInfo) -> u64 {
     let function: unsafe extern "C" fn(*mut ExecutionContext) -> u64 = match helper {

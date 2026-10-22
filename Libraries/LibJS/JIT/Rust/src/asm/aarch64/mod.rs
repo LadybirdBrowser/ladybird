@@ -6,10 +6,12 @@
 
 //! AArch64 (A64) instruction encoder.
 
+mod extended;
 mod macro_assembler;
 #[cfg(test)]
 mod tests;
 
+pub use extended::{AtomicRmw, AtomicSize, FloatBinary, FloatSize, FloatUnary, VectorArrangement};
 pub use macro_assembler::MacroAssembler;
 
 use super::Fpr;

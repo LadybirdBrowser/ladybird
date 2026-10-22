@@ -12,14 +12,20 @@
 
 #![allow(dead_code)]
 
+#[cfg(target_arch = "aarch64")]
+mod aarch64;
 pub mod script;
+#[cfg(target_arch = "x86_64")]
+mod x86_64;
+
+#[cfg(target_arch = "aarch64")]
+use aarch64::{not_compiled_code, trampoline_code, trap_exit_code, trap_stub};
+#[cfg(target_arch = "x86_64")]
+use x86_64::{not_compiled_code, trampoline_code, trap_exit_code, trap_stub};
 
 use libwasm_engine::Module;
 use libwasm_engine::abi::{ExecutionContext, InstanceData};
 use libwasm_engine::runtime::{FunctionKind, InstanceAddress, Store, Value, helpers};
-use libwasm_jit::asm::x86_64::{Assembler, Precision, VexMap, VexOpcode, VexOperand, VexPrefix};
-use libwasm_jit::asm::{Address, Gpr, Width};
-use libwasm_jit::convention::{self, Place};
 use libwasm_jit::ir::Type;
 use libwasm_jit::{CompileContext, CompileFailure, CompileRequest, Options, RuntimeInfo};
 use std::cell::RefCell;
@@ -49,7 +55,7 @@ pub const TRAP_NOT_COMPILED: u32 = 100;
 
 /// Where the trap exit leaves the trampoline's stack pointer and the trap code.
 #[repr(C)]
-struct SessionState {
+pub(crate) struct SessionState {
     entry_sp: u64,
     trap: u32,
 }
@@ -59,9 +65,6 @@ const TRAP_OFFSET: i32 = offset_of!(SessionState, trap) as i32;
 
 const CODE_SPACE_SIZE: usize = 1 << 30;
 
-const VMOVUPS_LOAD: VexOpcode = VexOpcode::new(VexPrefix::None, VexMap::Map0F, 0x10);
-const VMOVUPS_STORE: VexOpcode = VexOpcode::new(VexPrefix::None, VexMap::Map0F, 0x11);
-
 /// Executable memory, reserved up front. Code is added in batches, which are written while their pages are not
 /// executable.
 pub struct CodeSpace {
@@ -70,7 +73,9 @@ pub struct CodeSpace {
     used: usize,
 }
 
-const PAGE_SIZE: usize = 4096;
+fn page_size() -> usize {
+    unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize }
+}
 
 impl CodeSpace {
     fn new(size: usize) -> Self {
@@ -94,7 +99,8 @@ impl CodeSpace {
 
     /// Copies each piece of code in and returns their addresses.
     fn add(&mut self, codes: &[&[u8]]) -> Vec<u64> {
-        let first_page = self.used / PAGE_SIZE * PAGE_SIZE;
+        let page_size = page_size();
+        let first_page = self.used / page_size * page_size;
         let mut end = self.used;
         let mut starts = Vec::with_capacity(codes.len());
         for code in codes {
@@ -103,7 +109,7 @@ impl CodeSpace {
             end = start + code.len();
         }
         assert!(end <= self.size, "the code space is full");
-        let pages = end.next_multiple_of(PAGE_SIZE) - first_page;
+        let pages = end.next_multiple_of(page_size) - first_page;
         if pages == 0 {
             return starts.iter().map(|start| self.base as u64 + *start as u64).collect();
         }
@@ -116,7 +122,7 @@ impl CodeSpace {
             for (code, start) in codes.iter().zip(&starts) {
                 std::ptr::copy_nonoverlapping(code.as_ptr(), self.base.add(*start), code.len());
             }
-            __clear_cache(region.cast(), region.add(pages).cast());
+            libwasm_jit::runtime::flush_instruction_cache(region as usize, pages);
             assert_eq!(
                 libc::mprotect(region.cast(), pages, libc::PROT_READ | libc::PROT_EXEC),
                 0
@@ -135,32 +141,6 @@ impl Drop for CodeSpace {
 
 // The code spaces that exist, for the fault handler. Tests run on several threads.
 static CODE_RANGES: std::sync::Mutex<Vec<(u64, u64)>> = std::sync::Mutex::new(Vec::new());
-
-/// The trap exit, entered with the trap code in edi: returns 1 from the trampoline.
-fn trap_exit_code(state: *mut SessionState) -> Vec<u8> {
-    let mut asm = Assembler::new();
-    let rax = Gpr(convention::RAX);
-    let sp = Gpr(convention::RSP);
-    asm.mov_ri(rax, state as u64);
-    asm.mov_mr(Width::W32, &Address::new(rax, TRAP_OFFSET), Gpr(convention::RDI));
-    asm.mov_rm(Width::W64, sp, &Address::new(rax, ENTRY_SP_OFFSET));
-    restore_and_return(&mut asm, 1);
-    asm.finish().unwrap()
-}
-
-/// The code of functions the JIT did not compile.
-fn not_compiled_code(trap_exit: u64) -> Vec<u8> {
-    trap_stub(trap_exit, TRAP_NOT_COMPILED)
-}
-
-/// Code that traps with `code`.
-fn trap_stub(trap_exit: u64, code: u32) -> Vec<u8> {
-    let mut asm = Assembler::new();
-    asm.mov_ri32(Gpr(convention::RDI), code);
-    asm.mov_ri(Gpr(convention::R11), trap_exit);
-    asm.jmp_r(Gpr(convention::R11));
-    asm.finish().unwrap()
-}
 
 /// `RuntimeInfo::throw` of the harness: unwinds the exception in `arguments[0]` from the compiled frame whose fp is
 /// `arguments[1]` to the first exception site its callers return to. An exception that leaves compiled code traps with
@@ -192,151 +172,6 @@ unsafe extern "C" fn throw(context: *mut ExecutionContext) -> u64 {
         });
         context as u64
     }
-}
-
-fn restore_and_return(asm: &mut Assembler, status: u32) {
-    asm.add_ri(Width::W64, Gpr(convention::RSP), 8);
-    for register in [
-        convention::R15,
-        convention::R14,
-        convention::R13,
-        convention::R12,
-        convention::RBX,
-        convention::RBP,
-    ] {
-        asm.pop(Gpr(register));
-    }
-    asm.mov_ri32(Gpr(convention::RAX), status);
-    asm.ret();
-}
-
-/// `extern "C" fn(entry, arguments, results, instance) -> u32`: calls `entry` with the arguments' slots under the
-/// compiled convention, stores the results' slots, and returns 0, or 1 if the code trapped.
-fn trampoline_code(params: &[Type], results: &[Type], state: *mut SessionState) -> Vec<u8> {
-    let mut asm = Assembler::new();
-    let g = Gpr;
-    let (rdi, rsi, rdx, rcx) = (
-        g(convention::RDI),
-        g(convention::RSI),
-        g(convention::RDX),
-        g(convention::RCX),
-    );
-    let sp = g(convention::RSP);
-    let scratch = g(convention::R11);
-    for register in [
-        convention::RBP,
-        convention::RBX,
-        convention::R12,
-        convention::R13,
-        convention::R14,
-        convention::R15,
-    ] {
-        asm.push(g(register));
-    }
-    asm.sub_ri(Width::W64, sp, 8);
-    asm.mov_mr(Width::W64, &Address::new(sp, 0), rdx);
-    asm.mov_ri(scratch, state as u64);
-    asm.mov_mr(Width::W64, &Address::new(scratch, ENTRY_SP_OFFSET), sp);
-    let outgoing = convention::outgoing_size(params, results).next_multiple_of(16) as i32;
-    if outgoing > 0 {
-        asm.sub_ri(Width::W64, sp, outgoing);
-    }
-    let entry = g(convention::R10);
-    asm.mov_rr(Width::W64, entry, rdi);
-    asm.mov_rr(Width::W64, scratch, rsi);
-    asm.mov_rr(Width::W64, g(convention::INSTANCE_REGISTER), rcx);
-    asm.mov_rm(
-        Width::W64,
-        g(convention::MEMORY_BASE_REGISTER),
-        &Address::new(rcx, offset_of!(InstanceData, memory0_base) as i32),
-    );
-    // Copies the 8 or 16 bytes of a value of type `ty` between memory locations, through xmm15.
-    let copy = |asm: &mut Assembler, ty: Type, from: Address, to: Address| {
-        if ty == Type::V128 {
-            asm.vex(VMOVUPS_LOAD, 15, 0, VexOperand::Memory(from), None);
-            asm.vex(VMOVUPS_STORE, 15, 0, VexOperand::Memory(to), None);
-        } else {
-            asm.vmovs_rm(Precision::Double, libwasm_jit::asm::Fpr(15), &from);
-            asm.vmovs_mr(Precision::Double, &to, libwasm_jit::asm::Fpr(15));
-        }
-    };
-    // Loads or stores a value of type `ty` in `register` (true) at `address`.
-    let transfer = |asm: &mut Assembler, ty: Type, register: u8, address: Address, load: bool| {
-        if ty == Type::V128 {
-            let opcode = if load { VMOVUPS_LOAD } else { VMOVUPS_STORE };
-            asm.vex(
-                opcode,
-                register - convention::FPR_BASE,
-                0,
-                VexOperand::Memory(address),
-                None,
-            );
-        } else if convention::is_fpr(register) {
-            let register = libwasm_jit::asm::Fpr(register - convention::FPR_BASE);
-            if load {
-                asm.vmovs_rm(Precision::Double, register, &address);
-            } else {
-                asm.vmovs_mr(Precision::Double, &address, register);
-            }
-        } else if load {
-            asm.mov_rm(Width::W64, g(register), &address);
-        } else {
-            asm.mov_mr(Width::W64, &address, g(register));
-        }
-    };
-    let mut places = Vec::new();
-    convention::parameter_places(params, &mut places);
-    // Stack arguments first, then registers, so that rsi and the others are read before they are written. Argument
-    // slots are laid out like home slots, so a parameter's slot is the same in both.
-    for (index, place) in places.iter().enumerate() {
-        if let Place::Memory(slot) = place {
-            let from = Address::new(scratch, 8 * *slot as i32);
-            copy(&mut asm, params[index], from, Address::new(sp, 8 * *slot as i32));
-        }
-    }
-    for (index, place) in places.iter().enumerate() {
-        if let Place::Register(register) = place {
-            let slot = convention::home_slot(params, index);
-            transfer(
-                &mut asm,
-                params[index],
-                *register,
-                Address::new(scratch, 8 * slot as i32),
-                true,
-            );
-        }
-    }
-    let parameter_slots = convention::slots(params) as i32;
-    if convention::has_result_area(results) {
-        let pointer = 8 * parameter_slots;
-        asm.lea(Width::W64, g(convention::RAX), &Address::new(sp, pointer + 8));
-        asm.mov_mr(Width::W64, &Address::new(sp, pointer), g(convention::RAX));
-    }
-    asm.call_r(entry);
-    // NB: Tail calls may have moved rsp.
-    asm.mov_ri(scratch, state as u64);
-    asm.mov_rm(Width::W64, sp, &Address::new(scratch, ENTRY_SP_OFFSET));
-    if outgoing > 0 {
-        asm.sub_ri(Width::W64, sp, outgoing);
-    }
-    asm.mov_rm(Width::W64, scratch, &Address::new(sp, outgoing));
-    convention::result_places(results, &mut places);
-    for (index, place) in places.iter().enumerate() {
-        let slot = convention::home_slot(results, index);
-        let address = Address::new(scratch, 8 * slot as i32);
-        match place {
-            Place::Register(register) => transfer(&mut asm, results[index], *register, address, false),
-            Place::Memory(slot) => {
-                let area = 8 * (parameter_slots + 1) + 8 * *slot as i32;
-                copy(&mut asm, results[index], Address::new(sp, area), address);
-            }
-        }
-    }
-    if outgoing > 0 {
-        asm.add_ri(Width::W64, sp, outgoing);
-    }
-    restore_and_return(&mut asm, 0);
-    asm.finish().unwrap()
 }
 
 fn ir_types(types: &[libwasm_engine::types::ValType]) -> Option<Vec<Type>> {
@@ -446,10 +281,6 @@ pub struct CompiledModule {
     pub runnable: Vec<bool>,
 }
 
-unsafe extern "C" {
-    fn __clear_cache(start: *mut libc::c_char, end: *mut libc::c_char);
-}
-
 impl CompiledModule {
     pub fn compile(module: Arc<Module>, options: Options) -> Self {
         let runtime = with_session(|session| session.runtime);
@@ -550,6 +381,15 @@ pub enum Outcome {
     Trap(u32),
 }
 
+#[cfg(target_os = "macos")]
+fn lowest_stack_address() -> u64 {
+    unsafe {
+        let thread = libc::pthread_self();
+        (libc::pthread_get_stackaddr_np(thread) as usize - libc::pthread_get_stacksize_np(thread)) as u64
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
 fn lowest_stack_address() -> u64 {
     unsafe {
         let mut attributes: libc::pthread_attr_t = std::mem::zeroed();
@@ -655,11 +495,41 @@ pub fn function_index(
 
 static INSTALL: std::sync::Once = std::sync::Once::new();
 static mut PREVIOUS: libc::sigaction = unsafe { std::mem::zeroed() };
+static mut PREVIOUS_SIGBUS: libc::sigaction = unsafe { std::mem::zeroed() };
+
+/// The program counter of a signal handler's context, and the register the trap exit takes the trap code in.
+#[cfg(target_arch = "x86_64")]
+unsafe fn fault_registers(context: *mut libc::ucontext_t) -> (*mut u64, *mut u64) {
+    unsafe {
+        let registers = &raw mut (*context).uc_mcontext.gregs;
+        (
+            (&raw mut (*registers)[libc::REG_RIP as usize]).cast(),
+            (&raw mut (*registers)[libc::REG_RDI as usize]).cast(),
+        )
+    }
+}
+
+#[cfg(all(target_arch = "aarch64", target_os = "linux"))]
+unsafe fn fault_registers(context: *mut libc::ucontext_t) -> (*mut u64, *mut u64) {
+    unsafe {
+        let mcontext = &raw mut (*context).uc_mcontext;
+        ((&raw mut (*mcontext).pc), (&raw mut (*mcontext).regs[0]))
+    }
+}
+
+#[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+unsafe fn fault_registers(context: *mut libc::ucontext_t) -> (*mut u64, *mut u64) {
+    unsafe {
+        let state = &raw mut (*(*context).uc_mcontext).__ss;
+        ((&raw mut (*state).__pc), (&raw mut (*state).__x[0]))
+    }
+}
 
 extern "C" fn handle_fault(signal: i32, info: *mut libc::siginfo_t, context: *mut libc::c_void) {
     unsafe {
         let context = context.cast::<libc::ucontext_t>();
-        let pc = (*context).uc_mcontext.gregs[libc::REG_RIP as usize] as u64;
+        let (pc_register, code_register) = fault_registers(context);
+        let pc = *pc_register;
         let address = (*info).si_addr() as usize;
         let exit = CODE_RANGES.try_lock().ok().and_then(|ranges| {
             ranges
@@ -671,12 +541,15 @@ extern "C" fn handle_fault(signal: i32, info: *mut libc::siginfo_t, context: *mu
             && libwasm_engine::runtime::memory::is_in_any_reservation(address)
         {
             // Every code space starts with its trap exit.
-            (*context).uc_mcontext.gregs[libc::REG_RIP as usize] = start as i64;
-            (*context).uc_mcontext.gregs[libc::REG_RDI as usize] =
-                i64::from(libwasm_engine::abi::TRAP_MEMORY_OUT_OF_BOUNDS);
+            *pc_register = start;
+            *code_register = u64::from(libwasm_engine::abi::TRAP_MEMORY_OUT_OF_BOUNDS);
             return;
         }
-        let previous = std::ptr::read(&raw const PREVIOUS);
+        let previous = if signal == libc::SIGSEGV {
+            std::ptr::read(&raw const PREVIOUS)
+        } else {
+            std::ptr::read(&raw const PREVIOUS_SIGBUS)
+        };
         if previous.sa_flags & libc::SA_SIGINFO != 0 && previous.sa_sigaction > libc::SIG_IGN {
             let handler: extern "C" fn(i32, *mut libc::siginfo_t, *mut libc::c_void) =
                 std::mem::transmute(previous.sa_sigaction);
@@ -695,5 +568,7 @@ fn install_fault_handler() {
         action.sa_flags = libc::SA_SIGINFO | libc::SA_ONSTACK;
         libc::sigemptyset(&raw mut action.sa_mask);
         libc::sigaction(libc::SIGSEGV, &raw const action, &raw mut PREVIOUS);
+        // NB: Accesses of the guard pages raise SIGBUS on macOS.
+        libc::sigaction(libc::SIGBUS, &raw const action, &raw mut PREVIOUS_SIGBUS);
     });
 }
