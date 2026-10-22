@@ -158,7 +158,7 @@ unsafe fn tier_up(context: *mut ExecutionContext) -> u64 {
         }
         let at_loop = reason == 1;
         // NB: The interpreter charges a call once this returns, so every budget covers that.
-        let state = native::compile_function(store, address, false);
+        let state = native::compile_function(store, address, native::Compile::InBackground);
         address.get_mut().header.tier_up_budget = match state {
             // A compiled function keeps a budget, so that frames of it still running in the interpreter continue
             // compiled at the next loop header they reach.
@@ -877,7 +877,9 @@ mod native {
             let (outer, wide_function) = (export("outer"), export("wide"));
             wide.set(Some(wide_function));
             // The function whose frames the traps skip runs compiled, with a call image too large for the stack.
-            while super::compile_function(&mut store, wide_function, false) != super::CompileState::Compiled {
+            while super::compile_function(&mut store, wide_function, super::Compile::InBackground)
+                != super::CompileState::Compiled
+            {
                 std::thread::sleep(std::time::Duration::from_millis(1));
             }
             store.invoke(outer, &[]).expect("the host function returns");
@@ -903,7 +905,7 @@ mod native {
             // NB: Even runs compiled, and odd runs interpreted for as long as it does not ask for its compile, as if
             //     its compile thread never finished it, or its compile failed.
             assert_eq!(
-                super::compile_function(&mut store, even, true),
+                super::compile_function(&mut store, even, super::Compile::Now),
                 super::CompileState::Compiled
             );
             unsafe { odd.get_mut() }.header.tier_up_budget = u32::MAX;
@@ -927,7 +929,7 @@ mod native {
             };
             let (few, many) = (export("few"), export("many"));
             assert_eq!(
-                super::compile_function(&mut store, few, true),
+                super::compile_function(&mut store, few, super::Compile::Now),
                 super::CompileState::Compiled
             );
             unsafe { many.get_mut() }.header.tier_up_budget = u32::MAX;
@@ -957,7 +959,7 @@ mod native {
             let body = &module.code[(*index - module.imported_function_count) as usize];
             let jit = store.jit.get_or_insert_with(Default::default);
             let key = jit.key(module, *index, Some(body.code.start));
-            assert_eq!(jit.compile(key, true), super::CompileState::Compiled);
+            assert_eq!(jit.compile(key, super::Compile::Now), super::CompileState::Compiled);
             unsafe { loops.get_mut() }.header.tier_up_budget = crate::abi::TIER_UP_CALL_COST;
             assert_eq!(store.invoke(loops, &[Value::I64(3)]), Ok(vec![Value::I64(6039)]));
         }
@@ -990,7 +992,7 @@ mod native {
             // NB: The handler runs interpreted, and the function that throws runs compiled and calls the host through
             //     the runtime adapter first, which uses the context's arguments too.
             assert_eq!(
-                super::compile_function(&mut store, throws, true),
+                super::compile_function(&mut store, throws, super::Compile::Now),
                 super::CompileState::Compiled
             );
             unsafe { catches.get_mut() }.header.tier_up_budget = u32::MAX;
@@ -1112,6 +1114,15 @@ mod native {
         Compiled,
         Pending,
         Failed,
+    }
+
+    /// Where a compile runs.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Compile {
+        /// On the compile threads, unless the JIT compiles on the thread that runs the code (`Options::sync`).
+        InBackground,
+        /// On this thread, at once, even if a compile thread has the function.
+        Now,
     }
 
     /// What became of entering compiled code at a loop.
@@ -1270,21 +1281,21 @@ mod native {
             });
         }
 
-        /// Where the compile of `key` is, after compiling it here and now in sync mode or if `now`, or else having it
-        /// compiled in the background.
-        fn compile(&mut self, key: CompileKey, now: bool) -> CompileState {
+        /// Where the compile of `key` is, after compiling it here and now in sync mode or `Compile::Now`, or else
+        /// having it compiled in the background.
+        fn compile(&mut self, key: CompileKey, when: Compile) -> CompileState {
             if self.entry(key).is_some() {
                 return CompileState::Compiled;
             }
             if self.modules[&key.module].failed.contains(&(key.function, key.osr)) {
                 return CompileState::Failed;
             }
-            if super::options().sync || now {
+            if super::options().sync || when == Compile::Now {
                 let code = self
                     .request(key)
                     .and_then(|request| compile(&mut self.context, &request));
                 self.finish(key, code);
-                return self.compile(key, false);
+                return self.compile(key, Compile::InBackground);
             }
             if self.pending.insert(key) {
                 self.submit(key);
@@ -1385,12 +1396,12 @@ mod native {
             let function = unsafe { address.get() };
             if let FunctionKind::Wasm { module, index, .. } = &function.kind {
                 let key = jit.key(module, *index, None);
-                jit.compile(key, false);
+                jit.compile(key, Compile::InBackground);
             }
         }
         jit.take_finished(true);
         for address in functions {
-            if compile_function(store, address, false) == CompileState::Pending {
+            if compile_function(store, address, Compile::InBackground) == CompileState::Pending {
                 // NB: Eager functions have no budget, so one whose compile is late asks for it like a hot one.
                 unsafe { address.get_mut() }.header.tier_up_budget = super::POLL_BUDGET + crate::abi::TIER_UP_CALL_COST;
             }
@@ -1398,8 +1409,8 @@ mod native {
     }
 
     /// Compiles a WebAssembly function, unless the store compiled its module's function already, and installs the
-    /// code once there is some. With `now`, compiles it on this thread even if a compile thread has it.
-    pub fn compile_function(store: &mut Store, address: FunctionAddress, now: bool) -> CompileState {
+    /// code once there is some.
+    pub fn compile_function(store: &mut Store, address: FunctionAddress, when: Compile) -> CompileState {
         let jit = store.jit.get_or_insert_with(Default::default);
         if jit.disabled {
             return CompileState::Failed;
@@ -1410,7 +1421,7 @@ mod native {
             return CompileState::Failed;
         };
         let key = jit.key(module, *index, None);
-        let state = jit.compile(key, now);
+        let state = jit.compile(key, when);
         if state == CompileState::Compiled {
             function.header.native_entry = jit.entry(key).expect("the function is compiled");
             function.header.kind = FUNCTION_KIND_COMPILED;
@@ -1613,7 +1624,7 @@ mod native {
                 return LoopEntry::Never;
             }
             let key = jit.key(module, *index, Some(offset));
-            match jit.compile(key, false) {
+            match jit.compile(key, Compile::InBackground) {
                 CompileState::Compiled => {}
                 CompileState::Pending => return LoopEntry::Pending,
                 CompileState::Failed => return LoopEntry::Never,
@@ -1699,7 +1710,17 @@ mod native {
 
     pub fn compile_instance(_store: &mut Store, _instance: InstanceAddress) {}
 
-    pub fn compile_function(_store: &mut Store, _address: crate::runtime::FunctionAddress, _now: bool) -> CompileState {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Compile {
+        InBackground,
+        Now,
+    }
+
+    pub fn compile_function(
+        _store: &mut Store,
+        _address: crate::runtime::FunctionAddress,
+        _when: Compile,
+    ) -> CompileState {
         CompileState::Failed
     }
 
