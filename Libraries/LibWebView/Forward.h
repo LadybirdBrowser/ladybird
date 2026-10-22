@@ -35,6 +35,7 @@ class CanonicalSimilarOriginWindowAgent;
 class CanonicalTraversable;
 class CanonicalWindow;
 class CompositorClient;
+class CompositorPresentationClient;
 class CookieJar;
 class DownloadStore;
 class ExternalURLHandler;

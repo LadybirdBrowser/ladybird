@@ -39,6 +39,11 @@ public:
         Gfx::IntRect damage_rect;
     };
 
+    enum class PublicationMode {
+        Unpublished,
+        Published,
+    };
+
     enum class GpuSharing {
         Disallowed,
         Allowed,
@@ -58,6 +63,7 @@ public:
     Optional<RenderTarget> acquire_render_target(Gfx::IntRect frame_damage);
     void complete_rendering(i32 bitmap_id, bool release_to_external);
     bool release_buffer(i32 bitmap_id);
+    void release_all_presented_buffers();
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const;
 
     Optional<Publication> add_backing_store_if_window_server_still_reads_every_released_store(RefPtr<Gfx::SkiaBackendContext> const&);

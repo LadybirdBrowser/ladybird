@@ -49,6 +49,7 @@
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CompositorClient.h>
+#include <LibWebView/CompositorPresentationClient.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/FaviconStore.h>
@@ -219,6 +220,8 @@ Application::~Application()
 
     if (m_compositor_client)
         m_compositor_client->on_death = nullptr;
+    if (m_compositor_presentation_client)
+        m_compositor_presentation_client->on_death = nullptr;
 
     if (m_cpu_profiler_process.has_value()) {
 #if !defined(AK_OS_WINDOWS)
@@ -1347,7 +1350,8 @@ Web::CompositorContextId Application::allocate_compositor_context_id()
     return Web::CompositorContextId { m_next_page_or_compositor_context_id++ };
 }
 
-static bool can_send_compositor_process_ipc(RefPtr<CompositorClient> const& compositor_client)
+template<typename Client>
+static bool can_send_compositor_process_ipc(RefPtr<Client> const& compositor_client)
 {
     if (!compositor_client)
         return false;
@@ -1427,6 +1431,12 @@ ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web
     if (result.is_error())
         return Error::from_string_literal("Compositor process disconnected while creating context");
 
+    // A page's context presents its frames to us, and takes its input from us, through our presentation connection.
+    if (page_id.has_value() && m_compositor_presentation_client) {
+        if (m_compositor_client->try_bind_presentation(context_id, m_compositor_presentation_id).is_error())
+            return Error::from_string_literal("Compositor process disconnected while binding context");
+    }
+
     return {};
 }
 
@@ -1471,45 +1481,45 @@ void Application::update_compositor_context_visibility(Web::CompositorContextId 
 
 bool Application::handle_key_event_in_compositor(Web::CompositorContextId context_id, Web::KeyEvent const& event)
 {
-    if (!can_send_compositor_process_ipc(m_compositor_client))
+    if (!can_send_compositor_process_ipc(m_compositor_presentation_client))
         return false;
-    auto result = m_compositor_client->try_handle_key_event(context_id, event.clone_without_browser_data());
+    auto result = m_compositor_presentation_client->try_handle_key_event(context_id, event.clone_without_browser_data());
     return !result.is_error() && result.release_value();
 }
 
 bool Application::dispatch_key_event_to_web_content(Web::CompositorContextId context_id, Web::KeyEvent const& event)
 {
-    if (!can_send_compositor_process_ipc(m_compositor_client))
+    if (!can_send_compositor_process_ipc(m_compositor_presentation_client))
         return false;
-    auto result = m_compositor_client->try_dispatch_key_event_to_web_content(context_id, event.clone_without_browser_data());
+    auto result = m_compositor_presentation_client->try_dispatch_key_event_to_web_content(context_id, event.clone_without_browser_data());
     return !result.is_error() && result.release_value();
 }
 
 void Application::handle_pinch_event_in_compositor(Web::CompositorContextId context_id, Web::PinchEvent const& event)
 {
-    if (!can_send_compositor_process_ipc(m_compositor_client))
+    if (!can_send_compositor_process_ipc(m_compositor_presentation_client))
         return;
 
-    m_compositor_client->async_handle_pinch_event(context_id, event);
+    m_compositor_presentation_client->async_handle_pinch_event(context_id, event);
 }
 
 bool Application::handle_and_dispatch_mouse_event_in_compositor(Web::CompositorContextId context_id, Web::MouseEvent const& event)
 {
-    if (!can_send_compositor_process_ipc(m_compositor_client))
+    if (!can_send_compositor_process_ipc(m_compositor_presentation_client))
         return false;
-    VERIFY(m_compositor_client);
+    VERIFY(m_compositor_presentation_client);
 
-    m_compositor_client->async_handle_and_dispatch_mouse_event(context_id, event.clone_without_browser_data());
+    m_compositor_presentation_client->async_handle_and_dispatch_mouse_event(context_id, event.clone_without_browser_data());
     return true;
 }
 
 void Application::notify_compositor_presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id)
 {
-    if (!can_send_compositor_process_ipc(m_compositor_client))
+    if (!can_send_compositor_process_ipc(m_compositor_presentation_client))
         return;
-    VERIFY(m_compositor_client);
+    VERIFY(m_compositor_presentation_client);
 
-    m_compositor_client->async_presented_bitmap_ready_to_paint(context_id, bitmap_id);
+    m_compositor_presentation_client->async_presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
 void Application::crash_compositor_process()
@@ -1773,16 +1783,28 @@ ErrorOr<void> Application::launch_compositor_process()
         compositor_reported_gpu_device_identity(move(identity));
     };
 
-    if (!platform_reports_scroll_momentum())
-        m_compositor_client->async_set_synthesizes_scroll_momentum(true);
-    if (platform_scrolls_elastically())
-        m_compositor_client->async_set_scrolls_elastically(true);
-
+    Optional<u64> gpu_presentation_adapter_luid;
 #ifdef USE_DIRECTX
     m_reported_compositor_gpu_presentation_unavailable = false;
-    if (auto adapter_luid = Gfx::default_dxgi_adapter_luid(); adapter_luid.has_value())
-        m_compositor_client->async_set_client_gpu_presentation_capability(true, *adapter_luid);
+    gpu_presentation_adapter_luid = Gfx::default_dxgi_adapter_luid();
 #endif
+    auto presentation_or_error = m_compositor_client->try_create_presentation_connection(!platform_reports_scroll_momentum(), platform_scrolls_elastically(), gpu_presentation_adapter_luid);
+    if (presentation_or_error.is_error())
+        return Error::from_string_literal("Compositor process disconnected while creating presentation connection");
+    auto presentation = presentation_or_error.release_value();
+    auto transport = TRY(presentation.take_handle().create_transport());
+    m_compositor_presentation_client = adopt_ref(*new CompositorPresentationClient(move(transport)));
+    m_compositor_presentation_id = presentation.presentation_id();
+    m_compositor_presentation_client->on_death = [this, presentation_client = m_compositor_presentation_client->make_weak_ptr<CompositorPresentationClient>()] {
+        // NB: This runs on a later turn, by which time a new Compositor can have replaced the one this belonged to.
+        if (!presentation_client || presentation_client.ptr() != m_compositor_presentation_client.ptr())
+            return;
+        // NB: Our pages can neither show frames nor take input through the Compositor without this connection, so
+        //     losing it is a Compositor failure. Closing the management connection ends the Compositor, and we
+        //     restart it and rebind our pages as after a crash.
+        if (m_compositor_client)
+            m_compositor_client->shutdown();
+    };
 
     return {};
 }
@@ -1815,13 +1837,16 @@ void Application::notify_compositor_gpu_presentation_unavailable()
     if (m_reported_compositor_gpu_presentation_unavailable)
         return;
     m_reported_compositor_gpu_presentation_unavailable = true;
-    if (m_compositor_client)
-        m_compositor_client->async_set_client_gpu_presentation_capability(false, 0);
+    if (m_compositor_presentation_client)
+        m_compositor_presentation_client->async_set_client_gpu_presentation_capability(false, 0);
 }
 
 void Application::handle_compositor_process_death()
 {
     m_compositor_client = nullptr;
+    if (m_compositor_presentation_client)
+        m_compositor_presentation_client->on_death = nullptr;
+    m_compositor_presentation_client = nullptr;
 
     // Nothing will forward or hand back the input events the dead compositor still held.
     WebContentClient::for_each_client([](WebContentClient& client) {

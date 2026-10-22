@@ -32,6 +32,8 @@ generate_compositing_webgl_implementation()
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Services/Compositor)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorControlClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorControlClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorControlServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorControlServerEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorPresentationClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorPresentationClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorPresentationServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorPresentationServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/RenderClockClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/RenderClockClientEndpoint.h)
@@ -43,6 +45,8 @@ set(GENERATED_SOURCES
     WebGL/WebGLCommands.cpp
     ../../Services/Compositor/CompositorControlClientEndpoint.h
     ../../Services/Compositor/CompositorControlServerEndpoint.h
+    ../../Services/Compositor/CompositorPresentationClientEndpoint.h
+    ../../Services/Compositor/CompositorPresentationServerEndpoint.h
     ../../Services/Compositor/CompositorWebContentClientEndpoint.h
     ../../Services/Compositor/CompositorWebContentServerEndpoint.h
     ../../Services/Compositor/RenderClockClientEndpoint.h

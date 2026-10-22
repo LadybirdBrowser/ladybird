@@ -12,6 +12,7 @@ set(SOURCES
     DisplayListPlayerSkia.cpp
     DisplayListRasterCache.cpp
     ConnectionFromClient.cpp
+    ConnectionFromPresentation.cpp
     ConnectionFromWebContent.cpp
     ElasticOverscrollController.cpp
     FramePacer.cpp
@@ -45,6 +46,8 @@ invoke_py_generator(
 set(GENERATED_SOURCES
     CompositorControlClientEndpoint.h
     CompositorControlServerEndpoint.h
+    CompositorPresentationClientEndpoint.h
+    CompositorPresentationServerEndpoint.h
     CompositorWebContentClientEndpoint.h
     CompositorWebContentServerEndpoint.h
     RenderClockClientEndpoint.h

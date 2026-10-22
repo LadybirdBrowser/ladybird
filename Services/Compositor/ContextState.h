@@ -141,6 +141,7 @@ public:
     void stop_presenting_to_client();
 
     void set_parent_context(Optional<Web::CompositorContextId>);
+    Web::CompositorContextId context_id() const { return m_context_id; }
     Optional<Web::CompositorContextId> parent_context_id() const { return m_parent_context_id; }
     ContextPresenter& presenter() { return m_presenter; }
     ContextPresenter const& presenter() const { return m_presenter; }

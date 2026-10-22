@@ -9,10 +9,7 @@
 #include <AK/Function.h>
 #include <Compositor/CompositorControlClientEndpoint.h>
 #include <Compositor/CompositorControlServerEndpoint.h>
-#include <LibCompositing/Types.h>
 #include <LibGfx/GpuDeviceIdentity.h>
-#include <LibGfx/Rect.h>
-#include <LibGfx/SharedImage.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibWebView/Forward.h>
 
@@ -33,12 +30,6 @@ private:
     virtual void die() override;
 
     virtual void gpu_device_identity_reported(Optional<Gfx::GpuDeviceIdentity>) override;
-    virtual void did_allocate_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override;
-    virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override;
-    virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) override;
-    virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) override;
-    virtual void did_consume_input_event(Web::CompositorContextId, u64 event_id) override;
-    virtual void did_not_dispatch_input_event(Web::CompositorContextId, u64 event_id) override;
 };
 
 }

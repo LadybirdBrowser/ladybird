@@ -92,13 +92,14 @@ public:
     bool ui_overlay_fades_need_frame() const { return m_picture_in_picture_controls_fade.is_fading(); }
     Optional<PendingFrame> advance_ui_overlay_fades(MonotonicTime frame_time);
 
-    Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing);
+    Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing, BackingStoreManager::PublicationMode);
     void invalidate_backing_stores();
     Optional<BackingStoreManager::Publication> add_backing_store_for_pending_frame_if_needed(RefPtr<Gfx::SkiaBackendContext> const&);
     bool has_surplus_backing_stores() const { return m_backing_store_manager.has_surplus_backing_stores(); }
     Vector<i32> retire_idle_surplus_backing_stores() { return m_backing_store_manager.retire_idle_surplus_backing_stores(); }
     void schedule_surplus_backing_store_retirement(Function<void()>);
     bool acknowledge_presented_bitmap(i32 bitmap_id);
+    void acknowledge_all_presented_bitmaps() { m_backing_store_manager.release_all_presented_buffers(); }
     void did_finish_gpu_present(i32 bitmap_id);
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const { return m_latest_rendered_surface; }
 
