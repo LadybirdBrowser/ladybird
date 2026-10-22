@@ -6,9 +6,10 @@
 
 //! Date objects and the time value math of the spec.
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
@@ -565,28 +566,74 @@ pub fn clear_system_time_zone_cache() {
     *CACHED_SYSTEM_TIME_ZONE_IDENTIFIER
         .lock()
         .expect("the time zone cache is never poisoned") = None;
+    SYSTEM_TIME_ZONE_GENERATION.fetch_add(1, Ordering::AcqRel);
+}
+
+/// What LocalTime and UTC need to know about the system time zone, kept per thread so that they take neither the lock
+/// of the shared identifier cache nor parse the identifier again on every call.
+struct SystemTimeZone {
+    generation: u64,
+    identifier: Utf16String,
+    offset_minutes: Option<i64>,
+    /// The epoch seconds and offset in nanoseconds of the most recent named time zone offset lookup.
+    last_offset: Option<(i64, i64)>,
+}
+
+/// Bumped whenever the system time zone cache is cleared, which makes every thread's SystemTimeZone stale.
+static SYSTEM_TIME_ZONE_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+std::thread_local! {
+    static SYSTEM_TIME_ZONE: RefCell<Option<SystemTimeZone>> = const { RefCell::new(None) };
+}
+
+fn with_system_time_zone<R>(callback: impl FnOnce(&mut SystemTimeZone) -> R) -> R {
+    SYSTEM_TIME_ZONE.with_borrow_mut(|system_time_zone| {
+        let generation = SYSTEM_TIME_ZONE_GENERATION.load(Ordering::Acquire);
+        if system_time_zone
+            .as_ref()
+            .is_none_or(|system_time_zone| system_time_zone.generation != generation)
+        {
+            let identifier = system_time_zone_identifier();
+            let offset_minutes = parse_time_zone_identifier(Utf16View::of_string(&identifier)).offset_minutes;
+            *system_time_zone = Some(SystemTimeZone {
+                generation,
+                identifier,
+                offset_minutes,
+                last_offset: None,
+            });
+        }
+        callback(system_time_zone.as_mut().expect("the system time zone was just cached"))
+    })
 }
 
 // 21.4.1.25 LocalTime ( t ), https://tc39.es/ecma262/#sec-localtime
 // 14.5.6 LocalTime ( t ), https://tc39.es/proposal-temporal/#sec-localtime
 pub fn local_time(time: f64) -> f64 {
-    // 1. Let systemTimeZoneIdentifier be SystemTimeZoneIdentifier().
-    let system_time_zone_identifier = system_time_zone_identifier();
+    let offset_nanoseconds = with_system_time_zone(|system_time_zone| {
+        // 1. Let systemTimeZoneIdentifier be SystemTimeZoneIdentifier().
+        // 2. Let parseResult be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).
+        // NB: Both come from the per-thread system time zone cache.
 
-    // 2. Let parseResult be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).
-    let parse_result = parse_time_zone_identifier(Utf16View::of_string(&system_time_zone_identifier));
+        // 3. If parseResult.[[OffsetMinutes]] is not EMPTY, then
+        if let Some(offset_minutes) = system_time_zone.offset_minutes {
+            // a. Let offsetNs be parseResult.[[OffsetMinutes]] × (60 × 10**9).
+            return offset_minutes as f64 * 60_000_000_000.0;
+        }
 
-    // 3. If parseResult.[[OffsetMinutes]] is not EMPTY, then
-    let offset_nanoseconds = if let Some(offset_minutes) = parse_result.offset_minutes {
-        // a. Let offsetNs be parseResult.[[OffsetMinutes]] × (60 × 10**9).
-        offset_minutes as f64 * 60_000_000_000.0
-    }
-    // 4. Else,
-    else {
-        // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(t) × 10^6)).
-        let offset = get_named_time_zone_offset_milliseconds(Utf16View::of_string(&system_time_zone_identifier), time);
+        // 4. Else,
+        //     a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(t) × 10^6)).
+        // OPTIMIZATION: Code tends to call several getters on the same Date in a row, so remember the offset of the
+        //               last second we looked up instead of asking the time zone database again.
+        let seconds = clip_double_to_sane_time(time / 1000.0);
+        if let Some((cached_seconds, cached_offset_nanoseconds)) = system_time_zone.last_offset
+            && cached_seconds == seconds
+        {
+            return cached_offset_nanoseconds as f64;
+        }
+        let offset = get_named_time_zone_offset_milliseconds(Utf16View::of_string(&system_time_zone.identifier), time);
+        system_time_zone.last_offset = Some((seconds, offset.offset_nanoseconds));
         offset.offset_nanoseconds as f64
-    };
+    });
 
     // 5. Let offsetMs be truncate(offsetNs / 10^6).
     let offset_milliseconds = (offset_nanoseconds / 1e6).trunc();
@@ -608,14 +655,15 @@ pub fn utc_time(time: f64) -> f64 {
     }
 
     // 2. Let systemTimeZoneIdentifier be SystemTimeZoneIdentifier().
-    let system_time_zone_identifier = system_time_zone_identifier();
+    // 3. Let parseResult be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).
+    // NB: Both come from the per-thread system time zone cache.
+    let (system_time_zone_identifier, offset_minutes) = with_system_time_zone(|system_time_zone| {
+        (system_time_zone.identifier.clone(), system_time_zone.offset_minutes)
+    });
     let system_time_zone_identifier = Utf16View::of_string(&system_time_zone_identifier);
 
-    // 3. Let parseResult be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).
-    let parse_result = parse_time_zone_identifier(system_time_zone_identifier);
-
     // 4. If parseResult.[[OffsetMinutes]] is not EMPTY, then
-    let offset_nanoseconds = if let Some(offset_minutes) = parse_result.offset_minutes {
+    let offset_nanoseconds = if let Some(offset_minutes) = offset_minutes {
         // a. Let offsetNs be parseResult.[[OffsetMinutes]] × (60 × 10**9).
         offset_minutes as f64 * 60_000_000_000.0
     }
