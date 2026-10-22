@@ -1,0 +1,17 @@
+NodeList:
+  indices: #text, a, b, c, #text, SCRIPT, #text, SCRIPT, #text, out
+  [length]: undefined
+  [-1]: undefined
+  [100]: inherited
+  ["0"] is [0]: true
+  for-of: #text, a, b, c, #text, SCRIPT, #text, SCRIPT, #text, out
+  Reflect.get with a receiver: true
+HTMLCollection:
+  indices: a, b, c
+  [length]: undefined
+  [-1]: undefined
+  [100]: inherited
+  ["0"] is [0]: true
+  for-of: a, b, c
+  Reflect.get with a receiver: true
+after a removal: 2 b undefined

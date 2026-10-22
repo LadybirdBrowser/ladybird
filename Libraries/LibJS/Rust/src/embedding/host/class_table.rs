@@ -53,6 +53,7 @@ static HOST_OBJECT_HOOKS_THAT_ARE_ALL_ORDINARY: JSHostObjectHooks = JSHostObject
     is_cacheable_for_inherited_property: None,
     error_data: None,
     finalize: None,
+    get_indexed_value: None,
 };
 
 static HOST_ARRAY_HOOKS_THAT_ARE_ALL_ORDINARY: JSHostArrayHooks = JSHostArrayHooks {

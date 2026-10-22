@@ -678,12 +678,23 @@ JS::HostObject const& legacy_platform_object_from_abi(JSObject* wrapper)
     return static_cast<JS::HostObject const&>(*JS::HostABI::object_from_abi(wrapper));
 }
 
+struct IndexedLegacyPlatformObjectTraits : LegacyPlatformObjectTraits {
+    // OPTIMIZATION: [[Get]] of a supported property index returns the value of the indexed property getter, as the
+    //               descriptor of LegacyPlatformObjectGetOwnProperty has it, so it is read without one.
+    static JS::Value get_indexed_value(JS::HostObject& wrapper, u32 index)
+    {
+        auto& realm = wrapper_realm(wrapper);
+        return item_value(wrapper, host_defined_wrapper_world(realm), realm, index).value_or(JS::js_special_empty_value());
+    }
+};
+
 // The legacy [[GetOwnProperty]] and [[OwnPropertyKeys]] write their results straight into the engine's descriptor and
 // key list, rather than returning them from traits functions for the hook thunks to copy, because indexed access to
 // collections and their enumeration are hot.
+template<typename Traits>
 consteval JSHostObjectHooks make_legacy_platform_object_hooks()
 {
-    auto hooks = JS::make_host_object_hooks<LegacyPlatformObjectTraits>();
+    auto hooks = JS::make_host_object_hooks<Traits>();
     hooks.get_own_property = [](JSObject* wrapper, JSPropertyKey property_name, JSPropertyDescriptor* descriptor) {
         return JS::HostABI::completion_to_abi(legacy_platform_object_internal_get_own_property(legacy_platform_object_from_abi(wrapper), JS::HostABI::property_key_from_abi(property_name), *descriptor));
     };
@@ -698,6 +709,7 @@ consteval JSHostObjectHooks make_legacy_platform_object_hooks()
 constexpr JSHostObjectHooks platform_object_hooks = JS::make_host_object_hooks<PlatformObjectTraits>();
 constexpr JSHostObjectHooks global_platform_object_hooks = JS::make_host_object_hooks<GlobalPlatformObjectTraits>();
 constexpr JSHostObjectHooks dom_exception_wrapper_hooks = JS::make_host_object_hooks<DOMExceptionWrapperTraits>();
-constexpr JSHostObjectHooks legacy_platform_object_hooks = make_legacy_platform_object_hooks();
+constexpr JSHostObjectHooks legacy_platform_object_hooks = make_legacy_platform_object_hooks<LegacyPlatformObjectTraits>();
+constexpr JSHostObjectHooks indexed_legacy_platform_object_hooks = make_legacy_platform_object_hooks<IndexedLegacyPlatformObjectTraits>();
 
 }

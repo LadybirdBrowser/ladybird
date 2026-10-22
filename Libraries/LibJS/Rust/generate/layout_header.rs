@@ -455,6 +455,7 @@ pub fn generate() -> LayoutHeader {
         is_cacheable_for_inherited_property,
         error_data,
         finalize,
+        get_indexed_value,
     });
     check_host_object_abi_struct!(w, JSHostFunctionHooks { call, construct, finalize });
     check_host_object_abi_struct!(w, JSHostArrayHooks { set, delete_property });

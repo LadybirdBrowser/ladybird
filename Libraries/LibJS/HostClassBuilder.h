@@ -395,6 +395,11 @@ struct HostObjectHookThunks {
     {
         Traits::finalize(host_object_from_abi(object));
     }
+
+    static JSCompletion get_indexed_value(JSObject* object, u32 index)
+    {
+        return normal_completion_to_abi(value_to_abi(Traits::get_indexed_value(host_object_from_abi(object), index)));
+    }
 };
 
 template<typename Traits>
@@ -508,6 +513,8 @@ consteval JSHostObjectHooks make_host_object_hooks()
         hooks.error_data = &Thunks::error_data;
     if constexpr (requires { &Traits::finalize; })
         hooks.finalize = &Thunks::finalize;
+    if constexpr (requires { &Traits::get_indexed_value; })
+        hooks.get_indexed_value = &Thunks::get_indexed_value;
     return hooks;
 }
 
