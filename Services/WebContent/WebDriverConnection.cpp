@@ -424,6 +424,7 @@ void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_document_observer);
     visitor.visit(m_navigation_observer);
     visitor.visit(m_navigation_timer);
+    visitor.visit(m_script_timer);
 }
 
 // 10.2 Get Current URL, https://w3c.github.io/webdriver/#get-current-url
@@ -1978,7 +1979,7 @@ Web::WebDriver::Response WebDriverConnection::execute_script(JsonValue payload)
         auto timeout_ms = m_timeouts_configuration.script_timeout;
 
         // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-        Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(GC::Heap::the(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
+        m_script_timer = Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(GC::Heap::the(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
             dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
             handle_script_response(result, script_execution_id);
         }));
@@ -2005,7 +2006,7 @@ Web::WebDriver::Response WebDriverConnection::execute_async_script(JsonValue pay
         auto timeout_ms = m_timeouts_configuration.script_timeout;
 
         // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-        Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(GC::Heap::the(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
+        m_script_timer = Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(GC::Heap::the(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
             dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
             handle_script_response(result, script_execution_id);
         }));
@@ -2019,6 +2020,7 @@ void WebDriverConnection::handle_script_response(Web::WebDriver::ExecutionResult
     if (script_execution_id != m_current_script_execution_id)
         return;
     m_current_script_execution_id.clear();
+    m_script_timer = nullptr;
 
     auto response = [&]() -> Web::WebDriver::Response {
         switch (result.state) {
@@ -2685,6 +2687,7 @@ void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
     // [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
     if (m_current_script_execution_id.has_value()) {
         m_current_script_execution_id.clear();
+        m_script_timer = nullptr;
         driver_execution_complete(JsonValue {});
     }
 }

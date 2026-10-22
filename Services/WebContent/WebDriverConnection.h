@@ -159,6 +159,7 @@ private:
 
     size_t m_script_execution_id_counter { 0 };
     Optional<size_t> m_current_script_execution_id;
+    GC::Ptr<GC::Timer> m_script_timer;
 
     friend class ElementLocator;
     GC::Ptr<ElementLocator> m_element_locator;

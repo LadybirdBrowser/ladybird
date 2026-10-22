@@ -108,7 +108,7 @@ static void fire_completion_when_resolved(GC::Ref<WebIDL::Promise> promise, GC::
     WebIDL::react_to_promise(promise, reaction_steps, reaction_steps);
 }
 
-void execute_script(HTML::BrowsingContext const& browsing_context, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete)
+GC::Ref<GC::Timer> execute_script(HTML::BrowsingContext const& browsing_context, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete)
 {
     auto const* document = browsing_context.active_document();
     auto& realm = document->relevant_settings_object().realm();
@@ -160,10 +160,12 @@ void execute_script(HTML::BrowsingContext const& browsing_context, String body, 
 
     // 9. Wait until promise is resolved, or timer's timeout fired flag is set, whichever occurs first.
     fire_completion_when_resolved(promise, timer, on_complete);
+
+    return timer;
 }
 
 // https://w3c.github.io/webdriver/#execute-async-script
-void execute_async_script(HTML::BrowsingContext const& browsing_context, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete)
+GC::Ref<GC::Timer> execute_async_script(HTML::BrowsingContext const& browsing_context, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete)
 {
     auto const* document = browsing_context.active_document();
     auto& realm = document->relevant_settings_object().realm();
@@ -251,6 +253,8 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, String 
 
     // 9. Wait until promise is resolved, or timer's timeout fired flag is set, whichever occurs first.
     fire_completion_when_resolved(promise, timer, on_complete);
+
+    return timer;
 }
 
 }
