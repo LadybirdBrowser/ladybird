@@ -42,7 +42,6 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -576,9 +575,8 @@ void FontFaceState::reject_status_promise(WebIDL::Exception reason)
 Optional<FontComputer&> FontFaceState::font_computer() const
 {
     for (auto& font_face_set : m_containing_sets) {
-        auto& global = font_face_set->relevant_settings_object().global_object();
-        if (auto* window = HTML::window_from_global_object(global))
-            return window->associated_document().font_computer();
+        if (auto font_computer = font_computer_for_font_source(font_face_set->relevant_settings_object().global_object()); font_computer.has_value())
+            return font_computer;
     }
     return {};
 }
@@ -950,17 +948,11 @@ void FontFaceState::load_for_style()
         }));
     });
 
-    // FIXME: We should probably put the 'font cache' on the WindowOrWorkerGlobalScope instead of tying it to the document's style computer
-    if (auto document = m_environment->responsible_document()) {
-        auto& font_computer = document->font_computer();
-
-        if (auto loader = font_computer.load_font_face(m_urls, m_source_style_sheet, move(on_load))) {
+    if (auto font_computer = font_computer_for_font_source(m_environment->global_object()); font_computer.has_value()) {
+        if (auto loader = font_computer->load_font_face(m_urls, m_source_style_sheet, move(on_load))) {
             m_font_loader = loader;
             loader->start_loading_next_source();
         }
-    } else {
-        // FIXME: Don't know how to load fonts in workers! They don't have a StyleComputer
-        dbgln("FIXME: Worker font loading not implemented");
     }
 }
 

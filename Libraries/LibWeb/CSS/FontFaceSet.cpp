@@ -110,9 +110,8 @@ void FontFaceSet::add_css_connected_font(NonnullRefPtr<FontFaceState> face)
     face->add_to_set(*this);
 
     if (face->should_be_registered_with_font_computer()) {
-        auto& global = relevant_settings_object().global_object();
-        if (auto* window = HTML::window_from_global_object(global))
-            window->associated_document().font_computer().register_font_face(face);
+        if (auto font_computer = font_computer_for_font_source(relevant_settings_object().global_object()); font_computer.has_value())
+            font_computer->register_font_face(face);
     }
 
     // 4. If font’s status attribute is "loading"
@@ -211,9 +210,8 @@ bool FontFaceSet::remove_font_face(NonnullRefPtr<FontFaceState> face, AllowCSSCo
         return false;
 
     if (face->should_be_registered_with_font_computer()) {
-        auto& global = relevant_settings_object().global_object();
-        if (auto* window = HTML::window_from_global_object(global))
-            window->associated_document().font_computer().unregister_font_face(*face);
+        if (auto font_computer = font_computer_for_font_source(relevant_settings_object().global_object()); font_computer.has_value())
+            font_computer->unregister_font_face(*face);
     }
 
     // 2. Let deleted be the result of removing font from the FontFaceSet’s set entries.
@@ -241,12 +239,12 @@ void FontFaceSet::clear()
 {
     // 1. Remove all non-CSS-connected items from the FontFaceSet's set entries,
     //    its [[LoadedFonts]] list, and its [[FailedFonts]] list.
-    auto* window = HTML::window_from_global_object(relevant_settings_object().global_object());
+    auto font_computer = font_computer_for_font_source(relevant_settings_object().global_object());
     for (auto& font_face : m_font_faces) {
         if (font_face->is_css_connected())
             continue;
-        if (window && font_face->should_be_registered_with_font_computer())
-            window->associated_document().font_computer().unregister_font_face(font_face);
+        if (font_computer.has_value() && font_face->should_be_registered_with_font_computer())
+            font_computer->unregister_font_face(font_face);
         Bindings::did_remove_font_face(*this, font_face);
         font_face->remove_from_set(*this);
     }

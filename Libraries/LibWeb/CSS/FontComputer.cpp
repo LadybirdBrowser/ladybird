@@ -27,6 +27,8 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Response.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Page/Page.h>
@@ -51,8 +53,9 @@ struct Traits<Web::CSS::FontFeatureValuesCacheKey> : public DefaultTraits<Web::C
 
 namespace Web::CSS {
 
-FontComputer::FontComputer()
-    : m_font_cascade_memo(FontCascadeMemo::create())
+FontComputer::FontComputer(HTML::EnvironmentSettingsObject& environment_settings_object)
+    : m_environment_settings_object(environment_settings_object)
+    , m_font_cascade_memo(FontCascadeMemo::create())
 {
 }
 
@@ -116,7 +119,7 @@ void FontLoader::did_request_for_rendering()
     // INTEROP: Delay the document load event til the fetch for this font has settled. Blink, Gecko, and WebKit all
     //          keep the document from completing while a font load requested for rendering is pending — so pages
     //          that measure font-dependent geometry in a load-event handler see the loaded font, not a fallback.
-    if (is_loading() && !m_document_load_event_delayer.has_value())
+    if (is_loading() && !m_document_load_event_delayer.has_value() && m_font_computer->has_document())
         m_document_load_event_delayer.emplace(m_font_computer->document());
 }
 
@@ -250,6 +253,7 @@ void FontComputer::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);
+    visitor.visit(m_environment_settings_object);
     for (auto& [_, faces] : m_font_faces)
         visitor.visit(faces);
     for (auto& [_, loader] : m_loaders_by_source)
@@ -428,7 +432,7 @@ void FontComputer::invalidate_changed_font_cascades(Vector<Utf16FlyString> const
         invalidated_font_lists.append(font_list.ptr());
         return true;
     });
-    if (!invalidated_font_lists.is_empty())
+    if (!invalidated_font_lists.is_empty() && m_document)
         record_font_input_changes({}, invalidated_font_lists);
     request_wanted_web_faces();
 }
@@ -652,7 +656,7 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ReadonlySpan<FontLoader::Source
     }
 
     RuleOrDeclaration rule_or_declaration {
-        .environment_settings_object = document().relevant_settings_object(),
+        .environment_settings_object = m_document ? m_document->relevant_settings_object() : *m_environment_settings_object,
         .value = RuleOrDeclaration::Rule {
             .parent_style_sheet = parent_style_sheet,
         },
@@ -755,6 +759,15 @@ void FontComputer::unload_fonts_from_sheet(StyleSheetState& sheet)
                 font_face->disconnect_from_css_rule();
         }
     });
+}
+
+Optional<FontComputer&> font_computer_for_font_source(JS::Object& global)
+{
+    if (auto* window = HTML::window_from_global_object(global))
+        return window->associated_document().font_computer();
+    if (auto* worker_global_scope = Bindings::worker_global_scope_from_global_object(global))
+        return worker_global_scope->font_computer();
+    return {};
 }
 
 }

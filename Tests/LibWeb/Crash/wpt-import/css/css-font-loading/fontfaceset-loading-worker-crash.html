@@ -1,0 +1,7 @@
+<!doctype html>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  let a = new SharedWorker("support/fontfaceset-loading-worker.js")
+  a.port.postMessage([], [])
+})
+</script>

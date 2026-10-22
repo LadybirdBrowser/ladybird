@@ -170,15 +170,18 @@ ENUMERATE_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(__ENUMERATE)
 
 GC::Ref<CSS::FontFaceSet> WorkerGlobalScope::fonts()
 {
-    if (!m_fonts)
+    if (!m_fonts) {
         m_fonts = CSS::FontFaceSet::create(relevant_settings_object(*this));
+        // A worker has no document to wait for, so its font source is never pending on the environment.
+        m_fonts->set_is_pending_on_the_environment(false);
+    }
     return *m_fonts;
 }
 
 CSS::FontComputer& WorkerGlobalScope::font_computer()
 {
     if (!m_font_computer)
-        m_font_computer = heap().allocate<CSS::FontComputer>();
+        m_font_computer = heap().allocate<CSS::FontComputer>(relevant_settings_object(*this));
     return *m_font_computer;
 }
 

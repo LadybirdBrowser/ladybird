@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	textAlign left is the left of the first em square (not the bounding box)
