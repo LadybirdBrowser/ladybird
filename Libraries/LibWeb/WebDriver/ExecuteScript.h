@@ -25,7 +25,7 @@ struct ExecutionResult {
 
 using OnScriptComplete = GC::Function<void(ExecutionResult)>;
 
-WEB_API void execute_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
-WEB_API void execute_async_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
+WEB_API GC::Ref<GC::Timer> execute_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
+WEB_API GC::Ref<GC::Timer> execute_async_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
 
 }

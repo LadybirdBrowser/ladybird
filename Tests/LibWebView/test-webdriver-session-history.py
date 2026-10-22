@@ -173,6 +173,27 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
             )
             return
 
+        if self.path == "/webdriver-script-timeout-navigation-target":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                b"""<!doctype html>
+<p>Target</p>
+<script>
+let remainingRounds = 10;
+function allocate() {
+    const objects = [];
+    for (let i = 0; i < 500000; ++i)
+        objects.push({ i });
+    if (--remainingRounds > 0)
+        setTimeout(allocate, 0);
+}
+allocate();
+</script>"""
+            )
+            return
+
         if self.path == "/webdriver-intercepted-navigation-click":
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
@@ -2039,6 +2060,25 @@ def run_webdriver_navigation_to_user_prompt_test(webdriver_port, url):
         request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
+def run_webdriver_script_timeout_after_navigation_test(webdriver_port, url_a, target_url):
+    session_id = create_session(webdriver_port)
+    try:
+        load_url_from_ui(webdriver_port, session_id, url_a)
+        request(webdriver_port, "POST", f"/session/{session_id}/timeouts", {"script": 2000})
+
+        status, payload, response_body = request_raw(
+            webdriver_port,
+            "POST",
+            f"/session/{session_id}/execute/async",
+            {"script": f"location.href = {json.dumps(target_url)};", "args": []},
+        )
+        value = payload.get("value")
+        if status != 500 or not isinstance(value, dict) or value.get("error") != "script timeout":
+            raise AssertionError(f"Expected the script to time out, got HTTP {status}: {response_body}")
+    finally:
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
 def run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_port, url_a):
     url_redirect_to_tls_failure = f"http://localhost:{page_port}/redirect-to-tls-failure"
     url_tls_failure = f"https://127.0.0.1:{page_port}/tls-failure"
@@ -2079,6 +2119,11 @@ def run_self_contained_navigation_tests(webdriver_port, page_port, url_a):
     run_webdriver_navigation_to_user_prompt_test(
         webdriver_port,
         f"http://localhost:{page_port}/webdriver-navigation-user-prompt",
+    )
+    run_webdriver_script_timeout_after_navigation_test(
+        webdriver_port,
+        url_a,
+        f"http://localhost:{page_port}/webdriver-script-timeout-navigation-target",
     )
     run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_port, url_a)
 
