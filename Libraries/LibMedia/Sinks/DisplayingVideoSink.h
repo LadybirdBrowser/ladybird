@@ -50,7 +50,8 @@ public:
 
     virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
     virtual void notify_clock_resumed() override;
-    void seek_back_to_current_time();
+    void set_ticking(bool);
+    bool is_ticking() const { return m_is_ticking; }
 
     DisplayingVideoSinkUpdateResult update(MonotonicTime now);
     RefPtr<VideoFrame> current_frame() const;
@@ -60,10 +61,12 @@ public:
 
 private:
     void dispatch_state_if_changed(PipelineStatus);
+    void seek_back_to_current_time();
 
     MediaTimeReader m_time_reader;
     RefPtr<VideoProducer> m_input;
 
+    bool m_is_ticking { true };
     RefPtr<VideoFrame> m_next_frame;
     RefPtr<VideoFrame> m_current_frame;
     bool m_cached_frames_are_discontinuous { false };

@@ -352,9 +352,9 @@ void CompositorState::set_video_sink_ticking(CompositorStateWebContentClient& cl
     auto* sink_state = video_sink_state(client, handle);
     if (!sink_state)
         return;
-    auto was_ticking = exchange(sink_state->should_tick, should_tick);
-    if (should_tick && !was_ticking && sink_state->sink)
-        sink_state->sink->seek_back_to_current_time();
+    sink_state->should_tick = should_tick;
+    if (sink_state->sink)
+        sink_state->sink->set_ticking(should_tick);
     if (should_tick && sink_state->sink)
         present_contexts_drawing_video_sink(client, handle);
     update_unpainted_video_update_scheduling();
@@ -365,7 +365,7 @@ void CompositorState::set_video_sink_ticking(CompositorStateWebContentClient& cl
 // stop it, and resolves as soon as the edge is created.
 bool CompositorState::video_sink_updates_are_needed(VideoSinkState const& sink_state)
 {
-    return sink_state.sink != nullptr && sink_state.should_tick;
+    return sink_state.sink != nullptr && sink_state.sink->is_ticking();
 }
 
 void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle, NonnullRefPtr<Media::DisplayingVideoSink> const& sink)
@@ -374,6 +374,7 @@ void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& clien
     if (!sink_state)
         return;
     sink_state->sink = sink;
+    sink->set_ticking(sink_state->should_tick);
     sink->set_on_present_needed([this, &client, handle] {
         if (auto* sink_state = video_sink_state(client, handle); sink_state && sink_state->sink)
             client.video_sink_presented_frame(handle, sink_state->sink->current_frame(), sink_state->sink->take_frame_counts());
