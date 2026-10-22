@@ -1,0 +1,15 @@
+width accepts (var(--name)): true
+width accepts [ATTR(data-name)]: true
+width accepts { env(safe-area-inset-top) }: true
+width accepts outer([ { var(--name) } ]): true
+width accepts [outer(--mix())]: true
+width accepts () [] {}: false
+width accepts outer([ { value } ]): false
+width accepts ["var(--name)"]: false
+width accepts { outer(var-token) }: false
+width accepts (var()): false
+--value accepts (var()): false
+width accepts [attr()]: false
+--value accepts [attr()]: false
+width accepts { if() }: false
+--value accepts { if() }: false

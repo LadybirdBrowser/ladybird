@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const style = document.createElement("div").style;
+        for (const value of [
+            "(var(--name))",
+            "[ATTR(data-name)]",
+            "{ env(safe-area-inset-top) }",
+            "outer([ { var(--name) } ])",
+            "[outer(--mix())]",
+            "() [] {}",
+            "outer([ { value } ])",
+            '["var(--name)"]',
+            "{ outer(var-token) }",
+        ]) {
+            style.width = "";
+            style.width = value;
+            println(`width accepts ${value}: ${style.width !== ""}`);
+        }
+
+        for (const value of ["(var())", "[attr()]", "{ if() }"]) {
+            for (const property of ["width", "--value"]) {
+                style.removeProperty(property);
+                style.setProperty(property, value);
+                println(`${property} accepts ${value}: ${style.getPropertyValue(property) !== ""}`);
+            }
+        }
+    });
+</script>

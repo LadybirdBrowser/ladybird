@@ -6,6 +6,7 @@
 
 #![allow(clippy::arc_with_non_send_sync)]
 
+use super::arbitrary_substitution::contains_arbitrary_substitution_function;
 use super::component_value::ComponentValue;
 use super::token_stream::TokenStream;
 use super::value_parser::{
@@ -342,19 +343,6 @@ fn parse_font_variant_alternates(context: &ParseContext, values: &[ComponentValu
     (!parsed.is_empty()).then(|| value_list(parsed, 0, true))
 }
 
-fn contains_substitution(values: &[ComponentValue]) -> bool {
-    values.iter().any(|value| {
-        let Some((name, arguments)) = value.function() else {
-            return false;
-        };
-        (name.len() >= 2 && name[0] == u16::from(b'-') && name[1] == u16::from(b'-'))
-            || ["attr", "env", "if", "inherit", "var"]
-                .iter()
-                .any(|function| equals_ascii_case_insensitive(name, function.as_bytes()))
-            || contains_substitution(arguments)
-    })
-}
-
 fn parse_opentype_tag(_context: &ParseContext, tokens: &mut TokenStream<'_>) -> Option<([u16; 4], StyleValueData)> {
     tokens.discard_whitespace();
     let string = tokens.consume_a_token().string()?;
@@ -656,7 +644,7 @@ pub(crate) fn parse_font_descriptor(
     kind: FontDescriptorKind,
     values: &[ComponentValue],
 ) -> ParseOutcome {
-    if contains_substitution(values) {
+    if contains_arbitrary_substitution_function(values) {
         return ParseOutcome::NotHandled;
     }
     let parsed = match kind {
@@ -688,7 +676,7 @@ pub(crate) fn parse_font_property(context: &ParseContext, property: u16, values:
     ) {
         return ParseOutcome::NotHandled;
     }
-    if contains_substitution(values) {
+    if contains_arbitrary_substitution_function(values) {
         return ParseOutcome::NotHandled;
     }
     let single_keyword = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();

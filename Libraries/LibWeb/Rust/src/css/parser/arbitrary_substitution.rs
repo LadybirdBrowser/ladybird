@@ -59,6 +59,18 @@ pub(crate) fn arbitrary_substitution_function(name: &[u16]) -> Option<ArbitraryS
     None
 }
 
+/// Stops at the first arbitrary substitution function.
+/// Does not validate argument syntax: a matching function with invalid arguments still returns true.
+pub(crate) fn contains_arbitrary_substitution_function(values: &[ComponentValue]) -> bool {
+    values.iter().any(|value| match &value.kind {
+        ComponentKind::Function { name, values } => {
+            arbitrary_substitution_function(name).is_some() || contains_arbitrary_substitution_function(values)
+        }
+        ComponentKind::SimpleBlock { values, .. } => contains_arbitrary_substitution_function(values),
+        ComponentKind::Token(_) => false,
+    })
+}
+
 #[derive(Clone, Copy)]
 enum EndToken {
     Colon,
