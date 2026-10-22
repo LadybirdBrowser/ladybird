@@ -11,7 +11,10 @@
 //! go beside the bytes, as attachments, in the order they are encoded.
 
 use std::collections::VecDeque;
+#[cfg(unix)]
 use std::os::fd::OwnedFd;
+#[cfg(windows)]
+use std::os::windows::io::OwnedHandle;
 
 use crate::attachment::Attachment;
 
@@ -576,9 +579,11 @@ impl<T: Decode> Decode for Option<T> {
 }
 
 /// `IPC::File`: a file descriptor, which goes as an attachment.
+#[cfg(unix)]
 #[derive(Debug)]
 pub struct File(pub OwnedFd);
 
+#[cfg(unix)]
 impl Encode for File {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         let fd = self.0.try_clone().map_err(EncodeError::Attachment)?;
@@ -592,6 +597,7 @@ impl Encode for File {
     }
 }
 
+#[cfg(unix)]
 impl Decode for File {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         let attachment = decoder.take_attachment()?;
@@ -600,6 +606,32 @@ impl Decode for File {
                 .into_fd()
                 .map_err(|error| DecodeError::Attachment(error.to_string()))?,
         ))
+    }
+}
+
+/// `IPC::File`: a handle, which goes as an attachment, as the int that `IPC::File` holds on Windows names one.
+#[cfg(windows)]
+#[derive(Debug)]
+pub struct File(pub OwnedHandle);
+
+#[cfg(windows)]
+impl Encode for File {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        let handle = self.0.try_clone().map_err(EncodeError::Attachment)?;
+        encoder.append_attachment(Attachment::from_handle(handle));
+        Ok(())
+    }
+
+    fn encode_owned(self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.append_attachment(Attachment::from_handle(self.0));
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl Decode for File {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self(decoder.take_attachment()?.into_handle()))
     }
 }
 
@@ -887,6 +919,7 @@ mod tests {
         assert_eq!(decoded[0].0[0], 0);
     }
 
+    #[cfg(unix)]
     #[test]
     fn files_go_as_attachments() {
         let (reader, writer) = std::io::pipe().unwrap();
@@ -906,6 +939,7 @@ mod tests {
         assert_eq!(buffer, b"x");
     }
 
+    #[cfg(unix)]
     #[test]
     fn owned_containers_move_their_files() {
         use std::os::fd::AsRawFd;

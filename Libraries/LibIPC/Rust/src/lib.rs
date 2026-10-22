@@ -11,14 +11,15 @@
 #![deny(unsafe_code)]
 
 pub mod attachment;
+#[cfg(unix)]
 mod receive_queue;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 mod shared_memory;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 mod socket;
 #[cfg(target_vendor = "apple")]
 pub mod transport;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 pub mod transport_socket;
 pub mod wire;
 
@@ -28,6 +29,7 @@ pub const MAX_MESSAGE_ATTACHMENT_COUNT: usize = 16000;
 /// The largest payload a socket frame or Mach descriptor can represent.
 pub const MAX_MESSAGE_PAYLOAD_SIZE: usize = u32::MAX as usize;
 
+#[cfg(unix)]
 fn validate_message_size(payload_size: usize, attachment_count: usize) -> std::io::Result<()> {
     if payload_size > MAX_MESSAGE_PAYLOAD_SIZE || attachment_count > MAX_MESSAGE_ATTACHMENT_COUNT {
         return Err(std::io::ErrorKind::InvalidInput.into());
@@ -41,7 +43,7 @@ pub mod mach;
 pub use attachment::Attachment;
 pub use wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, EndpointMessage};
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     #[cfg(target_vendor = "apple")]

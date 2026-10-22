@@ -4,9 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What a message carries besides its bytes: a Mach port right on Apple platforms, and a file descriptor elsewhere.
+//! What a message carries besides its bytes: a Mach port right on Apple platforms, a handle on Windows, and a file
+//! descriptor elsewhere.
 
+#[cfg(unix)]
 use std::os::fd::OwnedFd;
+#[cfg(windows)]
+use std::os::windows::io::OwnedHandle;
 
 #[cfg(target_vendor = "apple")]
 use crate::mach::{self, MachPort};
@@ -41,13 +45,13 @@ impl Attachment {
     }
 }
 
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 #[derive(Debug)]
 pub struct Attachment {
     fd: OwnedFd,
 }
 
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 impl Attachment {
     pub fn from_fd(fd: OwnedFd) -> std::io::Result<Self> {
         Ok(Self { fd })
@@ -62,9 +66,26 @@ impl Attachment {
     }
 }
 
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 impl From<OwnedFd> for Attachment {
     fn from(fd: OwnedFd) -> Self {
         Self { fd }
+    }
+}
+
+#[cfg(windows)]
+#[derive(Debug)]
+pub struct Attachment {
+    handle: OwnedHandle,
+}
+
+#[cfg(windows)]
+impl Attachment {
+    pub fn from_handle(handle: OwnedHandle) -> Self {
+        Self { handle }
+    }
+
+    pub fn into_handle(self) -> OwnedHandle {
+        self.handle
     }
 }
