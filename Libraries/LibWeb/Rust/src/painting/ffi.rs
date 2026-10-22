@@ -12,7 +12,6 @@ use crate::layout::svg_formatting_context;
 use crate::layout::used_values::FfiCssPixelPoint;
 use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::used_values::FfiCssPixelSize;
-use crate::painting::filter_bytes::{FfiFilterFunction, filter_functions_graph};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::visual_context::FfiSvgFilterPrimitive;
 use crate::painting::paint_changes::{PaintChange, queue};
@@ -24,7 +23,6 @@ use crate::painting::svg_filter::SvgFilterPrimitive;
 use crate::painting::visual_animation_builder::CompositorAnimationEffectState;
 use crate::render_state::{DocumentHost, RenderWait};
 use libcompositing_rust::ffi::tree_from_handle;
-use libgfx_rust::filter::Filter;
 use std::ffi::c_void;
 
 mod main_thread_entries;
@@ -1424,29 +1422,6 @@ pub extern "C" fn render_state_note_svg_paint_resources_changed(host: &DocumentH
         queue(host, PaintChange::SvgPaintResourcesChanged);
     }
     enrolled
-}
-
-/// Serializes the graph a list of filter functions describes and hands the bytes to `append`.
-/// Returns false for an empty list, which appends nothing.
-///
-/// # Safety
-///
-/// `functions` must point to `count` readable functions, and `append` must accept `context` and
-/// the byte range it is handed, synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_filter_functions_serialize(
-    functions: *const FfiFilterFunction,
-    count: usize,
-    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-    context: *mut c_void,
-) -> bool {
-    let functions = unsafe { ak::slice_from_raw_parts(functions, count) };
-    let Some(graph) = filter_functions_graph(functions.iter().copied().map(Filter::from)) else {
-        return false;
-    };
-    let bytes = graph.serialize();
-    unsafe { append(context, bytes.as_ptr(), bytes.len()) };
-    true
 }
 
 #[cfg(test)]
