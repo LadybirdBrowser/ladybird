@@ -172,7 +172,7 @@ private:
 
     // See follow_freelist_link().
     FlatPtr m_freelist { 0 };
-    alignas(__BIGGEST_ALIGNMENT__) u8 m_storage[];
+    alignas(max_cell_alignment) u8 m_storage[];
 
 public:
     static constexpr size_t min_possible_cell_size = sizeof(FreelistEntry);

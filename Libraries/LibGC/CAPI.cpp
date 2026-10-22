@@ -116,7 +116,7 @@ struct CAPI {
             .cell_kind_offset = offsetof(Cell, m_cell_kind),
             .min_cell_size = HeapBlock::min_possible_cell_size,
             .max_cell_size = HeapBlock::BLOCK_SIZE - sizeof(HeapBlock),
-            .max_cell_alignment = __BIGGEST_ALIGNMENT__,
+            .max_cell_alignment = max_cell_alignment,
             .cell_type_info_size = sizeof(CellTypeInfo),
             .weak_impl_pointer_offset = WeakImpl::value_offset(),
             .free_cell_next_offset = HeapBlock::freelist_next_offset(),
@@ -311,7 +311,8 @@ GCAllocator* gc_allocator_create(GCCellTypeInfo const* type_info, char const* na
     VERIFY(type_info->visit_edges);
     VERIFY(type_info->cell_size >= HeapBlock::min_possible_cell_size);
     VERIFY(type_info->cell_size <= HeapBlock::BLOCK_SIZE - sizeof(HeapBlock));
-    VERIFY(type_info->alignment <= __BIGGEST_ALIGNMENT__);
+    VERIFY(type_info->alignment <= max_cell_alignment);
+    VERIFY(type_info->cell_size % type_info->alignment == 0);
     auto* allocator = new CAPICellAllocator(*reinterpret_cast<CellTypeInfo const*>(type_info), StringView { name, name_length });
     return reinterpret_cast<GCAllocator*>(allocator);
 }
