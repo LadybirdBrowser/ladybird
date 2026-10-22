@@ -19,12 +19,15 @@ class Tag : public Bindings::GCAllocatedWrappable {
 public:
     static GC::Ref<Tag> create(ReadonlySpan<Wasm::Runtime::ValueType> parameters);
     // The Tag object of a tag, which is the same object for as long as it lives.
-    static GC::Ref<Tag> from_address(Wasm::Runtime::Entity tag);
+    static GC::Ref<Tag> from_address(JS::Realm&, Wasm::Runtime::Entity tag);
 
     Wasm::Runtime::Entity address() const { return m_tag; }
 
 private:
     explicit Tag(Wasm::Runtime::Entity tag);
+
+    // The Tag object of a tag other than the JavaScript exception tag, from the agent's tag object cache.
+    static GC::Ref<Tag> from_address_in_agent(Wasm::Runtime::Entity tag);
 
     virtual void visit_edges(Visitor&) override;
 

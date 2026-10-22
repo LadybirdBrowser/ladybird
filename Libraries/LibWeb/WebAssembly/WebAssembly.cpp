@@ -97,21 +97,55 @@ void WebAssemblyCache::ObjectCache<T, Key>::for_each(Function<void(T&)> const& c
     }
 }
 
+// Exceptions and GC objects are the cells their references are the addresses of.
+static GC::ForeignCell* cell_of_reference(u64 reference)
+{
+    return reinterpret_cast<GC::ForeignCell*>(static_cast<FlatPtr>(reference));
+}
+
 GC::Ptr<JS::NativeFunction> WebAssemblyCache::function_object(Entity function) const { return m_function_objects.get(function); }
-void WebAssemblyCache::set_function_object(Entity function, JS::NativeFunction& object) { m_function_objects.set(function, object); }
+void WebAssemblyCache::set_function_object(Entity function, JS::NativeFunction& object)
+{
+    m_function_objects.set(function, object);
+    m_store->set_host_object(function, object);
+}
 GC::Ptr<Global> WebAssemblyCache::global_object(Entity global) const { return m_global_objects.get(global); }
-void WebAssemblyCache::set_global_object(Entity global, Global& object) { m_global_objects.set(global, object); }
+void WebAssemblyCache::set_global_object(Entity global, Global& object)
+{
+    m_global_objects.set(global, object);
+    m_store->set_host_object(global, object);
+}
 GC::Ptr<Memory> WebAssemblyCache::memory_object(Entity memory) const { return m_memory_objects.get(memory); }
-void WebAssemblyCache::set_memory_object(Entity memory, Memory& object) { m_memory_objects.set(memory, object); }
+void WebAssemblyCache::set_memory_object(Entity memory, Memory& object)
+{
+    m_memory_objects.set(memory, object);
+    m_store->set_host_object(memory, object);
+}
 GC::Ptr<Table> WebAssemblyCache::table_object(Entity table) const { return m_table_objects.get(table); }
-void WebAssemblyCache::set_table_object(Entity table, Table& object) { m_table_objects.set(table, object); }
+void WebAssemblyCache::set_table_object(Entity table, Table& object)
+{
+    m_table_objects.set(table, object);
+    m_store->set_host_object(table, object);
+}
 void WebAssemblyCache::for_each_memory_object(Function<void(Memory&)> const& callback) const { m_memory_objects.for_each(callback); }
 GC::Ptr<Tag> WebAssemblyCache::tag_object(Entity tag) const { return m_tag_objects.get(tag); }
-void WebAssemblyCache::set_tag_object(Entity tag, Tag& object) { m_tag_objects.set(tag, object); }
+void WebAssemblyCache::set_tag_object(Entity tag, Tag& object)
+{
+    m_tag_objects.set(tag, object);
+    m_store->set_host_object(tag, object);
+}
 GC::Ptr<Exception> WebAssemblyCache::exception_object(u64 exception) const { return m_exception_objects.get(exception); }
-void WebAssemblyCache::set_exception_object(u64 exception, Exception& object) { m_exception_objects.set(exception, object); }
+void WebAssemblyCache::set_exception_object(u64 exception, Exception& object)
+{
+    m_exception_objects.set(exception, object);
+    m_store->set_host_object(cell_of_reference(exception), object);
+}
 GC::Ptr<JS::Object> WebAssemblyCache::gc_object(u64 object) const { return m_gc_objects.get(object); }
-void WebAssemblyCache::set_gc_object(u64 object, JS::Object& gc_object) { m_gc_objects.set(object, gc_object); }
+void WebAssemblyCache::set_gc_object(u64 object, JS::Object& gc_object)
+{
+    m_gc_objects.set(object, gc_object);
+    m_store->set_host_object(cell_of_reference(object), gc_object);
+}
 
 WebAssemblyCache::~WebAssemblyCache() = default;
 
@@ -170,7 +204,7 @@ void initialize(JS::Object& self, JS::Realm& realm)
         // 2. Let JSTagObject be the result of creating a Tag object from JSTagAddr.
         // 3. Return JSTagObject.
         auto& current_realm = *vm.current_realm();
-        auto tag = Tag::from_address(Detail::WebAssemblyCache::the().js_tag());
+        auto tag = Tag::from_address(current_realm, Detail::WebAssemblyCache::the().js_tag());
         return Bindings::wrap(Bindings::host_defined_wrapper_world(current_realm), current_realm, tag);
     };
     namespace_object.define_native_accessor(realm, "JSTag"_utf16_fly_string, move(js_tag_getter), Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
@@ -272,8 +306,6 @@ static constexpr u64 I31_REFERENCE_BIT = 0b01;
 static constexpr u64 HOST_REFERENCE_TAG = 0b10;
 static constexpr u64 REFERENCE_TAG_MASK = 0b11;
 
-namespace {
-
 // A JavaScript value that is not a cell, boxed so that WebAssembly can refer to it as a host value.
 class ExternValueBox final : public GC::Cell {
     GC_CELL(ExternValueBox, GC::Cell);
@@ -301,15 +333,25 @@ private:
 
 GC_DEFINE_ALLOCATOR(ExternValueBox);
 
-}
+GC::Ptr<ExternValueBox> WebAssemblyCache::extern_value_box(JS::Value value) const { return m_extern_value_boxes.get(value); }
+void WebAssemblyCache::set_extern_value_box(JS::Value value, ExternValueBox& box) { m_extern_value_boxes.set(value, box); }
 
 static u64 host_reference_of(JS::VM& vm, JS::Value value)
 {
     GC::Cell const* cell = nullptr;
-    if (value.is_cell())
+    if (value.is_cell()) {
         cell = &value.as_cell();
-    else
-        cell = vm.heap().allocate<ExternValueBox>(value).ptr();
+    } else {
+        // NB: A value gets the same box while references to the box keep it alive, so that it converts to the same
+        //     reference.
+        auto& cache = WebAssemblyCache::the();
+        auto box = cache.extern_value_box(value);
+        if (!box) {
+            box = vm.heap().allocate<ExternValueBox>(value);
+            cache.set_extern_value_box(value, *box);
+        }
+        cell = box.ptr();
+    }
     return static_cast<u64>(reinterpret_cast<FlatPtr>(cell)) | HOST_REFERENCE_TAG;
 }
 
@@ -523,7 +565,7 @@ Wasm::Runtime::Entity create_host_function(JS::VM& vm, JS::FunctionObject& funct
     // 2. Let stored settings be the incumbent settings object.
     // 3. Let hostfunc be a host function which performs the following steps when called with arguments arguments:
     // NB: The function's entity visits what the steps capture, which keeps the JavaScript function alive with it.
-    auto address = cache.store().allocate_host_function(type, [&vm, function = GC::Ref { function }, type](Wasm::Runtime::Store& store, ReadonlySpan<WasmValue> arguments, Span<WasmValue> results) -> ErrorOr<void, Wasm::Runtime::HostError> {
+    auto host_function = [&vm, function = GC::Ref { function }, type](Wasm::Runtime::Store& store, ReadonlySpan<WasmValue> arguments, Span<WasmValue> results) -> ErrorOr<void, Wasm::Runtime::HostError> {
         auto result = run_a_host_function(vm, function, type, arguments, results);
         if (!result.is_error())
             return {};
@@ -544,10 +586,8 @@ Wasm::Runtime::Entity create_host_function(JS::VM& vm, JS::FunctionObject& funct
         //    leaves WebAssembly.
         Array<WasmValue, 1> payload { WasmValue::from_reference(value.is_null() ? 0 : host_reference_of(vm, value)) };
         return Wasm::Runtime::HostError::exception(store.allocate_exception(WebAssemblyCache::the().js_tag(), payload));
-    });
-
-    cache.set_host_function_index(address, function_index);
-    return address;
+    };
+    return cache.store().allocate_host_function(type, move(host_function), static_cast<u32>(function_index));
 }
 
 Wasm::Runtime::FunctionType function_type_in_store(Wasm::Runtime::Module const& module, u32 type_index)
@@ -940,9 +980,9 @@ Utf16FlyString name_of_webassembly_function(Wasm::Runtime::Entity function)
     //     2. Assert: funcaddr is contained in moduleinst.funcaddrs.
     //     3. Let index be the index of moduleinst.funcaddrs where funcaddr is found.
     auto& cache = WebAssemblyCache::the();
-    auto index = cache.store().function_index(function).map([](u32 index) -> size_t { return index; });
+    auto index = cache.store().function_index(function);
     if (!index.has_value())
-        index = cache.host_function_index(function);
+        index = cache.store().host_function_index(function);
     VERIFY(index.has_value());
 
     // 5. Return ! ToString(index).
@@ -1252,7 +1292,7 @@ GC::Ref<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::Realm
         // 2. Let instanceObject be a new Instance.
         // 3. Initialize instanceObject from module and instance. If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
         // FIXME: Investigate whether we are doing all the proper steps for "initialize an instance object"
-        auto instance_object = Instance::create(instance);
+        auto instance_object = Instance::create(realm, instance);
 
         // 4. Resolve promise with instanceObject.
         Bindings::resolve_webassembly_instance_promise(realm, promise, instance_object);

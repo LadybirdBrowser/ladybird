@@ -171,8 +171,11 @@ static Entity entity_from_ffi(void* cell) { return static_cast<GC::ForeignCell*>
 namespace {
 
 struct HostFunctionData {
+    AK_ALLOC_WITH_KMALLOC;
+
     Store& store;
     Store::HostFunction function;
+    Optional<u32> index;
 };
 
 }
@@ -205,7 +208,7 @@ static void release_host_function(void* user_data)
     delete static_cast<HostFunctionData*>(user_data);
 }
 
-Entity Store::allocate_host_function(FunctionType const& type, HostFunction function)
+Entity Store::allocate_host_function(FunctionType const& type, HostFunction function, Optional<u32> index)
 {
     Vector<FFI::WasmValueType> parameters;
     Vector<FFI::WasmValueType> results;
@@ -213,8 +216,16 @@ Entity Store::allocate_host_function(FunctionType const& type, HostFunction func
         parameters.append(to_ffi(parameter));
     for (auto result : type.results)
         results.append(to_ffi(result));
-    auto* data = new HostFunctionData { *this, move(function) };
+    auto* data = new HostFunctionData { *this, move(function), index };
     return entity_from_ffi(FFI::wasm_store_allocate_host_function(m_store, parameters.data(), parameters.size(), results.data(), results.size(), call_host_function, visit_host_function, release_host_function, data));
+}
+
+Optional<u32> Store::host_function_index(Entity function)
+{
+    auto* data = FFI::wasm_store_host_function_user_data(m_store, to_ffi(function));
+    if (!data)
+        return {};
+    return static_cast<HostFunctionData*>(data)->index;
 }
 
 Optional<Entity> Store::allocate_memory(Limits limits)
@@ -428,6 +439,16 @@ void Store::set_memory_grow_callback(Function<void(Entity)> callback)
 void Store::set_can_block(bool can_block)
 {
     FFI::wasm_store_set_can_block(m_store, can_block);
+}
+
+void Store::set_host_object(GC::ForeignCell* cell, GC::Cell& object)
+{
+    FFI::wasm_set_host_object(cell, &object);
+}
+
+void Store::set_host_object(GC::ForeignCell* cell, GC::ForeignCell& object)
+{
+    FFI::wasm_set_host_object(cell, &object);
 }
 
 u64 Store::table_size(Entity table)

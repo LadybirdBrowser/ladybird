@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // (module
+    //   (type $point (struct (field i32)))
+    //   (global $kept (mut (ref null $point)) (ref.null $point))
+    //   (table (export "table") 1 funcref)
+    //   (elem (i32.const 0) func $answer)
+    //   (func $answer (result i32) (i32.const 42))
+    //   (func (export "make") (result anyref) (struct.new $point (i32.const 7)))
+    //   (func (export "keep") (param anyref) (global.set $kept (ref.cast (ref null $point) (local.get 0))))
+    //   (func (export "kept") (result anyref) (global.get $kept)))
+    const bytes = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x11, 0x04, 0x5f, 0x01, 0x7f, 0x00, 0x60,
+        0x00, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x6e, 0x60, 0x01, 0x6e, 0x00, 0x03, 0x05, 0x04, 0x01, 0x02,
+        0x03, 0x02, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x06, 0x07, 0x01, 0x63, 0x00, 0x01, 0xd0, 0x00,
+        0x0b, 0x07, 0x1e, 0x04, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x04, 0x6d, 0x61, 0x6b,
+        0x65, 0x00, 0x01, 0x04, 0x6b, 0x65, 0x65, 0x70, 0x00, 0x02, 0x04, 0x6b, 0x65, 0x70, 0x74, 0x00,
+        0x03, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x1d, 0x04, 0x04, 0x00, 0x41,
+        0x2a, 0x0b, 0x07, 0x00, 0x41, 0x07, 0xfb, 0x00, 0x00, 0x0b, 0x09, 0x00, 0x20, 0x00, 0xfb, 0x17,
+        0x00, 0x24, 0x00, 0x0b, 0x04, 0x00, 0x23, 0x00, 0x0b,
+    ]);
+
+    async function collectGarbage() {
+        for (let index = 0; index < 4; ++index) {
+            await animationFrame();
+            await internals.gcAsync();
+        }
+    }
+
+    // Only wasm keeps the function and the struct, not the objects that stand for them.
+    function markObjects(instance, weakMap) {
+        instance.exports.table.get(0).expando = "kept";
+        const point = instance.exports.make();
+        weakMap.set(point, "kept");
+        instance.exports.keep(point);
+    }
+
+    function createDroppedInstance() {
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes));
+        return new WeakRef(instance.exports.table.get(0));
+    }
+
+    asyncTest(async done => {
+        const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes));
+        const weakMap = new WeakMap();
+        markObjects(instance, weakMap);
+        await collectGarbage();
+        println(`exported function keeps its expando: ${instance.exports.table.get(0).expando}`);
+        println(`exported GC object keeps its WeakMap entry: ${weakMap.get(instance.exports.kept())}`);
+
+        const weakFunction = createDroppedInstance();
+        await collectGarbage();
+        println(`exported function collected with its instance: ${weakFunction.deref() === undefined}`);
+        done();
+    });
+</script>

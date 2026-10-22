@@ -694,6 +694,10 @@ impl HostFunction for HostFunctionData {
     fn visit_edges(&self, visitor: &Visitor) {
         unsafe { (self.visit)(self.user_data, visitor.raw()) };
     }
+
+    fn user_data(&self) -> *mut c_void {
+        self.user_data
+    }
 }
 
 /// Add a host function of the given type to the store, and return its cell. The function visits what its user data
@@ -1360,6 +1364,22 @@ pub unsafe extern "C" fn wasm_store_function_index(
     true
 }
 
+/// The user data a host function was allocated with, or null if the function is no host function.
+///
+/// # Safety
+///
+/// `store` must be a live store with a function at `function`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_host_function_user_data(
+    store: *mut WasmStore,
+    function: *mut c_void,
+) -> *mut c_void {
+    match &store_of(store).function(entity(function)).kind {
+        FunctionKind::Host(callback) => callback.user_data(),
+        FunctionKind::Wasm { .. } => core::ptr::null_mut(),
+    }
+}
+
 /// The handle of the LibGC primitive storage a memory lives in, or zero if the store has no heap.
 ///
 /// # Safety
@@ -1409,6 +1429,17 @@ pub unsafe extern "C" fn wasm_store_clear_memory_grow_callback(store: *mut WasmS
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wasm_store_set_can_block(store: *mut WasmStore, can_block: bool) {
     store_of(store).can_block = can_block;
+}
+
+/// Has `cell`, an entity, or an exception or a GC object (whose references are their cells), keep the embedder's cell
+/// `object` alive for as long as it lives itself.
+///
+/// # Safety
+///
+/// `cell` must be a live cell of a store with a LibGC heap, and `object` a cell of the same heap.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_set_host_object(cell: *mut c_void, object: *mut c_void) {
+    unsafe { crate::runtime::heap::set_host_object(cell.cast(), object) };
 }
 
 // WASI.

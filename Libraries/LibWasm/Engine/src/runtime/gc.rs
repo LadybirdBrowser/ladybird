@@ -14,7 +14,7 @@
 
 use super::heap::{
     CELL_HEADER_SIZE, CellFunctions, CellType, Heap, TRACE_FUNCTION, TRACE_NONE, TRACE_REFERENCE, Visitor,
-    object_size_class,
+    forget_host_object, object_size_class, visit_host_object,
 };
 use super::{Store, TagAddress, Value};
 pub use crate::abi::EXCEPTION_CELL_SIZE;
@@ -241,6 +241,7 @@ unsafe fn out_of_line_data(cell: *const c_void) -> Option<(*mut u64, usize)> {
 unsafe extern "C" fn object_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
     let visitor = Visitor::new(visitor);
     unsafe {
+        visit_host_object(cell, &visitor);
         let rtt: *const Rtt = read(cell, 0);
         visitor.visit_cell(cell_of_rtt(rtt));
         let rtt = &*rtt;
@@ -267,6 +268,7 @@ unsafe extern "C" fn object_visit_edges(cell: *mut c_void, visitor: *mut c_void)
 
 unsafe extern "C" fn object_destroy(cell: *mut c_void) {
     unsafe {
+        forget_host_object(cell);
         if let Some((block, words)) = out_of_line_data(cell) {
             free(block, words);
         }
@@ -318,6 +320,7 @@ pub fn exception(reference: u64) -> Exception {
 unsafe extern "C" fn exception_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
     let visitor = Visitor::new(visitor);
     unsafe {
+        visit_host_object(cell, &visitor);
         let payload: *const u64 = read(cell, EXCEPTION_PAYLOAD_OFFSET);
         let length: u64 = read(cell, EXCEPTION_LENGTH_OFFSET);
         let kinds: *const u8 = read(cell, EXCEPTION_KINDS_OFFSET);
@@ -331,6 +334,7 @@ unsafe extern "C" fn exception_visit_edges(cell: *mut c_void, visitor: *mut c_vo
 
 unsafe extern "C" fn exception_destroy(cell: *mut c_void) {
     unsafe {
+        forget_host_object(cell);
         let length: u64 = read(cell, EXCEPTION_LENGTH_OFFSET);
         free(read::<*const u64>(cell, EXCEPTION_PAYLOAD_OFFSET), length as usize);
         free(read::<*const u8>(cell, EXCEPTION_KINDS_OFFSET), length as usize);

@@ -240,7 +240,8 @@ public:
     // function visits the cells it captures, so it must not capture roots.
     using HostFunction = Function<ErrorOr<void, HostError>(Store&, ReadonlySpan<Value> arguments, Span<Value> results)>;
 
-    Entity allocate_host_function(FunctionType const&, HostFunction);
+    // `index` is the embedder's index of the host function, if it has one, which host_function_index() returns.
+    Entity allocate_host_function(FunctionType const&, HostFunction, Optional<u32> index = {});
     Optional<Entity> allocate_memory(Limits);
     Optional<Entity> allocate_table(ValueType element, Limits, u64 initial);
     Entity allocate_global(ValueType, bool is_mutable, Value);
@@ -258,6 +259,8 @@ public:
     // The index of a WebAssembly function in the function index space of the module that defines it, or nothing for
     // a host function.
     Optional<u32> function_index(Entity function);
+    // The index a host function was allocated with, or nothing.
+    Optional<u32> host_function_index(Entity function);
 
     // The types of functions, tables, globals, and tags of the store name concrete heap types by store-wide
     // identities, where the types of a module name them by their indices in the module. This is a type of `module`
@@ -286,6 +289,10 @@ public:
     void set_memory_grow_callback(Function<void(Entity memory)>);
     // Whether the agent the store runs code for may block ([[CanBlock]]); memory.atomic.wait traps where it may not.
     void set_can_block(bool);
+    // Has an entity, or the cell of an exception or a GC object, keep `object` alive for as long as it lives itself.
+    // An object that stands for the cell and refers to it then stays the same object while the cell lives.
+    void set_host_object(GC::ForeignCell* cell, GC::Cell& object);
+    void set_host_object(GC::ForeignCell* cell, GC::ForeignCell& object);
 
     u64 table_size(Entity table);
     ValueType table_element_type(Entity table);

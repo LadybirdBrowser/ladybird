@@ -1,0 +1,3 @@
+exported function keeps its expando: kept
+exported GC object keeps its WeakMap entry: kept
+exported function collected with its instance: true

@@ -107,6 +107,57 @@ pub const CELL_HEADER_SIZE: usize = 16;
 const CELL_STATE_LIVE: u8 = 0;
 const CELL_KIND_OTHER: u8 = 0;
 
+/// The byte after LibGC's in a cell, which holds the runtime's flags for the cell.
+const CELL_FLAGS_OFFSET: usize = 11;
+/// The cell keeps an object of the embedder's alive (see set_host_object()).
+const CELL_FLAG_HOST_OBJECT: u8 = 1;
+
+thread_local! {
+    /// The object of the embedder's each cell of this thread's heap keeps alive, by cell.
+    static HOST_OBJECTS: core::cell::RefCell<std::collections::HashMap<usize, *mut c_void>> = Default::default();
+}
+
+/// Have `cell` keep the embedder's cell `object` alive for as long as it lives itself, as an edge the collector follows
+/// from it. An embedder's object that stands for `cell` and refers to it then stays the same object while `cell` lives,
+/// and goes away with it.
+///
+/// # Safety
+///
+/// `cell` must be a live cell of the runtime, and `object` a cell of the same LibGC heap.
+pub unsafe fn set_host_object(cell: *mut u8, object: *mut c_void) {
+    HOST_OBJECTS.with_borrow_mut(|objects| objects.insert(cell.addr(), object));
+    unsafe { *cell.add(CELL_FLAGS_OFFSET) |= CELL_FLAG_HOST_OBJECT };
+}
+
+/// Visit the object `cell` keeps alive, if it keeps one.
+///
+/// # Safety
+///
+/// `cell` must be a live cell of the runtime.
+pub unsafe fn visit_host_object(cell: *mut c_void, visitor: &Visitor) {
+    if unsafe { *cell.cast::<u8>().add(CELL_FLAGS_OFFSET) } & CELL_FLAG_HOST_OBJECT == 0 {
+        return;
+    }
+    if let Some(object) = HOST_OBJECTS.with_borrow(|objects| objects.get(&cell.addr()).copied()) {
+        visitor.visit_cell(object.cast());
+    }
+}
+
+/// Forget the object `cell` keeps alive, as `cell` is going away.
+///
+/// # Safety
+///
+/// `cell` must be a cell of the runtime.
+pub unsafe fn forget_host_object(cell: *mut c_void) {
+    let flags = unsafe { &mut *cell.cast::<u8>().add(CELL_FLAGS_OFFSET) };
+    if *flags & CELL_FLAG_HOST_OBJECT == 0 {
+        return;
+    }
+    *flags &= !CELL_FLAG_HOST_OBJECT;
+    // NB: A thread's cells are destroyed on the thread, unless it is exiting, when its table is gone already.
+    let _ = HOST_OBJECTS.try_with(|objects| objects.borrow_mut().remove(&cell.addr()));
+}
+
 /// The cell types of the runtime, in the order of their allocators.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CellType {
@@ -300,6 +351,16 @@ impl Heap {
         assert!(
             layout.cell_mark_offset as usize >= 8 && (layout.cell_kind_offset as usize) < CELL_HEADER_SIZE,
             "LibGC keeps its cell header in the second word"
+        );
+        assert!(
+            [
+                layout.cell_mark_offset,
+                layout.cell_state_offset,
+                layout.cell_kind_offset
+            ]
+            .iter()
+            .all(|&offset| (offset as usize) < CELL_FLAGS_OFFSET),
+            "the runtime's flags follow LibGC's cell header"
         );
         let allocators = ALLOCATORS.get_or_init(|| Allocators::new(&interface, functions));
         FUNCTIONS.get_or_init(|| Functions(interface));

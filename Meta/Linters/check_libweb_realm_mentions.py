@@ -75,8 +75,8 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "TrustedTypes": (2, 9, "Trusted Types policy factory operations still use selected realms"),
     "WebAssembly": (
-        14,
-        85,
+        15,
+        89,
         "WebAssembly constructors/exports instantiate JS objects/functions in spec-selected realms",
     ),
     "WebAudio": (

@@ -231,3 +231,43 @@ fn directories_and_status_stay_beneath_their_preopen() {
         assert_eq!(guest.call("path_filestat_get", &arguments), errno, "{path}");
     }
 }
+
+const ERRNO_ISDIR: i32 = 31;
+const ERRNO_NOTDIR: i32 = 54;
+
+#[test]
+fn trailing_slashes_name_only_directories() {
+    let tree = Tree::new("slash");
+    let mut guest = tree.guest();
+    assert_eq!(guest.open(3, "sub/", false, 0), ERRNO_SUCCESS);
+    assert_eq!(guest.open(3, "inside.txt/", false, 0), ERRNO_NOTDIR);
+    // A trailing slash follows the link in the last place, beneath the preopen only.
+    assert_eq!(guest.open(3, "link_in/", false, 0), ERRNO_NOTDIR);
+    assert_eq!(guest.open(3, "link_out/", false, 0), ERRNO_NOTCAPABLE);
+    assert_eq!(guest.open(3, "created/", false, OFLAGS_CREAT), ERRNO_ISDIR);
+    assert!(!tree.0.join("sandbox/created").exists());
+    for (path, errno) in [
+        ("sub/", ERRNO_SUCCESS),
+        ("inside.txt/", ERRNO_NOTDIR),
+        ("link_in/", ERRNO_NOTDIR),
+    ] {
+        let length = guest.path(path);
+        let arguments = [
+            Value::I32(3),
+            Value::I32(0),
+            Value::I32(16),
+            Value::I32(length),
+            Value::I32(1024),
+        ];
+        assert_eq!(guest.call("path_filestat_get", &arguments), errno, "{path}");
+    }
+    let length = guest.path("sub/made/");
+    assert_eq!(
+        guest.call(
+            "path_create_directory",
+            &[Value::I32(3), Value::I32(16), Value::I32(length)]
+        ),
+        ERRNO_SUCCESS
+    );
+    assert!(tree.0.join("sandbox/sub/made").is_dir());
+}
