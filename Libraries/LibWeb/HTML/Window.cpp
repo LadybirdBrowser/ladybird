@@ -399,7 +399,6 @@ void Window::finalize()
 {
     Base::finalize();
     WindowOrWorkerGlobalScopeMixin::finalize();
-    all_windows().remove(*this);
 }
 
 Window::~Window() = default;

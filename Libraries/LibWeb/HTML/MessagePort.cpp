@@ -91,7 +91,6 @@ void MessagePort::for_each_message_port(Function<void(MessagePort&)> callback)
 void MessagePort::finalize()
 {
     Base::finalize();
-    all_message_ports().remove(*this);
     disentangle();
 }
 
