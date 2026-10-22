@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<script>
+    const source = `
+        self.fonts.add(new FontFace("Loading", "url(data:,)"));
+        const context = new OffscreenCanvas(100, 100).getContext("2d");
+        context.font = "20px Loading";
+        context.fillText("A", 0, 50);
+        postMessage(null);
+    `;
+    const worker = new Worker(URL.createObjectURL(new Blob([source])));
+    worker.onmessage = () => document.documentElement.classList.remove("test-wait");
+</script>
+</html>

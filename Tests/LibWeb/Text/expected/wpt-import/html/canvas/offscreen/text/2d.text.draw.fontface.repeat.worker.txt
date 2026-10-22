@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Draw with the font immediately, then wait a bit until and draw again. (This crashes some version of WebKit.)

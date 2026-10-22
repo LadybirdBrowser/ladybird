@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	textBaseline top is the top of the em square (not the bounding box)

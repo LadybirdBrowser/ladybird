@@ -180,10 +180,11 @@ class WEB_API FontComputer final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(FontComputer);
 
 public:
-    FontComputer();
+    explicit FontComputer(HTML::EnvironmentSettingsObject&);
     explicit FontComputer(DOM::Document&);
     virtual ~FontComputer() override;
 
+    bool has_document() const { return m_document != nullptr; }
     DOM::Document& document() { return *m_document; }
     DOM::Document const& document() const { return *m_document; }
 
@@ -238,6 +239,7 @@ private:
     NonnullRefPtr<FontFeatureValuesByScope const> font_feature_values_by_scope() const;
 
     GC::Ptr<DOM::Document> m_document;
+    GC::Ptr<HTML::EnvironmentSettingsObject> m_environment_settings_object;
 
     HashMap<FontFaceKey, Vector<NonnullRefPtr<FontFaceState>>> m_font_faces;
     HashMap<String, GC::Ref<FontLoader>> m_loaders_by_source;
@@ -259,5 +261,7 @@ private:
     Vector<Utf16FlyString> m_font_families_changed_beside_flown_transaction;
     Vector<Gfx::FontCascadeList const*> m_font_lists_changed_beside_flown_transaction;
 };
+
+WEB_API Optional<FontComputer&> font_computer_for_font_source(JS::Object& global);
 
 }
