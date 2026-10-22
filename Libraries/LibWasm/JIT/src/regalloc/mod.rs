@@ -13,10 +13,13 @@
 //! - Spilling happens at the definition: a value that ever needs a stack slot gets one for its whole life, and code
 //!   generation stores it there right after defining it, so a slot always holds its value once it has one. Values
 //!   live across a call get one, since calls clobber every register.
-//! - A block with one predecessor starts with that predecessor's registers. A merge starts with those of its last
-//!   predecessor, and a loop header with those of the block entering the loop, without the values the loop only
-//!   carries through that have a slot already. Their phis get registers that are free there, preferably those of
-//!   the inputs from that predecessor. Every other edge into them moves its values into place, as parallel moves.
+//! - A phi and its inputs (its web) share slots where their intervals do not overlap, so that the moves into a phi's
+//!   slot on its edges are no moves at all. A loop's back edge then leaves the values it carries where they are.
+//! - A block with one predecessor starts with that predecessor's registers. A merge starts with those of the
+//!   predecessor that keeps the most of its values in registers, and a loop header with those of the block entering
+//!   the loop, without the values the loop only carries through that have a slot already. Their phis get registers
+//!   that are free there, preferably those of the inputs from that predecessor. Every other edge into them moves its
+//!   values into place, as parallel moves.
 //!   Edges from blocks with several successors that need moves get a stub of their own in code generation.
 
 #[cfg(target_arch = "aarch64")]
@@ -385,6 +388,13 @@ pub struct Allocator {
     /// The registers values may get of each class, in order of preference.
     gprs: &'static [Register],
     fprs: &'static [Register],
+    /// The webs of phis and their inputs, as a union-find forest: each value's parent, or NONE for values in none.
+    web_parents: Vec<Value>,
+    /// The spill slots of each web, by its root: indices into `slot_values`.
+    web_slots: std::collections::HashMap<Value, Vec<u32>>,
+    /// The fp offset and the values of each spill slot a web has.
+    slot_offsets: Vec<i32>,
+    slot_values: Vec<Vec<Value>>,
 }
 
 use convention::{STRESS_FPRS, STRESS_GPRS};
@@ -433,6 +443,7 @@ impl Allocator {
         self.end_states.resize(func.blocks.len(), [NONE; REGISTER_COUNT]);
         self.header_states.clear();
         self.header_states.resize(func.loops.len(), [NONE; REGISTER_COUNT]);
+        self.find_webs(func, liveliness);
 
         for block in 0..func.blocks.len() as BlockId {
             self.current_block = block;
@@ -495,7 +506,7 @@ impl Allocator {
         }
     }
 
-    fn ensure_slot(func: &Func, allocation: &mut Allocation, value: Value) -> i32 {
+    fn ensure_slot(&mut self, func: &Func, allocation: &mut Allocation, value: Value) -> i32 {
         let slot = allocation.slots[value as usize];
         if slot != NO_SLOT {
             return slot;
@@ -504,14 +515,107 @@ impl Allocator {
         let slot = match node.op {
             Op::Param => convention::home_slot_offset(convention::home_slot(&func.params, node.args[0] as usize)),
             Op::Instance => convention::FRAME_INSTANCE,
-            _ => {
-                // NB: A v128 takes two slots, the lower of which has its address.
-                allocation.slot_count += node.ty.slots();
-                convention::spill_slot_offset(allocation.slot_count - 1)
-            }
+            _ if self.web_parents[value as usize] != NONE => self.web_slot(func, allocation, value),
+            _ => Self::new_slot(func, allocation, value),
         };
         allocation.slots[value as usize] = slot;
         slot
+    }
+
+    fn new_slot(func: &Func, allocation: &mut Allocation, value: Value) -> i32 {
+        // NB: A v128 takes two slots, the lower of which has its address.
+        allocation.slot_count += func.node(value).ty.slots();
+        convention::spill_slot_offset(allocation.slot_count - 1)
+    }
+
+    // Webs.
+
+    /// Puts each phi and its inputs in one web.
+    fn find_webs(&mut self, func: &Func, liveliness: &Liveliness) {
+        self.web_parents.clear();
+        self.web_parents.resize(func.nodes.len(), NONE);
+        self.web_slots.clear();
+        self.slot_offsets.clear();
+        self.slot_values.clear();
+        let in_web = |value: Value| {
+            let op = func.node(value).op;
+            liveness::is_allocated(func, liveliness, value) && op != Op::Forward && !op.is_entry_value()
+        };
+        for block in 0..func.blocks.len() as BlockId {
+            for phi in func.phis(block) {
+                if !in_web(phi) {
+                    continue;
+                }
+                for &input in func.inputs(phi) {
+                    if in_web(input) && func.node(input).ty.slots() == func.node(phi).ty.slots() {
+                        self.union(phi, input);
+                    }
+                }
+            }
+        }
+    }
+
+    fn web_root(&mut self, value: Value) -> Value {
+        let mut root = value;
+        while self.web_parents[root as usize] != root {
+            root = self.web_parents[root as usize];
+        }
+        let mut current = value;
+        while current != root {
+            let parent = self.web_parents[current as usize];
+            self.web_parents[current as usize] = root;
+            current = parent;
+        }
+        root
+    }
+
+    fn union(&mut self, first: Value, second: Value) {
+        for value in [first, second] {
+            if self.web_parents[value as usize] == NONE {
+                self.web_parents[value as usize] = value;
+            }
+        }
+        let first = self.web_root(first);
+        let second = self.web_root(second);
+        if first != second {
+            self.web_parents[second as usize] = first;
+        }
+    }
+
+    /// Whether the intervals of two values overlap, so that they cannot share a slot. A value whose interval ends where
+    /// another is defined does not overlap it: the node reads the one before it writes the other.
+    fn overlap(&self, first: Value, second: Value) -> bool {
+        let definitions = (
+            self.liveness.definition[first as usize],
+            self.liveness.definition[second as usize],
+        );
+        if definitions.0 == NONE || definitions.1 == NONE {
+            return true;
+        }
+        definitions.0 < self.liveness.end[second as usize] && definitions.1 < self.liveness.end[first as usize]
+    }
+
+    /// A slot of `value`'s web that no value overlapping it has, or a new one for the web.
+    fn web_slot(&mut self, func: &Func, allocation: &mut Allocation, value: Value) -> i32 {
+        let root = self.web_root(value);
+        let slots = self.web_slots.remove(&root).unwrap_or_default();
+        let shared = slots.iter().copied().find(|&index| {
+            self.slot_values[index as usize]
+                .iter()
+                .all(|&other| !self.overlap(value, other))
+        });
+        let index = shared.unwrap_or_else(|| {
+            self.slot_offsets.push(Self::new_slot(func, allocation, value));
+            self.slot_values.push(Vec::new());
+            self.slot_offsets.len() as u32 - 1
+        });
+        let mut slots = slots;
+        if shared.is_none() {
+            slots.push(index);
+        }
+        self.web_slots.insert(root, slots);
+        self.slot_values[index as usize].push(value);
+        self.slot_offsets[index as usize]
     }
 
     /// Frees `register`, keeping its value in its slot if it is still needed.
@@ -521,7 +625,7 @@ impl Allocator {
             return;
         }
         if self.liveness.is_live_after(value, self.position) {
-            Self::ensure_slot(func, allocation, value);
+            self.ensure_slot(func, allocation, value);
         }
         self.free(register);
     }
@@ -674,8 +778,18 @@ impl Allocator {
             self.set_contents(state);
             return;
         }
-        let state_predecessor = *predecessors.iter().max().expect("merges have predecessors");
-        let mut state = self.filtered(func, &self.end_states[state_predecessor as usize], block);
+        // NB: The merge starts with the registers of the predecessor that keeps the most of its values in them, so that
+        //     a path that called a function, which leaves none in registers, does not make the others give them up.
+        let (state_predecessor, mut state) = predecessors
+            .iter()
+            .map(|&predecessor| {
+                (
+                    predecessor,
+                    self.filtered(func, &self.end_states[predecessor as usize], block),
+                )
+            })
+            .max_by_key(|(predecessor, state)| (state.iter().filter(|value| **value != NONE).count(), *predecessor))
+            .expect("merges have predecessors");
         self.place_phis(func, allocation, block, state_predecessor, &mut state);
         for index in 0..func.predecessors(block).len() {
             let predecessor = func.predecessors(block)[index];
@@ -725,7 +839,7 @@ impl Allocator {
         state: &mut [u32; REGISTER_COUNT],
     ) {
         let index = predecessor_index(func, block, predecessor);
-        let end = &self.end_states[predecessor as usize];
+        let end = self.end_states[predecessor as usize];
         for phi in func.phis(block) {
             let float = is_float(func.node(phi).ty);
             let input = func.inputs(phi)[index];
@@ -746,7 +860,7 @@ impl Allocator {
                 }
             }
             if register == NO_REGISTER {
-                Self::ensure_slot(func, allocation, phi);
+                self.ensure_slot(func, allocation, phi);
             } else {
                 state[register as usize] = phi;
             }
@@ -1016,7 +1130,7 @@ impl Allocator {
                 self.assign(free, occupant);
             }
             None => {
-                Self::ensure_slot(func, allocation, occupant);
+                self.ensure_slot(func, allocation, occupant);
                 self.free(register);
             }
         }
