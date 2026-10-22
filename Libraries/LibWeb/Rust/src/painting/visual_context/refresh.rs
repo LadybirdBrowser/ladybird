@@ -10,6 +10,7 @@ use crate::css::computed_value_types::ComputedLengthPercentageOrAuto;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiVisualContextTreeInputs;
+use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
@@ -64,6 +65,41 @@ fn resolve_sticky_insets_in_css_pixels(
         bottom: resolve_side(&inset.bottom, scrollport_size.height),
         left: resolve_side(&inset.left, scrollport_size.width),
     }
+}
+
+// NB: The computed margins, with auto as zero. The used margins of a block include the space its width leaves free.
+fn computed_margins_in_css_pixels(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    percentage_basis: CssPixels,
+) -> FfiPixelBox {
+    let Some(style) = layout_arena.node_style_if_live(slot) else {
+        return FfiPixelBox::default();
+    };
+    let resolve = |side: &ComputedLengthPercentageOrAuto| {
+        if side.is_auto() {
+            CssPixels::from_raw(0)
+        } else {
+            side.to_px(percentage_basis)
+        }
+    };
+    let margin = &style.surround().margin;
+    FfiPixelBox {
+        top: resolve(&margin.top),
+        right: resolve(&margin.right),
+        bottom: resolve(&margin.bottom),
+        left: resolve(&margin.left),
+    }
+}
+
+fn deflated(rect: CssPixelRect, edges: FfiPixelBox) -> CssPixelRect {
+    let zero = CssPixels::from_raw(0);
+    CssPixelRect::new(
+        rect.x + edges.left,
+        rect.y + edges.top,
+        (rect.width - edges.left - edges.right).max(zero),
+        (rect.height - edges.top - edges.bottom).max(zero),
+    )
 }
 
 fn is_containing_block_descendant_of(
@@ -125,19 +161,21 @@ pub(crate) fn compute_sticky_data(
     let sticky_border_box_rect = paintable_geometry::absolute_border_box_rect(layout_arena, paintable);
     let containing_block = layout_arena.paintable_data(paintable).containing_block;
     let scroller_rect = paintable_geometry::absolute_rect(layout_arena, scroller);
-    let (containing_block_region, needs_parent_offset_adjustment) = if containing_block == scroller {
-        let size = paintable_geometry::scrollable_overflow_rect(layout_arena, containing_block)
-            .unwrap_or_else(|| paintable_geometry::absolute_padding_box_rect(layout_arena, containing_block))
-            .size();
-        (
-            CssPixelRect::from_location_and_size(CssPixelPoint::default(), size),
-            false,
-        )
+    // NB: The box moves within the content box of its containing block, less its own margins. For the scroll
+    //     container itself, that is its scrollable overflow rectangle less its padding. This matches other engines.
+    let (containing_block_content_box, needs_parent_offset_adjustment) = if containing_block == scroller {
+        let overflow_rect = paintable_geometry::scrollable_overflow_rect(layout_arena, containing_block)
+            .unwrap_or_else(|| paintable_geometry::absolute_padding_box_rect(layout_arena, containing_block));
+        let padding = paintable_geometry::committed_padding(layout_arena, containing_block);
+        (deflated(overflow_rect, padding), false)
     } else {
-        let region = paintable_geometry::absolute_border_box_rect(layout_arena, containing_block)
-            .translated(-scroller_rect.x, -scroller_rect.y);
-        (region, true)
+        (paintable_geometry::absolute_rect(layout_arena, containing_block), true)
     };
+    let containing_block_width = paintable_geometry::absolute_rect(layout_arena, containing_block).width;
+    let containing_block_region = deflated(
+        containing_block_content_box.translated(-scroller_rect.x, -scroller_rect.y),
+        computed_margins_in_css_pixels(layout_arena, paintable, containing_block_width),
+    );
 
     let scale = device_pixels_per_css_pixel as f32;
     let device_point = |point: CssPixelPoint| FloatPoint {
