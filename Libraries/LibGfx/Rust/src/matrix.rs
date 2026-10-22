@@ -130,26 +130,69 @@ impl AffineTransform {
     }
 }
 
+/// A number that the elements of a Matrix4x4 can be: f32 or f64.
+pub trait MatrixElement:
+    Copy
+    + PartialEq
+    + PartialOrd
+    + core::ops::Add<Output = Self>
+    + core::ops::Sub<Output = Self>
+    + core::ops::Mul<Output = Self>
+    + core::ops::Div<Output = Self>
+    + core::ops::Neg<Output = Self>
+    + core::ops::AddAssign
+    + core::ops::DivAssign
+{
+    const ZERO: Self;
+    const ONE: Self;
+    const EPSILON: Self;
+
+    fn abs(self) -> Self;
+    fn sin(self) -> Self;
+    fn cos(self) -> Self;
+}
+
+macro_rules! matrix_element {
+    ($type:ty) => {
+        impl MatrixElement for $type {
+            const ZERO: Self = 0.0;
+            const ONE: Self = 1.0;
+            const EPSILON: Self = <$type>::EPSILON;
+
+            fn abs(self) -> Self {
+                <$type>::abs(self)
+            }
+
+            fn sin(self) -> Self {
+                <$type>::sin(self)
+            }
+
+            fn cos(self) -> Self {
+                <$type>::cos(self)
+            }
+        }
+    };
+}
+
+matrix_element!(f32);
+matrix_element!(f64);
+
+/// A 4x4 matrix whose elements are stored row by row, with the arithmetic of Gfx::Matrix4x4.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct FloatMatrix4x4 {
-    pub elements: [[f32; 4]; 4],
+pub struct Matrix4x4<T> {
+    pub elements: [[T; 4]; 4],
 }
 
-impl Default for FloatMatrix4x4 {
-    fn default() -> Self {
-        Self::identity()
-    }
-}
+pub type DoubleMatrix4x4 = Matrix4x4<f64>;
 
-impl FloatMatrix4x4 {
+impl<T: MatrixElement> Matrix4x4<T> {
     pub const fn identity() -> Self {
         Self {
             elements: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
+                [T::ONE, T::ZERO, T::ZERO, T::ZERO],
+                [T::ZERO, T::ONE, T::ZERO, T::ZERO],
+                [T::ZERO, T::ZERO, T::ONE, T::ZERO],
+                [T::ZERO, T::ZERO, T::ZERO, T::ONE],
             ],
         }
     }
@@ -167,9 +210,9 @@ impl FloatMatrix4x4 {
         product
     }
 
-    pub fn determinant(self) -> f32 {
-        let mut result = 0.0f32;
-        let mut sign = 1.0f32;
+    pub fn determinant(self) -> T {
+        let mut result = T::ZERO;
+        let mut sign = T::ONE;
         for j in 0..4 {
             result += sign * self.elements[0][j] * self.first_minor(0, j);
             sign = -sign;
@@ -177,23 +220,19 @@ impl FloatMatrix4x4 {
         result
     }
 
-    pub fn first_minor(self, skip_row: usize, skip_column: usize) -> f32 {
-        determinant_of_three_by_three(skip_row_and_column_of_four_by_four(
-            self.elements,
-            skip_row,
-            skip_column,
-        ))
+    pub fn first_minor(self, skip_row: usize, skip_column: usize) -> T {
+        determinant_of_three_by_three(skip_row_and_column(self.elements, skip_row, skip_column))
     }
 
     pub fn is_invertible(self) -> bool {
-        self.determinant() != 0.0
+        self.determinant() != T::ZERO
     }
 
     pub fn adjugate(self) -> Self {
         let mut adjugate = Self::identity();
         for i in 0..4 {
             for j in 0..4 {
-                let sign = if (i + j) % 2 == 0 { 1.0 } else { -1.0 };
+                let sign = if (i + j) % 2 == 0 { T::ONE } else { -T::ONE };
                 adjugate.elements[j][i] = sign * self.first_minor(i, j);
             }
         }
@@ -202,7 +241,7 @@ impl FloatMatrix4x4 {
 
     pub fn inverse(self) -> Option<Self> {
         let determinant = self.determinant();
-        if determinant == 0.0 {
+        if determinant == T::ZERO {
             return None;
         }
         let mut inverse = self.adjugate();
@@ -214,8 +253,8 @@ impl FloatMatrix4x4 {
         Some(inverse)
     }
 
-    pub fn map_vector4(self, vector: [f32; 4]) -> [f32; 4] {
-        let mut result = [0.0f32; 4];
+    pub fn map_vector4(self, vector: [T; 4]) -> [T; 4] {
+        let mut result = [T::ZERO; 4];
         for (i, out) in result.iter_mut().enumerate() {
             *out = self.elements[i][0] * vector[0]
                 + self.elements[i][1] * vector[1]
@@ -227,16 +266,120 @@ impl FloatMatrix4x4 {
 
     pub fn is_2d_affine(self) -> bool {
         let m = &self.elements;
-        m[0][2] == 0.0
-            && m[1][2] == 0.0
-            && m[2][0] == 0.0
-            && m[2][1] == 0.0
-            && m[2][2] == 1.0
-            && m[2][3] == 0.0
-            && m[3][0] == 0.0
-            && m[3][1] == 0.0
-            && m[3][2] == 0.0
-            && m[3][3] == 1.0
+        m[0][2] == T::ZERO
+            && m[1][2] == T::ZERO
+            && m[2][0] == T::ZERO
+            && m[2][1] == T::ZERO
+            && m[2][2] == T::ONE
+            && m[2][3] == T::ZERO
+            && m[3][0] == T::ZERO
+            && m[3][1] == T::ZERO
+            && m[3][2] == T::ZERO
+            && m[3][3] == T::ONE
+    }
+
+    pub fn translation(x: T, y: T, z: T) -> Self {
+        let (o, l) = (T::ZERO, T::ONE);
+        Self {
+            elements: [[l, o, o, x], [o, l, o, y], [o, o, l, z], [o, o, o, l]],
+        }
+    }
+
+    pub fn scale(x: T, y: T, z: T) -> Self {
+        let (o, l) = (T::ZERO, T::ONE);
+        Self {
+            elements: [[x, o, o, o], [o, y, o, o], [o, o, z, o], [o, o, o, l]],
+        }
+    }
+
+    /// The rotation of `angle` radians about `axis`, with a sine or cosine below the epsilon of the type snapped to
+    /// zero so right angles produce exact zeros.
+    pub fn rotation(axis: [T; 3], angle: T) -> Self {
+        let mut s = angle.sin();
+        let mut c = angle.cos();
+        if c.abs() < T::EPSILON {
+            c = T::ZERO;
+        }
+        if s.abs() < T::EPSILON {
+            s = T::ZERO;
+        }
+        let t = T::ONE - c;
+        let [x, y, z] = axis;
+        let o = T::ZERO;
+        Self {
+            elements: [
+                [t * x * x + c, t * x * y - z * s, t * x * z + y * s, o],
+                [t * x * y + z * s, t * y * y + c, t * y * z - x * s, o],
+                [t * x * z - y * s, t * y * z + x * s, t * z * z + c, o],
+                [o, o, o, T::ONE],
+            ],
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct FloatMatrix4x4 {
+    pub elements: [[f32; 4]; 4],
+}
+
+impl Default for FloatMatrix4x4 {
+    fn default() -> Self {
+        Self::identity()
+    }
+}
+
+impl From<Matrix4x4<f32>> for FloatMatrix4x4 {
+    fn from(matrix: Matrix4x4<f32>) -> Self {
+        Self {
+            elements: matrix.elements,
+        }
+    }
+}
+
+impl FloatMatrix4x4 {
+    fn generic(self) -> Matrix4x4<f32> {
+        Matrix4x4 {
+            elements: self.elements,
+        }
+    }
+
+    pub const fn identity() -> Self {
+        Self {
+            elements: Matrix4x4::<f32>::identity().elements,
+        }
+    }
+
+    pub fn multiplied(self, other: Self) -> Self {
+        self.generic().multiplied(other.generic()).into()
+    }
+
+    pub fn determinant(self) -> f32 {
+        self.generic().determinant()
+    }
+
+    pub fn first_minor(self, skip_row: usize, skip_column: usize) -> f32 {
+        self.generic().first_minor(skip_row, skip_column)
+    }
+
+    pub fn is_invertible(self) -> bool {
+        self.generic().is_invertible()
+    }
+
+    pub fn adjugate(self) -> Self {
+        self.generic().adjugate().into()
+    }
+
+    pub fn inverse(self) -> Option<Self> {
+        self.generic().inverse().map(Self::from)
+    }
+
+    pub fn map_vector4(self, vector: [f32; 4]) -> [f32; 4] {
+        self.generic().map_vector4(vector)
+    }
+
+    pub fn is_2d_affine(self) -> bool {
+        self.generic().is_2d_affine()
     }
 
     pub fn extract_2d_affine(self) -> AffineTransform {
@@ -307,54 +450,39 @@ pub fn map_rect_through_matrix(matrix: FloatMatrix4x4, rect: FloatRect, minimum_
     FloatRect::new(left, top, right - left, bottom - top)
 }
 
-fn skip_row_and_column_of_four_by_four(elements: [[f32; 4]; 4], skip_row: usize, skip_column: usize) -> [[f32; 3]; 3] {
-    let mut minor = [[0.0f32; 3]; 3];
-    let mut written = 0;
-    for (row, row_values) in elements.iter().enumerate() {
-        for (column, value) in row_values.iter().enumerate() {
-            if row == skip_row || column == skip_column {
-                continue;
-            }
-            minor[written / 3][written % 3] = *value;
-            written += 1;
-        }
-    }
-    minor
-}
-
-fn skip_row_and_column_of_three_by_three(
-    elements: [[f32; 3]; 3],
+fn skip_row_and_column<T: MatrixElement, const N: usize, const M: usize>(
+    elements: [[T; N]; N],
     skip_row: usize,
     skip_column: usize,
-) -> [[f32; 2]; 2] {
-    let mut minor = [[0.0f32; 2]; 2];
+) -> [[T; M]; M] {
+    let mut minor = [[T::ZERO; M]; M];
     let mut written = 0;
     for (row, row_values) in elements.iter().enumerate() {
         for (column, value) in row_values.iter().enumerate() {
             if row == skip_row || column == skip_column {
                 continue;
             }
-            minor[written / 2][written % 2] = *value;
+            minor[written / M][written % M] = *value;
             written += 1;
         }
     }
     minor
 }
 
-fn determinant_of_three_by_three(elements: [[f32; 3]; 3]) -> f32 {
-    let mut result = 0.0f32;
-    let mut sign = 1.0f32;
+fn determinant_of_three_by_three<T: MatrixElement>(elements: [[T; 3]; 3]) -> T {
+    let mut result = T::ZERO;
+    let mut sign = T::ONE;
     for j in 0..3 {
-        let minor = skip_row_and_column_of_three_by_three(elements, 0, j);
+        let minor = skip_row_and_column(elements, 0, j);
         result += sign * elements[0][j] * determinant_of_two_by_two(minor);
         sign = -sign;
     }
     result
 }
 
-fn determinant_of_two_by_two(elements: [[f32; 2]; 2]) -> f32 {
-    let mut result = 0.0f32;
-    let mut sign = 1.0f32;
+fn determinant_of_two_by_two<T: MatrixElement>(elements: [[T; 2]; 2]) -> T {
+    let mut result = T::ZERO;
+    let mut sign = T::ONE;
     for j in 0..2 {
         result += sign * elements[0][j] * elements[1][1 - j];
         sign = -sign;
@@ -363,48 +491,17 @@ fn determinant_of_two_by_two(elements: [[f32; 2]; 2]) -> f32 {
 }
 
 pub fn translation_matrix(x: f32, y: f32, z: f32) -> FloatMatrix4x4 {
-    FloatMatrix4x4 {
-        elements: [
-            [1.0, 0.0, 0.0, x],
-            [0.0, 1.0, 0.0, y],
-            [0.0, 0.0, 1.0, z],
-            [0.0, 0.0, 0.0, 1.0],
-        ],
-    }
+    Matrix4x4::translation(x, y, z).into()
 }
 
 pub fn scale_matrix(x: f32, y: f32, z: f32) -> FloatMatrix4x4 {
-    FloatMatrix4x4 {
-        elements: [
-            [x, 0.0, 0.0, 0.0],
-            [0.0, y, 0.0, 0.0],
-            [0.0, 0.0, z, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ],
-    }
+    Matrix4x4::scale(x, y, z).into()
 }
 
 /// The rotation of `angle` radians about `axis`, with a sine or cosine below the f32 epsilon
 /// snapped to zero so right angles produce exact zeros.
 pub fn rotation_matrix(axis: [f32; 3], angle: f32) -> FloatMatrix4x4 {
-    let mut s = angle.sin();
-    let mut c = angle.cos();
-    if c.abs() < f32::EPSILON {
-        c = 0.0;
-    }
-    if s.abs() < f32::EPSILON {
-        s = 0.0;
-    }
-    let t = 1.0 - c;
-    let [x, y, z] = axis;
-    FloatMatrix4x4 {
-        elements: [
-            [t * x * x + c, t * x * y - z * s, t * x * z + y * s, 0.0],
-            [t * x * y + z * s, t * y * y + c, t * y * z - x * s, 0.0],
-            [t * x * z - y * s, t * y * z + x * s, t * z * z + c, 0.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ],
-    }
+    Matrix4x4::rotation(axis, angle).into()
 }
 
 pub fn perspective_matrix(distance: f32) -> FloatMatrix4x4 {
