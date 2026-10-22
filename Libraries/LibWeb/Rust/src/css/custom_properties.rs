@@ -23,6 +23,7 @@ use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::function_signature::FunctionSignature;
 use crate::css::parser::arbitrary_substitution::{
     arbitrary_substitution_function, arguments_are_valid, collect_arbitrary_substitution_function_presence,
+    contains_arbitrary_substitution_function,
 };
 use crate::css::parser::component_value::{
     ComponentKind, ComponentSerializationMode, ComponentValue, ComponentValueList, ComponentValueSlice,
@@ -2883,10 +2884,14 @@ fn replace_if_function(
         let Some(colon) = branch.iter().position(ComponentValue::is_colon) else {
             return TokenResolution::Invalid;
         };
-        let condition = match substitute_tokens(store, registry, &branch[..colon], context, recursion_depth + 1) {
-            TokenResolution::Resolved(tokens) => Cow::Owned(tokens.into_vec()),
-            TokenResolution::Invalid | TokenResolution::Cyclic => Cow::Borrowed(&branch[..colon]),
-            TokenResolution::NotHandled => return TokenResolution::NotHandled,
+        let condition = if contains_arbitrary_substitution_function(&branch[..colon]) {
+            match substitute_tokens(store, registry, &branch[..colon], context, recursion_depth + 1) {
+                TokenResolution::Resolved(tokens) => Cow::Owned(tokens.into_vec()),
+                TokenResolution::Invalid | TokenResolution::Cyclic => Cow::Borrowed(&branch[..colon]),
+                TokenResolution::NotHandled => return TokenResolution::NotHandled,
+            }
+        } else {
+            Cow::Borrowed(&branch[..colon])
         };
         match evaluate_if_condition(store, registry, &condition, context, recursion_depth + 1) {
             ConditionEvaluation::Match(true) => {
