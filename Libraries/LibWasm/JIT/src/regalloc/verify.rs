@@ -7,23 +7,26 @@
 //! The register allocation verifier. It simulates what every register holds through each block, from the state the
 //! allocator says the block starts with, and checks that every input is where the allocation says, and that every
 //! edge's moves turn the state at the end of its source into the state its target starts with (with phis replaced
-//! by their inputs). Slots belong to one value each and are written where it is defined, so reading a value from
-//! its own slot is always right.
+//! by their inputs). A value's slot is written where it is defined (a phi's where its block starts, or by the moves
+//! of its edges), and values that share a slot must have intervals that do not overlap, so that a slot that the
+//! block has not written holds the one of its values that is live there.
 
 use super::{Allocation, CONSTANT_INPUT, Location, NO_REGISTER, REGISTER_COUNT, SLOT_INPUT, call_result_types};
 use crate::convention::{self, Place};
 use crate::ir::{BlockId, Func, NONE, Op, Shape, Value};
 use crate::passes::cleanup::Liveliness;
-use crate::regalloc::liveness::predecessor_index;
+use crate::regalloc::liveness::{Liveness, block_start_position, edge_position, node_position, predecessor_index};
 use std::collections::HashMap;
 
 struct Simulation<'a> {
-    allocation: &'a Allocation,
+    liveness: &'a Liveness,
     registers: [u32; REGISTER_COUNT],
-    /// What moves wrote to slots other than the values' own: phi slots and the cycle slot.
+    /// What the block wrote to slots so far.
     slots: HashMap<i32, Value>,
-    /// The value each slot belongs to.
-    owners: HashMap<i32, Value>,
+    /// The values of each slot.
+    owners: HashMap<i32, Vec<Value>>,
+    /// The position the simulation is at.
+    position: u32,
     errors: Vec<String>,
 }
 
@@ -38,10 +41,22 @@ impl Simulation<'_> {
     fn read(&self, location: Location) -> Option<Value> {
         match location {
             Location::Register(register) => Some(self.registers[register as usize]).filter(|value| *value != NONE),
-            Location::Slot(slot) => self.slots.get(&slot).or_else(|| self.owners.get(&slot)).copied(),
+            Location::Slot(slot) => self.slots.get(&slot).copied().or_else(|| self.owner_at(slot)),
             Location::Constant(value) => Some(value),
             Location::Outgoing(_) | Location::ResultArea(_) => None,
         }
+    }
+
+    /// The value of `slot` that is live at the current position, which a slot that the block did not write holds.
+    fn owner_at(&self, slot: i32) -> Option<Value> {
+        let owners = self.owners.get(&slot)?;
+        if let [owner] = owners.as_slice() {
+            return Some(*owner);
+        }
+        owners.iter().copied().find(|owner| {
+            self.liveness.definition[*owner as usize] < self.position
+                && self.liveness.end[*owner as usize] >= self.position
+        })
     }
 
     fn apply(&mut self, moves: &[super::Move]) {
@@ -60,9 +75,7 @@ impl Simulation<'_> {
     fn check_holds(&mut self, location: Location, value: Value, what: &str) {
         let ok = match location {
             Location::Register(register) => self.registers[register as usize] == value,
-            Location::Slot(slot) => {
-                self.slots.get(&slot) == Some(&value) || self.allocation.slots[value as usize] == slot
-            }
+            Location::Slot(slot) => self.read(Location::Slot(slot)) == Some(value),
             Location::Constant(constant) => constant == value,
             _ => true,
         };
@@ -73,22 +86,48 @@ impl Simulation<'_> {
 }
 
 pub fn verify(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> Result<(), String> {
+    let mut liveness = Liveness::default();
+    liveness.compute(func, liveliness);
     let mut simulation = Simulation {
-        allocation,
+        liveness: &liveness,
         registers: [NONE; REGISTER_COUNT],
         slots: HashMap::new(),
         owners: HashMap::new(),
+        position: 0,
         errors: Vec::new(),
     };
     for (value, &slot) in allocation.slots.iter().enumerate() {
         if slot != super::NO_SLOT {
-            simulation.owners.insert(slot, value as Value);
+            simulation.owners.entry(slot).or_default().push(value as Value);
         }
+    }
+    // The values of a slot follow each other: none is defined while another one is live.
+    let mut overlaps = Vec::new();
+    for (slot, owners) in &mut simulation.owners {
+        owners.sort_by_key(|owner| liveness.definition[*owner as usize]);
+        for pair in owners.windows(2) {
+            if liveness.end[pair[0] as usize] > liveness.definition[pair[1] as usize] {
+                overlaps.push(format!(
+                    "v{} and v{} share [fp{slot:+}] while both are live",
+                    pair[0], pair[1]
+                ));
+            }
+        }
+    }
+    for overlap in overlaps {
+        simulation.error(overlap);
     }
     let mut places = Vec::new();
     for block in 0..func.blocks.len() as BlockId {
         simulation.registers = allocation.block_states[block as usize];
         simulation.slots.clear();
+        simulation.position = block_start_position(func, block);
+        for phi in func.phis(block) {
+            let slot = allocation.slots[phi as usize];
+            if slot != super::NO_SLOT {
+                simulation.slots.insert(slot, phi);
+            }
+        }
         let data = func.blocks[block as usize];
         for value in data.start..data.end {
             let node = *func.node(value);
@@ -96,6 +135,7 @@ pub fn verify(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> 
                 continue;
             }
             let record = *allocation.node(value);
+            simulation.position = node_position(value);
             simulation.apply(allocation.node_moves(value));
             let inputs = func.inputs(value);
             match node.op {
@@ -179,8 +219,13 @@ pub fn verify(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> 
             if record.output != NO_REGISTER {
                 simulation.registers[record.output as usize] = value;
             }
+            let slot = allocation.slots[value as usize];
+            if slot != super::NO_SLOT {
+                simulation.slots.insert(slot, value);
+            }
         }
         // The edges.
+        simulation.position = edge_position(func, block);
         let end_registers = simulation.registers;
         let end_slots = simulation.slots.clone();
         let successors_start = data.successors_start;
@@ -212,7 +257,7 @@ pub fn verify(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> 
                 }
                 let input = func.inputs(phi)[predecessor];
                 let slot = allocation.slots[phi as usize];
-                if simulation.slots.get(&slot) != Some(&input) && allocation.slots[input as usize] != slot {
+                if simulation.read(Location::Slot(slot)) != Some(input) {
                     simulation.error(format!(
                         "edge b{block} -> b{successor}: the slot of phi v{phi} lacks v{input}"
                     ));
