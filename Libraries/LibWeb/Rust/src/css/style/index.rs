@@ -2831,6 +2831,9 @@ pub struct ElementDeclarations {
     declared: Box<[DeclaredProperty]>,
     written: Box<[RetainedStyleValueData]>,
     checks: Box<[super::publication::WrittenValueChecks]>,
+    /// Whether no declaration reads anything beyond the cascade (see `written_value_reads`), decided the first time
+    /// it is asked.
+    read_nothing: std::sync::OnceLock<bool>,
 }
 
 impl ElementDeclarations {
@@ -2844,7 +2847,16 @@ impl ElementDeclarations {
             declared: declared.into_boxed_slice(),
             written: written.into_boxed_slice(),
             checks,
+            read_nothing: std::sync::OnceLock::new(),
         }
+    }
+
+    /// Whether no declaration reads anything beyond the cascade: what a winner state reads of one of them is nothing.
+    pub(super) fn read_nothing(&self) -> bool {
+        *self.read_nothing.get_or_init(|| {
+            self.iter()
+                .all(|(declared, written)| super::publication::written_value_reads(declared.property, written) == 0)
+        })
     }
 
     /// The value the declaration at `index` of `declared` was written with.
