@@ -9,6 +9,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
+#include <LibURL/Site.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
@@ -1408,13 +1409,7 @@ void CanonicalTraversable::continue_history_navigation_population(HistoryOperati
         endpoint->async_continue_history_navigation_population(operation_id, changing_navigable->target_entry_descriptor(), operation->algorithm->navigation_type(),
             changing_navigable->navigable().ongoing_navigation().has<CanonicalNavigable::Traversal>(), Web::HTML::HistoryNavigationPopulation { loader.request(), loader.take_result() });
     };
-    if (auto client_id = endpoint->client().request_server_site_bindings().client_id(); client_id.has_value()) {
-        if (auto request_server = RequestServerManager::the().instance_for_client(*client_id)) {
-            changing_navigable.population_loader->move_response_body_to(*request_server, move(finish_handoff));
-            return;
-        }
-    }
-    finish_handoff(false);
+    changing_navigable.population_loader->move_response_body_to(endpoint->client().request_server_site_bindings(), move(finish_handoff));
 }
 
 bool CanonicalTraversable::run_changing_navigable_history_step_job(ApplyHistoryStep& run, ChangingNavigable& changing_navigable)
@@ -1759,6 +1754,23 @@ bool CanonicalTraversable::is_handing_navigable_to_another_page(CanonicalNavigab
             && changing_navigable->target_document_id != changing_navigable->displayed_document->id()
             && changing_job_endpoint(*changing_navigable) != navigable.active_document().host()) {
             return true;
+        }
+    }
+    return false;
+}
+
+bool CanonicalTraversable::client_populates_a_history_entry_for_site(WebContentClient const& client, Utf16String const& site) const
+{
+    for (auto const& [operation_id, operation] : m_history_operations) {
+        if (!operation->algorithm)
+            continue;
+        for (auto const& changing_navigable : operation->algorithm->changing_navigables()) {
+            if (!changing_navigable->has_pending_job() || !changing_navigable->navigable().is_top_level_traversable())
+                continue;
+            auto endpoint = changing_job_endpoint(*changing_navigable);
+            if (&endpoint->client() == &client
+                && URL::Site::serialize_for_partitioning(changing_navigable->target_entry->url.origin()) == site)
+                return true;
         }
     }
     return false;

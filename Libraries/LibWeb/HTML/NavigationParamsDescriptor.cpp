@@ -76,6 +76,7 @@ static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch:
         body = NavigationResponseBodyHandle {
             .request_server_client_id = request->client_id,
             .request_server_request_id = request->request_id,
+            .request_server_top_level_site = {},
         };
     }
 
@@ -248,12 +249,17 @@ static GC::Ptr<Fetch::Infrastructure::Request> create_navigation_request_from_de
 
 static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, NavigationResponseBodyHandle handle, Fetch::Infrastructure::Response& response, RefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info)
 {
-    if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
+    if (!ResourceLoader::is_initialized())
+        return {};
+
+    // The UI process moved the response to the RequestServer for the handle's site.
+    auto request_client = ResourceLoader::the().request_client_for_top_level_site(handle.request_server_top_level_site);
+    if (!request_client)
         return {};
 
     // Preserve the original RequestServer identity while WebContent decides whether this response will become a
     // document or a download. A download is adopted by the UI process using that identity.
-    auto request = ResourceLoader::the().request_client()->adopt_request(
+    auto request = request_client->adopt_request(
         handle.request_server_client_id,
         handle.request_server_request_id,
         Requests::RequestClient::TransferLease::Yes);

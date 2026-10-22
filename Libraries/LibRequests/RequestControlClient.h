@@ -32,12 +32,14 @@ public:
 
     NonnullRefPtr<Core::Promise<CacheSizes>> estimate_cache_size_accessed_since(UnixDateTime since);
     NonnullRefPtr<Core::Promise<Empty>> clear_cache(UnixDateTime since);
+    NonnullRefPtr<Core::Promise<Vector<CacheAccessBucket>>> retrieve_cache_access_profile(AK::Duration granularity);
 
     Function<void(Vector<NetworkUsage>, u64 interval_microseconds)> on_network_usage;
     Function<void(int client_id)> on_client_disconnected;
     Function<String(int client_id, URL::URL const&, Optional<HTTP::Cookie::PartitionContext> const&)> on_retrieve_http_cookie;
     Function<void(int client_id, URL::URL const&, Optional<HTTP::Cookie::PartitionContext> const&, Vector<HTTP::Cookie::ParsedCookie> const&, Optional<HTTP::HSTS::ParsedHSTSPolicy> const&)> on_store_response_cookies_and_hsts_policy;
     Function<void()> on_request_server_died;
+    Function<void(u64 size)> on_disk_cache_size_changed;
 
 private:
     virtual void die() override;
@@ -48,12 +50,17 @@ private:
     virtual void store_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id, URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context, Vector<HTTP::Cookie::ParsedCookie> cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy) override;
     virtual void estimated_cache_size(u64 cache_size_estimation_id, CacheSizes sizes) override;
     virtual void removed_cache_entries(u64 clear_cache_request_id) override;
+    virtual void disk_cache_size_changed(u64 size) override;
+    virtual void retrieved_cache_access_profile(u64 access_profile_request_id, Vector<CacheAccessBucket> buckets) override;
 
     HashMap<u64, NonnullRefPtr<Core::Promise<CacheSizes>>> m_pending_cache_size_estimations;
     u64 m_next_cache_size_estimation_id { 0 };
 
     HashMap<u64, NonnullRefPtr<Core::Promise<Empty>>> m_pending_clear_cache_requests;
     u64 m_next_clear_cache_request_id { 0 };
+
+    HashMap<u64, NonnullRefPtr<Core::Promise<Vector<CacheAccessBucket>>>> m_pending_cache_access_profile_requests;
+    u64 m_next_cache_access_profile_request_id { 0 };
 };
 
 }

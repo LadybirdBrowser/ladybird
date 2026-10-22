@@ -543,7 +543,7 @@ Request::Request(
     , m_transfer_lease(move(transfer_lease))
 {
     // A response for another site is only passing through this RequestServer on its way to that site's.
-    if (auto const& site = process_top_level_site(); site.has_value() && m_disk_cache.has_value() && m_network_isolation_key->top_level_site != *site)
+    if (m_disk_cache.has_value() && !process_keeps_responses_under(m_network_isolation_key->top_level_site))
         m_disk_cache.clear();
 
     if constexpr (REQUESTSERVER_WIRE_DEBUG)

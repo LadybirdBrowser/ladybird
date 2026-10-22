@@ -34,7 +34,7 @@ public:
     ~RequestServerInstance();
 
     // The top-level site whose requests this RequestServer makes, or nothing for the one that serves the UI process and
-    // processes that have no site yet.
+    // requests under no site.
     Optional<Utf16String> const& site() const { return m_site; }
     BrowsingSession& session() const { return *m_session; }
     ByteString const& cache_path() const { return m_cache_path; }
@@ -61,13 +61,16 @@ private:
     HashTable<int> m_client_ids;
     RefPtr<Core::Timer> m_idle_timer;
     bool m_retired { false };
+
+    // As last reported by the RequestServer.
+    u64 m_disk_cache_size { 0 };
 };
 
 struct RequestServerClientConnection;
 
-// The RequestServers of the UI process: one for each top-level site that a process hosts documents of, within each
-// browsing session, plus one with no site for the UI process itself and for processes that host no site yet. A site's
-// RequestServer caches only that site's responses, in a directory of its own that its sandbox confines it to.
+// Manages RequestServers per browsing session and top-level site, plus one with no site for the UI process
+// and requests under no site. Each site's server only makes and caches requests for that site's partitions;
+// its sandbox confines the cache to that site's directory.
 class WEBVIEW_API RequestServerManager {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -80,17 +83,14 @@ public:
     // The RequestServer with no site of the session. The default session's is launched with the browser.
     ErrorOr<NonnullRefPtr<RequestServerInstance>> browser_instance(BrowsingSession&);
 
-    // The RequestServer of a site, launched when first asked for. Once there are as many as allowed, further sites share
-    // the RequestServer with no site.
+    // The RequestServer of a site, launched when first asked for. Once there are as many as allowed and none is idle,
+    // further sites share the RequestServer with no site.
     ErrorOr<NonnullRefPtr<RequestServerInstance>> instance_for_site(BrowsingSession&, Utf16String const& top_level_site);
 
     RefPtr<RequestServerInstance> instance_for_client(int client_id);
     void for_each_instance(Function<IterationDecision(RequestServerInstance&)> const&);
 
     ErrorOr<RequestServerClientConnection> connect_new_client(RequestServerInstance&, BrowsingSession&, RequestServer::SiteBinding);
-
-    // Moves a process to its site's RequestServer, the first time it is about to host a document of a site.
-    void assign_site(WebContentClient&, Utf16String const& top_level_site);
 
     void disk_cache_settings_changed();
     void dns_settings_changed();
@@ -111,10 +111,28 @@ private:
 
     ByteString sites_directory() const;
     static ByteString cache_path_for_site(ByteString const& sites_directory, Utf16String const& site);
+    bool is_live_cache_path(ByteString const&) const;
     Vector<ByteString> dormant_site_cache_paths();
+
+    // Enforce the user's combined cache size limit with least-recently-used eviction.
+    // Caches of sites without a RequestServer are evicted whole.
+    void disk_cache_size_changed(RequestServerInstance&, u64 size);
+    void evict_least_recently_used_cache_entries_if_needed();
+    u64 maximum_disk_cache_size() const;
+
+    struct DormantSiteCache {
+        UnixDateTime last_use;
+        u64 size { 0 };
+    };
+    HashMap<ByteString, DormantSiteCache>& dormant_site_caches();
 
     Vector<NonnullRefPtr<RequestServerInstance>> m_instances;
     size_t m_maximum_site_instances { 0 };
+
+    Optional<HashMap<ByteString, DormantSiteCache>> m_dormant_site_caches;
+    // Time out evictions if a RequestServer disappears before answering.
+    Optional<MonotonicTime> m_cache_eviction_start_time;
+    u64 m_cache_eviction_id { 0 };
 };
 
 }

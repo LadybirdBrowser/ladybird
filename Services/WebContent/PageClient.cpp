@@ -1524,9 +1524,9 @@ void PageClient::did_delete_all_cookies(u64 request_id)
     Web::WebIDL::resolve_promise(realm, promise);
 }
 
-void PageClient::page_did_lose_request_server_connection()
+void PageClient::page_did_lose_request_server_connection(Optional<Utf16String> const& top_level_site)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidLoseRequestServerConnection>();
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidLoseRequestServerConnection>(top_level_site);
     if (!response)
         return;
 
@@ -1535,7 +1535,7 @@ void PageClient::page_did_lose_request_server_connection()
         return;
 
     if (client().on_request_server_connection)
-        client().on_request_server_connection(*handle, {});
+        client().on_request_server_connection(*handle, {}, top_level_site);
 }
 
 void PageClient::page_did_simulate_worker_request_server_connection_loss()

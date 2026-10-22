@@ -20,6 +20,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/LoadRequest.h>
@@ -53,9 +54,9 @@ Optional<URL::URL> const& ResourceLoader::proxy_autoconfig_url()
     return proxy_autoconfig_url_storage();
 }
 
-void ResourceLoader::initialize(GC::Heap& heap, NonnullRefPtr<Requests::RequestClient> request_client)
+void ResourceLoader::initialize(GC::Heap& heap)
 {
-    resource_loader() = adopt_ref(*new ResourceLoader(heap, move(request_client)));
+    resource_loader() = adopt_ref(*new ResourceLoader(heap));
 }
 
 bool ResourceLoader::is_initialized()
@@ -72,13 +73,12 @@ ResourceLoader& ResourceLoader::the()
     return *resource_loader();
 }
 
-ResourceLoader::ResourceLoader(GC::Heap& heap, NonnullRefPtr<Requests::RequestClient> request_client)
+ResourceLoader::ResourceLoader(GC::Heap& heap)
     : m_heap(heap)
     , m_user_agent(MUST(String::from_utf8(default_user_agent)))
     , m_platform(MUST(String::from_utf8(default_platform)))
     , m_preferred_languages(default_preferred_languages())
 {
-    set_client(move(request_client));
 }
 
 NavigatorCompatibilityMode ResourceLoader::s_navigator_compatibility_mode = default_navigator_compatibility_mode;
@@ -96,13 +96,58 @@ void ResourceLoader::set_navigator_compatibility_mode(NavigatorCompatibilityMode
         vm.set_source_text_syntaxes(JS::VM::StackFrameSyntax::AtSign, JS::VM::NativeFunctionSourceSyntax::MultiLine);
 }
 
-void ResourceLoader::set_client(NonnullRefPtr<Requests::RequestClient> request_client)
+void ResourceLoader::set_client(Optional<Utf16String> const& top_level_site, NonnullRefPtr<Requests::RequestClient> request_client)
 {
-    m_request_client = move(request_client);
-    m_request_client->on_request_server_died = [this, disconnected_client = m_request_client->make_weak_ptr<Requests::RequestClient>()]() {
-        if (m_request_client.ptr() == disconnected_client.ptr())
-            m_request_client = nullptr;
+    request_client->on_request_server_died = [this, top_level_site, disconnected_client = request_client->make_weak_ptr<Requests::RequestClient>()]() {
+        auto& client = ensure_client_for(top_level_site);
+        if (client.ptr() == disconnected_client.ptr())
+            client = nullptr;
     };
+    ensure_client_for(top_level_site) = move(request_client);
+}
+
+RefPtr<Requests::RequestClient> ResourceLoader::request_client_for(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key) const
+{
+    if (!network_isolation_key.has_value())
+        return m_request_client;
+    return request_client_for_top_level_site(network_isolation_key->top_level_site);
+}
+
+RefPtr<Requests::RequestClient> ResourceLoader::request_client_for_top_level_site(Optional<Utf16String> const& top_level_site) const
+{
+    if (top_level_site.has_value()) {
+        if (auto it = m_site_request_clients.find(*top_level_site); it != m_site_request_clients.end())
+            return it->value;
+    }
+    return m_request_client;
+}
+
+RefPtr<Requests::RequestClient>& ResourceLoader::ensure_client_for(Optional<Utf16String> const& top_level_site)
+{
+    if (!top_level_site.has_value())
+        return m_request_client;
+    return m_site_request_clients.ensure(*top_level_site);
+}
+
+Vector<Utf16String> ResourceLoader::top_level_sites() const
+{
+    Vector<Utf16String> top_level_sites;
+    for (auto const& entry : m_site_request_clients)
+        top_level_sites.append(entry.key);
+    return top_level_sites;
+}
+
+RefPtr<Requests::RequestClient> ResourceLoader::take_client_for_testing(Optional<Utf16String> const& top_level_site)
+{
+    return move(ensure_client_for(top_level_site));
+}
+
+// Speculation warms up the RequestServer that the document's requests go through.
+static Optional<HTTP::NetworkIsolationKey> speculative_network_isolation_key(GC::Ptr<DOM::Document> document)
+{
+    if (!document)
+        return {};
+    return Fetch::Infrastructure::determine_the_network_partition_key(document->relevant_settings_object());
 }
 
 void ResourceLoader::prefetch_dns(GC::Ptr<DOM::Document> document, URL::URL const& url, URL::URL const& source_url)
@@ -122,8 +167,8 @@ void ResourceLoader::prefetch_dns(GC::Ptr<DOM::Document> document, URL::URL cons
         return;
 
     // FIXME: We could put this request in a queue until the client connection is re-established.
-    if (m_request_client)
-        m_request_client->ensure_connection(url, RequestServer::CacheLevel::ResolveOnly);
+    if (auto request_client = request_client_for(speculative_network_isolation_key(document)))
+        request_client->ensure_connection(url, RequestServer::CacheLevel::ResolveOnly);
 }
 
 void ResourceLoader::preconnect(GC::Ptr<DOM::Document> document, URL::URL const& url, URL::URL const& source_url)
@@ -143,8 +188,8 @@ void ResourceLoader::preconnect(GC::Ptr<DOM::Document> document, URL::URL const&
         return;
 
     // FIXME: We could put this request in a queue until the client connection is re-established.
-    if (m_request_client)
-        m_request_client->ensure_connection(url, RequestServer::CacheLevel::CreateConnection);
+    if (auto request_client = request_client_for(speculative_network_isolation_key(document)))
+        request_client->ensure_connection(url, RequestServer::CacheLevel::CreateConnection);
 }
 
 static ByteString sanitized_url_for_logging(URL::URL const& url)
@@ -527,7 +572,8 @@ static NonnullRefPtr<HTTP::HeaderList const> headers_with_normalized_values(HTTP
 RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request, Requests::RequestClient::TransferLease transfer_lease)
 {
     // FIXME: We could put this request in a queue until the client connection is re-established.
-    if (!m_request_client) {
+    auto request_client = request_client_for(request.network_isolation_key());
+    if (!request_client) {
         log_failure(request, "RequestServer is currently unavailable"sv);
         return nullptr;
     }
@@ -539,7 +585,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     //     requests are attributed through the worker process's browser-level owners.
     auto originating_page_id = request.page() && request.page()->has_top_level_traversable() ? request.page()->client().id().value() : 0;
     auto headers = headers_with_normalized_values(request.headers());
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), *headers, request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id, request.network_isolation_key());
+    auto protocol_request = request_client->start_request(request.method(), request.url().value(), *headers, request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id, request.network_isolation_key());
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;

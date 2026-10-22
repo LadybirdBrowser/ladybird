@@ -51,6 +51,8 @@ private:
 
     virtual void estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) override;
     virtual void remove_cache_entries_accessed_since(u64 clear_cache_request_id, UnixDateTime since) override;
+    virtual void retrieve_cache_access_profile(u64 access_profile_request_id, AK::Duration granularity) override;
+    virtual void remove_cache_entries_accessed_before(UnixDateTime before) override;
 
     virtual void retrieved_http_cookie(int client_id, u64 request_id, RequestType request_type, u64 cookie_request_id, String cookie) override;
     virtual void stored_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id) override;
@@ -67,6 +69,8 @@ private:
     Optional<HTTP::DiskCache&> m_disk_cache;
 
     NonnullRefPtr<Resolver> m_resolver;
+
+    RefPtr<Core::Timer> m_disk_cache_size_report_timer;
 
     RefPtr<Core::Timer> m_performance_timer;
     Optional<MonotonicTime> m_last_performance_push;

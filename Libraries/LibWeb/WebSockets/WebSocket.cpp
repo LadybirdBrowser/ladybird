@@ -234,13 +234,14 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
         return Error::from_string_literal("PAC proxy configurations are not supported");
     }
 
-    auto request_client = ResourceLoader::the().request_client();
+    auto network_isolation_key = Fetch::Infrastructure::determine_the_network_partition_key(client);
+    auto request_client = ResourceLoader::the().request_client_for(network_isolation_key);
 
     // FIXME: We could put this request in a queue until the client connection is re-established.
     if (!request_client)
         return Error::from_string_literal("RequestServer is currently unavailable");
 
-    m_websocket = request_client->websocket_connect(connection_url, Fetch::Infrastructure::determine_the_network_partition_key(client), origin_string, protocol_byte_strings, {}, additional_headers);
+    m_websocket = request_client->websocket_connect(connection_url, move(network_isolation_key), origin_string, protocol_byte_strings, {}, additional_headers);
 
     m_websocket->on_open = GC::weak_callback(*this, [](auto& self) {
         self.on_open();

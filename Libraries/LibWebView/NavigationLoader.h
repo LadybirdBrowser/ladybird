@@ -11,6 +11,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16String.h>
 #include <AK/Weakable.h>
 #include <LibHTTP/Forward.h>
 #include <LibRequests/Forward.h>
@@ -63,8 +64,8 @@ public:
     void acquire_response_body(Function<void(bool)> completion_steps);
     void obtain_the_response_policies(CanonicalNavigable const&);
     void check_the_responses_adherence_to_its_embedder_policy(CanonicalNavigable const&);
-    // Moves the response over to the RequestServer of the process that will host the document, if that is another one.
-    void move_response_body_to(RequestServerInstance&, Function<void(bool)> completion_steps);
+    // Moves the response to the document host's RequestServer for its top-level site, if different.
+    void move_response_body_to(RequestServerSiteBindings const& host_bindings, Function<void(bool)> completion_steps);
     bool response_body_matches(int request_server_client_id, u64 request_server_request_id) const;
     Web::HTML::NavigationPopulationRequest const& request() const { return m_request; }
     Web::HTML::NavigationPopulationResult const& result() const;
@@ -93,6 +94,8 @@ private:
     RefPtr<RequestServerInstance> m_response_body_request_server;
     Optional<int> m_response_body_request_server_client_id;
     Optional<u64> m_response_body_request_server_request_id;
+    // The top-level site of the document the response creates.
+    Optional<Utf16String> m_top_level_site;
     bool m_response_body_was_handed_off { false };
     Function<void(bool)> m_completion_steps;
 };

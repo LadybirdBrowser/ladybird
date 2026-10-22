@@ -50,7 +50,8 @@ ErrorOr<int> service_main(int ipc_socket)
     Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
 
     auto request_server_client = TRY(bind_request_server_service());
-    Web::ResourceLoader::initialize(Web::Bindings::main_thread_vm().heap(), move(request_server_client));
+    Web::ResourceLoader::initialize(Web::Bindings::main_thread_vm().heap());
+    Web::ResourceLoader::the().set_client({}, move(request_server_client));
 
     bool is_test_mode = false;
 

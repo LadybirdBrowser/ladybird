@@ -143,7 +143,8 @@ static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::
     if (!Fetch::Infrastructure::is_http_or_https_scheme(response_url.scheme()))
         return {};
 
-    if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
+    auto network_isolation_key = Fetch::Infrastructure::determine_the_network_partition_key(request);
+    if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client_for(network_isolation_key))
         return {};
 
     auto vary_key = response.javascript_bytecode_cache_vary_key();
@@ -160,7 +161,7 @@ static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::
         .request_headers = HTTP::HeaderList::create(request.header_list()->headers()),
         .memory_cache_request_headers = move(memory_cache_request_headers),
         .vary_key = *vary_key,
-        .network_isolation_key = Fetch::Infrastructure::determine_the_network_partition_key(request),
+        .network_isolation_key = move(network_isolation_key),
     };
 }
 
@@ -194,7 +195,8 @@ static void schedule_bytecode_cache_generation(JS::ParsedProgram cache_parse, No
                 return heap_blob;
             };
 
-            if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client()) {
+            auto request_client = ResourceLoader::is_initialized() ? ResourceLoader::the().request_client_for(cache_context.network_isolation_key) : nullptr;
+            if (!request_client) {
                 install_heap_copy();
                 return;
             }
@@ -204,7 +206,7 @@ static void schedule_bytecode_cache_generation(JS::ParsedProgram cache_parse, No
             // of the script, exactly as they are when a later load reads the blob back from the cache. The shared
             // buffer the blob arrived in goes to RequestServer as it is, and is unmapped once the store returns.
             Core::ImmutableBytes installed_blob;
-            auto stored_blob = ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.network_isolation_key, cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, *blob);
+            auto stored_blob = request_client->store_cache_associated_data(cache_context.network_isolation_key, cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, *blob);
             if (!stored_blob.is_error() && stored_blob.value().has_value()) {
                 installed_blob = stored_blob.release_value().release_value();
                 install_target.install_generated_bytecode_cache(type, original_source_code, source_hash, installed_blob);

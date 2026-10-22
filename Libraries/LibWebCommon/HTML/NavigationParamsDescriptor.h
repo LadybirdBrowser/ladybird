@@ -65,6 +65,9 @@ struct NavigationResponseBodyHandle {
     // response moves from the fetch worker through the UI process to the document host.
     int request_server_client_id { -1 };
     u64 request_server_request_id { 0 };
+    // Selects the document host's client for adoption; empty selects the RequestServer with no site.
+    // The UI process sets this when moving the response to the host's RequestServer.
+    Optional<Utf16String> request_server_top_level_site;
 };
 
 using NavigationResponseBody = Variant<Empty, NavigationResponseBodyHandle, ByteBuffer>;

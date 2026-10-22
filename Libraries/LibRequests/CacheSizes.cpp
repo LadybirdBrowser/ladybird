@@ -28,4 +28,22 @@ ErrorOr<Requests::CacheSizes> decode(Decoder& decoder)
     return Requests::CacheSizes { since_requested_time, total };
 }
 
+template<>
+ErrorOr<void> encode(Encoder& encoder, Requests::CacheAccessBucket const& bucket)
+{
+    TRY(encoder.encode(bucket.last_access_time));
+    TRY(encoder.encode(bucket.size));
+
+    return {};
+}
+
+template<>
+ErrorOr<Requests::CacheAccessBucket> decode(Decoder& decoder)
+{
+    auto last_access_time = TRY(decoder.decode<UnixDateTime>());
+    auto size = TRY(decoder.decode<u64>());
+
+    return Requests::CacheAccessBucket { last_access_time, size };
+}
+
 }

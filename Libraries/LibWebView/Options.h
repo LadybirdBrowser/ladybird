@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/NumericLimits.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
@@ -124,8 +125,9 @@ struct RequestServerOptions {
     HTTPDiskCacheMode http_disk_cache_mode { HTTPDiskCacheMode::Disabled };
     Optional<ByteString> resource_substitution_map_path;
     HTTP::ProxyConfiguration proxy_configuration;
-    // Per-session limit, excluding the RequestServer with no site. Zero makes every process share that server.
-    size_t maximum_site_request_servers { 16 };
+    // Per-session limit, excluding the RequestServer with no site. Sites beyond the limit share that server;
+    // zero makes every process share it.
+    size_t maximum_site_request_servers { NumericLimits<size_t>::max() };
 };
 
 enum class IsTestMode {

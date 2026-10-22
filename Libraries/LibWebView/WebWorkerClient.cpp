@@ -20,6 +20,9 @@ namespace WebView {
 WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, Web::HTML::WorkerAgentId agent_id)
     : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport))
     , m_is_private(is_private)
+    , m_request_server_site_bindings([this](RequestServerClientConnection& connection, Optional<Utf16String> const& top_level_site) {
+        async_connect_to_request_server(move(connection.handle), connection.client_id, top_level_site);
+    })
     , m_agent_id(agent_id)
     , m_audio_tab_id(allocate_audio_tab_id())
 {
