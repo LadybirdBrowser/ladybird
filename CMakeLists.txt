@@ -13,7 +13,7 @@ endif()
 include("Meta/CMake/use_linker.cmake")
 
 if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET 14.0)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 14.4)
 endif()
 
 # Pass additional information to vcpkg if we are using it.
