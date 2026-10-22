@@ -1,0 +1,32 @@
+<!doctype html>
+<body>
+    <span id="a"></span><span id="b"></span><span id="c"></span>
+</body>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const collections = [
+            ["NodeList", document.body.childNodes],
+            ["HTMLCollection", document.getElementsByTagName("span")],
+        ];
+        Object.prototype[100] = "inherited";
+        for (const [name, collection] of collections) {
+            println(`${name}:`);
+            const ids = [];
+            for (let i = 0; i < collection.length; ++i) ids.push(collection[i].id || collection[i].nodeName);
+            println(`  indices: ${ids.join(", ")}`);
+            println(`  [length]: ${collection[collection.length]}`);
+            println(`  [-1]: ${collection[-1]}`);
+            println(`  [100]: ${collection[100]}`);
+            println(`  ["0"] is [0]: ${collection["0"] === collection[0]}`);
+            println(`  for-of: ${Array.from(collection, node => node.id || node.nodeName).join(", ")}`);
+            println(`  Reflect.get with a receiver: ${Reflect.get(collection, 0, {}) === collection[0]}`);
+        }
+        delete Object.prototype[100];
+
+        const spans = document.getElementsByTagName("span");
+        const first = spans[0];
+        first.remove();
+        println(`after a removal: ${spans.length} ${spans[0].id} ${spans[2]}`);
+    });
+</script>

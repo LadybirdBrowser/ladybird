@@ -195,4 +195,6 @@ def wrapper_host_class_hooks(context: GenerationContext, interface: Interface) -
         return "platform_object_hooks"
     if "has_global_interface_extended_attribute" in legacy_platform_object_info_fields_of_wrapper:
         return "global_platform_object_hooks"
+    if "supports_indexed_properties" in legacy_platform_object_info_fields_of_wrapper:
+        return "indexed_legacy_platform_object_hooks"
     return "legacy_platform_object_hooks"

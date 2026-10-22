@@ -185,6 +185,10 @@ typedef struct JSHostObjectHooks {
     void* (*error_data)(JSObject*);
     // Runs during garbage collection and must not allocate.
     void (*finalize)(JSObject*);
+    // Optional, and only for classes without a get hook. Answers [[Get]] of the array index `index` with the value of
+    // the own property there, if the hook can tell without running code; otherwise it returns the empty value, and
+    // [[Get]] goes on as it would without it.
+    JSCompletion (*get_indexed_value)(JSObject*, uint32_t index);
 } JSHostObjectHooks;
 
 // The [[Call]] and [[Construct]] behavior of kind JS_HOST_CLASS_FUNCTION, which the engine runs in the function's own

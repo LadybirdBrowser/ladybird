@@ -90,13 +90,15 @@ template<typename Implementation>
 // The internal methods of wrapper host classes. Wrappers of [Global] interfaces and of interfaces without special
 // operations have the ordinary internal methods, but preserve the wrapper once script gives it state of its own: a new
 // own property, another prototype or non-extensibility. A [Global] wrapper's prototype is immutable through its host
-// class flags instead. Legacy platform objects have the internal methods that WebIDL defines for them. A DOMException
-// wrapper is an ordinary wrapper that also exposes the error data of its implementation object.
+// class flags instead. Legacy platform objects have the internal methods that WebIDL defines for them, and those that
+// support indexed properties also read them for [[Get]] directly. A DOMException wrapper is an ordinary wrapper that
+// also exposes the error data of its implementation object.
 //
 // Outside LibWeb, their addresses are not constant expressions on Windows, where the tables are imported from a DLL.
 extern WEB_API JSHostObjectHooks const platform_object_hooks;
 extern WEB_API JSHostObjectHooks const global_platform_object_hooks;
 extern WEB_API JSHostObjectHooks const legacy_platform_object_hooks;
+extern WEB_API JSHostObjectHooks const indexed_legacy_platform_object_hooks;
 extern JSHostObjectHooks const dom_exception_wrapper_hooks;
 
 // The finalize hook of every wrapper host class calls this to remove the wrapper from its world.

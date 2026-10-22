@@ -151,6 +151,7 @@ pub struct JSHostObjectHooks {
     pub is_cacheable_for_inherited_property: Option<unsafe extern "C" fn(object: *mut JSObject) -> bool>,
     pub error_data: Option<unsafe extern "C" fn(object: *mut JSObject) -> *mut c_void>,
     pub finalize: Option<unsafe extern "C" fn(object: *mut JSObject)>,
+    pub get_indexed_value: Option<unsafe extern "C" fn(object: *mut JSObject, index: u32) -> JSCompletion>,
 }
 
 #[repr(C)]

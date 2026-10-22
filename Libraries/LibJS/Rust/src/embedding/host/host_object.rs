@@ -146,6 +146,7 @@ fn host_object_methods(table: &'static JSHostClass) -> ObjectMethods {
         || hooks.get_own_property.is_some()
         || hooks.has_property.is_some()
         || hooks.get.is_some()
+        || hooks.get_indexed_value.is_some()
         || hooks.own_property_keys.is_some();
     if hooks_answer_instead_of_the_shape
         || table.has_flag(JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH)
@@ -154,6 +155,14 @@ fn host_object_methods(table: &'static JSHostClass) -> ObjectMethods {
     }
     if hooks.error_data.is_some() {
         methods.error_data = error_data_through_hook;
+    }
+    if hooks.get_indexed_value.is_some() {
+        // NB: The hook answers [[Get]] of array indices itself, so a [[Get]] hook would not see them.
+        assert!(
+            hooks.get.is_none(),
+            "a host class has a get_indexed_value hook or a [[Get]] hook"
+        );
+        methods.internal_get = get_through_indexed_value_hook;
     }
     methods
 }
@@ -293,6 +302,29 @@ fn has_property_through_hook(object: &Object, _vm: &Vm, key: &PropertyKey) -> Th
         .expect("the class has a [[HasProperty]] hook");
     // SAFETY: The hook takes an object of its class and a key.
     bool_completion_from_hook(unsafe { hook(lend_object_to_hook(object), lend_property_key_to_abi(key)) })
+}
+
+/// [[Get]] of a class with a get_indexed_value hook: the hook's value for an array index it answers, and otherwise
+/// OrdinaryGet.
+fn get_through_indexed_value_hook(
+    object: &Object,
+    vm: &Vm,
+    key: &PropertyKey,
+    receiver: Value,
+    cacheable_metadata: Option<&mut CacheableGetPropertyMetadata>,
+    phase: PropertyLookupPhase,
+) -> ThrowCompletionOr<Value> {
+    if key.is_number() {
+        let hook = hooks_of(object)
+            .get_indexed_value
+            .expect("the class has a get_indexed_value hook");
+        // SAFETY: The hook takes an object of its class and an index.
+        let value = completion_from_abi(unsafe { hook(lend_object_to_hook(object), key.as_number()) })?;
+        if !value.is_empty() {
+            return Ok(value);
+        }
+    }
+    object.ordinary_get(vm, key, receiver, cacheable_metadata, phase)
 }
 
 fn get_through_hook(

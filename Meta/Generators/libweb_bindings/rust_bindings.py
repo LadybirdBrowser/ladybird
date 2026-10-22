@@ -226,7 +226,7 @@ static constexpr LegacyPlatformObjectInfo {legacy_info} {{
 // The wrappers are legacy platform objects, whose indexed properties the Rust bindings read: their implementation is a
 // cell in their host data, not an implementation object in their wrappable slot.
 constexpr JSHostClass {wrapper_host_class_symbol(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv,
-    &{parent_host_class}, &legacy_platform_object_hooks, &{legacy_info},
+    &{parent_host_class}, &indexed_legacy_platform_object_hooks, &{legacy_info},
     platform_object_host_class_flags | JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE);
 """
         )
