@@ -723,6 +723,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_sticky(
             scrollport_size: constraints.scrollport_size,
             containing_block_region: constraints.containing_block_region,
             needs_parent_offset_adjustment: constraints.needs_parent_offset_adjustment,
+            non_scrolling_scroll_container: NodeSlotId::INVALID,
             inset_top: inset(constraints.inset_top),
             inset_right: inset(constraints.inset_right),
             inset_bottom: inset(constraints.inset_bottom),

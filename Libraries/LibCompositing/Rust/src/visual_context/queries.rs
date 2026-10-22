@@ -597,7 +597,8 @@ impl VisualContextTree {
                 continue;
             };
             let node_index = SpatialNodeIndex(index);
-            if sticky.scroller == VISUAL_VIEWPORT_NODE_INDEX {
+            let scrollport_is_static = !sticky.non_scrolling_scroll_container.is_invalid();
+            if sticky.scroller == VISUAL_VIEWPORT_NODE_INDEX && !scrollport_is_static {
                 record_entry(offsets, node_index, FloatPoint::default());
                 continue;
             }
@@ -605,18 +606,23 @@ impl VisualContextTree {
             // NB: A fixed-position ancestor can disconnect the sticky box's spatial chain from its
             //     scrollport. Only offsets on the spatial chain move the box, even though the scrollport
             //     is still used for its size and insets.
+            // NB: A non-scrolling scroll container moves with the sticky ancestors outside it, so only the
+            //     sticky ancestors inside it move the box within its scrollport.
             let mut parent_sticky_offset = FloatPoint::default();
             let mut ancestor = node.parent;
             while ancestor != sticky.scroller && ancestor != VISUAL_VIEWPORT_NODE_INDEX {
                 let ancestor_node = &self.spatial_nodes[ancestor.0 as usize];
-                if matches!(ancestor_node.data, SpatialData::Sticky(_)) {
+                if let SpatialData::Sticky(ancestor_sticky) = &ancestor_node.data
+                    && (!scrollport_is_static
+                        || ancestor_sticky.non_scrolling_scroll_container == sticky.non_scrolling_scroll_container)
+                {
                     let entry = device_offset_for_index(offsets, ancestor);
                     parent_sticky_offset.x += entry.x;
                     parent_sticky_offset.y += entry.y;
                 }
                 ancestor = ancestor_node.parent;
             }
-            let scroller_entry = if ancestor == sticky.scroller {
+            let scroller_entry = if ancestor == sticky.scroller && !scrollport_is_static {
                 device_offset_for_index(offsets, sticky.scroller)
             } else {
                 FloatPoint::default()
@@ -1428,6 +1434,7 @@ mod tests {
                 },
                 containing_block_region: FloatRect::new(0.0, 0.0, 800.0, 2000.0),
                 needs_parent_offset_adjustment: true,
+                non_scrolling_scroll_container: NodeSlotId::INVALID,
                 inset_top: Some(0.0),
                 inset_right: None,
                 inset_bottom: None,
@@ -1454,6 +1461,7 @@ mod tests {
                 },
                 containing_block_region: FloatRect::new(0.0, 100.0, 800.0, 50.0),
                 needs_parent_offset_adjustment: true,
+                non_scrolling_scroll_container: NodeSlotId::INVALID,
                 inset_top: Some(20.0),
                 inset_right: None,
                 inset_bottom: None,
@@ -1503,6 +1511,7 @@ mod tests {
             },
             containing_block_region: FloatRect::new(0.0, 0.0, 100.0, 1000.0),
             needs_parent_offset_adjustment: false,
+            non_scrolling_scroll_container: NodeSlotId::INVALID,
             inset_top: Some(0.0),
             inset_right: None,
             inset_bottom: None,
@@ -1537,6 +1546,37 @@ mod tests {
         let node = tree.append_spatial(data, viewport_scroll);
         let offsets = [FloatPoint::default(), FloatPoint::default()];
         assert_eq!(tree.resolve_sticky_offsets(&offsets), vec![(node, point(0.0, 0.0))]);
+    }
+
+    #[test]
+    fn sticky_offsets_in_a_non_scrolling_scroll_container_ignore_the_scroller_and_outer_sticky_boxes() {
+        let mut tree = identity_tree();
+        let viewport_scroll = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
+        let outer_sticky = tree.append_spatial(sticky(viewport_scroll, None, 0.0), viewport_scroll);
+        // A 22px box 21px into a scroll container without overflow, sticking 51px below its scrollport top within a
+        // 64px containing block that starts 32px down.
+        let mut data = sticky(viewport_scroll, Some(outer_sticky), 21.0);
+        if let SpatialData::Sticky(sticky) = &mut data {
+            sticky.border_box_size = FloatSize {
+                width: 15.0,
+                height: 22.0,
+            };
+            sticky.containing_block_region = FloatRect::new(0.0, 32.0, 404.0, 64.0);
+            sticky.inset_top = Some(51.0);
+            sticky.non_scrolling_scroll_container = NodeSlotId { index: 1 };
+        }
+        let inner_sticky = tree.append_spatial(data, outer_sticky);
+
+        for scroll_position in [0.0, 300.0] {
+            let offsets = [FloatPoint::default(), point(0.0, -scroll_position)];
+            assert_eq!(
+                tree.resolve_sticky_offsets(&offsets),
+                vec![
+                    (outer_sticky, point(0.0, scroll_position)),
+                    (inner_sticky, point(0.0, 30.0))
+                ]
+            );
+        }
     }
 
     #[test]

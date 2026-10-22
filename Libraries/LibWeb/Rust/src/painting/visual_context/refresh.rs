@@ -9,7 +9,6 @@ use super::{SpatialData, StickyData, VisualContextTree};
 use crate::css::computed_value_types::ComputedLengthPercentageOrAuto;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize, CssPixels};
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::chrome_geometry;
 use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -24,7 +23,9 @@ pub(crate) struct ResolvedStickyInsets {
     pub left: Option<CssPixels>,
 }
 
-fn nearest_wheel_scrollable_ancestor_along_containing_blocks(
+// https://drafts.csswg.org/css-position/#stickypos-insets
+// The sticky view rectangle comes from the nearest scroll container, even one without scrollable overflow.
+fn nearest_scroll_container_along_containing_blocks(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
 ) -> Option<NodeSlotId> {
@@ -33,8 +34,7 @@ fn nearest_wheel_scrollable_ancestor_along_containing_blocks(
         if !layout_arena.paintable_row_is_populated(block) {
             return None;
         }
-        let axes = chrome_geometry::wheel_scrollable_axes(layout_arena, block);
-        if axes.horizontal || axes.vertical {
+        if style_queries::is_scroll_container(layout_arena, block) {
             return Some(block);
         }
         if style_queries::is_fixed_position(layout_arena, block) {
@@ -46,17 +46,14 @@ fn nearest_wheel_scrollable_ancestor_along_containing_blocks(
 }
 
 // https://drafts.csswg.org/css-position/#insets
-pub(crate) fn resolve_sticky_insets_in_css_pixels(
+fn resolve_sticky_insets_in_css_pixels(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
+    scrollport_size: CssPixelSize,
 ) -> ResolvedStickyInsets {
     let Some(style) = layout_arena.node_style_if_live(slot) else {
         return ResolvedStickyInsets::default();
     };
-    let scrollport_size = nearest_wheel_scrollable_ancestor_along_containing_blocks(layout_arena, slot)
-        .map_or(CssPixelSize::default(), |scroller| {
-            paintable_geometry::absolute_rect(layout_arena, scroller).size()
-        });
     let resolve_side = |side: &ComputedLengthPercentageOrAuto, scrollport_extent: CssPixels| {
         (!side.is_auto()).then(|| side.to_px(scrollport_extent))
     };
@@ -67,6 +64,21 @@ pub(crate) fn resolve_sticky_insets_in_css_pixels(
         bottom: resolve_side(&inset.bottom, scrollport_size.height),
         left: resolve_side(&inset.left, scrollport_size.width),
     }
+}
+
+fn is_containing_block_descendant_of(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    ancestor: NodeSlotId,
+) -> bool {
+    let mut block = layout_arena.paintable_data(slot).containing_block;
+    while !block.is_invalid() && layout_arena.paintable_row_is_populated(block) {
+        if block == ancestor {
+            return true;
+        }
+        block = layout_arena.paintable_data(block).containing_block;
+    }
+    false
 }
 
 // The geometry stays zero while either row has been replaced by a subtree relayout: the pending
@@ -94,9 +106,20 @@ pub(crate) fn compute_sticky_data(
     if scroller_slot == NO_SCROLL_STATE_SLOT {
         return data;
     }
-    let scroller = scroll_state.state_at_slot(scroller_slot).paintable;
+    let mut scroller = scroll_state.state_at_slot(scroller_slot).paintable;
     if !layout_arena.paintable_row_is_populated(paintable) || !layout_arena.paintable_row_is_populated(scroller) {
         return data;
+    }
+
+    // NB: Only scroll containers with scrollable overflow get a scroll node. When the nearest scroll container has
+    //     none, it sits inside the scroller of the scroll node, and its scrollport never moves. The box sticks to
+    //     that scrollport instead.
+    if let Some(scroll_container) = nearest_scroll_container_along_containing_blocks(layout_arena, paintable)
+        && scroll_container != scroller
+        && is_containing_block_descendant_of(layout_arena, scroll_container, scroller)
+    {
+        scroller = scroll_container;
+        data.non_scrolling_scroll_container = scroll_container;
     }
 
     let sticky_border_box_rect = paintable_geometry::absolute_border_box_rect(layout_arena, paintable);
@@ -104,7 +127,7 @@ pub(crate) fn compute_sticky_data(
     let scroller_rect = paintable_geometry::absolute_rect(layout_arena, scroller);
     let (containing_block_region, needs_parent_offset_adjustment) = if containing_block == scroller {
         let size = paintable_geometry::scrollable_overflow_rect(layout_arena, containing_block)
-            .expect("scroll ancestor has scrollable overflow")
+            .unwrap_or_else(|| paintable_geometry::absolute_padding_box_rect(layout_arena, containing_block))
             .size();
         (
             CssPixelRect::from_location_and_size(CssPixelPoint::default(), size),
@@ -126,7 +149,7 @@ pub(crate) fn compute_sticky_data(
         height: size.height.to_float() * scale,
     };
     let device_inset = |inset: Option<CssPixels>| inset.map(|inset| inset.to_float() * scale);
-    let insets = resolve_sticky_insets_in_css_pixels(layout_arena, paintable);
+    let insets = resolve_sticky_insets_in_css_pixels(layout_arena, paintable, scroller_rect.size());
     let region_location = device_point(containing_block_region.location());
     let region_size = device_size(containing_block_region.size());
 
