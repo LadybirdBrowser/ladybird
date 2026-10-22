@@ -18,7 +18,6 @@ set(SOURCES
     ARIA/ARIAMixin.cpp
     ARIA/AttributeNames.cpp
     ARIA/Roles.cpp
-    ARIA/RoleType.cpp
     ARIA/StateAndProperties.cpp
     Bindings/AudioConstructor.cpp
     Bindings/HostDefined.cpp
@@ -1100,15 +1099,6 @@ set(SOURCES
 )
 
 
-invoke_py_generator(
-    "AriaRoles.cpp"
-    generate_libweb_aria_roles.py
-    "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
-    "ARIA/AriaRoles.h"
-    "ARIA/AriaRoles.cpp"
-    arguments -j "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
-)
-
 generate_css_implementation()
 
 generate_html_implementation()
@@ -1116,7 +1106,6 @@ generate_html_implementation()
 generate_picture_in_picture_implementation()
 
 set(GENERATED_SOURCES
-    ARIA/AriaRoles.cpp
     CSS/DefaultStyleSheetSource.cpp
     CSS/DescriptorID.cpp
     CSS/Enums.cpp

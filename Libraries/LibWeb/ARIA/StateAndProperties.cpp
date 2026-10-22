@@ -10,12 +10,6 @@
 
 namespace Web::ARIA {
 
-template<size_t length>
-static constexpr Utf16View utf16_view(char16_t const (&string)[length])
-{
-    return { string, length - 1 };
-}
-
 static Utf16String serialize_aria_string(Utf16String const& value)
 {
     return value;
@@ -363,119 +357,6 @@ ErrorOr<Utf16String> id_reference_list_to_string(Vector<Utf16String> const& valu
         }
     }
     return builder.to_string();
-}
-
-Utf16View state_or_property_to_string(StateAndProperties value)
-{
-    switch (value) {
-    case StateAndProperties::AriaActiveDescendant:
-        return utf16_view(u"aria-activedescendant");
-    case StateAndProperties::AriaAtomic:
-        return utf16_view(u"aria-atomic");
-    case StateAndProperties::AriaAutoComplete:
-        return utf16_view(u"aria-autocomplete");
-    case StateAndProperties::AriaBrailleLabel:
-        return utf16_view(u"aria-braillelabel");
-    case StateAndProperties::AriaBrailleRoleDescription:
-        return utf16_view(u"aria-brailleroledescription");
-    case StateAndProperties::AriaBusy:
-        return utf16_view(u"aria-busy");
-    case StateAndProperties::AriaChecked:
-        return utf16_view(u"aria-checked");
-    case StateAndProperties::AriaColCount:
-        return utf16_view(u"aria-colcount");
-    case StateAndProperties::AriaColIndex:
-        return utf16_view(u"aria-colindex");
-    case StateAndProperties::AriaColIndexText:
-        return utf16_view(u"aria-colindextext");
-    case StateAndProperties::AriaColSpan:
-        return utf16_view(u"aria-colspan");
-    case StateAndProperties::AriaControls:
-        return utf16_view(u"aria-controls");
-    case StateAndProperties::AriaCurrent:
-        return utf16_view(u"aria-current");
-    case StateAndProperties::AriaDescribedBy:
-        return utf16_view(u"aria-describedby");
-    case StateAndProperties::AriaDescription:
-        return utf16_view(u"aria-description");
-    case StateAndProperties::AriaDetails:
-        return utf16_view(u"aria-details");
-    case StateAndProperties::AriaDisabled:
-        return utf16_view(u"aria-disabled");
-    case StateAndProperties::AriaDropEffect:
-        return utf16_view(u"aria-dropeffect");
-    case StateAndProperties::AriaErrorMessage:
-        return utf16_view(u"aria-errormessage");
-    case StateAndProperties::AriaExpanded:
-        return utf16_view(u"aria-expanded");
-    case StateAndProperties::AriaFlowTo:
-        return utf16_view(u"aria-flowto");
-    case StateAndProperties::AriaGrabbed:
-        return utf16_view(u"aria-grabbed");
-    case StateAndProperties::AriaHasPopup:
-        return utf16_view(u"aria-haspopup");
-    case StateAndProperties::AriaHidden:
-        return utf16_view(u"aria-hidden");
-    case StateAndProperties::AriaInvalid:
-        return utf16_view(u"aria-invalid");
-    case StateAndProperties::AriaKeyShortcuts:
-        return utf16_view(u"aria-keyshortcuts");
-    case StateAndProperties::AriaLabel:
-        return utf16_view(u"aria-label");
-    case StateAndProperties::AriaLabelledBy:
-        return utf16_view(u"aria-labelledby");
-    case StateAndProperties::AriaLevel:
-        return utf16_view(u"aria-level");
-    case StateAndProperties::AriaLive:
-        return utf16_view(u"aria-live");
-    case StateAndProperties::AriaModal:
-        return utf16_view(u"aria-modal");
-    case StateAndProperties::AriaMultiLine:
-        return utf16_view(u"aria-multiline");
-    case StateAndProperties::AriaMultiSelectable:
-        return utf16_view(u"aria-multiselectable");
-    case StateAndProperties::AriaOrientation:
-        return utf16_view(u"aria-orientation");
-    case StateAndProperties::AriaOwns:
-        return utf16_view(u"aria-owns");
-    case StateAndProperties::AriaPlaceholder:
-        return utf16_view(u"aria-placeholder");
-    case StateAndProperties::AriaPosInSet:
-        return utf16_view(u"aria-posinset");
-    case StateAndProperties::AriaPressed:
-        return utf16_view(u"aria-pressed");
-    case StateAndProperties::AriaReadOnly:
-        return utf16_view(u"aria-readonly");
-    case StateAndProperties::AriaRelevant:
-        return utf16_view(u"aria-relevant");
-    case StateAndProperties::AriaRequired:
-        return utf16_view(u"aria-required");
-    case StateAndProperties::AriaRoleDescription:
-        return utf16_view(u"aria-roledescription");
-    case StateAndProperties::AriaRowCount:
-        return utf16_view(u"aria-rowcount");
-    case StateAndProperties::AriaRowIndex:
-        return utf16_view(u"aria-rowindex");
-    case StateAndProperties::AriaRowIndexText:
-        return utf16_view(u"aria-rowindextext");
-    case StateAndProperties::AriaRowSpan:
-        return utf16_view(u"aria-rowspan");
-    case StateAndProperties::AriaSelected:
-        return utf16_view(u"aria-selected");
-    case StateAndProperties::AriaSetSize:
-        return utf16_view(u"aria-setsize");
-    case StateAndProperties::AriaSort:
-        return utf16_view(u"aria-sort");
-    case StateAndProperties::AriaValueMax:
-        return utf16_view(u"aria-valuemax");
-    case StateAndProperties::AriaValueMin:
-        return utf16_view(u"aria-valuemin");
-    case StateAndProperties::AriaValueNow:
-        return utf16_view(u"aria-valuenow");
-    case StateAndProperties::AriaValueText:
-        return utf16_view(u"aria-valuetext");
-    }
-    VERIFY_NOT_REACHED();
 }
 
 }

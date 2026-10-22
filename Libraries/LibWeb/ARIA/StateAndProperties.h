@@ -9,7 +9,6 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
-#include <LibWeb/ARIA/RoleType.h>
 
 namespace Web::ARIA {
 
@@ -76,6 +75,5 @@ ErrorOr<Utf16String> optional_integer_to_string(Optional<i32>);
 ErrorOr<Utf16String> optional_bool_to_string(Optional<bool>);
 ErrorOr<Utf16String> optional_number_to_string(Optional<f64>);
 ErrorOr<Utf16String> id_reference_list_to_string(Vector<Utf16String> const&);
-Utf16View state_or_property_to_string(StateAndProperties);
 
 }
