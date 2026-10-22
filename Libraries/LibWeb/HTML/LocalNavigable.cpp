@@ -4678,7 +4678,6 @@ void LocalNavigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_
             if (auto* arena = document->layout_node_arena_if_created())
                 Layout::RustFFI::render_state_set_viewport_scroll_offset(arena->host(), new_position);
             document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
-            document->invalidate_scroll_state();
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
         }
     }

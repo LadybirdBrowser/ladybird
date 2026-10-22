@@ -10245,15 +10245,6 @@ GC::Ptr<HTML::HTMLElement> Document::topmost_auto_or_hint_popover()
     return {};
 }
 
-void Document::invalidate_scroll_state()
-{
-    // NB: Propagating scroll state invalidation.
-    // The scroll state is the render state's, and the invalidation a write queued for it: it needs no paint state,
-    // which a task beside a frame in flight may not have yet, and waits for the frame like any other write.
-    if (m_layout_node_arena)
-        Layout::RustFFI::render_state_invalidate_scroll_state(m_layout_node_arena->host());
-}
-
 Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensitivity case_sensitivity)
 {
     Layout::ForcedReadScope read { *this };
