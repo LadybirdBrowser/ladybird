@@ -229,10 +229,7 @@ ByteString isomorphic_encode(StringView input)
     StringBuilder builder(input.length());
 
     for (auto code_point : Utf8View { input }) {
-        // VERIFY(code_point <= 0xFF);
-        if (code_point > 0xFF)
-            dbgln("FIXME: Trying to isomorphic encode a string with code points > U+00FF.");
-
+        VERIFY(code_point <= 0xFF);
         builder.append(static_cast<u8>(code_point));
     }
 
@@ -248,10 +245,7 @@ ByteString isomorphic_encode(Utf16View input)
     StringBuilder builder(input.length_in_code_units());
 
     for (auto code_point : input) {
-        // VERIFY(code_point <= 0xFF);
-        if (code_point > 0xFF)
-            dbgln("FIXME: Trying to isomorphic encode a string with code points > U+00FF.");
-
+        VERIFY(code_point <= 0xFF);
         builder.append(static_cast<u8>(code_point));
     }
 
