@@ -139,6 +139,10 @@ impl FunctionInfo {
 const MEMORY32_MAX_PAGES: u64 = 1 << 16;
 const MEMORY64_MAX_PAGES: u64 = 1 << 48;
 
+/// The most locals a function may have, its parameters included, as the JS API's implementation limits say. Every
+/// local takes a slot of the function's machine stack frame, so this bounds the frame size a module can ask for.
+const MAX_FUNCTION_LOCALS: usize = 50_000;
+
 fn invalid<T>(message: impl Into<String>) -> Result<T> {
     Err(Error::invalid(message))
 }
@@ -2379,6 +2383,9 @@ pub fn validate(module: &mut Module) -> Result<()> {
         let function = module.types[type_index as usize]
             .as_func()
             .expect("function types are checked");
+        if function.params.len() + body.declared_local_count as usize > MAX_FUNCTION_LOCALS {
+            return invalid("too many locals");
+        }
         let mut locals = function.params.clone();
         locals.reserve(body.declared_local_count as usize);
         for &(count, ty) in &body.locals {
