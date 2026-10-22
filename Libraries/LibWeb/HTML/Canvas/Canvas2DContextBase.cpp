@@ -39,7 +39,6 @@
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/HTML/Canvas/Canvas2DContextBase.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
@@ -158,7 +157,6 @@ CSS::StyleValue const* web_canvas_2d_parse_color(FlatPtr color);
 CSS::StyleValue const* web_canvas_2d_parse_length(FlatPtr length, FlatPtr* out_serialized);
 void web_canvas_2d_style_value_ref(CSS::StyleValue const*);
 void web_canvas_2d_style_value_unref(CSS::StyleValue const*);
-void* web_canvas_2d_create_dom_matrix(void* realm, Gfx::AffineTransform const*);
 Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height);
 u8 web_canvas_2d_check_usability_of_image(void* source_wrapper, CanvasImageSourceKind, FlatPtr* out_message);
 void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind, i32* out_width, i32* out_height);
@@ -625,15 +623,6 @@ void web_canvas_2d_style_value_ref(CSS::StyleValue const* style_value)
 void web_canvas_2d_style_value_unref(CSS::StyleValue const* style_value)
 {
     style_value->unref();
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-gettransform
-void* web_canvas_2d_create_dom_matrix(void* realm_pointer, Gfx::AffineTransform const* transform)
-{
-    auto& realm = *static_cast<JS::Realm*>(realm_pointer);
-    Geometry::DOMMatrix2DInit init = { transform->a(), transform->b(), transform->c(), transform->d(), transform->e(), transform->f() };
-    auto matrix = Geometry::DOMMatrix::create_from_dom_matrix_2d_init(init);
-    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, matrix).ptr();
 }
 
 Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height)

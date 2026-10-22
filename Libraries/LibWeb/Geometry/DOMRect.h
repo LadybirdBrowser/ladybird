@@ -6,42 +6,25 @@
 
 #pragma once
 
-#include <LibWeb/Geometry/DOMRectReadOnly.h>
-
-namespace Web::Bindings {
-
-struct DOMRectInit;
-
-}
+#include <LibGfx/Rect.h>
+#include <LibWeb/Bindings/DOMRect.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Geometry {
 
-// https://drafts.fxtf.org/geometry/#DOMRect
-class WEB_API DOMRect final : public DOMRectReadOnly {
-    WEB_WRAPPABLE(DOMRect, DOMRectReadOnly);
-    GC_DECLARE_ALLOCATOR(DOMRect);
+// https://drafts.fxtf.org/geometry/#domrect
+// The C++ side of a DOMRect, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/geometry): what C++
+// creates, and changes as script can.
+class WEB_API DOMRect final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(DOMRect, dom_rect)
 
 public:
-    [[nodiscard]] static GC::Ref<DOMRect> create(double x, double y, double width, double height);
-    [[nodiscard]] static GC::Ref<DOMRect> create(Gfx::FloatRect const&);
-    [[nodiscard]] static GC::Ref<DOMRect> create();
-    [[nodiscard]] static GC::Ref<DOMRect> dom_rect_from_rect(Bindings::DOMRectInit const&);
+    static GC::Ref<DOMRect> create(double x = 0, double y = 0, double width = 0, double height = 0);
+    static GC::Ref<DOMRect> create(Gfx::FloatRect const&);
 
-    virtual ~DOMRect() override;
-
-    double x() const { return m_rect.x(); }
-    double y() const { return m_rect.y(); }
-    double width() const { return m_rect.width(); }
-    double height() const { return m_rect.height(); }
-
-    void set_x(double x) { m_rect.set_x(x); }
-    void set_y(double y) { m_rect.set_y(y); }
-    void set_width(double width) { m_rect.set_width(width); }
-    void set_height(double height) { m_rect.set_height(height); }
-
-private:
-    DOMRect(double x, double y, double width, double height);
-    DOMRect();
+    // Sets the x coordinate, y coordinate, width dimension and height dimension to those of the rectangle.
+    void set(Gfx::DoubleRect const&);
 };
 
 }

@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/IntrusiveList.h>
+#include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/DOM/AbstractRange.h>
 #include <LibWeb/DOM/Node.h>
@@ -95,6 +96,10 @@ public:
 
     GC::Ref<Geometry::DOMRectList> get_client_rects();
     GC::Ref<Geometry::DOMRect> get_bounding_client_rect();
+
+    // The rectangles of getClientRects() and getBoundingClientRect().
+    Vector<Gfx::DoubleRect> client_rects();
+    Gfx::DoubleRect bounding_client_rect();
 
     bool contains_node(GC::Ref<Node>) const;
 

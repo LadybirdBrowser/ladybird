@@ -2,7 +2,7 @@
 [Exposed=(Window, Worker, PaintWorklet, LayoutWorklet)]
 interface CSSMatrixComponent : CSSTransformComponent {
     constructor(DOMMatrixReadOnly matrix, optional CSSMatrixComponentOptions options = {});
-    [DirectGetter] attribute DOMMatrix matrix;
+    attribute DOMMatrix matrix;
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dictdef-cssmatrixcomponentoptions

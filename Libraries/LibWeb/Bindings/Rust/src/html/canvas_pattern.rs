@@ -22,7 +22,7 @@ use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::canvas_2d::canvas::{CanvasImageSourceKind, capture_video_frame, video_transport};
 use crate::canvas_2d::host::LentVideoFrameHold;
-use crate::geometry::dom_matrix_read_only::{DOMMatrix2DInit, validate_and_fixup_2d};
+use crate::geometry::dictionaries::{DOMMatrix2DInit, validate_and_fixup_2d};
 
 /// The repetition that a value of the repetition argument of createPattern() names exactly, if it names one.
 fn parse_repetition(repetition: &Utf16String) -> Option<Canvas2DPatternRepetition> {

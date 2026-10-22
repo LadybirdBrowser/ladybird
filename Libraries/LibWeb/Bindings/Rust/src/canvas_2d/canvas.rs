@@ -13,9 +13,9 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libcompositing_rust::filter_bytes::FfiFilterFunction;
+use libgfx_rust::Color;
 use libgfx_rust::font::FontCascadeListHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
-use libgfx_rust::{AffineTransform, Color};
 use libjs_rust::api::{Gc, Object, Realm};
 
 use super::host::CppTransport;
@@ -56,7 +56,6 @@ unsafe extern "C" {
     fn web_canvas_2d_parse_length(length: usize, out_serialized: *mut usize) -> *const c_void;
     fn web_canvas_2d_style_value_ref(style_value: *const c_void);
     fn web_canvas_2d_style_value_unref(style_value: *const c_void);
-    fn web_canvas_2d_create_dom_matrix(realm: *mut c_void, transform: *const AffineTransform) -> *mut c_void;
     fn web_canvas_2d_image_frame_from_pixels(
         first_row: *const u8,
         pitch: usize,
@@ -342,15 +341,6 @@ pub(crate) fn parse_length(length: &Utf16String) -> Option<(StyleValue, Utf16Str
         unsafe { StyleValue::adopt(web_canvas_2d_parse_length(length.raw_identity(), &raw mut serialized)) }?;
     // SAFETY: LibWeb hands over the serialization with the style value.
     Some((style_value, unsafe { Utf16String::from_raw_owned(serialized) }))
-}
-
-/// A new DOMMatrix with the transform, in the realm.
-pub(crate) fn create_dom_matrix(realm: Gc<Realm>, transform: AffineTransform) -> CppInterface {
-    // SAFETY: The realm is live, and the transform is lent for the call.
-    let wrapper = unsafe { web_canvas_2d_create_dom_matrix(realm.as_ptr().cast(), &raw const transform) };
-    let wrapper = NonNull::new(wrapper.cast::<Object>()).expect("LibWeb returns the wrapper of the matrix");
-    // SAFETY: LibWeb returns a live wrapper of a DOMMatrix.
-    unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) }
 }
 
 /// A frame of a copy of `height` rows of `width` RGBA8888 pixels that are unpremultiplied, `pitch` bytes apart, or

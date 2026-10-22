@@ -5,39 +5,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibWeb/Bindings/DOMPointReadOnly.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geometry/DOMPoint.h>
 
 namespace Web::Geometry {
 
-GC_DEFINE_ALLOCATOR(DOMPoint);
+extern "C" {
+
+// Defined in Bindings/Rust/src/geometry/exports.rs.
+void* web_dom_point_create(JSVM*, double x, double y, double z, double w);
+}
 
 GC::Ref<DOMPoint> DOMPoint::create(double x, double y, double z, double w)
 {
-    return GC::Heap::the().allocate<DOMPoint>(x, y, z, w);
+    return GC::Ref { *static_cast<DOMPoint*>(web_dom_point_create(JS::HostABI::vm_to_abi(JS::VM::the()), x, y, z, w)) };
 }
-
-GC::Ref<DOMPoint> DOMPoint::create()
-{
-    return GC::Heap::the().allocate<DOMPoint>();
-}
-
-GC::Ref<DOMPoint> DOMPoint::dom_point_from_point(Bindings::DOMPointInit const& other)
-{
-    return create(other.x, other.y, other.z, other.w);
-}
-
-DOMPoint::DOMPoint(double x, double y, double z, double w)
-    : DOMPointReadOnly(x, y, z, w)
-{
-}
-
-DOMPoint::DOMPoint()
-    : DOMPointReadOnly()
-{
-}
-
-DOMPoint::~DOMPoint() = default;
 
 }

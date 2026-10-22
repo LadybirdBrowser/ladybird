@@ -150,19 +150,22 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSRotate::to_matrix() const
     //    TypeError.
     // 2. Return matrix.
 
-    auto matrix = Geometry::DOMMatrix::create();
+    auto matrix = Geometry::DOMMatrix::create(Gfx::DoubleMatrix4x4::identity(), is_2d());
 
     // NB: to() throws a TypeError if the conversion can't be done.
     auto angle = TRY(m_angle->to("deg"_utf16_fly_string))->value();
 
-    if (is_2d())
-        return matrix->rotate_axis_angle_self(0, 0, 1, angle);
+    if (is_2d()) {
+        matrix->rotate_axis_angle_self(0, 0, 1, angle);
+        return matrix;
+    }
 
     auto x = TRY(m_x->to("number"_utf16_fly_string))->value();
     auto y = TRY(m_y->to("number"_utf16_fly_string))->value();
     auto z = TRY(m_z->to("number"_utf16_fly_string))->value();
 
-    return matrix->rotate_axis_angle_self(x, y, z, angle);
+    matrix->rotate_axis_angle_self(x, y, z, angle);
+    return matrix;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssrotate-x

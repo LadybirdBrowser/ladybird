@@ -28,7 +28,6 @@
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
-#include <LibWeb/Geometry/DOMQuad.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/HTML/ImageBitmap.h>
@@ -44,18 +43,14 @@ TEST_CASE(serializable_objects_round_trip_through_storage)
 {
     (void)test_realm();
     {
-        auto point = Web::Geometry::DOMPoint::create();
-        point->set_x(1.5);
-        point->set_y(-2.5);
-        point->set_z(3.25);
-        point->set_w(4.75);
+        auto point = Web::Geometry::DOMPoint::create(1.5, -2.5, 3.25, 4.75);
 
         auto value = MUST(storage_deserialize(storage_serialize(point)));
-        auto& decoded = unwrap_wrappable<Web::Geometry::DOMPoint>(value);
-        EXPECT_EQ(decoded.x(), 1.5);
-        EXPECT_EQ(decoded.y(), -2.5);
-        EXPECT_EQ(decoded.z(), 3.25);
-        EXPECT_EQ(decoded.w(), 4.75);
+        (void)unwrap_wrappable<Web::Geometry::DOMPoint>(value);
+        EXPECT_EQ(number_property(value, "x"sv), 1.5);
+        EXPECT_EQ(number_property(value, "y"sv), -2.5);
+        EXPECT_EQ(number_property(value, "z"sv), 3.25);
+        EXPECT_EQ(number_property(value, "w"sv), 4.75);
     }
 
     {
@@ -72,8 +67,7 @@ TEST_CASE(storage_round_trips_serializable_with_nested_sub_value_before_more_fie
 {
     (void)test_realm();
     // Nested sub-values must not trigger the outer full-consumption check.
-    auto point = Web::Geometry::DOMPoint::create();
-    point->set_x(7.0);
+    auto point = Web::Geometry::DOMPoint::create(7.0);
     auto point_body = serialized_object_body(point);
 
     Vector<u8> quad_body;
@@ -394,16 +388,18 @@ TEST_CASE(geometry_serializables_round_trip)
     append_little_endian_double(point_body, -4.5);
 
     {
-        auto& point = unwrap_wrappable<Web::Geometry::DOMPointReadOnly>(MUST(storage_deserialize(serializable_storage_record("DOMPointReadOnly"sv, 1, point_body))));
-        EXPECT_EQ(point.x(), 1.5);
-        EXPECT_EQ(point.y(), -2.5);
-        EXPECT_EQ(point.z(), 3.5);
-        EXPECT_EQ(point.w(), -4.5);
+        auto point = MUST(storage_deserialize(serializable_storage_record("DOMPointReadOnly"sv, 1, point_body)));
+        (void)unwrap_wrappable<Web::Geometry::DOMPointReadOnly>(point);
+        EXPECT_EQ(number_property(point, "x"sv), 1.5);
+        EXPECT_EQ(number_property(point, "y"sv), -2.5);
+        EXPECT_EQ(number_property(point, "z"sv), 3.5);
+        EXPECT_EQ(number_property(point, "w"sv), -4.5);
     }
     {
-        auto& point = unwrap_wrappable<Web::Geometry::DOMPoint>(MUST(storage_deserialize(serializable_storage_record("DOMPoint"sv, 1, point_body))));
-        EXPECT_EQ(point.x(), 1.5);
-        EXPECT_EQ(point.w(), -4.5);
+        auto point = MUST(storage_deserialize(serializable_storage_record("DOMPoint"sv, 1, point_body)));
+        (void)unwrap_wrappable<Web::Geometry::DOMPoint>(point);
+        EXPECT_EQ(number_property(point, "x"sv), 1.5);
+        EXPECT_EQ(number_property(point, "w"sv), -4.5);
     }
 
     Vector<u8> rect_body;
@@ -413,16 +409,18 @@ TEST_CASE(geometry_serializables_round_trip)
     append_little_endian_double(rect_body, 40.0);
 
     {
-        auto& rect = unwrap_wrappable<Web::Geometry::DOMRectReadOnly>(MUST(storage_deserialize(serializable_storage_record("DOMRectReadOnly"sv, 1, rect_body))));
-        EXPECT_EQ(rect.x(), 10.0);
-        EXPECT_EQ(rect.y(), 20.0);
-        EXPECT_EQ(rect.width(), 30.0);
-        EXPECT_EQ(rect.height(), 40.0);
+        auto rect = MUST(storage_deserialize(serializable_storage_record("DOMRectReadOnly"sv, 1, rect_body)));
+        (void)unwrap_wrappable<Web::Geometry::DOMRectReadOnly>(rect);
+        EXPECT_EQ(number_property(rect, "x"sv), 10.0);
+        EXPECT_EQ(number_property(rect, "y"sv), 20.0);
+        EXPECT_EQ(number_property(rect, "width"sv), 30.0);
+        EXPECT_EQ(number_property(rect, "height"sv), 40.0);
     }
     {
-        auto& rect = unwrap_wrappable<Web::Geometry::DOMRect>(MUST(storage_deserialize(serializable_storage_record("DOMRect"sv, 1, rect_body))));
-        EXPECT_EQ(rect.width(), 30.0);
-        EXPECT_EQ(rect.height(), 40.0);
+        auto rect = MUST(storage_deserialize(serializable_storage_record("DOMRect"sv, 1, rect_body)));
+        (void)unwrap_wrappable<Web::Geometry::DOMRect>(rect);
+        EXPECT_EQ(number_property(rect, "width"sv), 30.0);
+        EXPECT_EQ(number_property(rect, "height"sv), 40.0);
     }
 
     {
@@ -430,22 +428,22 @@ TEST_CASE(geometry_serializables_round_trip)
         body.append(1);
         for (double element : { 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 })
             append_little_endian_double(body, element);
-        auto& matrix = unwrap_wrappable<Web::Geometry::DOMMatrixReadOnly>(MUST(storage_deserialize(serializable_storage_record("DOMMatrixReadOnly"sv, 1, body))));
-        EXPECT(matrix.is2d());
-        EXPECT_EQ(matrix.m11(), 1.0);
-        EXPECT_EQ(matrix.m22(), 4.0);
-        EXPECT_EQ(matrix.m42(), 6.0);
+        auto matrix = MUST(storage_deserialize(serializable_storage_record("DOMMatrixReadOnly"sv, 1, body)));
+        EXPECT(unwrap_wrappable<Web::Geometry::DOMMatrixReadOnly>(matrix).is2d());
+        EXPECT_EQ(number_property(matrix, "m11"sv), 1.0);
+        EXPECT_EQ(number_property(matrix, "m22"sv), 4.0);
+        EXPECT_EQ(number_property(matrix, "m42"sv), 6.0);
     }
     {
         Vector<u8> body;
         body.append(0);
         for (int i = 1; i <= 16; ++i)
             append_little_endian_double(body, static_cast<double>(i));
-        auto& matrix = unwrap_wrappable<Web::Geometry::DOMMatrix>(MUST(storage_deserialize(serializable_storage_record("DOMMatrix"sv, 1, body))));
-        EXPECT(!matrix.is2d());
-        EXPECT_EQ(matrix.m11(), 1.0);
-        EXPECT_EQ(matrix.m22(), 6.0);
-        EXPECT_EQ(matrix.m44(), 16.0);
+        auto matrix = MUST(storage_deserialize(serializable_storage_record("DOMMatrix"sv, 1, body)));
+        EXPECT(!unwrap_wrappable<Web::Geometry::DOMMatrix>(matrix).is2d());
+        EXPECT_EQ(number_property(matrix, "m11"sv), 1.0);
+        EXPECT_EQ(number_property(matrix, "m22"sv), 6.0);
+        EXPECT_EQ(number_property(matrix, "m44"sv), 16.0);
     }
     {
         Vector<u8> body;
@@ -457,10 +455,10 @@ TEST_CASE(geometry_serializables_round_trip)
             append_little_endian_double(nested_point, (k * 4) + 4.0);
             frozen_serializable_value(body, "DOMPoint"sv, 1, nested_point);
         }
-        auto& quad = unwrap_wrappable<Web::Geometry::DOMQuad>(MUST(storage_deserialize(serializable_storage_record("DOMQuad"sv, 1, body))));
-        EXPECT_EQ(quad.p1()->x(), 1.0);
-        EXPECT_EQ(quad.p2()->x(), 5.0);
-        EXPECT_EQ(quad.p4()->w(), 16.0);
+        auto quad = MUST(storage_deserialize(serializable_storage_record("DOMQuad"sv, 1, body)));
+        EXPECT_EQ(number_property(property_of(quad, "p1"sv), "x"sv), 1.0);
+        EXPECT_EQ(number_property(property_of(quad, "p2"sv), "x"sv), 5.0);
+        EXPECT_EQ(number_property(property_of(quad, "p4"sv), "w"sv), 16.0);
     }
 }
 

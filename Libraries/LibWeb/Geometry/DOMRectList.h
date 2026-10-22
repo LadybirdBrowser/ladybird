@@ -7,32 +7,23 @@
 
 #pragma once
 
-#include <AK/Vector.h>
-#include <LibGC/Root.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Geometry/DOMRect.h>
+#include <AK/Span.h>
+#include <LibGfx/Rect.h>
+#include <LibWeb/Bindings/DOMRectList.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Geometry {
 
-// https://drafts.fxtf.org/geometry-1/#DOMRectList
-class DOMRectList final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(DOMRectList, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(DOMRectList);
+// https://drafts.fxtf.org/geometry/#domrectlist
+// The C++ side of a DOMRectList, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/geometry): what
+// C++ creates.
+class WEB_API DOMRectList final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(DOMRectList, dom_rect_list)
 
 public:
-    [[nodiscard]] static GC::Ref<DOMRectList> create(Vector<GC::Root<DOMRect>>);
-
-    virtual ~DOMRectList() override;
-
-    u32 length() const;
-    DOMRect const* item(u32 index) const;
-
-private:
-    explicit DOMRectList(Vector<GC::Ref<DOMRect>>);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    Vector<GC::Ref<DOMRect>> m_rects;
+    // A new list of new DOMRects with the rectangles.
+    static GC::Ref<DOMRectList> create(ReadonlySpan<Gfx::DoubleRect>);
 };
 
 }

@@ -58,26 +58,16 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
         if (!ComputedValuesFFI::rust_transform_list_to_abstract_matrix(rust_style_value_data(), transform_as_matrix.data(), &is_2d_matrix))
             return nullptr;
 
-        auto matrix = Geometry::DOMMatrix::create();
-        matrix->set_m11(transform_as_matrix[0]);
-        matrix->set_m12(transform_as_matrix[4]);
-        matrix->set_m13(transform_as_matrix[8]);
-        matrix->set_m14(transform_as_matrix[12]);
-        matrix->set_m21(transform_as_matrix[1]);
-        matrix->set_m22(transform_as_matrix[5]);
-        matrix->set_m23(transform_as_matrix[9]);
-        matrix->set_m24(transform_as_matrix[13]);
-        matrix->set_m31(transform_as_matrix[2]);
-        matrix->set_m32(transform_as_matrix[6]);
-        matrix->set_m33(transform_as_matrix[10]);
-        matrix->set_m34(transform_as_matrix[14]);
-        matrix->set_m41(transform_as_matrix[3]);
-        matrix->set_m42(transform_as_matrix[7]);
-        matrix->set_m43(transform_as_matrix[11]);
-        matrix->set_m44(transform_as_matrix[15]);
+        // NB: The matrix is row by row, as Gfx::Matrix4x4 takes it.
+        Gfx::FloatMatrix4x4 matrix {
+            transform_as_matrix[0], transform_as_matrix[1], transform_as_matrix[2], transform_as_matrix[3],
+            transform_as_matrix[4], transform_as_matrix[5], transform_as_matrix[6], transform_as_matrix[7],
+            transform_as_matrix[8], transform_as_matrix[9], transform_as_matrix[10], transform_as_matrix[11],
+            transform_as_matrix[12], transform_as_matrix[13], transform_as_matrix[14], transform_as_matrix[15]
+        };
 
         auto is_2d = transform_function() == TransformFunction::Matrix ? CSSTransformComponent::Is2D::Yes : CSSTransformComponent::Is2D::No;
-        return CSSMatrixComponent::create(is_2d, matrix);
+        return CSSMatrixComponent::create(is_2d, Geometry::DOMMatrix::create(matrix));
     }
 
     // -> translate()

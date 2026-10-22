@@ -1,0 +1,6 @@
+detached, Float32Array: TypeError
+detached, Float64Array: TypeError
+out of bounds after a resize, Float32Array: TypeError
+out of bounds after a resize, Float64Array: TypeError
+six elements, Float32Array: no exception
+six elements, Float64Array: no exception

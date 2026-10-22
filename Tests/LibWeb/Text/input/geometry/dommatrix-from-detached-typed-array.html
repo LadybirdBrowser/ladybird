@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function check(name, make) {
+            try {
+                DOMMatrix.fromFloat32Array(make(Float32Array));
+                println(`${name}, Float32Array: no exception`);
+            } catch (e) {
+                println(`${name}, Float32Array: ${e.name}`);
+            }
+            try {
+                DOMMatrixReadOnly.fromFloat64Array(make(Float64Array));
+                println(`${name}, Float64Array: no exception`);
+            } catch (e) {
+                println(`${name}, Float64Array: ${e.name}`);
+            }
+        }
+
+        check("detached", type => {
+            const buffer = new ArrayBuffer(256);
+            const array = new type(buffer, 16, 6);
+            buffer.transfer();
+            return array;
+        });
+        check("out of bounds after a resize", type => {
+            const buffer = new ArrayBuffer(256, { maxByteLength: 512 });
+            const array = new type(buffer, 64, 6);
+            buffer.resize(16);
+            return array;
+        });
+        check("six elements", type => new type(6));
+    });
+</script>

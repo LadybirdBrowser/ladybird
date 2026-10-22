@@ -8,54 +8,20 @@
 
 #pragma once
 
-#include <LibGfx/Point.h>
-#include <LibWeb/Bindings/Serializable.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
-
-namespace Web::Bindings {
-
-struct DOMMatrixInit;
-struct DOMPointInit;
-
-}
+#include <LibWeb/Bindings/DOMPointReadOnly.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Export.h>
 
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#dompointreadonly
-class WEB_API DOMPointReadOnly
-    : public Bindings::GCAllocatedWrappable
-    , public Bindings::Serializable {
-    WEB_WRAPPABLE(DOMPointReadOnly, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(DOMPointReadOnly);
+// The C++ side of a DOMPointReadOnly, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/geometry): what
+// C++ creates.
+class WEB_API DOMPointReadOnly final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(DOMPointReadOnly, dom_point_read_only)
 
 public:
-    static GC::Ref<DOMPointReadOnly> create(double x, double y, double z, double w);
-    static GC::Ref<DOMPointReadOnly> create();
-    static GC::Ref<DOMPointReadOnly> dom_point_read_only_from_point(Bindings::DOMPointInit const&);
-
-    virtual ~DOMPointReadOnly() override;
-
-    double x() const { return m_x; }
-    double y() const { return m_y; }
-    double z() const { return m_z; }
-    double w() const { return m_w; }
-
-    WebIDL::ExceptionOr<GC::Ref<DOMPoint>> matrix_transform(GC::Ref<DOMMatrix>) const;
-    WebIDL::ExceptionOr<GC::Ref<DOMPoint>> matrix_transform(Bindings::DOMMatrixInit const&) const;
-
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
-
-protected:
-    DOMPointReadOnly(double x, double y, double z, double w);
-    DOMPointReadOnly();
-
-    double m_x { 0 };
-    double m_y { 0 };
-    double m_z { 0 };
-    double m_w { 1 };
+    static GC::Ref<DOMPointReadOnly> create(double x = 0, double y = 0, double z = 0, double w = 1);
 };
 
 }

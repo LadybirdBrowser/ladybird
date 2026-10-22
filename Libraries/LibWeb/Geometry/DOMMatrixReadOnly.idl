@@ -1,5 +1,5 @@
 // https://drafts.fxtf.org/geometry/#dommatrixreadonly
-[Exposed=(Window,Worker), Serializable]
+[Exposed=(Window,Worker), Serializable, ImplementedIn=Rust]
 interface DOMMatrixReadOnly {
     constructor(optional (DOMString or sequence<unrestricted double>) init);
 

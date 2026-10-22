@@ -109,13 +109,14 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSPerspective::to_matrix() co
     //    As the entries of such a matrix are defined relative to the px unit, if any <length>s in this involved in
     //    generating the matrix are not compatible units with px (such as relative lengths or percentages), throw a
     //    TypeError.
-    auto matrix = Geometry::DOMMatrix::create();
+    auto matrix = Gfx::DoubleMatrix4x4::identity();
 
     TRY(m_length.visit(
         [&matrix](GC::Ref<CSSNumericValue> const& numeric_value) -> WebIDL::ExceptionOr<void> {
             // NB: to() throws a TypeError if the conversion can't be done.
             auto distance = TRY(numeric_value->to("px"_utf16_fly_string))->value();
-            matrix->set_m34(-1 / max(distance, 1));
+            // NB: Gfx::Matrix4x4 is row by row, so the element m34 is in the fourth row and the third column.
+            matrix[3, 2] = -1 / max(distance, 1);
             return {};
         },
         [](GC::Ref<CSSKeywordValue> const&) -> WebIDL::ExceptionOr<void> {
@@ -123,8 +124,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSPerspective::to_matrix() co
             return {};
         }));
 
-    // 2. Return matrix.
-    return matrix;
+    return Geometry::DOMMatrix::create(matrix, is_2d());
 }
 
 CSSPerspectiveValue CSSPerspective::length() const

@@ -4604,15 +4604,15 @@ void scroll_a_target_into_view(Layout::BegunRead const& read, ScrollIntoViewTarg
             [](Range* range) {
                 // AD-HOC: Text-fragment scrolling centers the beginning of a match. Using the union
                 //         of every client rect can put the beginning of a long passage outside the viewport.
-                auto rects = range->get_client_rects();
-                auto const* rect = rects->length() > 0 ? rects->item(0) : nullptr;
-                if (!rect)
+                auto rects = range->client_rects();
+                if (rects.is_empty())
                     return CSSPixelRect {};
+                auto const& rect = rects.first();
                 return CSSPixelRect {
-                    CSSPixels::nearest_value_for(rect->x()),
-                    CSSPixels::nearest_value_for(rect->y()),
-                    CSSPixels::nearest_value_for(rect->width()),
-                    CSSPixels::nearest_value_for(rect->height()),
+                    CSSPixels::nearest_value_for(rect.x()),
+                    CSSPixels::nearest_value_for(rect.y()),
+                    CSSPixels::nearest_value_for(rect.width()),
+                    CSSPixels::nearest_value_for(rect.height()),
                 };
             });
     };
@@ -7193,11 +7193,11 @@ GC::Ref<Geometry::DOMRect> get_bounding_client_rect(DOM::Element const& element)
 
 GC::Ref<Geometry::DOMRectList> get_client_rects(DOM::Element const& element)
 {
-    Vector<GC::Root<Geometry::DOMRect>> rects;
+    Vector<Gfx::DoubleRect> rects;
     for (auto const& rect : element.get_client_rects())
-        rects.append(create_dom_rect(rect));
+        rects.append(rect.to_type<double>());
 
-    return Geometry::DOMRectList::create(move(rects));
+    return Geometry::DOMRectList::create(rects);
 }
 
 GC::Ref<WebIDL::Promise> request_pointer_lock(DOM::Element& element, Optional<PointerLockOptions> const& options)

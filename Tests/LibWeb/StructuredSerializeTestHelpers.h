@@ -243,6 +243,26 @@ inline Web::HTML::IPCSerializationRecord structured_serialize(JS::VM& vm, GC::Re
     return MUST(Web::HTML::structured_serialize(vm, JS::Value(wrapper.ptr())));
 }
 
+template<Web::Bindings::RustInterfaceHandle T>
+inline Web::HTML::IPCSerializationRecord structured_serialize(JS::VM& vm, GC::Ref<T> object)
+{
+    auto& realm = test_realm();
+    auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, object);
+    return MUST(Web::HTML::structured_serialize(vm, JS::Value(static_cast<JS::Object*>(wrapper.ptr()))));
+}
+
+// The value of the property of the object, which is a wrapper that the test reads as script would.
+inline JS::Value property_of(JS::Value object, StringView name)
+{
+    VERIFY(object.is_object());
+    return MUST(object.as_object().get(Utf16FlyString::from_utf8(name)));
+}
+
+inline double number_property(JS::Value object, StringView name)
+{
+    return property_of(object, name).as_double();
+}
+
 inline Web::WebIDL::ExceptionOr<JS::Value> storage_deserialize(Web::HTML::StorageSerializationRecord const& record)
 {
     auto& realm = test_realm();
@@ -321,7 +341,7 @@ inline ByteBuffer serialized_object_body(GC::Ref<JS::Object> object)
 }
 
 template<typename T>
-requires(IsConvertible<T*, Web::Bindings::Wrappable*>)
+requires(IsConvertible<T*, Web::Bindings::Wrappable*> || Web::Bindings::RustInterfaceHandle<T>)
 inline ByteBuffer serialized_object_body(GC::Ref<T> object)
 {
     auto header_size = 6uz;

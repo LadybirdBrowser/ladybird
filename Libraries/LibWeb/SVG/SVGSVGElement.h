@@ -10,6 +10,9 @@
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMPoint.h>
+#include <LibWeb/Geometry/DOMPointReadOnly.h>
+#include <LibWeb/Geometry/DOMRect.h>
+#include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGFitToViewBox.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
