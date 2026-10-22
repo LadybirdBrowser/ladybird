@@ -54,7 +54,8 @@ void BroadcastChannelRepository::unregister_channel(GC::Ref<BroadcastChannel> ch
         return;
 
     auto& relevant_channels = maybe_channels.value();
-    relevant_channels.remove_first_matching([&](auto c) { return c == channel; });
+    // When called from the channel's finalizer, the GC may already have cleared our weak pointer to it.
+    relevant_channels.remove_all_matching([&](auto const& c) { return !c || c == channel; });
     if (relevant_channels.is_empty())
         m_channels.remove(storage_key);
 }
