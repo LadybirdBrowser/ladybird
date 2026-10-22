@@ -1,0 +1,18 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const value of [
+            "if(else)",
+            "if(else: 1; else)",
+            "if( : 2)",
+            "if(else: 1; : 2)",
+            "if(else: 1; :)",
+            "if(else: 1)",
+            "if( else: 1)",
+            "if(else: 1; else: 2)",
+            "if(else: 1; )",
+        ])
+            println(`${value}: ${CSS.supports("opacity", value)}`);
+    });
+</script>
