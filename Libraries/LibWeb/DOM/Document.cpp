@@ -5979,9 +5979,10 @@ bool Document::anything_is_delaying_the_load_event() const
         return true;
 
     // NB: The containers of a remote navigable's descendants live in its process.
-    for (auto& navigable : descendant_navigables()) {
-        auto container = navigable->container();
-        if (container && container->currently_delays_the_load_event())
+    for (auto* container : HTML::NavigableContainer::all_instances()) {
+        if (&container->document() != this || !container->is_connected() || !container->content_navigable())
+            continue;
+        if (container->currently_delays_the_load_event())
             return true;
     }
 

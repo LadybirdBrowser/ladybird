@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<body>
+<script>
+    let nestedDocument = document;
+    for (let depth = 0; depth < 30; ++depth) {
+        const iframe = nestedDocument.createElement("iframe");
+        nestedDocument.body.appendChild(iframe);
+        nestedDocument = iframe.contentDocument;
+    }
+</script>
+</body>
