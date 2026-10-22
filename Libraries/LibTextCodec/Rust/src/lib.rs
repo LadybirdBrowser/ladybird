@@ -293,24 +293,23 @@ pub unsafe extern "C" fn textcodec_rust_encode_from_utf8(
 
             let mut encoder = encoding.new_encoder();
             let mut total_read = 0usize;
-            let Some(output_capacity) = encoder.max_buffer_length_from_utf8_without_replacement(input.len()) else {
-                return false;
-            };
-            let mut output = Vec::with_capacity(output_capacity);
+
+            // NB: A fixed-size buffer keeps the work per call proportional to the input it consumes. Sizing the
+            //     buffer for the whole input would cost that much again after every unmappable code point.
+            let mut output = [0u8; 4096];
 
             loop {
-                let (result, read) =
-                    encoder.encode_from_utf8_to_vec_without_replacement(&input[total_read..], &mut output, true);
+                let (result, read, written) =
+                    encoder.encode_from_utf8_without_replacement(&input[total_read..], &mut output, true);
                 total_read += read;
 
-                if !output.is_empty() {
-                    on_bytes(ctx, output.as_ptr(), output.len());
-                    output.clear();
+                if written > 0 {
+                    on_bytes(ctx, output.as_ptr(), written);
                 }
 
                 match result {
                     EncoderResult::InputEmpty => return true,
-                    EncoderResult::OutputFull => return false,
+                    EncoderResult::OutputFull => {}
                     EncoderResult::Unmappable(unmappable) => {
                         on_error(ctx, unmappable as u32);
                     }

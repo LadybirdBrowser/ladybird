@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StringBuilder.h>
 #include <LibTest/TestCase.h>
 #include <LibTextCodec/Encoder.h>
 
@@ -184,5 +185,24 @@ TEST_CASE(test_x_user_defined_encoder)
         [&](u8 byte) { return processed_bytes.try_append(byte); },
         [&](u32 code_point) { return unmappable_code_points.try_append(code_point); }));
     EXPECT_EQ(processed_bytes, (Vector<u8> { 0x61, 0x80, 0xFF }));
+    EXPECT_EQ(unmappable_code_points, (Vector<u32> { 0x100 }));
+}
+
+TEST_CASE(test_encoder_output_larger_than_buffer)
+{
+    auto& encoder = TextCodec::encoder_for_exact_name("windows-1252"sv).value();
+    StringBuilder builder;
+    builder.append_repeated('a', 10000);
+    builder.append("\u0100"sv);
+    builder.append_repeated('b', 10000);
+    auto test_string = builder.to_byte_string();
+
+    StringBuilder processed_bytes;
+    Vector<u32> unmappable_code_points;
+    MUST(encoder.process(
+        Utf8View(test_string),
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
+        [&](u32 code_point) { return unmappable_code_points.try_append(code_point); }));
+    EXPECT_EQ(processed_bytes.string_view(), test_string.view().replace("\u0100"sv, ""sv, ReplaceMode::FirstOnly));
     EXPECT_EQ(unmappable_code_points, (Vector<u32> { 0x100 }));
 }
