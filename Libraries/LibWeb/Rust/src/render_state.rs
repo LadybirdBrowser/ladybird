@@ -351,6 +351,12 @@ pub(crate) enum ArenaChange {
 }
 
 impl ArenaChange {
+    /// Whether the change writes what the paint and hit testing properties are prepared from: all but a style write that
+    /// only keeps the engine from reclaiming records do.
+    pub(crate) fn stales_paint_preparation(&self) -> bool {
+        !matches!(self, Self::Style(change) if change.only_keeps_records_alive())
+    }
+
     /// Whether the change leaves the render state showing what the frame sampled last showed: it takes in the recording
     /// of that frame, which a lane's fork takes in too, or only keeps the engine from reclaiming records.
     pub(crate) fn keeps_the_presented_frame(&self) -> bool {
@@ -717,12 +723,15 @@ impl ChangeQueue {
         *self.set_aside.borrow_mut() = self.queued.take();
     }
 
-    /// Queues the writes set aside behind the writes queued meanwhile.
-    fn queue_set_aside(&self) {
+    /// Queues the writes set aside behind the writes queued meanwhile, and answers whether any of them stales the paint
+    /// and hit testing properties.
+    fn queue_set_aside(&self) -> bool {
         self.sets_writes_aside.set(false);
         let mut set_aside = self.set_aside.take();
         set_aside.iter().for_each(|change| self.note(change));
+        let stales_paint_preparation = set_aside.iter().any(ArenaChange::stales_paint_preparation);
         self.queued.borrow_mut().append(&mut set_aside);
+        stales_paint_preparation
     }
 
     /// Keeps `buffer`, emptied by the render side, as the spare.
@@ -1126,6 +1135,27 @@ mod tests {
         document_host_note_paint_preparation_is_current(host);
         render_state_mark_node_box(host, 1, FfiBoxMarks::default());
         assert!(document_host_paint_preparation_is_current(host));
+    }
+
+    #[test]
+    fn a_write_set_aside_leaves_the_paint_preparation_stale_once_queued_again() {
+        use document_host::{
+            document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
+        };
+        let test_host = TestHost::new();
+        let host = test_host.host();
+        crate::painting::paint_changes::render_state_set_viewport_scroll_offset(
+            host,
+            crate::layout::used_values::FfiCssPixelPoint {
+                x: crate::css::css_pixels::CssPixels::from_raw(0),
+                y: crate::css::css_pixels::CssPixels::from_raw(640),
+            },
+        );
+        host.set_writes_aside();
+        // The properties prepared meanwhile read the render state as it was before the write.
+        document_host_note_paint_preparation_is_current(host);
+        host.queue_writes_set_aside();
+        assert!(!document_host_paint_preparation_is_current(host));
     }
 
     #[test]

@@ -250,13 +250,13 @@ impl DocumentHost {
     /// Writes `change` to the document's render state, before anything that reads what it changes: the render owner
     /// applies it ahead of the host's next job. A write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
-        match &change {
-            ArenaChange::Style(change) if change.only_keeps_records_alive() => {}
-            ArenaChange::Style(change) => {
-                self.note_render_state_write();
-                self.engine_memo.follow(change);
-            }
-            _ => self.note_render_state_write(),
+        if change.stales_paint_preparation() {
+            self.note_render_state_write();
+        }
+        if let ArenaChange::Style(change) = &change
+            && !change.only_keeps_records_alive()
+        {
+            self.engine_memo.follow(change);
         }
         self.changes
             .push(change, |queued| self.engine_memo.follow_queued(queued));
@@ -899,7 +899,11 @@ impl DocumentHost {
 
     /// Queues the writes the host set aside behind those it queued meanwhile.
     pub(crate) fn queue_writes_set_aside(&self) {
-        self.changes.queue_set_aside();
+        // The paint and hit testing properties prepared while they were set aside read the render state as it was
+        // before them.
+        if self.changes.queue_set_aside() {
+            self.note_render_state_write();
+        }
     }
 
     /// Ends the drain of the style transaction that flew: the writes the host queued beside it are queued again, behind
