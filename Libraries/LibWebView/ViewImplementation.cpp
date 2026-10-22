@@ -687,6 +687,16 @@ void ViewImplementation::set_display_metadata(Optional<u64> display_id, double m
     });
 }
 
+void ViewImplementation::set_viewport_corner_radius(double radius)
+{
+    if (m_viewport_corner_radius == radius)
+        return;
+    m_viewport_corner_radius = radius;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        page.async_set_viewport_corner_radius(m_viewport_corner_radius);
+    });
+}
+
 void ViewImplementation::update_compositor_display_metadata(WebContentPage& page)
 {
     Application::the().update_compositor_display_metadata(page.compositor_context_id(), m_display_id, m_maximum_frames_per_second);
@@ -3033,6 +3043,7 @@ void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
     if (m_window_size.has_value())
         page.async_set_window_size(m_window_size->to_type<Web::DevicePixels>());
     page.async_set_maximum_frames_per_second(m_maximum_frames_per_second);
+    page.async_set_viewport_corner_radius(m_viewport_corner_radius);
     page.async_set_has_focus(traversable().has_system_focus());
     if (auto focused_navigable_id = traversable().focused_navigable_id(); focused_navigable_id.has_value())
         page.async_set_focused_navigable(*focused_navigable_id);

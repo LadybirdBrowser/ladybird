@@ -206,7 +206,7 @@ static Gfx::IntRect thumb_rect_kept_inside_track(PaintScrollBar const& command)
     return thumb_rect;
 }
 
-static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScrollBar const& command)
+static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScrollBar const& command, Optional<SkRRect> const& corner_clip = {})
 {
     auto gutter_rect = to_skia_rect(command.gutter_rect);
 
@@ -224,9 +224,26 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScr
     if (thumb_rect.isEmpty())
         return;
 
+    // A thumb reaching into a rounded corner takes the shape of its part inside the corner clip, so that its outline
+    // follows the corner too.
+    Optional<SkPath> clipped_thumb;
+    if (corner_clip.has_value() && !corner_clip->contains(thumb_rect)) {
+        auto result = Op(SkPath::RRect(thumb_rrect), SkPath::RRect(*corner_clip), SkPathOp::kIntersect_SkPathOp);
+        if (!result.has_value() || result->isEmpty())
+            return;
+        clipped_thumb = *std::move(result);
+    }
+    auto draw_thumb = [&](SkPaint const& paint) {
+        if (clipped_thumb.has_value())
+            canvas.drawPath(*clipped_thumb, paint);
+        else
+            canvas.drawRRect(thumb_rrect, paint);
+    };
+
     SkPaint thumb_fill_paint;
     thumb_fill_paint.setColor(to_skia_color(command.thumb_color));
-    canvas.drawRRect(thumb_rrect, thumb_fill_paint);
+    thumb_fill_paint.setAntiAlias(clipped_thumb.has_value());
+    draw_thumb(thumb_fill_paint);
 
     auto stroke_color = command.thumb_color.lightened();
     SkPaint stroke_paint;
@@ -234,12 +251,17 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScr
     stroke_paint.setStrokeWidth(1);
     stroke_paint.setAntiAlias(true);
     stroke_paint.setColor(to_skia_color(stroke_color));
-    canvas.drawRRect(thumb_rrect, stroke_paint);
+    draw_thumb(stroke_paint);
 }
 
-void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, PaintScrollBar const& command)
+void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, PaintScrollBar const& command, Gfx::IntRect const& corner_clip_rect, int corner_clip_radius)
 {
-    paint_scrollbar_into_surface(surface, command);
+    Optional<SkRRect> corner_clip;
+    if (corner_clip_radius > 0) {
+        auto radius = static_cast<SkScalar>(corner_clip_radius);
+        corner_clip = SkRRect::MakeRectXY(to_skia_rect(corner_clip_rect), radius, radius);
+    }
+    paint_scrollbar_into_surface(surface, command, corner_clip);
 }
 
 static SkMatrix vertical_glyph_run_rotation(Gfx::IntRect const& rect)

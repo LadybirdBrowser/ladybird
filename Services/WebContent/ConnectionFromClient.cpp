@@ -3239,6 +3239,12 @@ void ConnectionFromClient::set_maximum_frames_per_second(Web::PageId page_id, do
         page->set_maximum_frames_per_second(maximum_frames_per_second);
 }
 
+void ConnectionFromClient::set_viewport_corner_radius(Web::PageId page_id, double radius)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_viewport_corner_radius(radius);
+}
+
 void ConnectionFromClient::set_window_position(Web::PageId page_id, Web::DevicePixelPoint position)
 {
     if (auto page = this->page(page_id); page.has_value())
