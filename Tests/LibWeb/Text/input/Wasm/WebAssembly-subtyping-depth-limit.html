@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function leb(value) {
+        const bytes = [];
+        do {
+            let byte = value % 128;
+            value = Math.floor(value / 128);
+            if (value !== 0)
+                byte |= 0x80;
+            bytes.push(byte);
+        } while (value !== 0);
+        return bytes;
+    }
+
+    function section(id, contents) {
+        return [id, ...leb(contents.length), ...contents];
+    }
+
+    // A module with a chain of `count` struct types, each a subtype of the one before it.
+    function moduleWithSubtypeChain(count) {
+        const types = [...leb(count)];
+        for (let index = 0; index < count; ++index) {
+            const supertypes = index === 0 ? [0x00] : [0x01, ...leb(index - 1)];
+            types.push(0x50, ...supertypes, 0x5f, 0x00);
+        }
+        return new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, ...section(1, types)]);
+    }
+
+    test(() => {
+        println(`Subtyping depth 63: ${WebAssembly.validate(moduleWithSubtypeChain(64))}`);
+        println(`Subtyping depth 64: ${WebAssembly.validate(moduleWithSubtypeChain(65))}`);
+    });
+</script>
