@@ -19,6 +19,7 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
+use crate::runtime::abstract_operations::modulo;
 use crate::runtime::big_int::SignedBigInteger;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
@@ -126,13 +127,6 @@ pub const NS_PER_DAY: f64 = 86_400_000_000_000.0;
 // https://tc39.es/ecma262/#sec-time-values-and-time-range
 // A time value supports a [...] range of -8,640,000,000,000,000 to 8,640,000,000,000,000 milliseconds
 pub const MAX_TIME_VALUE: f64 = 8.64E15;
-
-/// The notation “x modulo y” of the spec for doubles, computed with fmod.
-fn modulo(x: f64, y: f64) -> f64 {
-    assert!(y != 0.0 && y.is_finite());
-    let remainder = x % y;
-    if remainder < 0.0 { remainder + y } else { remainder }
-}
 
 // 21.4.1.3 Day ( t ), https://tc39.es/ecma262/#sec-day
 pub fn day(time_value: f64) -> f64 {
