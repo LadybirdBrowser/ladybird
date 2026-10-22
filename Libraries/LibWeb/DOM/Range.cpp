@@ -1305,7 +1305,6 @@ Vector<Gfx::DoubleRect> Range::client_rects()
 
     auto& document = start_container()->document();
     document.update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
-    document.update_paint_and_hit_testing_properties_if_needed();
     Layout::ForcedReadScope read { document };
     Vector<Gfx::DoubleRect> rects;
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
