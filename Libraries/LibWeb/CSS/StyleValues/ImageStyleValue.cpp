@@ -57,7 +57,8 @@ ImageStyleValueResource::ImageStyleValueResource(GC::Ref<HTML::SharedResourceReq
 
 ImageStyleValueResource::~ImageStyleValueResource()
 {
-    VERIFY(m_registration_counts_by_image_style_value.is_empty());
+    // Registrations are only left behind by clients that were collected along with our document, which then destroys
+    // us. See ImageStyleValue::unregister_client().
     unregister_with_decoded_image_data_if_needed();
 }
 
@@ -257,7 +258,8 @@ void ImageStyleValue::unregister_client(Client& client) const
     if (!resource)
         return;
 
-    // The document owns the resource, so a collected document has already destroyed it.
+    // The document owns the resource. A client only loses its document when the document is collected, which destroys
+    // the resource along with any registrations that are left.
     auto document = client.document();
     if (!document)
         return;
