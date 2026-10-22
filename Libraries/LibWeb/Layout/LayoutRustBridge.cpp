@@ -357,6 +357,20 @@ void publish_element_scroll_offset(DOM::Element const& element)
     RustFFI::render_state_set_element_scroll_offset(document.layout_node_arena().host(), element.style_node_id().value(), offset);
 }
 
+void publish_writing_suggestion(DOM::Document& document, DOM::Text const* text, size_t offset, Utf16View remainder)
+{
+    // A text node without a style node identity has no box to show a suggestion in, so it publishes that none shows.
+    auto identity = text ? text->style_node_id().value() : 0;
+    // Nothing is published before a layout tree exists, so there's nothing to withdraw.
+    if (identity == 0 && !document.layout_node_arena_if_created())
+        return;
+    Vector<u16> code_units;
+    code_units.ensure_capacity(remainder.length_in_code_units());
+    for (size_t i = 0; i < remainder.length_in_code_units(); ++i)
+        code_units.unchecked_append(remainder.code_unit_at(i));
+    RustFFI::render_state_set_writing_suggestion(document.layout_node_arena().host(), identity, offset, code_units.data(), code_units.size());
+}
+
 void publish_table_spans(DOM::Element const& element)
 {
     if (element.style_node_id().value() == 0)

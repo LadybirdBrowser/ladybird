@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<div id="editable" contenteditable></div>
+<script>
+    const editable = document.getElementById("editable");
+    internals.sendText(editable, "predi");
+    internals.writingSuggestionSettled().then(() => {
+        editable.innerHTML = "replaced";
+        editable.offsetWidth;
+        document.documentElement.classList.remove("test-wait");
+    });
+</script>
+</html>

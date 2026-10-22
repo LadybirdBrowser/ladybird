@@ -53,6 +53,8 @@ pub(crate) struct RenderedText {
 pub(crate) struct PublishedTextSlot {
     pub(crate) generation: u8,
     pub(crate) first_letter: NodeSlotId,
+    /// Whether the slice ends where a writing suggestion shows — so a caret at the slice's end paints in front of it.
+    pub(crate) precedes_writing_suggestion: bool,
     pub(crate) rendered: Option<Arc<RenderedText>>,
 }
 
@@ -61,6 +63,7 @@ impl Default for PublishedTextSlot {
         Self {
             generation: 0,
             first_letter: NodeSlotId::INVALID,
+            precedes_writing_suggestion: false,
             rendered: None,
         }
     }
@@ -72,6 +75,7 @@ impl PartialEq for PublishedTextSlot {
     fn eq(&self, other: &Self) -> bool {
         self.generation == other.generation
             && self.first_letter == other.first_letter
+            && self.precedes_writing_suggestion == other.precedes_writing_suggestion
             && crate::cow_column::same_payload(self.rendered.as_ref(), other.rendered.as_ref(), |_, _| false)
     }
 }

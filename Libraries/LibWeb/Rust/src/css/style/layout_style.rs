@@ -33,6 +33,8 @@ pub(crate) enum AnonymousStyleKind {
     ButtonContentBox,
     FieldsetContentWrapper,
     InlineStyleWrapper,
+    /// The inline box a writing suggestion's text renders in after the caret.
+    WritingSuggestion,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -189,6 +191,23 @@ impl LayoutStyle {
             T::INDEX,
             std::mem::replace(&mut self.payloads[T::INDEX], payload).as_ptr(),
         );
+    }
+
+    /// Draws text in its color at half its alpha, i.e. `color-mix(in srgb, currentColor 50%, transparent)`, which
+    /// reads as a suggestion in light and dark color schemes alike.
+    fn fade_text_color(&mut self) {
+        let fade = |color: u32| (color >> 24).div_ceil(2) << 24 | (color & 0x00ff_ffff);
+        let index = group_index::INHERITED_TEXT;
+        // SAFETY: The clone is uniquely owned and is the inherited text group.
+        let payload = SharedPayload::new(unsafe { clone_group_payload(index, self.payloads[index].as_ptr()) });
+        // SAFETY: As above; the colors are plain values the payload doesn't retain.
+        unsafe {
+            let values = &mut *payload.cast::<InheritedTextValues>().cast_mut();
+            values.color = fade(values.color);
+            values.webkit_text_fill_color = fade(values.webkit_text_fill_color);
+        }
+        release_group_payload(index, std::mem::replace(&mut self.payloads[index], payload).as_ptr());
+        self.changed = true;
     }
 
     pub(crate) fn is_unchanged(&self) -> bool {
@@ -448,11 +467,12 @@ impl LayoutStyle {
                 });
                 style.set_overflow(overrides.overflow_x, overrides.overflow_y);
             }
-            AnonymousStyleKind::InlineStyleWrapper => style.set_display(FfiDisplay::outside_and_inside(
-                display_outside::INLINE,
-                display_inside::FLOW,
-                false,
-            )),
+            AnonymousStyleKind::InlineStyleWrapper | AnonymousStyleKind::WritingSuggestion => style.set_display(
+                FfiDisplay::outside_and_inside(display_outside::INLINE, display_inside::FLOW, false),
+            ),
+        }
+        if kind == AnonymousStyleKind::WritingSuggestion {
+            style.fade_text_color();
         }
         if kind == AnonymousStyleKind::MissingTableCell {
             style.edit::<BoxValues>(|values| {

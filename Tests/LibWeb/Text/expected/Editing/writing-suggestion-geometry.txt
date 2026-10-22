@@ -1,0 +1,2 @@
+suggestion: ction
+text after the caret moved over: true

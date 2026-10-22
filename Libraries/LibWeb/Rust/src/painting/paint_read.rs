@@ -216,6 +216,8 @@ pub(crate) trait PaintRead: GeometryRead {
 
     /// The rows a text node is painted in: its first-letter row, if any, then its own.
     fn text_fragments(&self, primary: NodeSlotId) -> TextFragments;
+    /// Whether a text row is the slice in front of a writing suggestion, whose end is where the caret is.
+    fn text_precedes_writing_suggestion(&self, id: NodeSlotId) -> bool;
     fn replaced_paint_facts(&self, id: NodeSlotId) -> Option<ReplacedPaintFacts>;
     fn layer_image_paint_facts(
         &self,
@@ -406,6 +408,10 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
         self.as_ref().text_fragments(primary)
     }
 
+    fn text_precedes_writing_suggestion(&self, id: NodeSlotId) -> bool {
+        self.as_ref().text_precedes_writing_suggestion(id)
+    }
+
     fn published_svg_filter(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgFilter>> {
         self.as_ref().svg_paint_resources().published_filter(slot, kind)
     }
@@ -587,6 +593,12 @@ impl PaintRead for PaintSource<'_> {
         fragments.nodes[fragments.length] = primary;
         fragments.length += 1;
         fragments
+    }
+
+    fn text_precedes_writing_suggestion(&self, id: NodeSlotId) -> bool {
+        self.rows()
+            .text(id)
+            .is_some_and(|text| text.precedes_writing_suggestion)
     }
 
     fn published_svg_filter(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgFilter>> {

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>
+    div { font: 20px/1.5 sans-serif; }
+    span { color: rgb(0 0 0 / 50%); }
+</style>
+<div id="editable" contenteditable>I like predi<span>ction</span></div>
+<script>
+    const editable = document.getElementById("editable");
+    editable.focus();
+    getSelection().collapse(editable.firstChild, 12);
+</script>
