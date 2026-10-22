@@ -172,3 +172,17 @@ TEST_CASE(test_windows1252_encoder)
     EXPECT(processed_bytes[18] == 0x6F);
     EXPECT(processed_bytes[19] == 0x80);
 }
+
+TEST_CASE(test_x_user_defined_encoder)
+{
+    auto& encoder = TextCodec::encoder_for_exact_name("x-user-defined"sv).value();
+    auto test_string = "a\uF780\uF7FF\u0100"sv;
+    Vector<u8> processed_bytes;
+    Vector<u32> unmappable_code_points;
+    MUST(encoder.process(
+        Utf8View(test_string),
+        [&](u8 byte) { return processed_bytes.try_append(byte); },
+        [&](u32 code_point) { return unmappable_code_points.try_append(code_point); }));
+    EXPECT_EQ(processed_bytes, (Vector<u8> { 0x61, 0x80, 0xFF }));
+    EXPECT_EQ(unmappable_code_points, (Vector<u32> { 0x100 }));
+}

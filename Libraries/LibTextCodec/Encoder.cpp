@@ -70,6 +70,7 @@ RustEncoder s_windows1256_encoder { "windows-1256"sv };
 RustEncoder s_windows1257_encoder { "windows-1257"sv };
 RustEncoder s_windows1258_encoder { "windows-1258"sv };
 RustEncoder s_mac_cyrillic_encoder { "x-mac-cyrillic"sv };
+RustEncoder s_x_user_defined_encoder { "x-user-defined"sv };
 
 struct EncodeContext {
     Function<ErrorOr<void>(u8)>* on_byte { nullptr };
@@ -194,6 +195,8 @@ Optional<Encoder&> encoder_for_exact_name(StringView encoding)
         return s_windows1258_encoder;
     if (encoding.equals_ignoring_ascii_case("x-mac-cyrillic"sv))
         return s_mac_cyrillic_encoder;
+    if (encoding.equals_ignoring_ascii_case("x-user-defined"sv))
+        return s_x_user_defined_encoder;
     dbgln("TextCodec: No encoder implemented for encoding '{}'", encoding);
     return {};
 }
