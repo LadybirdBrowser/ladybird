@@ -1961,10 +1961,7 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
 
         if (space_index.has_value()) {
             if (auto reason_phrase = HTTP::normalize_header_value(header_line.substring_view(*space_index + 1)); !reason_phrase.is_empty()) {
-                auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
-                VERIFY(decoder.has_value());
-
-                request.m_reason_phrase = MUST(decoder->to_utf8(reason_phrase));
+                request.m_reason_phrase = TextCodec::isomorphic_decode(reason_phrase);
             }
         }
 

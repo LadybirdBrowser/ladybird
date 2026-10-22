@@ -166,7 +166,7 @@ static Utf16String decode_html_parser_input(StringView input, StringView encodin
 {
     auto decoder = TextCodec::decoder_for(encoding);
     VERIFY(decoder.has_value());
-    return MUST(TextCodec::decode_to_utf16(input, *decoder));
+    return MUST(TextCodec::decode_to_utf16(input.bytes(), *decoder));
 }
 
 extern "C" void ladybird_html_parser_log_parse_error(void*, u8 const*, size_t);

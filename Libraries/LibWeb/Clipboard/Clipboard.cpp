@@ -396,7 +396,7 @@ void Clipboard::read_text(JS::Realm& realm, GC::Ref<WebIDL::Promise> promise)
                             //         2. Return p.
 
                             auto decoder = TextCodec::decoder_for("UTF-8"sv);
-                            auto string = MUST(TextCodec::decode_to_utf8(*data, *decoder));
+                            auto string = MUST(TextCodec::decode_to_utf8(data->bytes(), *decoder));
 
                             WebIDL::resolve_promise(promise, JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(string)));
                             return;

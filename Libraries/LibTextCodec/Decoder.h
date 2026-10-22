@@ -35,17 +35,28 @@ enum class ErrorMode {
     Fatal,
 };
 
+class Decoder;
+
+TEXTCODEC_API Optional<Decoder> decoder_for(StringView encoding);
+TEXTCODEC_API Optional<Decoder> decoder_for(Utf16View encoding);
+
 // NB: A decoder never removes a BOM. The decode algorithms below do that.
 class TEXTCODEC_API Decoder {
 public:
-    virtual ErrorOr<String> to_utf8(StringView, ErrorMode = ErrorMode::Replacement);
-    virtual ErrorOr<Utf16String> to_utf16(StringView);
-    virtual ErrorOr<size_t> length_in_utf16_code_units(StringView);
-    ErrorOr<void> process_code_points(StringView, Function<ErrorOr<void>(u32)>);
+    ErrorOr<String> to_utf8(ReadonlyBytes, ErrorMode = ErrorMode::Replacement) const;
+    ErrorOr<Utf16String> to_utf16(ReadonlyBytes) const;
+    ErrorOr<size_t> length_in_utf16_code_units(ReadonlyBytes) const;
 
-protected:
-    virtual ~Decoder() = default;
-    virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) = 0;
+private:
+    friend TEXTCODEC_API Optional<Decoder> decoder_for(StringView);
+    friend TEXTCODEC_API Optional<Decoder> decoder_for(Utf16View);
+
+    explicit Decoder(StringView encoding)
+        : m_encoding(encoding)
+    {
+    }
+
+    StringView m_encoding;
 };
 
 class TEXTCODEC_API StreamingDecoder final {
@@ -66,22 +77,16 @@ private:
     void* m_decoder { nullptr };
 };
 
-// This will return a decoder for the exact name specified, skipping get_standardized_encoding.
-// Use this when you want ISO-8859-1 instead of windows-1252.
-TEXTCODEC_API Optional<Decoder&> decoder_for_exact_name(StringView encoding);
-
-TEXTCODEC_API Optional<Decoder&> decoder_for(StringView encoding);
-TEXTCODEC_API Optional<Decoder&> decoder_for(Utf16View encoding);
 TEXTCODEC_API Optional<StringView> get_standardized_encoding(StringView encoding);
 TEXTCODEC_API Optional<StringView> get_standardized_encoding(Utf16View encoding);
 
 // https://encoding.spec.whatwg.org/#decode
-TEXTCODEC_API ErrorOr<String> decode_to_utf8(StringView, Decoder& fallback_decoder, ErrorMode = ErrorMode::Replacement);
-TEXTCODEC_API ErrorOr<Utf16String> decode_to_utf16(StringView, Decoder& fallback_decoder);
-TEXTCODEC_API ErrorOr<size_t> decoded_length_in_utf16_code_units(StringView, Decoder& fallback_decoder);
+TEXTCODEC_API ErrorOr<String> decode_to_utf8(ReadonlyBytes, Decoder fallback_decoder, ErrorMode = ErrorMode::Replacement);
+TEXTCODEC_API ErrorOr<Utf16String> decode_to_utf16(ReadonlyBytes, Decoder fallback_decoder);
+TEXTCODEC_API ErrorOr<size_t> decoded_length_in_utf16_code_units(ReadonlyBytes, Decoder fallback_decoder);
 
 // https://encoding.spec.whatwg.org/#utf-8-decode
-TEXTCODEC_API ErrorOr<Utf16String> utf8_decode_to_utf16(StringView);
+TEXTCODEC_API ErrorOr<Utf16String> utf8_decode_to_utf16(ReadonlyBytes);
 
 TEXTCODEC_API StringView get_output_encoding(StringView encoding);
 
