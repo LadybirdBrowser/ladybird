@@ -116,6 +116,9 @@ public:
 
     void set_vertical_tabs_enabled(bool);
     void set_vertical_tabs_position(WebView::VerticalTabsPosition);
+#ifdef AK_OS_MACOS
+    void update_web_view_frame(bool chrome_visible, Optional<WebView::VerticalTabsPosition> sidebar_position);
+#endif
     void set_window(BrowserWindow&);
     void set_toolbar_container_in_tab_layout(bool);
     void set_toolbar_window_controls_visible(bool);
@@ -141,6 +144,9 @@ signals:
 
 private:
     void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);
+#ifdef AK_OS_MACOS
+    virtual void paintEvent(QPaintEvent*) override;
+#endif
     virtual void resizeEvent(QResizeEvent*) override;
     virtual void hideEvent(QHideEvent*) override;
     virtual bool event(QEvent*) override;
@@ -226,6 +232,9 @@ private:
     bool m_is_updating_chrome_style { false };
     bool m_vertical_tabs_enabled { false };
     WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };
+#ifdef AK_OS_MACOS
+    QHBoxLayout* m_view_layout { nullptr };
+#endif
     int m_loading_animation_frame { 0 };
 
     QMenu* m_context_menu { nullptr };

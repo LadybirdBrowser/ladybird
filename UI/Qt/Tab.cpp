@@ -253,6 +253,9 @@ QToolButton* Tab::create_navigation_history_toolbar_button(QWidget& parent, QAct
 }
 
 static constexpr int TOOLBAR_HORIZONTAL_MARGIN = 12;
+#ifdef AK_OS_MACOS
+static constexpr int WEB_VIEW_INSET = 6;
+#endif
 static constexpr int TOOLBAR_VERTICAL_MARGIN = 2;
 static constexpr int TOOLBAR_SIDEBAR_TOGGLE_NAVIGATION_GAP = 8;
 static constexpr int TOOLBAR_LOCATION_EDIT_SIDE_GAP = 32;
@@ -663,7 +666,14 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
 
     toolbar_container_layout->addWidget(m_toolbar);
     toolbar_container_layout->addWidget(m_bookmarks_bar_container);
+#ifdef AK_OS_MACOS
+    m_view_layout = new QHBoxLayout;
+    m_view_layout->addWidget(m_view);
+    update_web_view_frame(true, {});
+    tab_layout->addLayout(m_view_layout);
+#else
     tab_layout->addWidget(m_view);
+#endif
     tab_layout->addWidget(m_find_in_page);
     update_bookmarks_bar_visibility();
 
@@ -1347,6 +1357,24 @@ void Tab::set_vertical_tabs_position(WebView::VerticalTabsPosition position)
     m_toolbar->layout()->invalidate();
 }
 
+#ifdef AK_OS_MACOS
+void Tab::update_web_view_frame(bool chrome_visible, Optional<WebView::VerticalTabsPosition> sidebar_position)
+{
+    // With the browser chrome hidden, the page fills the window edge to edge.
+    if (!chrome_visible) {
+        m_view_layout->setContentsMargins(0, 0, 0, 0);
+        m_view->set_has_rounded_corners(false);
+        return;
+    }
+
+    // Keep the web view's rounded corners clear of the window edges. The sidebar has its own padding.
+    auto left = sidebar_position == WebView::VerticalTabsPosition::Left ? 0 : WEB_VIEW_INSET;
+    auto right = sidebar_position == WebView::VerticalTabsPosition::Right ? 0 : WEB_VIEW_INSET;
+    m_view_layout->setContentsMargins(left, 0, right, WEB_VIEW_INSET);
+    m_view->set_has_rounded_corners(true);
+}
+#endif
+
 void Tab::set_toolbar_container_in_tab_layout(bool in_tab_layout)
 {
     auto* tab_layout = static_cast<QBoxLayout*>(layout());
@@ -1374,7 +1402,14 @@ void Tab::set_toolbar_window_controls_visible(bool visible)
 
     m_toolbar_window_controls_separator->setVisible(has_custom_window_controls);
     m_toolbar_window_controls->setVisible(has_native_window_controls || has_custom_window_controls);
-    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN, has_custom_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
+    auto top_margin = TOOLBAR_VERTICAL_MARGIN;
+#ifdef AK_OS_MACOS
+    // NB: A toolbar holding the window controls is the top of the window, whose outline covers its first point.
+    auto window_outline_width = visible ? 1 : 0;
+    top_margin += window_outline_width;
+    m_toolbar->setFixedHeight(browser_chrome_layout_policy().toolbar_height + window_outline_width);
+#endif
+    m_toolbar->layout()->setContentsMargins(TOOLBAR_HORIZONTAL_MARGIN, top_margin, has_custom_window_controls ? TOOLBAR_WINDOW_CONTROLS_RIGHT_MARGIN : TOOLBAR_HORIZONTAL_MARGIN, TOOLBAR_VERTICAL_MARGIN);
     m_toolbar->layout()->invalidate();
 }
 
@@ -1573,6 +1608,15 @@ void Tab::set_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)
         break;
     }
 }
+
+#ifdef AK_OS_MACOS
+void Tab::paintEvent(QPaintEvent*)
+{
+    // The inset around the web view should match the chrome surrounding it.
+    QPainter painter(this);
+    painter.fillRect(rect(), ChromeStyle::chrome_background(window()->palette()));
+}
+#endif
 
 void Tab::resizeEvent(QResizeEvent* event)
 {

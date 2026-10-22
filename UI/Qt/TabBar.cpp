@@ -2046,6 +2046,9 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
 
     widget->set_vertical_tabs_enabled(m_vertical_tabs_enabled);
     widget->set_vertical_tabs_position(m_vertical_tabs_position);
+#ifdef AK_OS_MACOS
+    update_web_view_frame(*widget);
+#endif
 
     update_toolbar_placement();
     update_tab_layout();
@@ -2799,12 +2802,26 @@ void TabWidget::update_tab_chrome_visibility()
     m_toolbar_container->setVisible(m_tab_bar_visible);
     m_vertical_tab_bar_column->setVisible(m_tab_bar_visible && !is_horizontal);
     update_vertical_tabs_content_separator();
+#ifdef AK_OS_MACOS
+    for (int index = 0; index < m_stacked_widget->count(); ++index)
+        update_web_view_frame(*tab(index));
+#endif
 
     auto show_window_controls = m_window_controls_visible
         && m_tab_bar_visible
         && is_horizontal;
     m_window_controls->setVisible(show_window_controls);
 }
+
+#ifdef AK_OS_MACOS
+void TabWidget::update_web_view_frame(Tab& tab)
+{
+    Optional<WebView::VerticalTabsPosition> sidebar_position;
+    if (m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal)
+        sidebar_position = m_vertical_tabs_position;
+    tab.update_web_view_frame(m_tab_bar_visible, sidebar_position);
+}
+#endif
 
 void TabWidget::recreate_icons()
 {

@@ -16,9 +16,18 @@
 
 namespace Ladybird {
 
+static constexpr CGFloat WEB_VIEW_CORNER_RADIUS = 10;
+
 static CALayer* as_layer(void* layer)
 {
     return static_cast<CALayer*>(layer);
+}
+
+void WebContentView::set_has_rounded_corners(bool has_rounded_corners)
+{
+    m_has_rounded_corners = has_rounded_corners;
+    if (m_iosurface_layer)
+        as_layer(m_iosurface_layer).cornerRadius = has_rounded_corners ? WEB_VIEW_CORNER_RADIUS : 0;
 }
 
 bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
@@ -36,8 +45,11 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
 
     if (!m_iosurface_layer) {
         auto* layer = [[CALayer alloc] init];
-        layer.opaque = YES;
+        // NB: The chrome painted behind the rounded corners shows through, so the layer is not opaque.
+        layer.opaque = NO;
         layer.masksToBounds = YES;
+        layer.cornerRadius = m_has_rounded_corners ? WEB_VIEW_CORNER_RADIUS : 0;
+        layer.cornerCurve = kCACornerCurveContinuous;
         // Without this every new frame would cross-fade in and geometry changes would slide.
         layer.actions = @ {
             @"contents" : NSNull.null,
@@ -48,6 +60,7 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
             @"position" : NSNull.null,
             @"hidden" : NSNull.null,
             @"backgroundColor" : NSNull.null,
+            @"cornerRadius" : NSNull.null,
         };
         m_iosurface_layer = layer;
     }

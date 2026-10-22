@@ -33,7 +33,13 @@ static constexpr BrowserChromeLayoutPolicy browser_chrome_layout_policy()
     return {
         .expanded_sidebar_width = 232,
         .collapsed_sidebar_width = 52,
+#ifdef AK_OS_MACOS
+        // NB: Leaves an even space around the location field, as the rounded web view below it has no border of its own
+        //     to absorb an odd one.
+        .toolbar_height = 40,
+#else
         .toolbar_height = 41,
+#endif
     };
 }
 

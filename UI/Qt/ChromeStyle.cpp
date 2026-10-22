@@ -471,7 +471,15 @@ QWidget#LadybirdNavigationToolbar QToolButton#LadybirdCloseWindowButton[pressedO
     color: {4};
     background: transparent;
 }}
-)",
+)"
+#if defined(AK_OS_MACOS)
+                      R"(
+QWidget#LadybirdToolbarContainer {{
+    border-bottom: 0;
+}}
+)"
+#endif
+        ,
         background, surface_hover, surface_pressed, separator, text, disabled_text, close_hover, close_text,
         window_controls_separator, badge_surface, badge_border, badge_surface_hover, badge_surface_pressed);
 }
@@ -1331,7 +1339,23 @@ QToolButton#LadybirdCloseWindowButton[pressedOutside="true"] {{
     color: {4};
     background: transparent;
 }}
-)",
+)"
+#if defined(AK_OS_MACOS)
+                      R"(
+QWidget#LadybirdVerticalTabBar {{
+    border-right-color: transparent;
+}}
+
+QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"] {{
+    border-left-color: transparent;
+}}
+
+QWidget#LadybirdVerticalTabsContentSeparator {{
+    background: transparent;
+}}
+)"
+#endif
+        ,
         background, hover, pressed, control_border, text, close_hover, close_text, sidebar_separator, sidebar_separator_hover);
 }
 

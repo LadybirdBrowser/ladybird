@@ -34,6 +34,7 @@
 #include <LibWebView/WebCompatReport.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/CrashReportReviewWidget.h>
 #include <UI/Qt/ReportReview.h>
 #include <UI/Qt/ScreenshotSelectionOverlay.h>
@@ -111,7 +112,7 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
     setParent(window);
     setApi(QRhiWidget::Api::Direct3D11);
 #elif defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
-    // The page is shown by a layer of this widget's own native view; Qt neither erases nor paints the area under it.
+    // The page is shown by a layer of this widget's own native view; Qt only paints the chrome behind its corners.
     setAttribute(Qt::WA_DontCreateNativeAncestors);
     setAttribute(Qt::WA_NativeWindow);
     setAttribute(Qt::WA_OpaquePaintEvent);
@@ -1138,6 +1139,15 @@ void WebContentView::paintEvent(QPaintEvent*)
 
     auto background_color = page_background_color();
     painter.fillRect(QRect(0, 0, m_viewport_size.width(), m_viewport_size.height()), QColor(background_color.red(), background_color.green(), background_color.blue()));
+}
+#endif
+
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+void WebContentView::paintEvent(QPaintEvent*)
+{
+    // The page layer has rounded corners, so the area outside them should match the chrome around this view.
+    QPainter painter(this);
+    painter.fillRect(rect(), ChromeStyle::chrome_background(window()->palette()));
 }
 #endif
 
