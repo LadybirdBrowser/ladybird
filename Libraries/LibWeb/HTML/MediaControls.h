@@ -100,6 +100,7 @@ private:
         GC::Weak<DOM::IDLEventListener> listener;
     };
     Vector<RegisteredEventListener> m_registered_event_listeners;
+    GC::Weak<Window> m_animation_frame_window;
     u32 m_request_animation_frame_id { 0 };
 
     enum class Scrubbing : u8 {

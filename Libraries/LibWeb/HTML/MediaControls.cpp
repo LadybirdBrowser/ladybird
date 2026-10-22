@@ -163,10 +163,11 @@ void MediaControls::remove_event_listeners()
     }
     m_registered_event_listeners.clear();
 
-    if (m_host) {
-        auto& window = relevant_window(HTML::relevant_realm(*m_host).global_object());
-        window.cancel_animation_frame(m_request_animation_frame_id);
-    }
+    // Cancel through the window that the frame was requested from, not through our host. We're torn down from our
+    // host's finalizer, so the GC may already have cleared our weak pointer to it, while the window may live on and
+    // would otherwise call back into us.
+    if (m_request_animation_frame_id != 0 && m_animation_frame_window)
+        m_animation_frame_window->cancel_animation_frame(m_request_animation_frame_id);
 }
 
 void MediaControls::set_up_event_listeners()
@@ -669,6 +670,7 @@ void MediaControls::request_timeline_update()
 
     auto& realm = HTML::relevant_realm(*m_host);
     auto& window = relevant_window(realm.global_object());
+    m_animation_frame_window = window;
     m_request_animation_frame_id = window.request_animation_frame([this](double) {
         m_request_animation_frame_id = 0;
         update_timeline();
