@@ -232,9 +232,10 @@ public:
     void consume_user_activation_of_input_handled_by(Badge<WebContentPage>, WebContentPage const&);
     // Opening a link in a new tab takes one key or mouse press the view delivered.
     bool take_input_to_open_link_in_new_tab(Badge<WebContentPage>);
-    void did_lose_input_event_endpoint(Badge<WebContentClient>, WebContentPage&);
+    void did_lose_input_event_endpoint(Badge<WebContentPage>, WebContentPage&);
     void did_consume_input_event_in_compositor(Badge<WebContentPage>, u64 event_id);
     void did_not_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id);
+    void did_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id, bool async_scroll_performed_default_action);
     void discard_input_events_routed_through_lost_compositor(Badge<Application>);
     size_t pending_input_event_count_for_testing() const { return m_pending_input_events.size(); }
     void handle_external_url(Badge<WebContentPage>, URL::URL, URL::Origin, bool has_transient_activation);
@@ -875,14 +876,24 @@ protected:
         // navigable. A lost page never finishes the events it held.
         NonnullRefPtr<WebContentPage> endpoint;
 
+        // Unset while the event waits for the compositor to decide where an earlier key event goes.
+        bool sent { false };
+
         // Set while the compositor decides whether it consumes the event, forwards it or hands it back. A compositor
         // that dies forwards none of the events still marked this way.
         bool routed_through_compositor { false };
+
+        // A key event stays routed through the compositor until it forwards the event or hands it back. Later input
+        // waits until then.
+        bool awaits_compositor_dispatch() const { return routed_through_compositor && event.has<Web::KeyEvent>(); }
 
         // When the view delivered an event that gives user activation, until something consumes that activation.
         Optional<MonotonicTime> user_activation_time {};
     };
     Vector<PendingInputEvent> m_pending_input_events;
+    void send_queued_input_events();
+    void send_input_event(size_t index);
+    bool may_scroll_for_key_event_in_compositor(size_t index) const;
     Optional<size_t> index_of_input_in_flight_giving_user_activation_to(WebContentPage const&) const;
 
     // The key and mouse presses the view delivered that have yet to open a link in a new tab.

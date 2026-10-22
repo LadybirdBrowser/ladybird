@@ -94,4 +94,10 @@ void CompositorPresentationClient::did_not_dispatch_input_event(Web::CompositorC
         page->did_not_dispatch_input_event_through_compositor(event_id);
 }
 
+void CompositorPresentationClient::did_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id, bool async_scroll_performed_default_action)
+{
+    if (auto* page = page_for_compositor_context_id(context_id))
+        page->did_dispatch_input_event_through_compositor(event_id, async_scroll_performed_default_action);
+}
+
 }

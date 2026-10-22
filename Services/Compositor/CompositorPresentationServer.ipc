@@ -3,8 +3,7 @@
 
 endpoint CompositorPresentationServer
 {
-    handle_key_event(Web::CompositorContextId context_id, Web::KeyEvent event) => (bool handled)
-    dispatch_key_event_to_web_content(Web::CompositorContextId context_id, Web::KeyEvent event) => (bool dispatched)
+    handle_and_dispatch_key_event(Web::CompositorContextId context_id, Web::KeyEvent event, bool allow_keyboard_scroll) =|
     handle_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event) =|
     handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event) =|
     presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id) =|

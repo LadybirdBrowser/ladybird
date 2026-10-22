@@ -585,24 +585,28 @@ void CompositorState::invalidate_keyboard_scroll_state(Web::CompositorContextId 
         context->invalidate_keyboard_scroll_state(generation);
 }
 
-bool CompositorState::handle_key_event(Web::CompositorContextId context_id, Web::KeyEvent const& event)
+void CompositorState::handle_and_dispatch_key_event(Web::CompositorContextId context_id, Web::KeyEvent event, bool allow_keyboard_scroll)
 {
+    // NB: The presentation connection only passes on input for the contexts bound to it.
+    auto* presentation = presentation_for_context(context_id);
+    VERIFY(presentation);
     auto* context = context_if_present(context_id);
-    if (!context)
-        return false;
-    if (event.type == Web::KeyEvent::Type::KeyDown && Web::is_keyboard_scroll_key(event.key, Web::UIEvents::Mod_None))
-        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(), MonotonicTime::now());
-    return apply_context_update_result(context_id, *context, context->handle_key_event(event));
-}
+    if (!context || !context->can_dispatch_input_to_web_content()) {
+        presentation->did_not_dispatch_input_event(context_id, event.id);
+        return;
+    }
 
-bool CompositorState::dispatch_key_event_to_web_content(Web::CompositorContextId context_id, Web::KeyEvent const& event)
-{
-    auto* context = context_if_present(context_id);
-    if (!context)
-        return false;
+    if (allow_keyboard_scroll) {
+        if (event.type == Web::KeyEvent::Type::KeyDown && Web::is_keyboard_scroll_key(event.key, Web::UIEvents::Mod_None))
+            dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(), MonotonicTime::now());
+        auto handled = apply_context_update_result(context_id, *context, context->handle_key_event(event));
+        event.async_scroll_performed_default_action = handled && event.type == Web::KeyEvent::Type::KeyDown;
+    }
+
+    // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
     publish_pending_async_scroll_updates(context_id, *context);
     context->dispatch_key_event_to_web_content(event);
-    return true;
+    presentation->did_dispatch_input_event(context_id, event.id, event.async_scroll_performed_default_action);
 }
 
 void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event)

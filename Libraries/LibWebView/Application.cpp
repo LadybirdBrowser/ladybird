@@ -1479,20 +1479,14 @@ void Application::update_compositor_context_visibility(Web::CompositorContextId 
     m_compositor_client->async_set_context_visibility(context_id, context_visibility);
 }
 
-bool Application::handle_key_event_in_compositor(Web::CompositorContextId context_id, Web::KeyEvent const& event)
+bool Application::handle_and_dispatch_key_event_in_compositor(Web::CompositorContextId context_id, Web::KeyEvent const& event, bool allow_keyboard_scroll)
 {
     if (!can_send_compositor_process_ipc(m_compositor_presentation_client))
         return false;
-    auto result = m_compositor_presentation_client->try_handle_key_event(context_id, event.clone_without_browser_data());
-    return !result.is_error() && result.release_value();
-}
+    VERIFY(m_compositor_presentation_client);
 
-bool Application::dispatch_key_event_to_web_content(Web::CompositorContextId context_id, Web::KeyEvent const& event)
-{
-    if (!can_send_compositor_process_ipc(m_compositor_presentation_client))
-        return false;
-    auto result = m_compositor_presentation_client->try_dispatch_key_event_to_web_content(context_id, event.clone_without_browser_data());
-    return !result.is_error() && result.release_value();
+    m_compositor_presentation_client->async_handle_and_dispatch_key_event(context_id, event.clone_without_browser_data(), allow_keyboard_scroll);
+    return true;
 }
 
 void Application::handle_pinch_event_in_compositor(Web::CompositorContextId context_id, Web::PinchEvent const& event)

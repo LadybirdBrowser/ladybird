@@ -35,7 +35,9 @@ static bool is_valid_key_event(Web::KeyEvent const& event)
 {
     return is_valid_key_code(event.key)
         && is_valid_modifiers(event.modifiers)
-        && event.code_point <= 0x10ffff;
+        && event.code_point <= 0x10ffff
+        // Only the compositor sets this, on its way to WebContent.
+        && !event.async_scroll_performed_default_action;
 }
 
 static bool is_valid_mouse_event(Web::MouseEvent const& event)
@@ -118,26 +120,22 @@ void ConnectionFromPresentation::did_not_dispatch_input_event(Web::CompositorCon
     async_did_not_dispatch_input_event(context_id, event_id);
 }
 
-Messages::CompositorPresentationServer::HandleKeyEventResponse ConnectionFromPresentation::handle_key_event(Web::CompositorContextId context_id, Web::KeyEvent event)
+void ConnectionFromPresentation::did_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id, bool async_scroll_performed_default_action)
 {
-    if (!is_valid_key_event(event)) {
-        did_misbehave("Invalid key event");
-        return false;
-    }
-    if (!is_bound_to(context_id))
-        return false;
-    return m_compositor_state->handle_key_event(context_id, event);
+    async_did_dispatch_input_event(context_id, event_id, async_scroll_performed_default_action);
 }
 
-Messages::CompositorPresentationServer::DispatchKeyEventToWebContentResponse ConnectionFromPresentation::dispatch_key_event_to_web_content(Web::CompositorContextId context_id, Web::KeyEvent event)
+void ConnectionFromPresentation::handle_and_dispatch_key_event(Web::CompositorContextId context_id, Web::KeyEvent event, bool allow_keyboard_scroll)
 {
     if (!is_valid_key_event(event)) {
         did_misbehave("Invalid key event");
-        return false;
+        return;
     }
-    if (!is_bound_to(context_id))
-        return false;
-    return m_compositor_state->dispatch_key_event_to_web_content(context_id, event);
+    if (!is_bound_to(context_id)) {
+        did_not_dispatch_input_event(context_id, event.id);
+        return;
+    }
+    m_compositor_state->handle_and_dispatch_key_event(context_id, move(event), allow_keyboard_scroll);
 }
 
 void ConnectionFromPresentation::handle_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)

@@ -813,23 +813,6 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         mouse_event->wheel_tick_120ths_y /= zoom_level();
     }
 
-    if (key_event && !key_event->native_editing_binding_resolved && Web::is_keyboard_scroll_key(key_event->key, Web::UIEvents::Mod_None)) {
-        bool preceding_input_may_change_target = false;
-        for (auto const& pending : m_pending_input_events) {
-            auto const* key = pending.event.get_pointer<Web::KeyEvent>();
-            if (!key || key->type != Web::KeyEvent::Type::KeyDown || !key->async_scroll_performed_default_action)
-                preceding_input_may_change_target = true;
-        }
-        // Always deliver key release to the compositor, even if it could no longer accept a new scroll. A focused
-        // navigable another page hosts scrolls there.
-        if (&focused_navigable_host() == &page()
-            && (key_event->type == Web::KeyEvent::Type::KeyUp
-                || (m_has_usable_bitmap && !preceding_input_may_change_target))) {
-            auto handled = page().handle_key_event_in_compositor(*key_event);
-            key_event->async_scroll_performed_default_action = handled && key_event->type == Web::KeyEvent::Type::KeyDown;
-        }
-    }
-
     // Send the next event over to the WebContent to be handled by JS. We'll later get a message to say whether JS
     // prevented the default event behavior, at which point we either discard or handle that event, and then try to
     // process the next one.
@@ -845,33 +828,73 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         });
         m_inputs_to_open_links_in_new_tabs.append({ Web::input_event_id(pending.event), now });
     }
+    // A focused navigable another page hosts takes key events directly.
+    if (pending.event.has<Web::KeyEvent>())
+        pending.endpoint = focused_navigable_host();
+    send_queued_input_events();
+}
+
+// Input waits while the compositor decides whether it forwards a key event, so a key it hands back is not overtaken.
+void ViewImplementation::send_queued_input_events()
+{
+    for (size_t index = 0; index < m_pending_input_events.size(); ++index) {
+        if (!m_pending_input_events[index].sent)
+            send_input_event(index);
+        if (m_pending_input_events[index].awaits_compositor_dispatch())
+            return;
+    }
+}
+
+// A key press may scroll in the compositor only while no earlier input the pages have yet to handle can change its
+// target. Key release always reaches the compositor's keyboard scrolling, even if it could no longer accept a new
+// scroll.
+bool ViewImplementation::may_scroll_for_key_event_in_compositor(size_t index) const
+{
+    auto const& key_event = m_pending_input_events[index].event.get<Web::KeyEvent>();
+    if (key_event.native_editing_binding_resolved || !Web::is_keyboard_scroll_key(key_event.key, Web::UIEvents::Mod_None))
+        return false;
+    if (key_event.type == Web::KeyEvent::Type::KeyUp)
+        return true;
+    if (!m_has_usable_bitmap)
+        return false;
+    for (size_t preceding = 0; preceding < index; ++preceding) {
+        auto const* key = m_pending_input_events[preceding].event.get_pointer<Web::KeyEvent>();
+        if (!key || key->type != Web::KeyEvent::Type::KeyDown || !key->async_scroll_performed_default_action)
+            return false;
+    }
+    return true;
+}
+
+void ViewImplementation::send_input_event(size_t index)
+{
+    auto& pending = m_pending_input_events[index];
+    pending.sent = true;
     pending.event.visit(
         [&](Web::KeyEvent const& event) {
-            auto& host = focused_navigable_host();
-            if (&host == &page()) {
-                page().dispatch_key_event_to_web_content(event);
-            } else {
-                pending.endpoint = host;
-                host.async_key_event(event.clone_without_browser_data());
-            }
+            // The compositor scrolls for the event when it may, then forwards the event to WebContent behind the scroll
+            // updates that produced, or hands it back for direct dispatch.
+            if (pending.endpoint == page() && page().handle_and_dispatch_key_event_in_compositor(event, may_scroll_for_key_event_in_compositor(index)))
+                pending.routed_through_compositor = true;
+            else
+                pending.endpoint->async_key_event(event.clone_without_browser_data());
         },
         [&](Web::MouseEvent const& event) {
             // The compositor scrolls or drags a scrollbar for the event when it can, then forwards the event to
             // WebContent behind the scroll updates that produced, consumes it, or hands it back for direct dispatch.
-            if (page().handle_and_dispatch_mouse_event_in_compositor(event))
+            if (pending.endpoint->handle_and_dispatch_mouse_event_in_compositor(event))
                 pending.routed_through_compositor = true;
             else
-                page().async_mouse_event(event.clone_without_browser_data());
+                pending.endpoint->async_mouse_event(event.clone_without_browser_data());
         },
-        [this](Web::DragEvent& event) {
+        [&](Web::DragEvent& event) {
             auto cloned_event = event.clone_without_browser_data();
             cloned_event.files = move(event.files);
 
-            page().async_drag_event(cloned_event);
+            pending.endpoint->async_drag_event(cloned_event);
         },
-        [this](Web::PinchEvent const& event) {
-            page().handle_pinch_event_in_compositor(event);
-            page().async_pinch_event(event);
+        [&](Web::PinchEvent const& event) {
+            pending.endpoint->handle_pinch_event_in_compositor(event);
+            pending.endpoint->async_pinch_event(event);
         });
 }
 
@@ -1048,6 +1071,7 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
         return;
     auto pending = m_pending_input_events.take(*index);
     auto event = move(pending.event);
+    send_queued_input_events();
 
     // The renderer's activation counts from when it handled the event, so the activation the event gives does too. An
     // event the page dropped gives none, and opens no link.
@@ -1153,10 +1177,11 @@ bool ViewImplementation::take_input_to_open_link_in_new_tab(Badge<WebContentPage
     return true;
 }
 
-void ViewImplementation::did_lose_input_event_endpoint(Badge<WebContentClient>, WebContentPage& page)
+void ViewImplementation::did_lose_input_event_endpoint(Badge<WebContentPage>, WebContentPage& page)
 {
-    // Nothing will finish the events the lost page held, and a pending event holds back compositor input.
+    // Nothing will finish the events the closed page held, and a pending event holds back compositor input.
     m_pending_input_events.remove_all_matching([&](auto const& pending) { return pending.endpoint == page; });
+    send_queued_input_events();
 }
 
 void ViewImplementation::did_consume_input_event_in_compositor(Badge<WebContentPage>, u64 event_id)
@@ -1165,6 +1190,7 @@ void ViewImplementation::did_consume_input_event_in_compositor(Badge<WebContentP
     // no input to open a link with.
     m_pending_input_events.remove_first_matching([&](auto const& pending) { return Web::input_event_id(pending.event) == event_id; });
     m_inputs_to_open_links_in_new_tabs.remove_all_matching([&](auto const& input) { return input.event_id == event_id; });
+    send_queued_input_events();
 }
 
 void ViewImplementation::did_not_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id)
@@ -1174,14 +1200,35 @@ void ViewImplementation::did_not_dispatch_input_event_through_compositor(Badge<W
         return;
 
     auto& pending = m_pending_input_events[*index];
+    if (!pending.routed_through_compositor)
+        return;
     pending.routed_through_compositor = false;
     pending.event.visit(
+        [&](Web::KeyEvent const& event) {
+            pending.endpoint->async_key_event(event.clone_without_browser_data());
+        },
         [&](Web::MouseEvent const& event) {
             pending.endpoint->async_mouse_event(event.clone_without_browser_data());
         },
         [](auto const&) {
             VERIFY_NOT_REACHED();
         });
+    send_queued_input_events();
+}
+
+void ViewImplementation::did_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id, bool async_scroll_performed_default_action)
+{
+    auto index = m_pending_input_events.find_first_index_if([&](auto const& pending) { return Web::input_event_id(pending.event) == event_id; });
+    if (!index.has_value())
+        return;
+
+    auto& pending = m_pending_input_events[*index];
+    if (!pending.awaits_compositor_dispatch())
+        return;
+    // WebContent finishes the event from here on, as it does an event the view sends it directly.
+    pending.routed_through_compositor = false;
+    pending.event.get<Web::KeyEvent>().async_scroll_performed_default_action = async_scroll_performed_default_action;
+    send_queued_input_events();
 }
 
 void ViewImplementation::discard_input_events_routed_through_lost_compositor(Badge<Application>)
@@ -1189,6 +1236,7 @@ void ViewImplementation::discard_input_events_routed_through_lost_compositor(Bad
     // The compositor may have forwarded some of these before it died, and WebContent does not de-duplicate event ids,
     // so sending them again could run an event twice. Acknowledgements that still arrive for them are ignored.
     m_pending_input_events.remove_all_matching([](auto const& pending) { return pending.routed_through_compositor; });
+    send_queued_input_events();
 }
 
 void ViewImplementation::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)
