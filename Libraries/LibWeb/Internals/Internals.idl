@@ -50,6 +50,9 @@ interface Internals {
     DOMString spellingErrorRanges(Node node);
     Promise<DOMString> checkSpellingForTesting(DOMString text);
     Promise<undefined> spellCheckSettled();
+
+    // Writing suggestions
+    Promise<DOMString> requestWritingSuggestionForTesting(DOMString text, unsigned long caretOffset);
     Promise<DOMString> activateSpellingMenuItem(SpellingMenuItem item, optional unsigned long guessIndex = 0);
 
     const unsigned short MOD_NONE = 0;

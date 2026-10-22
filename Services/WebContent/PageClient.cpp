@@ -1925,6 +1925,11 @@ void PageClient::page_did_request_spell_check(u64 request_id, Utf16String const&
     client().async_did_request_spell_check(m_id, request_id, text);
 }
 
+void PageClient::page_did_request_writing_suggestion(u64 request_id, Utf16String const& text, u32 caret_offset)
+{
+    client().async_did_request_writing_suggestion(m_id, request_id, text, caret_offset);
+}
+
 void PageClient::page_did_request_primary_paste()
 {
     client().async_did_request_primary_paste(m_id);

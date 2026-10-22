@@ -47,6 +47,20 @@ static bool is_word_code_unit(char16_t code_unit)
     return is_ascii_alpha(code_unit) || code_unit == '\'';
 }
 
+// What each word at the caret is predicted to become. The last one corrects what's typed rather than continuing it.
+// Every test-web test has these predictions, so a test that types one of these words and then waits before pressing Tab
+// accepts the prediction rather than moving focus.
+static Optional<StringView> prediction_for(Utf16View partial_word)
+{
+    if (partial_word == u"predi"sv)
+        return "prediction"sv;
+    if (partial_word == u"Lady"sv)
+        return "Ladybird browser"sv;
+    if (partial_word == u"teh"sv)
+        return "the"sv;
+    return {};
+}
+
 SpellChecker::DocumentTag TestSpellChecker::create_document_tag()
 {
     return m_next_document_tag++;
@@ -85,6 +99,30 @@ void TestSpellChecker::check(DocumentTag tag, Utf16String const& text, Function<
     // Answer on a later turn of the event loop, as platform spellcheckers do.
     Core::deferred_invoke([on_complete = move(on_complete), errors = move(errors)]() mutable {
         on_complete(move(errors));
+    });
+}
+
+void TestSpellChecker::suggest(DocumentTag, Utf16String const& text, u32 caret_offset, Function<void(Optional<Web::WritingSuggestion>)> on_complete)
+{
+    Optional<Web::WritingSuggestion> suggestion;
+    auto view = text.utf16_view();
+    if (caret_offset <= view.length_in_code_units()) {
+        // The candidate replaces the whole word the caret is in, as platform spellcheckers' candidates do.
+        auto start = caret_offset;
+        while (start > 0 && is_word_code_unit(view.code_unit_at(start - 1)))
+            --start;
+        auto end = caret_offset;
+        while (end < view.length_in_code_units() && is_word_code_unit(view.code_unit_at(end)))
+            ++end;
+        if (start < caret_offset) {
+            if (auto prediction = prediction_for(view.substring_view(start, end - start)); prediction.has_value())
+                suggestion = Web::WritingSuggestion { start, end - start, Utf16String::from_utf8(*prediction) };
+        }
+    }
+
+    // Answer on a later turn of the event loop, as platform spellcheckers do.
+    Core::deferred_invoke([on_complete = move(on_complete), suggestion = move(suggestion)]() mutable {
+        on_complete(move(suggestion));
     });
 }
 

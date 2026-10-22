@@ -1321,7 +1321,9 @@ void ViewImplementation::send_preferences_to_page(WebContentPage& page)
     send_browsing_behavior(page);
     send_autoplay_settings(page);
     send_global_privacy_control(page);
-    page.async_set_spell_checking_available(Application::the().spell_checker() != nullptr);
+    auto* spell_checker = Application::the().spell_checker();
+    page.async_set_spell_checking_available(spell_checker != nullptr);
+    page.async_set_writing_suggestions_available(spell_checker && spell_checker->can_suggest());
     send_geolocation_emulated_position(page);
     page.async_set_has_picture_in_picture_support(Application::the().supports_picture_in_picture());
 }
@@ -4568,6 +4570,19 @@ void ViewImplementation::did_request_spell_check(Badge<WebContentPage>, WebConte
     spell_checker->check(spell_document_tag(), text, [page = NonnullRefPtr { requesting_page }, request_id](Vector<Web::SpellingError> errors) {
         if (page->is_open())
             page->async_did_check_spelling(request_id, move(errors));
+    });
+}
+
+void ViewImplementation::did_request_writing_suggestion(Badge<WebContentPage>, WebContentPage& requesting_page, u64 request_id, Utf16String text, u32 caret_offset)
+{
+    auto* spell_checker = Application::the().spell_checker();
+    if (!spell_checker) {
+        requesting_page.async_did_get_writing_suggestion(request_id, {});
+        return;
+    }
+    spell_checker->suggest(spell_document_tag(), text, caret_offset, [page = NonnullRefPtr { requesting_page }, request_id](Optional<Web::WritingSuggestion> suggestion) {
+        if (page->is_open())
+            page->async_did_get_writing_suggestion(request_id, move(suggestion));
     });
 }
 

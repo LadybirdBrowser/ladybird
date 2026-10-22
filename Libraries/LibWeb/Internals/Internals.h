@@ -88,6 +88,8 @@ public:
     Utf16String spelling_error_ranges(GC::Ref<DOM::Node>);
     GC::Ref<WebIDL::Promise> check_spelling_for_testing(Utf16String const& text);
     GC::Ref<WebIDL::Promise> spell_check_settled();
+
+    GC::Ref<WebIDL::Promise> request_writing_suggestion_for_testing(Utf16String const& text, WebIDL::UnsignedLong caret_offset);
     GC::Ref<WebIDL::Promise> activate_spelling_menu_item(Bindings::SpellingMenuItem, WebIDL::UnsignedLong guess_index);
 
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
