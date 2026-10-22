@@ -53,6 +53,8 @@ public:
     void did_start_input_method_composition();
     void did_end_input_method_composition();
     void dismiss();
+    // Drops the suggestion that's showing, and returns what it would add if the caret is still where it shows.
+    Optional<Utf16String> accept();
 
     bool is_settled() const;
 

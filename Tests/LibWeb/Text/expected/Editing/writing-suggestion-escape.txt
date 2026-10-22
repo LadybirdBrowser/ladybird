@@ -1,0 +1,3 @@
+showing: ction
+after Escape: (none), closed: false
+after a second Escape: closed: true
