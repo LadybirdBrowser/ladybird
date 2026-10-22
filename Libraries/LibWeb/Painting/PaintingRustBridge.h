@@ -9,7 +9,6 @@
 #include <AK/Types.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibGfx/Filter.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Compositor/NavigablePresenter.h>
 #include <LibWeb/Export.h>
@@ -81,9 +80,6 @@ WEB_API void take_recording_trace_if_pending(Layout::BegunRead const&, DOM::Docu
 // Reads no document, so it runs wherever the recording is published.
 WEB_API NonnullRefPtr<Compositing::DisplayList> display_list_of_published_recording(DisplayListRecording const&, Layout::RustFFI::FfiPresentedRecording const&);
 WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayList const&, Compositing::DisplayListResourceStorage const&);
-
-// The graph applying a list of filter functions in order, or nothing for an empty list.
-WEB_API Optional<Gfx::Filter> filter_from_functions(ReadonlySpan<Compositing::RustFFI::FfiFilterFunction>);
 
 WEB_API Compositing::DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);
 // Records one image frame drawn into the destination rectangle, in device pixels.
