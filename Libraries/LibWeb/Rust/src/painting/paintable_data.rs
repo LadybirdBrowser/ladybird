@@ -18,6 +18,8 @@ pub enum PaintableFlag {
     VerticalScrollbarEnlarged = 1 << 2,
     HorizontalScrollbarHidden = 1 << 3,
     VerticalScrollbarHidden = 1 << 4,
+    InLaterContainingBlockFragment = 1 << 5,
+    HasLaterBoxFragments = 1 << 6,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -212,7 +214,7 @@ pub(crate) struct CommittedSideData {
     /// The paint-order decisions paint preparation gathered for the row, if it gathered them.
     pub(crate) order_inputs: crate::painting::paint_order_plan::PaintOrderInputs,
     pub(crate) containing_block_fragment: u32,
-    pub(crate) box_fragments: Option<std::sync::Arc<[CommittedBoxFragment]>>,
+    pub(crate) box_fragments: Option<std::sync::Arc<Vec<CommittedBoxFragment>>>,
 }
 
 /// Rows are the same when they hold equal records; a shared record is compared only when the rows
@@ -255,7 +257,7 @@ impl CommittedSideData {
     }
 
     pub(crate) fn box_fragments(&self) -> &[CommittedBoxFragment] {
-        self.box_fragments.as_deref().unwrap_or_default()
+        self.box_fragments.as_deref().map_or(&[], Vec::as_slice)
     }
 
     /// The indices of an inline box's pieces in its line root's inline content.

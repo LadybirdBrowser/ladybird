@@ -383,6 +383,16 @@ pub extern "C" fn layout_script_paintable_border_box_rect_of_fragments(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn layout_script_paintable_box_fragment_count(host: &DocumentHost, slot: NodeSlotId) -> usize {
+    read_rows(host, |arena| {
+        if !arena.paintable_row_is_populated(slot) {
+            return 0;
+        }
+        crate::painting::paintable_geometry::fragment_count(arena, slot)
+    })
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn layout_script_paintable_unbroken_border_box_size(
     host: &DocumentHost,
     slot: NodeSlotId,

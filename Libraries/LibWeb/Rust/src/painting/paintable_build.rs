@@ -400,6 +400,25 @@ impl<'a> PaintableCommit<'a> {
                     }),
             )
         };
+        let flags = [
+            (
+                crate::painting::paintable_data::PaintableFlag::InLaterContainingBlockFragment,
+                containing_block_fragment != 0,
+            ),
+            (
+                crate::painting::paintable_data::PaintableFlag::HasLaterBoxFragments,
+                !later_fragments.is_empty(),
+            ),
+        ];
+        let data = self.arena().live_paintable_data(slot);
+        if flags.iter().any(|&(flag, value)| data.has_flag(flag) != value) {
+            let arena = self.arena_mut();
+            let mut paintable_rows = arena.paintable_rows_mut();
+            let mut data = paintable_rows.paintable_data_mut(slot);
+            for (flag, value) in flags {
+                data.set_flag(flag, value);
+            }
+        }
         if identical {
             return;
         }
@@ -407,13 +426,15 @@ impl<'a> PaintableCommit<'a> {
             let mut side = self.arena().committed_side_data_mut(slot);
             side.containing_block_fragment = containing_block_fragment;
             side.box_fragments = (!later_fragments.is_empty()).then(|| {
-                later_fragments
-                    .iter()
-                    .map(|fragment| crate::painting::paintable_data::CommittedBoxFragment {
-                        link: fragment.link.clone(),
-                        containing_block_fragment: fragment.containing_block_fragment.unwrap_or_default(),
-                    })
-                    .collect::<std::sync::Arc<[_]>>()
+                std::sync::Arc::new(
+                    later_fragments
+                        .iter()
+                        .map(|fragment| crate::painting::paintable_data::CommittedBoxFragment {
+                            link: fragment.link.clone(),
+                            containing_block_fragment: fragment.containing_block_fragment.unwrap_or_default(),
+                        })
+                        .collect(),
+                )
             });
         }
         if geometry_unchanged {
@@ -539,26 +560,17 @@ impl<'a> PaintableCommit<'a> {
                 None => piece_indices_by_node.push((piece.node, vec![piece_index as u32])),
             }
         }
-        let root_fragment_offsets: smallvec::SmallVec<[CssPixelPoint; 1]> = {
-            let origin = crate::painting::paintable_geometry::absolute_rect(&paintable_rows, slot).location();
-            (0..crate::painting::paintable_geometry::fragment_count(&paintable_rows, slot))
-                .map(|index| {
-                    let location =
-                        crate::painting::paintable_geometry::absolute_fragment_rect(&paintable_rows, slot, index)
-                            .location();
-                    CssPixelPoint {
-                        x: location.x - origin.x,
-                        y: location.y - origin.y,
-                    }
-                })
-                .collect()
-        };
+        let root_positions = (crate::painting::paintable_geometry::fragment_count(&paintable_rows, slot) > 1)
+            .then(|| crate::painting::paintable_geometry::LineRootPositions::new(&paintable_rows, slot));
         for (piece_node, piece_indices) in piece_indices_by_node {
             if !paintable_rows.paintable_row_is_populated(piece_node)
                 || !node_painting::is_fragmented_inline(&paintable_rows, piece_node)
             {
                 continue;
             }
+            let origin = root_positions.as_ref().map(|positions| {
+                positions.of_fragment(paintable_rows.committed_side_data(piece_node).containing_block_fragment)
+            });
             let padding_widths = crate::painting::paintable_geometry::committed_padding(&paintable_rows, piece_node);
             let border_widths = crate::painting::paintable_geometry::committed_border(&paintable_rows, piece_node);
             let mut content_union: Option<CssPixelRect> = None;
@@ -582,14 +594,17 @@ impl<'a> PaintableCommit<'a> {
                 let (piece, root_fragment_offset) = {
                     let side = paintable_rows.committed_side_data(slot);
                     let piece = side.inline_box_pieces()[*piece_index as usize];
-                    let box_fragment = side
-                        .lines()
-                        .get(piece.line_index as usize)
-                        .map_or(0, |line| line.box_fragment as usize);
-                    (
-                        piece,
-                        root_fragment_offsets.get(box_fragment).copied().unwrap_or_default(),
-                    )
+                    let offset = root_positions.as_ref().zip(origin).map_or_else(
+                        CssPixelPoint::default,
+                        |(positions, origin)| {
+                            let location = positions.of_line(side.lines(), piece.line_index as usize);
+                            CssPixelPoint {
+                                x: location.x - origin.x,
+                                y: location.y - origin.y,
+                            }
+                        },
+                    );
+                    (piece, offset)
                 };
                 let border_rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_fragment_offset);
                 if piece.is_geometry_only_placeholder {

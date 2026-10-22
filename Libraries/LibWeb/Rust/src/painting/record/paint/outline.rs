@@ -22,9 +22,9 @@ pub(crate) fn paint_outline_phase<O: Observer>(recorder: &mut PaintRecorder<'_, 
     let outline = outline_data_for_paint(recorder, node);
     if outline.is_some() {
         let outline_offset = crate::painting::style_queries::outline_offset(recorder.source, node);
-        let border_box_rect = paintable_geometry::absolute_border_box_rect(recorder.source, paintable);
-        let border_radii = recorder.border_radii(paintable);
-        paint_outline(recorder, outline, outline_offset, border_box_rect, border_radii);
+        for (border_box_rect, border_radii) in recorder.border_boxes_of_fragments(paintable) {
+            paint_outline(recorder, outline, outline_offset, border_box_rect, border_radii);
+        }
     }
     paint_focused_area_outline(recorder, paintable);
 }
@@ -134,7 +134,7 @@ pub(crate) fn paint_outline<O: Observer>(
     );
 }
 
-pub(crate) fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
+fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
     // The shapes of area elements in an image map associated with an img element that is being rendered and is not
     // inert.

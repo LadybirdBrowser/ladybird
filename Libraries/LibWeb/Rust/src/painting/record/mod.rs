@@ -122,10 +122,7 @@ pub struct PaintRecorder<'a, O: Observer> {
     list: HitTestList,
     pub(crate) scratch: &'a mut scratch::RecordingScratch,
     pub(crate) resources: resources::RecordingResourceManifest,
-    line_root_positions: Option<(
-        NodeSlotId,
-        std::rc::Rc<crate::painting::paintable_geometry::LineRootPositions>,
-    )>,
+    line_root_positions: Option<(NodeSlotId, crate::painting::paintable_geometry::LineRootPositions)>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -149,16 +146,13 @@ impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn line_root_positions(
         &mut self,
         root: NodeSlotId,
-    ) -> std::rc::Rc<crate::painting::paintable_geometry::LineRootPositions> {
+    ) -> crate::painting::paintable_geometry::LineRootPositions {
         if let Some((cached_root, positions)) = &self.line_root_positions
             && *cached_root == root
         {
             return positions.clone();
         }
-        let positions = std::rc::Rc::new(crate::painting::paintable_geometry::LineRootPositions::new(
-            self.source,
-            root,
-        ));
+        let positions = crate::painting::paintable_geometry::LineRootPositions::new(self.source, root);
         self.line_root_positions = Some((root, positions.clone()));
         positions
     }
@@ -566,6 +560,22 @@ impl<O: Observer> PaintRecorder<'_, O> {
             crate::painting::paintable_geometry::committed_fragment_present_edges(self.source, paintable, index),
         );
         (rect, radii)
+    }
+
+    pub(crate) fn border_boxes_of_fragments(
+        &mut self,
+        paintable: NodeSlotId,
+    ) -> smallvec::SmallVec<[(CssPixelRect, BorderRadii); 1]> {
+        let fragment_count = crate::painting::paintable_geometry::fragment_count(self.source, paintable);
+        if fragment_count > 1 && !crate::painting::node_painting::is_fragmented_inline(self.source, paintable) {
+            return (0..fragment_count)
+                .map(|index| self.fragment_border_box(paintable, index))
+                .collect();
+        }
+        smallvec::smallvec![(
+            crate::painting::paintable_geometry::absolute_border_box_rect(self.source, paintable),
+            self.border_radii(paintable),
+        )]
     }
 
     pub(crate) fn base_paint_facts(&mut self, paintable: NodeSlotId) -> BasePaintFacts {
