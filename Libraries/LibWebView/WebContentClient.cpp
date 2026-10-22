@@ -585,6 +585,9 @@ void WebContentClient::did_save_crash_report(ByteString const& report_name)
 void WebContentClient::cancel_navigation_transactions()
 {
     ViewImplementation::for_each_view([this](ViewImplementation& view) {
+        // NB: A helper spawn can deliver an older child's exit before a new view has its traversable.
+        if (!view.has_traversable())
+            return IterationDecision::Continue;
         view.traversable().for_each_in_inclusive_subtree([this](CanonicalNavigable& navigable) {
             navigable.cancel_navigation_for_client(*this);
             return IterationDecision::Continue;
