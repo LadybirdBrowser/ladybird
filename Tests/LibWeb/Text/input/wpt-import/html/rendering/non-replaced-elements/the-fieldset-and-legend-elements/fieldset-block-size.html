@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/C/#the-fieldset-and-legend-elements">
+<!-- A test for the following paragraph:
+For the purpose of calculating the used 'block-size', if the computed
+'block-size' is not 'auto', the space allocated for the rendered legend's
+margin box that spills out past the border, if any, is expected to be
+subtracted from the 'block-size'. If the content box's block-size would be
+negative, then let the content box's block-size be zero instead.
+-->
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 2px solid black;
+}
+legend {
+  height: 102px;
+  background-color: yellow;
+}
+.content {
+  background-color: lime;
+}
+</style>
+<fieldset style="block-size: 200px;">
+<legend>Legend</legend>
+<div class="content" style="height:100%"></div>
+</fieldset>
+
+<fieldset style="block-size: 40px;">
+<legend>Legend</legend>
+<div class="content" style="height:100%"></div>
+</fieldset>
+
+<script>
+test(() => {
+  let cs = document.querySelectorAll('.content');
+  assert_equals(cs[0].offsetHeight, Math.max(202 - 102, 0));
+  assert_equals(cs[1].offsetHeight, Math.max(42 - 102, 0));
+}, 'Test content\'s block-size');
+</script>

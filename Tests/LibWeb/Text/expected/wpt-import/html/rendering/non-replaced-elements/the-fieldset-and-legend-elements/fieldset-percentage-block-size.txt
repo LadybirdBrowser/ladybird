@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+6 Pass
+4 Fail
+Pass	rendered legend (writing-mode: horizontal-tb)
+Pass	second legend (writing-mode: horizontal-tb)
+Pass	div (writing-mode: horizontal-tb)
+Pass	rendered legend (writing-mode: vertical-lr)
+Fail	second legend (writing-mode: vertical-lr)
+Fail	div (writing-mode: vertical-lr)
+Pass	rendered legend (writing-mode: vertical-rl)
+Fail	second legend (writing-mode: vertical-rl)
+Fail	div (writing-mode: vertical-rl)
+Pass	Fieldset with a percentage height should not increase the height on every reflow.

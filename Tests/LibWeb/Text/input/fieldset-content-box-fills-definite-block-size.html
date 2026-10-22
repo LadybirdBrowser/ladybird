@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    fieldset { width: 200px; height: 100px; margin: 0 0 50px; padding: 0; border: 2px solid black; }
+    legend { height: 20px; padding: 0; }
+</style>
+<fieldset><legend></legend><div id="percentage" style="height: 100%"></div></fieldset>
+<fieldset style="display: flex"><legend></legend><div id="stretched" style="width: 50px"></div></fieldset>
+<fieldset id="clipping" style="overflow: hidden"><legend></legend><div id="tall" style="height: 300px"></div></fieldset>
+<script>
+    test(() => {
+        println(`percentage height: ${percentage.getBoundingClientRect().height}`);
+        println(`stretched flex item height: ${stretched.getBoundingClientRect().height}`);
+        const clippingRect = clipping.getBoundingClientRect();
+        println(`clipped content hit below the fieldset: ${document.elementFromPoint(10, clippingRect.bottom + 10) === tall}`);
+    });
+</script>

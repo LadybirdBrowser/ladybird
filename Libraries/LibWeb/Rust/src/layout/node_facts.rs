@@ -463,6 +463,16 @@ pub(crate) fn node_creates_block_formatting_context(
     parent_is_flex_or_grid_container
 }
 
+pub(crate) fn node_is_fieldset_content_wrapper(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+    has_flag(data, NodeFlag::Anonymous)
+        && data.kind.get() == NodeKind::BlockContainer
+        && data.generated_for.get() == 0
+        && style.is_some_and(|style| {
+            let display = style.display();
+            display.is_block_outside() && (display.is_flow_root_inside() || display.is_flex_inside())
+        })
+}
+
 pub(crate) fn node_is_flex_or_grid_container(style: Option<ComputedValuesView<'_>>) -> bool {
     style.is_some_and(|style| style.display().is_flex_inside() || style.display().is_grid_inside())
 }

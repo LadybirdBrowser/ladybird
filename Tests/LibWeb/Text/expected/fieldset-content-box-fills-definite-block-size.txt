@@ -1,0 +1,3 @@
+percentage height: 82
+stretched flex item height: 82
+clipped content hit below the fieldset: false
