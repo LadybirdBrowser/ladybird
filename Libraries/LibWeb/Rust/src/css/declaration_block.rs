@@ -349,6 +349,29 @@ pub extern "C" fn rust_declaration_block_is_empty(block: &DeclarationBlock) -> b
     data.properties.is_empty() && data.custom_properties.is_empty()
 }
 
+/// Whether a declaration of the block holds an image or a gradient, as its value or as an item of its list.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_declaration_block_has_abstract_image_values(block: &DeclarationBlock) -> bool {
+    use crate::css::style_value::StyleValueData;
+    let is_abstract_image = |value: &StyleValueData| {
+        matches!(
+            value,
+            StyleValueData::Image { .. }
+                | StyleValueData::ImageSet { .. }
+                | StyleValueData::LinearGradient { .. }
+                | StyleValueData::ConicGradient { .. }
+                | StyleValueData::RadialGradient { .. }
+        )
+    };
+    block.data().properties.iter().any(|property| match &*property.value {
+        StyleValueData::ValueList { values, .. } => values
+            .as_slice()
+            .iter()
+            .any(|item| item.optional_data().is_some_and(is_abstract_image)),
+        value => is_abstract_image(value),
+    })
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_declaration_block_identity(block: &DeclarationBlock) -> u64 {
     block.identity()

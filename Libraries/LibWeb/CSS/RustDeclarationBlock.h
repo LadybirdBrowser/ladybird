@@ -48,6 +48,8 @@ public:
     // True while both blocks hold the same immutable data, e.g. after replace() and before either changes.
     bool shares_declarations_with(RustDeclarationBlock const&) const;
     bool is_empty() const;
+    // Whether a declaration holds an image or a gradient, as its value or as an item of its list.
+    bool has_abstract_image_values() const;
     u64 identity() const;
     u64 revision() const;
 
