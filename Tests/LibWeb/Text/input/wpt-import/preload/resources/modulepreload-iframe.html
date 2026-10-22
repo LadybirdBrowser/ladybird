@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<body>
+    <script>
+        const m = new URL('module1.js', location.href).toString();
+        const observer = new PerformanceObserver(l => {
+            const entries = l.getEntriesByName(m);
+            if (entries.length === 1) {
+                import(m).then(() => {
+                    observer.disconnect();
+                    const all = performance.getEntriesByName(m);
+                    window.parent.postMessage(all.length, '*');
+                });
+            }
+        });
+
+        observer.observe({type: 'resource', buffered: true});
+
+
+    </script>
+</body>

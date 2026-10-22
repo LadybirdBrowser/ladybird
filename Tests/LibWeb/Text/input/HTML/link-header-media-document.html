@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const urls = {};
+        for (const name of ["wide", "narrow"])
+            urls[name] = await server.createEcho("GET", `/link-header-media-document/${name}.js`, { status: 200, headers: { "Content-Type": "text/javascript" } });
+
+        const page = await server.createEcho("GET", "/link-header-media-document/image.png", {
+            status: 200,
+            headers: {
+                "Content-Type": "image/png",
+                "Link": '<wide.js>; rel=preload; as=script; media="(min-width: 1px)", '
+                    + '<narrow.js>; rel=preload; as=script; media="(max-width: 0px)"',
+            },
+            body: "",
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        // Wait for the iframe to be rendered, so that it has a viewport size.
+        await animationFrame();
+        iframe.src = page;
+
+        const isRequested = async url => (await fetch(server.recordedRequestHeadersURL(url))).ok;
+        while (!await isRequested(urls["wide"]))
+            await timeout(25);
+
+        for (const name of ["wide", "narrow"])
+            println(`${name}: ${await isRequested(urls[name]) ? "requested" : "not requested"}`);
+    });
+</script>

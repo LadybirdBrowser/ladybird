@@ -622,7 +622,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // FIXME: 18. If navigationParams's commit early hints is not null, then call navigationParams's commit early hints
     //        with document.
 
-    // FIXME: 19. Process link headers given document, navigationParams's response, and "pre-media".
+    // 19. Process link headers given document, navigationParams's response, and "pre-media".
+    HTML::HTMLLinkElement::process_link_headers(*document, navigation_params.response->header_list(), *creation_url, HTML::HTMLLinkElement::LinkHeaderPhase::PreMedia);
 
     // FIXME: 20. If navigationParams's navigable is a top-level traversable, then process the `Speculation-Rules`
     //        header given document and navigationParams's response .

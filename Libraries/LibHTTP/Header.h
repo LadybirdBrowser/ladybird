@@ -8,8 +8,12 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefCounted.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibIPC/Forward.h>
+#include <LibURL/URL.h>
 
 namespace HTTP {
 
@@ -41,6 +45,32 @@ struct RangeHeaderValue {
 
 [[nodiscard]] ByteString build_content_range(u64 range_start, u64 range_end, u64 full_length);
 Optional<RangeHeaderValue> parse_single_range_header_value(StringView, bool allow_whitespace);
+
+struct LinkParameter {
+    String name;
+    String value;
+};
+
+struct LinkTargetAttributes : public RefCounted<LinkTargetAttributes> {
+    explicit LinkTargetAttributes(Vector<LinkParameter> attributes)
+        : attributes(move(attributes))
+    {
+    }
+
+    Vector<LinkParameter> attributes;
+};
+
+struct Link {
+    Optional<String const&> target_attribute(StringView name) const;
+
+    Optional<URL::URL> target_uri;
+    String relation_type;
+    Optional<URL::URL> context_uri;
+    NonnullRefPtr<LinkTargetAttributes const> target_attributes;
+};
+
+[[nodiscard]] Vector<String> get_decode_and_split_link_header_value(StringView);
+[[nodiscard]] Vector<Link> parse_link_field_value(StringView, URL::URL const& representation_url);
 
 }
 

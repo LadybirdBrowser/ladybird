@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	XHTML documents should respect preload Link headers
+Pass	plain text documents should respect preload Link headers
+Pass	image documents should respect preload Link headers
+Pass	media documents should respect preload Link headers
+Pass	invalid image documents should respect preload Link headers

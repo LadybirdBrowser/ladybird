@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const matching = new URL("link-header-media.js?all", location.href).href;
+        const notMatching = new URL("link-header-media.js?not-all", location.href).href;
+        await new Promise(resolve => {
+            new PerformanceObserver((list, observer) => {
+                if (list.getEntriesByName(matching).length === 0)
+                    return;
+                observer.disconnect();
+                resolve();
+            }).observe({ type: "resource", buffered: true });
+        });
+        println(`media="all": ${performance.getEntriesByName(matching).length}`);
+        println(`media="not all": ${performance.getEntriesByName(notMatching).length}`);
+    });
+</script>

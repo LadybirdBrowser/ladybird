@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.src = "../../data/link-header-parsing.xhtml";
+        await new Promise(resolve => {
+            iframe.onload = resolve;
+            document.body.appendChild(iframe);
+        });
+
+        const frameWindow = iframe.contentWindow;
+        const names = await new Promise(resolve => {
+            new frameWindow.PerformanceObserver((list, observer) => {
+                const names = frameWindow.performance.getEntriesByType("resource").map(entry => entry.name).filter(name => name.includes("link-header-parsing.js"));
+                if (names.length < 2)
+                    return;
+                observer.disconnect();
+                resolve(names);
+            }).observe({ type: "resource", buffered: true });
+        });
+
+        const directory = new URL(".", frameWindow.location.href).href;
+        for (const name of names.sort())
+            println(name.substring(directory.length));
+    });
+</script>

@@ -1,0 +1,2 @@
+media="all": 1
+media="not all": 0

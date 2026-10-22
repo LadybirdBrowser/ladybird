@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const names = ["w-fallback", "w-small", "w-large", "x-fallback", "x-one"];
+        const urls = {};
+        for (const name of names)
+            urls[name] = await server.createEcho("GET", `/link-header-image-source-set/${name}.png`, { status: 200, headers: { "Content-Type": "image/png" } });
+
+        const page = await server.createEcho("GET", "/link-header-image-source-set/page.xhtml", {
+            status: 200,
+            headers: {
+                "Content-Type": "application/xhtml+xml",
+                "Link": '<w-fallback.png>; rel=preload; as=image; imagesrcset="w-small.png 200w, w-large.png 800w"; imagesizes="100px", '
+                    + '<x-fallback.png>; rel=preload; as=image; imagesrcset="x-one.png 1x"',
+            },
+            body: '<html xmlns="http://www.w3.org/1999/xhtml"><head><base href="elsewhere/"/></head><body/></html>',
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.src = page;
+        document.body.appendChild(iframe);
+
+        const isRequested = async url => (await fetch(server.recordedRequestHeadersURL(url))).ok;
+        while (!await isRequested(urls["w-small"]) || !await isRequested(urls["x-one"]))
+            await timeout(25);
+
+        for (const name of names)
+            println(`${name}: ${await isRequested(urls[name]) ? "requested" : "not requested"}`);
+    });
+</script>

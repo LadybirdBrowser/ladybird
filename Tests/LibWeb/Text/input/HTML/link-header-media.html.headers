@@ -1,0 +1,2 @@
+Link: <link-header-media.js?all>; rel=modulepreload; media="all"
+Link: <link-header-media.js?not-all>; rel=modulepreload; media="not all"
