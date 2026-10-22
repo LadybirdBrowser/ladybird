@@ -6722,6 +6722,9 @@ void LocalNavigable::arm_clock_lane(TickNow tick_now)
 Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& document, PaintConfig const& paint_config, bool records_display_list)
 {
     VERIFY(document.has_committed_viewport_box());
+    // The paint properties are brought up to date before the frame asks whether its tree is to be sent: an update of the
+    // tree they make asks for it.
+    document.update_paint_and_hit_testing_properties_if_needed();
     auto& paint_state = document.paint_state();
     bool const sends_visual_context_tree = paint_state.visual_context_tree_needs_compositor_update();
     // A frame that records nothing takes the render state's tree as it is sampled.
