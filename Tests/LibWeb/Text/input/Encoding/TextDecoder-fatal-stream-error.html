@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function codeUnits(string) {
+        return [...string].map(c => c.charCodeAt(0).toString(16)).join(",");
+    }
+
+    function decodeAfterError(label, failingBytes, nextBytes) {
+        const decoder = new TextDecoder(label, { fatal: true });
+        try {
+            decoder.decode(new Uint8Array(failingBytes), { stream: true });
+            println(`${label}: no error`);
+        } catch (e) {
+            println(`${label}: ${e.name}, then [${codeUnits(decoder.decode(new Uint8Array(nextBytes)))}]`);
+        }
+    }
+
+    test(() => {
+        decodeAfterError("utf-8", [0xff], [0xef, 0xbb, 0xbf, 0x41]);
+    });
+</script>
