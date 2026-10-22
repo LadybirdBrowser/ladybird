@@ -56,11 +56,6 @@ NonnullRefPtr<Core::Promise<Empty>> TestWebView::reset_session_history()
     return WebView::ViewImplementation::reset_session_history_for_testing();
 }
 
-pid_t TestWebView::web_content_pid() const
-{
-    return page().client().pid();
-}
-
 NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screenshot()
 {
     VERIFY(!m_pending_screenshot);

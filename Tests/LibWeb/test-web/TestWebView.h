@@ -27,7 +27,6 @@ public:
     void reset_line_box_borders();
     void reset_geolocation_emulated_position();
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history();
-    pid_t web_content_pid() const;
 
     NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot();
 

@@ -58,8 +58,8 @@ protected:
     HeadlessWebView& adopt_child_web_view(NonnullOwnPtr<HeadlessWebView>);
     void discard_child_web_view(HeadlessWebView&);
     void schedule_forced_close();
-    void prepare_page_for_navigable(WebContentPage&) override;
-    void send_system_theme_to_page(WebContentPage&) override;
+    virtual Core::AnonymousBuffer system_theme() override { return m_theme; }
+    virtual Optional<ScreenRects> screen_rects() const override;
     void update_zoom() override;
     ViewImplementation* create_view_for_new_tab_or_window(IsPrivate) override;
 

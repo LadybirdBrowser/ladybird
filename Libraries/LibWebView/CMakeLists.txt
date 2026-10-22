@@ -48,6 +48,7 @@ set(SOURCES
     PictureInPictureWindow.cpp
     Process.cpp
     ProcessManager.cpp
+    ProcessSnapshot.cpp
     TabPerformanceStats.cpp
     TabPerformanceMonitor.cpp
     ProcessMonitor.cpp

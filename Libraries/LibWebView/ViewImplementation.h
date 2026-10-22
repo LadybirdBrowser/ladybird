@@ -109,6 +109,7 @@ public:
     BrowsingSession& session() const { return *m_session; }
 
     u64 view_id() const { return m_view_id; }
+    pid_t web_content_pid() const;
 
     // A view that shows a page on behalf of another view, such as a Picture-in-Picture window, is part of that view's
     // tab rather than a tab or window of its own.
@@ -187,6 +188,7 @@ public:
         CheckForCancelation = CheckForCancelation::Yes,
         Function<void()> on_ready = nullptr);
     [[nodiscard]] Vector<SessionHistoryTraversalMenuItem> session_history_traversal_menu_items(int direction) const;
+    Vector<HistoryEntry> recent_history_entries(size_t limit) const;
 
     [[nodiscard]] SessionHistorySnapshot session_history_snapshot() const;
     [[nodiscard]] ErrorOr<void> restore_session_history_from_snapshot(SessionHistorySnapshot);
@@ -204,6 +206,17 @@ public:
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     Optional<u64> display_id() const { return m_display_id; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
+    // Sends the display metadata to every page hosting documents of the tab.
+    void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second);
+
+    struct ScreenRects {
+        Vector<Web::DevicePixelRect> rects;
+        // The available rects leave out what the system keeps for itself, such as a menu bar or a dock.
+        Vector<Web::DevicePixelRect> available_rects;
+        u32 main_screen_index { 0 };
+    };
+    // Sends the screens that screen_rects() reports to every page hosting documents of the tab.
+    void update_screen_rects();
     void set_scales_frames_to_fit(bool scales_frames_to_fit) { m_scales_frames_to_fit = scales_frames_to_fit; }
     void enable_picture_in_picture_controls();
     void enqueue_input_event(Web::InputEvent);
@@ -243,7 +256,9 @@ public:
     void set_preferred_motion(Web::CSS::PreferredMotion);
     // A page created to host documents of the tab in another process takes the preferences the view's page has.
     void send_preferences_to_page(WebContentPage&);
-    virtual void send_system_theme_to_page(WebContentPage&) { }
+    void send_system_theme_to_page(WebContentPage&);
+    // Sends the theme to every page hosting documents of the tab, including the pages of out-of-process iframes.
+    void update_system_theme(Core::AnonymousBuffer const&);
 
     void notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> page_cookies, ReadonlySpan<HTTP::Cookie::Cookie> host_cookies);
     void listen_for_host_cookie_changes(DevTools::DevToolsDelegate::OnHostCookieChange);
@@ -612,6 +627,10 @@ protected:
     static Gfx::IntRect rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size);
 
     static constexpr auto ZOOM_STEP = 0.1;
+
+    virtual Core::AnonymousBuffer system_theme() { return {}; }
+    virtual Optional<ScreenRects> screen_rects() const { return {}; }
+    void update_compositor_display_metadata(WebContentPage&);
 
     explicit ViewImplementation(IsPrivate = IsPrivate::No);
 
