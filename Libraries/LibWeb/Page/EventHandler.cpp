@@ -838,6 +838,8 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         }
     }
 
+    if (dispatched_pointer_up.result == PointerEventDispatchResult::CancelledByPage)
+        return EventResult::Cancelled;
     return EventResult::Handled;
 }
 
@@ -4434,7 +4436,7 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
     }
 
     // 5. If the PREVENT MOUSE EVENT flag is not set for this pointerType and the pointer event dispatched was:
-    bool run_default_activation_behavior = false;
+    auto result = PointerEventDispatchResult::MouseEventPrevented;
     if (!m_prevent_mouse_event) {
         GC::Ptr<DOM::EventTarget> mouse_event_target = node;
         auto mouse_event_name = [&] {
@@ -4455,7 +4457,8 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
             }
             VERIFY_NOT_REACHED();
         }();
-        run_default_activation_behavior = mouse_event_target->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(HTML::relevant_global_object(*node), m_navigable->active_window_proxy(), mouse_event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, movement, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
+        auto run_default_activation_behavior = mouse_event_target->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(HTML::relevant_global_object(*node), m_navigable->active_window_proxy(), mouse_event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, movement, button, buttons, modifiers, click_count).release_value_but_fixme_should_propagate_errors());
+        result = run_default_activation_behavior ? PointerEventDispatchResult::RunDefaultActions : PointerEventDispatchResult::CancelledByPage;
     }
 
     // 6. If the pointer event dispatched was pointerup or pointercancel, clear the PREVENT MOUSE EVENT flag for this
@@ -4463,7 +4466,7 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
     if (type == PointerEventType::PointerUp || type == PointerEventType::PointerCancel)
         m_prevent_mouse_event = false;
 
-    return { run_default_activation_behavior ? PointerEventDispatchResult::RunDefaultActions : PointerEventDispatchResult::CancelledByPage, pointer_capture_target };
+    return { result, pointer_capture_target };
 }
 
 void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node> target, Optional<DOM::HoverEventData> hover_event_data)

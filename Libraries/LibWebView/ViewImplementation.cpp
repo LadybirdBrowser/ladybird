@@ -1010,6 +1010,15 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
     if (auto const* mouse_event = event.get_pointer<Web::MouseEvent>()) {
         if (on_finish_handling_mouse_event)
             on_finish_handling_mouse_event(*mouse_event, event_result);
+
+        // The back and forward buttons traverse the session history once released, unless the page cancelled the
+        // mouseup.
+        if (mouse_event->type == Web::MouseEvent::Type::MouseUp && event_result != Web::EventResult::Cancelled) {
+            if (mouse_event->button == Web::UIEvents::MouseButton::Backward)
+                traverse_the_history_by_delta(-1);
+            else if (mouse_event->button == Web::UIEvents::MouseButton::Forward)
+                traverse_the_history_by_delta(1);
+        }
         return;
     }
 

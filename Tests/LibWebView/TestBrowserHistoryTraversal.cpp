@@ -21,6 +21,7 @@
 #include <LibURL/Parser.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
+#include <LibWebCommon/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CookieJar.h>
@@ -78,6 +79,20 @@ void press_history_traversal_key(WebView::ViewImplementation& view, Web::UIEvent
         .code_point = 0,
         .browser_data = nullptr,
     });
+}
+
+void press_history_traversal_button(WebView::ViewImplementation& view, Web::UIEvents::MouseButton button)
+{
+    for (auto type : { Web::MouseEvent::Type::MouseDown, Web::MouseEvent::Type::MouseUp }) {
+        view.enqueue_input_event(Web::MouseEvent {
+            .type = type,
+            .position = { 10, 10 },
+            .screen_position = { 10, 10 },
+            .button = button,
+            .buttons = type == Web::MouseEvent::Type::MouseDown ? button : Web::UIEvents::MouseButton::None,
+            .click_count = 1,
+        });
+    }
 }
 
 }
@@ -146,7 +161,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto url_a = URL::Parser::basic_parse("data:text/html,<title>A</title>first"sv).release_value();
     auto url_b = URL::Parser::basic_parse("data:text/html,<title>B</title>second"sv).release_value();
     auto url_c = URL::Parser::basic_parse("data:text/html,<title>C</title>third"sv).release_value();
-    auto url_d = URL::Parser::basic_parse("data:text/html,<title>D</title><script>window.preventNextKeydown=true;addEventListener('keydown',e=>{if(window.preventNextKeydown){window.preventNextKeydown=false;e.preventDefault()}})</script>fourth"sv).release_value();
+    auto url_d = URL::Parser::basic_parse("data:text/html,<title>D</title><script>window.preventNextKeydown=true;addEventListener('keydown',e=>{if(window.preventNextKeydown){window.preventNextKeydown=false;e.preventDefault()}});window.preventNextMouseup=true;addEventListener('mouseup',e=>{if(window.preventNextMouseup){window.preventNextMouseup=false;e.preventDefault()}})</script>fourth"sv).release_value();
 
     auto view_is_at = [&](URL::URL const& url) { return view->url().serialize() == url.serialize(); };
     // Waiting for the load count as well as the URL keeps the next step from racing the destination document.
@@ -197,6 +212,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     wait_until_at(url_b);
 
     press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Right);
+    wait_until_at(url_c);
+
+    view->traverse_the_history_by_delta(1);
+    wait_until_at(url_d);
+
+    // Page D cancels the first mouseup, so only the second back button press may traverse.
+    press_history_traversal_button(*view, Web::UIEvents::MouseButton::Backward);
+    press_history_traversal_button(*view, Web::UIEvents::MouseButton::Backward);
+    wait_until_at(url_c);
+
+    press_history_traversal_button(*view, Web::UIEvents::MouseButton::Backward);
+    wait_until_at(url_b);
+
+    press_history_traversal_button(*view, Web::UIEvents::MouseButton::Forward);
     wait_until_at(url_c);
 
     // An absolute target selected from the history menu queues like a button press. The Forward queued behind it
