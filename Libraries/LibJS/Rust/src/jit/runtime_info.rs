@@ -185,6 +185,8 @@ fn runtime_layout() -> RuntimeLayout {
         shape_prototype: offset(offset_of!(Shape, prototype)),
         object_flag_is_typed_array: object_flag::IS_TYPED_ARRAY,
         object_flag_is_htmldda: object_flag::IS_HTMLDDA,
+        object_flag_is_platform_object: object_flag::IS_PLATFORM_OBJECT,
+        object_flag_is_global_object: object_flag::IS_GLOBAL_OBJECT,
         object_flag_requires_slow_add_own_property: object_flag::REQUIRES_SLOW_ADD_OWN_PROPERTY,
         // NB: Named properties beyond the inline storage live in storage with its capacity in front, like indexed
         //     elements.

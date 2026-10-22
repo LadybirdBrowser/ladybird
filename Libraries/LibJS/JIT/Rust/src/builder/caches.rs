@@ -180,21 +180,31 @@ impl CacheEntry {
         }
     }
 
+    /// Where the accessor whose `part` the entry calls is, if compiled code
+    /// may call it there: in the receiver (no prototype) or in a prototype,
+    /// at an offset. Setters are only called in prototypes.
+    pub fn accessor_location(&self, part: AccessorPart) -> Option<(Option<CellId>, u32)> {
+        let prototype = |holder: Holder| match holder {
+            Holder::Receiver => None,
+            Holder::Prototype { prototype, .. } => Some(prototype),
+        };
+        match (self.action, part) {
+            (Action::Get { holder, offset }, AccessorPart::Getter) => Some((prototype(holder), offset)),
+            (
+                Action::Set {
+                    holder: Holder::Prototype { prototype, .. },
+                    offset,
+                },
+                AccessorPart::Setter,
+            ) => Some((Some(prototype), offset)),
+            _ => None,
+        }
+    }
+
     /// Whether the entry calls the `part` of an accessor of a function the
     /// compiler may inline.
     pub fn calls_accessor(&self, part: AccessorPart) -> bool {
-        let action_matches = matches!(
-            (self.action, part),
-            (Action::Get { .. }, AccessorPart::Getter)
-                | (
-                    Action::Set {
-                        holder: Holder::Prototype { .. },
-                        ..
-                    },
-                    AccessorPart::Setter
-                )
-        );
-        action_matches
+        self.accessor_location(part).is_some()
             && self
                 .accessor_function
                 .is_some_and(|function| function.inline_executable.is_some())

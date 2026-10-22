@@ -1049,6 +1049,92 @@ pub(crate) mod property_access {
     }
 
     #[test]
+    fn native_getters_read_wrappers_directly_only_through_validated_entries() {
+        use crate::snapshot::AccessorFunctionSnapshot;
+        use crate::snapshot::DirectGetterFields;
+        use crate::snapshot::NativeCallTarget;
+        let program = assemble(|_| vec![get_by_id(r(5), a(0), 0), Instruction::Return { value: r(5) }]);
+        let entry = |shape: u64, validated: bool| {
+            let target = NativeCallTarget {
+                function: CellId(0x9000),
+                realm: CellId(0xa000),
+                entry: 0xb000,
+                direct_getter: validated.then_some(DirectGetterFields {
+                    wrapper_implementation: 8,
+                    implementation_value: 16,
+                    main_world_wrapper: 24,
+                    weak_impl_value: 32,
+                }),
+            };
+            let mut entry = own(PropertyCacheEntryType::GetOwnProperty, shape, 1);
+            entry.holds_accessor = true;
+            entry.accessor_function = Some(AccessorFunctionSnapshot {
+                function: target.function,
+                intrinsic: None,
+                inline_executable: None,
+                cached_value_offset: None,
+                native: Some(target),
+            });
+            entry
+        };
+        let text = dump_with_caches(&program, vec![cache(vec![entry(0x100, true)])], Vec::new());
+        assert!(text.contains("CallNativeAccessor @0 Getter 0x9000 direct"), "{text}");
+        // The interpreter validates only the first entry of a cache.
+        for entries in [vec![entry(0x100, false)], vec![entry(0x100, true), entry(0x200, false)]] {
+            let text = dump_with_caches(&program, vec![cache(entries)], Vec::new());
+            assert!(text.contains("CallNativeAccessor @0 Getter 0x9000"), "{text}");
+            assert!(!text.contains("0x9000 direct"), "{text}");
+        }
+
+        // GetLength sites that saw arrays do not speculate on the getter of the other receivers.
+        let get_length = assemble(|_| {
+            vec![
+                Instruction::GetLength {
+                    value_feedback: 0,
+                    keyed_feedback: 0,
+                    dst: r(5),
+                    base: a(0),
+                    base_identifier: None,
+                    cache: 0,
+                },
+                Instruction::Return { value: r(5) },
+            ]
+        });
+        for (feedback, calls_getter) in [
+            (None, true),
+            (Some(crate::snapshot::keyed_feedback_bits::MAGICAL_LENGTH), false),
+        ] {
+            let mut snapshot = snapshot_for(&get_length, test_layout());
+            snapshot.executables[0].property_caches = vec![cache(vec![entry(0x100, true)])];
+            snapshot.executables[0].feedback.keyed = feedback
+                .map(|bits| crate::snapshot::KeyedFeedbackSnapshot { bits })
+                .into_iter()
+                .collect();
+            snapshot.runtime.heap_region_offset_mask = (1 << 48) - 1;
+            let text = dump(&optimized_graph(&snapshot), &test_layout());
+            assert_eq!(text.contains("CallNativeAccessor"), calls_getter, "{text}");
+        }
+
+        // Entries that validated the getter differently still share its cached value.
+        let cached = |shape: u64, validated: bool| {
+            let mut entry = entry(shape, validated);
+            entry.entry_type = PropertyCacheEntryType::GetPropertyInPrototypeChain;
+            entry.prototype = Some(CellId(0x7000));
+            entry.prototype_chain_validity = Some(CellId(0x8000));
+            if let Some(accessor) = entry.accessor_function.as_mut() {
+                accessor.cached_value_offset = Some(2);
+            }
+            entry
+        };
+        let text = dump_with_caches(
+            &program,
+            vec![cache(vec![cached(0x100, true), cached(0x200, false)])],
+            Vec::new(),
+        );
+        assert!(text.contains("LoadNamed +2"), "{text}");
+    }
+
+    #[test]
     fn cached_getters_check_identity_and_load_from_the_receiver() {
         use crate::snapshot::AccessorFunctionSnapshot;
         let program = assemble(|_| vec![get_by_id(r(5), a(0), 0), Instruction::Return { value: r(5) }]);
@@ -1061,6 +1147,7 @@ pub(crate) mod property_access {
             intrinsic: None,
             inline_executable: None,
             cached_value_offset: Some(2),
+            native: None,
         });
         let text = dump_with_caches(&program, vec![cache(vec![entry])], Vec::new());
         assert!(text.contains("CheckShape [0x100]"), "{text}");
@@ -1639,6 +1726,7 @@ pub(crate) mod inlining {
                     function: CellId(*getter),
                     intrinsic: None,
                     inline_executable: Some(1),
+                    native: None,
                 }),
                 holds_accessor: true,
                 ..own(PropertyCacheEntryType::GetOwnProperty, 0x100 + 0x100 * index as u64, 0)
@@ -1700,6 +1788,7 @@ pub(crate) mod inlining {
                         function: CellId(CALLEE_FUNCTION + index * 0x100),
                         intrinsic: None,
                         inline_executable: Some(1),
+                        native: None,
                     }),
                     holds_accessor: true,
                     ..own(PropertyCacheEntryType::GetOwnProperty, 0x100 + index * 0x100, 0)

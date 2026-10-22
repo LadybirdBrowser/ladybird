@@ -47,6 +47,7 @@ use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::snapshot::CellId;
 use crate::snapshot::Intrinsic;
+use crate::snapshot::NativeCallTarget;
 use crate::snapshot::keyed_feedback_bits;
 
 /// A check that a key is the one a keyed access speculates on: `key` must
@@ -254,7 +255,10 @@ impl GraphBuilder<'_> {
                     }
                 )
                 && entry.action == first.action
-                && entry.accessor_function == Some(accessor)
+                && entry.accessor_function.is_some_and(|entry_accessor| {
+                    entry_accessor.function == accessor.function
+                        && entry_accessor.cached_value_offset == accessor.cached_value_offset
+                })
         });
         let gates = [ExitKind::NotObject, ExitKind::BadShape, ExitKind::UnexpectedValue];
         if !same_cached_getter || !gates.into_iter().all(|kind| self.may_speculate(kind)) {
@@ -312,11 +316,7 @@ impl GraphBuilder<'_> {
         let Some(getter) = first.accessor_function else {
             return Ok(false);
         };
-        let Action::Get {
-            holder: Holder::Prototype { prototype, .. },
-            offset,
-        } = first.action
-        else {
+        let location @ Some((Some(_), _)) = first.accessor_location(AccessorPart::Getter) else {
             return Ok(false);
         };
         // NB: Typed arrays of each kind reach the getter through the prototype
@@ -324,16 +324,7 @@ impl GraphBuilder<'_> {
         let same_length_getter = getter.intrinsic == Some(Intrinsic::TypedArrayPrototypeLength)
             && entries.iter().all(|entry| {
                 entry.holds_accessor
-                    && matches!(
-                        entry.action,
-                        Action::Get {
-                            holder: Holder::Prototype {
-                                prototype: entry_prototype,
-                                ..
-                            },
-                            offset: entry_offset,
-                        } if entry_prototype == prototype && entry_offset == offset
-                    )
+                    && entry.accessor_location(AccessorPart::Getter) == location
                     && entry.accessor_function.map(|accessor| accessor.function) == Some(getter.function)
             });
         let gates = [
@@ -388,6 +379,108 @@ impl GraphBuilder<'_> {
             return None;
         }
         Some((entries, index))
+    }
+
+    /// The entries of the instruction's property cache if they all call the
+    /// `part` of the same accessor property (at one offset of the receiver,
+    /// or of one prototype) with the same raw native function, with the
+    /// target through which JIT code calls it (see `try_build_native_getter()`).
+    fn native_accessor_entries(&self, cache: u32, part: AccessorPart) -> Option<(Vec<CacheEntry>, NativeCallTarget)> {
+        // NB: Calls in inlined callees need their inlined frames, which these calls do not build.
+        if self.function.is_virtual() {
+            return None;
+        }
+        let entries = self.cache_entries(cache)?;
+        let first = entries[0];
+        let accessor = first.accessor_function?;
+        let mut target = accessor.native?;
+        let location = first.accessor_location(part)?;
+        let same_accessor = entries.iter().all(|entry| {
+            entry.holds_accessor
+                && entry.accessor_location(part) == Some(location)
+                && entry.accessor_function.map(|accessor| accessor.function) == Some(accessor.function)
+        });
+        let gates = [ExitKind::NotObject, ExitKind::BadShape, ExitKind::UnexpectedValue];
+        if !same_accessor || !gates.into_iter().all(|kind| self.may_speculate(kind)) {
+            return None;
+        }
+        // NB: Like the interpreter, read a getter's value without calling it only for shapes it ran on.
+        let validated = |entry: &CacheEntry| {
+            entry
+                .accessor_function
+                .and_then(|accessor| accessor.native)
+                .is_some_and(|native| native.direct_getter.is_some())
+        };
+        if !entries.iter().all(validated) {
+            target.direct_getter = None;
+        }
+        Some((entries, target))
+    }
+
+    /// A `CallNativeAccessor` node calling the `part` of an accessor, the
+    /// raw native function `target`, with `inputs`, whose frame state resumes
+    /// after the instruction with its result in `dst`.
+    fn emit_native_accessor_call(
+        &mut self,
+        part: AccessorPart,
+        target: NativeCallTarget,
+        inputs: Vec<NodeId>,
+        dst: u32,
+    ) -> NodeId {
+        let argument_count = inputs.len() as u64 - 1;
+        let slots_offset = u64::from(self.runtime.offsets.execution_context_slots);
+        self.reserve_call_frame(slots_offset + 8 * argument_count);
+        self.embed(target.function);
+        self.embed(target.realm);
+        let op = Op::CallNativeAccessor {
+            pc: self.function.pc,
+            part,
+            target,
+        };
+        let node = self.emit(op, inputs, Some(Repr::Tagged));
+        let frame_state = self.resume_after_frame_state(dst);
+        self.graph.nodes[node.index()].frame_state = Some(frame_state);
+        node
+    }
+
+    /// Builds `dst = base.property` for a property that holds an accessor
+    /// whose getter is a raw native function, like the getters of platform
+    /// objects, as a direct call of it: the instruction's cache entries must
+    /// all find the same getter at the same place (see
+    /// `native_accessor_entries()`).
+    pub(super) fn try_build_native_getter(
+        &mut self,
+        dst: Operand,
+        base: Operand,
+        cache: u32,
+    ) -> Result<bool, CompileFailure> {
+        let Some((entries, target)) = self.native_accessor_entries(cache, AccessorPart::Getter) else {
+            return Ok(false);
+        };
+        let (object, getter) = self.check_accessor_call(base, &entries, AccessorPart::Getter)?;
+        debug_assert!(getter.is_none(), "all entries have the same checked getter");
+        let value = self.emit_native_accessor_call(AccessorPart::Getter, target, vec![object], dst.raw());
+        self.write(dst, value)?;
+        Ok(true)
+    }
+
+    /// Builds `base.property = src` for a property that a prototype holds as
+    /// an accessor whose setter is a raw native function, as a direct call of
+    /// it, like `try_build_native_getter()`.
+    pub(super) fn try_build_native_setter(
+        &mut self,
+        base: Operand,
+        src: Operand,
+        cache: u32,
+    ) -> Result<bool, CompileFailure> {
+        let Some((entries, target)) = self.native_accessor_entries(cache, AccessorPart::Setter) else {
+            return Ok(false);
+        };
+        let value = self.read(src)?;
+        let (object, setter) = self.check_accessor_call(base, &entries, AccessorPart::Setter)?;
+        debug_assert!(setter.is_none(), "all entries have the same checked setter");
+        self.emit_native_accessor_call(AccessorPart::Setter, target, vec![object, value], Operand::INVALID);
+        Ok(true)
     }
 
     /// Checks that `base` is an object of the shapes of `entries`, which all

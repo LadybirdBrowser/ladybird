@@ -1170,6 +1170,8 @@ const FLAG_MAY_INTERFERE: u16 = 1 << 4;
 const FLAG_IS_EXTENSIBLE: u16 = 1 << 0;
 const FLAG_REQUIRES_SLOW_ADD_OWN_PROPERTY: u16 = 1 << 8;
 const FLAG_IS_ECMASCRIPT_FUNCTION: u16 = 1 << 6;
+const FLAG_IS_PLATFORM_OBJECT: u16 = 1 << 9;
+const FLAG_IS_GLOBAL_OBJECT: u16 = 1 << 10;
 const PACKED: u8 = 1;
 const HOLEY: u8 = 2;
 
@@ -1192,6 +1194,8 @@ fn fake_object_layout() -> RuntimeLayout {
         shape_prototype: 0,
         object_flag_is_typed_array: FLAG_IS_TYPED_ARRAY,
         object_flag_is_htmldda: HTMLDDA_FLAG,
+        object_flag_is_platform_object: FLAG_IS_PLATFORM_OBJECT,
+        object_flag_is_global_object: FLAG_IS_GLOBAL_OBJECT,
         object_flag_requires_slow_add_own_property: FLAG_REQUIRES_SLOW_ADD_OWN_PROPERTY,
         named_properties_capacity: -8,
         shape_property_count: 80,
@@ -2966,6 +2970,192 @@ fn get_by_id_through_property_caches() {
     validity[0] = 0;
     std::hint::black_box(&validity);
     assert_eq!(fake.get(fake.value()), MARKER);
+}
+
+/// A raw native getter's `ThrowCompletionOr<Value>`, in the return registers.
+#[repr(C)]
+struct FakeNativeResult {
+    value: u64,
+    is_error: u64,
+}
+
+const NATIVE_GETTER_RESULT: u64 = (value::UNDEFINED_TAG as u64) << 48 | 0xFEED;
+
+extern "C" fn fake_native_getter(_vm: u64) -> FakeNativeResult {
+    FakeNativeResult {
+        value: NATIVE_GETTER_RESULT,
+        is_error: 0,
+    }
+}
+
+#[test]
+fn get_by_id_reads_direct_getter_wrappers_inline() {
+    use crate::builder::tests::property_access::{cache, own};
+    use crate::snapshot::{
+        AccessorFunctionSnapshot, CellId, DirectGetterFields, NativeCallTarget, PropertyCacheEntryType,
+    };
+    // A wrapper whose implementation is in its word 10, with an accessor
+    // property 1 whose getter reads the implementation's word 2, and the
+    // main world wrapper of that through the implementation's word 1 and
+    // the weak reference's word 1.
+    let function = vec![0u64; 4];
+    let mut accessor = vec![0u64; 3];
+    accessor[1] = function.as_ptr() as u64;
+    let accessor_value = u64::from(0xFFFC_u16) << 48 | accessor.as_ptr() as u64;
+    let mut fake = FakeCachedObject::new(&[value::int32(10), accessor_value]);
+    let mut result = vec![0u64; 2];
+    let mut result_weak = vec![0, result.as_ptr() as u64];
+    let result_implementation = [0, result_weak.as_ptr() as u64, 0];
+    let mut weak = vec![0, fake.object.as_ptr() as u64];
+    let mut implementation = vec![0, weak.as_ptr() as u64, result_implementation.as_ptr() as u64];
+    fake.object[1] = u64::from(FLAG_IS_PLATFORM_OBJECT);
+    fake.object[10] = implementation.as_ptr() as u64;
+    let target = NativeCallTarget {
+        function: CellId(function.as_ptr() as u64),
+        realm: CellId(0x7000),
+        entry: fake_native_getter as *const () as u64,
+        direct_getter: Some(DirectGetterFields {
+            wrapper_implementation: 80,
+            implementation_value: 16,
+            main_world_wrapper: 8,
+            weak_impl_value: 8,
+        }),
+    };
+    let mut entry = own(PropertyCacheEntryType::GetOwnProperty, fake.shape.as_ptr() as u64, 1);
+    entry.holds_accessor = true;
+    entry.accessor_function = Some(AccessorFunctionSnapshot {
+        function: target.function,
+        intrinsic: None,
+        inline_executable: None,
+        cached_value_offset: None,
+        native: Some(target),
+    });
+    let program = assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::GetById {
+                value_feedback: 0,
+                dst: r(5),
+                base: argument(0),
+                property: crate::bytecode::PropertyKeyTableIndex(0),
+                base_identifier: None,
+                cache: 1,
+            },
+            Instruction::Return { value: r(5) },
+        ]
+    });
+    let get = |fake: &FakeCachedObject| {
+        let (result, _) = run_program_with_snapshot(
+            &program,
+            &[fake.value()],
+            |snapshot| snapshot.executables[0].property_caches = vec![cache(Vec::new()), cache(vec![entry])],
+            |machine| machine.frame[4] = fake.executable.as_ptr() as u64,
+        );
+        assert_eq!(result.status, RETURNED);
+        result.value
+    };
+    assert_eq!(get(&fake), object_value(&result));
+    implementation[2] = 0;
+    assert_eq!(get(&fake), value::NULL);
+    implementation[2] = result_implementation.as_ptr() as u64;
+
+    // The getter runs for a global object (which it returns as its window
+    // proxy), an implementation without a main world wrapper, a receiver
+    // that is not its implementation's main world wrapper, and an object
+    // that is no platform object.
+    result[1] = u64::from(FLAG_IS_GLOBAL_OBJECT);
+    assert_eq!(get(&fake), NATIVE_GETTER_RESULT);
+    result[1] = 0;
+    result_weak[1] = 0;
+    assert_eq!(get(&fake), NATIVE_GETTER_RESULT);
+    result_weak[1] = result.as_ptr() as u64;
+    weak[1] = 0x8000;
+    assert_eq!(get(&fake), NATIVE_GETTER_RESULT);
+    weak[1] = fake.object.as_ptr() as u64;
+    fake.object[1] = 0;
+    assert_eq!(get(&fake), NATIVE_GETTER_RESULT);
+    std::hint::black_box((&function, &accessor, &result, &result_weak, &weak, &implementation));
+}
+
+/// The VM words where `fake_native_setter()` puts the `this` value and the
+/// argument it was called with.
+const VM_NATIVE_SETTER_CALL_WORDS: usize = 10;
+
+extern "C" fn fake_native_setter(vm: *mut u64) -> FakeNativeResult {
+    // SAFETY: The VM's word 0 is the running frame, the setter's own, and the
+    // fake VM has room for the words the call is recorded in.
+    unsafe {
+        let frame = *vm as *const u64;
+        *vm.add(VM_NATIVE_SETTER_CALL_WORDS) = *frame.add(15);
+        *vm.add(VM_NATIVE_SETTER_CALL_WORDS + 1) = *frame.add(FRAME_HEADER_WORDS);
+    }
+    FakeNativeResult {
+        value: value::UNDEFINED,
+        is_error: 0,
+    }
+}
+
+#[test]
+fn put_by_id_calls_native_setters_of_prototypes() {
+    use crate::builder::tests::property_access::{cache, own};
+    use crate::snapshot::{AccessorFunctionSnapshot, CellId, NativeCallTarget, PropertyCacheEntryType};
+    // A prototype whose property 0 is an accessor with a native setter.
+    let function = vec![0u64; 4];
+    let mut accessor = vec![0u64; 3];
+    accessor[2] = function.as_ptr() as u64;
+    let accessor_value = u64::from(0xFFFC_u16) << 48 | accessor.as_ptr() as u64;
+    let prototype = FakeCachedObject::new(&[accessor_value]);
+    let validity = vec![1u64];
+    let fake = FakeCachedObject::new(&[value::int32(10)]);
+    let target = NativeCallTarget {
+        function: CellId(function.as_ptr() as u64),
+        realm: CellId(0x7000),
+        entry: fake_native_setter as *const () as u64,
+        direct_getter: None,
+    };
+    let mut entry = own(
+        PropertyCacheEntryType::ChangePropertyInPrototypeChain,
+        fake.shape.as_ptr() as u64,
+        0,
+    );
+    entry.prototype = Some(CellId(prototype.object.as_ptr() as u64));
+    entry.prototype_chain_validity = Some(CellId(validity.as_ptr() as u64));
+    entry.prototype_chain_valid = true;
+    entry.holds_accessor = true;
+    entry.accessor_function = Some(AccessorFunctionSnapshot {
+        function: target.function,
+        intrinsic: None,
+        inline_executable: None,
+        cached_value_offset: None,
+        native: Some(target),
+    });
+    let program = assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::PutById {
+                base: argument(0),
+                property: crate::bytecode::PropertyKeyTableIndex(0),
+                src: argument(1),
+                kind: 0,
+                cache: 1,
+                base_identifier: None,
+            },
+            Instruction::Return { value: c(0) },
+        ]
+    });
+    let (result, machine) = run_program_with_snapshot(
+        &program,
+        &[fake.value(), value::int32(42)],
+        |snapshot| snapshot.executables[0].property_caches = vec![cache(Vec::new()), cache(vec![entry])],
+        |machine| machine.frame[4] = fake.executable.as_ptr() as u64,
+    );
+    assert_eq!(result.status, RETURNED);
+    assert_eq!(machine.vm[VM_SLOW_PUTS_WORD], 0);
+    assert_eq!(
+        machine.vm[VM_NATIVE_SETTER_CALL_WORDS..VM_NATIVE_SETTER_CALL_WORDS + 2],
+        [fake.value(), value::int32(42)]
+    );
+    std::hint::black_box((&function, &accessor, &validity));
 }
 
 #[test]

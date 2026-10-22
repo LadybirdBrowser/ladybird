@@ -1631,9 +1631,15 @@ impl<'a> GraphBuilder<'a> {
                 }
             }
             Instruction::GetLength { dst, base, cache, .. } => {
+                // NB: Lengths of arrays never reach the cache, so where the site saw arrays, its cache does not show
+                //     all receivers.
+                let saw_arrays = self
+                    .keyed_feedback_bits(instruction)
+                    .is_some_and(|bits| bits & crate::snapshot::keyed_feedback_bits::MAGICAL_LENGTH != 0);
                 if !self.try_build_arguments_length(dst, base)?
                     && !self.try_build_array_length(instruction, dst, base)?
                     && !self.try_build_typed_array_length(dst, base, cache)?
+                    && (saw_arrays || !self.try_build_native_getter(dst, base, cache)?)
                 {
                     return Ok(None);
                 }
@@ -1718,6 +1724,9 @@ impl<'a> GraphBuilder<'a> {
                 if let Some(flow) = self.try_inline_getter(dst, base, cache)? {
                     return Ok(Some(flow));
                 }
+                if self.try_build_native_getter(dst, base, cache)? {
+                    return Ok(Some(Flow::Continue));
+                }
                 if !self.try_build_get_by_id(dst, base, cache)? {
                     return Ok(None);
                 }
@@ -1725,6 +1734,9 @@ impl<'a> GraphBuilder<'a> {
             Instruction::PutById { base, src, cache, .. } => {
                 if let Some(flow) = self.try_inline_setter(base, src, cache)? {
                     return Ok(Some(flow));
+                }
+                if self.try_build_native_setter(base, src, cache)? {
+                    return Ok(Some(Flow::Continue));
                 }
                 if !self.try_build_put_by_id(base, src, cache)? && !self.try_build_add_named(base, src, cache)? {
                     return Ok(None);
