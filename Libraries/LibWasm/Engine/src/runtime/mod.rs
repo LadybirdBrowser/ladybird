@@ -1096,6 +1096,10 @@ impl Store {
 
     /// Allocate an exception with the tag `tag` that carries `values`, one for each parameter of the tag's type.
     pub fn allocate_exception_with_values(&mut self, tag: TagAddress, values: &[Value]) -> u64 {
+        assert!(
+            values_match(values, &self.tag(tag).ty.params),
+            "an exception carries values of its tag's parameter types"
+        );
         // An exception's slots are in operand stack order, the last value first.
         let mut payload = Vec::new();
         for value in values.iter().rev() {
