@@ -617,6 +617,8 @@ private:
     OwnPtr<RequestServerManager> m_request_server_manager;
     HashMap<u64, Function<void()>> m_image_decoder_exit_handlers;
     RefPtr<CompositorClient> m_compositor_client;
+    RefPtr<CompositorPresentationClient> m_compositor_presentation_client;
+    u64 m_compositor_presentation_id { 0 };
     bool m_reported_compositor_gpu_presentation_unavailable { false };
     // The last identity a Compositor reported, which outlives that Compositor until its replacement reports.
     Optional<Optional<Gfx::GpuDeviceIdentity>> m_compositor_gpu_device_identity;

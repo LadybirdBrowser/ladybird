@@ -83,7 +83,18 @@ public:
         ConflictingOwner,
     };
 
-    void set_client(CompositorStateClient&);
+    struct PresentationCapabilities {
+        bool synthesizes_scroll_momentum { false };
+        bool scrolls_elastically { false };
+        // LUID of the GPU adapter the presentation can present shared GPU textures on, if any.
+        Optional<u64> gpu_presentation_adapter_luid;
+    };
+
+    // Each root context presents to the presentation it is bound to. Unbound contexts keep rendering, but publish nothing.
+    void register_presentation(CompositorStateClient&, PresentationCapabilities);
+    void unregister_presentation(CompositorStateClient&);
+    void bind_presentation(Web::CompositorContextId, CompositorStateClient&);
+    CompositorStateClient* presentation_for_context(Web::CompositorContextId) const;
     ContextOwnerCheckResult check_context_owner(Web::CompositorContextId, CompositorStateWebContentClient&);
     void destroy_contexts_for_web_content_client(CompositorStateWebContentClient&);
 
@@ -128,9 +139,7 @@ public:
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
     bool request_screenshot(Web::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id);
-    void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid);
-    void set_synthesizes_scroll_momentum(bool);
-    void set_scrolls_elastically(bool);
+    void set_client_gpu_presentation_capability(CompositorStateClient&, bool supported, u64 adapter_luid);
     String scroll_state_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID stretched_scroller) const;
     Optional<Compositing::FirstWheelStepRouteForTesting> route_first_wheel_step_for_testing(Web::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels);
     void begin_input_trace_for_testing(Web::CompositorContextId);
@@ -169,6 +178,8 @@ private:
         double device_pixel_ratio { 1.0 };
         bool was_cancelled { false };
         bool was_delivered { false };
+        // A frame that started rendering before its context was bound has no published buffer to present to.
+        bool publish_to_presentation { true };
     };
 
     ContextState* context_if_present(Web::CompositorContextId);
@@ -254,7 +265,9 @@ private:
     VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
     void present_pending_frames_on_vsync(Optional<u64> display_id, MonotonicTime frame_time);
     void publish_backing_stores(Web::CompositorContextId, ContextState&, BackingStoreManager::Publication&&);
-    BackingStoreManager::GpuSharing gpu_sharing_for_client() const;
+    BackingStoreManager::GpuSharing gpu_sharing_for_context(Web::CompositorContextId) const;
+    void unbind_presentation(Web::CompositorContextId);
+    void update_scroll_capabilities();
     void did_finish_async_present(PendingAsyncPresent&);
     void deliver_rendered_frame(PendingAsyncPresent&);
     void cancel_pending_async_presents_for_context(Web::CompositorContextId);
@@ -269,12 +282,9 @@ private:
     OwnPtr<DisplayListPlayerSkia> m_display_list_player;
     HashMap<Optional<u64>, OwnPtr<VSyncScheduler>> m_vsync_schedulers_by_display;
     RefPtr<Core::Timer> m_gpu_completion_timer;
-    CompositorStateClient* m_client { nullptr };
 
-    // LUID of the GPU adapter the client can present shared GPU textures on, if any.
-    Optional<u64> m_client_gpu_presentation_adapter_luid;
-    bool m_synthesizes_scroll_momentum { false };
-    bool m_scrolls_elastically { false };
+    HashMap<CompositorStateClient*, PresentationCapabilities> m_presentations;
+    HashMap<Web::CompositorContextId, CompositorStateClient*> m_context_presentations;
 
     struct VideoSinkState {
         RefPtr<Media::DisplayingVideoSink> sink;

@@ -7,6 +7,7 @@
 #include <AK/IDAllocator.h>
 #include <AK/Math.h>
 #include <Compositor/ConnectionFromClient.h>
+#include <Compositor/ConnectionFromPresentation.h>
 #include <Compositor/ConnectionFromWebContent.h>
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCompositing/UIOverlays.h>
@@ -21,7 +22,6 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     : IPC::ConnectionFromClient<CompositorControlClientEndpoint, CompositorControlServerEndpoint>(*this, move(transport), 1)
     , m_compositor_state(CompositorState::create(move(skia_backend_context)))
 {
-    m_compositor_state->set_client(*this);
 }
 
 void ConnectionFromClient::die()
@@ -29,36 +29,6 @@ void ConnectionFromClient::die()
     for (auto& [id, connection] : m_web_content_connections)
         connection->notify_compositor_lost();
     Core::Process::terminate_immediately(0);
-}
-
-void ConnectionFromClient::did_allocate_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores)
-{
-    async_did_allocate_backing_stores(context_id, move(bitmap_ids), move(backing_stores));
-}
-
-void ConnectionFromClient::did_add_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores)
-{
-    async_did_add_backing_stores(context_id, move(bitmap_ids), move(backing_stores));
-}
-
-void ConnectionFromClient::did_retire_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids)
-{
-    async_did_retire_backing_stores(context_id, move(bitmap_ids));
-}
-
-void ConnectionFromClient::did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio)
-{
-    async_did_present_frame(context_id, content_rect, damage_rect, bitmap_id, device_pixel_ratio);
-}
-
-void ConnectionFromClient::did_consume_input_event(Web::CompositorContextId context_id, u64 event_id)
-{
-    async_did_consume_input_event(context_id, event_id);
-}
-
-void ConnectionFromClient::did_not_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id)
-{
-    async_did_not_dispatch_input_event(context_id, event_id);
 }
 
 void ConnectionFromClient::set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation)
@@ -90,6 +60,34 @@ void ConnectionFromClient::connect_video_presentation(i32 web_content_connection
 {
     if (auto connection = m_web_content_connections.get(web_content_connection_id); connection.has_value())
         (*connection)->install_video_presentation_channel(move(handle));
+}
+
+Messages::CompositorControlServer::CreatePresentationConnectionResponse ConnectionFromClient::create_presentation_connection(bool synthesizes_scroll_momentum, bool scrolls_elastically, Optional<u64> gpu_presentation_adapter_luid)
+{
+    auto paired_transport = MUST(IPC::Transport::create_paired());
+    auto presentation_id = m_next_presentation_id++;
+    // NB: The capabilities come with the connection, so the first backing stores of a context bound to it match them.
+    auto capabilities = CompositorState::PresentationCapabilities {
+        .synthesizes_scroll_momentum = synthesizes_scroll_momentum,
+        .scrolls_elastically = scrolls_elastically,
+        .gpu_presentation_adapter_luid = gpu_presentation_adapter_luid,
+    };
+    auto connection = ConnectionFromPresentation::construct(move(paired_transport.local), m_compositor_state, capabilities);
+    connection->set_on_death([this, presentation_id] {
+        m_presentation_connections.remove(presentation_id);
+    });
+    m_presentation_connections.set(presentation_id, move(connection));
+    return { move(paired_transport.remote_handle), presentation_id };
+}
+
+void ConnectionFromClient::bind_presentation(Web::CompositorContextId context_id, u64 presentation_id)
+{
+    auto connection = m_presentation_connections.get(presentation_id);
+    if (!connection.has_value()) {
+        dbgln("Compositor: Ignoring binding of context {} to presentation {}, which is already gone", context_id, presentation_id);
+        return;
+    }
+    m_compositor_state->bind_presentation(context_id, **connection);
 }
 
 void ConnectionFromClient::create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id)
@@ -125,46 +123,6 @@ void ConnectionFromClient::set_display_metadata(Web::CompositorContextId context
 void ConnectionFromClient::set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility)
 {
     m_compositor_state->set_context_visibility(context_id, visibility);
-}
-
-void ConnectionFromClient::handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event)
-{
-    m_compositor_state->handle_and_dispatch_mouse_event(context_id, move(event));
-}
-
-Messages::CompositorControlServer::HandleKeyEventResponse ConnectionFromClient::handle_key_event(Web::CompositorContextId context_id, Web::KeyEvent event)
-{
-    return m_compositor_state->handle_key_event(context_id, event);
-}
-
-Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse ConnectionFromClient::dispatch_key_event_to_web_content(Web::CompositorContextId context_id, Web::KeyEvent event)
-{
-    return m_compositor_state->dispatch_key_event_to_web_content(context_id, event);
-}
-
-void ConnectionFromClient::handle_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)
-{
-    m_compositor_state->handle_pinch_event(context_id, event);
-}
-
-void ConnectionFromClient::presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id)
-{
-    m_compositor_state->presented_bitmap_ready_to_paint(context_id, bitmap_id);
-}
-
-void ConnectionFromClient::set_client_gpu_presentation_capability(bool supported, u64 adapter_luid)
-{
-    m_compositor_state->set_client_gpu_presentation_capability(supported, adapter_luid);
-}
-
-void ConnectionFromClient::set_synthesizes_scroll_momentum(bool synthesizes_scroll_momentum)
-{
-    m_compositor_state->set_synthesizes_scroll_momentum(synthesizes_scroll_momentum);
-}
-
-void ConnectionFromClient::set_scrolls_elastically(bool scrolls_elastically)
-{
-    m_compositor_state->set_scrolls_elastically(scrolls_elastically);
 }
 
 void ConnectionFromClient::crash()

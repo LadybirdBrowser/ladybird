@@ -37,9 +37,66 @@ CompositorState::~CompositorState()
     m_gpu_completion_timer->stop();
 }
 
-void CompositorState::set_client(CompositorStateClient& client)
+void CompositorState::register_presentation(CompositorStateClient& presentation, PresentationCapabilities capabilities)
 {
-    m_client = &client;
+    m_presentations.set(&presentation, capabilities);
+}
+
+void CompositorState::unregister_presentation(CompositorStateClient& presentation)
+{
+    Vector<Web::CompositorContextId> bound_context_ids;
+    for (auto const& [context_id, bound_presentation] : m_context_presentations) {
+        if (bound_presentation == &presentation)
+            bound_context_ids.append(context_id);
+    }
+    for (auto context_id : bound_context_ids)
+        unbind_presentation(context_id);
+    m_presentations.remove(&presentation);
+}
+
+void CompositorState::bind_presentation(Web::CompositorContextId context_id, CompositorStateClient& presentation)
+{
+    VERIFY(m_presentations.contains(&presentation));
+    auto* context = context_if_present(context_id);
+    if (!context || !context->presents_to_client()) {
+        dbgln("Compositor: Ignoring presentation binding for context {}, which is not a root context", context_id);
+        return;
+    }
+    if (presentation_for_context(context_id) == &presentation)
+        return;
+
+    unbind_presentation(context_id);
+    m_context_presentations.set(context_id, &presentation);
+    update_scroll_capabilities();
+
+    // The new presentation has seen none of the context's buffers, so it gets buffers of its own.
+    context->presenter().invalidate_backing_stores();
+    resize_backing_stores_if_needed(context_id, *context);
+}
+
+void CompositorState::unbind_presentation(Web::CompositorContextId context_id)
+{
+    if (!m_context_presentations.remove(context_id))
+        return;
+    auto* context = context_if_present(context_id);
+    VERIFY(context);
+
+    for (auto& pending_present : m_pending_async_presents) {
+        if (pending_present.context_id == context_id)
+            pending_present.publish_to_presentation = false;
+    }
+    // Nobody is left to release the buffers the presentation was showing.
+    context->presenter().acknowledge_all_presented_bitmaps();
+    update_scroll_capabilities();
+
+    context->presenter().invalidate_backing_stores();
+    resize_backing_stores_if_needed(context_id, *context);
+    schedule_pending_present_frame_if_unblocked(context_id, *context);
+}
+
+CompositorStateClient* CompositorState::presentation_for_context(Web::CompositorContextId context_id) const
+{
+    return m_context_presentations.get(context_id).value_or(nullptr);
 }
 
 CompositorState::ContextOwnerCheckResult CompositorState::check_context_owner(Web::CompositorContextId context_id, CompositorStateWebContentClient& client)
@@ -139,7 +196,6 @@ void CompositorState::create_context(Web::CompositorContextId context_id, Option
             schedule_caret_repaint(context_id, damage_rect);
         });
     });
-    context.set_scrolls_elastically(m_scrolls_elastically);
     resize_backing_stores_if_needed(context_id, context);
 }
 
@@ -158,7 +214,9 @@ void CompositorState::destroy_context(Web::CompositorContextId context_id)
         if (parent_context_id.has_value() && *parent_context_id == context_id)
             possible_child_context.set_parent_context({});
     }
+    m_context_presentations.remove(context_id);
     m_contexts.remove(context_id);
+    update_scroll_capabilities();
     update_unpainted_video_update_scheduling();
 }
 
@@ -186,6 +244,7 @@ void CompositorState::set_parent_context(Web::CompositorContextId context_id, Op
 
     clear_parent_context(*context);
     context->set_parent_context(parent_context_id);
+    update_scroll_capabilities();
 
     if (!parent_context_id.has_value())
         return;
@@ -202,6 +261,7 @@ void CompositorState::stop_presenting_to_client(Web::CompositorContextId context
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
+    unbind_presentation(context_id);
     context->stop_presenting_to_client();
 }
 
@@ -547,7 +607,9 @@ bool CompositorState::dispatch_key_event_to_web_content(Web::CompositorContextId
 
 void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event)
 {
-    VERIFY(m_client);
+    // NB: The presentation connection only passes on input for the contexts bound to it.
+    auto* presentation = presentation_for_context(context_id);
+    VERIFY(presentation);
     auto* context = context_if_present(context_id);
     auto record_routing = [&](Web::InputRoutingDecision decision, Optional<Web::AsyncScrollNodeStableID> scroller = {}) {
         context->input_trace().record({ .input_event_id = event.id, .stage = Web::InputTraceStage::Compositor, .decision = decision, .scroller = scroller });
@@ -555,7 +617,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
     if (!context || !context->can_dispatch_input_to_web_content()) {
         if (context)
             record_routing(Web::InputRoutingDecision::NotDispatchedByCompositor);
-        m_client->did_not_dispatch_input_event(context_id, event.id);
+        presentation->did_not_dispatch_input_event(context_id, event.id);
         return;
     }
 
@@ -570,7 +632,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         // flicked gesture, so it does not stop the fling.
         if (event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->has_active_scroll_fling()) {
             record_routing(Web::InputRoutingDecision::GestureEndAbsorbedByFling);
-            m_client->did_consume_input_event(context_id, event.id);
+            presentation->did_consume_input_event(context_id, event.id);
             return;
         }
 
@@ -578,9 +640,9 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         dispatch_scroll_fling_step(context_id, *context, context->interrupt_scroll_fling(event), MonotonicTime::now());
 
         // If the gesture continues as a fling, the end of the fling is the end of the gesture.
-        if (m_synthesizes_scroll_momentum && event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->start_scroll_fling_if_flicked(event)) {
+        if (m_presentations.get(presentation)->synthesizes_scroll_momentum && event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->start_scroll_fling_if_flicked(event)) {
             record_routing(Web::InputRoutingDecision::FlingStarted);
-            m_client->did_consume_input_event(context_id, event.id);
+            presentation->did_consume_input_event(context_id, event.id);
             schedule_animation_frames_if_needed(*context);
             return;
         }
@@ -609,7 +671,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         // The page still sees the events of a drag the compositor scrolls for a scrollbar the display list paints.
         if (!result.scrollbar_dragged_by_compositor.has_value()) {
             record_routing(Web::InputRoutingDecision::ConsumedByCompositor);
-            m_client->did_consume_input_event(context_id, event.id);
+            presentation->did_consume_input_event(context_id, event.id);
             return;
         }
         event.scrollbar_dragged_by_compositor = result.scrollbar_dragged_by_compositor;
@@ -988,6 +1050,7 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Context
 
     m_pending_async_presents.append(context_id, pending_frame.viewport_rect, prepared_frame->damage_rect, prepared_frame->bitmap_id, prepared_frame->device_pixel_ratio);
     auto* pending_present = &m_pending_async_presents.last();
+    pending_present->publish_to_presentation = presentation_for_context(context_id) != nullptr;
 
     auto& event_loop = Core::EventLoop::current();
     auto self = NonnullRefPtr { *this };
@@ -1239,8 +1302,13 @@ void CompositorState::deliver_rendered_frame(PendingAsyncPresent& pending_presen
     VERIFY(context);
 
     context->presenter().did_finish_gpu_present(pending_present.bitmap_id);
-    if (context->presents_to_client()) {
-        VERIFY(m_client);
+    auto* presentation = pending_present.publish_to_presentation ? presentation_for_context(context_id) : nullptr;
+    if (context->presents_to_client() && !presentation) {
+        // Nobody shows the frame, so it is released here, on another turn, as a presentation would release it.
+        Core::deferred_invoke([self = NonnullRefPtr { *this }, context_id, bitmap_id = pending_present.bitmap_id] {
+            self->presented_bitmap_ready_to_paint(context_id, bitmap_id);
+        });
+    } else if (context->presents_to_client()) {
         if (auto* log = Core::StatsLog::the(); log && context->page_id().has_value()) {
             auto const& damage = pending_present.damage_rect;
             JsonObject data;
@@ -1252,7 +1320,7 @@ void CompositorState::deliver_rendered_frame(PendingAsyncPresent& pending_presen
             data.set("damage_height"sv, damage.height());
             log->event("frame"sv, move(data));
         }
-        m_client->did_present_frame(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.bitmap_id, pending_present.device_pixel_ratio);
+        presentation->did_present_frame(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.bitmap_id, pending_present.device_pixel_ratio);
     }
     resize_backing_stores_if_needed(context_id, *context);
     if (auto parent_context_id = context->parent_context_id(); parent_context_id.has_value()) {
@@ -1348,7 +1416,7 @@ Compositing::CompositedContextSurface CompositorState::resolve_composited_contex
         return {};
 
     if (child_context->presenter().update_composited_raster_transform(destination_rect, canvas_transform)) {
-        auto publication = child_context->presenter().resize_backing_stores_if_needed(m_skia_backend_context, BackingStoreManager::GpuSharing::Disallowed);
+        auto publication = child_context->presenter().resize_backing_stores_if_needed(m_skia_backend_context, BackingStoreManager::GpuSharing::Disallowed, BackingStoreManager::PublicationMode::Unpublished);
         VERIFY(!publication.has_value());
     }
 
@@ -1363,32 +1431,31 @@ Compositing::CompositedContextSurface CompositorState::resolve_composited_contex
 
 void CompositorState::resize_backing_stores_if_needed(Web::CompositorContextId context_id, ContextState& context)
 {
-    if (auto publication = context.presenter().resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_client()); publication.has_value()) {
+    auto publication_mode = presentation_for_context(context_id) ? BackingStoreManager::PublicationMode::Published : BackingStoreManager::PublicationMode::Unpublished;
+    if (auto publication = context.presenter().resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_context(context_id), publication_mode); publication.has_value()) {
         publish_backing_stores(context_id, context, publication.release_value());
         present_current_frame(context_id, context);
     }
 }
 
-BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_client() const
+BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_context([[maybe_unused]] Web::CompositorContextId context_id) const
 {
 #ifdef USE_DIRECTX
-    // Shared Direct3D textures can only be opened by the client if it presents on the same adapter.
-    if (!m_skia_backend_context || m_client_gpu_presentation_adapter_luid != m_skia_backend_context->direct3d_context().adapter_luid())
+    // Shared Direct3D textures can only be opened by the presentation if it presents on the same adapter.
+    auto* presentation = presentation_for_context(context_id);
+    if (!presentation || !m_skia_backend_context || m_presentations.get(presentation)->gpu_presentation_adapter_luid != m_skia_backend_context->direct3d_context().adapter_luid())
         return BackingStoreManager::GpuSharing::Disallowed;
 #endif
     return BackingStoreManager::GpuSharing::Allowed;
 }
 
-void CompositorState::set_synthesizes_scroll_momentum(bool synthesizes_scroll_momentum)
+// A context scrolls elastically if the presentation of its root context does.
+void CompositorState::update_scroll_capabilities()
 {
-    m_synthesizes_scroll_momentum = synthesizes_scroll_momentum;
-}
-
-void CompositorState::set_scrolls_elastically(bool scrolls_elastically)
-{
-    m_scrolls_elastically = scrolls_elastically;
-    for (auto& context_entry : m_contexts)
-        context_entry.value->set_scrolls_elastically(scrolls_elastically);
+    for (auto& [context_id, context] : m_contexts) {
+        auto* presentation = presentation_for_context(root_context_of(*context)->context_id());
+        context->set_scrolls_elastically(presentation && m_presentations.get(presentation)->scrolls_elastically);
+    }
 }
 
 String CompositorState::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller) const
@@ -1436,19 +1503,20 @@ Vector<Web::InputTraceRecord> CompositorState::take_input_trace_for_testing(Web:
     return context->input_trace().take();
 }
 
-void CompositorState::set_client_gpu_presentation_capability(bool supported, u64 adapter_luid)
+void CompositorState::set_client_gpu_presentation_capability(CompositorStateClient& presentation, bool supported, u64 adapter_luid)
 {
     Optional<u64> new_adapter_luid;
     if (supported)
         new_adapter_luid = adapter_luid;
-    if (m_client_gpu_presentation_adapter_luid == new_adapter_luid)
+    auto& presentation_adapter_luid = m_presentations.get(&presentation)->gpu_presentation_adapter_luid;
+    if (presentation_adapter_luid == new_adapter_luid)
         return;
-    m_client_gpu_presentation_adapter_luid = new_adapter_luid;
+    presentation_adapter_luid = new_adapter_luid;
 
-    // Reallocate the backing stores of every presenting context so they match the new capability.
+    // Reallocate the backing stores of the presentation's contexts so they match the new capability.
     for (auto& context_entry : m_contexts) {
         auto& context = *context_entry.value;
-        if (!context.presents_to_client())
+        if (presentation_for_context(context_entry.key) != &presentation)
             continue;
         context.presenter().invalidate_backing_stores();
         resize_backing_stores_if_needed(context_entry.key, context);
@@ -1474,13 +1542,15 @@ void CompositorState::shrink_backing_stores_after_resize(Web::CompositorContextI
 
 void CompositorState::add_backing_store_for_pending_frame_if_needed(Web::CompositorContextId context_id, ContextState& context)
 {
+    auto* presentation = presentation_for_context(context_id);
+    if (!presentation)
+        return;
     auto publication = context.presenter().add_backing_store_for_pending_frame_if_needed(m_skia_backend_context);
     if (!publication.has_value())
         return;
 
-    VERIFY(m_client);
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} gained backing store {}, as the window server still reads every released one", context_id, publication->bitmap_ids);
-    m_client->did_add_backing_stores(context_id, move(publication->bitmap_ids), move(publication->shared_images));
+    presentation->did_add_backing_stores(context_id, move(publication->bitmap_ids), move(publication->shared_images));
     schedule_surplus_backing_store_retirement(context_id, context);
 }
 
@@ -1498,10 +1568,9 @@ void CompositorState::retire_idle_surplus_backing_stores(Web::CompositorContextI
         return;
 
     auto retired_bitmap_ids = context->presenter().retire_idle_surplus_backing_stores();
-    if (!retired_bitmap_ids.is_empty() && context->presents_to_client()) {
-        VERIFY(m_client);
+    if (auto* presentation = presentation_for_context(context_id); presentation && !retired_bitmap_ids.is_empty()) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} retired idle backing stores {}", context_id, retired_bitmap_ids);
-        m_client->did_retire_backing_stores(context_id, move(retired_bitmap_ids));
+        presentation->did_retire_backing_stores(context_id, move(retired_bitmap_ids));
     }
     if (context->presenter().has_surplus_backing_stores())
         schedule_surplus_backing_store_retirement(context_id, *context);
@@ -1528,10 +1597,11 @@ bool CompositorState::apply_context_update_result(
 
 void CompositorState::publish_backing_stores(Web::CompositorContextId context_id, ContextState& context, BackingStoreManager::Publication&& publication)
 {
-    VERIFY(m_client);
+    auto* presentation = presentation_for_context(context_id);
+    VERIFY(presentation);
     VERIFY(context.presents_to_client());
 
-    m_client->did_allocate_backing_stores(context_id, move(publication.bitmap_ids), move(publication.shared_images));
+    presentation->did_allocate_backing_stores(context_id, move(publication.bitmap_ids), move(publication.shared_images));
 }
 
 }

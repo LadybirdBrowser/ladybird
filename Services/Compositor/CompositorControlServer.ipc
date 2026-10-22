@@ -5,7 +5,6 @@
 #include <LibGfx/Size.h>
 #include <LibIPC/File.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibWebCommon/Page/InputEvent.h>
 
 endpoint CompositorControlServer
 {
@@ -14,6 +13,8 @@ endpoint CompositorControlServer
     connect_web_content() => (IPC::TransportHandle handle, i32 web_content_connection_id)
     connect_render_clock(i32 web_content_connection_id, IPC::TransportHandle handle) =|
     connect_video_presentation(i32 web_content_connection_id, IPC::TransportHandle handle) =|
+    create_presentation_connection(bool synthesizes_scroll_momentum, bool scrolls_elastically, Optional<u64> gpu_presentation_adapter_luid) => (IPC::TransportHandle handle, u64 presentation_id)
+    bind_presentation(Web::CompositorContextId context_id, u64 presentation_id) => ()
 
     create_context(Web::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id) => ()
 
@@ -21,14 +22,6 @@ endpoint CompositorControlServer
     set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays) =|
     set_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate) =|
 
-    handle_key_event(Web::CompositorContextId context_id, Web::KeyEvent event) => (bool handled)
-    dispatch_key_event_to_web_content(Web::CompositorContextId context_id, Web::KeyEvent event) => (bool dispatched)
-    handle_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event) =|
-    handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event) =|
-    presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id) =|
-    set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) =|
-    set_synthesizes_scroll_momentum(bool synthesizes_scroll_momentum) =|
-    set_scrolls_elastically(bool scrolls_elastically) =|
     set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility) =|
     crash() =|
 }

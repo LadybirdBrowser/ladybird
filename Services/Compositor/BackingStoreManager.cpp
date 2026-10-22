@@ -366,6 +366,14 @@ bool BackingStoreManager::release_buffer(i32 bitmap_id)
     return false;
 }
 
+void BackingStoreManager::release_all_presented_buffers()
+{
+    for (auto& store : m_backing_stores) {
+        if (store.state == BufferState::Presented)
+            store.state = BufferState::Available;
+    }
+}
+
 RefPtr<Gfx::PaintingSurface> BackingStoreManager::latest_rendered_surface() const
 {
     if (!m_latest_rendered_store_index.has_value())

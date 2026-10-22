@@ -112,7 +112,7 @@ Optional<Gfx::IntRect> ContextPresenter::viewport_rect_for_ui_overlay() const
     return viewport_rect;
 }
 
-Optional<BackingStoreManager::Publication> ContextPresenter::resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, BackingStoreManager::GpuSharing gpu_sharing)
+Optional<BackingStoreManager::Publication> ContextPresenter::resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, BackingStoreManager::GpuSharing gpu_sharing, BackingStoreManager::PublicationMode publication_mode)
 {
     if (m_backing_store_manager.is_rendering())
         return {};
@@ -127,12 +127,13 @@ Optional<BackingStoreManager::Publication> ContextPresenter::resize_backing_stor
             m_last_rasterized_frame.clear();
         }
     }
-    auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(raster_size(), m_window_resize_in_progress, presents_to_client());
+    auto should_publish = presents_to_client() && publication_mode == BackingStoreManager::PublicationMode::Published;
+    auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(raster_size(), m_window_resize_in_progress, should_publish);
     if (!allocation.has_value())
         return {};
     m_latest_rendered_surface = nullptr;
     m_last_rasterized_frame.clear();
-    return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, presents_to_client(), gpu_sharing);
+    return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, should_publish, gpu_sharing);
 }
 
 void ContextPresenter::invalidate_backing_stores()

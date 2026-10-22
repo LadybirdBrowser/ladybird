@@ -9,6 +9,7 @@
 namespace Compositor {
 
 class ConnectionFromClient;
+class ConnectionFromPresentation;
 class ConnectionFromWebContent;
 class CompositorState;
 class DisplayListPlayerSkia;
