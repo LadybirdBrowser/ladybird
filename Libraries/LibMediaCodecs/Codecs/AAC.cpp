@@ -14,28 +14,129 @@
 namespace Media::Codecs {
 
 static constexpr u8 ESCAPED_AUDIO_OBJECT_TYPE = 31;
+static constexpr u8 ESCAPED_SAMPLE_RATE_INDEX = 0xF;
+static constexpr Array SAMPLE_RATES {
+    96000u, 88200u, 64000u, 48000u, 44100u, 32000u, 24000u, 22050u, 16000u, 12000u, 11025u, 8000u, 7350u
+};
+
+static u32 read_audio_object_type(BitReader& reader)
+{
+    u32 audio_object_type = reader.read_bits<u8>(5);
+    if (audio_object_type == ESCAPED_AUDIO_OBJECT_TYPE)
+        audio_object_type = 32 + reader.read_bits<u8>(6);
+    return audio_object_type;
+}
+
+static Optional<u32> read_sample_rate(BitReader& reader)
+{
+    auto index = reader.read_bits<u8>(4);
+    if (index == ESCAPED_SAMPLE_RATE_INDEX)
+        return reader.read_bits<u32>(24);
+    if (index >= SAMPLE_RATES.size())
+        return {};
+    return SAMPLE_RATES[index];
+}
 
 Optional<AAC::Parameters> AAC::parse_configuration_record(ReadonlyBytes audio_specific_config, u8 object_type_indication)
 {
     BitReader reader { audio_specific_config };
-    u32 audio_object_type = reader.read_bits<u8>(5);
-    if (audio_object_type == ESCAPED_AUDIO_OBJECT_TYPE)
-        audio_object_type = 32 + reader.read_bits<u8>(6);
+    auto audio_object_type = read_audio_object_type(reader);
     if (reader.has_overrun())
         return {};
 
     return Parameters { object_type_indication, audio_object_type };
 }
 
-static constexpr u8 ESCAPED_SAMPLE_RATE_INDEX = 0xF;
+static Optional<u8> channel_count_from_configuration(u8 channel_configuration)
+{
+    switch (channel_configuration) {
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+        return channel_configuration;
+    case 7:
+        return 8;
+    default:
+        return {};
+    }
+}
+
+Optional<AAC::ExplicitSpectralBandReplication> AAC::parse_explicit_spectral_band_replication(ReadonlyBytes audio_specific_config)
+{
+    static constexpr u16 SPECTRAL_BAND_REPLICATION_SYNC_EXTENSION_TYPE = 0x2B7;
+
+    BitReader reader { audio_specific_config };
+
+    // Parse the AudioSpecificConfig fields first.
+    auto audio_object_type = read_audio_object_type(reader);
+    auto sample_rate = read_sample_rate(reader);
+    auto channel_configuration = reader.read_bits<u8>(4);
+
+    Optional<u32> output_sample_rate;
+    if (audio_object_type == SPECTRAL_BAND_REPLICATION_AUDIO_OBJECT_TYPE || audio_object_type == PARAMETRIC_STEREO_AUDIO_OBJECT_TYPE) {
+        output_sample_rate = read_sample_rate(reader);
+        if (!output_sample_rate.has_value())
+            return {};
+        audio_object_type = read_audio_object_type(reader);
+    }
+
+    if (!sample_rate.has_value() || reader.has_overrun())
+        return {};
+
+    // Parse the GASpecificConfig when the audio object type requires it.
+    if (audio_object_type < MAIN_AUDIO_OBJECT_TYPE || audio_object_type > LONG_TERM_PREDICTION_AUDIO_OBJECT_TYPE)
+        return {};
+
+    // A channel configuration of zero is followed by a program config element, which we don't parse.
+    auto channel_count = channel_count_from_configuration(channel_configuration);
+    if (!channel_count.has_value())
+        return {};
+
+    GeneralAudioSpecificConfig general_audio_specific_config {};
+    general_audio_specific_config.frame_length_flag = reader.read_bit();
+    auto depends_on_core_coder = reader.read_bit();
+    if (depends_on_core_coder)
+        general_audio_specific_config.core_coder_delay = reader.read_bits<u16>(14);
+    auto extension_flag = reader.read_bit();
+    if (extension_flag)
+        general_audio_specific_config.extension_flag_3 = reader.read_bit();
+    if (reader.has_overrun())
+        return {};
+
+    // Backward-compatible signaling follows the core configuration with a sync extension.
+    if (!output_sample_rate.has_value() && reader.bits_remaining() >= 16) {
+        auto sync_extension_type = reader.read_bits<u16>(11);
+        if (sync_extension_type != SPECTRAL_BAND_REPLICATION_SYNC_EXTENSION_TYPE)
+            return {};
+        if (read_audio_object_type(reader) != SPECTRAL_BAND_REPLICATION_AUDIO_OBJECT_TYPE)
+            return {};
+        auto spectral_band_replication_present = reader.read_bit();
+        if (!spectral_band_replication_present)
+            return {};
+        output_sample_rate = read_sample_rate(reader);
+        if (!output_sample_rate.has_value() || reader.has_overrun())
+            return {};
+    }
+
+    if (!output_sample_rate.has_value())
+        return {};
+
+    return ExplicitSpectralBandReplication {
+        .core_audio_object_type = audio_object_type,
+        .core_sample_rate = sample_rate.value(),
+        .channel_count = channel_count.value(),
+        .general_audio_specific_config = general_audio_specific_config,
+        .output_sample_rate = output_sample_rate.value(),
+    };
+}
 
 static u8 sample_rate_index(u32 sample_rate)
 {
-    constexpr Array sample_rates {
-        96000u, 88200u, 64000u, 48000u, 44100u, 32000u, 24000u, 22050u, 16000u, 12000u, 11025u, 8000u, 7350u
-    };
-    for (size_t index = 0; index < sample_rates.size(); index++) {
-        if (sample_rates[index] == sample_rate)
+    for (size_t index = 0; index < SAMPLE_RATES.size(); index++) {
+        if (SAMPLE_RATES[index] == sample_rate)
             return static_cast<u8>(index);
     }
     return ESCAPED_SAMPLE_RATE_INDEX;
@@ -59,10 +160,10 @@ static Optional<u8> channel_configuration(u8 channel_count)
     }
 }
 
-DecoderErrorOr<FixedArray<u8>> AAC::create_configuration_record(u32 audio_object_type, u32 sample_rate, u8 channel_count, Optional<u32> spectral_band_replication_sample_rate)
+DecoderErrorOr<FixedArray<u8>> AAC::create_configuration_record(u32 audio_object_type, u32 sample_rate, u8 channel_count, Optional<u32> spectral_band_replication_sample_rate, GeneralAudioSpecificConfig const& general_audio_specific_config)
 {
     static constexpr u16 SPECTRAL_BAND_REPLICATION_SYNC_EXTENSION_TYPE = 0x2B7;
-    static constexpr size_t MAXIMUM_SIZE = 8;
+    static constexpr size_t MAXIMUM_SIZE = 16;
 
     VERIFY(audio_object_type < ESCAPED_AUDIO_OBJECT_TYPE);
 
@@ -86,8 +187,13 @@ DecoderErrorOr<FixedArray<u8>> AAC::create_configuration_record(u32 audio_object
         TRY(writer.write_bits(audio_object_type, 5));
         TRY(write_sample_rate(sample_rate));
         TRY(writer.write_bits(*channels, 4));
-        // GASpecificConfig: frameLengthFlag, dependsOnCoreCoder and extensionFlag are all zero for these types.
-        TRY(writer.write_bits(0u, 3));
+        TRY(writer.write_bits(general_audio_specific_config.frame_length_flag, 1));
+        TRY(writer.write_bits(general_audio_specific_config.core_coder_delay.has_value(), 1));
+        if (general_audio_specific_config.core_coder_delay.has_value())
+            TRY(writer.write_bits(*general_audio_specific_config.core_coder_delay, 14));
+        TRY(writer.write_bits(general_audio_specific_config.extension_flag_3.has_value(), 1));
+        if (general_audio_specific_config.extension_flag_3.has_value())
+            TRY(writer.write_bits(*general_audio_specific_config.extension_flag_3, 1));
 
         if (spectral_band_replication_sample_rate.has_value()) {
             TRY(writer.write_bits(SPECTRAL_BAND_REPLICATION_SYNC_EXTENSION_TYPE, 11));

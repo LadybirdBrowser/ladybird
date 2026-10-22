@@ -52,8 +52,27 @@ public:
     // the descriptor's own value for ISOBMFF, and MPEG-4 Audio for Matroska's A_AAC.
     static MEDIACODECS_API Optional<Parameters> parse_configuration_record(ReadonlyBytes audio_specific_config, u8 object_type_indication);
 
+    struct GeneralAudioSpecificConfig {
+        bool frame_length_flag;
+        Optional<u16> core_coder_delay;
+        Optional<bool> extension_flag_3;
+
+        bool operator==(GeneralAudioSpecificConfig const&) const = default;
+    };
+
+    struct ExplicitSpectralBandReplication {
+        u32 core_audio_object_type;
+        u32 core_sample_rate;
+        u8 channel_count;
+        GeneralAudioSpecificConfig general_audio_specific_config;
+        u32 output_sample_rate;
+    };
+
+    // Only configurations with a Main, LC, SSR or LTP core and a channel configuration other than zero are understood.
+    static MEDIACODECS_API Optional<ExplicitSpectralBandReplication> parse_explicit_spectral_band_replication(ReadonlyBytes audio_specific_config);
+
     // Builds the configuration record that a container implies when it describes an AAC stream without carrying one.
-    static MEDIACODECS_API DecoderErrorOr<FixedArray<u8>> create_configuration_record(u32 audio_object_type, u32 sample_rate, u8 channel_count, Optional<u32> spectral_band_replication_sample_rate = {});
+    static MEDIACODECS_API DecoderErrorOr<FixedArray<u8>> create_configuration_record(u32 audio_object_type, u32 sample_rate, u8 channel_count, Optional<u32> spectral_band_replication_sample_rate = {}, GeneralAudioSpecificConfig const& = {});
 
     static MEDIACODECS_API DecoderErrorOr<FixedArray<u8>> elementary_stream_descriptor_for_configuration_record(ReadonlyBytes audio_specific_config);
 };
