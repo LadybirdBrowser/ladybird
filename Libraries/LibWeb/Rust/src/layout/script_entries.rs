@@ -397,6 +397,33 @@ pub extern "C" fn layout_script_paintable_unbroken_border_box_size(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn layout_script_empty_line_ended_by_forced_break_position(
+    host: &DocumentHost,
+    block: NodeSlotId,
+    forced_break: NodeSlotId,
+    out: &mut super::used_values::FfiCssPixelPoint,
+) -> bool {
+    let position = read_rows(host, |arena| {
+        if !arena.paintable_row_is_populated(block) {
+            return None;
+        }
+        let side = arena.committed_side_data(block);
+        let line = side
+            .lines()
+            .iter()
+            .find(|line| line.forced_break_node == forced_break && line.fragment_count == 0)?;
+        let root_position =
+            crate::painting::paintable_geometry::LineRootPositions::new(arena, block).of_fragment(line.box_fragment);
+        Some(CssPixelRect::from(line.rect).translated_by(root_position).location())
+    });
+    let Some(position) = position else {
+        return false;
+    };
+    *out = position.into();
+    true
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn layout_script_paintable_box_model(
     host: &DocumentHost,
     slot: NodeSlotId,

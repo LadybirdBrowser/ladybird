@@ -450,6 +450,12 @@ CSSPixelRect caret_rect_for_child_offset(Layout::BegunRead const& read, Layout::
     if (!child || !is<HTML::HTMLBRElement>(*child))
         return rect;
 
+    if (auto const* break_layout_node = child->unsafe_layout_node(read)) {
+        CSSPixelPoint line_position;
+        if (Layout::RustFFI::layout_script_empty_line_ended_by_forced_break_position(block.document_host(), committed_row_slot(block), Layout::Node::slot_id(break_layout_node), &line_position))
+            return caret_rect_for_empty_line(styled_block, line_position);
+    }
+
     // A caret parked before a <br> sits on the line below the content preceding the <br>. Layout produces no
     // fragments for <br>, so start below the fragments of any preceding content, and add one line height for each
     // empty line rendered by earlier <br>s.

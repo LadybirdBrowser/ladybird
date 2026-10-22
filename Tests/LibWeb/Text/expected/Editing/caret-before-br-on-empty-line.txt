@@ -1,0 +1,3 @@
+editor 0: caret before <br> matches text there: true
+editor 1: caret before <br> matches text there: true
+editor 2: caret before <br> matches text there: true
