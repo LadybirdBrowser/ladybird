@@ -3289,6 +3289,7 @@ impl<'a> SyntaxParseBuilder<'a> {
                 )
             }),
         );
+        block.compact();
         let declaration_block = Some(Arc::new(block));
         let local_identity = self.next_identity();
         let identity_index = usize::try_from(local_identity).expect("parsed declaration identity overflow");
