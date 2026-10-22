@@ -606,12 +606,16 @@ impl TextSlots {
                 PublishedTextSlot {
                     generation: slot.generation,
                     first_letter: state.first_letter,
+                    precedes_writing_suggestion: state.precedes_writing_suggestion,
                     rendered: state.content.as_ref().map(|content| content.rendered().clone()),
                 }
             })
             .unwrap_or_default();
         if self.published.get(index).is_none() {
-            if published.rendered.is_none() && published.first_letter.is_invalid() {
+            if published.rendered.is_none()
+                && published.first_letter.is_invalid()
+                && !published.precedes_writing_suggestion
+            {
                 return;
             }
             self.published.grow_to(index + 1);
@@ -650,6 +654,8 @@ impl Drop for TextStateMut<'_> {
 struct TextNodeState {
     source_range: Option<FfiTextSourceRange>,
     first_letter: NodeSlotId,
+    /// Whether the slice ends where a writing suggestion shows. See [`LayoutNodeArena::set_writing_suggestion_slices`].
+    precedes_writing_suggestion: bool,
     content: Option<TextContent>,
     /// What a generated text row renders. Generated content has no DOM text node whose characters
     /// the style mirror could hold, so the row keeps the characters it was made with.
@@ -1129,6 +1135,18 @@ struct StyleNodeTables {
     /// What each element's pseudo-elements have scrolled to, held against the element's identity,
     /// since a pseudo-element has none of its own, and published the way the element's offset is.
     pseudo_element_scroll_offsets: RefCell<HashMap<StyleNodeID, PseudoElementScrollOffsets>>,
+    /// The writing suggestion showing after the caret, if any: at most one per document, held
+    /// against the identity of the text node the caret is in.
+    writing_suggestion: RefCell<Option<PublishedWritingSuggestion>>,
+}
+
+/// A writing suggestion as the document publishes it: the text node the caret is in, where the
+/// caret is in it, and the text the suggestion would add there, in UTF-16 code units.
+#[derive(Clone)]
+pub(crate) struct PublishedWritingSuggestion {
+    pub text: StyleNodeID,
+    pub offset: usize,
+    pub remainder: Vec<u16>,
 }
 
 /// What an element's synthetic pseudo-elements have scrolled to, by kind.
@@ -2222,6 +2240,14 @@ impl LayoutNodeArena {
         self.set_node_flag(slot, NodeFlag::HasScrollOffset, has_scroll_offset);
     }
 
+    pub(crate) fn set_writing_suggestion(&self, suggestion: Option<PublishedWritingSuggestion>) {
+        *self.style_node_tables.writing_suggestion.borrow_mut() = suggestion;
+    }
+
+    pub(crate) fn writing_suggestion(&self) -> Option<PublishedWritingSuggestion> {
+        self.style_node_tables.writing_suggestion.borrow().clone()
+    }
+
     /// Records what the element has scrolled to, for every row built for it. A rebuild can leave
     /// an old row and its replacement both built for the element until the commit that retires the
     /// old one, and both answer for the element meanwhile.
@@ -2328,6 +2354,7 @@ impl LayoutNodeArena {
             identities_in_focused_text_control,
             element_scroll_offsets,
             pseudo_element_scroll_offsets,
+            writing_suggestion,
         } = &self.style_node_tables;
         counters_sets.borrow_mut().forget(style_node);
         generated_content.borrow_mut().forget(style_node);
@@ -2344,6 +2371,14 @@ impl LayoutNodeArena {
         identities_in_focused_text_control.borrow_mut().remove(&style_node);
         element_scroll_offsets.borrow_mut().remove(&style_node);
         pseudo_element_scroll_offsets.borrow_mut().remove(&style_node);
+        let mut writing_suggestion = writing_suggestion.borrow_mut();
+        if writing_suggestion
+            .as_ref()
+            .is_some_and(|suggestion| suggestion.text == style_node)
+        {
+            *writing_suggestion = None;
+        }
+        drop(writing_suggestion);
         // A retired shadow host takes its tree scope with it. The registry withdraws no names from a
         // scope it can no longer name.
         anchor_name_elements
@@ -3716,14 +3751,23 @@ impl LayoutNodeArena {
                     self.reinherit_anonymous_descendants(host_calls, child);
                     self.notify_shell_of_style_change(host_calls, child, true);
                 } else {
-                    let column_source = self
-                        .anonymous_box_column_source(child)
-                        .map(|source| self.node_style_record(source));
-                    let derived = self.reinherit_anonymous_style_record(
-                        self.node_style_record(child),
-                        parent_style_record,
-                        column_source,
-                    );
+                    // A writing suggestion's box is derived from its parent again, so its text stays faded.
+                    let derived = if self.is_writing_suggestion_box(child) {
+                        self.derive_anonymous_style_record(
+                            parent_style_record,
+                            AnonymousStyleKind::WritingSuggestion,
+                            AnonymousStyleOverrides::default(),
+                        )
+                    } else {
+                        let column_source = self
+                            .anonymous_box_column_source(child)
+                            .map(|source| self.node_style_record(source));
+                        self.reinherit_anonymous_style_record(
+                            self.node_style_record(child),
+                            parent_style_record,
+                            column_source,
+                        )
+                    };
                     self.apply_reinherited_style_record(host_calls, child, derived);
                     self.reinherit_anonymous_children(host_calls, child, derived.record);
                 }
@@ -5306,6 +5350,32 @@ impl LayoutNodeArena {
         drop(remainder_state);
         self.invalidate_text_content(first_letter);
         self.invalidate_text_content(remainder);
+    }
+
+    /// Splits a text node's box at the caret for a writing suggestion, the way a `::first-letter`
+    /// split divides it at the end of the letter: The leading slice renders the text before the
+    /// caret, and the trailing slice (the one the node is bound to) renders the rest.
+    pub(super) fn set_writing_suggestion_slices(
+        &mut self,
+        leading: NodeSlotId,
+        trailing: NodeSlotId,
+        caret: usize,
+        source_length: usize,
+    ) {
+        self.set_first_letter_slices(leading, trailing, caret, source_length);
+        self.text_node_state_mut(leading).precedes_writing_suggestion = true;
+    }
+
+    pub(crate) fn text_precedes_writing_suggestion(&self, id: NodeSlotId) -> bool {
+        self.text_node_state(id)
+            .is_some_and(|state| state.precedes_writing_suggestion)
+    }
+
+    /// Whether a box is the inline box that renders a writing suggestion, i.e. the one right after the text slice in
+    /// front of the suggestion.
+    fn is_writing_suggestion_box(&self, id: NodeSlotId) -> bool {
+        let previous_sibling = self.data(id).previous_sibling.get();
+        !previous_sibling.is_invalid() && self.text_precedes_writing_suggestion(previous_sibling)
     }
 
     pub(crate) fn text_source_range(&self, id: NodeSlotId, source_length: usize) -> FfiTextSourceRange {

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editable" contenteditable></div>
+<script>
+    promiseTest(async () => {
+        const editable = document.getElementById("editable");
+        internals.sendText(editable, "predi");
+        await internals.writingSuggestionSettled();
+        // Read before anything is printed, so the output itself isn't in the tree.
+        const tree = internals.dumpAccessibilityTree();
+        const leaves = [];
+        const collect = node => {
+            if (node.type === "text")
+                leaves.push(node.name);
+            (node.children || []).forEach(collect);
+        };
+        collect(JSON.parse(tree));
+        println(`suggestion: ${internals.writingSuggestion()}`);
+        println(`text leaves: ${JSON.stringify(leaves)}`);
+    });
+</script>

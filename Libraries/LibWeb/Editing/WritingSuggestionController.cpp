@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::Editing {
@@ -117,12 +118,12 @@ void WritingSuggestionController::set_showing(Optional<ShowingSuggestion> showin
     };
     invalidate(m_showing);
     m_showing = move(showing);
-    if (m_showing.has_value()) {
-        if (auto text = m_showing->text.ptr()) {
-            m_showing_text_length = text->length_in_utf16_code_units();
-            m_showing_prefix = Utf16String::from_utf16(text_before(*text, m_showing->offset));
-        }
+    GC::Ptr<DOM::Text> text = m_showing.has_value() ? m_showing->text.ptr() : nullptr;
+    if (text) {
+        m_showing_text_length = text->length_in_utf16_code_units();
+        m_showing_prefix = Utf16String::from_utf16(text_before(*text, m_showing->offset));
     }
+    Layout::publish_writing_suggestion(m_document, text.ptr(), text ? m_showing->offset : 0, text ? m_showing->remainder.utf16_view() : Utf16View {});
     invalidate(m_showing);
 }
 
