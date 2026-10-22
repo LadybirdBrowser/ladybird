@@ -344,7 +344,10 @@ TransportSocket::~TransportSocket()
 void TransportSocket::stop_io_thread(IOThreadState desired_state)
 {
     VERIFY(desired_state == IOThreadState::Stopped || desired_state == IOThreadState::SendPendingMessagesAndStop);
-    m_io_thread_state.store(desired_state, AK::MemoryOrder::memory_order_release);
+    // NB: The IO thread may already have stopped on its own (e.g. the peer hung up). Stopped is terminal, so never
+    //     overwrite it with a new stop request.
+    auto state = m_io_thread_state.load(AK::MemoryOrder::memory_order_acquire);
+    while (state != IOThreadState::Stopped && !m_io_thread_state.compare_exchange_strong(state, desired_state, AK::MemoryOrder::memory_order_acq_rel)) { }
     wake_io_thread();
     if (m_io_thread && m_io_thread->needs_to_be_joined())
         (void)m_io_thread->join();
