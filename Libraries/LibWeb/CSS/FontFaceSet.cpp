@@ -538,12 +538,18 @@ void FontFaceSet::switch_to_loaded()
         return;
 
     // 3. Set font face set’s status attribute to "loaded".
+    auto was_loading = m_status == FontFaceSetLoadStatus::Loading;
     m_status = FontFaceSetLoadStatus::Loaded;
 
     // 4. Fulfill font face set’s [[ReadyPromise]] attribute’s value with font face set.
     auto& realm = relevant_settings_object().realm();
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
     Bindings::resolve_font_face_set_promise(realm, m_ready_promise, *this);
+
+    // AD-HOC: A set that never switched to loading only fulfills its ready promise. Firing loadingdone for it would
+    //         report a load that never happened.
+    if (!was_loading)
+        return;
 
     // 5. Queue a task to perform the following steps synchronously:
     HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(GC::Heap::the(), [this] {
