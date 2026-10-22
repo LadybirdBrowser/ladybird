@@ -26,6 +26,10 @@
 //! - `array_prototypes_without_is_concat_spreadable`: %Array.prototype% and %Object.prototype% have no
 //!   @@isConcatSpreadable, and %Array.prototype% inherits from %Object.prototype%, so that IsConcatSpreadable of an
 //!   array of the realm without an own one is true. It depends on the sets that fire when either object changes.
+//! - `string_objects_convert_to_their_string_data`: %String.prototype% has its builtin `valueOf` and `toString`, and
+//!   neither it nor %Object.prototype%, which it inherits from, has a @@toPrimitive, so that ToPrimitive of a String
+//!   object that inherits from %String.prototype% without own such properties gives its [[StringData]]. It depends on
+//!   the sets that fire when either object changes, and when the values of those properties change.
 //!
 //! A change of an intrinsic fires the sets that depend on it, also one that leaves what they stand for in place, such
 //! as a new property of %Object.prototype%. The next query of a fired set checks whether what it stands for still
@@ -40,6 +44,7 @@ use crate::layout::object::Object;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::regexp_prototype::RegExpPrototype;
+use crate::runtime::string_prototype::StringPrototype;
 use crate::runtime::watchpoint_set::WatchpointSet;
 
 /// Starts watching the intrinsics of a realm whose intrinsics were just created. Until then, changes of the watched
@@ -344,4 +349,45 @@ fn watch_array_prototypes_without_is_concat_spreadable(vm: &Vm, realm: Gc<Realm>
         return None;
     }
     watch_intrinsics(vm, &[array_prototype, object_prototype], &[])
+}
+
+/// Whether ToPrimitive of a String object of the realm that inherits from %String.prototype% without own `valueOf`,
+/// `toString` or @@toPrimitive gives its [[StringData]].
+pub fn string_objects_convert_to_their_string_data(vm: &Vm, realm: Gc<Realm>) -> bool {
+    realm.storage.string_objects_convert_to_their_string_data.holds(
+        vm,
+        realm,
+        watch_string_objects_convert_to_their_string_data,
+    )
+}
+
+/// The set that stays valid while ToPrimitive of a String object of the realm that inherits from %String.prototype%
+/// without own `valueOf`, `toString` or @@toPrimitive gives its [[StringData]], if it does.
+fn watch_string_objects_convert_to_their_string_data(vm: &Vm, realm: Gc<Realm>) -> Option<Gc<WatchpointSet>> {
+    let string_prototype = realm.string_prototype(vm);
+    let object_prototype = realm.object_prototype();
+    let to_primitive_key = PropertyKey::from(vm.well_known_symbols().to_primitive);
+    // NB: An accessor property holds an accessor, which is not a function.
+    let own_property_value = |key: &PropertyKey| {
+        let metadata = string_prototype.shape().lookup(key)?;
+        Some(string_prototype.get_direct(metadata.offset))
+    };
+    // NB: %Object.prototype% has an immutable prototype.
+    if string_prototype.shape().prototype() != Some(object_prototype)
+        || string_prototype.shape().lookup(&to_primitive_key).is_some()
+        || object_prototype.shape().lookup(&to_primitive_key).is_some()
+        || !own_property_value(&vm.names.valueOf).is_some_and(|value| StringPrototype::is_value_of_function(vm, value))
+        || !own_property_value(&vm.names.toString)
+            .is_some_and(|value| StringPrototype::is_to_string_function(vm, value))
+    {
+        return None;
+    }
+    watch_intrinsics(
+        vm,
+        &[string_prototype, object_prototype],
+        &[
+            (string_prototype, vm.names.valueOf.clone()),
+            (string_prototype, vm.names.toString.clone()),
+        ],
+    )
 }

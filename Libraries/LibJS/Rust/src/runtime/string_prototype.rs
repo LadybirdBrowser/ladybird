@@ -33,6 +33,7 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::regexp_constructor::is_raw_native_function_running;
 use crate::runtime::regexp_object::regexp_create;
 use crate::runtime::regexp_prototype::RegExpPrototype;
 use crate::runtime::string_iterator::StringIterator;
@@ -222,7 +223,23 @@ pub(crate) static TRIM_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPr
 pub(crate) static TRIM_START_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::trim_start);
 pub(crate) static TRIM_END_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::trim_end);
 
+/// %String.prototype.toString%, which is_to_string_function() looks for.
+static TO_STRING_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::to_string);
+
+/// %String.prototype.valueOf%, which is_value_of_function() looks for.
+static VALUE_OF_FUNCTION: RawNativeFunctionPointer = raw_native!(StringPrototype::value_of);
+
 impl StringPrototype {
+    /// Whether `value` is %String.prototype.toString% of some realm.
+    pub fn is_to_string_function(vm: &Vm, value: Value) -> bool {
+        value.is_function() && is_raw_native_function_running(vm, value.as_function(), TO_STRING_FUNCTION)
+    }
+
+    /// Whether `value` is %String.prototype.valueOf% of some realm.
+    pub fn is_value_of_function(vm: &Vm, value: Value) -> bool {
+        value.is_function() && is_raw_native_function_running(vm, value.as_function(), VALUE_OF_FUNCTION)
+    }
+
     /// `S.indexOf(searchString, position)` of the string `S`, a string
     /// `searchString` and an integral `position`, which runs no code.
     pub fn index_of_string(string: Gc<PrimitiveString>, search_string: Gc<PrimitiveString>, position: f64) -> Value {
@@ -336,7 +353,7 @@ impl StringPrototype {
             None,
         );
         define(&names.toLowerCase, TO_LOWERCASE_FUNCTION, 0, None);
-        define(&names.toString, raw_native!(StringPrototype::to_string), 0, None);
+        define(&names.toString, TO_STRING_FUNCTION, 0, None);
         define(&names.toUpperCase, TO_UPPERCASE_FUNCTION, 0, None);
         define(
             &names.toWellFormed,
@@ -347,7 +364,7 @@ impl StringPrototype {
         define(&names.trim, TRIM_FUNCTION, 0, None);
         define(&names.trimEnd, TRIM_END_FUNCTION, 0, None);
         define(&names.trimStart, TRIM_START_FUNCTION, 0, None);
-        define(&names.valueOf, raw_native!(StringPrototype::value_of), 0, None);
+        define(&names.valueOf, VALUE_OF_FUNCTION, 0, None);
         define(
             &PropertyKey::from(vm.well_known_symbols().iterator),
             raw_native!(StringPrototype::symbol_iterator),

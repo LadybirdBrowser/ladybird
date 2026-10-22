@@ -44,6 +44,9 @@ pub struct RealmStorage {
     /// Whether %Array.prototype% and %Object.prototype% have no @@isConcatSpreadable (see
     /// `runtime::realm_watchpoints`).
     pub(crate) array_prototypes_without_is_concat_spreadable: WatchedCondition,
+    /// Whether ToPrimitive of a String object that inherits from %String.prototype% gives its [[StringData]] (see
+    /// `runtime::realm_watchpoints`).
+    pub(crate) string_objects_convert_to_their_string_data: WatchedCondition,
 }
 
 define_cell!(Realm, Other);
@@ -63,6 +66,7 @@ unsafe impl Trace for Realm {
         self.storage
             .array_prototypes_without_is_concat_spreadable
             .trace(visitor);
+        self.storage.string_objects_convert_to_their_string_data.trace(visitor);
         self.array_iterator_next_watchpoint_set.trace(visitor);
         self.array_iterator_return_watchpoint_set.trace(visitor);
     }
