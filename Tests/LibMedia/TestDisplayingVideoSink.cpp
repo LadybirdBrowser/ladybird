@@ -364,11 +364,13 @@ TEST_CASE(resuming_ticking_seeks_past_frames_held_behind_the_clock)
     EXPECT_EQ(sink->take_frame_counts().presented, 1u);
 
     // The displayed frame still covers the clock, so there is nothing to skip.
-    sink->seek_back_to_current_time();
+    sink->set_ticking(false);
+    sink->set_ticking(true);
     EXPECT_EQ(producer->seek_count(), seeks_before_resuming);
 
+    sink->set_ticking(false);
     clock->seek(AK::Duration::from_milliseconds(1200));
-    sink->seek_back_to_current_time();
+    sink->set_ticking(true);
     EXPECT_EQ(producer->seek_count(), seeks_before_resuming + 1);
 
     producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1200), AK::Duration::from_milliseconds(40)));
@@ -377,6 +379,75 @@ TEST_CASE(resuming_ticking_seeks_past_frames_held_behind_the_clock)
     auto frame_counts = sink->take_frame_counts();
     EXPECT_EQ(frame_counts.presented, 1u);
     EXPECT_EQ(frame_counts.dropped, 0u);
+}
+
+TEST_CASE(wakes_while_not_ticking_leave_frames_held_behind_the_clock)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(sink->take_frame_counts().presented, 1u);
+
+    sink->set_ticking(false);
+    clock->seek(AK::Duration::from_milliseconds(1200));
+    for (auto timestamp : { 1040, 1080, 1120, 1160 })
+        producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(timestamp), AK::Duration::from_milliseconds(40)));
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1000));
+    EXPECT(sink->take_frame_counts().is_zero());
+
+    auto seeks_before_resuming = producer->seek_count();
+    sink->set_ticking(true);
+    EXPECT_EQ(producer->seek_count(), seeks_before_resuming + 1);
+}
+
+TEST_CASE(seek_while_not_ticking_resolves_once_a_frame_covers_the_target)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineStatus> dispatched_statuses;
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+        dispatched_statuses.append(status);
+    });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(40)));
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    sink->set_ticking(false);
+    clock->seek(AK::Duration::from_milliseconds(1200));
+    dispatched_statuses.clear();
+    sink->seek(AK::Duration::from_milliseconds(1200));
+
+    // The first frame back falls short of the target, so the seek stays pending.
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1120), AK::Duration::from_milliseconds(40)));
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(dispatched_statuses.is_empty());
+
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1160), AK::Duration::from_milliseconds(80)));
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1160));
+    EXPECT_EQ(dispatched_statuses, (Vector { Media::PipelineStatus::HaveData }));
 }
 
 TEST_CASE(frames_passed_catching_up_after_resuming_from_suspension_are_not_counted)

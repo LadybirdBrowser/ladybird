@@ -55,8 +55,13 @@ ErrorOr<void> DisplayingVideoSink::connect_input(NonnullRefPtr<VideoProducer> co
             dispatch_state_if_changed(PipelineStatus::Suspended);
             return;
         }
+        // Update the sink to dispatch a status if we're still resolving a seek. If we're not, avoid the update so that
+        // we don't count dropped frames due to the decoder waiting for room while we're not consuming frames.
+        if (!m_is_ticking && m_seek_status == SeekStatus::None && !m_seek_resolution_is_pending_frame_at_target)
+            return;
         update(MonotonicTime::now());
     });
+    m_seek_resolution_is_pending_frame_at_target = true;
     input->seek(m_time_reader.current_time());
     input->start();
     return {};
@@ -274,6 +279,13 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 void DisplayingVideoSink::notify_clock_resumed()
 {
     update(MonotonicTime::now());
+}
+
+void DisplayingVideoSink::set_ticking(bool ticking)
+{
+    auto was_ticking = exchange(m_is_ticking, ticking);
+    if (ticking && !was_ticking)
+        seek_back_to_current_time();
 }
 
 void DisplayingVideoSink::seek_back_to_current_time()
