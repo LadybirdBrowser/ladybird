@@ -11239,7 +11239,7 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
         paint_state().visual_context_tree_without_update(read, *this),
         scroll_state_snapshot(),
         page().client().device_pixels_per_css_pixel(),
-        page().chrome_metrics(),
+        page().chrome_metrics(*this),
     };
 }
 

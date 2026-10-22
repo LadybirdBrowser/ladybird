@@ -319,7 +319,7 @@ bool ScrollbarController::paint(Gfx::PaintingSurface& surface, DisplayListPlayer
             .track_color = scrollbar.track_color,
             .vertical = scrollbar.vertical,
         };
-        display_list_player.paint_scrollbar(surface, paint_scrollbar);
+        display_list_player.paint_scrollbar(surface, paint_scrollbar, scrollbar.corner_clip_rect, scrollbar.corner_clip_radius);
         painted_a_scrollbar = true;
     }
     return painted_a_scrollbar;

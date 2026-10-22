@@ -51,7 +51,8 @@ public:
 
     void flush(Gfx::PaintingSurface&) override;
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
-    void paint_scrollbar(Gfx::PaintingSurface&, Compositing::PaintScrollBar const&);
+    // A corner clip radius that is not zero shapes the thumb to the corner clip rect with that radius.
+    void paint_scrollbar(Gfx::PaintingSurface&, Compositing::PaintScrollBar const&, Gfx::IntRect const& corner_clip_rect = {}, int corner_clip_radius = 0);
 
 private:
 #define DECLARE_PLAY_COMMAND(command_type) \

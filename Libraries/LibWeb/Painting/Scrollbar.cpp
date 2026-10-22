@@ -114,7 +114,7 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     auto* node = layout_node();
     if (!node)
         return false;
-    ChromeMetrics metrics = node->document().page().chrome_metrics();
+    ChromeMetrics metrics = node->document().page().chrome_metrics(node->document());
 
     auto const& scroll_state = node->document().scroll_state_snapshot();
     auto scrollbar_data = compute_scrollbar_data(*node, m_direction, metrics, &scroll_state,

@@ -851,6 +851,20 @@ void PageClient::inject_rendering_opportunity(double frame_time)
     grant_rendering_opportunity(frame_time, Web::HTML::EventLoop::RenderingOpportunitySource::Manual);
 }
 
+void PageClient::set_viewport_corner_radius(double radius)
+{
+    static constexpr double maximum_viewport_corner_radius = 64;
+    if (!isfinite(radius) || radius < 0)
+        return;
+    radius = min(radius, maximum_viewport_corner_radius);
+    if (m_viewport_corner_radius == radius)
+        return;
+    m_viewport_corner_radius = radius;
+
+    if (page().has_local_traversable())
+        page().local_traversable()->viewport_corner_radius_did_change();
+}
+
 void PageClient::set_maximum_frames_per_second(double maximum_frames_per_second)
 {
     if (!isfinite(maximum_frames_per_second) || maximum_frames_per_second <= 0)
