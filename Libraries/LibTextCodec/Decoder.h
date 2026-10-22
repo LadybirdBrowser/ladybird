@@ -62,7 +62,6 @@ public:
     ErrorOr<Utf16String> finish_to_utf16();
 
 private:
-    ErrorMode m_error_mode { ErrorMode::Replacement };
     void* m_decoder { nullptr };
 };
 

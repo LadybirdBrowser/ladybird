@@ -6,7 +6,6 @@
 
 //! The Encoding Standard, https://encoding.spec.whatwg.org/
 
-pub(crate) mod decoding;
 #[cfg(not(test))]
 pub(crate) mod text_decoder;
 #[cfg(not(test))]

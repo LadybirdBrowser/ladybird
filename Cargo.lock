@@ -865,6 +865,7 @@ dependencies = [
  "libcompositing_rust",
  "libgfx_rust",
  "libjs_rust",
+ "libtextcodec_rust",
  "liburl_rust",
  "libweb_rust",
  "rustc-demangle",

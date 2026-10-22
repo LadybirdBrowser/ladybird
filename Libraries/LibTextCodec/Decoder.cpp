@@ -147,7 +147,7 @@ ErrorOr<String> rust_decode_to_utf8(StringView encoding, StringView input, Ignor
     return context.builder.to_string_without_validation();
 }
 
-ErrorOr<Utf16String> rust_streaming_decode_to_utf16(FFI::TextCodecRustStreamingDecoder* decoder, ReadonlyBytes input, bool last, ErrorMode error_mode)
+ErrorOr<Utf16String> rust_streaming_decode_to_utf16(FFI::TextCodecRustStreamingDecoder* decoder, ReadonlyBytes input, bool last)
 {
     Utf16DecodeContext context { .builder = Utf16StringBuilder(input.size()) };
     auto succeeded = FFI::textcodec_rust_streaming_decoder_decode_to_utf16(
@@ -155,7 +155,6 @@ ErrorOr<Utf16String> rust_streaming_decode_to_utf16(FFI::TextCodecRustStreamingD
         input.data(),
         input.size(),
         last,
-        error_mode == ErrorMode::Fatal,
         &context,
         append_decoded_utf16);
     if (!succeeded)
@@ -194,7 +193,7 @@ Optional<StringView> get_static_encoding_name_from_rust(StringView label)
     return StringView { encoding_name, encoding_name_length };
 }
 
-ErrorOr<String> rust_streaming_decode_to_utf8(FFI::TextCodecRustStreamingDecoder* decoder, ReadonlyBytes input, bool last, ErrorMode error_mode)
+ErrorOr<String> rust_streaming_decode_to_utf8(FFI::TextCodecRustStreamingDecoder* decoder, ReadonlyBytes input, bool last)
 {
     DecodeContext context { .builder = StringBuilder(input.size()) };
     auto succeeded = FFI::textcodec_rust_streaming_decoder_decode_to_utf8(
@@ -202,7 +201,6 @@ ErrorOr<String> rust_streaming_decode_to_utf8(FFI::TextCodecRustStreamingDecoder
         input.data(),
         input.size(),
         last,
-        error_mode == ErrorMode::Fatal,
         &context,
         append_decoded_bytes);
     if (!succeeded)
@@ -503,12 +501,12 @@ ErrorOr<size_t> Latin1Decoder::length_in_utf16_code_units(StringView input)
 }
 
 StreamingDecoder::StreamingDecoder(StringView encoding, IgnoreBOM ignore_bom, ErrorMode error_mode)
-    : m_error_mode(error_mode)
 {
     m_decoder = FFI::textcodec_rust_streaming_decoder_new(
         reinterpret_cast<u8 const*>(encoding.characters_without_null_termination()),
         encoding.length(),
-        ignore_bom == IgnoreBOM::No);
+        error_mode == ErrorMode::Fatal,
+        ignore_bom == IgnoreBOM::Yes);
     VERIFY(m_decoder);
 }
 
@@ -519,22 +517,22 @@ StreamingDecoder::~StreamingDecoder()
 
 ErrorOr<String> StreamingDecoder::to_utf8(ReadonlyBytes input)
 {
-    return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, false, m_error_mode);
+    return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, false);
 }
 
 ErrorOr<Utf16String> StreamingDecoder::to_utf16(ReadonlyBytes input, Flush flush)
 {
-    return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, flush == Flush::Yes, m_error_mode);
+    return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), input, flush == Flush::Yes);
 }
 
 ErrorOr<String> StreamingDecoder::finish()
 {
-    return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), {}, true, m_error_mode);
+    return rust_streaming_decode_to_utf8(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), {}, true);
 }
 
 ErrorOr<Utf16String> StreamingDecoder::finish_to_utf16()
 {
-    return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), {}, true, m_error_mode);
+    return rust_streaming_decode_to_utf16(static_cast<FFI::TextCodecRustStreamingDecoder*>(m_decoder), {}, true);
 }
 
 ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
