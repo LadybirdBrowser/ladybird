@@ -545,8 +545,15 @@ pub fn put_by_property_key(
             }
         }
         PutKind::Normal => {
-            let this_value_object = this_value.to_object(vm).must();
-            let from_shape = this_value_object.shape();
+            // NB: The this value of a super property reference need not be an object, e.g. for `super.x = v` in a method
+            //     called with a null this. [[Set]] handles a non-object receiver by failing to create or change a data
+            //     property (https://tc39.es/ecma262/#sec-ordinarysetwithowndescriptor, step 2.b), but the caches below
+            //     assume an object one, so don't use them for such a receiver.
+            let (caches, from_shape) = if this_value.is_object() {
+                (caches, this_value.as_object().shape())
+            } else {
+                (None, object.shape())
+            };
             let from_shape_dictionary_generation = from_shape.dictionary_generation();
             if let Some(caches) = caches {
                 for cache in caches.entries_for_shape(object.shape(), cache_key).as_slice() {
