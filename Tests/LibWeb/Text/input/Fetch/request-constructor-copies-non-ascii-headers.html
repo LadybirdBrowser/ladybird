@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const request = new Request("https://example.com", { headers: { "X-Test": "before-é-after" } });
+        const copy = new Request(request, { method: "POST" });
+        println(`X-Test: ${copy.headers.get("X-Test")}`);
+    });
+</script>
