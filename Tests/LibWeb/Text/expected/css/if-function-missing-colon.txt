@@ -1,0 +1,9 @@
+if(else): false
+if(else: 1; else): false
+if( : 2): false
+if(else: 1; : 2): false
+if(else: 1; :): false
+if(else: 1): true
+if( else: 1): true
+if(else: 1; else: 2): true
+if(else: 1; ): true
