@@ -100,6 +100,12 @@ if (APPLE OR LINUX)
         add_custom_target(${ARG_CRATE_NAME}_build DEPENDS "${rust_test_library}")
         ladybird_test(TestRustCrashReport.cpp LibWebView NAME TestRustCrashReport_${panic_strategy}
             LIBS LibWebView "${rust_test_library}")
+        if (LINUX AND panic_strategy STREQUAL "unwind")
+            # Keep the fixture's Rust standard library private to the test executable. Exported, it would take the
+            # place of the copies in Ladybird's shared libraries, which then install their panic hooks into it.
+            get_filename_component(rust_test_library_name "${rust_test_library}" NAME)
+            target_link_options(TestRustCrashReport_${panic_strategy} PRIVATE "LINKER:--exclude-libs,${rust_test_library_name}")
+        endif()
         set_tests_properties(TestRustCrashReport_${panic_strategy} PROPERTIES TIMEOUT 60)
         add_dependencies(TestRustCrashReport_${panic_strategy} ${ARG_CRATE_NAME}_build)
         if (panic_strategy STREQUAL "unwind")
