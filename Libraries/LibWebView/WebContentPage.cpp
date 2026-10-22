@@ -482,15 +482,11 @@ Web::CompositorContextId WebContentPage::compositor_context_id()
     return client().compositor_context_id_for_page(*this);
 }
 
-bool WebContentPage::handle_key_event_in_compositor(Web::KeyEvent const& event)
+bool WebContentPage::handle_and_dispatch_key_event_in_compositor(Web::KeyEvent const& event, bool allow_keyboard_scroll)
 {
-    return Application::the().handle_key_event_in_compositor(compositor_context_id(), event);
-}
-
-void WebContentPage::dispatch_key_event_to_web_content(Web::KeyEvent const& event)
-{
-    if (!Application::the().dispatch_key_event_to_web_content(compositor_context_id(), event))
-        async_key_event(event.clone_without_browser_data());
+    auto posted = Application::the().handle_and_dispatch_key_event_in_compositor(compositor_context_id(), event, allow_keyboard_scroll);
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI posted key event {} for page {} to the compositor: {}", event.id, m_id, posted);
+    return posted;
 }
 
 void WebContentPage::handle_pinch_event_in_compositor(Web::PinchEvent const& event)
@@ -533,6 +529,19 @@ void WebContentPage::did_not_dispatch_input_event_through_compositor(u64 event_i
     if (auto display_page = traversable().display_page(); display_page) {
         if (display_page->is_open() && display_page.ptr() != this)
             display_page->did_not_dispatch_input_event_through_compositor(event_id);
+    }
+}
+
+void WebContentPage::did_dispatch_input_event_through_compositor(u64 event_id, bool async_scroll_performed_default_action)
+{
+    if (displays_tab()) {
+        view().did_dispatch_input_event_through_compositor({}, event_id, async_scroll_performed_default_action);
+        return;
+    }
+
+    if (auto display_page = traversable().display_page(); display_page) {
+        if (display_page->is_open() && display_page.ptr() != this)
+            display_page->did_dispatch_input_event_through_compositor(event_id, async_scroll_performed_default_action);
     }
 }
 
@@ -621,6 +630,11 @@ void WebContentPage::close()
 {
     PictureInPictureManager::the().close_window(*this);
     m_is_open = false;
+    // NB: Nothing finishes the input this page held, including a page discarded while its process hosts other pages.
+    if (m_traversable) {
+        if (auto view = m_traversable->view(); view.has_value())
+            view->did_lose_input_event_endpoint({}, *this);
+    }
     m_needs_beforeunload_check = true;
     m_history_recorded_url_for_current_load.clear();
     if (m_client)
@@ -1638,6 +1652,8 @@ void WebContentPage::did_request_key_event_for_testing(Web::KeyEvent event)
         client().did_misbehave("did_request_key_event_for_testing"sv, "not driven by WebDriver or a test"sv);
         return;
     }
+    // Only the compositor sets this, on its way to WebContent.
+    event.async_scroll_performed_default_action = false;
     view().enqueue_input_event(move(event));
 }
 
@@ -2681,6 +2697,9 @@ void WebContentPage::did_request_webdriver_mouse_event(u64 request_id, Web::HTML
         event.position.translate_by(offset);
         event.screen_position.translate_by(offset);
     }
+    // Only the compositor sets these, on its way to WebContent.
+    event.async_scroll_performed_default_action = false;
+    event.scrollbar_dragged_by_compositor = {};
     view().enqueue_webdriver_mouse_event({}, move(event), move(on_handled));
 }
 

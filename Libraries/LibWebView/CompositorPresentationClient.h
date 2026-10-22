@@ -37,6 +37,7 @@ private:
     virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) override;
     virtual void did_consume_input_event(Web::CompositorContextId, u64 event_id) override;
     virtual void did_not_dispatch_input_event(Web::CompositorContextId, u64 event_id) override;
+    virtual void did_dispatch_input_event(Web::CompositorContextId, u64 event_id, bool async_scroll_performed_default_action) override;
 };
 
 }

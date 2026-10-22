@@ -49,6 +49,8 @@ public:
     virtual void did_consume_input_event(Web::CompositorContextId, u64 event_id) = 0;
     // No context could take the event; the UI sends it to WebContent itself.
     virtual void did_not_dispatch_input_event(Web::CompositorContextId, u64 event_id) = 0;
+    // The compositor forwarded the key event to WebContent, after performing its default action by scrolling if it says so.
+    virtual void did_dispatch_input_event(Web::CompositorContextId, u64 event_id, bool async_scroll_performed_default_action) = 0;
 };
 
 class CompositorStateWebContentClient {
@@ -119,8 +121,7 @@ public:
     void on_video_sink_ready(CompositorStateWebContentClient&, Media::VideoSinkHandle, NonnullRefPtr<Media::DisplayingVideoSink> const&);
     void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation);
     void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation);
-    bool handle_key_event(Web::CompositorContextId, Web::KeyEvent const&);
-    bool dispatch_key_event_to_web_content(Web::CompositorContextId, Web::KeyEvent const&);
+    void handle_and_dispatch_key_event(Web::CompositorContextId, Web::KeyEvent, bool allow_keyboard_scroll);
     void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent);
     void handle_pinch_event(Web::CompositorContextId, Web::PinchEvent const&);
     Compositing::AsyncScrollEnqueueResult async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking, Compositing::WheelStepDispatch, u64 input_event_id);

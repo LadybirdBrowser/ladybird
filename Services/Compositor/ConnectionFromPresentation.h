@@ -36,9 +36,9 @@ private:
     virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) override;
     virtual void did_consume_input_event(Web::CompositorContextId, u64 event_id) override;
     virtual void did_not_dispatch_input_event(Web::CompositorContextId, u64 event_id) override;
+    virtual void did_dispatch_input_event(Web::CompositorContextId, u64 event_id, bool async_scroll_performed_default_action) override;
 
-    virtual Messages::CompositorPresentationServer::HandleKeyEventResponse handle_key_event(Web::CompositorContextId, Web::KeyEvent) override;
-    virtual Messages::CompositorPresentationServer::DispatchKeyEventToWebContentResponse dispatch_key_event_to_web_content(Web::CompositorContextId, Web::KeyEvent) override;
+    virtual void handle_and_dispatch_key_event(Web::CompositorContextId, Web::KeyEvent, bool allow_keyboard_scroll) override;
     virtual void handle_pinch_event(Web::CompositorContextId, Web::PinchEvent) override;
     virtual void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent) override;
     virtual void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id) override;

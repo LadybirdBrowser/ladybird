@@ -530,12 +530,8 @@ void WebContentClient::did_lose_process()
 
     destroy_all_compositor_contexts();
 
-    for (auto const& lost : lost_pages) {
-        // The view displaying the tab waits for the events it handed down to this page.
-        if (!lost.view_id.has_value())
-            lost.page->view().did_lose_input_event_endpoint({}, *lost.page);
+    for (auto const& lost : lost_pages)
         lost.page->traversable().did_lose_page(*lost.page, WebContentProcessLost::Yes);
-    }
     for (auto const& lost : lost_pages)
         lost.page->traversable().remove_page(*lost.page);
 
