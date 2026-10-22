@@ -215,6 +215,7 @@ private:
     enum class PointerEventDispatchResult : u8 {
         RunDefaultActions,
         CancelledByPage,
+        MouseEventPrevented,
         SwallowedByChromeWidget,
     };
     struct DispatchedPointerEvent {
