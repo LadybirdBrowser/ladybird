@@ -2884,8 +2884,8 @@ fn replace_if_function(
             return TokenResolution::Invalid;
         };
         let condition = match substitute_tokens(store, registry, &branch[..colon], context, recursion_depth + 1) {
-            TokenResolution::Resolved(tokens) => tokens,
-            TokenResolution::Invalid | TokenResolution::Cyclic => branch[..colon].to_vec().into(),
+            TokenResolution::Resolved(tokens) => Cow::Owned(tokens.into_vec()),
+            TokenResolution::Invalid | TokenResolution::Cyclic => Cow::Borrowed(&branch[..colon]),
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
         match evaluate_if_condition(store, registry, &condition, context, recursion_depth + 1) {
