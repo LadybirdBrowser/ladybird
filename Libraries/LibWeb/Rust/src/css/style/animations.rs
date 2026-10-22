@@ -59,6 +59,8 @@ impl FfiAppliedAnimationDefinition {
             },
             keyframe_set: animation.keyframe_set,
             timing_function: animation.timing_function,
+            range_start_calculated: animation.range_start_calculated,
+            range_end_calculated: animation.range_end_calculated,
         }
     }
 
@@ -66,7 +68,7 @@ impl FfiAppliedAnimationDefinition {
     /// exactly as it is. A scroll, view or named timeline is found from the element's surroundings
     /// every time it is applied, so a definition that names one is never called unchanged, and an animation no
     /// plan has described yet publishes a null timing function, which no computed definition has.
-    /// The timing function is compared by value: a recomputed style builds a fresh allocation for
+    /// The timing function and range calculations are compared by value: a recomputed style builds a fresh allocation for
     /// a declaration that has not changed.
     #[must_use]
     fn would_change_nothing(&self, published: &Self) -> bool {
@@ -80,12 +82,15 @@ impl FfiAppliedAnimationDefinition {
             && !published.timing_function.is_null()
             && self.values == published.values
             && self.keyframe_set == published.keyframe_set
-            && unsafe {
-                crate::css::style_value::rust_style_value_equals(
-                    self.timing_function.cast(),
-                    published.timing_function.cast(),
-                )
-            }
+            && [
+                (self.timing_function, published.timing_function),
+                (self.range_start_calculated, published.range_start_calculated),
+                (self.range_end_calculated, published.range_end_calculated),
+            ]
+            .into_iter()
+            .all(|(value, published_value)| unsafe {
+                crate::css::style_value::rust_style_value_equals(value.cast(), published_value.cast())
+            })
     }
 }
 
@@ -655,6 +660,8 @@ mod tests {
             },
             keyframe_set: std::ptr::null(),
             timing_function: std::ptr::null(),
+            range_start_calculated: std::ptr::null(),
+            range_end_calculated: std::ptr::null(),
         };
         animations.set(node, slot, self::names(names), &vec![undescribed; names.len()]);
     }

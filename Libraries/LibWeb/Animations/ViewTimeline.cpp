@@ -23,8 +23,8 @@ GC_DEFINE_ALLOCATOR(ViewTimeline);
 ViewTimelineInset view_timeline_inset_from_ffi(CSS::ComputedValuesFFI::FfiViewTimelineInset const& inset)
 {
     return {
-        .start = { inset.start_is_auto, inset.start_px, inset.start_percentage },
-        .end = { inset.end_is_auto, inset.end_px, inset.end_percentage },
+        .start = { inset.start_is_auto, inset.start_px, inset.start_percentage, retain_calculated_offset(inset.start_calculated) },
+        .end = { inset.end_is_auto, inset.end_px, inset.end_percentage, retain_calculated_offset(inset.end_calculated) },
     };
 }
 
@@ -164,7 +164,7 @@ Optional<ViewTimeline::Metrics> ViewTimeline::compute_metrics() const
     auto inset_of = [&](InsetEdge const& edge, double scroll_padding) {
         if (edge.is_auto)
             return scroll_padding;
-        return edge.px + edge.percentage / 100 * scroller->scrollport_size;
+        return edge.resolve(scroller->scrollport_size);
     };
     auto inset_start = inset_of(m_inset.start, scroller->scroll_padding_start);
     auto inset_end = inset_of(m_inset.end, scroller->scroll_padding_end);
@@ -272,7 +272,7 @@ AttachmentInterval ViewTimeline::interval_for_attachment_range(AnimationAttachme
     // proportion of the cover range, which spans the entire timeline.
     auto time_of = [&](TimelineRangeEdge const& edge) {
         auto named_range = interval_for_range_name(*m_last_metrics, edge.name);
-        auto position = named_range.start + edge.offset_px + edge.offset_percentage / 100 * (named_range.end - named_range.start);
+        auto position = named_range.start + edge.offset_along(named_range.end - named_range.start);
         return TimeValue { TimeValue::Type::Percentage, (position - m_last_metrics->cover_start) / cover_length * 100 };
     };
     return { time_of(range.start), time_of(range.end) };

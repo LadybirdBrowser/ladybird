@@ -2825,14 +2825,17 @@ pub enum FfiAnimationTimelineKind {
 /// takes the scroll container's scroll padding, or a length plus a percentage of the scrollport.
 /// https://drafts.csswg.org/scroll-animations-1/#view-timeline-inset
 #[repr(C)]
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy)]
 pub struct FfiViewTimelineInset {
     pub start_is_auto: bool,
     pub start_px: f64,
     pub start_percentage: f64,
+    /// A calculation the start inset resolves against the scrollport size, or null. See `calculated_offset`.
+    pub start_calculated: *const c_void,
     pub end_is_auto: bool,
     pub end_px: f64,
     pub end_percentage: f64,
+    pub end_calculated: *const c_void,
 }
 
 #[repr(C)]
@@ -2859,9 +2862,12 @@ pub struct FfiComputedAnimation {
     pub range_start_name: u8,
     pub range_start_px: f64,
     pub range_start_percentage: f64,
+    /// A calculation the start offset resolves against the size of its range, or null. See `calculated_offset`.
+    pub range_start_calculated: *const c_void,
     pub range_end_name: u8,
     pub range_end_px: f64,
     pub range_end_percentage: f64,
+    pub range_end_calculated: *const c_void,
     /// The index, in the list of CSS animations the host already holds for this element or
     /// pseudo-element, of the animation this definition claims, or -1 where it asks for a new one.
     pub matched_existing_index: i32,
@@ -4828,6 +4834,28 @@ fn fly_string_is_ascii(string: &crate::css::css_string::CssString, expected: &[u
         .eq(expected.iter().copied().map(u16::from))
 }
 
+/// The computed value of a length-percentage that only a calculation can describe, such as `min(50%, 10px)`, which the
+/// host retains and resolves once it knows the size the percentages are of, or null for any other value.
+fn calculated_offset(value: &StyleValueData) -> *const c_void {
+    match value {
+        StyleValueData::Calculated { .. } => std::ptr::from_ref(value).cast(),
+        _ => std::ptr::null(),
+    }
+}
+
+/// The pixels of a computed length-percentage, resolving its percentages against `basis`.
+///
+/// # Safety
+/// `value` must point at live style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_length_percentage_px(value: *const c_void, basis: f64) -> f64 {
+    // SAFETY: The caller passes a live style value.
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    crate::css::computed_value_views::LengthPercentageRef::over(value)
+        .to_px(CssPixels::nearest_value_for(basis))
+        .to_double()
+}
+
 /// A length-percentage computed value as a length plus a percentage of what it resolves against.
 fn length_plus_percentage(value: &StyleValueData) -> (f64, f64) {
     match value {
@@ -4843,14 +4871,14 @@ fn length_plus_percentage(value: &StyleValueData) -> (f64, f64) {
 /// The insets a computed `[ auto | <length-percentage> ]{1,2}` describes, or both auto where there is none.
 fn view_timeline_inset(value: Option<&StyleValueData>) -> FfiViewTimelineInset {
     let side = |value: &StyleValueData| match value {
-        StyleValueData::Keyword { keyword } if *keyword == keyword::AUTO => (true, 0.0, 0.0),
+        StyleValueData::Keyword { keyword } if *keyword == keyword::AUTO => (true, 0.0, 0.0, std::ptr::null()),
         value => {
             let (px, percentage) = length_plus_percentage(value);
-            (false, px, percentage)
+            (false, px, percentage, calculated_offset(value))
         }
     };
     let (start, end) = match value {
-        None => ((true, 0.0, 0.0), (true, 0.0, 0.0)),
+        None => ((true, 0.0, 0.0, std::ptr::null()), (true, 0.0, 0.0, std::ptr::null())),
         Some(StyleValueData::ValueList { values, .. }) => match values.as_slice() {
             [start, end] => (side(start.data()), side(end.data())),
             [both] => (side(both.data()), side(both.data())),
@@ -4862,9 +4890,11 @@ fn view_timeline_inset(value: Option<&StyleValueData>) -> FfiViewTimelineInset {
         start_is_auto: start.0,
         start_px: start.1,
         start_percentage: start.2,
+        start_calculated: start.3,
         end_is_auto: end.0,
         end_px: end.1,
         end_percentage: end.2,
+        end_calculated: end.3,
     }
 }
 
@@ -5137,7 +5167,7 @@ fn animation_timeline_descriptor(value: &StyleValueData) -> AnimationTimelineDes
 /// and its offset from the start of that range as a length plus a percentage of the range. `normal` is the start or the
 /// end of the entire timeline.
 /// https://drafts.csswg.org/scroll-animations-1/#animation-range-start
-fn animation_range_edge(value: &StyleValueData, default_percentage: f64) -> (u8, f64, f64) {
+fn animation_range_edge(value: &StyleValueData, default_percentage: f64) -> (u8, f64, f64, *const c_void) {
     let range_name = |keyword: u16| match keyword {
         keyword::COVER => 1,
         keyword::CONTAIN => 2,
@@ -5148,9 +5178,12 @@ fn animation_range_edge(value: &StyleValueData, default_percentage: f64) -> (u8,
         keyword::SCROLL => 7,
         _ => 0,
     };
-    let offset = length_plus_percentage;
+    let offset = |value: &StyleValueData| {
+        let (px, percentage) = length_plus_percentage(value);
+        (px, percentage, calculated_offset(value))
+    };
     match value {
-        StyleValueData::Keyword { keyword } => (range_name(*keyword), 0.0, default_percentage),
+        StyleValueData::Keyword { keyword } => (range_name(*keyword), 0.0, default_percentage, std::ptr::null()),
         StyleValueData::ValueList { values, .. } => {
             let [name, length_percentage] = values.as_slice() else {
                 unreachable!("computed animation range edge must be a range name and an offset")
@@ -5158,12 +5191,12 @@ fn animation_range_edge(value: &StyleValueData, default_percentage: f64) -> (u8,
             let StyleValueData::Keyword { keyword } = name.data() else {
                 unreachable!("computed animation range edge must start with a range name")
             };
-            let (px, percentage) = offset(length_percentage.data());
-            (range_name(*keyword), px, percentage)
+            let (px, percentage, calculated) = offset(length_percentage.data());
+            (range_name(*keyword), px, percentage, calculated)
         }
         value => {
-            let (px, percentage) = offset(value);
-            (0, px, percentage)
+            let (px, percentage, calculated) = offset(value);
+            (0, px, percentage, calculated)
         }
     }
 }
@@ -5174,6 +5207,8 @@ pub struct FfiAnimationRangeEdge {
     pub name: u8,
     pub offset_px: f64,
     pub offset_percentage: f64,
+    /// A calculation the offset resolves against the size of its range, or null. See `calculated_offset`.
+    pub offset_calculated: *const c_void,
 }
 
 /// The edge a computed `animation-range-start` or `animation-range-end` value with a single item describes, for a range
@@ -5196,11 +5231,13 @@ pub unsafe extern "C" fn rust_animation_range_edge(
         },
         value => value,
     };
-    let (name, offset_px, offset_percentage) = animation_range_edge(item, if is_end { 100.0 } else { 0.0 });
+    let (name, offset_px, offset_percentage, offset_calculated) =
+        animation_range_edge(item, if is_end { 100.0 } else { 0.0 });
     *out = FfiAnimationRangeEdge {
         name,
         offset_px,
         offset_percentage,
+        offset_calculated,
     };
     true
 }
@@ -5393,9 +5430,9 @@ fn build_computed_animation_list(
             _ => unreachable!("computed animation enum must be a keyword"),
         };
         let timeline = animation_timeline_descriptor(timeline_values[index % timeline_values.len()].data());
-        let (range_start_name, range_start_px, range_start_percentage) =
+        let (range_start_name, range_start_px, range_start_percentage, range_start_calculated) =
             animation_range_edge(range_start_values[index % range_start_values.len()].data(), 0.0);
-        let (range_end_name, range_end_px, range_end_percentage) =
+        let (range_end_name, range_end_px, range_end_percentage, range_end_calculated) =
             animation_range_edge(range_end_values[index % range_end_values.len()].data(), 100.0);
         animations.push(FfiComputedAnimation {
             duration_is_auto,
@@ -5418,9 +5455,11 @@ fn build_computed_animation_list(
             range_start_name,
             range_start_px,
             range_start_percentage,
+            range_start_calculated,
             range_end_name,
             range_end_px,
             range_end_percentage,
+            range_end_calculated,
             matched_existing_index: crate::css::style::animations::NO_MATCHED_ANIMATION,
             keyframe_set: resolve_keyframes(name.units()).map_or(std::ptr::null(), |set| set as *const c_void),
         });
