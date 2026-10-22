@@ -1255,7 +1255,21 @@ fn initialize_typed_array_from_typed_array(
 
         // e. Let count be elementLength.
         // f. Repeat, while count > 0,
-        for _ in 0..element_length {
+        // OPTIMIZATION: The new buffer is not shared, so a source buffer that is not shared either converts in one pass.
+        let element_count = if source_data.is_shared_array_buffer() {
+            element_length
+        } else {
+            source_data.convert_elements_to(
+                &data,
+                source_byte_offset as usize,
+                source_array.kind().element_type(),
+                0,
+                typed_array.kind().element_type(),
+                element_length as usize,
+            );
+            0
+        };
+        for _ in 0..element_count {
             // i. Let value be GetValueFromBuffer(srcData, srcByteIndex, srcType, true, unordered).
             let value = source_array.get_value_from_buffer(vm, source_byte_index as usize, Order::Unordered);
 

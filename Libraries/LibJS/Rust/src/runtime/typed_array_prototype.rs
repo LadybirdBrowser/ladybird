@@ -435,6 +435,19 @@ fn set_typed_array_from_typed_array(
     }
     // 22. Else,
     else {
+        // OPTIMIZATION: Buffers that are not shared convert in one pass. (Step 17 above cloned sourceBuffer if it was
+        //               targetBuffer, so the two are different buffers here.)
+        if !source_buffer.is_shared_array_buffer() && !target_buffer.is_shared_array_buffer() {
+            source_buffer.convert_elements_to(
+                &target_buffer,
+                source_byte_index,
+                source_type,
+                target_byte_index,
+                target.kind().element_type(),
+                source_length as usize,
+            );
+            target_byte_index = limit;
+        }
         // a. Repeat, while targetByteIndex < limit,
         while target_byte_index < limit {
             // i. Let value be GetValueFromBuffer(sourceBuffer, sourceByteIndex, sourceType, true, unordered).
