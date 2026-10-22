@@ -194,14 +194,6 @@ u64 Internals::accumulated_visual_context_incremental_update_count()
     return document.paint_state().accumulated_visual_context_tree_incremental_update_count();
 }
 
-u64 Internals::visual_context_pending_dirty_box_count()
-{
-    auto& document = window().associated_document();
-    if (!document.has_committed_viewport_box())
-        return 0;
-    return Layout::RustFFI::render_state_visual_context_pending_dirty_box_count(document.layout_node_arena().host());
-}
-
 u64 Internals::layout_tree_pre_order_label_violation_count()
 {
     // A script reads the render state, which waits for a frame in flight.

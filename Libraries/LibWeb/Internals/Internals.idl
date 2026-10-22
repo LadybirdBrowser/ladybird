@@ -12,7 +12,6 @@ interface Internals {
     undefined setShowLineBoxBorders(boolean enabled);
     undefined setForceDarkThresholds(long foreground, long background);
     unsigned long long visualContextTreeNodeCount();
-    unsigned long long visualContextPendingDirtyBoxCount();
     unsigned long long accumulatedVisualContextIncrementalUpdateCount();
     unsigned long long visualContextTreeNodeCapacity();
     unsigned long long visualContextTreeDeadNodeCount();
