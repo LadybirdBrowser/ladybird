@@ -4,10 +4,64 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <Compositor/ConnectionFromPresentation.h>
 #include <LibIPC/Transport.h>
+#include <math.h>
 
 namespace Compositor {
+
+// NB: The IPC decoder already rejects event types, wheel delta precisions and scroll gesture phases that do not
+//     exist, and pinch scales that are not finite. These check the rest of what the UI sends.
+
+static bool is_valid_key_code(Web::UIEvents::KeyCode key)
+{
+    switch (key) {
+#define __ENUMERATE_KEY_CODE(name, ui_name, code) case Web::UIEvents::Key_##name:
+        ENUMERATE_KEY_CODES
+#undef __ENUMERATE_KEY_CODE
+        return true;
+    }
+    return false;
+}
+
+static bool is_valid_modifiers(Web::UIEvents::KeyModifier modifiers)
+{
+    // NB: KeyModifier has no fixed underlying type, so ~Mod_Mask is out of its range; mask the integers instead.
+    return (to_underlying(modifiers) & ~to_underlying(Web::UIEvents::Mod_Mask)) == 0;
+}
+
+static bool is_valid_key_event(Web::KeyEvent const& event)
+{
+    return is_valid_key_code(event.key)
+        && is_valid_modifiers(event.modifiers)
+        && event.code_point <= 0x10ffff;
+}
+
+static bool is_valid_mouse_event(Web::MouseEvent const& event)
+{
+    // Wheel deltas are scrolled by as floats.
+    auto is_valid_wheel_delta = [](double delta) {
+        return isfinite(delta) && fabs(delta) <= NumericLimits<float>::max();
+    };
+    constexpr auto all_buttons = Web::UIEvents::Primary | Web::UIEvents::Secondary | Web::UIEvents::Middle | Web::UIEvents::Backward | Web::UIEvents::Forward;
+    return first_is_one_of(event.button, Web::UIEvents::None, Web::UIEvents::Primary, Web::UIEvents::Secondary, Web::UIEvents::Middle, Web::UIEvents::Backward, Web::UIEvents::Forward)
+        && (event.buttons & ~all_buttons) == 0
+        && is_valid_modifiers(event.modifiers)
+        && is_valid_wheel_delta(event.wheel_delta_x)
+        && is_valid_wheel_delta(event.wheel_delta_y)
+        && is_valid_wheel_delta(event.wheel_tick_120ths_x)
+        && is_valid_wheel_delta(event.wheel_tick_120ths_y)
+        && event.click_count >= 0
+        // Only the compositor sets these, on its way to WebContent.
+        && !event.async_scroll_performed_default_action
+        && !event.scrollbar_dragged_by_compositor.has_value();
+}
+
+static bool is_valid_pinch_event(Web::PinchEvent const& event)
+{
+    return is_valid_modifiers(event.modifiers);
+}
 
 ConnectionFromPresentation::ConnectionFromPresentation(NonnullOwnPtr<IPC::Transport> transport, NonnullRefPtr<CompositorState> compositor_state, CompositorState::PresentationCapabilities capabilities)
     : IPC::ConnectionFromClient<CompositorPresentationClientEndpoint, CompositorPresentationServerEndpoint>(*this, move(transport), 1)
@@ -66,6 +120,10 @@ void ConnectionFromPresentation::did_not_dispatch_input_event(Web::CompositorCon
 
 Messages::CompositorPresentationServer::HandleKeyEventResponse ConnectionFromPresentation::handle_key_event(Web::CompositorContextId context_id, Web::KeyEvent event)
 {
+    if (!is_valid_key_event(event)) {
+        did_misbehave("Invalid key event");
+        return false;
+    }
     if (!is_bound_to(context_id))
         return false;
     return m_compositor_state->handle_key_event(context_id, event);
@@ -73,6 +131,10 @@ Messages::CompositorPresentationServer::HandleKeyEventResponse ConnectionFromPre
 
 Messages::CompositorPresentationServer::DispatchKeyEventToWebContentResponse ConnectionFromPresentation::dispatch_key_event_to_web_content(Web::CompositorContextId context_id, Web::KeyEvent event)
 {
+    if (!is_valid_key_event(event)) {
+        did_misbehave("Invalid key event");
+        return false;
+    }
     if (!is_bound_to(context_id))
         return false;
     return m_compositor_state->dispatch_key_event_to_web_content(context_id, event);
@@ -80,6 +142,10 @@ Messages::CompositorPresentationServer::DispatchKeyEventToWebContentResponse Con
 
 void ConnectionFromPresentation::handle_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)
 {
+    if (!is_valid_pinch_event(event)) {
+        did_misbehave("Invalid pinch event");
+        return;
+    }
     if (!is_bound_to(context_id))
         return;
     m_compositor_state->handle_pinch_event(context_id, event);
@@ -87,6 +153,10 @@ void ConnectionFromPresentation::handle_pinch_event(Web::CompositorContextId con
 
 void ConnectionFromPresentation::handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event)
 {
+    if (!is_valid_mouse_event(event)) {
+        did_misbehave("Invalid mouse event");
+        return;
+    }
     if (!is_bound_to(context_id)) {
         did_not_dispatch_input_event(context_id, event.id);
         return;
