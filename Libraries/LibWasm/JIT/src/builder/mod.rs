@@ -188,6 +188,8 @@ pub struct Builder {
     memory_base: Value,
     /// The zero vector, which every v128 local starts as, once made.
     vector_zero: Value,
+    /// The next of the function's `try_regions` a legacy `try` may be (see `begin_try`).
+    try_region_cursor: usize,
     /// The byte offsets of struct fields, by (type index, field index); the field count gives the size.
     field_offsets: Table<u64>,
     /// What an OSR compile needs (see `build_osr`), or what probing for one found.
@@ -283,6 +285,7 @@ impl Builder {
         self.read_values.clear();
         self.params.clear();
         self.vector_zero = NONE;
+        self.try_region_cursor = 0;
         self.field_offsets.clear();
         self.handler = NONE;
         self.clauses.clear();
@@ -1034,10 +1037,17 @@ impl Builder {
                 if self.osr.as_ref().is_some_and(|osr| osr.probing) {
                     // NB: A legacy handler's exception is no value the frame has, so loops in handlers do not OSR.
                     let in_handler = self.controls.iter().any(|control| control.kind == ControlKind::Catch);
+                    // NB: A value below the operand stack of an enclosing construct that is no loop flows to the
+                    //     construct's end around the loops too, where it would need a phi of the value the frame has
+                    //     and the one the function's start made, which the merge does not make for values below its
+                    //     height. Such loops do not OSR.
+                    let below_construct = self.controls.iter().any(|control| {
+                        !matches!(control.kind, ControlKind::Function | ControlKind::Loop) && control.height != 0
+                    });
                     let stack_types = self.stack.iter().map(|value| func.node(*value).ty).collect();
                     let osr = self.osr.as_mut().expect("probing");
                     if at_osr_loop {
-                        osr.found = !in_handler;
+                        osr.found = !in_handler && !below_construct;
                         osr.stack_types = stack_types;
                         osr.around = osr.open_loops.clone();
                     }

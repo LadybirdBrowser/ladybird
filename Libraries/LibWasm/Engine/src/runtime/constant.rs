@@ -95,7 +95,11 @@ pub fn evaluate(
                                 .map(|field| Value::default_for(field.storage.unpacked()))
                                 .collect()
                         };
-                        stack.push(Value::Ref(store.allocate_struct(identity, &values)));
+                        let object = store.allocate_struct(identity, &values);
+                        if object == 0 {
+                            return Err(Trap::Host("out of memory".to_string()));
+                        }
+                        stack.push(Value::Ref(object));
                     }
                     opcode::gc::ARRAY_NEW | opcode::gc::ARRAY_NEW_DEFAULT | opcode::gc::ARRAY_NEW_FIXED => {
                         let type_index = immediate()?;
@@ -104,10 +108,13 @@ pub fn evaluate(
                             return Err(malformed());
                         };
                         let element = element.storage.unpacked();
-                        let values = match sub_opcode {
+                        // NB: The length of array.new is any u32, so its elements go into the array directly, which
+                        //     checks its size first, rather than into a vector of that length.
+                        let array = match sub_opcode {
                             opcode::gc::ARRAY_NEW_FIXED => {
                                 let count = immediate()? as usize;
-                                stack.split_off(stack.len().checked_sub(count).ok_or_else(malformed)?)
+                                let values = stack.split_off(stack.len().checked_sub(count).ok_or_else(malformed)?);
+                                store.allocate_array(identity, &values)
                             }
                             _ => {
                                 let Some(Value::I32(length)) = stack.pop() else {
@@ -118,10 +125,9 @@ pub fn evaluate(
                                 } else {
                                     Value::default_for(element)
                                 };
-                                vec![value; length as u32 as usize]
+                                store.allocate_filled_array(identity, value, length as u32)
                             }
                         };
-                        let array = store.allocate_array(identity, &values);
                         if array == 0 {
                             return Err(Trap::Host("out of memory".to_string()));
                         }

@@ -9,8 +9,8 @@
 //! frame wants it, which also undoes whatever a callee's tail calls did to it.
 
 use super::{ADDRESS, CodeGenerator, FP, LR, SCRATCH, SP, fpr, fpr_access, gpr, gpr_access};
-use crate::asm::Width;
 use crate::asm::aarch64::{MemOperand, PairOperand};
+use crate::asm::{Gpr, Width};
 use crate::convention::{self, Place};
 use crate::ir::{FLAG_CHECKS_EXCEPTION, Func, Op, Type, Value};
 use crate::regalloc::call_result_types;
@@ -35,7 +35,8 @@ impl CodeGenerator<'_> {
                 let results = call_result_types(func, value);
                 if convention::has_result_area(&results) {
                     let pointer = 8 * i64::from(argument_slots);
-                    self.asm.add_any(SCRATCH, SP, pointer + 8, ADDRESS);
+                    let area = 8 * i64::from((argument_slots + 1).next_multiple_of(2));
+                    self.asm.add_any(SCRATCH, SP, area, ADDRESS);
                     let operand = self.operand(SP, pointer, 3);
                     self.asm.str(Width::W64, SCRATCH, operand);
                 }
@@ -59,7 +60,7 @@ impl CodeGenerator<'_> {
                 convention::result_places(&results, &mut places);
                 if let Place::Memory(slot) = places[index] {
                     let output = self.allocation.node(value).output;
-                    let area = 8 * (i64::from(argument_slots(func, call)) + 1);
+                    let area = 8 * i64::from((argument_slots(func, call) + 1).next_multiple_of(2));
                     let size_log2 = if node.ty == Type::V128 { 4 } else { 3 };
                     let operand = self.operand(SP, area + 8 * i64::from(slot), size_log2);
                     if node.ty.uses_xmm() {
@@ -74,8 +75,8 @@ impl CodeGenerator<'_> {
     }
 
     /// A tail call: the allocator put the arguments where a call passes them, which this copies the stack arguments
-    /// from into the incoming area (see `convention`). The return address stays in the link register, so where the
-    /// stack arguments need more room than the function was called with, only sp moves down.
+    /// from into the incoming area (see `convention`). The return address stays in the link register, so only sp
+    /// moves where the callee's incoming area differs from the function's.
     pub(super) fn lower_tail_call(&mut self, value: Value) {
         let func = self.func;
         let parameters = func.inputs(value)[3..]
@@ -84,14 +85,17 @@ impl CodeGenerator<'_> {
             .collect::<Vec<_>>();
         let has_result_area = convention::has_result_area(&func.results);
         let callee_slots = convention::slots(&parameters);
-        let own_slots = convention::slots(&func.params);
-        let needed = callee_slots + u32::from(has_result_area);
-        let available = own_slots + u32::from(has_result_area);
-        let slide = if needed > available {
-            i64::from((8 * (needed - available)).next_multiple_of(16))
-        } else {
-            0
-        };
+        // NB: The callee returns the function's results, so both have a result area or neither has. Moving sp by the
+        //     difference of their incoming areas, down or up, keeps the area's top in place.
+        let needed = convention::incoming_area_slots(&parameters, &func.results);
+        let available = convention::incoming_area_slots(&func.params, &func.results);
+        let slide = 8 * (i64::from(needed) - i64::from(available));
+        // SECURITY: The frame record at fp - 16 is in the incoming area once it grows, so the saved fp and the return
+        //           address come out before the arguments go in. The callee's operands are in their registers, which
+        //           leaves x9 free.
+        let saved_fp = Gpr(9);
+        self.asm
+            .ldp(saved_fp, LR, PairOperand::Offset(FP, convention::FRAME_SAVED_FP));
         let mut copied = Vec::new();
         let mut places = Vec::new();
         convention::parameter_places(&parameters, &mut places);
@@ -116,12 +120,9 @@ impl CodeGenerator<'_> {
             let operand = self.operand(FP, 8 * i64::from(slot) - slide, 3);
             self.asm.str(Width::W64, SCRATCH, operand);
         }
-        // The link register and fp come back from the frame, and sp goes where the function's caller had it, less
-        // the slide.
-        self.asm
-            .ldp(ADDRESS, LR, PairOperand::Offset(FP, convention::FRAME_SAVED_FP));
+        // sp goes where the function's caller had it, less the slide, and fp back to the caller's.
         self.asm.add_any(SP, FP, -slide, SCRATCH);
-        self.asm.mov(Width::W64, FP, ADDRESS);
+        self.asm.mov(Width::W64, FP, saved_fp);
         let callee = gpr(convention::CALLEE_REGISTER);
         self.asm.ldr(
             Width::W64,

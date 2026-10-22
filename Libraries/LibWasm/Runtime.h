@@ -284,6 +284,8 @@ public:
     GC::PrimitiveStorageHandle memory_primitive_storage_handle(Entity memory);
     // Runs after each memory.grow instruction that grows a memory, but not after grow_memory().
     void set_memory_grow_callback(Function<void(Entity memory)>);
+    // Whether the agent the store runs code for may block ([[CanBlock]]); memory.atomic.wait traps where it may not.
+    void set_can_block(bool);
 
     u64 table_size(Entity table);
     ValueType table_element_type(Entity table);

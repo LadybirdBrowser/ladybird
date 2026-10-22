@@ -174,6 +174,10 @@ pub const TRAP_UNCAUGHT_EXCEPTION: u32 = 15;
 pub const TRAP_UNALIGNED_ATOMIC: u32 = 16;
 pub const TRAP_EXPECTED_SHARED_MEMORY: u32 = 17;
 
+/// What `wasm_runtime_wait` returns, besides its results 0 to 2, when the agent cannot block: the store has the trap
+/// (TRAP_RUNTIME).
+pub const WAIT_CANNOT_BLOCK: u64 = 3;
+
 /// The state one thread executes WebAssembly with.
 #[repr(C)]
 pub struct ExecutionContext {
@@ -237,6 +241,18 @@ pub const STORAGE_FUNCTION_REFERENCE: u8 = 6;
 pub const OBJECT_DATA_OFFSET: usize = 16;
 pub const OBJECT_LENGTH_OFFSET: usize = 24;
 pub const OBJECT_INLINE_DATA_OFFSET: usize = 32;
+
+/// The sizes of the data a GC object can keep inline, the size classes of the runtime's heap. Larger data is
+/// allocated outside of the heap.
+pub const OBJECT_DATA_SIZE_CLASSES: [usize; 17] = [
+    0, 16, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096,
+];
+
+/// The most data an object keeps inline.
+pub const MAX_INLINE_DATA_SIZE: usize = OBJECT_DATA_SIZE_CLASSES[OBJECT_DATA_SIZE_CLASSES.len() - 1];
+
+// NB: The bytes a field or element takes in an object's data are `StorageType::object_field_size()` (types.rs); a
+//     struct's fields follow each other in order from offset 0.
 
 /// An exception is a cell with the identity of its tag, the address of its payload (its values' slots in operand
 /// stack order, the last value in the lowest slot), the payload's length in slots, and how the collector follows
@@ -357,6 +373,7 @@ pub fn layout_constants() -> String {
     constant("STORAGE_FUNCTION_REFERENCE", STORAGE_FUNCTION_REFERENCE as usize);
     constant("OBJECT_DATA_OFFSET", OBJECT_DATA_OFFSET);
     constant("OBJECT_LENGTH_OFFSET", OBJECT_LENGTH_OFFSET);
+    constant("WAIT_CANNOT_BLOCK", WAIT_CANNOT_BLOCK as usize);
     constant("CONTEXT_ARGUMENT_1", offset_of!(ExecutionContext, arguments) + 8);
     constant("CONTEXT_ARGUMENT_2", offset_of!(ExecutionContext, arguments) + 16);
     constant("CONTEXT_ARGUMENT_3", offset_of!(ExecutionContext, arguments) + 24);

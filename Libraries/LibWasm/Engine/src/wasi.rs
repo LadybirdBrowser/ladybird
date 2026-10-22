@@ -40,11 +40,21 @@ pub struct Wasi {
     environment: Vec<String>,
     /// The preopened directories, which are the guest's descriptors from 3 up.
     preopens: Vec<Preopen>,
-    /// The guest descriptors path_open created, and the host descriptors they are.
-    files: RefCell<HashMap<u32, i32>>,
+    /// The guest's open descriptors besides the preopens: 0 to 2, which are the host's standard input, output and
+    /// error, and those path_open created.
+    files: RefCell<HashMap<u32, File>>,
     next_fd: Cell<u32>,
     memory: Cell<Option<MemoryAddress>>,
     exit_code: Cell<Option<i32>>,
+}
+
+/// A guest descriptor's host descriptor.
+#[derive(Clone, Copy)]
+struct File {
+    host_fd: i32,
+    /// Whether the guest owns the host descriptor, which closing the guest's then closes. The host's standard
+    /// streams stay open whatever the guest closes.
+    owned: bool,
 }
 
 /// A WASI errno value.
@@ -60,6 +70,8 @@ const ERRNO_INVAL: Errno = 28;
 const ERRNO_IO: Errno = 29;
 const ERRNO_ISDIR: Errno = 31;
 const ERRNO_NOSYS: Errno = 52;
+#[cfg_attr(not(unix), allow(dead_code))]
+const ERRNO_NOTCAPABLE: Errno = 76;
 
 /// What a guest descriptor refers to.
 enum Descriptor {
@@ -74,7 +86,19 @@ impl Wasi {
             arguments,
             environment,
             preopens,
-            files: RefCell::new(HashMap::new()),
+            files: RefCell::new(
+                (0..3)
+                    .map(|fd| {
+                        (
+                            fd,
+                            File {
+                                host_fd: fd as i32,
+                                owned: false,
+                            },
+                        )
+                    })
+                    .collect(),
+            ),
             next_fd: Cell::new(next_fd),
             memory: Cell::new(None),
             exit_code: Cell::new(None),
@@ -137,14 +161,12 @@ impl Wasi {
     }
 
     fn descriptor(&self, fd: u32) -> Option<Descriptor> {
-        if fd <= 2 {
-            return Some(Descriptor::Host(fd as i32));
+        if let Some(preopen) = fd.checked_sub(3)
+            && (preopen as usize) < self.preopens.len()
+        {
+            return Some(Descriptor::Preopen(preopen as usize));
         }
-        let preopen = (fd - 3) as usize;
-        if preopen < self.preopens.len() {
-            return Some(Descriptor::Preopen(preopen));
-        }
-        self.files.borrow().get(&fd).map(|&host_fd| Descriptor::Host(host_fd))
+        self.files.borrow().get(&fd).map(|file| Descriptor::Host(file.host_fd))
     }
 
     fn host_fd(&self, fd: u32) -> Result<i32, Errno> {
@@ -155,14 +177,10 @@ impl Wasi {
         }
     }
 
-    /// The host descriptor to resolve paths relative to `fd` from, which is the working directory for a descriptor
-    /// the guest does not have.
+    /// The host descriptor to resolve paths relative to `fd` from. Paths only reach what is beneath a descriptor the
+    /// guest has (the capability model): the platform functions resolve them beneath it.
     fn directory_fd(&self, fd: u32) -> Result<i32, Errno> {
-        match self.descriptor(fd) {
-            Some(Descriptor::Host(host_fd)) => Ok(host_fd),
-            Some(Descriptor::Preopen(index)) => self.preopen_fd(index),
-            None => Ok(platform::AT_FDCWD),
-        }
+        self.host_fd(fd)
     }
 
     fn preopen_fd(&self, index: usize) -> Result<i32, Errno> {
@@ -185,9 +203,11 @@ impl Wasi {
             "clock_res_get" => memory.write_u64(a(1), platform::clock_resolution(a(0))?),
             "clock_time_get" => memory.write_u64(a(2), platform::clock_time(a(0))?),
             "fd_close" => match self.descriptor(a(0)) {
-                Some(Descriptor::Host(host_fd)) => {
-                    platform::close(host_fd)?;
-                    self.files.borrow_mut().remove(&a(0));
+                Some(Descriptor::Host(_)) => {
+                    let file = self.files.borrow_mut().remove(&a(0)).expect("the descriptor is a file");
+                    if file.owned {
+                        platform::close(file.host_fd)?;
+                    }
                     Ok(())
                 }
                 Some(Descriptor::Preopen(_)) => Err(ERRNO_ISDIR),
@@ -280,7 +300,7 @@ impl Wasi {
                 let host_fd = platform::open_at(directory, memory.slice(a(2), a(3))?, &options)?;
                 let fd = self.next_fd.get();
                 self.next_fd.set(fd + 1);
-                self.files.borrow_mut().insert(fd, host_fd);
+                self.files.borrow_mut().insert(fd, File { host_fd, owned: true });
                 memory.write_u32(a(8), fd)
             }
             "random_get" => platform::fill_with_random(memory.slice(a(0), a(1))?),
@@ -431,11 +451,142 @@ fn write_filestat(memory: &mut Memory, address: u32, status: &FileStatus) -> Res
 
 #[cfg(unix)]
 mod platform {
-    use super::{ERRNO_INVAL, ERRNO_IO, Errno, FileStatus, OpenOptions};
+    use super::{ERRNO_INVAL, ERRNO_IO, ERRNO_NOTCAPABLE, Errno, FileStatus, OpenOptions};
+    use std::collections::VecDeque;
     use std::ffi::CString;
 
-    pub const AT_FDCWD: i32 = libc::AT_FDCWD;
     pub const WHENCE_CURRENT: u32 = 1;
+
+    /// The most symbolic links one path resolution follows, as Linux's.
+    const MAX_SYMLINKS: u32 = 40;
+
+    /// A path resolved beneath a directory: the directory its last component is in, and that component, which is
+    /// neither `..` nor a symbolic link that the resolution was to follow.
+    struct Beneath {
+        directory: i32,
+        /// Whether `directory` is a descriptor of the resolution's own, which it closes.
+        owned: bool,
+        name: CString,
+    }
+
+    impl Drop for Beneath {
+        fn drop(&mut self) {
+            if self.owned {
+                unsafe { libc::close(self.directory) };
+            }
+        }
+    }
+
+    fn components(path: &[u8]) -> impl DoubleEndedIterator<Item = &[u8]> {
+        path.split(|byte| *byte == b'/')
+            .filter(|component| !component.is_empty() && *component != b".")
+    }
+
+    /// The symbolic link `name` in `directory` points to, or None if it is not one.
+    fn link_target(directory: i32, name: &CString) -> Result<Option<Vec<u8>>, Errno> {
+        let mut status = unsafe { std::mem::zeroed::<libc::stat>() };
+        if unsafe { libc::fstatat(directory, name.as_ptr(), &raw mut status, libc::AT_SYMLINK_NOFOLLOW) } != 0
+            || status.st_mode & libc::S_IFMT != libc::S_IFLNK
+        {
+            return Ok(None);
+        }
+        let mut target = vec![0u8; libc::PATH_MAX as usize];
+        let length = unsafe { libc::readlinkat(directory, name.as_ptr(), target.as_mut_ptr().cast(), target.len()) };
+        if length < 0 {
+            return Err(last_errno());
+        }
+        target.truncate(length as usize);
+        Ok(Some(target))
+    }
+
+    /// Resolves `path` beneath the directory `base`, one component at a time, so that it never leaves it: absolute
+    /// paths and symbolic links, and `..` above `base`, are not capable. Symbolic links in the middle are followed
+    /// (beneath `base`), and the last one too if `follow_last`.
+    fn resolve_beneath(base: i32, path: &[u8], follow_last: bool) -> Result<Beneath, Errno> {
+        if path.is_empty() {
+            return Err(errno_of(libc::ENOENT));
+        }
+        if path[0] == b'/' {
+            return Err(ERRNO_NOTCAPABLE);
+        }
+        // The directories below `base` the resolution is in, innermost last, which it owns.
+        let mut directories: Vec<i32> = Vec::new();
+        let close_all = |directories: &mut Vec<i32>| {
+            for fd in directories.drain(..) {
+                unsafe { libc::close(fd) };
+            }
+        };
+        let mut queue: VecDeque<Vec<u8>> = components(path).map(<[u8]>::to_vec).collect();
+        let mut links = 0;
+        let result = loop {
+            let Some(component) = queue.pop_front() else {
+                break Ok(c".".to_owned());
+            };
+            let current = *directories.last().unwrap_or(&base);
+            if component == b".." {
+                match directories.pop() {
+                    Some(fd) => unsafe {
+                        libc::close(fd);
+                    },
+                    None => break Err(ERRNO_NOTCAPABLE),
+                }
+                continue;
+            }
+            let name = match path_of(&component) {
+                Ok(name) => name,
+                Err(errno) => break Err(errno),
+            };
+            let last = queue.is_empty();
+            if !last || follow_last {
+                match link_target(current, &name) {
+                    Ok(Some(target)) => {
+                        links += 1;
+                        if links > MAX_SYMLINKS {
+                            break Err(errno_of(libc::ELOOP));
+                        }
+                        if target.first() == Some(&b'/') {
+                            break Err(ERRNO_NOTCAPABLE);
+                        }
+                        for component in components(&target).rev() {
+                            queue.push_front(component.to_vec());
+                        }
+                        continue;
+                    }
+                    Ok(None) => {}
+                    Err(errno) => break Err(errno),
+                }
+            }
+            if last {
+                break Ok(name);
+            }
+            let fd = unsafe {
+                libc::openat(
+                    current,
+                    name.as_ptr(),
+                    libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_RDONLY | libc::O_CLOEXEC,
+                )
+            };
+            if fd < 0 {
+                break Err(last_errno());
+            }
+            directories.push(fd);
+        };
+        match result {
+            Ok(name) => {
+                let directory = directories.pop();
+                close_all(&mut directories);
+                Ok(Beneath {
+                    directory: directory.unwrap_or(base),
+                    owned: directory.is_some(),
+                    name,
+                })
+            }
+            Err(errno) => {
+                close_all(&mut directories);
+                Err(errno)
+            }
+        }
+    }
 
     const NANOSECONDS_PER_SECOND: u64 = 1_000_000_000;
 
@@ -518,7 +669,7 @@ mod platform {
         const RIGHTS_FD_READ: u64 = 1 << 1;
         const RIGHTS_FD_WRITE: u64 = 1 << 6;
 
-        let path = path_of(path)?;
+        let resolved = resolve_beneath(directory, path, options.follow_symlinks)?;
         let readable = options.rights & RIGHTS_FD_READ != 0;
         let writable = options.rights & RIGHTS_FD_WRITE != 0;
         let mut flags = match (readable, writable) {
@@ -548,10 +699,10 @@ mod platform {
         if options.fd_flags & FDFLAGS_SYNC != 0 {
             flags |= libc::O_SYNC;
         }
-        if !options.follow_symlinks {
-            flags |= libc::O_NOFOLLOW;
-        }
-        let fd = unsafe { libc::openat(directory, path.as_ptr(), flags, 0o644 as libc::c_uint) };
+        // NB: The resolution followed the symbolic links it was to follow: a link in the last place now is one that
+        //     appeared since, which must not be followed out.
+        flags |= libc::O_NOFOLLOW;
+        let fd = unsafe { libc::openat(resolved.directory, resolved.name.as_ptr(), flags, 0o644 as libc::c_uint) };
         if fd < 0 { Err(last_errno()) } else { Ok(fd) }
     }
 
@@ -596,8 +747,8 @@ mod platform {
     }
 
     pub fn create_directory(directory: i32, path: &[u8]) -> Result<(), Errno> {
-        let path = path_of(path)?;
-        if unsafe { libc::mkdirat(directory, path.as_ptr(), 0o755) } != 0 {
+        let resolved = resolve_beneath(directory, path, false)?;
+        if unsafe { libc::mkdirat(resolved.directory, resolved.name.as_ptr(), 0o755) } != 0 {
             return Err(last_errno());
         }
         Ok(())
@@ -644,10 +795,10 @@ mod platform {
     }
 
     pub fn stat_at(directory: i32, path: &[u8], follow_symlinks: bool) -> Result<FileStatus, Errno> {
-        let path = path_of(path)?;
-        let flags = if follow_symlinks { 0 } else { libc::AT_SYMLINK_NOFOLLOW };
+        let resolved = resolve_beneath(directory, path, follow_symlinks)?;
         let mut status = unsafe { std::mem::zeroed::<libc::stat>() };
-        if unsafe { libc::fstatat(directory, path.as_ptr(), &raw mut status, flags) } != 0 {
+        let (directory, name) = (resolved.directory, resolved.name.as_ptr());
+        if unsafe { libc::fstatat(directory, name, &raw mut status, libc::AT_SYMLINK_NOFOLLOW) } != 0 {
             return Err(last_errno());
         }
         Ok(status_of(&status))
@@ -728,7 +879,6 @@ mod platform {
 mod platform {
     use super::{ERRNO_NOSYS, Errno, FileStatus, OpenOptions};
 
-    pub const AT_FDCWD: i32 = -100;
     pub const WHENCE_CURRENT: u32 = 1;
 
     pub fn open_directory(_: &str) -> Result<i32, Errno> {

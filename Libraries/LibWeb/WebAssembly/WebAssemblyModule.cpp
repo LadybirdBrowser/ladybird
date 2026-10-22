@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
@@ -250,7 +251,9 @@ JS::ThrowCompletionOr<void> WebAssemblyModuleTraits::execute_module(JS::HostModu
     auto& store = Detail::WebAssemblyCache::the().store();
 
     // 4. Let imports be « ».
-    Vector<Wasm::Runtime::Extern> imports;
+    // NB: The host functions and globals made for the imports are referenced from here only until the instance
+    //     holds them, and converting values runs user code (valueOf) that may collect garbage.
+    GC::ConservativeVector<Wasm::Runtime::Extern> imports;
     size_t imported_function_count = 0;
 
     // 5. For each (importedModuleName, name, importtype) in module_imports(module),

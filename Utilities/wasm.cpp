@@ -10,6 +10,7 @@
 #include <AK/Hex.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <AK/LexicalPath.h>
 #include <AK/ScopeGuard.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/Utf16String.h>
@@ -276,7 +277,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool wasi = false;
     ByteString exported_function_to_execute;
     Vector<ParsedValue> values_to_push;
-    Vector<ByteString> modules_to_link_in;
+    // The modules to link in, and the module name importers know each by.
+    Vector<ImportName> modules_to_link_in;
     Vector<StringView> args_if_wasi;
     Vector<StringView> wasi_preopened_mappings;
     HashMap<ImportName, Wasm::Runtime::Extern> js_exports;
@@ -522,14 +524,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     });
     parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Extra modules to link with, use to resolve imports",
+        .help_string = "Extra modules to link with, whose exports resolve imports of the module name (default: the file's name without its extension)",
         .long_name = "link",
         .short_name = 'l',
-        .value_name = "file",
+        .value_name = "[name=]file",
         .accept_value = [&](StringView text) {
             if (text.is_empty())
                 return false;
-            modules_to_link_in.append(text);
+            if (auto separator = text.find('='); separator.has_value()) {
+                modules_to_link_in.append({ text.substring_view(0, *separator), text.substring_view(*separator + 1) });
+                return true;
+            }
+            modules_to_link_in.append({ LexicalPath::title(text), text });
             return true;
         },
     });
@@ -592,14 +598,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         wasi_implementation = make<Wasm::Runtime::Wasi>(wasi_arguments, ReadonlySpan<ByteString> {}, preopens);
     }
 
-    // Each linked module's exports resolve the imports of the ones after it, and of the main module, by name.
-    HashMap<ByteString, Wasm::Runtime::Extern> linked_exports;
+    // Each linked module's exports resolve the imports of the ones after it, and of the main module, of its module name
+    // and the export's name and kind.
+    HashMap<ImportName, Wasm::Runtime::Extern> linked_exports;
     auto resolve_imports = [&](Wasm::Runtime::Module const& module_to_link) -> Optional<Vector<Wasm::Runtime::Extern>> {
         Vector<Wasm::Runtime::Extern> imports;
         bool missing = false;
         for (size_t index = 0; index < module_to_link.import_count(); ++index) {
             auto import = module_to_link.import(index);
-            if (auto value = linked_exports.get(import.name); value.has_value()) {
+            if (auto value = linked_exports.get({ import.module, import.name }); value.has_value() && value->kind == import.type.kind) {
                 imports.append(*value);
                 continue;
             }
@@ -671,7 +678,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         return keep(instance.value());
     };
 
-    for (auto& name : modules_to_link_in) {
+    for (auto& [module_name, name] : modules_to_link_in) {
         auto linked_module = timed(timings.parse, [&] { return compile(name); });
         if (!linked_module) {
             warnln("Failed to compile linked module '{}'", name);
@@ -681,7 +688,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (!instance.has_value())
             return 1;
         for (auto& entry : store.instance_exports(*instance))
-            linked_exports.set(entry.name, entry.value);
+            linked_exports.set({ module_name, entry.name }, entry.value);
     }
 
     auto instance = instantiate(*module, filename);

@@ -341,7 +341,8 @@ pub enum Helper {
     TableCopy,
     /// table data, segment, destination, source, count.
     TableInit,
-    /// address, expected value, timeout in nanoseconds, size: 0 when woken, 1 if the value differed, 2 on timeout.
+    /// address, expected value, timeout in nanoseconds, size: 0 when woken, 1 if the value differed, 2 on timeout,
+    /// or WAIT_CANNOT_BLOCK when the runtime has the trap.
     AtomicWait,
     /// address, count: how many waiters it woke.
     AtomicNotify,
@@ -402,6 +403,11 @@ impl Helper {
     /// Whether a value of zero means the runtime trapped, with TRAP_RUNTIME.
     pub fn traps_on_zero(self) -> bool {
         self == Helper::Allocate
+    }
+
+    /// The value, besides zero for `traps_on_zero()`, that means the runtime trapped, with TRAP_RUNTIME.
+    pub fn trap_value(self) -> Option<u64> {
+        (self == Helper::AtomicWait).then_some(libwasm_module::abi::WAIT_CANNOT_BLOCK)
     }
 
     pub fn name(self) -> &'static str {

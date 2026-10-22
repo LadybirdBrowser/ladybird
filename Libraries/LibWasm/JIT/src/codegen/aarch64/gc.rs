@@ -9,7 +9,7 @@
 
 use super::{ADDRESS, CodeGenerator, FP, SCRATCH, gpr};
 use crate::asm::aarch64::{AtomicRmw, AtomicSize, Cond, Extend, MemOperand, Shift};
-use crate::asm::{Gpr, Width};
+use crate::asm::{Gpr, Label, Width};
 use crate::convention::{self, Register};
 use crate::ir::{AtomicOp, CHECKED_ATOMIC, CHECKED_MEMORY64, HeapTest, Op, REF_TEST_CAST, REF_TEST_NULLABLE, Value};
 use crate::regalloc::{CONSTANT_INPUT, NO_REGISTER};
@@ -19,6 +19,13 @@ use libwasm_module::abi::{
     TRAP_NULL_REFERENCE, TRAP_UNALIGNED_ATOMIC,
 };
 use std::mem::offset_of;
+
+/// An operand of a 32-bit comparison: a register, or an immediate.
+#[derive(Clone, Copy)]
+pub(super) enum Operand32 {
+    Register(Gpr),
+    Immediate(u32),
+}
 
 fn field(offset: usize) -> i32 {
     offset as i32
@@ -204,6 +211,44 @@ impl CodeGenerator<'_> {
         self.asm.sub_imm(Width::W64, output, output, size as u32, false);
     }
 
+    /// Compares the u32 in `register` with `operand`.
+    fn compare32(&mut self, register: Gpr, operand: Operand32) {
+        match operand {
+            Operand32::Register(other) => self.asm.cmp(Width::W32, register, other),
+            Operand32::Immediate(immediate) => self.compare_immediate(Width::W32, register, u64::from(immediate)),
+        }
+    }
+
+    /// Branches to `failed` unless the type whose Rtt is in `rtt` is the expected type, of `identity` at `depth`, or
+    /// a subtype of it: a type's display lists the identities of its supertypes by depth, and its own last. Clobbers
+    /// `rtt` and ADDRESS.
+    pub(super) fn check_subtype(&mut self, rtt: Gpr, depth: Operand32, identity: Operand32, failed: Label) {
+        self.asm.ldr(
+            Width::W32,
+            ADDRESS,
+            MemOperand::Offset(rtt, field(offset_of!(Rtt, depth))),
+        );
+        self.compare32(ADDRESS, depth);
+        self.asm.b_cond(Cond::Lo, failed);
+        self.asm.ldr(
+            Width::W64,
+            rtt,
+            MemOperand::Offset(rtt, field(offset_of!(Rtt, display))),
+        );
+        let entry = match depth {
+            Operand32::Register(depth) => MemOperand::Register {
+                base: rtt,
+                index: depth,
+                extend: Extend::Uxtx,
+                shifted: true,
+            },
+            Operand32::Immediate(depth) => self.operand(rtt, 4 * i64::from(depth), 2),
+        };
+        self.asm.ldr(Width::W32, ADDRESS, entry);
+        self.compare32(ADDRESS, identity);
+        self.asm.b_cond(Cond::Ne, failed);
+    }
+
     /// `RefTest`: whether a reference matches a heap type, as 0 or 1, or for a cast a trap where it does not.
     fn ref_test(&mut self, value: Value) {
         let func = self.func;
@@ -211,7 +256,7 @@ impl CodeGenerator<'_> {
         let record = *self.allocation.node(value);
         let reference = gpr(record.inputs[0]);
         let identity: Register = record.inputs[1];
-        let depth = node.args[2] as i32;
+        let depth = node.args[2];
         let cast = node.flags & REF_TEST_CAST != 0;
         let matched = self.asm.new_label();
         let failed = if cast {
@@ -222,34 +267,13 @@ impl CodeGenerator<'_> {
         let null_matches = node.flags & REF_TEST_NULLABLE != 0;
         self.asm
             .cbz(Width::W64, reference, if null_matches { matched } else { failed });
-        // Compares the u32 at `operand` with the expected type identity.
-        let compare_identity = |generator: &mut Self, operand: MemOperand| {
-            generator.asm.ldr(Width::W32, ADDRESS, operand);
-            if identity == CONSTANT_INPUT {
-                let bits = generator.immediate(value, 1);
-                generator.compare_immediate(Width::W32, ADDRESS, bits);
-            } else {
-                generator.asm.cmp(Width::W32, ADDRESS, gpr(identity));
-            }
+        let identity = if identity == CONSTANT_INPUT {
+            Operand32::Immediate(self.immediate(value, 1) as u32)
+        } else {
+            Operand32::Register(gpr(identity))
         };
-        // Whether the Rtt in `rtt` is the expected type or a subtype of it: the expected type is in its display at
-        // the expected type's depth.
         let subtype_check = |generator: &mut Self, rtt: Gpr| {
-            generator.asm.ldr(
-                Width::W32,
-                ADDRESS,
-                MemOperand::Offset(rtt, field(offset_of!(Rtt, depth))),
-            );
-            generator.compare_immediate(Width::W32, ADDRESS, depth as u64);
-            generator.asm.b_cond(Cond::Lo, failed);
-            generator.asm.ldr(
-                Width::W64,
-                rtt,
-                MemOperand::Offset(rtt, field(offset_of!(Rtt, display))),
-            );
-            let operand = generator.operand(rtt, 4 * i64::from(depth), 2);
-            compare_identity(generator, operand);
-            generator.asm.b_cond(Cond::Ne, failed);
+            generator.check_subtype(rtt, Operand32::Immediate(depth), identity, failed);
         };
         match HeapTest::from_flags(node.flags) {
             HeapTest::NonNull => {}
@@ -290,7 +314,8 @@ impl CodeGenerator<'_> {
             HeapTest::ConcreteFunction => {
                 let [rtt, rtts] = [gpr(record.temps[0]), gpr(record.temps[1])];
                 let type_identity = MemOperand::Offset(reference, field(offset_of!(FunctionHeader, type_identity)));
-                compare_identity(self, type_identity);
+                self.asm.ldr(Width::W32, ADDRESS, type_identity);
+                self.compare32(ADDRESS, identity);
                 self.asm.b_cond(Cond::Eq, matched);
                 self.asm.ldr(Width::W32, rtt, type_identity);
                 self.asm

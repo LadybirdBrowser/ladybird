@@ -268,6 +268,111 @@ fn waits_on_shared_memory() {
 }
 
 #[test]
+fn wait_traps_in_an_agent_that_cannot_block() {
+    let mut store = Store::new();
+    store.can_block = false;
+    let instance = instantiate(&mut store, "shared_waits.wasm");
+    // Even where the value differs and nothing would block.
+    for expected in [0, 1] {
+        assert!(matches!(
+            call(
+                &mut store,
+                instance,
+                "wait",
+                &[Value::I32(0), Value::I32(expected), Value::I64(0)]
+            ),
+            Err(Trap::Host(_))
+        ));
+    }
+    assert_eq!(
+        call(&mut store, instance, "notify", &[Value::I32(0)]),
+        Ok(vec![Value::I32(0)])
+    );
+}
+
+#[test]
+fn active_element_segments_point_nowhere_after_instantiation() {
+    let mut store = Store::new();
+    let instance = instantiate(&mut store, "element_segments.wasm");
+    // The active segment's values went into the table and the segment was dropped: nothing points at its storage.
+    let segments = &store.instance(instance).element_segments;
+    assert!(segments[0].contents.is_null());
+    assert_eq!(segments[0].length, 0);
+    assert!(!segments[1].contents.is_null());
+    assert_eq!(segments[1].length, 2);
+    assert_eq!(
+        call(&mut store, instance, "call", &[Value::I32(1)]),
+        Ok(vec![Value::I32(7)])
+    );
+    assert_eq!(call(&mut store, instance, "init", &[Value::I32(2)]), Ok(vec![]));
+    assert_eq!(
+        call(&mut store, instance, "call", &[Value::I32(3)]),
+        Ok(vec![Value::I32(7)])
+    );
+}
+
+#[test]
+fn constant_arrays_too_large_for_memory_trap() {
+    for name in ["huge_constant_arrays.wasm", "huge_constant_arrays_new.wasm"] {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(name);
+        let module = libwasm_engine::compile(&std::fs::read(path).unwrap()).unwrap();
+        let mut store = Store::new();
+        // The length is 2^32 - 1: building the elements first aborted the process.
+        assert!(store.instantiate(Arc::new(module), &[]).is_err(), "{name}");
+    }
+}
+
+/// memory.atomic.wait waits where Atomics.wait does, on the operating system's waiter list for the address, so that
+/// a wake of the address from outside WebAssembly (here a FUTEX_WAKE, as Atomics.notify does) ends it.
+#[cfg(target_os = "linux")]
+#[test]
+fn waits_end_with_wakes_from_outside_webassembly() {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let waiter = std::thread::spawn(move || {
+        let mut store = Store::new();
+        let instance = instantiate(&mut store, "shared_memory_export.wasm");
+        let Some(ExternValue::Memory(memory)) = store.instance(instance).export("memory") else {
+            panic!("no memory export");
+        };
+        sender.send(store.memory(memory).bytes().as_ptr() as usize).unwrap();
+        // Ten seconds, which only a wake cuts short.
+        call(
+            &mut store,
+            instance,
+            "wait",
+            &[Value::I32(8), Value::I32(0), Value::I64(10_000_000_000)],
+        )
+    });
+    let address = receiver.recv().unwrap() + 8;
+    let start = std::time::Instant::now();
+    loop {
+        // Until the wait has started: a wake before it wakes nobody.
+        let woken = unsafe {
+            libc::syscall(
+                libc::SYS_futex,
+                address as *mut u32,
+                libc::FUTEX_WAKE,
+                1,
+                std::ptr::null::<libc::timespec>(),
+                std::ptr::null::<u32>(),
+                0,
+            )
+        };
+        if woken == 1 {
+            break;
+        }
+        assert!(
+            start.elapsed() < std::time::Duration::from_secs(5),
+            "the wait never started"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    assert_eq!(waiter.join().unwrap(), Ok(vec![Value::I32(0)]));
+}
+
+#[test]
 fn traps_on_ranges_that_wrap_around() {
     let mut store = Store::new();
     let instance = instantiate(&mut store, "wrapping_ranges.wasm");
@@ -302,4 +407,17 @@ fn traps_on_ranges_that_wrap_around() {
         call(&mut store, instance, "fill", &[Value::I64(16), Value::I64(16)]),
         Ok(vec![])
     );
+}
+
+#[test]
+fn calls_between_the_tiers_with_many_values() {
+    let run = |interpreted: bool| {
+        let mut store = Store::new();
+        if interpreted {
+            store.disable_jit();
+        }
+        let instance = instantiate(&mut store, "wide_calls.wasm");
+        call(&mut store, instance, "run", &[]).unwrap()
+    };
+    assert_eq!(run(false), run(true));
 }

@@ -164,7 +164,10 @@ impl CodeGenerator<'_> {
                 } else {
                     2
                 };
-                let mut operand = self.operand(gpr(a), i64::from(node.args[1] as i32), 3);
+                // NB: The slot of a v128 local holds the address of its storage, 8 bytes; other slots the value, whose
+                //     size decides which offsets the load takes.
+                let slot_size_log2 = if node.flags == 1 { 3 } else { size_log2 };
+                let mut operand = self.operand(gpr(a), i64::from(node.args[1] as i32), slot_size_log2);
                 if node.flags == 1 {
                     self.asm.ldr(Width::W64, ADDRESS, operand);
                     operand = MemOperand::Offset(ADDRESS, 0);

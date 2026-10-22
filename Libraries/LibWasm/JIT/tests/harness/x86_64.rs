@@ -158,7 +158,8 @@ pub(super) fn trampoline_code(params: &[Type], results: &[Type], state: *mut Ses
     let parameter_slots = convention::slots(params) as i32;
     if convention::has_result_area(results) {
         let pointer = 8 * parameter_slots;
-        asm.lea(Width::W64, g(convention::RAX), &Address::new(sp, pointer + 8));
+        let area = 8 * convention::result_area_slot(params) as i32;
+        asm.lea(Width::W64, g(convention::RAX), &Address::new(sp, area));
         asm.mov_mr(Width::W64, &Address::new(sp, pointer), g(convention::RAX));
     }
     asm.call_r(entry);
@@ -176,7 +177,7 @@ pub(super) fn trampoline_code(params: &[Type], results: &[Type], state: *mut Ses
         match place {
             Place::Register(register) => transfer(&mut asm, results[index], *register, address, false),
             Place::Memory(slot) => {
-                let area = 8 * (parameter_slots + 1) + 8 * *slot as i32;
+                let area = 8 * convention::result_area_slot(params) as i32 + 8 * *slot as i32;
                 copy(&mut asm, results[index], Address::new(sp, area), address);
             }
         }

@@ -12,9 +12,11 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf16String.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/DeferGC.h>
 #include <LibGC/Heap.h>
 #include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Agent.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -126,6 +128,9 @@ WebAssemblyCache& WebAssemblyCache::the()
 WebAssemblyCache::WebAssemblyCache(GC::Heap& heap)
     : m_store(make<Wasm::Runtime::Store>(heap))
 {
+    // NB: The store is the agent's, whose [[CanBlock]] decides whether memory.atomic.wait may block.
+    m_store->set_can_block(JS::agent_can_suspend(JS::VM::the()));
+
     Array<WasmValueType, 1> js_tag_parameters { WasmValueType::reference(HeapKind::Extern) };
     m_js_tag = m_store->allocate_tag(js_tag_parameters);
     m_js_tag_root = GC::Root<GC::ForeignCell> { m_js_tag };
@@ -568,7 +573,9 @@ JS::ThrowCompletionOr<Wasm::Runtime::Entity> instantiate_module(JS::VM& vm, Wasm
         return vm.throw_completion<JS::TypeError>("ImportObject must be provided when module has imports"_utf16);
 
     // 2. Let imports be « ».
-    Vector<Wasm::Runtime::Extern> imports;
+    // NB: The host functions and globals made for the imports are referenced from here only until the instance
+    //     holds them, and the steps below run user code (getters, valueOf) that may collect garbage.
+    GC::ConservativeVector<Wasm::Runtime::Extern> imports;
     imports.ensure_capacity(import_count);
     size_t imported_function_count = 0;
 

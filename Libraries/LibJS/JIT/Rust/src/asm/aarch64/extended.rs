@@ -7,7 +7,7 @@
 //! Encoders beyond what libjs_jit's code generation uses, for the WebAssembly JIT: scalar floating point of both
 //! precisions, conversions, bit counting, LSE atomics, and Advanced SIMD (NEON).
 
-use super::{Assembler, Cond, Fpr, Gpr, Width, rd, rm, rn, sf, vd, vm, vn};
+use super::{Assembler, Cond, Fpr, Gpr, SP, Width, rd, rm, rn, sf, vd, vm, vn};
 
 /// The precision of a scalar floating point instruction (its `ftype` field).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,7 +144,8 @@ impl Assembler {
     }
 
     /// `add rd, rn, #imm`, for any 64-bit `imm`, through `scratch` where it does not fit an immediate. rd and rn
-    /// may be SP.
+    /// may be SP. SP changes in one instruction: what lies below its final value may be live, and a signal handler
+    /// may write below SP at any time.
     pub fn add_any(&mut self, rd_: Gpr, rn_: Gpr, imm: i64, scratch: Gpr) {
         let magnitude = imm.unsigned_abs();
         let negative = imm < 0;
@@ -161,6 +162,11 @@ impl Assembler {
                 self.add_imm(Width::W64, rd_, rn_, (magnitude >> 12) as u32, true);
             }
         } else if magnitude < (1 << 24) {
+            if rd_ == SP {
+                self.add_any(scratch, rn_, imm, scratch);
+                self.mov_sp(SP, scratch);
+                return;
+            }
             let (high, low) = ((magnitude >> 12) as u32, (magnitude & 0xfff) as u32);
             if negative {
                 self.sub_imm(Width::W64, rd_, rn_, high, true);
@@ -470,10 +476,24 @@ const fn single_structure_fields(size_log2: u32, index: u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::asm::aarch64::{Cond, X1, X2, X3, X4, X5, X6, X7, X8, X9, X10, X11, X12, X13, X14, X15};
+    use crate::asm::aarch64::{Cond, X1, X2, X3, X4, X5, X6, X7, X8, X9, X10, X11, X12, X13, X14, X15, X17};
 
     fn v(index: u8) -> Fpr {
         Fpr(index)
+    }
+
+    /// SP moves in one instruction even where the immediate takes two.
+    #[test]
+    fn moves_sp_in_one_instruction() {
+        let mut asm = Assembler::new();
+        asm.add_any(SP, Gpr(29), -0x12345, X17); // sub x17, x29, #0x12, lsl #12; sub x17, x17, #0x345; mov sp, x17
+        asm.add_any(X1, X2, 0x12345, X17); // add x1, x2, #0x12, lsl #12; add x1, x1, #0x345
+        let code = asm.finish().unwrap();
+        let words: Vec<u32> = code
+            .chunks(4)
+            .map(|word| u32::from_le_bytes(word.try_into().unwrap()))
+            .collect();
+        assert_eq!(words, [0xd1404bb1, 0xd10d1631, 0x9100023f, 0x91404841, 0x910d1421]);
     }
 
     /// The encodings llvm-mc gives these instructions (`llvm-mc -triple=aarch64 -mattr=+lse,+neon,+rdm`).

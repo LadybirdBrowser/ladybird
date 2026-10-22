@@ -1,0 +1,2 @@
+wait for 0: RuntimeError
+wait for 1: RuntimeError

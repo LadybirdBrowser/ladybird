@@ -7956,6 +7956,9 @@ inline fn atomic_wait(size: u64) {
     store64([context_pointer, CONTEXT_ARGUMENT_2], timeout);
     store64([context_pointer, CONTEXT_ARGUMENT_3], size);
     let result: u64 = call_helper(wasm_runtime_wait, context_pointer);
+    guard result != WAIT_CANNOT_BLOCK else @cold {
+        trap(TRAP_RUNTIME);
+    };
     set_top(result);
     advance(length);
 }

@@ -316,7 +316,9 @@ impl CodeGenerator<'_> {
                 let lanes = func.constants[node.args[2] as usize];
                 let dst = fpr(output);
                 if node.args[0] == node.args[1] {
-                    self.vector_constant(dst, lanes);
+                    // NB: The builder makes the lanes of a shuffle of one vector 0 to 15, but its operands may have
+                    //     become the same value since. A table of one register gives zero for lanes of 16 and up.
+                    self.vector_constant(dst, lanes & u128::from_le_bytes([15; 16]));
                     self.asm.vector_table(dst, fpr(a), 1, dst);
                 } else {
                     // The table of two registers has to be in consecutive ones.
