@@ -645,32 +645,34 @@ impl VisualContextTree {
                 sticky.scrollport_size.height,
             );
 
+            // NB: An inset only pushes the box in its own direction. A box that already overflows its containing
+            //     block is not pulled back into it, matching other engines.
             let mut sticky_offset = FloatPoint::default();
             if let Some(inset_top) = sticky.inset_top
                 && scrollport_rect.y > position_in_scroller.y - inset_top
             {
-                sticky_offset.y =
-                    (scrollport_rect.y + inset_top).min(max_offset_within_containing_block.y) - position_in_scroller.y;
+                sticky_offset.y = (scrollport_rect.y + inset_top - position_in_scroller.y)
+                    .min((max_offset_within_containing_block.y - position_in_scroller.y).max(0.0));
             }
             if let Some(inset_left) = sticky.inset_left
                 && scrollport_rect.x > position_in_scroller.x - inset_left
             {
-                sticky_offset.x =
-                    (scrollport_rect.x + inset_left).min(max_offset_within_containing_block.x) - position_in_scroller.x;
+                sticky_offset.x = (scrollport_rect.x + inset_left - position_in_scroller.x)
+                    .min((max_offset_within_containing_block.x - position_in_scroller.x).max(0.0));
             }
             if let Some(inset_bottom) = sticky.inset_bottom
                 && scrollport_rect.bottom() < position_in_scroller.y + sticky.border_box_size.height + inset_bottom
             {
-                sticky_offset.y = (scrollport_rect.bottom() - sticky.border_box_size.height - inset_bottom)
-                    .max(min_offset_within_containing_block.y)
-                    - position_in_scroller.y;
+                sticky_offset.y =
+                    (scrollport_rect.bottom() - sticky.border_box_size.height - inset_bottom - position_in_scroller.y)
+                        .max((min_offset_within_containing_block.y - position_in_scroller.y).min(0.0));
             }
             if let Some(inset_right) = sticky.inset_right
                 && scrollport_rect.right() < position_in_scroller.x + sticky.border_box_size.width + inset_right
             {
-                sticky_offset.x = (scrollport_rect.right() - sticky.border_box_size.width - inset_right)
-                    .max(min_offset_within_containing_block.x)
-                    - position_in_scroller.x;
+                sticky_offset.x =
+                    (scrollport_rect.right() - sticky.border_box_size.width - inset_right - position_in_scroller.x)
+                        .max((min_offset_within_containing_block.x - position_in_scroller.x).min(0.0));
             }
 
             record_entry(offsets, node_index, sticky_offset);
@@ -1509,6 +1511,32 @@ mod tests {
             owner_paintable: NodeSlotId::INVALID,
             registry_parent_node: parent_sticky.unwrap_or(scroller),
         })
+    }
+
+    #[test]
+    fn sticky_insets_never_pull_a_box_back_into_its_containing_block() {
+        let mut tree = identity_tree();
+        let viewport_scroll = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
+        // A 15px box overflowing the left edge of its containing block by 14px, with a right inset that asks for it
+        // to move left. Its containing block must not push it right.
+        let mut data = sticky(viewport_scroll, None, 0.0);
+        if let SpatialData::Sticky(sticky) = &mut data {
+            sticky.position_relative_to_scroller = point(78.0, 21.0);
+            sticky.border_box_size = FloatSize {
+                width: 15.0,
+                height: 22.0,
+            };
+            sticky.scrollport_size = FloatSize {
+                width: 776.0,
+                height: 192.0,
+            };
+            sticky.containing_block_region = FloatRect::new(92.0, 32.0, 404.0, 64.0);
+            sticky.inset_top = None;
+            sticky.inset_right = Some(775.0);
+        }
+        let node = tree.append_spatial(data, viewport_scroll);
+        let offsets = [FloatPoint::default(), FloatPoint::default()];
+        assert_eq!(tree.resolve_sticky_offsets(&offsets), vec![(node, point(0.0, 0.0))]);
     }
 
     #[test]
