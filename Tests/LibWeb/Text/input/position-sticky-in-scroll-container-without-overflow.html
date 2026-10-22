@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+html { overflow-x: hidden; }
+body { margin: 0; height: 3000px; }
+.scroller { overflow: auto; padding: 24px 12px 16px; width: 400px; }
+.outer { overflow: auto; height: 200px; width: 400px; }
+.grid { display: grid; grid-template-rows: 0 auto; align-items: center; margin-top: 32px; }
+.tip { position: sticky; top: 51px; right: calc(100% - 1px); margin-left: -14px; width: 15px; height: 22px; }
+.message { height: 64px; }
+#header { position: sticky; top: 10px; height: 20px; }
+</style>
+<div id="header"></div>
+<div class="scroller" id="bubble">
+    <div class="grid"><div class="tip"></div><div class="message"></div></div>
+</div>
+<div class="outer" id="outer">
+    <div style="height: 100px"></div>
+    <div class="scroller">
+        <div class="grid"><div class="tip"></div><div class="message"></div></div>
+    </div>
+    <div style="height: 1000px"></div>
+</div>
+<script src="include.js"></script>
+<script>
+test(() => {
+    const offset = (element, selector) => {
+        const rect = element.querySelector(selector).getBoundingClientRect();
+        const container = element.getBoundingClientRect();
+        return `${rect.left - container.left},${rect.top - container.top}`;
+    };
+
+    const bubble = document.getElementById("bubble");
+    println(`tip in scroller without overflow: ${offset(bubble, ".tip")}`);
+
+    const outer = document.getElementById("outer");
+    outer.scrollTop = 80;
+    println(`tip in scroller without overflow inside scrolled scroller: ${offset(outer, ".tip")}`);
+
+    window.scrollTo(0, 500);
+    println(`header in scrolled viewport: ${document.getElementById("header").getBoundingClientRect().top}`);
+});
+</script>
