@@ -3817,12 +3817,22 @@ fn parse_initial_longhand(context: &ParseContext, property: u16) -> Option<Style
 }
 
 fn shorthand_value(property: u16, sub_properties: Vec<u16>, values: Vec<StyleValueData>) -> StyleValueData {
+    retained_shorthand_value(
+        property,
+        sub_properties,
+        values.into_iter().map(RetainedStyleValueData::from_owned).collect(),
+    )
+}
+
+fn retained_shorthand_value(
+    property: u16,
+    sub_properties: Vec<u16>,
+    values: Vec<RetainedStyleValueData>,
+) -> StyleValueData {
     StyleValueData::Shorthand {
         shorthand_property: property,
         sub_properties: RetainedPropertyIdList::from_property_ids(sub_properties),
-        values: RetainedStyleValueDataList::from_retained_values(
-            values.into_iter().map(RetainedStyleValueData::from_owned).collect(),
-        ),
+        values: RetainedStyleValueDataList::from_retained_values(values),
     }
 }
 
@@ -5087,6 +5097,14 @@ fn parse_background_shorthand(context: &ParseContext, values: &[ComponentValue])
         property_id::BACKGROUND_POSITION,
         property_id::BACKGROUND_REPEAT,
     ];
+    // NB: A single layer that omits a longhand takes the longhand's shared initial list, so the items
+    //     of omitted longhands are only made when there are several layers.
+    let single_layer = layers.len() == 1;
+    let item_or_initial = |item: Option<StyleValueData>, property: u16| match item {
+        Some(item) => Some(Some(item)),
+        None if single_layer => Some(None),
+        None => coordinating_initial_item(context, property).map(Some),
+    };
     let mut images = Vec::new();
     let mut position_xs = Vec::new();
     let mut position_ys = Vec::new();
@@ -5125,46 +5143,37 @@ fn parse_background_shorthand(context: &ParseContext, values: &[ComponentValue])
             let Some(y) = y.optional_data().cloned().and_then(single_coordinating_value) else {
                 return ParseOutcome::Invalid;
             };
-            (x, y)
+            (Some(x), Some(y))
         } else {
-            let Some(x) = coordinating_initial_item(context, property_id::BACKGROUND_POSITION_X) else {
+            let Some(x) = item_or_initial(None, property_id::BACKGROUND_POSITION_X) else {
                 return ParseOutcome::Invalid;
             };
-            let Some(y) = coordinating_initial_item(context, property_id::BACKGROUND_POSITION_Y) else {
+            let Some(y) = item_or_initial(None, property_id::BACKGROUND_POSITION_Y) else {
                 return ParseOutcome::Invalid;
             };
             (x, y)
         };
-        let Some(image) = parsed[3]
-            .take()
-            .or_else(|| coordinating_initial_item(context, property_id::BACKGROUND_IMAGE))
-        else {
+        let Some(image) = item_or_initial(parsed[3].take(), property_id::BACKGROUND_IMAGE) else {
             return ParseOutcome::Invalid;
         };
-        let Some(size) = size.or_else(|| coordinating_initial_item(context, property_id::BACKGROUND_SIZE)) else {
+        let Some(size) = item_or_initial(size, property_id::BACKGROUND_SIZE) else {
             return ParseOutcome::Invalid;
         };
-        let Some(repeat) = parsed[6]
-            .take()
-            .or_else(|| coordinating_initial_item(context, property_id::BACKGROUND_REPEAT))
-        else {
+        let Some(repeat) = item_or_initial(parsed[6].take(), property_id::BACKGROUND_REPEAT) else {
             return ParseOutcome::Invalid;
         };
-        let Some(attachment) = parsed[0]
-            .take()
-            .or_else(|| coordinating_initial_item(context, property_id::BACKGROUND_ATTACHMENT))
-        else {
+        let Some(attachment) = item_or_initial(parsed[0].take(), property_id::BACKGROUND_ATTACHMENT) else {
             return ParseOutcome::Invalid;
         };
         let (origin, clip) = match (parsed[1].take(), parsed[4].take()) {
-            (Some(first), Some(second)) => (first, second),
-            (Some(first), None) => (first.clone(), first),
-            (None, Some(first)) => (first.clone(), first),
+            (Some(first), Some(second)) => (Some(first), Some(second)),
+            (Some(first), None) => (Some(first.clone()), Some(first)),
+            (None, Some(first)) => (Some(first.clone()), Some(first)),
             (None, None) => {
-                let Some(origin) = coordinating_initial_item(context, property_id::BACKGROUND_ORIGIN) else {
+                let Some(origin) = item_or_initial(None, property_id::BACKGROUND_ORIGIN) else {
                     return ParseOutcome::Invalid;
                 };
-                let Some(clip) = coordinating_initial_item(context, property_id::BACKGROUND_CLIP) else {
+                let Some(clip) = item_or_initial(None, property_id::BACKGROUND_CLIP) else {
                     return ParseOutcome::Invalid;
                 };
                 (origin, clip)
@@ -5182,10 +5191,44 @@ fn parse_background_shorthand(context: &ParseContext, values: &[ComponentValue])
     let Some(color) = color.or_else(|| parse_initial_longhand(context, property_id::BACKGROUND_COLOR)) else {
         return ParseOutcome::Invalid;
     };
-    let position = shorthand_value(
+    let list = |property: u16, items: Vec<Option<StyleValueData>>| match items.as_slice() {
+        [None] => shared_single_layer_initial_list(property),
+        _ => Some(RetainedStyleValueData::from_owned(value_list(
+            items
+                .into_iter()
+                .map(|item| item.expect("a layer of several holds every item"))
+                .collect(),
+            1,
+            true,
+        ))),
+    };
+    let lists = [
+        list(property_id::BACKGROUND_IMAGE, images),
+        list(property_id::BACKGROUND_POSITION_X, position_xs),
+        list(property_id::BACKGROUND_POSITION_Y, position_ys),
+        list(property_id::BACKGROUND_SIZE, sizes),
+        list(property_id::BACKGROUND_REPEAT, repeats),
+        list(property_id::BACKGROUND_ATTACHMENT, attachments),
+        list(property_id::BACKGROUND_ORIGIN, origins),
+        list(property_id::BACKGROUND_CLIP, clips),
+    ];
+    let [
+        Some(image),
+        Some(position_x),
+        Some(position_y),
+        Some(size),
+        Some(repeat),
+        Some(attachment),
+        Some(origin),
+        Some(clip),
+    ] = lists
+    else {
+        return ParseOutcome::Invalid;
+    };
+    let position = retained_shorthand_value(
         property_id::BACKGROUND_POSITION,
         vec![property_id::BACKGROUND_POSITION_X, property_id::BACKGROUND_POSITION_Y],
-        vec![value_list(position_xs, 1, true), value_list(position_ys, 1, true)],
+        vec![position_x, position_y],
     );
     let output_order = [
         property_id::BACKGROUND_COLOR,
@@ -5197,20 +5240,51 @@ fn parse_background_shorthand(context: &ParseContext, values: &[ComponentValue])
         property_id::BACKGROUND_ORIGIN,
         property_id::BACKGROUND_CLIP,
     ];
-    ParseOutcome::Parsed(shared_style_value(shorthand_value(
+    ParseOutcome::Parsed(shared_style_value(retained_shorthand_value(
         property_id::BACKGROUND,
         output_order.to_vec(),
         vec![
-            color,
-            value_list(images, 1, true),
-            position,
-            value_list(sizes, 1, true),
-            value_list(repeats, 1, true),
-            value_list(attachments, 1, true),
-            value_list(origins, 1, true),
-            value_list(clips, 1, true),
+            RetainedStyleValueData::from_owned(color),
+            image,
+            RetainedStyleValueData::from_owned(position),
+            size,
+            repeat,
+            attachment,
+            origin,
+            clip,
         ],
     )))
+}
+
+/// The one-item list of a background layer longhand's initial value, which every single-layer
+/// `background` that omits the longhand shares instead of parsing and allocating its own.
+fn shared_single_layer_initial_list(property: u16) -> Option<RetainedStyleValueData> {
+    const PROPERTIES: [u16; 8] = [
+        property_id::BACKGROUND_IMAGE,
+        property_id::BACKGROUND_POSITION_X,
+        property_id::BACKGROUND_POSITION_Y,
+        property_id::BACKGROUND_SIZE,
+        property_id::BACKGROUND_REPEAT,
+        property_id::BACKGROUND_ATTACHMENT,
+        property_id::BACKGROUND_ORIGIN,
+        property_id::BACKGROUND_CLIP,
+    ];
+    static LISTS: [std::sync::OnceLock<Option<RetainedStyleValueData>>; PROPERTIES.len()] =
+        [const { std::sync::OnceLock::new() }; PROPERTIES.len()];
+    let index = PROPERTIES
+        .iter()
+        .position(|&candidate| candidate == property)
+        .expect("a background layer longhand has a shared initial list");
+    // NB: An initial value parses the same in every context, so the list is parsed in the empty one.
+    LISTS[index]
+        .get_or_init(|| {
+            Some(RetainedStyleValueData::from_owned(value_list(
+                vec![coordinating_initial_item(&ParseContext::default(), property)?],
+                1,
+                true,
+            )))
+        })
+        .clone()
 }
 
 fn parse_mask_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
