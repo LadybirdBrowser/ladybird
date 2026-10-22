@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<!-- An external <use> reference in a document without a browsing context starts a fetch that delays the document's
+     load event. Nothing stops that fetch, so the document and its in-flight resource request become garbage together,
+     and the request must not release its load event delayer against the dying document while it is being finalized. -->
+<script>
+    function startFetchInUnreachableDocument() {
+        const doc = document.implementation.createHTMLDocument();
+        const use = doc.createElementNS("http://www.w3.org/2000/svg", "use");
+        use.setAttribute("href", new URL("../../Assets/120.png#target", document.baseURI).href);
+    }
+
+    startFetchInUnreachableDocument();
+    internals.gc();
+</script>
