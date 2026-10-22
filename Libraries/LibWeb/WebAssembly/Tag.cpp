@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/Tag.h>
 #include <LibWeb/WebAssembly/BindingsGlue.h>
 #include <LibWeb/WebAssembly/Global.h>
@@ -23,11 +24,24 @@ GC::Ref<Tag> Tag::create(ReadonlySpan<Wasm::Runtime::ValueType> parameters)
     auto tag = Detail::WebAssemblyCache::the().store().allocate_tag(parameters);
 
     // 7. Initialize this from tagAddress.
-    return from_address(tag);
+    return from_address_in_agent(tag);
+}
+
+GC::Ref<Tag> Tag::from_address(JS::Realm& realm, Wasm::Runtime::Entity tag)
+{
+    // NB: The JavaScript exception tag lives as long as the agent, while a Tag object belongs to the realm it is first
+    //     wrapped in, so every realm has a Tag object of its own for it.
+    if (tag == Detail::WebAssemblyCache::the().js_tag()) {
+        auto& host_defined = Bindings::host_defined_of(realm);
+        if (!host_defined.wasm_js_tag)
+            host_defined.wasm_js_tag = GC::Heap::the().allocate<Tag>(tag);
+        return *host_defined.wasm_js_tag;
+    }
+    return from_address_in_agent(tag);
 }
 
 // https://webassembly.github.io/spec/js-api/#create-a-tag-object
-GC::Ref<Tag> Tag::from_address(Wasm::Runtime::Entity tag)
+GC::Ref<Tag> Tag::from_address_in_agent(Wasm::Runtime::Entity tag)
 {
     // 1. Let map be the surrounding agent's associated tag object cache.
     // 2. If map[tagAddress] exists,

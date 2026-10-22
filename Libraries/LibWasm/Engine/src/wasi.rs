@@ -48,6 +48,19 @@ pub struct Wasi {
     exit_code: Cell<Option<i32>>,
 }
 
+impl Drop for Wasi {
+    fn drop(&mut self) {
+        // The descriptors path_open created that the guest left open, and the preopens something opened, are the
+        // state's own.
+        for file in self.files.get_mut().values().filter(|file| file.owned) {
+            let _ = platform::close(file.host_fd);
+        }
+        for fd in self.preopens.iter().filter_map(|preopen| preopen.host_fd.get()) {
+            let _ = platform::close(fd);
+        }
+    }
+}
+
 /// A guest descriptor's host descriptor.
 #[derive(Clone, Copy)]
 struct File {
@@ -467,6 +480,8 @@ mod platform {
         /// Whether `directory` is a descriptor of the resolution's own, which it closes.
         owned: bool,
         name: CString,
+        /// Whether the path ended in a slash, which only a directory may be named with.
+        must_be_directory: bool,
     }
 
     impl Drop for Beneath {
@@ -495,13 +510,17 @@ mod platform {
         if length < 0 {
             return Err(last_errno());
         }
+        // NB: readlinkat() truncates a target that does not fit without saying so.
+        if length as usize == target.len() {
+            return Err(errno_of(libc::ENAMETOOLONG));
+        }
         target.truncate(length as usize);
         Ok(Some(target))
     }
 
     /// Resolves `path` beneath the directory `base`, one component at a time, so that it never leaves it: absolute
     /// paths and symbolic links, and `..` above `base`, are not capable. Symbolic links in the middle are followed
-    /// (beneath `base`), and the last one too if `follow_last`.
+    /// (beneath `base`), and the last one too if `follow_last`, or if the path ends in a slash, as POSIX resolves it.
     fn resolve_beneath(base: i32, path: &[u8], follow_last: bool) -> Result<Beneath, Errno> {
         if path.is_empty() {
             return Err(errno_of(libc::ENOENT));
@@ -517,6 +536,7 @@ mod platform {
             }
         };
         let mut queue: VecDeque<Vec<u8>> = components(path).map(<[u8]>::to_vec).collect();
+        let mut must_be_directory = path.last() == Some(&b'/');
         let mut links = 0;
         let result = loop {
             let Some(component) = queue.pop_front() else {
@@ -537,7 +557,7 @@ mod platform {
                 Err(errno) => break Err(errno),
             };
             let last = queue.is_empty();
-            if !last || follow_last {
+            if !last || follow_last || must_be_directory {
                 match link_target(current, &name) {
                     Ok(Some(target)) => {
                         links += 1;
@@ -546,6 +566,9 @@ mod platform {
                         }
                         if target.first() == Some(&b'/') {
                             break Err(ERRNO_NOTCAPABLE);
+                        }
+                        if last && target.last() == Some(&b'/') {
+                            must_be_directory = true;
                         }
                         for component in components(&target).rev() {
                             queue.push_front(component.to_vec());
@@ -579,6 +602,7 @@ mod platform {
                     directory: directory.unwrap_or(base),
                     owned: directory.is_some(),
                     name,
+                    must_be_directory,
                 })
             }
             Err(errno) => {
@@ -680,6 +704,13 @@ mod platform {
         flags |= libc::O_CLOEXEC;
         if options.open_flags & OFLAGS_DIRECTORY != 0 {
             flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC;
+        }
+        if resolved.must_be_directory {
+            // NB: As on Linux, a file cannot be created with a name that ends in a slash.
+            if options.open_flags & OFLAGS_CREAT != 0 {
+                return Err(errno_of(libc::EISDIR));
+            }
+            flags |= libc::O_DIRECTORY;
         }
         if options.open_flags & OFLAGS_CREAT != 0 {
             flags |= libc::O_CREAT;
@@ -800,6 +831,9 @@ mod platform {
         let (directory, name) = (resolved.directory, resolved.name.as_ptr());
         if unsafe { libc::fstatat(directory, name, &raw mut status, libc::AT_SYMLINK_NOFOLLOW) } != 0 {
             return Err(last_errno());
+        }
+        if resolved.must_be_directory && status.st_mode & libc::S_IFMT != libc::S_IFDIR {
+            return Err(errno_of(libc::ENOTDIR));
         }
         Ok(status_of(&status))
     }

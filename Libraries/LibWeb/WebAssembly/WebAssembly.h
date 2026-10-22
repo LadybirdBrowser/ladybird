@@ -43,6 +43,8 @@ WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::
 
 namespace Detail {
 
+class ExternValueBox;
+
 struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> {
     explicit CompiledWebAssemblyModule(NonnullRefPtr<Wasm::Runtime::Module> module)
         : module(move(module))
@@ -54,8 +56,9 @@ struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> 
 
 // The surrounding agent's associated store, and the agent's Exported Function, Global, Memory, Table, Tag, Exception, and
 // Exported GC Object caches.
-// The store holds no wasm entity: each lives while the objects that stand for it, or other entities, refer to it. The
-// caches only map entities to their objects for as long as both live.
+// The store holds no wasm entity: each lives while the objects that stand for it, or other entities, refer to it. An
+// entity, exception, or GC object keeps the object of the caches that stands for it alive in turn, so that the object
+// stays the same one for as long as both live, and both go away together.
 class WebAssemblyCache {
     AK_MAKE_NONCOPYABLE(WebAssemblyCache);
     AK_MAKE_NONMOVABLE(WebAssemblyCache);
@@ -88,17 +91,17 @@ public:
     GC::Ptr<JS::Object> gc_object(u64 object) const;
     void set_gc_object(u64 object, JS::Object&);
     void for_each_memory_object(Function<void(WebAssembly::Memory&)> const&) const;
-
-    // The index of a host function: how many functions were imported before it.
-    void set_host_function_index(Entity function, size_t index) { m_host_function_indices.set(function, index); }
-    Optional<size_t> host_function_index(Entity function) const { return m_host_function_indices.get(function); }
+    // The host value cache, for JavaScript values that are not cells: the box that stands for a value in WebAssembly,
+    // which it converts to for as long as the box lives.
+    GC::Ptr<ExternValueBox> extern_value_box(JS::Value) const;
+    void set_extern_value_box(JS::Value, ExternValueBox&);
 
 private:
     explicit WebAssemblyCache(GC::Heap&);
     ~WebAssemblyCache();
 
     // Objects by entity, or by reference for exceptions and GC objects. An entry whose object is gone is stale: its
-    // entity may be gone too, and its address reused.
+    // entity is gone too, and its address may be reused.
     template<typename T, typename Key = Entity>
     class ObjectCache {
     public:
@@ -121,8 +124,7 @@ private:
     ObjectCache<WebAssembly::Tag> m_tag_objects;
     ObjectCache<WebAssembly::Exception, u64> m_exception_objects;
     ObjectCache<JS::Object, u64> m_gc_objects;
-    // NB: An entry outlives its function, but every host function sets its own, so a live one's entry is right.
-    HashMap<Entity, size_t> m_host_function_indices;
+    ObjectCache<ExternValueBox, JS::Value> m_extern_value_boxes;
 };
 
 // https://webassembly.github.io/spec/js-api/#exported-function

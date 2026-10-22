@@ -8,6 +8,7 @@
 
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use core::time::Duration;
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 use std::time::Instant;
 
 /// Core::AtomicWaitResult.
@@ -27,7 +28,6 @@ pub(crate) enum WaitWord<'a> {
 
 impl WaitWord<'_> {
     /// The address waiters key on, which is that of the low 32-bit half of the word.
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn address(self) -> *mut u32 {
         match self {
             WaitWord::Word32(word) => word.as_ptr(),
@@ -53,25 +53,104 @@ fn word_equals(word: WaitWord<'_>, expected: u64) -> bool {
     (word.load() & mask) == (expected & mask)
 }
 
-// Fallback where there's no cross-process wait primitive: Poll for a change to the word. That observes value changes
-// rather than notifications — which matches the lock/futex protocol Emscripten uses (the waker writes the word before
-// notifying). The gap is a notify that leaves the word unchanged: It wakes no poll-waiter, and the paired atomic_notify
-// reports zero woken. An untimed wait whose only wake would be such a notify therefore never returns.
+// Fallback where there's no wait/wake primitive of the operating system's: Each waiter waits on a condition variable of
+// its own, in a list per address that atomic_notify() wakes waiters of in the order they began waiting. These lists only
+// reach the waiters of this process. So, a waiter also polls for a change to the word, which observes the wakes of other
+// processes that write the word before notifying (as the lock/futex protocol Emscripten uses does). A notify from
+// another process that leaves the word unchanged wakes no waiter here.
 #[cfg(not(target_os = "linux"))]
-fn poll_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
-    if !word_equals(word, expected) {
-        return AtomicWaitResult::NotEqual;
+mod waiter_list {
+    use super::{AtomicWaitResult, WaitWord, word_equals};
+    use core::sync::atomic::{AtomicBool, Ordering};
+    use core::time::Duration;
+    use std::collections::{HashMap, VecDeque};
+    use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
+    use std::time::Instant;
+
+    const POLL_INTERVAL: Duration = Duration::from_micros(200);
+
+    struct Waiter {
+        woken: AtomicBool,
+        condition: Condvar,
     }
 
-    let start = Instant::now();
-    loop {
-        std::thread::sleep(Duration::from_micros(200));
+    type Lists = HashMap<usize, VecDeque<Arc<Waiter>>>;
+
+    fn lists() -> MutexGuard<'static, Lists> {
+        static LISTS: OnceLock<Mutex<Lists>> = OnceLock::new();
+        LISTS
+            .get_or_init(Mutex::default)
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+    }
+
+    fn remove(lists: &mut Lists, address: usize, waiter: &Arc<Waiter>) {
+        let Some(list) = lists.get_mut(&address) else {
+            return;
+        };
+        list.retain(|other| !Arc::ptr_eq(other, waiter));
+        if list.is_empty() {
+            lists.remove(&address);
+        }
+    }
+
+    pub(super) fn wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
+        let address = word.address().addr();
+        let deadline = timeout.and_then(|timeout| Instant::now().checked_add(timeout));
+        // NB: The word is compared while the lists are locked, so a notify that follows a store to it finds this
+        //     waiter in its list if the comparison did not see the store.
+        let mut lists = lists();
         if !word_equals(word, expected) {
-            return AtomicWaitResult::Woken;
+            return AtomicWaitResult::NotEqual;
         }
-        if timeout.is_some_and(|timeout| start.elapsed() >= timeout) {
-            return AtomicWaitResult::TimedOut;
+        let waiter = Arc::new(Waiter {
+            woken: AtomicBool::new(false),
+            condition: Condvar::new(),
+        });
+        lists.entry(address).or_default().push_back(waiter.clone());
+        loop {
+            let interval = match deadline {
+                Some(deadline) => {
+                    let remaining = deadline.saturating_duration_since(Instant::now());
+                    if remaining.is_zero() {
+                        remove(&mut lists, address, &waiter);
+                        return AtomicWaitResult::TimedOut;
+                    }
+                    remaining.min(POLL_INTERVAL)
+                }
+                None => POLL_INTERVAL,
+            };
+            lists = waiter
+                .condition
+                .wait_timeout(lists, interval)
+                .unwrap_or_else(|error| error.into_inner())
+                .0;
+            // A notify removed the waiter from its list before setting this.
+            if waiter.woken.load(Ordering::Relaxed) {
+                return AtomicWaitResult::Woken;
+            }
+            if !word_equals(word, expected) {
+                remove(&mut lists, address, &waiter);
+                return AtomicWaitResult::Woken;
+            }
         }
+    }
+
+    pub(super) fn notify(address: *mut u32, max_count: usize) -> usize {
+        let mut lists = lists();
+        let address = address.addr();
+        let Some(list) = lists.get_mut(&address) else {
+            return 0;
+        };
+        let count = max_count.min(list.len());
+        for waiter in list.drain(..count) {
+            waiter.woken.store(true, Ordering::Relaxed);
+            waiter.condition.notify_one();
+        }
+        if list.is_empty() {
+            lists.remove(&address);
+        }
+        count
     }
 }
 
@@ -134,7 +213,7 @@ pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Dur
     // (it has no EAGAIN). So, without this, the "not-equal" result would be unreachable; it also faults the shared page
     // in — avoiding a transient first-touch EFAULT below. A store landing between this read and the kernel's own
     // comparison is reported as a wake, rather than "not-equal" — a nanoseconds-wide window inherent to the os_sync API
-    // (Linux's kernel futex and the poll fallback don't have it).
+    // (Linux's kernel futex and the waiter lists don't have it).
     if !word_equals(word, expected) {
         return AtomicWaitResult::NotEqual;
     }
@@ -196,15 +275,12 @@ pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Dur
             if error == libc::EAGAIN {
                 return AtomicWaitResult::NotEqual;
             }
-            // os_sync couldn't key this memory (rare once faulted in above); fall back to polling for a change.
+            // os_sync couldn't key this memory (rare once faulted in above); fall back to the waiter lists.
             break;
         }
     }
-    if let Some(deadline) = deadline {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        return poll_wait(word, expected, Some(remaining));
-    }
-    poll_wait(word, expected, timeout)
+    let remaining = deadline.map(|deadline| deadline.saturating_duration_since(Instant::now()));
+    waiter_list::wait(word, expected, remaining.or(timeout))
 }
 
 #[cfg(target_os = "macos")]
@@ -212,13 +288,13 @@ pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
     // Waiters key on the low 32-bit half — so, wake with size 4 regardless of the notifying view's element size. That
     // lets a 4-byte notify wake an 8-byte waiter (and vice versa) at the same address — which the spec's single per-
     // address WaiterList requires.
+    // NB: Waiters that os_sync could not serve wait in the fallback's lists.
+    let mut woken = waiter_list::notify(word.as_ptr(), max_count);
     let Some(functions) = os_sync::functions() else {
-        // The poll_wait fallback observes value changes directly — so no explicit wake is required.
-        return 0;
+        return woken;
     };
     // os_sync wakes a single waiter at a time. So, wake up to max_count of them — stopping once there are none left.
     // ENOENT is that stop: it means the wait set is empty.
-    let mut woken = 0;
     while woken < max_count {
         // SAFETY: The address is the aligned word of a shared typed array element.
         let result = unsafe {
@@ -240,7 +316,7 @@ pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
 #[cfg(target_os = "linux")]
 pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
     // Compare the value in userspace first — so a zero or already-elapsed timeout still yields "not-equal" (which the
-    // spec orders before "timed-out"), and so 8-byte waits and the poll fallback share one compare.
+    // spec orders before "timed-out"), and so 8-byte waits share one compare.
     if !word_equals(word, expected) {
         return AtomicWaitResult::NotEqual;
     }
@@ -310,15 +386,38 @@ pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
     usize::try_from(result).unwrap_or(0)
 }
 
-// No native wait/wake primitive is wired up on this platform. Poll for a change to the word, instead of reporting
-// "not-equal" unconditionally — which would make every Atomics.wait return immediately, and spin its caller.
+// No native wait/wake primitive is wired up on this platform.
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
 pub(crate) fn atomic_wait(word: WaitWord<'_>, expected: u64, timeout: Option<Duration>) -> AtomicWaitResult {
-    poll_wait(word, expected, timeout)
+    waiter_list::wait(word, expected, timeout)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
-pub(crate) fn atomic_notify(_word: &AtomicU32, _max_count: usize) -> usize {
-    // The waiters poll for the value change the waker has already made — so there's nothing to signal.
-    0
+pub(crate) fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
+    waiter_list::notify(word.as_ptr(), max_count)
+}
+
+#[cfg(all(test, not(target_os = "linux")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn waiter_lists_wake_waiters_of_a_word_that_did_not_change() {
+        static WORD: AtomicU32 = AtomicU32::new(0);
+        let waiter = std::thread::spawn(|| waiter_list::wait(WaitWord::Word32(&WORD), 0, None));
+        // The waiter is in its list once a notify wakes it.
+        while waiter_list::notify(WORD.as_ptr(), 1) == 0 {
+            std::thread::yield_now();
+        }
+        assert_eq!(waiter.join().unwrap(), AtomicWaitResult::Woken);
+        assert_eq!(WORD.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn waiter_lists_time_out() {
+        static WORD: AtomicU32 = AtomicU32::new(0);
+        let result = waiter_list::wait(WaitWord::Word32(&WORD), 0, Some(Duration::from_millis(1)));
+        assert_eq!(result, AtomicWaitResult::TimedOut);
+        assert_eq!(waiter_list::notify(WORD.as_ptr(), 1), 0);
+    }
 }

@@ -177,6 +177,11 @@ pub trait HostFunction {
 
     /// Visit the cells the function refers to, which its function keeps alive.
     fn visit_edges(&self, _visitor: &heap::Visitor) {}
+
+    /// The data of the embedder's of a function made through the C interface.
+    fn user_data(&self) -> *mut core::ffi::c_void {
+        core::ptr::null_mut()
+    }
 }
 
 impl<F: Fn(&mut Store, &[Value]) -> Result<Vec<Value>, Trap>> HostFunction for F {

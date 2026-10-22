@@ -456,7 +456,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModuleTraits::execute_module(JS::HostModu
     auto instance_address = TRY(Detail::instantiate_core_module(vm, module, imports));
 
     // 7. Set record.[[Instance]] to instance.
-    auto instance = Instance::create(instance_address);
+    auto instance = Instance::create(realm, instance_address);
     record_host_data.set_instance(instance);
 
     // 8. For each (name, externtype) of module_exports(module),

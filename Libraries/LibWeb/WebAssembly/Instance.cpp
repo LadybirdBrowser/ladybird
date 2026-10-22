@@ -33,16 +33,17 @@ GC_DEFINE_ALLOCATOR(Instance);
 WebIDL::ExceptionOr<GC::Ref<Instance>> Instance::create(JS::Realm& realm, Module& module, GC::Ptr<JS::Object> import_object)
 {
     auto instance = TRY(Detail::instantiate_module(realm.vm(), *module.compiled_module()->module, import_object));
-    return Instance::create(instance);
+    return Instance::create(realm, instance);
 }
 
-GC::Ref<Instance> Instance::create(Wasm::Runtime::Entity instance)
+GC::Ref<Instance> Instance::create(JS::Realm& realm, Wasm::Runtime::Entity instance)
 {
-    return GC::Heap::the().allocate<Instance>(instance);
+    return GC::Heap::the().allocate<Instance>(Bindings::host_defined_wrapper_world(realm), instance);
 }
 
-Instance::Instance(Wasm::Runtime::Entity instance)
+Instance::Instance(Bindings::WrapperWorld& wrapper_world, Wasm::Runtime::Entity instance)
     : m_instance(instance)
+    , m_wrapper_world(wrapper_world)
 {
 }
 
@@ -73,6 +74,7 @@ void Instance::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_instance);
+    visitor.visit(m_wrapper_world);
 }
 
 }
@@ -141,7 +143,7 @@ static GC::Ref<JS::Object> create_exports_object(JS::Realm& realm, WebAssembly::
             exports->define_direct_property(name, table(realm, instance.table_instance(address)), JS::default_attributes);
             break;
         case Wasm::Runtime::ExternKind::Tag:
-            exports->define_direct_property(name, wrap(host_defined_wrapper_world(realm), realm, WebAssembly::Tag::from_address(address)), JS::default_attributes);
+            exports->define_direct_property(name, wrap(host_defined_wrapper_world(realm), realm, WebAssembly::Tag::from_address(realm, address)), JS::default_attributes);
             break;
         }
     }
@@ -152,6 +154,8 @@ static GC::Ref<JS::Object> create_exports_object(JS::Realm& realm, WebAssembly::
 
 GC::Ref<JS::Object const> exports(JS::Realm& realm, GC::Ref<WebAssembly::Instance> instance)
 {
+    // NB: An instance's exports, like its memories and tables, belong to the world it was created in.
+    VERIFY(&host_defined_wrapper_world(realm) == &instance->wrapper_world());
 
     auto& cache = instance_exports_cache_for(instance);
     if (cache.exports)

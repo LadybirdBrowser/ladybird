@@ -11,7 +11,7 @@
 //!
 //! The first word of an entity's cell says what it is, so that a handle an embedder passes in can be checked.
 
-use super::heap::{CELL_HEADER_SIZE, CellType, Heap, Visitor};
+use super::heap::{CELL_HEADER_SIZE, CellType, Heap, Visitor, forget_host_object, visit_host_object};
 use super::memory::MemoryInstance;
 use super::{FunctionInstance, FunctionKind, GlobalInstance, Instance, TableInstance, TagInstance};
 use core::ffi::c_void;
@@ -167,6 +167,7 @@ pub unsafe extern "C" fn entity_visit_edges(cell: *mut c_void, visitor: *mut c_v
         unsafe { handle.get() }.visit_edges(&Visitor::new(visitor));
     }
     unsafe {
+        visit_host_object(cell, &Visitor::new(visitor));
         match kind_of(cell) {
             ENTITY_FUNCTION => visit::<FunctionInstance>(cell, visitor),
             ENTITY_TABLE => visit::<TableInstance>(cell, visitor),
@@ -194,6 +195,7 @@ pub unsafe extern "C" fn destroy_entity(cell: *mut u8) {
         }
     }
     unsafe {
+        forget_host_object(cell.cast());
         match kind_of(cell.cast()) {
             ENTITY_FUNCTION => destroy::<FunctionInstance>(cell),
             ENTITY_TABLE => destroy::<TableInstance>(cell),
