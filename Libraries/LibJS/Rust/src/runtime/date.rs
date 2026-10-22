@@ -143,20 +143,20 @@ pub fn time_within_day(time: f64) -> f64 {
 // 21.4.1.5 DaysInYear ( y ), https://tc39.es/ecma262/#sec-daysinyear
 pub fn days_in_year(y: i32) -> u16 {
     // 1. Let ry be ℝ(y).
-    let ry = f64::from(y);
+    // NB: y is an integer, so integer remainders tell whether it is divisible.
 
     // 2. If (ry modulo 400) = 0, return 366𝔽.
-    if modulo(ry, 400.0) == 0.0 {
+    if y % 400 == 0 {
         return 366;
     }
 
     // 3. If (ry modulo 100) = 0, return 365𝔽.
-    if modulo(ry, 100.0) == 0.0 {
+    if y % 100 == 0 {
         return 365;
     }
 
     // 4. If (ry modulo 4) = 0, return 366𝔽.
-    if modulo(ry, 4.0) == 0.0 {
+    if y % 4 == 0 {
         return 366;
     }
 
@@ -241,14 +241,26 @@ pub fn in_leap_year(t: f64) -> bool {
     days_in_year(year_from_time(t)) == 366
 }
 
+/// InLeapYear(t) as 0 or 1, and DayWithinYear(t), from a single YearFromTime(t).
+fn in_leap_year_and_day_within_year(t: f64) -> (u16, u16) {
+    let year = year_from_time(t);
+    let in_leap_year = u16::from(days_in_year(year) == 366);
+    if !t.is_finite() {
+        return (in_leap_year, 0);
+    }
+    (in_leap_year, day_within_year_to_u16(day(t) - day_from_year(year)))
+}
+
 // 21.4.1.11 MonthFromTime ( t ), https://tc39.es/ecma262/#sec-monthfromtime
 pub fn month_from_time(t: f64) -> u8 {
     // 1. Let inLeapYear be InLeapYear(t).
-    let in_leap_year = u16::from(in_leap_year(t));
-
     // 2. Let dayWithinYear be DayWithinYear(t).
-    let day_within_year = day_within_year(t);
+    let (in_leap_year, day_within_year) = in_leap_year_and_day_within_year(t);
+    month_from_day_within_year(in_leap_year, day_within_year)
+}
 
+/// Steps 3 and on of MonthFromTime(t), given inLeapYear and dayWithinYear.
+fn month_from_day_within_year(in_leap_year: u16, day_within_year: u16) -> u8 {
     // 3. If dayWithinYear < 31𝔽, return +0𝔽.
     if day_within_year < 31 {
         return 0;
@@ -317,13 +329,14 @@ pub fn month_from_time(t: f64) -> u8 {
 // 21.4.1.12 DateFromTime ( t ), https://tc39.es/ecma262/#sec-datefromtime
 pub fn date_from_time(t: f64) -> u8 {
     // 1. Let inLeapYear be InLeapYear(t).
-    let in_leap_year = i32::from(in_leap_year(t));
-
     // 2. Let dayWithinYear be DayWithinYear(t).
-    let day_within_year = i32::from(day_within_year(t));
+    let (in_leap_year, day_within_year) = in_leap_year_and_day_within_year(t);
 
     // 3. Let month be MonthFromTime(t).
-    let month = month_from_time(t);
+    let month = month_from_day_within_year(in_leap_year, day_within_year);
+
+    let in_leap_year = i32::from(in_leap_year);
+    let day_within_year = i32::from(day_within_year);
 
     let date = match month {
         // 4. If month is +0𝔽, return dayWithinYear + 1𝔽.
