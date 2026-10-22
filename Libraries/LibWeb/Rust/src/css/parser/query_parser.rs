@@ -1025,10 +1025,7 @@ where
 
 fn single_ident(values: &[ComponentValue]) -> Option<ParserString> {
     let values = trim_whitespace(values);
-    (values.len() == 1)
-        .then(|| values[0].ident())
-        .flatten()
-        .map(|name| ParserString::from(name.to_vec().into_boxed_slice()))
+    (values.len() == 1).then(|| values[0].ident_string()).flatten().cloned()
 }
 
 fn looks_like_supports_declaration(values: &[ComponentValue]) -> bool {
@@ -1214,13 +1211,11 @@ fn parse_style_range_value(values: &[ComponentValue]) -> Option<StyleRangeValue>
         return None;
     }
     if let [value] = values
-        && let Some(name) = value.ident()
+        && let Some(name) = value.ident_string()
         && name.len() > 2
         && name.starts_with(&[u16::from(b'-'), u16::from(b'-')])
     {
-        return Some(StyleRangeValue::Property(ParserString::from(
-            name.to_vec().into_boxed_slice(),
-        )));
+        return Some(StyleRangeValue::Property(name.clone()));
     }
     Some(StyleRangeValue::Components(values.to_vec()))
 }

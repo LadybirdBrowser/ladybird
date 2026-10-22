@@ -175,8 +175,12 @@ impl ComponentValue {
     }
 
     pub(crate) fn ident(&self) -> Option<&[u16]> {
+        self.ident_string().map(AsRef::as_ref)
+    }
+
+    pub(crate) fn ident_string(&self) -> Option<&ParserString> {
         match &self.kind {
-            ComponentKind::Token(ParserTokenKind::Ident(value)) => Some(value.as_ref()),
+            ComponentKind::Token(ParserTokenKind::Ident(value)) => Some(value),
             _ => None,
         }
     }
