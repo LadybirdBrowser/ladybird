@@ -21,8 +21,8 @@ use crate::css::display::FfiDisplay;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::arbitrary_substitution::{
-    SubstitutionFunctionsPresence, collect_arbitrary_substitution_function_presence, declaration_value_is_valid,
-    substitution_function_presence_bits,
+    SubstitutionFunctionsPresence, collect_arbitrary_substitution_function_presence,
+    contains_arbitrary_substitution_function, declaration_value_is_valid, substitution_function_presence_bits,
 };
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
@@ -6357,16 +6357,13 @@ pub unsafe extern "C" fn rust_parse_css_value(
     source.append_to(&mut source_utf16);
     let outcome = match component_values_from_source(source) {
         Ok(values) => {
-            let mut substitution_presence = SubstitutionFunctionsPresence::default();
-            if collect_arbitrary_substitution_function_presence(&values, &mut substitution_presence).is_err() {
-                ParseOutcome::Invalid
-            } else if property_id == property_id::CUSTOM || substitution_presence.has_any() {
+            if property_id == property_id::CUSTOM || contains_arbitrary_substitution_function(&values) {
                 match consume_a_list_of_component_values(tokenize_for_parser(source_utf16.as_slice())) {
                     Ok(values) => parse_css_value_with_utf16_source(context, property_id, &values, &source_utf16),
                     Err(()) => ParseOutcome::NotHandled,
                 }
             } else {
-                parse_css_value_after_substitution_scan(context, property_id, &values, &[], &[], substitution_presence)
+                parse_css_value_after_substitution_scan(context, property_id, &values, &[], &[], Default::default())
             }
         }
         Err(()) => ParseOutcome::NotHandled,
