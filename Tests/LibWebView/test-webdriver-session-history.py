@@ -1548,6 +1548,32 @@ def expect_frame_url(webdriver_port, session_id, label, expected_url, log, expec
     raise AssertionError(f"Expected {label} to be {expected_url}, got {actual}\n" + "\n".join(log))
 
 
+def wait_for_frame_load(webdriver_port, session_id):
+    # A frame's document can become active before it has finished loading, so wait for the frame's load event before
+    # reading its document.
+    execute_async_script(
+        webdriver_port,
+        session_id,
+        """
+const done = arguments[0];
+const frame = document.getElementById('frame');
+const resolveIfComplete = () => {
+    if (frame.contentDocument?.readyState !== "complete")
+        return false;
+    done();
+    return true;
+};
+if (!resolveIfComplete()) {
+    // The frame's document may be replaced before it finishes loading, so it is checked again on each load event.
+    frame.addEventListener("load", function onLoad() {
+        if (resolveIfComplete())
+            frame.removeEventListener("load", onLoad);
+    });
+}
+""",
+    )
+
+
 def wait_for_frame_url(
     webdriver_port, session_id, label, expected_url, log, expected_title=None, timeout=EVENT_TIMEOUT_SECONDS
 ):
@@ -3530,6 +3556,7 @@ return [Math.round(rect.left + rect.width / 2), Math.round(rect.top + rect.heigh
         page_server.release_blocked_frame_b.set()
         wait_for_event(page_server.frame_b_blocked_document_ran, "nested frame restore document")
         expect_url(webdriver_port, session_id, "after nested restore crash recovery", url_nested, log)
+        wait_for_frame_load(webdriver_port, session_id)
         expect_frame_url(
             webdriver_port,
             session_id,
@@ -4652,6 +4679,7 @@ return [location.href, window.canceledTraverseCount];
         crash_current_page(webdriver_port, session_id)
         wait_for_event(page_server.frame_b_blocked_document_ran, "nested frame document after crash recovery")
         expect_url(webdriver_port, session_id, "after nested crash recovery", url_nested, log)
+        wait_for_frame_load(webdriver_port, session_id)
         expect_frame_url(
             webdriver_port,
             session_id,
@@ -4673,6 +4701,7 @@ return [location.href, window.canceledTraverseCount];
 
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
         expect_url(webdriver_port, session_id, "after nested crash recovery frame back", url_nested, log)
+        wait_for_frame_load(webdriver_port, session_id)
         expect_frame_url(
             webdriver_port,
             session_id,
@@ -4693,6 +4722,7 @@ return [location.href, window.canceledTraverseCount];
 
         request(webdriver_port, "POST", f"/session/{session_id}/forward", {})
         expect_url(webdriver_port, session_id, "after nested crash recovery frame forward", url_nested, log)
+        wait_for_frame_load(webdriver_port, session_id)
         expect_frame_url(
             webdriver_port,
             session_id,
@@ -4749,6 +4779,7 @@ return location.href;
         expect_url(
             webdriver_port, session_id, "after same-document nested crash recovery", url_nested_same_document, log
         )
+        wait_for_frame_load(webdriver_port, session_id)
         expect_frame_url(
             webdriver_port,
             session_id,
@@ -4908,6 +4939,7 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         request(webdriver_port, "POST", f"/session/{session_id}/back", {})
         expect_url(webdriver_port, session_id, "after nested frame back", url_nested, log)
         expect_navigation_buttons(webdriver_port, session_id, "after nested frame back", True, True, log)
+        wait_for_frame_load(webdriver_port, session_id)
         expect_frame_url(
             webdriver_port, session_id, "after nested frame back restores previous entry", url_frame_a, log, "Frame A"
         )
