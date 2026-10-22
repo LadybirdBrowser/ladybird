@@ -419,6 +419,10 @@ impl Value {
             {
                 return Ok(Value::from_string(string));
             }
+            // OPTIMIZATION: A String object with the builtin conversion methods converts to its [[StringData]].
+            if let Some(string) = StringObject::string_data_if_it_converts_to_it(vm, &object) {
+                return Ok(Value::from_string(string));
+            }
 
             // a. Let exoticToPrim be ? GetMethod(input, @@toPrimitive).
             let exotic_to_primitive = Self::finish_get_method(

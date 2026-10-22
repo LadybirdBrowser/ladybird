@@ -24,6 +24,7 @@ use crate::runtime::property_attributes::PropertyAttributes;
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::realm_watchpoints;
 
 /// A String exotic object, whose [[StringData]] is `string`.
 #[repr(C)]
@@ -88,6 +89,31 @@ impl StringObject {
 
     pub fn primitive_string(&self) -> Gc<PrimitiveString> {
         self.string
+    }
+
+    /// The [[StringData]] of `object`, if it is a String object whose ToPrimitive gives that without running code: it
+    /// inherits from %String.prototype% of the running realm, has no own `valueOf`, `toString` or @@toPrimitive, and
+    /// the realm still has the builtin conversion methods (see `realm_watchpoints`).
+    pub fn string_data_if_it_converts_to_it(vm: &Vm, object: &Object) -> Option<Gc<PrimitiveString>> {
+        if !core::ptr::eq(object.class(), Self::CLASS) || object.has_unimplemented_properties() {
+            return None;
+        }
+        let realm = vm.current_realm()?;
+        let shape = object.shape();
+        // NB: Every String object has an own "length", so one with no other own property has none of the others.
+        let has_own_conversion_method = shape.property_count() > 1
+            && (shape.lookup(&vm.names.valueOf).is_some()
+                || shape.lookup(&vm.names.toString).is_some()
+                || shape
+                    .lookup(&PropertyKey::from(vm.well_known_symbols().to_primitive))
+                    .is_some());
+        if has_own_conversion_method
+            || object.prototype() != Some(realm.string_prototype(vm))
+            || !realm_watchpoints::string_objects_convert_to_their_string_data(vm, realm)
+        {
+            return None;
+        }
+        Some(as_string_object(object).string)
     }
 
     pub(crate) fn initialize(object: &Object, vm: &Vm, _realm: Gc<Realm>) {
