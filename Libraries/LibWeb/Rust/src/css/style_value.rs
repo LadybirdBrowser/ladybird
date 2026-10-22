@@ -2351,8 +2351,8 @@ impl StyleValueData {
     ///
     /// Consistency holds by construction because the hash only ever omits fields, and derived
     /// equality requires every field to be equal, so any hashed subset agrees on equal values.
-    /// Opaque payloads (calc trees, geometry and stop lists) contribute nothing beyond the
-    /// variant discriminant; deep equality settles whatever shares a bucket. Floats hash by bit
+    /// Opaque payloads (calc trees and path geometry) contribute nothing beyond the variant
+    /// discriminant; deep equality settles whatever shares a bucket. Floats hash by bit
     /// pattern with negative zero normalized to zero; NaN never equals anything, so its hash is
     /// unconstrained.
     pub(crate) fn content_hash(&self) -> u64 {
@@ -2391,6 +2391,35 @@ impl StyleValueData {
             write_bool(hasher, base.has_color_type);
             hasher.write_u8(base.color_type);
             hasher.write_u8(base.color_syntax);
+        }
+        fn write_color_stops(hasher: &mut crate::css::style::fast_hash::FastHasher, stops: &RetainedColorStopList) {
+            hasher.write_usize(stops.as_slice().len());
+            for stop in stops.as_slice() {
+                for value in stop.values() {
+                    write_value(hasher, value);
+                }
+            }
+        }
+        fn write_grid_track_entries(
+            hasher: &mut crate::css::style::fast_hash::FastHasher,
+            entries: &[RetainedGridTrackEntry],
+        ) {
+            hasher.write_usize(entries.len());
+            for entry in entries {
+                hasher.write_u8(entry.kind as u8);
+                hasher.write_usize(entry.names.as_slice().len());
+                for name in entry.names.as_slice() {
+                    write_fly(hasher, name);
+                }
+                write_value(hasher, &entry.size_value);
+                write_value(hasher, &entry.min_value);
+                write_value(hasher, &entry.max_value);
+                hasher.write_u8(entry.repeat_type);
+                write_value(hasher, &entry.repeat_count);
+                write_bool(hasher, entry.repeat_is_subgrid);
+                write_bool(hasher, entry.repeat_preserve_line_name_sets);
+                write_grid_track_entries(hasher, entry.repeat_entries.as_slice());
+            }
         }
 
         std::mem::discriminant(self).hash(hasher);
@@ -2651,13 +2680,19 @@ impl StyleValueData {
                 name,
                 origin_color,
             } => {
-                write_color_base(hasher, color_base);
+                // NB: Equality ignores the color syntax, and the color type and name when absent.
+                write_bool(hasher, color_base.has_color_type);
+                if color_base.has_color_type {
+                    hasher.write_u8(color_base.color_type);
+                }
                 write_value(hasher, channel_0);
                 write_value(hasher, channel_1);
                 write_value(hasher, channel_2);
                 write_value(hasher, alpha);
                 write_bool(hasher, *has_name);
-                write_fly(hasher, name);
+                if *has_name {
+                    write_fly(hasher, name);
+                }
                 write_value(hasher, origin_color);
             }
             Self::ColorMix {
@@ -2679,7 +2714,7 @@ impl StyleValueData {
                 has_direction_value,
                 direction_value,
                 side_or_corner,
-                color_stop_list: _,
+                color_stop_list,
                 gradient_type,
                 repeating,
                 color_interpolation_method,
@@ -2688,6 +2723,7 @@ impl StyleValueData {
                 write_bool(hasher, *has_direction_value);
                 write_value(hasher, direction_value);
                 hasher.write_u8(*side_or_corner);
+                write_color_stops(hasher, color_stop_list);
                 hasher.write_u8(*gradient_type);
                 write_bool(hasher, *repeating);
                 write_value(hasher, color_interpolation_method);
@@ -2696,13 +2732,14 @@ impl StyleValueData {
             Self::ConicGradient {
                 from_angle,
                 position,
-                color_stop_list: _,
+                color_stop_list,
                 repeating,
                 color_interpolation_method,
                 color_syntax,
             } => {
                 write_value(hasher, from_angle);
                 write_value(hasher, position);
+                write_color_stops(hasher, color_stop_list);
                 write_bool(hasher, *repeating);
                 write_value(hasher, color_interpolation_method);
                 hasher.write_u8(*color_syntax);
@@ -2711,7 +2748,7 @@ impl StyleValueData {
                 ending_shape,
                 size,
                 position,
-                color_stop_list: _,
+                color_stop_list,
                 repeating,
                 color_interpolation_method,
                 color_syntax,
@@ -2719,6 +2756,7 @@ impl StyleValueData {
                 hasher.write_u8(*ending_shape);
                 write_value(hasher, size);
                 write_value(hasher, position);
+                write_color_stops(hasher, color_stop_list);
                 write_bool(hasher, *repeating);
                 write_value(hasher, color_interpolation_method);
                 hasher.write_u8(*color_syntax);
@@ -2727,10 +2765,18 @@ impl StyleValueData {
                 url.hash(hasher);
                 hasher.write_u8(*url_type);
             }
-            Self::ImageSet { options: _ } => {}
+            Self::ImageSet { options } => {
+                hasher.write_usize(options.as_slice().len());
+                for option in options.as_slice() {
+                    write_value(hasher, &option.image);
+                    write_value(hasher, &option.resolution);
+                    write_bool(hasher, option.has_type);
+                    write_fly(hasher, &option.type_string);
+                }
+            }
             Self::Easing {
                 kind,
-                linear_stops: _,
+                linear_stops,
                 x1,
                 y1,
                 x2,
@@ -2739,6 +2785,11 @@ impl StyleValueData {
                 step_position,
             } => {
                 hasher.write_u8(*kind);
+                hasher.write_usize(linear_stops.as_slice().len());
+                for stop in linear_stops.as_slice() {
+                    write_value(hasher, &stop.output);
+                    write_value(hasher, &stop.input);
+                }
                 write_value(hasher, x1);
                 write_value(hasher, y1);
                 write_value(hasher, x2);
@@ -2754,20 +2805,37 @@ impl StyleValueData {
             Self::GridTrackSizeList {
                 is_subgrid,
                 preserve_line_name_sets,
-                entries: _,
+                entries,
             } => {
                 write_bool(hasher, *is_subgrid);
                 write_bool(hasher, *preserve_line_name_sets);
+                write_grid_track_entries(hasher, entries.as_slice());
             }
             Self::GridTemplateArea {
-                grid_areas: _,
+                grid_areas,
                 row_count,
                 column_count,
             } => {
+                hasher.write_usize(grid_areas.as_slice().len());
+                for area in grid_areas.as_slice() {
+                    write_fly(hasher, &area.name);
+                    write_fly(hasher, &area.implicit_start_name);
+                    write_fly(hasher, &area.implicit_end_name);
+                    for line in area.grid_lines() {
+                        hasher.write_usize(line);
+                    }
+                }
                 hasher.write_usize(*row_count);
                 hasher.write_usize(*column_count);
             }
-            Self::CounterDefinitions { counter_definitions: _ } => {}
+            Self::CounterDefinitions { counter_definitions } => {
+                hasher.write_usize(counter_definitions.as_slice().len());
+                for definition in counter_definitions.as_slice() {
+                    write_fly(hasher, &definition.name);
+                    write_bool(hasher, definition.is_reversed);
+                    write_value(hasher, &definition.value);
+                }
+            }
             Self::GridTrackPlacement {
                 kind,
                 value,
