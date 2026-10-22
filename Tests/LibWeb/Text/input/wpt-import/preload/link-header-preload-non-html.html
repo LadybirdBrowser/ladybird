@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Makes sure that Link headers preload resources in non-HTML documents</title>
+<meta name="timeout" content="long">
+<script src="resources/dummy.js?link-header-preload2"></script>
+<script src="../common/utils.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../preload/resources/preload_helper.js"></script>
+<body>
+<script>
+
+    function test_document_type(options, desc) {
+        promise_test(async t => {
+            const id = token();
+            const preloadLink = `/html/semantics/document-metadata/the-link-element/stylesheet.py?id=${id}`;
+            const params = new URLSearchParams();
+            for (const opt in options)
+                params.set(opt, options[opt]);
+            params.set('link', `<${preloadLink}>;rel=preload;as=style`);
+
+            const docURL = getAbsoluteURL(`./resources/echo-preload-header.py?${params.toString()}`);
+            const iframe = document.createElement('iframe');
+            t.add_cleanup(() => iframe.remove());
+            iframe.src = docURL;
+            document.body.appendChild(iframe);
+            await new Promise(resolve => iframe.addEventListener('load', resolve));
+            const timeout = 5000;
+            const interval = 25;
+            let count = 0;
+            const before = performance.now();
+
+            while (performance.now() < before + timeout) {
+                // count=true returns the number of times the resource was accessed
+                const res = await fetch(preloadLink + '&count=true');
+
+                // If count is positive, the resource was accessed.
+                count = Number(await res.text());
+                if (count > 0)
+                    break;
+
+                await new Promise(resolve => t.step_timeout(resolve, interval));
+            }
+
+            assert_equals(count, 1, "verify that request was issued exactly once");
+        }, `${desc} documents should respect preload Link headers`);
+    }
+
+    test_document_type({
+        type: 'application/xml',
+        content: `<?xml version="1.0" encoding="utf-8"?>
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        </html>`}, "XHTML");
+    test_document_type({content: 'Hello', type: 'text/plain'}, 'plain text');
+    test_document_type({file: 'square.png', type: 'image/png'}, 'image');
+    test_document_type({file: 'white.mp4', type: 'video/mp4'}, 'media');
+    test_document_type({content: 'dummy', type: 'image/png'}, 'invalid image');
+</script>
+</body>

@@ -26,7 +26,9 @@
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Response.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
+#include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
@@ -154,8 +156,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually
     //    causes a load event to be fired.
     else {
-        auto body = GC::Ref { *navigation_params.response->body() };
-        auto parser = HTML::IncrementalDocumentParser::create(document, body, navigation_params.response->url().value(), Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list()));
+        auto parser = HTML::IncrementalDocumentParser::create(document, *navigation_params.response);
         parser->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
         parser->start();
     }
@@ -200,7 +201,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
     if (auto maybe_encoding = type.parameters().get("charset"sv); maybe_encoding.has_value())
         content_encoding = *maybe_encoding;
 
-    auto process_body = GC::create_function(GC::Heap::the(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
+    auto process_body = GC::create_function(GC::Heap::the(), [document, url = navigation_params.response->url().value(), response_header_list = navigation_params.response->header_list(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
         Optional<TextCodec::Decoder> decoder;
         // The actual HTTP headers and other metadata, not the headers as mutated or implied by the algorithms given in this specification,
         // are the ones that must be used when determining the character encoding according to the rules given in the above specifications.
@@ -220,7 +221,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             convert_to_xml_error_document(document, Utf16String::formatted("Failed to decode XML document: {}", source.error()));
             return;
         }
-        auto run_xml_parser = [document, source_string = source.release_value()] {
+        auto run_xml_parser = [document, url, response_header_list, source_string = source.release_value()] {
             XML::Parser parser(source_string, { .preserve_cdata = true, .preserve_comments = true, .resolve_named_html_entity = resolve_named_html_entity });
             XMLDocumentBuilder builder { *document };
             auto result = parser.parse_with_listener(builder);
@@ -232,6 +233,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
                 dbgln("Failed to parse XML document: not namespace-well-formed");
                 convert_to_xml_error_document(document, "Failed to parse XML document: not namespace-well-formed"_utf16);
             }
+            HTML::HTMLLinkElement::process_link_headers(document, response_header_list, url, HTML::HTMLLinkElement::LinkHeaderPhase::Media);
         };
         if (document->ready_to_run_scripts()) {
             run_xml_parser();
@@ -278,11 +280,11 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually causes a
     //    load event to be fired.
     // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-    auto process_body = GC::create_function(GC::Heap::the(), [document, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) {
+    auto process_body = GC::create_function(GC::Heap::the(), [document, url = navigation_params.response->url().value(), response_header_list = navigation_params.response->header_list(), mime = type](ByteBuffer data) {
         auto [encoding, confidence] = HTML::run_encoding_sniffing_algorithm(document, data, mime);
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
-        auto run_text_parser = [document, data = move(data), url, encoding = move(encoding)] {
+        auto run_text_parser = [document, data = move(data), url, response_header_list, encoding = move(encoding)] {
             auto parser = HTML::HTMLParser::create_with_open_input_stream(document);
             parser->tokenizer().update_insertion_point();
 
@@ -298,6 +300,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
             parser->run(url);
 
             document->set_encoding(Utf16String::from_ascii_without_validation(encoding.bytes()));
+            HTML::HTMLLinkElement::process_link_headers(document, response_header_list, url, HTML::HTMLLinkElement::LinkHeaderPhase::Media);
 
             // 5. User agents may add content to the head element of document, e.g., linking to a style sheet, providing
             //    script, or giving the document a title.
@@ -405,13 +408,20 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_media_document(HTML::Nav
         VERIFY_NOT_REACHED();
     }
 
-    // FIXME: 7. Process link headers given document, navigationParams's response, and "media".
+    auto& realm = document->relevant_settings_object().realm();
+
+    // 7. Process link headers given document, navigationParams's response, and "media".
+    // AD-HOC: document has no navigable until it is activated, so media queries would be evaluated against an empty
+    //         viewport. Process the link headers in a networking task instead, which runs once document is fully active
+    //         and before the task that step 8 queues when the body has been read.
+    HTML::queue_global_task(HTML::Task::Source::Networking, realm.global_object(), GC::create_function(GC::Heap::the(), [document, response_header_list = navigation_params.response->header_list(), url = navigation_params.response->url().value()] {
+        HTML::HTMLLinkElement::process_link_headers(document, response_header_list, url, HTML::HTMLLinkElement::LinkHeaderPhase::Media);
+    }));
 
     // 8. Act as if the user agent had stopped parsing document.
     // FIXME: We should not need to force the media file to load before saying that parsing has completed!
     //        However, if we don't, then we get stuck in HTMLParser::the_end() waiting for the media file to load, which
     //        never happens.
-    auto& realm = document->relevant_settings_object().realm();
     navigation_params.response->body()->fully_read(
         realm,
         GC::create_function(GC::Heap::the(), [document](ByteBuffer) { HTML::HTMLParser::the_end(document, nullptr); }),

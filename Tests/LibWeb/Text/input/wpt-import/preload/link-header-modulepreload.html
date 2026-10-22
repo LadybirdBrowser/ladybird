@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Makes sure that Link headers support modulepreload</title>
+<meta name="timeout" content="long">
+<script src="../common/utils.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../preload/resources/preload_helper.js"></script>
+<body>
+<script>
+    promise_test(async t => {
+        const id = token();
+        const moduleLink = getAbsoluteURL('./resources/module1.js');
+        const params = new URLSearchParams();
+        params.set('link', `<${moduleLink}>;rel=modulepreload`);
+        params.set('type', 'text/html');
+        params.set('file', 'modulepreload-iframe.html')
+        const docURL = getAbsoluteURL(`./resources/echo-preload-header.py?${params.toString()}`);
+        const iframe = document.createElement('iframe');
+        t.add_cleanup(() => iframe.remove());
+        iframe.src = docURL;
+        const messageReceived = new Promise(resolve => window.addEventListener('message', m => {
+            resolve(m.data);
+        }))
+        document.body.appendChild(iframe);
+        const result = await messageReceived;
+        assert_equals(result, 1);
+    }, 'test that a header-preloaded module is loaded and consumed');
+</script>
+</body>

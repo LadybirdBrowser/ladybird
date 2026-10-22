@@ -23,6 +23,7 @@ class MemoryCache;
 class ProxyConfiguration;
 
 struct Header;
+struct Link;
 struct NetworkIsolationKey;
 struct Proxy;
 

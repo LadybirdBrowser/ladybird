@@ -12,6 +12,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
+#include <LibHTTP/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
@@ -27,13 +28,13 @@ class WEB_API IncrementalDocumentParser final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(IncrementalDocumentParser);
 
 public:
-    static GC::Ref<IncrementalDocumentParser> create(GC::Ref<DOM::Document>, GC::Ref<Fetch::Infrastructure::Body>, URL::URL, Optional<MimeSniff::MimeType>);
+    static GC::Ref<IncrementalDocumentParser> create(GC::Ref<DOM::Document>, Fetch::Infrastructure::Response const&);
 
     void start();
     void set_allow_declarative_shadow_roots(HTMLParser::AllowDeclarativeShadowRoots);
 
 private:
-    IncrementalDocumentParser(GC::Ref<DOM::Document>, GC::Ref<Fetch::Infrastructure::Body>, URL::URL, Optional<MimeSniff::MimeType>);
+    IncrementalDocumentParser(GC::Ref<DOM::Document>, Fetch::Infrastructure::Response const&);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -42,6 +43,7 @@ private:
     void process_body_chunk(ByteBuffer);
     void process_end_of_body();
     void process_body_error(JS::Value);
+    void process_link_headers_after_first_task();
     ErrorOr<bool> change_encoding(StringView);
 
     void feed_parser();
@@ -61,6 +63,7 @@ private:
     GC::Ptr<Fetch::Infrastructure::Body> m_body;
     URL::URL m_url;
     Optional<MimeSniff::MimeType> m_mime_type;
+    RefPtr<HTTP::HeaderList> m_response_header_list;
     HTMLParser::AllowDeclarativeShadowRoots m_allow_declarative_shadow_roots { HTMLParser::AllowDeclarativeShadowRoots::Yes };
 
     GC::Ptr<HTMLParser> m_parser;

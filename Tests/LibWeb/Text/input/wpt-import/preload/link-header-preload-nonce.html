@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../common/utils.js"></script>
+<script src="../preload/resources/preload_helper.js"></script>
+<body>
+<script>
+
+async_test(t => {
+  const id = token();
+  const pageUrl =
+    '/common/blank.html?pipe=' +
+    '|header(content-security-policy, script-src \'nonce-abc\')' +
+    `|header(link, <${encodedStashPutUrl(id)}>;rel=preload;as=script)`;
+
+  const w = window.open(pageUrl);
+  t.add_cleanup(() => w.close());
+
+  step_timeout(async () => {
+    try {
+      const arrived = await hasArrivedAtServer(id);
+      assert_false(arrived, 'The preload should be blocked.');
+      t.done();
+    } catch (e) {
+      t.step(() => {throw e;});
+    }
+  }, 3000);
+}, 'without nonce');
+
+async_test(t => {
+  const id = token();
+  const pageUrl =
+    '/common/blank.html?pipe=' +
+    '|header(content-security-policy, script-src \'nonce-az\')' +
+    `|header(link, <${encodedStashPutUrl(id)}>;rel=preload;as=script;nonce=az)`;
+  const w = window.open(pageUrl);
+  t.add_cleanup(() => w.close());
+
+  // TODO: Use step_wait after
+  // https://github.com/web-platform-tests/wpt/pull/34289 is merged.
+  step_timeout(async () => {
+    try {
+      const arrived = await hasArrivedAtServer(id);
+      assert_true(arrived, 'The preload should have arrived at the server.');
+      t.done();
+    } catch (e) {
+      t.step(() => {throw e;});
+    }
+  }, 3000);
+}, 'with nonce');
+
+</script>
+</body>

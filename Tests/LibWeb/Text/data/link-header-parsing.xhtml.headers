@@ -1,0 +1,3 @@
+Link: <link-header-parsing.js?a,b>; rel=modulepreload
+Link: <link-header-parsing.js?anchored>; rel=modulepreload; anchor="other.xhtml"
+Link: <link-header-parsing.js?media>; rel=modulepreload; media="all"
