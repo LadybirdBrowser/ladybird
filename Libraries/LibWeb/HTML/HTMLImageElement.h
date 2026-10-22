@@ -188,6 +188,8 @@ private:
     Optional<u64> m_cached_associated_map_element_dom_tree_version;
 };
 
+void update_the_source_set(DOM::Element&);
+
 }
 
 namespace Web::DOM {

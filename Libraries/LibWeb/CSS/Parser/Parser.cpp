@@ -113,11 +113,11 @@ static Optional<double> sizes_attribute_auto_width(HTML::HTMLImageElement const*
     return concrete_size.width().to_double();
 }
 
-// AD-HOC: If element has no sizes attribute, this algorithm always logs a parse error and then returns 100vw.
+// AD-HOC: If the sizes are empty, this algorithm always logs a parse error and then returns 100vw.
 //         The attribute is optional, so avoid spamming the debug log with false positives by just returning early.
-NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(Utf16View source, DOM::Element const& element, HTML::HTMLImageElement const* img)
+NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(Utf16View source, HTML::HTMLImageElement const* img)
 {
-    if (!element.has_attribute(HTML::AttributeNames::sizes))
+    if (source.is_empty())
         return LengthStyleValue::create(Length(100, LengthUnit::Vw));
     auto auto_width = sizes_attribute_auto_width(img);
     auto context = make_parse_context(ParseContextMode::Value);

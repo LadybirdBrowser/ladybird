@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/PreloadEntry.h>
+#include <LibWeb/HTML/SourceSet.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::HTML {
@@ -59,6 +60,8 @@ public:
     RefPtr<CSS::StyleSheetState> sheet() const;
     CSS::CSSStyleSheet* cssom_sheet() const;
 
+    void set_source_set(SourceSet source_set) { m_source_set = move(source_set); }
+
     enum class AnyFailed : u8 {
         No,
         Yes,
@@ -74,6 +77,7 @@ private:
         LinkProcessingOptions(
             CORSSettingAttribute crossorigin,
             ReferrerPolicy::ReferrerPolicy referrer_policy,
+            Optional<SourceSet> source_set,
             URL::URL base_url,
             URL::Origin origin,
             GC::Ref<HTML::EnvironmentSettingsObject> environment,
@@ -112,8 +116,9 @@ private:
         //     A referrer policy
         ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
 
-        // FIXME: source set (default null)
+        // source set (default null)
         //     Null or a source set
+        Optional<SourceSet> source_set;
 
         // base URL
         //     A URL
@@ -215,6 +220,8 @@ private:
     bool m_was_enabled_when_created_by_parser { false };
 
     Optional<Utf16String> m_mime_type;
+
+    SourceSet m_source_set;
 
     GC::Weak<DOM::Document> m_parser_document;
 };

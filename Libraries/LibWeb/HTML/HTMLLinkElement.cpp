@@ -32,11 +32,13 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
@@ -361,8 +363,9 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
         //     the state of el's referrerpolicy content attribute
         ReferrerPolicy::from_string(referrerpolicy_value).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString),
 
-        // FIXME: source set
+        // source set
         //     el's source set
+        m_source_set,
 
         // base URL
         //     document's document base URL
@@ -588,7 +591,8 @@ void HTMLLinkElement::fetch_and_process_linked_preconnect_resource()
 // https://html.spec.whatwg.org/multipage/links.html#link-type-preload:fetch-and-process-the-linked-resource-2
 void HTMLLinkElement::fetch_and_process_linked_preload_resource()
 {
-    // FIXME: 1. Update the source set for el.
+    // 1. Update the source set for el.
+    update_the_source_set(*this);
 
     // 2. Let options be the result of creating link options from el.
     auto options = create_link_options();
@@ -940,8 +944,15 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
     if (!type_matches_destination(options.type, options.destination))
         return;
 
-    // FIXME: 2. If options's destination is "image" and options's source set is not null, then set options's href to the
-    //           result of selecting an image source from options's source set.
+    // 2. If options's destination is "image" and options's source set is not null, then set options's href to the
+    //    result of selecting an image source from options's source set.
+    // NB: A link with neither an href nor an imagesrcset has an empty source set, with no image source to select.
+    if (options.destination == Fetch::Infrastructure::Request::Destination::Image && options.source_set.has_value() && !options.source_set->is_empty()) {
+        auto device_pixel_ratio = 1.0;
+        if (auto const* window = window_from_global_object(options.environment->global_object()))
+            device_pixel_ratio = window->device_pixel_ratio();
+        options.href = options.source_set->select_an_image_source(device_pixel_ratio).source.url;
+    }
     if (options.href.is_empty())
         return;
 
@@ -1400,6 +1411,7 @@ bool HTMLLinkElement::should_fetch_and_process_resource_type() const
 HTMLLinkElement::LinkProcessingOptions::LinkProcessingOptions(
     CORSSettingAttribute crossorigin,
     ReferrerPolicy::ReferrerPolicy referrer_policy,
+    Optional<SourceSet> source_set,
     URL::URL base_url,
     URL::Origin origin,
     GC::Ref<HTML::EnvironmentSettingsObject> environment,
@@ -1410,6 +1422,7 @@ HTMLLinkElement::LinkProcessingOptions::LinkProcessingOptions(
     : cryptographic_nonce_metadata(move(cryptographic_nonce_metadata))
     , crossorigin(crossorigin)
     , referrer_policy(referrer_policy)
+    , source_set(move(source_set))
     , base_url(move(base_url))
     , origin(move(origin))
     , environment(environment)
