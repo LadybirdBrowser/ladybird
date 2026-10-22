@@ -143,6 +143,10 @@ const MEMORY64_MAX_PAGES: u64 = 1 << 48;
 /// local takes a slot of the function's machine stack frame, so this bounds the frame size a module can ask for.
 const MAX_FUNCTION_LOCALS: usize = 50_000;
 
+/// The most supertypes a type may have above it, as the JS API's implementation limits say. Runtime types hold all of
+/// their supertypes, and subtype checks walk them.
+const MAX_SUBTYPING_DEPTH: u32 = 63;
+
 fn invalid<T>(message: impl Into<String>) -> Result<T> {
     Err(Error::invalid(message))
 }
@@ -2179,6 +2183,8 @@ fn declared_functions(module: &Module) -> HashSet<u32> {
 
 fn validate_types(module: &Module, identities: &mut Vec<u32>) -> Result<()> {
     let mut canonicalizer = TypeCanonicalizer::new();
+    // How many supertypes each type has above it.
+    let mut depths: Vec<u32> = Vec::with_capacity(module.types.len());
     for group in &module.recursion_groups {
         let end = group.start + group.count;
         let sub_types = &module.types[group.start as usize..end as usize];
@@ -2219,9 +2225,14 @@ fn validate_types(module: &Module, identities: &mut Vec<u32>) -> Result<()> {
         };
         for (offset, sub_type) in sub_types.iter().enumerate() {
             let index = group.start + offset as u32;
+            let mut depth = 0;
             for &supertype in &sub_type.supertypes {
                 if supertype >= index {
                     return invalid("unknown type: supertypes must be declared before their subtypes");
+                }
+                depth = depths[supertype as usize] + 1;
+                if depth > MAX_SUBTYPING_DEPTH {
+                    return invalid("subtyping depth is too large");
                 }
                 let parent = &module.types[supertype as usize];
                 if parent.is_final {
@@ -2231,6 +2242,7 @@ fn validate_types(module: &Module, identities: &mut Vec<u32>) -> Result<()> {
                     return invalid("sub type does not match its supertype");
                 }
             }
+            depths.push(depth);
         }
     }
     Ok(())
