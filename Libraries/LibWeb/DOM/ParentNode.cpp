@@ -90,9 +90,36 @@ GC::Ref<HTMLCollection> ParentNode::children()
     return *children;
 }
 
+// https://dom.spec.whatwg.org/#dom-document-getelementsbytagname
+// https://dom.spec.whatwg.org/#dom-element-getelementsbytagname
+GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(Utf16FlyString const& qualified_name)
+{
+    // https://dom.spec.whatwg.org/#concept-getelementsbytagname
+    // When invoked with the same argument, and as long as root’s node document’s type has not changed, the same
+    // HTMLCollection object may be returned as returned by an earlier call.
+    auto for_html_document = document().document_type() == Document::Type::HTML;
+    auto& rare_data = ensure_rare_data();
+    auto& collections = rare_data.collections_by_tag_name;
+    if (!collections) {
+        collections = make<HashMap<Utf16FlyString, RareData::CollectionByTagName>>();
+    } else if (auto it = collections->find(qualified_name); it != collections->end() && it->value.for_html_document == for_html_document) {
+        if (auto collection = it->value.collection.ptr())
+            return *collection;
+    }
+    // Forget the collections that were collected, so that calls with ever new arguments do not grow the map. The sweep
+    // waits for the map to double in size, so that it costs each call a constant amount of work.
+    if (collections->size() >= rare_data.collections_by_tag_name_sweep_size) {
+        collections->remove_all_matching([](auto const&, auto const& cached) { return !cached.collection; });
+        rare_data.collections_by_tag_name_sweep_size = max<size_t>(8, collections->size() * 2);
+    }
+    auto collection = create_elements_by_tag_name_collection(qualified_name);
+    collections->set(qualified_name, { collection, for_html_document });
+    return collection;
+}
+
 // https://dom.spec.whatwg.org/#concept-getelementsbytagname
 // NOTE: This method is only exposed on Document and Element, but is in ParentNode to prevent code duplication.
-GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(Utf16FlyString const& qualified_name)
+GC::Ref<HTMLCollection> ParentNode::create_elements_by_tag_name_collection(Utf16FlyString const& qualified_name)
 {
     // 1. If qualifiedName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches only descendant elements.
     if (qualified_name == u"*"sv) {
