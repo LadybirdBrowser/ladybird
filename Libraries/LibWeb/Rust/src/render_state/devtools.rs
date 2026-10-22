@@ -106,14 +106,6 @@ pub extern "C" fn render_state_overflow_contained_box_index_refill_count(host: &
     })
 }
 
-/// How many boxes wait for their visual context to be updated.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_visual_context_pending_dirty_box_count(host: &DocumentHost) -> usize {
-    read_arena(host, |arena| {
-        arena.paint_state().borrow().visual_context.dirty_boxes.boxes.len()
-    })
-}
-
 /// Where the stacking context structure below `viewport` differs from what paint preparation recorded, handed to
 /// `consume` unless it does not.
 ///

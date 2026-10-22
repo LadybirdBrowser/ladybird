@@ -54,7 +54,6 @@ public:
     void set_show_line_box_borders(bool);
     void set_force_dark_thresholds(i32, i32);
     u64 visual_context_tree_node_count();
-    u64 visual_context_pending_dirty_box_count();
     u64 accumulated_visual_context_incremental_update_count();
     u64 visual_context_tree_node_capacity();
     u64 visual_context_tree_dead_node_count();
