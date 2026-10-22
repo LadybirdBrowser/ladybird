@@ -816,8 +816,10 @@ mod native {
             assert!(jit.entry(key).is_some(), "the module still lives");
             drop(module);
             jit.forget_dead_modules();
+            // NB: The chunks live only in the module's code, so this is what unmaps them. Asking CODE_RANGES whether the
+            //     entry is gone would race with the tests running beside this one, which may map a chunk of their own
+            //     at the address just freed.
             assert!(jit.modules.is_empty());
-            assert!(!CODE_RANGES.contains(entry as usize));
         }
 
         #[test]
