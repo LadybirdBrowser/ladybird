@@ -33,8 +33,6 @@ public:
     // This is 'const' since generated IPC messages expose all parameters by const reference.
     [[nodiscard]] int take_fd() const { return exchange(m_fd, -1); }
 
-    ErrorOr<void> clear_close_on_exec();
-
 private:
     explicit File(int fd);
 

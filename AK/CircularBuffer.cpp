@@ -49,11 +49,6 @@ size_t CircularBuffer::capacity() const
     return m_buffer.size();
 }
 
-size_t CircularBuffer::seekback_limit() const
-{
-    return m_seekback_limit;
-}
-
 size_t SearchableCircularBuffer::search_limit() const
 {
     return m_seekback_limit - m_used_space;

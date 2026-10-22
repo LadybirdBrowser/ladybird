@@ -351,17 +351,6 @@ void SessionStore::TransientStorage::mark_tab_flushed(SessionTabId tab_id, size_
     tab->value.history.clear();
 }
 
-Optional<SessionHistorySnapshot> SessionStore::TransientStorage::take_tab_history(SessionTabId tab_id)
-{
-    auto tab = m_tabs.find(tab_id);
-    if (tab == m_tabs.end())
-        return {};
-
-    auto history = move(tab->value.history);
-    tab->value.history.clear();
-    return history;
-}
-
 void SessionStore::TransientStorage::set_active_tab(SessionTabId tab_id)
 {
     auto tab = m_tabs.find(tab_id);

@@ -24,11 +24,6 @@ int return_code_for_errors()
     return s_return_code_for_errors;
 }
 
-void set_return_code_for_errors(int code)
-{
-    s_return_code_for_errors = code;
-}
-
 }
 
 int main(int argc, char** argv)

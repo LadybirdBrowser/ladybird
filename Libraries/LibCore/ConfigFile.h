@@ -26,7 +26,6 @@ public:
     static ErrorOr<NonnullRefPtr<ConfigFile>> open(ByteString const& filename, NonnullOwnPtr<Core::File>);
     ~ConfigFile();
 
-    bool has_group(ByteString const&) const;
     bool has_key(ByteString const& group, ByteString const& key) const;
 
     Vector<ByteString> groups() const;

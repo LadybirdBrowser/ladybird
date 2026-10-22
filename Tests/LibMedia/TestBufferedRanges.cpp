@@ -100,11 +100,6 @@ static void expect_valid_ranges(Media::TimeRanges const& ranges)
     }
 }
 
-[[maybe_unused]] static bool nearly_greater_than_or_equal(AK::Duration lhs, AK::Duration rhs)
-{
-    return rhs - lhs <= AK::Duration::from_microseconds(5);
-}
-
 static void expect_complete_file_is_fully_buffered(Fixture const& fixture)
 {
     dbgln("-- '{}' fully buffered --", fixture.path);

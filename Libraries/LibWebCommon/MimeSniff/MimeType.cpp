@@ -539,24 +539,6 @@ bool MimeType::is_font() const
         "application/vnd.ms-opentype"sv);
 }
 
-// https://mimesniff.spec.whatwg.org/#zip-based-mime-type
-bool MimeType::is_zip_based() const
-{
-    // A ZIP-based MIME type is any MIME type whose subtype ends in "+zip" or whose essence is one of the following:
-    //    - application/zip
-    return subtype().ends_with_bytes("+zip"sv) || essence().is_one_of("application/zip"sv);
-}
-
-// https://mimesniff.spec.whatwg.org/#archive-mime-type
-bool MimeType::is_archive() const
-{
-    // An archive MIME type is any MIME type whose essence is one of the following:
-    //    - application/x-rar-compressed
-    //    - application/zip
-    //    - application/x-gzip
-    return essence().is_one_of("application/x-rar-compressed"sv, "application/zip"sv, "application/x-gzip"sv);
-}
-
 // https://mimesniff.spec.whatwg.org/#xml-mime-type
 bool MimeType::is_xml() const
 {
@@ -569,13 +551,6 @@ bool MimeType::is_html() const
 {
     // An HTML MIME type is any MIME type whose essence is "text/html".
     return essence().is_one_of("text/html"sv);
-}
-
-// https://mimesniff.spec.whatwg.org/#scriptable-mime-type
-bool MimeType::is_scriptable() const
-{
-    // A scriptable MIME type is an XML MIME type, HTML MIME type, or any MIME type whose essence is "application/pdf".
-    return is_xml() || is_html() || essence() == "application/pdf"sv;
 }
 
 // https://mimesniff.spec.whatwg.org/#javascript-mime-type

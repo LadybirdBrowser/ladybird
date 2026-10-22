@@ -216,26 +216,6 @@ String StringView::to_ascii_lowercase_string() const
     return result;
 }
 
-String StringView::to_ascii_uppercase_string() const
-{
-    VERIFY(Utf8View { *this }.validate());
-
-    String result;
-
-    MUST(result.replace_with_new_string(Badge<StringView> {}, length(), [&](Bytes buffer) -> ErrorOr<void> {
-        for (auto [i, character] : enumerate(bytes()))
-            buffer[i] = static_cast<u8>(AK::to_ascii_uppercase(character));
-        return {};
-    }));
-
-    return result;
-}
-
-String StringView::to_ascii_titlecase_string() const
-{
-    return StringUtils::to_titlecase(*this);
-}
-
 StringView StringView::substring_view_starting_from_substring(StringView substring) const
 {
     char const* remaining_characters = substring.characters_without_null_termination();

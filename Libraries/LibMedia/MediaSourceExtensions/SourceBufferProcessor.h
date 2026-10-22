@@ -162,11 +162,6 @@ public:
     void enqueue(Command);
     void run_pending_commands();
 
-    // NB: Abandons a queued or in-progress buffer append. The spec leaves the interruption point
-    //     undefined, so a partly consumed input buffer keeps whatever it already produced; see
-    //     https://github.com/w3c/media-source/issues/71.
-    void abandon_buffer_append();
-
     using DurationChangeCallback = Function<void(double new_duration)>;
     using InitializationSegmentCallback = Function<void(InitializationSegmentData&&)>;
     using AppendErrorCallback = Function<void()>;

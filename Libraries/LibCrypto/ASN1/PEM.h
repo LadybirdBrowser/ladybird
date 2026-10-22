@@ -25,7 +25,6 @@ struct DecodedPEM {
 };
 
 DecodedPEM decode_pem(ReadonlyBytes);
-ErrorOr<Vector<DecodedPEM>> decode_pems(ReadonlyBytes);
 ErrorOr<ByteBuffer> encode_pem(ReadonlyBytes, PEMType = PEMType::Certificate);
 
 }

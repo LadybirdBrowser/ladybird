@@ -1187,17 +1187,6 @@ WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm& realm, AK
     return WebIDL::Exception { WebIDL::DataCloneError::create(realm, "Unable to process structured serialized data"_utf16) };
 }
 
-WebIDL::ExceptionOr<String> decode_utf8_text_or_throw_data_clone_error(JS::Realm& realm, StructuredSerializeReader& reader)
-{
-    auto text = reader.decode<Utf16String>();
-    if (text.is_error())
-        return data_clone_error_from_serialization_error(realm, text.release_error());
-    auto utf8 = utf16_to_utf8_text(text.value());
-    if (utf8.is_error())
-        return data_clone_error_from_serialization_error(realm, utf8.release_error());
-    return utf8.release_value();
-}
-
 static GC::Ref<WebIDL::DOMException> data_clone_error(Utf16String message)
 {
     return WebIDL::DataCloneError::create(move(message));

@@ -139,19 +139,6 @@ namespace Ladybird {
 static NSEvent* s_latest_window_drag_event;
 static NSInteger s_last_pressure_stage;
 
-static Gfx::Color ns_color_to_gfx_color(NSColor* color)
-{
-    auto* rgb_color = [color colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
-    if (rgb_color != nil)
-        return {
-            static_cast<u8>([rgb_color redComponent] * 255),
-            static_cast<u8>([rgb_color greenComponent] * 255),
-            static_cast<u8>([rgb_color blueComponent] * 255),
-            static_cast<u8>([rgb_color alphaComponent] * 255)
-        };
-    return {};
-}
-
 static bool is_window_drag_on_gesture_enabled()
 {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"NSWindowShouldDragOnGesture"];
@@ -530,16 +517,6 @@ void show_appkit_dictionary_lookup(QWidget& widget, WebView::DictionaryLookup co
 {
     auto* view = reinterpret_cast<NSView*>(widget.winId());
     show_dictionary_lookup(view, lookup, widget_position_to_ns_point(widget, position));
-}
-
-Gfx::Color appkit_web_inactive_selection_color()
-{
-    return ns_color_to_gfx_color([NSColor unemphasizedSelectedTextBackgroundColor]);
-}
-
-Gfx::Color appkit_web_inactive_selection_text_color()
-{
-    return ns_color_to_gfx_color([NSColor unemphasizedSelectedTextColor]);
 }
 
 }

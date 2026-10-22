@@ -20,9 +20,6 @@ public:
     ErrorOr<u32> read_symbol(LittleEndianInputBitStream&) const;
     ErrorOr<void> write_symbol(LittleEndianOutputBitStream&, u32) const;
 
-    static CanonicalCode const& fixed_literal_codes();
-    static CanonicalCode const& fixed_distance_codes();
-
     static ErrorOr<CanonicalCode> from_bytes(ReadonlyBytes);
 
 private:

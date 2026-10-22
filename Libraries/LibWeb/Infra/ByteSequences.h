@@ -10,8 +10,6 @@
 
 namespace Web::Infra {
 
-void byte_lowercase(ByteBuffer&);
-void byte_uppercase(ByteBuffer&);
 bool is_prefix_of(ReadonlyBytes potential_prefix, ReadonlyBytes input);
 bool is_byte_less_than(ReadonlyBytes a, ReadonlyBytes b);
 

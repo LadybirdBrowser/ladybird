@@ -239,7 +239,6 @@ public:
         i64 seconds = sane_mod(milliseconds, 1'000);
         return Duration(seconds, milliseconds * 1'000'000);
     }
-    [[nodiscard]] static Duration from_ticks(clock_t, time_t);
     [[nodiscard]] static Duration from_timespec(const struct timespec&);
     [[nodiscard]] static Duration from_timeval(const struct timeval&);
     [[nodiscard]] static Duration from_time_units(i64 units, u32 numerator, u32 denominator);

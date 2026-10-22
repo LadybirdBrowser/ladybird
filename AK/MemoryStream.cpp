@@ -176,27 +176,6 @@ ReadonlyBytes AllocatingMemoryStream::peek_some_contiguous() const
     return ReadonlyBytes { m_head->data + m_head_read_offset, end - m_head_read_offset };
 }
 
-void AllocatingMemoryStream::peek_some(Bytes bytes) const
-{
-    size_t read_bytes = 0;
-    auto const* chunk = m_head.ptr();
-    auto chunk_offset = m_head_read_offset;
-
-    while (chunk && read_bytes < bytes.size()) {
-        auto const end = (chunk == m_tail) ? m_tail_write_offset : CHUNK_SIZE;
-        ReadonlyBytes available { chunk->data + chunk_offset, end - chunk_offset };
-
-        auto copied = available.copy_trimmed_to(bytes.slice(read_bytes));
-        read_bytes += copied;
-
-        if (copied < available.size())
-            break;
-
-        chunk = chunk->next.ptr();
-        chunk_offset = 0;
-    }
-}
-
 ErrorOr<Bytes> AllocatingMemoryStream::read_some(Bytes bytes)
 {
     size_t read_bytes = 0;

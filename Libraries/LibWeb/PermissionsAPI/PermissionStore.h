@@ -35,9 +35,6 @@ public:
     // https://w3c.github.io/permissions/#dfn-set-a-permission-store-entry
     void set_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key, PermissionState state);
 
-    // https://w3c.github.io/permissions/#dfn-remove-a-permission-store-entry
-    void remove_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key);
-
 private:
     PermissionStore() = default;
 

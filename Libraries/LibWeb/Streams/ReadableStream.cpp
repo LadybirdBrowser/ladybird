@@ -329,55 +329,6 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> ReadableStream::get_a_
     return TRY(acquire_readable_stream_default_reader(realm, *this));
 }
 
-// https://streams.spec.whatwg.org/#readablestream-pull-from-bytes
-WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
-{
-    auto& realm = this->realm();
-    // 1. Assert: stream.[[controller]] implements ReadableByteStreamController.
-    auto& controller = this->controller()->get<GC::Ref<ReadableByteStreamController>>();
-
-    // 2. Let available be bytes’s length.
-    auto available = bytes.size();
-
-    // 3. Let desiredSize be available.
-    auto desired_size = available;
-
-    // 4. If stream’s current BYOB request view is non-null, then set desiredSize to stream’s current BYOB request
-    //    view's byte length.
-    if (auto byob_view = current_byob_request_view(); byob_view.has_value())
-        desired_size = byob_view->byte_length();
-
-    // 5. Let pullSize be the smaller value of available and desiredSize.
-    auto pull_size = min(available, desired_size);
-
-    // 6. Let pulled be the first pullSize bytes of bytes.
-    auto pulled = pull_size == available ? move(bytes) : MUST(bytes.slice(0, pull_size));
-
-    // 7. Remove the first pullSize bytes from bytes.
-    // NB: We skip this step. No caller actually wants its bytes trimmed, and we don't take the bytes by reference anyways.
-
-    // 8. If stream’s current BYOB request view is non-null, then:
-    if (auto byob_view = current_byob_request_view(); byob_view.has_value()) {
-        // 1. Write pulled into stream’s current BYOB request view.
-        if (byob_view->write_checked(pulled).is_error())
-            return WebIDL::InvalidStateError::create(realm, "BYOB request view is detached or out-of-bounds"_utf16);
-
-        // 2. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], pullSize).
-        TRY(readable_byte_stream_controller_respond(realm, controller, pull_size));
-    }
-    // 9. Otherwise,
-    else {
-        // 1. Set view to the result of creating a Uint8Array from pulled in stream’s relevant Realm.
-        auto array_buffer = JS::ArrayBuffer::create(realm, move(pulled));
-        auto view = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
-
-        // 2. Perform ? ReadableByteStreamControllerEnqueue(stream.[[controller]], view).
-        TRY(readable_byte_stream_controller_enqueue(realm, controller, view));
-    }
-
-    return {};
-}
-
 // https://streams.spec.whatwg.org/#readablestream-current-byob-request-view
 Optional<WebIDL::ArrayBufferView> ReadableStream::current_byob_request_view()
 {

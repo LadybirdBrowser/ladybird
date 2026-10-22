@@ -414,13 +414,6 @@ void BrowsingContext::set_window_proxy(GC::Ptr<WindowProxy> window_proxy)
     m_window_proxy = move(window_proxy);
 }
 
-// https://html.spec.whatwg.org/multipage/origin.html#one-permitted-sandboxed-navigator
-BrowsingContext const* BrowsingContext::the_one_permitted_sandboxed_navigator() const
-{
-    // FIXME: Implement this.
-    return nullptr;
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#ancestor-browsing-context
 bool BrowsingContext::is_ancestor_of(BrowsingContext const& potential_descendant) const
 {

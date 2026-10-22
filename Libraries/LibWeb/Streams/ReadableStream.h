@@ -105,7 +105,6 @@ public:
     void set_result_realm(JS::Realm& realm) { m_result_realm = realm; }
 
     WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> get_a_reader();
-    WebIDL::ExceptionOr<void> pull_from_bytes(ByteBuffer);
     WebIDL::ExceptionOr<void> enqueue(JS::Value chunk);
     void set_up_with_byte_reading_support(JS::Realm&, GC::Ptr<PullAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {}, double high_water_mark = 0);
     GC::Ref<ReadableStream> piped_through(GC::Ref<TransformStream>, bool prevent_close = false, bool prevent_abort = false, bool prevent_cancel = false, GC::Ptr<DOM::AbortSignal> signal = {});

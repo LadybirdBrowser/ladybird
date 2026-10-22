@@ -61,16 +61,6 @@ bool Type::is_typed_array() const
     return m_name.is_one_of("Int8Array", "Int16Array", "Int32Array", "Uint8Array", "Uint16Array", "Uint32Array", "Uint8ClampedArray", "BigInt64Array", "BigUint64Array", "Float16Array", "Float32Array", "Float64Array");
 }
 
-bool Type::is_buffer_view() const
-{
-    return m_name == "DataView" || is_typed_array();
-}
-
-bool Type::is_buffer_source() const
-{
-    return is_buffer() || is_buffer_view();
-}
-
 Vector<NonnullRefPtr<Type const>> UnionType::flattened_member_types() const
 {
     Vector<NonnullRefPtr<Type const>> types;

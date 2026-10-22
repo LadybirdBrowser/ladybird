@@ -86,7 +86,6 @@ public:
     bool highlight_colors_authored() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::HighlightColorsAuthored); }
     bool highlight_color_is_current_color() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::HighlightColorIsCurrentColor); }
     bool has_pseudo_element_style(PseudoElement) const;
-    void set_animated_property(Badge<StyleComputer>, PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer>);
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer>);
     ComputedValuesFFI::AnimatedOverlay const* animated_overlay(Badge<StyleComputer>) const;
@@ -145,7 +144,6 @@ private:
     }
     ComputedValuesFFI::FfiComputedStyleMetadata const& metadata() const { return *ComputedValuesFFI::rust_computed_longhand_table_metadata(m_computed_longhand_table); }
     void ensure_mutable_computed_longhand_table();
-    void set_animated_property_internal(PropertyID, NonnullRefPtr<StyleValue const>, AnimatedPropertyResultOfTransition, Inherited);
     void clear_computed_font_list_cache()
     {
         m_cached_computed_font_list = nullptr;

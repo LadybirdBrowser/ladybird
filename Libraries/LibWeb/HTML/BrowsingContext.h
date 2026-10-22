@@ -62,8 +62,6 @@ public:
     Optional<u64> browsing_context_group_id() const { return m_browsing_context_group_id; }
     void set_browsing_context_group_id(Optional<u64> id) { m_browsing_context_group_id = id; }
 
-    // https://html.spec.whatwg.org/multipage/origin.html#one-permitted-sandboxed-navigator
-    BrowsingContext const* the_one_permitted_sandboxed_navigator() const;
     void set_the_one_permitted_sandboxed_navigator(BrowsingContext const*)
     {
         // FIXME: Implement this

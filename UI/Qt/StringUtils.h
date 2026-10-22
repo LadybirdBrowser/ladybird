@@ -40,7 +40,6 @@ QString qformatted(CheckedFormatString<Parameters...>&& format, Parameters const
 
 QByteArray qbytearray_from_ak_string(StringView);
 
-Optional<URL::URL> ak_url_from_qstring(QString const&);
 URL::URL ak_url_from_qurl(QUrl const&);
 
 namespace AK {

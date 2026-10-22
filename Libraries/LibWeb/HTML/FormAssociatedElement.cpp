@@ -103,11 +103,6 @@ FormAssociatedElement::FACESubmissionValue const& FormAssociatedElement::face_su
     return face_rare_data().submission_value;
 }
 
-FormAssociatedElement::FACESubmissionValue const& FormAssociatedElement::face_state() const
-{
-    return face_rare_data().state;
-}
-
 static SelectionDirection string_to_selection_direction(Utf16View value)
 {
     if (value == u"forward"sv)

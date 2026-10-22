@@ -2408,13 +2408,6 @@ void TabWidget::accept_tab_drop(QDropEvent* event, int index)
     event->accept();
 }
 
-QRect TabWidget::tab_strip_global_rect() const
-{
-    if (auto* widget = tab_drag_area_widget())
-        return { widget->mapToGlobal(QPoint(0, 0)), widget->size() };
-    return {};
-}
-
 TabLayout TabWidget::current_tab_layout() const
 {
     if (!m_vertical_tabs_enabled)

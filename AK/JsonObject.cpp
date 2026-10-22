@@ -65,21 +65,6 @@ Optional<JsonValue const&> JsonObject::get(StringView key) const
     return it->value;
 }
 
-Optional<i8> JsonObject::get_i8(StringView key) const
-{
-    return get_integer<i8>(key);
-}
-
-Optional<u8> JsonObject::get_u8(StringView key) const
-{
-    return get_integer<u8>(key);
-}
-
-Optional<i16> JsonObject::get_i16(StringView key) const
-{
-    return get_integer<i16>(key);
-}
-
 Optional<u16> JsonObject::get_u16(StringView key) const
 {
     return get_integer<u16>(key);
@@ -178,40 +163,16 @@ bool JsonObject::has(StringView key) const
     return m_members.contains(key);
 }
 
-bool JsonObject::has_null(StringView key) const
-{
-    auto value = get(key);
-    return value.has_value() && value->is_null();
-}
-
-bool JsonObject::has_bool(StringView key) const
-{
-    auto value = get(key);
-    return value.has_value() && value->is_bool();
-}
-
 bool JsonObject::has_string(StringView key) const
 {
     auto value = get(key);
     return value.has_value() && value->is_string();
 }
 
-bool JsonObject::has_i8(StringView key) const
-{
-    auto value = get(key);
-    return value.has_value() && value->is_integer<i8>();
-}
-
 bool JsonObject::has_u8(StringView key) const
 {
     auto value = get(key);
     return value.has_value() && value->is_integer<u8>();
-}
-
-bool JsonObject::has_i16(StringView key) const
-{
-    auto value = get(key);
-    return value.has_value() && value->is_integer<i16>();
 }
 
 bool JsonObject::has_u16(StringView key) const
@@ -236,12 +197,6 @@ bool JsonObject::has_i64(StringView key) const
 {
     auto value = get(key);
     return value.has_value() && value->is_integer<i64>();
-}
-
-bool JsonObject::has_u64(StringView key) const
-{
-    auto value = get(key);
-    return value.has_value() && value->is_integer<u64>();
 }
 
 bool JsonObject::has_number(StringView key) const

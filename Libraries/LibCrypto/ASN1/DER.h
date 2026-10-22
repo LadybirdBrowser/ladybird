@@ -239,8 +239,6 @@ public:
     ErrorOr<void> enter();
     ErrorOr<void> leave();
 
-    ErrorOr<ReadonlyBytes> peek_entry_bytes();
-
 private:
     template<typename ValueType, typename DecodedType>
     ErrorOr<ValueType> with_type_check(DecodedType&& value)

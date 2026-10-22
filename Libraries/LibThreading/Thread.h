@@ -58,7 +58,6 @@ public:
     ~Thread();
 
     ErrorOr<void> set_priority(int priority);
-    ErrorOr<int> get_priority() const;
 
     void set_stack_size(size_t size) { m_stack_size = size; }
     // Only takes effect for threads that have not been started yet.

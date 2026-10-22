@@ -74,12 +74,4 @@ void PermissionStore::set_permission_store_entry(PermissionDescriptor const& des
     m_entries.append(move(new_entry));
 }
 
-void PermissionStore::remove_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key)
-{
-    // 1. Remove the entry whose descriptor is descriptor, and whose key is equal to key given descriptor, from the user agent's permission store.
-    m_entries.remove_all_matching([&](auto const& entry) {
-        return entry.descriptor.name == descriptor.name && permission_key_is_equal_to(descriptor, entry.permission_key, key);
-    });
-}
-
 }

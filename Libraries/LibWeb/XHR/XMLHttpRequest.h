@@ -102,7 +102,6 @@ public:
     GC::Ref<XMLHttpRequestUpload> upload() const;
     Utf16String get_text_response() const;
     ByteBuffer const& received_bytes() const { return m_received_bytes; }
-    bool response_body_is_null() const;
     bool response_object_is_failure() const { return m_response_object.has<Failure>(); }
     GC::Ptr<DOM::Document> response_document() const;
     GC::Ptr<FileAPI::Blob> response_blob() const;

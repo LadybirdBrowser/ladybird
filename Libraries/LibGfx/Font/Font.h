@@ -83,7 +83,6 @@ public:
     float width(Utf16View const&) const;
     FlyString const& family() const { return m_typeface->family(); }
 
-    NonnullRefPtr<Font> with_size(float point_size) const;
     NonnullRefPtr<Font> invisible_variant() const;
     bool is_invisible() const { return m_is_invisible; }
 

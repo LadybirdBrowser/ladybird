@@ -28,15 +28,6 @@ Registration::Registration(StorageAPI::StorageKey storage_key, URL::URL scope, S
 {
 }
 
-// https://w3c.github.io/ServiceWorker/#dfn-service-worker-registration-unregistered
-bool Registration::is_unregistered()
-{
-    // A service worker registration is said to be unregistered if registration map[this service worker registration's (storage key, serialized scope url)] is not this service worker registration.
-    // FIXME: Suspect that spec should say to serialize without fragment
-    auto const key = RegistrationKey { m_storage_key, m_scope_url.serialize(URL::ExcludeFragment::Yes).to_byte_string() };
-    return registration_map().get(key).value_or(nullptr) != this;
-}
-
 // https://w3c.github.io/ServiceWorker/#service-worker-registration-stale
 bool Registration::is_stale() const
 {

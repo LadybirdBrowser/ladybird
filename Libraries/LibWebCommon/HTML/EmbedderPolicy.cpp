@@ -11,30 +11,6 @@
 
 namespace Web::HTML {
 
-Utf16View embedder_policy_value_to_string(EmbedderPolicyValue embedder_policy_value)
-{
-    switch (embedder_policy_value) {
-    case EmbedderPolicyValue::UnsafeNone:
-        return u"unsafe-none"sv;
-    case EmbedderPolicyValue::RequireCorp:
-        return u"require-corp"sv;
-    case EmbedderPolicyValue::Credentialless:
-        return u"credentialless"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Optional<EmbedderPolicyValue> embedder_policy_value_from_string(Utf16View string)
-{
-    if (string.equals_ignoring_ascii_case(u"unsafe-none"sv))
-        return EmbedderPolicyValue::UnsafeNone;
-    if (string.equals_ignoring_ascii_case(u"require-corp"sv))
-        return EmbedderPolicyValue::RequireCorp;
-    if (string.equals_ignoring_ascii_case(u"credentialless"sv))
-        return EmbedderPolicyValue::Credentialless;
-    return {};
-}
-
 }
 
 namespace IPC {

@@ -104,8 +104,6 @@ public:
     [[nodiscard]] StringView trim_whitespace(TrimMode mode = TrimMode::Both) const { return StringUtils::trim_whitespace(*this, mode); }
 
     [[nodiscard]] String to_ascii_lowercase_string() const;
-    [[nodiscard]] String to_ascii_uppercase_string() const;
-    [[nodiscard]] String to_ascii_titlecase_string() const;
 
     [[nodiscard]] Optional<size_t> find(char needle, size_t start = 0) const { return StringUtils::find(*this, needle, start); }
     [[nodiscard]] Optional<size_t> find(StringView needle, size_t start = 0) const { return StringUtils::find(*this, needle, start); }

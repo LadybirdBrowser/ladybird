@@ -28,9 +28,6 @@ public:
 
     PermissionDescriptor const& query() const { return m_query; }
 
-    // https://w3c.github.io/permissions/#dfn-permissionstatus-update-steps
-    void update_steps();
-
     // https://w3c.github.io/permissions/#dom-permissionstatus-onchange
     void set_onchange(GC::Ptr<WebIDL::CallbackType> event_handler);
     GC::Ptr<WebIDL::CallbackType> onchange();

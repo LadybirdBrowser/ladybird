@@ -40,7 +40,6 @@ public:
     void set_document_visibility_state_observer(Function<void(HTML::VisibilityState)>);
 
     [[nodiscard]] GC::Ptr<GC::Function<void(bool)>> document_page_showing_observer() const { return m_document_page_showing_observer; }
-    void set_document_page_showing_observer(Function<void(bool)>);
 
     GC::Ref<Document> document() { return m_document; }
     void set_document(GC::Ref<Document>);

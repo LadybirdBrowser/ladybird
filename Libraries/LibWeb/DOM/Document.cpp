@@ -4317,16 +4317,6 @@ static void invalidate_text_fragment_range_paint(Vector<GC::Ref<Range>> const& r
     }
 }
 
-// https://wicg.github.io/scroll-to-text-fragment/#applying-directives-to-a-document
-void Document::set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives)
-{
-    invalidate_text_fragment_range_paint(m_text_fragment_ranges);
-    m_text_fragment_ranges.clear();
-    m_pending_text_directives = move(directives);
-    if (m_pending_text_directives.has_value())
-        update_text_fragment_indication_visibility(!m_pending_text_directives->is_empty());
-}
-
 // https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
 void Document::clear_pending_text_directives()
 {

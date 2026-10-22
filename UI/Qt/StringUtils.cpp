@@ -55,12 +55,6 @@ QByteArray qbytearray_from_ak_string(StringView ak_string)
     return { ak_string.characters_without_null_termination(), static_cast<qsizetype>(ak_string.length()) };
 }
 
-Optional<URL::URL> ak_url_from_qstring(QString const& qstring)
-{
-    auto utf8_data = qstring.toUtf8();
-    return URL::Parser::basic_parse(StringView(utf8_data.data(), utf8_data.size()));
-}
-
 URL::URL ak_url_from_qurl(QUrl const& qurl)
 {
     auto encoded_url = qurl.toEncoded();

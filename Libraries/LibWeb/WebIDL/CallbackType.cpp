@@ -33,19 +33,4 @@ void CallbackType::visit_edges(Cell::Visitor& visitor)
     visitor.visit(callback_context);
 }
 
-// Non-standard function to aid in converting a user-provided function into a WebIDL::Callback. This is essentially
-// what the Bindings generator would do at compile time, but at runtime instead.
-JS::ThrowCompletionOr<GC::Ptr<CallbackType>> property_to_callback(JS::VM& vm, JS::Value value, JS::PropertyKey const& property_key, OperationReturnsPromise operation_returns_promise)
-{
-    auto property = TRY(value.get(vm, property_key));
-
-    if (property.is_undefined())
-        return nullptr;
-
-    if (!property.is_function())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, property);
-
-    return GC::Heap::the().allocate<CallbackType>(property.as_object(), HTML::incumbent_realm(), operation_returns_promise);
-}
-
 }

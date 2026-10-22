@@ -161,13 +161,6 @@ Optional<Node> AccessibilityWalkerActor::parent_of_accessibility_node(Node const
     return Node { .node = parent_node, .identifier = move(identifier), .tab = tab.release_nonnull() };
 }
 
-Optional<Node> AccessibilityWalkerActor::root_accessibility_node_for(WeakPtr<AccessibilityWalkerActor> const& weak_walker)
-{
-    if (auto walker = weak_walker.strong_ref())
-        return walker->root_accessibility_node();
-    return {};
-}
-
 Optional<Node> AccessibilityWalkerActor::root_accessibility_node()
 {
     auto tab = m_tab.strong_ref();

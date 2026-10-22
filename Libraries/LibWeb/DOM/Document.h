@@ -843,7 +843,6 @@ public:
     // https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
     GC::Ref<FragmentDirective> fragment_directive();
     Optional<Vector<HTML::TextDirective>> const& pending_text_directives() const { return m_pending_text_directives; }
-    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives);
     void clear_pending_text_directives();
     ReadonlySpan<GC::Ref<Range>> text_fragment_ranges() const { return m_text_fragment_ranges; }
     void dismiss_text_fragment_indication();

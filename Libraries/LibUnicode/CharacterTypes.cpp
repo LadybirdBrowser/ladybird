@@ -258,11 +258,6 @@ bool code_point_has_emoji_property(u32 code_point)
     return code_point_has_property(code_point, UCHAR_EMOJI);
 }
 
-bool code_point_has_emoji_modifier_base_property(u32 code_point)
-{
-    return code_point_has_property(code_point, UCHAR_EMOJI_MODIFIER_BASE);
-}
-
 bool code_point_has_emoji_presentation_property(u32 code_point)
 {
     return code_point_has_property(code_point, UCHAR_EMOJI_PRESENTATION);
@@ -281,16 +276,6 @@ bool code_point_has_identifier_start_property(u32 code_point)
 bool code_point_has_identifier_continue_property(u32 code_point)
 {
     return u_isIDPart(static_cast<UChar32>(code_point));
-}
-
-bool code_point_has_regional_indicator_property(u32 code_point)
-{
-    return code_point_has_property(code_point, UCHAR_REGIONAL_INDICATOR);
-}
-
-bool code_point_has_variation_selector_property(u32 code_point)
-{
-    return code_point_has_property(code_point, UCHAR_VARIATION_SELECTOR);
 }
 
 bool code_point_has_white_space_property(u32 code_point)

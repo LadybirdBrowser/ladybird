@@ -221,8 +221,6 @@ public:
         return { AK::abs(dx_relative_to(other)), AK::abs(dy_relative_to(other)) };
     }
 
-    [[nodiscard]] Point end_point_for_aspect_ratio(Point const& previous_end_point, float aspect_ratio) const;
-
     template<typename U>
     requires(!IsSame<T, U>)
     [[nodiscard]] Point<U> to_type() const

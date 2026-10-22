@@ -117,16 +117,6 @@ IOSurfaceHandle IOSurfaceHandle::from_ref(void* io_surface_ref)
     return IOSurfaceHandle(make<IOSurfaceRefWrapper>(ref));
 }
 
-void IOSurfaceHandle::increment_use_count()
-{
-    IOSurfaceIncrementUseCount(m_ref_wrapper->ref);
-}
-
-void IOSurfaceHandle::decrement_use_count()
-{
-    IOSurfaceDecrementUseCount(m_ref_wrapper->ref);
-}
-
 bool IOSurfaceHandle::is_in_use() const
 {
     return IOSurfaceIsInUse(m_ref_wrapper->ref);

@@ -22,9 +22,6 @@ enum class EmbedderPolicyValue : u8 {
     Credentialless,
 };
 
-WEBCOMMON_API Utf16View embedder_policy_value_to_string(EmbedderPolicyValue);
-WEBCOMMON_API Optional<EmbedderPolicyValue> embedder_policy_value_from_string(Utf16View);
-
 // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy
 struct EmbedderPolicy {
     // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-value-2

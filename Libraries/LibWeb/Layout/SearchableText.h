@@ -49,7 +49,6 @@ public:
     Vector<Block> const& blocks() const { return m_blocks; }
     Vector<Block> const& find_in_page_blocks() const { return m_find_in_page_blocks.has_value() ? *m_find_in_page_blocks : m_blocks; }
     Optional<DOM::BoundaryPoint> boundary_point_at_offset(Block const&, size_t offset, bool is_end) const;
-    Optional<GC::Ref<DOM::Range>> range_from_offsets(Block const&, size_t start_offset, size_t end_offset) const;
 
 private:
     explicit SearchableText(Vector<Block> blocks, Optional<Vector<Block>> find_in_page_blocks)

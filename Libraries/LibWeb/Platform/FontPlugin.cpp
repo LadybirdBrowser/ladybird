@@ -65,11 +65,6 @@ RefPtr<Gfx::Font> FontPlugin::default_font(float point_size, Optional<Gfx::FontV
     return Gfx::FontDatabase::the().get(font_name, point_size, 400, Gfx::FontWidth::Normal, 0, font_variation_settings, shape_features);
 }
 
-Gfx::Font& FontPlugin::default_fixed_width_font()
-{
-    return *m_default_fixed_width_font;
-}
-
 Vector<FlyString> FontPlugin::symbol_font_names()
 {
     return m_symbol_font_names;

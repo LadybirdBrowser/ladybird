@@ -151,7 +151,6 @@ public:
     FACESubmissionValue const& face_submission_value() const;
     void set_face_submission_value(Badge<ElementInternals>, FACESubmissionValue const& value);
 
-    FACESubmissionValue const& face_state() const;
     void set_face_state(Badge<ElementInternals>, FACESubmissionValue const& value);
 
     void set_custom_validity_error_message(Badge<ElementInternals>, Utf16View value);

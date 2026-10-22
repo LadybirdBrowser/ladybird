@@ -769,8 +769,6 @@ struct DNS_API Message {
     // The answer records that respond to the question: RRs owned by the queried name, and RRs reached through a
     // chain of CNAMEs starting there. Anything an alias leads to is valid for no longer than the alias.
     Vector<ResourceRecord> answers_to(Question const&) const;
-
-    ErrorOr<String> format_for_log() const;
 };
 
 }

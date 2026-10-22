@@ -127,7 +127,6 @@ public:
     [[nodiscard]] String to_string_without_validation();
     ErrorOr<String> to_string();
 
-    [[nodiscard]] FlyString to_fly_string_without_validation() const;
     ErrorOr<FlyString> to_fly_string() const;
 
     [[nodiscard]] ErrorOr<ByteBuffer> to_byte_buffer() const;

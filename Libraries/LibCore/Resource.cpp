@@ -27,17 +27,6 @@ Resource::Resource(String path, Scheme scheme, DirectoryTag, time_t modified_tim
 {
 }
 
-ErrorOr<NonnullRefPtr<Resource>> Resource::load_from_filesystem(StringView path)
-{
-    auto filepath = LexicalPath(path);
-
-    if (filepath.is_absolute())
-        return load_from_uri(TRY(String::formatted("file://{}", path)));
-
-    auto cwd = TRY(Core::System::getcwd());
-    return load_from_uri(TRY(String::formatted("file://{}", filepath.prepend(cwd).string())));
-}
-
 ErrorOr<NonnullRefPtr<Resource>> Resource::load_from_uri(StringView uri)
 {
     return ResourceImplementation::the().load_from_uri(uri);

@@ -42,8 +42,6 @@ public:
 
     static void remove(StorageAPI::StorageKey const&, URL::URL const&);
 
-    bool is_unregistered();
-
     StorageAPI::StorageKey const& storage_key() const { return m_storage_key; }
     URL::URL const& scope_url() const { return m_scope_url; }
     ServiceWorkerUpdateViaCache update_via_cache() const { return m_update_via_cache_mode; }

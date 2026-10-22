@@ -265,24 +265,6 @@ Optional<CursorLinePosition> cursor_position_at_visual_end(DOM::Text const& dom_
     return CursorLinePosition { offset, affinity_for_offset_on_line(lines, lines.size() - 1, offset) };
 }
 
-Optional<CursorLinePosition> cursor_position_on_first_line_closest_to(Layout::BegunRead const& read, DOM::Text const& dom_node, Optional<CSSPixels> inline_coordinate)
-{
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    if (lines.is_empty())
-        return {};
-    auto offset = offset_in_visual_line_closest_to_inline_coordinate(read, dom_node, lines.first(), inline_coordinate);
-    return CursorLinePosition { offset, affinity_for_offset_on_line(lines, 0, offset) };
-}
-
-Optional<CursorLinePosition> cursor_position_on_last_line_closest_to(Layout::BegunRead const& read, DOM::Text const& dom_node, Optional<CSSPixels> inline_coordinate)
-{
-    auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    if (lines.is_empty())
-        return {};
-    auto offset = offset_in_visual_line_closest_to_inline_coordinate(read, dom_node, lines.last(), inline_coordinate);
-    return CursorLinePosition { offset, affinity_for_offset_on_line(lines, lines.size() - 1, offset) };
-}
-
 size_t find_visual_line_start(DOM::Text const& dom_node, size_t offset, TextAffinity affinity)
 {
     auto lines = visual_lines_with_up_to_date_layout(dom_node);

@@ -81,53 +81,6 @@ DecodedPEM decode_pem(ReadonlyBytes data)
     return decoded;
 }
 
-ErrorOr<Vector<DecodedPEM>> decode_pems(ReadonlyBytes data)
-{
-    GenericLexer lexer { data };
-    Vector<DecodedPEM> pems;
-
-    DecodedPEM decoded;
-    StringView header_type;
-
-    enum {
-        Junk,
-        Parsing,
-    } state { Junk };
-    while (!lexer.is_eof()) {
-        switch (state) {
-        case Junk:
-            if (lexer.consume_specific("-----BEGIN "sv)) {
-                state = Parsing;
-                header_type = lexer.consume_until("-----"sv);
-            }
-            lexer.consume_line();
-            break;
-        case Parsing: {
-            if (lexer.consume_specific("-----END "sv)) {
-                state = Junk;
-
-                if (lexer.consume_until("-----"sv) != header_type) {
-                    return Error::from_string_literal("PEM type mismatch");
-                }
-                lexer.consume_line();
-
-                TRY(pems.try_append(decoded));
-                decoded = {};
-                header_type = {};
-                break;
-            }
-            auto b64decoded = TRY(decode_base64(lexer.consume_line().trim_whitespace(TrimMode::Right)));
-            TRY(decoded.data.try_append(b64decoded.data(), b64decoded.size()));
-            break;
-        }
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
-
-    return pems;
-}
-
 ErrorOr<ByteBuffer> encode_pem(ReadonlyBytes data, PEMType type)
 {
     ByteBuffer encoded;

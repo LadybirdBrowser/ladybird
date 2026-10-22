@@ -697,16 +697,6 @@ void HTMLScriptElement::mark_as_ready(Result result)
         m_preparation_time_document->schedule_html_parser_end_check();
 }
 
-void HTMLScriptElement::unmark_as_already_started(Badge<DOM::Range>)
-{
-    m_already_started = false;
-}
-
-void HTMLScriptElement::unmark_as_parser_inserted(Badge<DOM::Range>)
-{
-    m_parser_document = nullptr;
-}
-
 // https://github.com/w3c/trusted-types/blob/0f01aee35c3684e8cb20e7d83445ad65938f545d/spec/index.bs#L1341
 TrustedTypes::TrustedScriptURLOrString HTMLScriptElement::src() const
 {

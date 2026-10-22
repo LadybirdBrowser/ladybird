@@ -15,22 +15,6 @@ ErrorOr<ImmutableBytes> ImmutableBytes::copy(ReadonlyBytes bytes)
     return adopt(TRY(ByteBuffer::copy(bytes)));
 }
 
-ErrorOr<ImmutableBytes> ImmutableBytes::copy_to_readonly_mapping(ReadonlyBytes bytes)
-{
-    // Empty input has no bytes to protect, so it remains backed by an empty ByteBuffer.
-    if (bytes.is_empty())
-        return adopt(ByteBuffer {});
-
-    auto* mapping = TRY(Core::System::allocate_anonymous_memory(bytes.size()));
-    auto release_mapping = ArmedScopeGuard([&] {
-        MUST(Core::System::release_address_space(mapping, bytes.size()));
-    });
-    __builtin_memcpy(mapping, bytes.data(), bytes.size());
-    TRY(Core::System::protect_memory_readonly(mapping, bytes.size()));
-    release_mapping.disarm();
-    return ImmutableBytes { adopt_ref(*new Impl(Impl::ReadonlyMapping { mapping, bytes.size() })) };
-}
-
 ImmutableBytes ImmutableBytes::adopt(ByteBuffer bytes)
 {
     return ImmutableBytes { adopt_ref(*new Impl(move(bytes))) };

@@ -25,12 +25,6 @@ ErrorOr<void> MessageBuffer::append_data(u8 const* values, size_t count)
     return {};
 }
 
-ErrorOr<void> MessageBuffer::append_file_descriptor(int fd)
-{
-    TRY(m_attachments.try_append(Attachment::from_fd(fd)));
-    return {};
-}
-
 ErrorOr<void> MessageBuffer::append_attachment(Attachment attachment)
 {
     TRY(m_attachments.try_append(move(attachment)));

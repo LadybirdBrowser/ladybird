@@ -130,14 +130,9 @@ WEB_API Utf16String const& role_name(Role);
 Optional<Role> role_from_string(Utf16View role_name);
 
 bool is_abstract_role(Role);
-bool is_widget_role(Role);
-bool is_document_structure_role(Role);
-bool is_landmark_role(Role);
-bool is_live_region_role(Role);
 // The aria-live value a live-region role carries when the element sets none: assertive for alert, polite for log and
 // status, off for marquee and timer.
 Optional<AriaLive> implicit_aria_live_for_role(Role);
-bool is_windows_role(Role);
 
 bool allows_name_from_content(Role);
 

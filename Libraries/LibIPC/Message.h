@@ -31,7 +31,6 @@ public:
     ErrorOr<void> extend_data_capacity(size_t capacity);
     ErrorOr<void> append_data(u8 const* values, size_t count);
 
-    ErrorOr<void> append_file_descriptor(int fd);
     ErrorOr<void> append_attachment(Attachment);
 
     ErrorOr<void> extend(MessageBuffer&& buffer);

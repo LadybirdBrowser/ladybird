@@ -152,11 +152,6 @@ void CanvasHost::destroy_context(Compositing::CanvasId canvas_id)
         m_canvas_surface_registry.remove_canvas_surface(canvas_id);
 }
 
-bool CanvasHost::has_context(Compositing::CanvasId canvas_id) const
-{
-    return m_contexts.contains(canvas_id);
-}
-
 CanvasHost::Context* CanvasHost::context(Compositing::CanvasId canvas_id)
 {
     auto it = m_contexts.find(canvas_id);

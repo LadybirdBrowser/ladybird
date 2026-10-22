@@ -230,16 +230,6 @@ IntRect AffineTransform::map(IntRect const& rect) const
     return enclosing_int_rect(map(FloatRect(rect)));
 }
 
-Quad<float> AffineTransform::map_to_quad(Rect<float> const& rect) const
-{
-    return {
-        map(rect.top_left()),
-        map(rect.top_right()),
-        map(rect.bottom_right()),
-        map(rect.bottom_left()),
-    };
-}
-
 float AffineTransform::rotation() const
 {
     auto rotation = AK::atan2(b(), a());

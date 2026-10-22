@@ -73,8 +73,6 @@ public:
 
     bool is_buffer() const;
     bool is_typed_array() const;
-    bool is_buffer_view() const;
-    bool is_buffer_source() const;
 
     bool is_restricted_floating_point() const { return m_name.is_one_of("float", "double"); }
     bool is_unrestricted_floating_point() const { return m_name.is_one_of("unrestricted float", "unrestricted double"); }

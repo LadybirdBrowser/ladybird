@@ -76,7 +76,6 @@ public:
 protected:
     double computed_line();
     double computed_position();
-    PositionAlignSetting computed_position_alignment();
 
 private:
     VTTCue(GC::Ptr<HTML::TextTrack>);

@@ -135,9 +135,4 @@ bool ConfigFile::has_key(ByteString const& group, ByteString const& key) const
     return it->value.contains(key);
 }
 
-bool ConfigFile::has_group(ByteString const& group) const
-{
-    return m_groups.contains(group);
-}
-
 }

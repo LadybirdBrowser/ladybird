@@ -36,8 +36,6 @@ void make_appkit_window_first_responder(QWidget&);
 bool start_appkit_window_drag(QWidget&);
 Qt::DropAction execute_appkit_tab_drag(QWidget&, QDrag&);
 void show_appkit_dictionary_lookup(QWidget&, WebView::DictionaryLookup const&, Gfx::IntPoint);
-Gfx::Color appkit_web_inactive_selection_color();
-Gfx::Color appkit_web_inactive_selection_text_color();
 #endif
 
 }

@@ -73,7 +73,6 @@ public:
     void set_body(ByteBuffer&& body) { m_body = move(body); }
 
     StringView method_name() const;
-    ErrorOr<ByteBuffer> to_raw_request() const;
 
     static ErrorOr<HttpRequest, HttpRequest::ParseError> from_raw_request(ReadonlyBytes);
 

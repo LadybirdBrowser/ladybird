@@ -66,34 +66,6 @@ JS::Object& PermissionStatus::relevant_global_object() const
     return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
 }
 
-// https://w3c.github.io/permissions/#dfn-permissionstatus-update-steps
-void PermissionStatus::update_steps()
-{
-    auto& relevant_global_object = this->relevant_global_object();
-    // 1. If this's relevant global object is a Window object, then:
-    if (auto* window = HTML::window_from_global_object(relevant_global_object)) {
-        // 1. Let document be status's relevant global object's associated Document.
-        auto const& document = window->associated_document();
-        // 2. If document is null or document is not fully active, terminate this algorithm.
-        if (!document.is_fully_active()) {
-            return;
-        }
-    }
-
-    // 2. Let query be status's [[query]] internal slot.
-    auto query = m_query;
-
-    // 3. Run query's name's permission query algorithm, passing query and status.
-    permission_query_algorithm(query, *this);
-
-    // 4. Queue a task on the permissions task source to fire an event named change at status.
-    HTML::queue_global_task(HTML::Task::Source::Permissions, relevant_global_object,
-        GC::create_function(GC::Heap::the(), [this, relevant_global_object = GC::Ref(relevant_global_object)] {
-            dispatch_event(DOM::Event::create(HTML::EventNames::change,
-                HighResolutionTime::current_high_resolution_time(*relevant_global_object)));
-        }));
-}
-
 // https://w3c.github.io/permissions/#dom-permissionstatus-onchange
 void PermissionStatus::set_onchange(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
