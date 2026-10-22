@@ -68,10 +68,7 @@ public:
     StreamingDecoder(StringView encoding, IgnoreBOM, ErrorMode);
     ~StreamingDecoder();
 
-    ErrorOr<String> to_utf8(ReadonlyBytes);
-    ErrorOr<Utf16String> to_utf16(ReadonlyBytes, Flush = Flush::No);
-    ErrorOr<String> finish();
-    ErrorOr<Utf16String> finish_to_utf16();
+    ErrorOr<Utf16String> decode(ReadonlyBytes, Flush = Flush::No);
 
 private:
     void* m_decoder { nullptr };

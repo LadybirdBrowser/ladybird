@@ -110,8 +110,8 @@ impl TextDecoder {
         let decoded = match &input {
             // SAFETY: Decoding runs no script and allocates no cell, so nothing detaches, resizes or frees the
             //         buffer of the input while its bytes are read.
-            Some(input) => unsafe { input.with_bytes(|bytes| decoder.decode_to_utf16(bytes, options.stream)) },
-            None => decoder.decode_to_utf16(&[], options.stream),
+            Some(input) => unsafe { input.with_bytes(|bytes| decoder.decode(bytes, options.stream)) },
+            None => decoder.decode(&[], options.stream),
         };
         let decoded =
             decoded.map_err(|DecodingFailed| Exception::TypeError(Utf16String::from_ascii(b"Decoding failed")))?;

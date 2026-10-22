@@ -150,7 +150,7 @@ pub unsafe extern "C" fn textcodec_rust_decode_to_utf16(
             let Some(encoding) = Encoding::for_label(label) else {
                 return false;
             };
-            let Ok(output) = StreamingDecoder::new(encoding, false, true).decode_to_utf16(input, false) else {
+            let Ok(output) = StreamingDecoder::new(encoding, false, true).decode(input, false) else {
                 return false;
             };
             on_utf16(ctx, output.as_ptr(), output.len());
@@ -243,39 +243,6 @@ pub unsafe extern "C" fn textcodec_rust_streaming_decoder_free(decoder: *mut Tex
 /// # Safety
 /// - `decoder` must be a valid pointer returned by `textcodec_rust_streaming_decoder_new`.
 /// - `input`/`input_len` must be a valid byte slice.
-/// - `on_bytes` must not retain `data` beyond the duration of the callback.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn textcodec_rust_streaming_decoder_decode_to_utf8(
-    decoder: *mut TextCodecRustStreamingDecoder,
-    input: *const u8,
-    input_len: usize,
-    last: bool,
-    ctx: *mut c_void,
-    on_bytes: FfiBytesFn,
-) -> bool {
-    unsafe {
-        abort_on_panic(|| {
-            if decoder.is_null() {
-                eprintln!("textcodec_rust_streaming_decoder_decode_to_utf8: null decoder pointer");
-                return false;
-            }
-            let Some(input) = bytes_from_raw(input, input_len) else {
-                return false;
-            };
-            let Ok(output) = (*decoder).decoder.decode_to_utf8(input, !last) else {
-                return false;
-            };
-            if !output.is_empty() {
-                on_bytes(ctx, output.as_ptr(), output.len());
-            }
-            true
-        })
-    }
-}
-
-/// # Safety
-/// - `decoder` must be a valid pointer returned by `textcodec_rust_streaming_decoder_new`.
-/// - `input`/`input_len` must be a valid byte slice.
 /// - `on_utf16` must not retain `data` beyond the duration of the callback.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn textcodec_rust_streaming_decoder_decode_to_utf16(
@@ -295,7 +262,7 @@ pub unsafe extern "C" fn textcodec_rust_streaming_decoder_decode_to_utf16(
             let Some(input) = bytes_from_raw(input, input_len) else {
                 return false;
             };
-            let Ok(output) = (*decoder).decoder.decode_to_utf16(input, !last) else {
+            let Ok(output) = (*decoder).decoder.decode(input, !last) else {
                 return false;
             };
             if !output.is_empty() {

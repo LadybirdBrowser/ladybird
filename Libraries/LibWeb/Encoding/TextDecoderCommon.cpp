@@ -9,32 +9,33 @@
 
 namespace Web::Encoding {
 
-ErrorOr<void> TextDecoderOutputQueue::push(String output)
+void TextDecoderOutputQueue::push(Utf16String output)
 {
     if (output.is_empty())
-        return {};
+        return;
 
-    if (m_has_builder)
-        return m_builder.try_append(output.bytes_as_string_view());
+    if (m_has_builder) {
+        m_builder.append(output);
+        return;
+    }
 
     if (!m_single_output.has_value()) {
         m_single_output = move(output);
-        return {};
+        return;
     }
 
     m_has_builder = true;
-    TRY(m_builder.try_append(m_single_output->bytes_as_string_view()));
-    m_single_output.clear();
-    return m_builder.try_append(output.bytes_as_string_view());
+    m_builder.append(m_single_output.release_value());
+    m_builder.append(output);
 }
 
-ErrorOr<Utf16String> TextDecoderOutputQueue::serialize()
+Utf16String TextDecoderOutputQueue::serialize()
 {
     if (m_has_builder)
-        return Utf16String::from_utf8(TRY(m_builder.to_string()));
+        return m_builder.to_string();
     if (m_single_output.has_value())
-        return Utf16String::from_utf8(m_single_output.release_value());
-    return Utf16String {};
+        return m_single_output.release_value();
+    return {};
 }
 
 TextDecoderCommonMixin::TextDecoderCommonMixin(FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom)
@@ -50,31 +51,30 @@ void TextDecoderCommonMixin::set_decoder_to_new_instance_of_encoding_decoder() c
     m_decoder = make<TextCodec::StreamingDecoder>(m_encoding, m_ignore_bom ? TextCodec::IgnoreBOM::Yes : TextCodec::IgnoreBOM::No, m_error_mode);
 }
 
-static WebIDL::ExceptionOr<void> append_decoded_output(JS::VM& vm, TextDecoderOutputQueue& output, ErrorOr<String> decoded_or_error)
+static WebIDL::ExceptionOr<void> append_decoded_output(TextDecoderOutputQueue& output, ErrorOr<Utf16String> decoded_or_error)
 {
-    if (decoded_or_error.is_error() && decoded_or_error.error().code() != ENOMEM)
+    if (decoded_or_error.is_error())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"_utf16 };
 
-    auto decoded = TRY_OR_THROW_OOM(vm, move(decoded_or_error));
-    TRY_OR_THROW_OOM(vm, output.push(move(decoded)));
+    output.push(decoded_or_error.release_value());
     return {};
 }
 
-WebIDL::ExceptionOr<void> TextDecoderCommonMixin::process_an_item(JS::VM& vm, ReadonlyBytes item, TextDecoderOutputQueue& output)
+WebIDL::ExceptionOr<void> TextDecoderCommonMixin::process_an_item(ReadonlyBytes item, TextDecoderOutputQueue& output)
 {
     VERIFY(m_decoder);
-    return append_decoded_output(vm, output, m_decoder->to_utf8(item));
+    return append_decoded_output(output, m_decoder->decode(item));
 }
 
-WebIDL::ExceptionOr<void> TextDecoderCommonMixin::process_an_item(JS::VM& vm, EndOfQueue, TextDecoderOutputQueue& output)
+WebIDL::ExceptionOr<void> TextDecoderCommonMixin::process_an_item(EndOfQueue, TextDecoderOutputQueue& output)
 {
     VERIFY(m_decoder);
-    return append_decoded_output(vm, output, m_decoder->finish());
+    return append_decoded_output(output, m_decoder->decode({}, TextCodec::Flush::Yes));
 }
 
-WebIDL::ExceptionOr<Utf16String> TextDecoderCommonMixin::serialize_io_queue(JS::VM& vm, TextDecoderOutputQueue& output)
+Utf16String TextDecoderCommonMixin::serialize_io_queue(TextDecoderOutputQueue& output)
 {
-    return TRY_OR_THROW_OOM(vm, output.serialize());
+    return output.serialize();
 }
 
 }

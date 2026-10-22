@@ -274,7 +274,7 @@ void IncrementalDocumentParser::finish_body()
     VERIFY(m_body_is_exhausted);
     VERIFY(undecoded_input_bytes().is_empty());
 
-    auto decoded = m_decoder->finish_to_utf16().release_value_but_fixme_should_propagate_errors();
+    auto decoded = m_decoder->decode({}, TextCodec::Flush::Yes).release_value_but_fixme_should_propagate_errors();
     append_decoded(decoded);
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
@@ -296,9 +296,9 @@ ErrorOr<bool> IncrementalDocumentParser::change_encoding(StringView new_encoding
     auto decoder = make<TextCodec::StreamingDecoder>(new_encoding, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement);
 
     Utf16StringBuilder builder;
-    builder.append(TRY(decoder->to_utf16(decoded_input_bytes())));
+    builder.append(TRY(decoder->decode(decoded_input_bytes())));
     if (m_processed_implied_eof)
-        builder.append(TRY(decoder->finish_to_utf16()));
+        builder.append(TRY(decoder->decode({}, TextCodec::Flush::Yes)));
     auto redecoded_source = builder.to_string();
 
     auto current_source = m_processed_implied_eof ? m_document->source().utf16_view() : m_source.view();
@@ -326,7 +326,7 @@ void IncrementalDocumentParser::decode_and_process(size_t length)
     auto undecoded_bytes = undecoded_input_bytes();
     VERIFY(length <= undecoded_bytes.size());
 
-    auto decoded = m_decoder->to_utf16(undecoded_bytes.trim(length)).release_value_but_fixme_should_propagate_errors();
+    auto decoded = m_decoder->decode(undecoded_bytes.trim(length)).release_value_but_fixme_should_propagate_errors();
 
     // Count the bytes as converted before running the parser: a script it runs can deliver another body chunk, and
     // feed_parser() would otherwise convert these a second time.

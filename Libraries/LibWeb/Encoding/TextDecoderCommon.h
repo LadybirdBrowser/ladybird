@@ -8,8 +8,8 @@
 
 #include <AK/FlyString.h>
 #include <AK/OwnPtr.h>
-#include <AK/StringBuilder.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Forward.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/TextDecoder.h>
@@ -24,12 +24,12 @@ struct EndOfQueue {
 
 class TextDecoderOutputQueue {
 public:
-    ErrorOr<void> push(String);
-    ErrorOr<Utf16String> serialize();
+    void push(Utf16String);
+    Utf16String serialize();
 
 private:
-    Optional<String> m_single_output;
-    StringBuilder m_builder;
+    Optional<Utf16String> m_single_output;
+    Utf16StringBuilder m_builder;
     bool m_has_builder { false };
 };
 
@@ -49,9 +49,9 @@ protected:
     TextDecoderCommonMixin(FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom);
 
     void set_decoder_to_new_instance_of_encoding_decoder() const;
-    WebIDL::ExceptionOr<void> process_an_item(JS::VM&, ReadonlyBytes item, TextDecoderOutputQueue& output);
-    WebIDL::ExceptionOr<void> process_an_item(JS::VM&, EndOfQueue, TextDecoderOutputQueue& output);
-    WebIDL::ExceptionOr<Utf16String> serialize_io_queue(JS::VM&, TextDecoderOutputQueue& output);
+    WebIDL::ExceptionOr<void> process_an_item(ReadonlyBytes item, TextDecoderOutputQueue& output);
+    WebIDL::ExceptionOr<void> process_an_item(EndOfQueue, TextDecoderOutputQueue& output);
+    Utf16String serialize_io_queue(TextDecoderOutputQueue& output);
 
     // https://encoding.spec.whatwg.org/#textdecodercommon-decoder
     mutable OwnPtr<TextCodec::StreamingDecoder> m_decoder;

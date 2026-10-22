@@ -48,31 +48,10 @@ impl StreamingDecoder {
     /// Decodes the next bytes of the input to UTF-16. Unless more of the input follows, the bytes are its end: the
     /// decoder then flushes what it kept, and starts over for the next input, whether or not decoding succeeded.
     /// A failure discards the rest of the bytes, and with them whatever the decoder kept of them.
-    pub fn decode_to_utf16(&mut self, input: &[u8], more_input_follows: bool) -> Result<Vec<u16>, DecodingFailed> {
-        let mut decoded = self.decode_to_utf16_with_current_decoder(input, !more_input_follows);
+    pub fn decode(&mut self, input: &[u8], more_input_follows: bool) -> Result<Vec<u16>, DecodingFailed> {
+        let mut decoded = self.decode_with_current_decoder(input, !more_input_follows);
         match &mut decoded {
-            Ok(output) => {
-                if self.removes_bom_from_output(output.is_empty(), output.first() == Some(&0xFEFF)) {
-                    output.remove(0);
-                }
-            }
-            Err(DecodingFailed) => self.forget_rest_of_input(),
-        }
-        if !more_input_follows {
-            self.start_over();
-        }
-        decoded
-    }
-
-    /// Decodes the next bytes of the input to UTF-8, like decode_to_utf16().
-    pub fn decode_to_utf8(&mut self, input: &[u8], more_input_follows: bool) -> Result<String, DecodingFailed> {
-        let mut decoded = self.decode_to_utf8_with_current_decoder(input, !more_input_follows);
-        match &mut decoded {
-            Ok(output) => {
-                if self.removes_bom_from_output(output.is_empty(), output.starts_with('\u{FEFF}')) {
-                    output.drain(..'\u{FEFF}'.len_utf8());
-                }
-            }
+            Ok(output) => self.remove_bom_from_output(output),
             Err(DecodingFailed) => self.forget_rest_of_input(),
         }
         if !more_input_follows {
@@ -82,17 +61,19 @@ impl StreamingDecoder {
     }
 
     // https://encoding.spec.whatwg.org/#concept-td-serialize
-    fn removes_bom_from_output(&mut self, output_is_empty: bool, output_starts_with_bom: bool) -> bool {
+    fn remove_bom_from_output(&mut self, output: &mut Vec<u16>) {
         // NB: The BOM is removed from the output of a call that succeeded, rather than from the input, so that a call
         //     that fails does not consume it.
-        if self.bom_seen || output_is_empty {
-            return false;
+        if self.bom_seen || output.is_empty() {
+            return;
         }
         self.bom_seen = true;
         let is_unicode_encoding = self.encoding == encoding_rs::UTF_8
             || self.encoding == encoding_rs::UTF_16BE
             || self.encoding == encoding_rs::UTF_16LE;
-        !self.ignore_bom && is_unicode_encoding && output_starts_with_bom
+        if !self.ignore_bom && is_unicode_encoding && output[0] == 0xFEFF {
+            output.remove(0);
+        }
     }
 
     fn start_over(&mut self) {
@@ -109,7 +90,7 @@ impl StreamingDecoder {
         }
     }
 
-    fn decode_to_utf16_with_current_decoder(&mut self, input: &[u8], last: bool) -> Result<Vec<u16>, DecodingFailed> {
+    fn decode_with_current_decoder(&mut self, input: &[u8], last: bool) -> Result<Vec<u16>, DecodingFailed> {
         let output_capacity = self
             .decoder
             .max_utf16_buffer_length(input.len())
@@ -131,29 +112,6 @@ impl StreamingDecoder {
         output.truncate(written);
         Ok(output)
     }
-
-    fn decode_to_utf8_with_current_decoder(&mut self, input: &[u8], last: bool) -> Result<String, DecodingFailed> {
-        let output_capacity = if self.fatal {
-            self.decoder.max_utf8_buffer_length_without_replacement(input.len())
-        } else {
-            self.decoder.max_utf8_buffer_length(input.len())
-        };
-        let mut output = String::with_capacity(output_capacity.ok_or(DecodingFailed)?);
-
-        let input_was_consumed = if self.fatal {
-            let (result, _) = self
-                .decoder
-                .decode_to_string_without_replacement(input, &mut output, last);
-            matches!(result, DecoderResult::InputEmpty)
-        } else {
-            let (result, _, _) = self.decoder.decode_to_string(input, &mut output, last);
-            matches!(result, CoderResult::InputEmpty)
-        };
-        if !input_was_consumed {
-            return Err(DecodingFailed);
-        }
-        Ok(output)
-    }
 }
 
 #[cfg(test)]
@@ -171,92 +129,61 @@ mod tests {
     #[test]
     fn a_character_split_over_chunks() {
         let mut decoder = utf8_decoder(false, false);
-        assert_eq!(decoder.decode_to_utf16(&[0x61, 0xE2, 0x82], true), Ok(utf16("a")));
-        assert_eq!(decoder.decode_to_utf16(&[0xAC], false), Ok(utf16("\u{20AC}")));
-
-        let mut decoder = utf8_decoder(false, false);
-        assert_eq!(decoder.decode_to_utf8(&[0x61, 0xE2, 0x82], true), Ok("a".to_string()));
-        assert_eq!(decoder.decode_to_utf8(&[0xAC], false), Ok("\u{20AC}".to_string()));
+        assert_eq!(decoder.decode(&[0x61, 0xE2, 0x82], true), Ok(utf16("a")));
+        assert_eq!(decoder.decode(&[0xAC], false), Ok(utf16("\u{20AC}")));
     }
 
     #[test]
     fn the_end_of_the_input_flushes_and_starts_over() {
         let mut decoder = utf8_decoder(false, false);
-        assert_eq!(
-            decoder.decode_to_utf16(&[0x61, 0xE2, 0x82], false),
-            Ok(utf16("a\u{FFFD}"))
-        );
-        assert_eq!(decoder.decode_to_utf16(&[0xAC], false), Ok(utf16("\u{FFFD}")));
-        assert_eq!(decoder.decode_to_utf16(&[], false), Ok(Vec::new()));
+        assert_eq!(decoder.decode(&[0x61, 0xE2, 0x82], false), Ok(utf16("a\u{FFFD}")));
+        assert_eq!(decoder.decode(&[0xAC], false), Ok(utf16("\u{FFFD}")));
+        assert_eq!(decoder.decode(&[], false), Ok(Vec::new()));
     }
 
     #[test]
     fn a_byte_order_mark_is_removed_once_for_every_input() {
         let mut decoder = utf8_decoder(false, false);
-        assert_eq!(decoder.decode_to_utf16(&[0xEF, 0xBB, 0xBF, 0x61], true), Ok(utf16("a")));
-        assert_eq!(
-            decoder.decode_to_utf16(&[0xEF, 0xBB, 0xBF, 0x62], false),
-            Ok(utf16("\u{FEFF}b"))
-        );
-        assert_eq!(
-            decoder.decode_to_utf16(&[0xEF, 0xBB, 0xBF, 0x63], false),
-            Ok(utf16("c"))
-        );
+        assert_eq!(decoder.decode(&[0xEF, 0xBB, 0xBF, 0x61], true), Ok(utf16("a")));
+        assert_eq!(decoder.decode(&[0xEF, 0xBB, 0xBF, 0x62], false), Ok(utf16("\u{FEFF}b")));
+        assert_eq!(decoder.decode(&[0xEF, 0xBB, 0xBF, 0x63], false), Ok(utf16("c")));
 
         let mut keeping = utf8_decoder(false, true);
-        assert_eq!(
-            keeping.decode_to_utf16(&[0xEF, 0xBB, 0xBF, 0x61], false),
-            Ok(utf16("\u{FEFF}a"))
-        );
+        assert_eq!(keeping.decode(&[0xEF, 0xBB, 0xBF, 0x61], false), Ok(utf16("\u{FEFF}a")));
     }
 
     #[test]
     fn fatal_decoding_fails_on_invalid_bytes() {
         let mut decoder = utf8_decoder(true, false);
-        assert_eq!(decoder.decode_to_utf16(&[0x61, 0xFF], false), Err(DecodingFailed));
-        assert_eq!(decoder.decode_to_utf16(&[0x62], false), Ok(utf16("b")));
-        assert_eq!(decoder.decode_to_utf16(&[0xE2, 0x82], false), Err(DecodingFailed));
-        assert_eq!(decoder.decode_to_utf8(&[0x61, 0xFF], false), Err(DecodingFailed));
+        assert_eq!(decoder.decode(&[0x61, 0xFF], false), Err(DecodingFailed));
+        assert_eq!(decoder.decode(&[0x62], false), Ok(utf16("b")));
+        assert_eq!(decoder.decode(&[0xE2, 0x82], false), Err(DecodingFailed));
     }
 
     #[test]
     fn a_failure_in_the_middle_of_the_input_discards_the_rest_of_its_bytes() {
         let mut decoder = utf8_decoder(true, false);
-        assert_eq!(decoder.decode_to_utf16(&[0x61, 0xFF, 0x62], true), Err(DecodingFailed));
-        assert_eq!(decoder.decode_to_utf16(&[0x63], true), Ok(utf16("c")));
-        assert_eq!(decoder.decode_to_utf16(&[0x64], false), Ok(utf16("d")));
+        assert_eq!(decoder.decode(&[0x61, 0xFF, 0x62], true), Err(DecodingFailed));
+        assert_eq!(decoder.decode(&[0x63], true), Ok(utf16("c")));
+        assert_eq!(decoder.decode(&[0x64], false), Ok(utf16("d")));
 
         let mut gb18030 = StreamingDecoder::new(encoding_rs::GB18030, true, false);
-        assert_eq!(gb18030.decode_to_utf16(&[0x81, 0x30, 0xFF], true), Err(DecodingFailed));
-        assert_eq!(gb18030.decode_to_utf16(&[], false), Ok(Vec::new()));
-
-        let mut gb18030 = StreamingDecoder::new(encoding_rs::GB18030, true, false);
-        assert_eq!(gb18030.decode_to_utf8(&[0x81, 0x30, 0xFF], true), Err(DecodingFailed));
-        assert_eq!(gb18030.decode_to_utf8(&[], false), Ok(String::new()));
+        assert_eq!(gb18030.decode(&[0x81, 0x30, 0xFF], true), Err(DecodingFailed));
+        assert_eq!(gb18030.decode(&[], false), Ok(Vec::new()));
     }
 
     #[test]
     fn a_failure_keeps_the_byte_order_mark_unseen() {
         let mut decoder = utf8_decoder(true, false);
-        assert_eq!(decoder.decode_to_utf16(&[0x61, 0xFF], true), Err(DecodingFailed));
-        assert_eq!(decoder.decode_to_utf16(&[0xEF, 0xBB, 0xBF, 0x62], true), Ok(utf16("b")));
-
-        let mut decoder = utf8_decoder(true, false);
-        assert_eq!(decoder.decode_to_utf8(&[0xFF], true), Err(DecodingFailed));
-        assert_eq!(
-            decoder.decode_to_utf8(&[0xEF, 0xBB, 0xBF, 0x62], true),
-            Ok("b".to_string())
-        );
+        assert_eq!(decoder.decode(&[0x61, 0xFF], true), Err(DecodingFailed));
+        assert_eq!(decoder.decode(&[0xEF, 0xBB, 0xBF, 0x62], true), Ok(utf16("b")));
     }
 
     #[test]
     fn a_byte_order_mark_split_over_chunks_is_removed() {
         let mut decoder = utf8_decoder(false, false);
-        assert_eq!(decoder.decode_to_utf16(&[0xEF, 0xBB], true), Ok(Vec::new()));
-        assert_eq!(decoder.decode_to_utf16(&[0xBF, 0x61], true), Ok(utf16("a")));
-        assert_eq!(
-            decoder.decode_to_utf16(&[0xEF, 0xBB, 0xBF], false),
-            Ok(utf16("\u{FEFF}"))
-        );
+        assert_eq!(decoder.decode(&[0xEF, 0xBB], true), Ok(Vec::new()));
+        assert_eq!(decoder.decode(&[0xBF, 0x61], true), Ok(utf16("a")));
+        assert_eq!(decoder.decode(&[0xEF, 0xBB, 0xBF], false), Ok(utf16("\u{FEFF}")));
     }
 }
