@@ -34,7 +34,7 @@ def rust_to_js_value(
     """An expression of type ThrowCompletionOr<Value> that converts the IDL value to a JS value. The call context is an
     expression of type &CallContext. Nullable types and unions with undefined both have an Option as their Rust type,
     so the conversion follows from the IDL type and not from the Rust one."""
-    rust_type(idl_type, context, what)
+    rust_type(idl_type, context, what, is_result=True)
 
     def inner(inner_type: IDLType) -> str:
         return rust_to_js_value(inner_type, "value", call_context, context, what)

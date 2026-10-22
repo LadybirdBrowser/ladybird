@@ -110,11 +110,17 @@ class DefinitionUsage:
             for attribute in members.attributes:
                 has_setter = attribute.setter_method is not None
                 self._name_for_rust(attribute.attribute.type, from_js=has_setter, to_js=True)
-            for operation_set in members.operation_sets:
-                for overload in operation_set.overloads:
-                    self._name_for_rust(overload.operation.return_type, from_js=False, to_js=True)
-                    for parameter in overload.operation.parameters:
-                        self._name_for_rust(parameter.type, from_js=True, to_js=False)
+            operations = [
+                overload.operation
+                for operation_set in members.operation_sets + members.static_operation_sets
+                for overload in operation_set.overloads
+            ]
+            if members.indexed_property_getter is not None:
+                operations.append(members.indexed_property_getter.operation.operation)
+            for operation in operations:
+                self._name_for_rust(operation.return_type, from_js=False, to_js=True)
+                for parameter in operation.parameters:
+                    self._name_for_rust(parameter.type, from_js=True, to_js=False)
             for constructor in members.constructors:
                 for parameter in constructor.constructor.parameters:
                     self._name_for_rust(parameter.type, from_js=True, to_js=False)
@@ -154,6 +160,9 @@ class DefinitionUsage:
         directions.to_js = directions.to_js or to_js
         for member in self._members_with_inherited(dictionary):
             self._name_for_rust(member.type, from_js, to_js)
+        if dictionary.parent_name:
+            # NB: The conversion of a dictionary converts the dictionary that it inherits from first.
+            self._name_for_rust(IDLType(dictionary.parent_name), from_js, to_js)
 
     def _members_with_inherited(self, dictionary: Dictionary):
         members = list(dictionary.members)

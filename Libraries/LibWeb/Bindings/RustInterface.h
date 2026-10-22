@@ -51,6 +51,10 @@ concept RustInterfaceHandle = IsBaseOf<RustInterfaceCell, T> && GC::IsForeignCel
 
 WEB_API GC::Ref<JS::HostObject> wrap_rust_interface_object(WrapperWorld&, JS::Realm& preferred_realm, InterfaceName, RustInterfaceCell&);
 
+// The cell of the object, if it is a wrapper of exactly the interface whose wrappers are of the class, and not of an
+// interface that inherits from it.
+WEB_API RustInterfaceCell* rust_interface_cell_of_wrapper(JS::Object&, JSHostClass const& wrapper_host_class);
+
 // Whether the object is a wrapper of an object of an interface implemented in Rust that is or inherits from the
 // interface with the name, as Wrappable::implements_interface() says for the objects of the interfaces implemented in
 // C++.
@@ -70,8 +74,8 @@ template<RustInterfaceHandle T>
     return wrap_rust_interface_object(wrapper_world, preferred_realm, T::s_interface_name, *object);
 }
 
-// The object that a wrapper of the interface wraps. An interface implemented in Rust that others inherit from has
-// objects whose cells are of several kinds, which no C++ class names, so Impl names an interface without those.
+// The object that a wrapper of the interface wraps. The cell of an object of an interface implemented in Rust that
+// others inherit from can be that of an object of any of them, which the C ABI of the interface accepts.
 template<RustInterfaceHandle Impl, typename Object>
 [[nodiscard]] CopyConst<Object, Impl>* impl_from(Object* object)
 {

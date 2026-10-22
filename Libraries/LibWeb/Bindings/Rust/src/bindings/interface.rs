@@ -31,8 +31,8 @@ use libjs_rust::api::{
 use crate::bindings::CallContext;
 use crate::bindings::realm_data::wrapper_world_of;
 use crate::bindings::services::{
-    web_bindings_ensure_web_constructor, web_bindings_ensure_web_prototype, web_bindings_rejected_promise,
-    web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper,
+    web_bindings_ensure_web_constructor, web_bindings_ensure_web_prototype, web_bindings_realm_is_window,
+    web_bindings_rejected_promise, web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper,
 };
 
 /// What an implementation can tell the bindings about its objects, as a C++ implementation object does by overriding
@@ -298,6 +298,25 @@ pub(crate) unsafe fn cell_from_abi<T: Interface>(cell: *mut c_void) -> Ref<T> {
     unsafe { T::CELL_CLASS.downcast(cell) }.expect("C++ passes the cell of an object of the interface")
 }
 
+/// The object of the interface whose cell LibWeb's C++ code holds, if the cell is that of an object of exactly the
+/// interface: C++ names an object of an interface that others inherit from by that interface, whichever it is.
+///
+/// # Safety
+///
+/// `cell` must be a live cell of an object of an interface implemented in Rust.
+pub(crate) unsafe fn cell_if_abi<T: Interface>(cell: *mut c_void) -> Option<Ref<T>> {
+    let cell = NonNull::new(cell).expect("C++ passes the cell of an object");
+    // SAFETY: The caller passes a live cell of an embedder class.
+    unsafe { T::CELL_CLASS.downcast(cell) }
+}
+
+/// Whether the global object of the realm is a Window, which the members that only a Window has, [Exposed=Window] on
+/// an interface exposed elsewhere as well, are defined for.
+pub(crate) fn realm_is_window(realm: Gc<Realm>) -> bool {
+    // SAFETY: The realm is live.
+    unsafe { web_bindings_realm_is_window(realm.as_ptr().cast()) }
+}
+
 /// What an operation that returns a promise type returns in place of throwing: a promise rejected with what its
 /// steps threw, https://webidl.spec.whatwg.org/#dfn-create-operation-function
 pub(crate) fn rejected_promise(vm: &Vm, throw: Throw) -> Value {
@@ -456,6 +475,27 @@ pub(crate) fn define_operation(
         PropertyAttributes::new(Attribute::WRITABLE | Attribute::ENUMERABLE | Attribute::CONFIGURABLE),
         None,
     );
+}
+
+/// Defines the properties of a value iterator on the interface prototype object of an interface that supports indexed
+/// properties, which are those of %Array.prototype%, https://webidl.spec.whatwg.org/#define-the-iteration-methods
+pub(crate) fn define_value_iterator_properties(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) {
+    let array_prototype = realm.intrinsics().array_prototype(vm);
+    let names = &vm.names;
+    prototype.define_direct_property(
+        vm,
+        &PropertyKey::from(vm.well_known_symbols().iterator),
+        array_prototype.get_without_side_effects(vm, &names.values),
+        PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::WRITABLE),
+    );
+    for name in [&names.entries, &names.keys, &names.values, &names.forEach] {
+        prototype.define_direct_property(
+            vm,
+            name,
+            array_prototype.get_without_side_effects(vm, name),
+            PropertyAttributes::new(Attribute::WRITABLE | Attribute::ENUMERABLE | Attribute::CONFIGURABLE),
+        );
+    }
 }
 
 /// Records a regular attribute or operation that the interface does not implement on the interface prototype object,

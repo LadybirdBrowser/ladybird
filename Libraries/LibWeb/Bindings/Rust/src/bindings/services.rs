@@ -29,6 +29,9 @@ unsafe extern "C" {
     /// Makes `wrapper` the wrapper that the world of its realm, which is not a main world, holds for the cell.
     pub(crate) fn web_bindings_set_rust_wrapper(realm: *mut c_void, cell: *mut c_void, wrapper: *mut c_void);
 
+    /// Whether the global object of the realm is a Window.
+    pub(crate) fn web_bindings_realm_is_window(realm: *mut c_void) -> bool;
+
     /// Whether the object is a wrapper of an object that implements the interface, a Web::Bindings::InterfaceName of
     /// an interface that LibWeb implements in C++.
     pub(crate) fn web_bindings_object_implements_interface(object: *mut c_void, interface_name: u16) -> bool;

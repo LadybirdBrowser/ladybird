@@ -31,7 +31,12 @@ RUST_METHOD_NAME = re.compile(r"[a-z][a-z0-9_]*")
 
 # The extended attributes of the members of an interface that the Rust bindings handle.
 SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {"CachedAccessor", "FIXME", "ImplementedAs", "NewObject", "SameObject"}
-SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {"FIXME", "ImplementedAs", "NewObject", "SameObject"}
+SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {"Default", "Exposed", "FIXME", "ImplementedAs", "NewObject", "SameObject"}
+SUPPORTED_STRINGIFIER_EXTENDED_ATTRIBUTES = {"Exposed"}
+
+# The value of [Exposed] that the Rust bindings handle on a member: a member that only a Window has, which the
+# bindings define when the global object of the realm is a Window.
+SUPPORTED_MEMBER_EXPOSURE = "Window"
 
 
 def generated_function_stem(method: str) -> str:
@@ -68,12 +73,18 @@ class RustAttribute:
 @dataclass
 class RustOperation:
     operation: Operation
-    # The method of the implementation that the steps of the operation call.
+    # The method of the implementation that the steps of the operation call, which the implementation does not define
+    # for a [Default] toJSON operation: the bindings run the default toJSON steps instead,
+    # https://webidl.spec.whatwg.org/#default-tojson-steps
     method: str
 
     @property
     def length(self) -> int:
         return operation_length(self.operation)
+
+    @property
+    def is_default_to_json(self) -> bool:
+        return "Default" in self.operation.extended_attributes
 
     @property
     def steps_function(self) -> str:
@@ -97,6 +108,35 @@ class RustOperationSet:
     @property
     def length(self) -> int:
         return min(overload.length for overload in self.overloads)
+
+    @property
+    def is_window_only(self) -> bool:
+        """Whether only a Window has the operation: [Exposed=Window] on an interface exposed elsewhere as well."""
+        return self.overloads[0].operation.extended_attributes.get("Exposed") == SUPPORTED_MEMBER_EXPOSURE
+
+
+@dataclass
+class RustStringifier:
+    """The stringifier of an interface, which the implementation runs through its method to_string,
+    https://webidl.spec.whatwg.org/#es-stringifier"""
+
+    # Whether only a Window has the stringifier.
+    is_window_only: bool
+
+    method = "to_string"
+    function = "to_string_function"
+
+
+@dataclass
+class RustIndexedPropertyGetter:
+    """The indexed property getter of an interface, which has an identifier: the operation of that identifier, whose
+    method the getter steps of a supported property index call as well, https://webidl.spec.whatwg.org/#idl-indexed-properties
+    An index for which the method returns nothing is not a supported property index."""
+
+    operation: RustOperation
+    # Whether the interface declares a value iterator, which it implements through the indexed properties,
+    # https://webidl.spec.whatwg.org/#dfn-value-iterator
+    has_value_iterator: bool
 
 
 @dataclass
@@ -125,6 +165,10 @@ class RustMembers:
     # The attributes and the operations that the implementation has methods for.
     attributes: List[RustAttribute] = field(default_factory=list)
     operation_sets: List[RustOperationSet] = field(default_factory=list)
+    # The static operations, which the interface object has.
+    static_operation_sets: List[RustOperationSet] = field(default_factory=list)
+    stringifier: Optional[RustStringifier] = None
+    indexed_property_getter: Optional[RustIndexedPropertyGetter] = None
     constructors: List[RustConstructor] = field(default_factory=list)
     constants: List[RustConstant] = field(default_factory=list)
     # The regular attributes in the order of the IDL, as the prototype defines them: an attribute of `attributes`, or
@@ -144,6 +188,10 @@ class RustMembers:
         their definition."""
         names = [attribute.attribute.name for attribute in self.attributes]
         names.extend(operation_set.name for operation_set in self.operation_sets)
+        if self.stringifier is not None:
+            names.append("toString")
+        if self.indexed_property_getter is not None:
+            names.append(self.indexed_property_getter.operation.operation.name)
         names.extend(constant.name for constant in self.constants)
         return names
 
@@ -176,19 +224,56 @@ def rust_members(interface: Interface) -> RustMembers:
 
     special_operations = [
         interface.named_property_getter,
-        interface.indexed_property_getter,
         interface.named_property_setter,
         interface.indexed_property_setter,
         interface.named_property_deleter,
     ]
-    if any(special_operations) or interface.stringifier is not None:
-        fail("it has special operations")
-    if interface.iterable or interface.async_iterable or interface.maplike or interface.setlike:
-        fail("it is iterable or a maplike or setlike")
-    if interface.static_attributes or interface.static_operations:
-        fail("it has static members")
+    if any(special_operations):
+        fail("it has special operations other than an indexed property getter")
+    if interface.async_iterable or interface.maplike or interface.setlike:
+        fail("it is async iterable or a maplike or setlike")
+    has_value_iterator = interface.iterable is not None and interface.iterable.key_type is None
+    if interface.iterable is not None and not has_value_iterator:
+        fail("it declares a pair iterator, which the Rust bindings do not handle yet")
+    if interface.static_attributes:
+        fail("it has static attributes")
 
     members = RustMembers()
+
+    getter = interface.indexed_property_getter
+    if has_value_iterator and getter is None:
+        fail("it declares a value iterator and supports no indexed properties")
+    if getter is not None:
+        if not getter.name:
+            fail("its indexed property getter has no identifier, which the Rust bindings do not handle yet")
+        if interface.parent_name:
+            fail("it supports indexed properties and inherits from another interface")
+        if not any(attribute.name == "length" for attribute in interface.regular_attributes):
+            fail("it supports indexed properties and has no length attribute")
+        check_extended_attributes(getter.name, getter.extended_attributes, {"ImplementedAs"})
+        getter_operation = Operation(getter.name, getter.return_type, getter.parameters, getter.extended_attributes)
+        members.indexed_property_getter = RustIndexedPropertyGetter(
+            RustOperation(getter_operation, method_of(getter.name, getter.extended_attributes)), has_value_iterator
+        )
+
+    def check_exposure(member_name: str, extended_attributes: dict) -> None:
+        exposure = extended_attributes.get("Exposed")
+        if exposure is not None and exposure != SUPPORTED_MEMBER_EXPOSURE:
+            fail(
+                f"{member_name} is [Exposed={exposure}], and the Rust bindings only handle [Exposed=Window] on members"
+            )
+
+    if interface.stringifier is not None:
+        stringifier = interface.stringifier
+        if stringifier.attribute is not None:
+            fail("its stringifier is an attribute, which the Rust bindings do not handle yet")
+        check_extended_attributes(
+            "its stringifier", stringifier.extended_attributes, SUPPORTED_STRINGIFIER_EXTENDED_ATTRIBUTES
+        )
+        check_exposure("its stringifier", stringifier.extended_attributes)
+        members.stringifier = RustStringifier(
+            stringifier.extended_attributes.get("Exposed") == SUPPORTED_MEMBER_EXPOSURE
+        )
 
     constructor_attributes = {"ImplementedAs"} if len(interface.constructors) > 1 else set()
     for constructor in interface.constructors:
@@ -228,32 +313,51 @@ def rust_members(interface: Interface) -> RustMembers:
         members.attributes.append(rust_attribute)
         members.attributes_in_order.append(rust_attribute)
 
-    for operation in interface.regular_operations:
-        check_extended_attributes(
-            operation.name, operation.extended_attributes, SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES
-        )
-
-    # NB: operation_overload_sets() leaves out the operations marked [FIXME], which the prototype records as not
-    #     implemented unless another overload of theirs is.
-    overload_sets = operation_overload_sets(interface)
-    for name, operations in overload_sets.items():
-        if len(operations) > 1:
-            # NB: As for constructors, the IDL names the Rust method of every overload.
-            if not all("ImplementedAs" in operation.extended_attributes for operation in operations):
+    def operation_sets(static: bool) -> List[RustOperationSet]:
+        operations_of_interface = interface.static_operations if static else interface.regular_operations
+        for operation in operations_of_interface:
+            check_extended_attributes(
+                operation.name, operation.extended_attributes, SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES
+            )
+            check_exposure(operation.name, operation.extended_attributes)
+            if "Default" in operation.extended_attributes and (
+                static or operation.name != "toJSON" or operation.return_type.name != "object" or operation.parameters
+            ):
                 fail(
-                    f"its operation {name} is overloaded, and not all of the overloads name their Rust method with "
-                    "[ImplementedAs]"
+                    f"its operation {operation.name} is [Default], which only a regular toJSON() that returns an object can be"
                 )
-            if any(operation.return_type_is_promise() for operation in operations):
-                fail(f"its operation {name} is overloaded and returns a promise type")
-        overloads = [
-            RustOperation(operation, method_of(name, operation.extended_attributes)) for operation in operations
-        ]
-        members.operation_sets.append(RustOperationSet(name, overloads))
-    for operation in interface.regular_operations:
-        is_unimplemented = "FIXME" in operation.extended_attributes and operation.name not in overload_sets
-        if is_unimplemented and operation.name not in members.unimplemented_operation_names:
-            members.unimplemented_operation_names.append(operation.name)
+
+        sets = []
+        # NB: operation_overload_sets() leaves out the operations marked [FIXME], which the prototype records as not
+        #     implemented unless another overload of theirs is.
+        overload_sets = operation_overload_sets(interface, static=static)
+        for name, operations in overload_sets.items():
+            if len(operations) > 1:
+                # NB: As for constructors, the IDL names the Rust method of every overload.
+                if not all("ImplementedAs" in operation.extended_attributes for operation in operations):
+                    fail(
+                        f"its operation {name} is overloaded, and not all of the overloads name their Rust method with "
+                        "[ImplementedAs]"
+                    )
+                if any(operation.return_type_is_promise() for operation in operations):
+                    fail(f"its operation {name} is overloaded and returns a promise type")
+                if len({operation.extended_attributes.get("Exposed") for operation in operations}) > 1:
+                    fail(f"the overloads of its operation {name} are exposed differently")
+            overloads = [
+                RustOperation(operation, method_of(name, operation.extended_attributes)) for operation in operations
+            ]
+            sets.append(RustOperationSet(name, overloads))
+        if static and any("FIXME" in operation.extended_attributes for operation in operations_of_interface):
+            fail("it has static operations marked [FIXME], which the Rust bindings do not record yet")
+        if not static:
+            for operation in operations_of_interface:
+                is_unimplemented = "FIXME" in operation.extended_attributes and operation.name not in overload_sets
+                if is_unimplemented and operation.name not in members.unimplemented_operation_names:
+                    members.unimplemented_operation_names.append(operation.name)
+        return sets
+
+    members.operation_sets = operation_sets(static=False)
+    members.static_operation_sets = operation_sets(static=True)
 
     for constant in interface.constants:
         value = idl_integer_value(constant.value, constant.type.name) if constant.type.name in INTEGER_TYPES else None
@@ -264,7 +368,16 @@ def rust_members(interface: Interface) -> RustMembers:
 
     methods = [attribute.getter_method for attribute in members.attributes]
     methods.extend(attribute.setter_method for attribute in members.attributes if attribute.setter_method is not None)
-    methods.extend(overload.method for operation_set in members.operation_sets for overload in operation_set.overloads)
+    methods.extend(
+        overload.method
+        for operation_set in members.operation_sets + members.static_operation_sets
+        for overload in operation_set.overloads
+        if not overload.is_default_to_json
+    )
+    if members.stringifier is not None:
+        methods.append(members.stringifier.method)
+    if members.indexed_property_getter is not None:
+        methods.append(members.indexed_property_getter.operation.method)
     methods.extend(constructor.method for constructor in members.constructors)
     repeated_methods = sorted({method for method in methods if methods.count(method) > 1})
     if repeated_methods:
