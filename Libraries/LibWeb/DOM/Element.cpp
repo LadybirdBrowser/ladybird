@@ -6464,6 +6464,9 @@ Element::Directionality Element::parent_directionality() const
 
 static void prefetch_inline_style_image_resources(CSS::CSSStyleProperties const& inline_style, Document& document)
 {
+    // NB: Asked first, so a block without images does not make views of its values.
+    if (!inline_style.declaration_block().has_abstract_image_values())
+        return;
     auto load_image_if_needed = [&](CSS::StyleValue const& value) {
         if (value.is_abstract_image())
             const_cast<CSS::AbstractImageStyleValue&>(value.as_abstract_image()).load_any_resources(document);

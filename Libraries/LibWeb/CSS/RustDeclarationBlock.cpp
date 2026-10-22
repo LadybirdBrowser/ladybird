@@ -120,6 +120,11 @@ bool RustDeclarationBlock::shares_declarations_with(RustDeclarationBlock const& 
     return declarations.data() == other_declarations.data();
 }
 
+bool RustDeclarationBlock::has_abstract_image_values() const
+{
+    return rust_declaration_block_has_abstract_image_values(m_block);
+}
+
 u64 RustDeclarationBlock::identity() const
 {
     return rust_declaration_block_identity(m_block);
