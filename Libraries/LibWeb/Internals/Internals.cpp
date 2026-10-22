@@ -60,6 +60,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
+#include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Geolocation/Geolocation.h>
@@ -2917,6 +2918,41 @@ GC::Ref<WebIDL::Promise> Internals::request_writing_suggestion_for_testing(Utf16
             ? Utf16String::formatted("{}-{}:{}", suggestion->replacement_start, suggestion->replacement_length, suggestion->text)
             : "(none)"_utf16;
         WebIDL::resolve_promise(realm, promise, JS::PrimitiveString::create(realm.vm(), move(result)));
+    }));
+    return promise;
+}
+
+// The writing suggestion showing in any document of the page.
+Utf16String Internals::writing_suggestion()
+{
+    for (auto const& navigable : page().hosted_navigables()) {
+        auto document = navigable->active_document();
+        if (!document)
+            continue;
+        if (auto* controller = document->writing_suggestion_controller_if_exists(); controller && controller->showing().has_value())
+            return controller->showing()->remainder;
+    }
+    return "(none)"_utf16;
+}
+
+GC::Ref<WebIDL::Promise> Internals::writing_suggestion_settled()
+{
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    page().when_writing_suggestions_settled(GC::create_function(heap(), [&realm, promise] {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(promise);
+    }));
+    return promise;
+}
+
+GC::Ref<WebIDL::Promise> Internals::writing_suggestion_request_sent()
+{
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    page().when_writing_suggestion_requested(GC::create_function(heap(), [&realm, promise] {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(promise);
     }));
     return promise;
 }

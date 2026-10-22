@@ -1,0 +1,12 @@
+predi: ction
+value: predi
+typed through, without waiting: tion
+typed through, settled: tion
+diverged: (none)
+several words: bird browser
+a correction: (none)
+contenteditable: ction
+no further mutations: true
+no further input events: true
+selection collapsed: true
+textContent: predi

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="area"></textarea>
+<script>
+    promiseTest(async () => {
+        const area = document.getElementById("area");
+        const requestSent = internals.writingSuggestionRequestSent();
+        internals.sendText(area, "predi");
+        // The answer to this request can't arrive before the next keystroke.
+        await requestSent;
+        internals.sendText(area, "x");
+        await internals.writingSuggestionSettled();
+        println(`typed past the request: ${internals.writingSuggestion()}`);
+    });
+</script>

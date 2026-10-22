@@ -136,6 +136,7 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
+#include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
@@ -1050,6 +1051,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
         m_spelling_markers->visit_edges(visitor);
     if (m_spell_check_controller)
         m_spell_check_controller->visit_edges(visitor);
+    if (m_writing_suggestion_controller)
+        m_writing_suggestion_controller->visit_edges(visitor);
 
     for (auto& event : m_pending_animation_event_queue) {
         visitor.visit(event.event);
@@ -1202,6 +1205,8 @@ void Document::note_selection_changed()
     request_frame_for_pending_repaint();
     if (m_spell_check_controller)
         m_spell_check_controller->did_change_selection();
+    if (m_writing_suggestion_controller)
+        m_writing_suggestion_controller->did_change_selection();
 }
 
 void Document::update_highlight_states_if_needed(Layout::BegunRead const& read)
@@ -1285,6 +1290,13 @@ Editing::SpellCheckController& Document::spell_check_controller()
     if (!m_spell_check_controller)
         m_spell_check_controller = make<Editing::SpellCheckController>(*this);
     return *m_spell_check_controller;
+}
+
+Editing::WritingSuggestionController& Document::writing_suggestion_controller()
+{
+    if (!m_writing_suggestion_controller)
+        m_writing_suggestion_controller = make<Editing::WritingSuggestionController>(*this);
+    return *m_writing_suggestion_controller;
 }
 
 bool Document::has_spelling_markers() const
@@ -4153,6 +4165,8 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
 
     if (navigable() && page().spell_checking_available())
         spell_check_controller().did_focus(m_focused_area);
+    if (m_writing_suggestion_controller)
+        m_writing_suggestion_controller->did_focus(m_focused_area);
 }
 
 Element const* Document::active_element() const

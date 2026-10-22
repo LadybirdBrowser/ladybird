@@ -53,6 +53,9 @@ interface Internals {
 
     // Writing suggestions
     Promise<DOMString> requestWritingSuggestionForTesting(DOMString text, unsigned long caretOffset);
+    DOMString writingSuggestion();
+    Promise<undefined> writingSuggestionSettled();
+    Promise<undefined> writingSuggestionRequestSent();
     Promise<DOMString> activateSpellingMenuItem(SpellingMenuItem item, optional unsigned long guessIndex = 0);
 
     const unsigned short MOD_NONE = 0;

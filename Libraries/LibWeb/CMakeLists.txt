@@ -331,6 +331,7 @@ set(SOURCES
     Editing/ReplacementRangeCleanup.cpp
     Editing/ReplacementStyleCleanup.cpp
     Editing/SpellCheckController.cpp
+    Editing/WritingSuggestionController.cpp
     Editing/SpellingMarkers.cpp
     Editing/StyledMarkupAccumulator.cpp
     Editing/StyledMarkupSelection.cpp
