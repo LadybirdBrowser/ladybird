@@ -1160,7 +1160,7 @@ void fetch_single_module_script(JS::Realm& realm,
                 if (bytecode.has_value()) {
                     auto decoder = TextCodec::decoder_for("UTF-8"sv);
                     VERIFY(decoder.has_value());
-                    auto source_length = decoder->length_in_utf16_code_units(StringView { source_bytes }).release_value_but_fixme_should_propagate_errors();
+                    auto source_length = TextCodec::convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, StringView { source_bytes }).release_value_but_fixme_should_propagate_errors();
                     prepare_bytecode_cache_off_thread(settings_object, *bytecode, JS::ProgramType::Module, source_length, *source_hash,
                         [url = move(url), url_string = move(url_string), response_url = move(response_url),
                             module_type_string = move(module_type_string),
