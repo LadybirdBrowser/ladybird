@@ -60,6 +60,7 @@
 #include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/Page/SpellingError.h>
+#include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/StorageAPI/StorageAreaId.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
@@ -244,6 +245,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_insert_clipboard_item(Web::PageId page_id, Web::Clipboard::SystemClipboardItem item, String presentation_style) =|
     did_request_clipboard_entries(Web::PageId page_id, u64 request_id) =|
     did_request_spell_check(Web::PageId page_id, u64 request_id, Utf16String text) =|
+    did_request_writing_suggestion(Web::PageId page_id, u64 request_id, Utf16String text, u32 caret_offset) =|
     did_request_primary_paste(Web::PageId page_id) =|
     did_update_primary_selection(Web::PageId page_id, String text) =|
 

@@ -147,6 +147,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pending_clipboard_requests);
     visitor.visit(m_pending_spell_check_requests);
     visitor.visit(m_spell_checking_settled_callbacks);
+    visitor.visit(m_pending_writing_suggestion_requests);
     visitor.visit(m_on_spelling_menu_action_for_testing);
     visitor.visit(m_emulated_position_data);
     visitor.visit(m_emulated_position_data_observers);
@@ -1338,6 +1339,19 @@ void Page::did_check_spelling(u64 request_id, Vector<SpellingError> errors)
     if (auto request = m_pending_spell_check_requests.take(request_id); request.has_value())
         (*request)->function()(move(errors));
     notify_spell_check_progress();
+}
+
+void Page::request_writing_suggestion(Utf16String const& text, u32 caret_offset, WritingSuggestionRequest request)
+{
+    auto request_id = m_next_writing_suggestion_request_id++;
+    m_pending_writing_suggestion_requests.set(request_id, request);
+    client().page_did_request_writing_suggestion(request_id, text, caret_offset);
+}
+
+void Page::did_get_writing_suggestion(u64 request_id, Optional<WritingSuggestion> suggestion)
+{
+    if (auto request = m_pending_writing_suggestion_requests.take(request_id); request.has_value())
+        (*request)->function()(move(suggestion));
 }
 
 static bool spell_checking_is_settled(Page& page)

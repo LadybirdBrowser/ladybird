@@ -3422,6 +3422,18 @@ void ConnectionFromClient::did_check_spelling(Web::PageId page_id, u64 request_i
         page->page().did_check_spelling(request_id, move(errors));
 }
 
+void ConnectionFromClient::set_writing_suggestions_available(Web::PageId page_id, bool available)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().set_writing_suggestions_available(available);
+}
+
+void ConnectionFromClient::did_get_writing_suggestion(Web::PageId page_id, u64 request_id, Optional<Web::WritingSuggestion> suggestion)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().did_get_writing_suggestion(request_id, move(suggestion));
+}
+
 void ConnectionFromClient::replace_context_menu_misspelling(Web::PageId page_id, Utf16String replacement)
 {
     if (auto page = this->page(page_id); page.has_value())
