@@ -4283,7 +4283,6 @@ void ViewImplementation::initialize_context_menus()
     m_page_context_menu->add_action(*m_report_website_issue_action);
 
     m_link_context_menu = Menu::create("Link Context Menu"sv);
-    m_link_context_menu->add_action(*m_look_up_selected_text_action);
     add_open_url_actions(*m_link_context_menu);
     m_link_context_menu->add_separator();
     m_link_context_menu->add_action(*m_download_linked_file_action);
@@ -4302,9 +4301,8 @@ void ViewImplementation::initialize_context_menus()
     m_selected_text_link_context_menu->add_action(*m_copy_link_to_highlight_action);
 
     m_image_context_menu = Menu::create("Image Context Menu"sv);
-    m_image_context_menu->add_action(*m_look_up_selected_text_action);
-    m_image_context_menu->add_action(*m_open_image_action);
     m_image_context_menu->add_action(*m_open_in_new_tab_action);
+    m_image_context_menu->add_action(*m_open_image_action);
     m_image_context_menu->add_separator();
     m_image_context_menu->add_action(*m_save_image_action);
     m_image_context_menu->add_separator();
@@ -4312,7 +4310,6 @@ void ViewImplementation::initialize_context_menus()
     m_image_context_menu->add_action(*m_copy_url_action);
 
     m_media_context_menu = Menu::create("Media Context Menu"sv);
-    m_media_context_menu->add_action(*m_look_up_selected_text_action);
     m_media_context_menu->add_action(*m_media_play_action);
     m_media_context_menu->add_action(*m_media_pause_action);
     m_media_context_menu->add_action(*m_media_mute_action);
@@ -4325,9 +4322,9 @@ void ViewImplementation::initialize_context_menus()
     m_media_context_menu->add_action(*m_media_enter_picture_in_picture_action);
     m_media_context_menu->add_action(*m_media_exit_picture_in_picture_action);
     m_media_context_menu->add_separator();
+    m_media_context_menu->add_action(*m_open_in_new_tab_action);
     m_media_context_menu->add_action(*m_open_audio_action);
     m_media_context_menu->add_action(*m_open_video_action);
-    m_media_context_menu->add_action(*m_open_in_new_tab_action);
     m_media_context_menu->add_separator();
     m_media_context_menu->add_action(*m_copy_url_action);
 
@@ -4728,34 +4725,28 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, We
 void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<u64> text_fragment_generation_id)
 {
     request_text_fragment_url(text_fragment_generation_id);
-    auto request_id = ++m_context_menu_request_id;
-    auto weak_this = make_weak_ptr();
-    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, navigation = move(navigation)](auto const& lookup) mutable {
-        if (!weak_this || request_id != weak_this->m_context_menu_request_id)
-            return;
+    ++m_context_menu_request_id;
 
-        weak_this->set_context_menu_url_actions_enabled(true);
-        weak_this->m_context_menu_url = navigation.url;
-        weak_this->m_context_menu_navigation = move(navigation);
-        weak_this->update_look_up_selected_text_action(lookup, content_position);
+    set_context_menu_url_actions_enabled(true);
+    m_context_menu_url = navigation.url;
+    m_context_menu_navigation = move(navigation);
 
-        weak_this->m_open_in_new_tab_action->set_text("Open in New Tab"sv);
+    m_open_in_new_tab_action->set_text("Open in New Tab"sv);
 
-        switch (url_type(weak_this->m_context_menu_url)) {
-        case URLType::Email:
-            weak_this->m_copy_url_action->set_text("Copy Email Address"sv);
-            break;
-        case URLType::Telephone:
-            weak_this->m_copy_url_action->set_text("Copy Phone Number"sv);
-            break;
-        case URLType::Other:
-            weak_this->m_copy_url_action->set_text("Copy Link Address"sv);
-            break;
-        }
+    switch (url_type(m_context_menu_url)) {
+    case URLType::Email:
+        m_copy_url_action->set_text("Copy Email Address"sv);
+        break;
+    case URLType::Telephone:
+        m_copy_url_action->set_text("Copy Phone Number"sv);
+        break;
+    case URLType::Other:
+        m_copy_url_action->set_text("Copy Link Address"sv);
+        break;
+    }
 
-        if (weak_this->m_link_context_menu->on_activation)
-            weak_this->m_link_context_menu->on_activation(weak_this->to_widget_position(content_position));
-    });
+    if (m_link_context_menu->on_activation)
+        m_link_context_menu->on_activation(to_widget_position(content_position));
 }
 
 void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path)
@@ -4778,26 +4769,20 @@ void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path
 
 void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<Gfx::ShareableBitmap> bitmap)
 {
-    auto request_id = ++m_context_menu_request_id;
-    auto weak_this = make_weak_ptr();
-    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, navigation = move(navigation), bitmap = move(bitmap)](auto const& lookup) mutable {
-        if (!weak_this || request_id != weak_this->m_context_menu_request_id)
-            return;
+    ++m_context_menu_request_id;
 
-        weak_this->set_context_menu_url_actions_enabled(true);
-        weak_this->m_context_menu_url = navigation.url;
-        weak_this->m_context_menu_navigation = move(navigation);
-        weak_this->m_image_context_menu_bitmap = move(bitmap);
-        weak_this->update_look_up_selected_text_action(lookup, content_position);
+    set_context_menu_url_actions_enabled(true);
+    m_context_menu_url = navigation.url;
+    m_context_menu_navigation = move(navigation);
+    m_image_context_menu_bitmap = move(bitmap);
 
-        weak_this->m_open_in_new_tab_action->set_text("Open Image in New Tab"sv);
-        weak_this->m_copy_url_action->set_text("Copy Image URL"sv);
+    m_open_in_new_tab_action->set_text("Open Image in New Tab"sv);
+    m_copy_url_action->set_text("Copy Image URL"sv);
 
-        weak_this->m_copy_image_action->set_enabled(weak_this->m_image_context_menu_bitmap.has_value());
+    m_copy_image_action->set_enabled(m_image_context_menu_bitmap.has_value());
 
-        if (weak_this->m_image_context_menu->on_activation)
-            weak_this->m_image_context_menu->on_activation(weak_this->to_widget_position(content_position));
-    });
+    if (m_image_context_menu->on_activation)
+        m_image_context_menu->on_activation(to_widget_position(content_position));
 }
 
 void ViewImplementation::send_to_media_context_menu_page(Function<void(WebContentPage&)> const& send)
@@ -4819,42 +4804,36 @@ void ViewImplementation::set_context_menu_url_actions_enabled(bool enabled)
 void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation)
 {
     m_media_context_menu_page = requesting_page;
-    auto request_id = ++m_context_menu_request_id;
-    auto weak_this = make_weak_ptr();
-    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, menu = move(menu), navigation = move(navigation)](auto const& lookup) mutable {
-        if (!weak_this || request_id != weak_this->m_context_menu_request_id)
-            return;
+    ++m_context_menu_request_id;
 
-        weak_this->set_context_menu_url_actions_enabled(menu.media_url.has_value());
-        weak_this->m_context_menu_url = move(menu.media_url).value_or({});
-        weak_this->m_context_menu_navigation = move(navigation);
-        weak_this->update_look_up_selected_text_action(lookup, content_position);
+    set_context_menu_url_actions_enabled(menu.media_url.has_value());
+    m_context_menu_url = move(menu.media_url).value_or({});
+    m_context_menu_navigation = move(navigation);
 
-        weak_this->m_open_in_new_tab_action->set_text(menu.is_video ? "Open Video in New Tab"sv : "Open Audio in new Tab"sv);
-        weak_this->m_copy_url_action->set_text(menu.is_video ? "Copy Video URL"sv : "Copy Audio URL"sv);
+    m_open_in_new_tab_action->set_text(menu.is_video ? "Open Video in New Tab"sv : "Open Audio in new Tab"sv);
+    m_copy_url_action->set_text(menu.is_video ? "Copy Video URL"sv : "Copy Audio URL"sv);
 
-        weak_this->m_open_audio_action->set_visible(!menu.is_video);
-        weak_this->m_open_video_action->set_visible(menu.is_video);
+    m_open_audio_action->set_visible(!menu.is_video);
+    m_open_video_action->set_visible(menu.is_video);
 
-        weak_this->m_media_play_action->set_visible(!menu.is_playing);
-        weak_this->m_media_pause_action->set_visible(menu.is_playing);
+    m_media_play_action->set_visible(!menu.is_playing);
+    m_media_pause_action->set_visible(menu.is_playing);
 
-        weak_this->m_media_mute_action->set_visible(!menu.is_muted);
-        weak_this->m_media_unmute_action->set_visible(menu.is_muted);
+    m_media_mute_action->set_visible(!menu.is_muted);
+    m_media_unmute_action->set_visible(menu.is_muted);
 
-        weak_this->m_media_show_controls_action->set_visible(!menu.has_user_agent_controls);
-        weak_this->m_media_hide_controls_action->set_visible(menu.has_user_agent_controls);
+    m_media_show_controls_action->set_visible(!menu.has_user_agent_controls);
+    m_media_hide_controls_action->set_visible(menu.has_user_agent_controls);
 
-        weak_this->m_media_loop_action->set_checked(menu.is_looping);
+    m_media_loop_action->set_checked(menu.is_looping);
 
-        weak_this->m_media_enter_fullscreen_action->set_visible(menu.is_video && !menu.is_fullscreen);
-        weak_this->m_media_exit_fullscreen_action->set_visible(menu.is_video && menu.is_fullscreen);
-        weak_this->m_media_enter_picture_in_picture_action->set_visible(menu.can_enter_picture_in_picture && !menu.is_picture_in_picture);
-        weak_this->m_media_exit_picture_in_picture_action->set_visible(menu.is_picture_in_picture);
+    m_media_enter_fullscreen_action->set_visible(menu.is_video && !menu.is_fullscreen);
+    m_media_exit_fullscreen_action->set_visible(menu.is_video && menu.is_fullscreen);
+    m_media_enter_picture_in_picture_action->set_visible(menu.can_enter_picture_in_picture && !menu.is_picture_in_picture);
+    m_media_exit_picture_in_picture_action->set_visible(menu.is_picture_in_picture);
 
-        if (weak_this->m_media_context_menu->on_activation)
-            weak_this->m_media_context_menu->on_activation(weak_this->to_widget_position(content_position));
-    });
+    if (m_media_context_menu->on_activation)
+        m_media_context_menu->on_activation(to_widget_position(content_position));
 }
 
 u64 ViewImplementation::add_navigation_listener(NavigationListener listener)
