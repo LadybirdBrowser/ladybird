@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editable" contenteditable></div>
+<textarea id="area"></textarea>
+<textarea id="readonly"></textarea>
+<textarea id="mid-word"></textarea>
+<script>
+    promiseTest(async () => {
+        const show = async label => {
+            await internals.writingSuggestionSettled();
+            println(`${label}: ${internals.writingSuggestion()}`);
+        };
+
+        const editable = document.getElementById("editable");
+        internals.sendText(editable, "predi");
+        await show("showing");
+        editable.firstChild.insertData(0, "AB");
+        await show("text inserted before the caret by script");
+
+        const area = document.getElementById("area");
+        let requestSent = internals.writingSuggestionRequestSent();
+        internals.sendText(area, "predi");
+        await requestSent;
+        area.value = "xxxxx";
+        await show("text replaced by script while the request was out");
+
+        const readonly = document.getElementById("readonly");
+        requestSent = internals.writingSuggestionRequestSent();
+        internals.sendText(readonly, "predi");
+        await requestSent;
+        readonly.readOnly = true;
+        await show("made read-only while the request was out");
+
+        const midWord = document.getElementById("mid-word");
+        internals.sendText(midWord, "prdi");
+        midWord.setSelectionRange(2, 2);
+        internals.sendText(midWord, "e");
+        await show("caret in the middle of the predicted word");
+    });
+</script>

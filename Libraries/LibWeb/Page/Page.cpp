@@ -20,6 +20,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
+#include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -148,6 +149,8 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pending_spell_check_requests);
     visitor.visit(m_spell_checking_settled_callbacks);
     visitor.visit(m_pending_writing_suggestion_requests);
+    visitor.visit(m_writing_suggestions_settled_callbacks);
+    visitor.visit(m_writing_suggestion_requested_callbacks);
     visitor.visit(m_on_spelling_menu_action_for_testing);
     visitor.visit(m_emulated_position_data);
     visitor.visit(m_emulated_position_data_observers);
@@ -1346,12 +1349,49 @@ void Page::request_writing_suggestion(Utf16String const& text, u32 caret_offset,
     auto request_id = m_next_writing_suggestion_request_id++;
     m_pending_writing_suggestion_requests.set(request_id, request);
     client().page_did_request_writing_suggestion(request_id, text, caret_offset);
+    GC::RootVector callbacks { exchange(m_writing_suggestion_requested_callbacks, {}) };
+    for (auto& callback : callbacks)
+        callback->function()();
 }
 
 void Page::did_get_writing_suggestion(u64 request_id, Optional<WritingSuggestion> suggestion)
 {
     if (auto request = m_pending_writing_suggestion_requests.take(request_id); request.has_value())
         (*request)->function()(move(suggestion));
+    notify_writing_suggestion_progress();
+}
+
+void Page::when_writing_suggestion_requested(GC::Ref<GC::Function<void()>> callback)
+{
+    m_writing_suggestion_requested_callbacks.append(callback);
+}
+
+static bool writing_suggestions_are_settled(Page& page)
+{
+    if (page.has_pending_writing_suggestions())
+        return false;
+    for (auto const& navigable : page.hosted_navigables()) {
+        if (auto document = navigable->active_document()) {
+            if (auto* controller = document->writing_suggestion_controller_if_exists(); controller && !controller->is_settled())
+                return false;
+        }
+    }
+    return true;
+}
+
+void Page::when_writing_suggestions_settled(GC::Ref<GC::Function<void()>> callback)
+{
+    m_writing_suggestions_settled_callbacks.append(callback);
+    notify_writing_suggestion_progress();
+}
+
+void Page::notify_writing_suggestion_progress()
+{
+    if (m_writing_suggestions_settled_callbacks.is_empty() || !writing_suggestions_are_settled(*this))
+        return;
+    GC::RootVector callbacks { exchange(m_writing_suggestions_settled_callbacks, {}) };
+    for (auto& callback : callbacks)
+        callback->function()();
 }
 
 static bool spell_checking_is_settled(Page& page)

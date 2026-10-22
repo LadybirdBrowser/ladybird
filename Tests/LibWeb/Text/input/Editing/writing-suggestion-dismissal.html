@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="area"></textarea>
+<input id="other">
+<script>
+    promiseTest(async () => {
+        const area = document.getElementById("area");
+        const showSuggestion = async () => {
+            area.value = "";
+            internals.sendText(area, "predi");
+            await internals.writingSuggestionSettled();
+            return internals.writingSuggestion();
+        };
+        const show = async label => {
+            await internals.writingSuggestionSettled();
+            println(`${label}: ${internals.writingSuggestion()}`);
+        };
+
+        println(`showing: ${await showSuggestion()}`);
+        area.setSelectionRange(0, 0);
+        await show("caret moved");
+
+        await showSuggestion();
+        area.setSelectionRange(0, 3);
+        await show("text selected");
+
+        await showSuggestion();
+        document.getElementById("other").focus();
+        await show("focus moved");
+
+        await showSuggestion();
+        internals.setMarkedTextFromInputMethod("p");
+        await show("composition started");
+        internals.setMarkedTextFromInputMethod("pr");
+        await show("composition continued");
+    });
+</script>

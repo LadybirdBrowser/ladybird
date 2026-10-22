@@ -1,0 +1,14 @@
+text: ction
+search: ction
+url: ction
+email: ction
+tel: ction
+password: (none)
+number: (none)
+readonly: (none)
+textarea: ction
+editable: ction
+off: (none)
+autocomplete-off: (none)
+inherited-off: (none)
+iframe: ction

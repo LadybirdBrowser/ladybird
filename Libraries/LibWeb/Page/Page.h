@@ -328,6 +328,12 @@ public:
     void did_get_writing_suggestion(u64 request_id, Optional<WritingSuggestion>);
     bool has_pending_writing_suggestions() const { return !m_pending_writing_suggestion_requests.is_empty(); }
 
+    // For tests: Calls the callback once no document of the page has a writing suggestion request queued or in flight.
+    void when_writing_suggestions_settled(GC::Ref<GC::Function<void()>>);
+    void notify_writing_suggestion_progress();
+    // For tests: Calls the callback when the next writing suggestion request goes to the UI process.
+    void when_writing_suggestion_requested(GC::Ref<GC::Function<void()>>);
+
     using GeolocationPositionResult = Variant<Geolocation::CoordinatesData, Geolocation::GeolocationPositionError::ErrorCode>;
     using GeolocationPositionCallback = GC::Ref<GC::Function<void(GeolocationPositionResult)>>;
     enum class GeolocationRequestType : u8 {
@@ -564,6 +570,8 @@ private:
     bool m_writing_suggestions_available { false };
     HashMap<u64, WritingSuggestionRequest> m_pending_writing_suggestion_requests;
     u64 m_next_writing_suggestion_request_id { 0 };
+    Vector<GC::Ref<GC::Function<void()>>> m_writing_suggestions_settled_callbacks;
+    Vector<GC::Ref<GC::Function<void()>>> m_writing_suggestion_requested_callbacks;
 
     struct PendingGeolocationRequest {
         GeolocationPositionCallback callback;

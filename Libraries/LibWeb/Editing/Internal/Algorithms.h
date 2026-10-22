@@ -83,6 +83,12 @@ struct ParagraphBounds {
     WebIDL::UnsignedLong end_offset { 0 };
 };
 ParagraphBounds paragraph_bounds_containing(DOM::Text&, WebIDL::UnsignedLong offset);
+struct CaretTextPosition {
+    GC::Ref<DOM::Text> text;
+    size_t offset { 0 };
+    bool is_collapsed { false };
+};
+Optional<CaretTextPosition> caret_text_position(DOM::Document&);
 GC::Ref<DOM::Range> paragraph_range_containing(DOM::Text&, WebIDL::UnsignedLong offset);
 bool is_block_start_point(DOM::BoundaryPoint);
 bool is_collapsed_block_prop(GC::Ref<DOM::Node>);

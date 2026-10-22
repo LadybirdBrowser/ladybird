@@ -24,6 +24,7 @@
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/SpellCheckController.h>
+#include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -1321,6 +1322,7 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
 
     did_edit_text_node(input_type, data_for_input_event);
     html_element.document().spell_check_controller().did_user_edit(html_element);
+    html_element.document().writing_suggestion_controller().did_user_edit(html_element);
     reveal_cursor_after_edit();
 }
 
@@ -1410,6 +1412,7 @@ void FormAssociatedTextControlElement::handle_delete(Utf16FlyString const& input
 
     did_edit_text_node(input_type, {});
     html_element.document().spell_check_controller().did_user_edit(html_element);
+    html_element.document().writing_suggestion_controller().did_user_edit(html_element);
     reveal_cursor_after_edit();
 }
 
@@ -1495,6 +1498,8 @@ void FormAssociatedTextControlElement::selection_was_changed(SelectionSource sou
     }
 
     if (auto* controller = element.document().spell_check_controller_if_exists())
+        controller->did_change_selection();
+    if (auto* controller = element.document().writing_suggestion_controller_if_exists())
         controller->did_change_selection();
 
     // NB: Called during selection change handling, layout may be stale. The render state finds the text's box as it

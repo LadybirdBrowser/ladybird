@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="area"></textarea>
+<textarea id="lady"></textarea>
+<textarea id="correction"></textarea>
+<div id="editable" contenteditable></div>
+<script>
+    promiseTest(async () => {
+        const show = label => println(`${label}: ${internals.writingSuggestion()}`);
+        const settle = () => internals.writingSuggestionSettled();
+
+        const area = document.getElementById("area");
+        internals.sendText(area, "predi");
+        await settle();
+        show("predi");
+        println(`value: ${area.value}`);
+        internals.sendText(area, "c");
+        show("typed through, without waiting");
+        await settle();
+        show("typed through, settled");
+        internals.sendText(area, "x");
+        await settle();
+        show("diverged");
+
+        internals.sendText(document.getElementById("lady"), "Lady");
+        await settle();
+        show("several words");
+
+        internals.sendText(document.getElementById("correction"), "teh");
+        await settle();
+        show("a correction");
+
+        const editable = document.getElementById("editable");
+        let inputEvents = 0;
+        editable.addEventListener("input", () => ++inputEvents);
+        const observer = new MutationObserver(() => {});
+        observer.observe(editable, { subtree: true, characterData: true, childList: true });
+        internals.sendText(editable, "predi");
+        const recordsWhileTyping = observer.takeRecords().length;
+        const inputEventsWhileTyping = inputEvents;
+        await settle();
+        show("contenteditable");
+        println(`no further mutations: ${observer.takeRecords().length === 0 && recordsWhileTyping > 0}`);
+        println(`no further input events: ${inputEvents === inputEventsWhileTyping}`);
+        println(`selection collapsed: ${getSelection().isCollapsed}`);
+        println(`textContent: ${editable.textContent}`);
+    });
+</script>

@@ -135,24 +135,6 @@ bool SpellCheckController::owns(DOM::Text const& text) const
     return text.is_connected() && &text.document() == m_document.ptr();
 }
 
-Optional<SpellCheckController::TextPosition> SpellCheckController::caret_position() const
-{
-    auto focused = m_document->focused_area();
-    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(focused.ptr())) {
-        auto text = text_control->form_associated_element_to_text_node();
-        if (!text)
-            return {};
-        return TextPosition { *text, min<size_t>(text_control->selection_end(), text->length_in_utf16_code_units()) };
-    }
-    auto selection = m_document->get_selection();
-    if (!selection)
-        return {};
-    auto* text = as_if<DOM::Text>(selection->focus_node().ptr());
-    if (!text)
-        return {};
-    return TextPosition { *text, selection->focus_offset() };
-}
-
 void SpellCheckController::send_window_around(DOM::Text& text, size_t offset, RequestKind kind)
 {
     if (!owns(text))
@@ -213,7 +195,7 @@ void SpellCheckController::run_typing_check()
         m_typing_check_wanted = true;
         return;
     }
-    auto caret = caret_position();
+    auto caret = caret_text_position(m_document);
     if (!caret.has_value() || !owns(*caret->text) || !checkable_editable_for(*caret->text))
         return;
     // Right after an edit, the word touching the caret is still being typed. Its markers come off, and no answer flags
@@ -256,7 +238,7 @@ void SpellCheckController::run_exempt_word_check()
         return;
     }
     // A caret still inside the same word, which typing may have lengthened, keeps it exempt.
-    if (auto caret = caret_position(); caret.has_value() && caret->text.ptr() == text.ptr()) {
+    if (auto caret = caret_text_position(m_document); caret.has_value() && caret->text.ptr() == text.ptr()) {
         if (auto word = word_touching(*text, caret->offset); word.has_value() && word->start <= exempt.start && exempt.start <= word->end) {
             m_exempt_word = word;
             return;

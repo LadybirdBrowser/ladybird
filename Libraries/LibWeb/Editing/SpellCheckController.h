@@ -93,13 +93,7 @@ private:
         size_t next_offset { 0 };
     };
 
-    struct TextPosition {
-        GC::Ref<DOM::Text> text;
-        size_t offset { 0 };
-    };
-
     bool owns(DOM::Text const&) const;
-    Optional<TextPosition> caret_position() const;
     void send_window_around(DOM::Text&, size_t offset, RequestKind);
     void schedule_typing_check();
     void run_typing_check();

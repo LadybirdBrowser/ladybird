@@ -542,6 +542,7 @@ class EditCommand;
 class EditingHistory;
 class SpellCheckController;
 class SpellingMarkers;
+class WritingSuggestionController;
 class UndoStep;
 enum class HistoryAction : u8;
 

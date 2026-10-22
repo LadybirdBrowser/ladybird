@@ -1,0 +1,5 @@
+showing: ction
+text inserted before the caret by script: (none)
+text replaced by script while the request was out: (none)
+made read-only while the request was out: (none)
+caret in the middle of the predicted word: (none)
