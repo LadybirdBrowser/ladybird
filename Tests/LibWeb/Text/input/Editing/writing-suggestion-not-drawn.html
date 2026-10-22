@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    p::first-letter { color: red; }
+</style>
+<p><input id="field"><input id="next"></p>
+<script>
+    promiseTest(async () => {
+        // A ::first-letter ancestor may split the text, so no suggestion is drawn there, and none may be accepted.
+        const field = document.getElementById("field");
+        internals.sendText(field, "predi");
+        await internals.writingSuggestionSettled();
+        println(`suggestion: ${internals.writingSuggestion()}`);
+        internals.sendText(field, "");
+        println(`value: ${field.value}`);
+        println(`focus: ${document.activeElement.id}`);
+    });
+</script>

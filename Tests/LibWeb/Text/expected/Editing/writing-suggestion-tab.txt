@@ -1,0 +1,25 @@
+Tab with a suggestion:
+  value: prediction
+  focus: area
+  events: beforeinput insertText ction, input insertText ction
+  suggestion: (none)
+Tab canceled by the page:
+  value: predi
+  focus: area
+  events: (none)
+  suggestion: (none)
+Tab without a suggestion:
+  value: 
+  focus: after
+  events: (none)
+  suggestion: (none)
+Shift+Tab with a suggestion:
+  value: predi
+  focus: before
+  events: (none)
+  suggestion: (none)
+Insertion canceled by the page:
+  value: predi
+  focus: area
+  events: beforeinput insertText ction
+  suggestion: (none)
