@@ -48,7 +48,8 @@ fn color_base(color_type: Option<u8>, syntax: u8) -> ColorBase {
 }
 
 fn retained(value: StyleValueData) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_owned(value)
+    // NB: Shared, so the channels of colors written with whole numbers allocate nothing of their own.
+    RetainedStyleValueData::from_arc(crate::css::style_value::shared_style_value(value))
 }
 
 fn retained_optional(value: Option<StyleValueData>) -> RetainedStyleValueData {
