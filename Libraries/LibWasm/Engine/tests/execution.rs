@@ -230,6 +230,54 @@ fn catches_exceptions_from_webassembly_and_host_functions() {
 }
 
 #[test]
+fn checks_values_from_the_host_against_function_types() {
+    use libwasm_engine::types::{FuncType, HeapType, RefType, ValType};
+    let mut store = Store::new();
+    let any = ValType::Ref(RefType {
+        nullable: true,
+        heap: HeapType::Any,
+    });
+    let reference = store.allocate_host_function(
+        FuncType {
+            params: vec![],
+            results: vec![any],
+        },
+        std::rc::Rc::new(|_: &mut Store, _: &[Value]| Ok(vec![Value::I64(0x4141)])),
+    );
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/host_values.wasm");
+    let module = libwasm_engine::compile(&std::fs::read(path).unwrap()).unwrap();
+    let instance = store
+        .instantiate(Arc::new(module), &[ExternValue::Function(reference)])
+        .unwrap();
+    let is_host_trap = |result: Result<Vec<Value>, Trap>| matches!(result, Err(Trap::Host(_)));
+    let traps =
+        |store: &mut Store, name: &str, arguments: &[Value]| is_host_trap(call(store, instance, name, arguments));
+
+    assert_eq!(
+        call(&mut store, instance, "is_null", &[Value::Ref(0)]),
+        Ok(vec![Value::I32(1)])
+    );
+    assert!(traps(&mut store, "is_null", &[Value::I64(0x4141)]));
+    assert!(traps(&mut store, "take_non_null", &[Value::Ref(0)]));
+    assert!(traps(&mut store, "host_is_null", &[]));
+    assert!(is_host_trap(store.invoke(reference, &[])));
+
+    let takes_an_argument = store.allocate_host_function(
+        FuncType {
+            params: vec![ValType::I32],
+            results: vec![],
+        },
+        std::rc::Rc::new(|_: &mut Store, arguments: &[Value]| {
+            assert_eq!(arguments.len(), 1);
+            Ok(vec![])
+        }),
+    );
+    assert!(is_host_trap(store.invoke(takes_an_argument, &[])));
+    assert!(is_host_trap(store.invoke(takes_an_argument, &[Value::I64(1)])));
+    assert_eq!(store.invoke(takes_an_argument, &[Value::I32(1)]), Ok(vec![]));
+}
+
+#[test]
 fn waits_on_shared_memory() {
     let mut store = Store::new();
     let instance = instantiate(&mut store, "shared_waits.wasm");
