@@ -118,7 +118,7 @@ TEST_CASE(test_utf16be_process_code_points)
 {
     auto& decoder = decoder_for("UTF-16BE"sv);
 
-    EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xfe, 0xff, 0x00, 'A', 0xd8, 0x3d, 0xde, 0x00 }))), (Vector<u32> { 0x41, 0x1F600 }));
+    EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xfe, 0xff, 0x00, 'A', 0xd8, 0x3d, 0xde, 0x00 }))), (Vector<u32> { 0xfeff, 0x41, 0x1F600 }));
     EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xd8, 0x3d, 0x00, 'A', 0xde, 0x00 }))), (Vector<u32> { 0xfffd, 0x41, 0xfffd }));
     EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0x00, 'A', 0xff }))), (Vector<u32> { 0x41, 0xfffd }));
     EXPECT_EQ(MUST(decoder.to_utf8(StringView(bytes({ 0x00, 'A', 0xff })), TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement)), "A\xef\xbf\xbd"sv);
@@ -251,8 +251,26 @@ TEST_CASE(test_utf16le_process_code_points)
 {
     auto& decoder = decoder_for("UTF-16LE"sv);
 
-    EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xff, 0xfe, 'A', 0x00, 0x3d, 0xd8, 0x00, 0xde }))), (Vector<u32> { 0x41, 0x1F600 }));
+    EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0xff, 0xfe, 'A', 0x00, 0x3d, 0xd8, 0x00, 0xde }))), (Vector<u32> { 0xfeff, 0x41, 0x1F600 }));
     EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 0x3d, 0xd8, 'A', 0x00, 0x00, 0xde }))), (Vector<u32> { 0xfffd, 0x41, 0xfffd }));
     EXPECT_EQ(process_code_points(decoder, StringView(bytes({ 'A', 0x00, 0xff }))), (Vector<u32> { 0x41, 0xfffd }));
     EXPECT_EQ(MUST(decoder.to_utf8(StringView(bytes({ 'A', 0x00, 0xff })), TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement)), "A\xef\xbf\xbd"sv);
+}
+
+TEST_CASE(test_decode_removes_only_the_sniffed_byte_order_mark)
+{
+    auto& fallback_decoder = decoder_for("windows-1252"sv);
+
+    auto inputs = Array {
+        Vector<u8> { 0xef, 0xbb, 0xbf, 0xef, 0xbb, 0xbf, 'A' },
+        Vector<u8> { 0xfe, 0xff, 0xfe, 0xff, 0x00, 'A' },
+        Vector<u8> { 0xff, 0xfe, 0xff, 0xfe, 'A', 0x00 },
+    };
+
+    for (auto const& input_bytes : inputs) {
+        auto input = StringView(bytes(input_bytes));
+        EXPECT_EQ(MUST(TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(fallback_decoder, input)), u"\uFEFFA"sv);
+        EXPECT_EQ(MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(fallback_decoder, input)), "\uFEFFA"sv);
+        EXPECT_EQ(MUST(TextCodec::convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(fallback_decoder, input)), 2u);
+    }
 }

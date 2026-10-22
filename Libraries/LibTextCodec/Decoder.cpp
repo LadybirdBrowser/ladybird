@@ -400,7 +400,7 @@ ErrorOr<String> convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte
 
     // 3. Process a queue with an instance of encoding’s decoder, ioQueue, output, and "replacement".
     // FIXME: This isn't the exact same as the spec, which is written in terms of I/O queues.
-    auto output = TRY(actual_decoder->to_utf8(input, IgnoreBOM::No, ErrorMode::Replacement));
+    auto output = TRY(actual_decoder->to_utf8(input, IgnoreBOM::Yes, ErrorMode::Replacement));
 
     // 4. Return output.
     return output;
@@ -557,12 +557,12 @@ ErrorOr<Utf16String> UTF8Decoder::to_utf16(StringView input)
 
 ErrorOr<size_t> UTF8Decoder::length_in_utf16_code_units(StringView input)
 {
-    return rust_length_in_utf16_code_units("UTF-8"sv, input, IgnoreBOM::No);
+    return rust_length_in_utf16_code_units("UTF-8"sv, input, IgnoreBOM::Yes);
 }
 
 ErrorOr<void> UTF16BEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    return rust_process("UTF-16BE"sv, input, IgnoreBOM::No, move(on_code_point));
+    return rust_process("UTF-16BE"sv, input, IgnoreBOM::Yes, move(on_code_point));
 }
 
 ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
@@ -572,12 +572,12 @@ ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input, IgnoreBOM ignore_bom, 
 
 ErrorOr<size_t> UTF16BEDecoder::length_in_utf16_code_units(StringView input)
 {
-    return rust_length_in_utf16_code_units("UTF-16BE"sv, input, IgnoreBOM::No);
+    return rust_length_in_utf16_code_units("UTF-16BE"sv, input, IgnoreBOM::Yes);
 }
 
 ErrorOr<void> UTF16LEDecoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    return rust_process("UTF-16LE"sv, input, IgnoreBOM::No, move(on_code_point));
+    return rust_process("UTF-16LE"sv, input, IgnoreBOM::Yes, move(on_code_point));
 }
 
 ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input, IgnoreBOM ignore_bom, ErrorMode error_mode)
@@ -587,7 +587,7 @@ ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input, IgnoreBOM ignore_bom, 
 
 ErrorOr<size_t> UTF16LEDecoder::length_in_utf16_code_units(StringView input)
 {
-    return rust_length_in_utf16_code_units("UTF-16LE"sv, input, IgnoreBOM::No);
+    return rust_length_in_utf16_code_units("UTF-16LE"sv, input, IgnoreBOM::Yes);
 }
 
 // https://infra.spec.whatwg.org/#isomorphic-decode
