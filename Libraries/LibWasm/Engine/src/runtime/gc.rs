@@ -426,6 +426,12 @@ impl Store {
             traces.push(trace_of(param, &self.types));
             traces.extend(std::iter::repeat_n(TRACE_NONE, param.slot_count() as usize - 1));
         }
+        // NB: The collector follows the payload and frees it as long as the tag's parameters say it is.
+        assert_eq!(
+            payload.len(),
+            traces.len(),
+            "an exception's payload has the slots of its tag's parameters"
+        );
         allocate_exception(&self.heap, tag, payload, &traces)
     }
 
