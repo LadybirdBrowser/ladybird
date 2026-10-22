@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Blob.text()
+Pass	Blob.text() empty blob data
+Pass	Blob.text() multi-element array in constructor
+Pass	Blob.text() non-unicode
+Pass	Blob.text() different charset param in type option
+Pass	Blob.text() different charset param with non-ascii input
+Pass	Blob.text() invalid utf-8 input
+Pass	Blob.text() strips a UTF-8 byte order mark
+Pass	Blob.text() strips only one UTF-8 byte order mark
+Pass	Blob.text() does not sniff a UTF-16LE byte order mark
+Pass	Blob.text() does not sniff a UTF-16BE byte order mark
+Pass	Blob.text() strips a UTF-8 byte order mark split across blob parts
+Pass	Blob.text() does not strip a UTF-8 byte order mark in a later blob part
+Pass	Blob.text() decodes a UTF-8 sequence split across blob parts
+Pass	Blob.text() replaces a truncated UTF-8 sequence at the end
+Pass	Blob.text() concurrent reads
