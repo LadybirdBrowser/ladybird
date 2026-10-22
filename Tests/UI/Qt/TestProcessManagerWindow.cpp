@@ -151,7 +151,7 @@ TEST_CASE(end_process_terminates_a_child_and_handles_disappearing_selection)
         (void)Core::System::close(pipe[0]);
         (void)Core::System::close(pipe[1]);
     };
-    manager.add_process(WebView::Process(WebView::ProcessType::WebContent, nullptr, move(child)));
+    auto identity = manager.add_process(WebView::Process(WebView::ProcessType::WebContent, nullptr, move(child)));
     Ladybird::ProcessManagerWindow window(manager);
     window.show();
     auto* processes = window.findChild<QTreeWidget*>();
@@ -162,6 +162,7 @@ TEST_CASE(end_process_terminates_a_child_and_handles_disappearing_selection)
     EXPECT_EQ(browser->childCount(), 1);
     auto* child_item = browser->child(0);
     EXPECT_EQ(child_item->data(1, Qt::UserRole).toLongLong(), pid);
+    EXPECT_EQ(child_item->data(1, Qt::UserRole + 1).toULongLong(), identity.child_id);
     auto blank_icon = child_item->icon(0).pixmap(16, 16).toImage();
     manager.find_process(pid)->set_title("(spare)"_utf16);
     EXPECT(QMetaObject::invokeMethod(timer, "timeout", Qt::DirectConnection));
@@ -195,7 +196,7 @@ TEST_CASE(end_process_terminates_a_child_and_handles_disappearing_selection)
 
     processes->setCurrentItem(browser->child(0));
     EXPECT(button->isEnabled());
-    (void)manager.remove_process(pid);
+    (void)manager.remove_process(identity.child_id);
     button->click();
     EXPECT(!button->isEnabled());
     EXPECT(QMetaObject::invokeMethod(timer, "timeout", Qt::DirectConnection));

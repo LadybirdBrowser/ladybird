@@ -56,6 +56,7 @@
 #include <LibWebCommon/WebView/Debugger.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
+#include <LibWebView/ChildIdentity.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 #include <LibWebView/WebContentPage.h>
@@ -162,8 +163,9 @@ public:
     Optional<Web::PageId> page_id_for_compositor_context_id(Web::CompositorContextId) const;
     bool has_requested_close() const { return m_requested_close; }
 
-    pid_t pid() const { return m_process_handle.pid; }
-    void set_pid(pid_t pid) { m_process_handle.pid = pid; }
+    pid_t pid() const { return m_child_identity.pid; }
+    u64 child_id() const { return m_child_identity.child_id; }
+    void set_child_identity(ChildIdentity identity) { m_child_identity = identity; }
 
 private:
     void close_server_if_unused();
@@ -227,7 +229,7 @@ private:
     Optional<Web::HTML::SessionHistoryEntryDescriptor> m_initial_top_level_history_entry;
     Web::HTML::CrossProcessId m_initial_top_level_document_id;
 
-    ProcessHandle m_process_handle;
+    ChildIdentity m_child_identity;
 
     ErrorOr<IPC::TransportHandle> connect_audio_server_client();
     ErrorOr<void> ensure_audio_server_controller();

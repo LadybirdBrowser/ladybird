@@ -104,12 +104,6 @@ Process::~Process()
 {
 }
 
-Process Process::current()
-{
-    auto p = Process { getpid() };
-    return p;
-}
-
 #if defined(AK_OS_LINUX)
 static Optional<int> run_file_actions_in_child(Vector<ProcessSpawnOptions::FileActionType> const& file_actions)
 {

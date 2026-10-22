@@ -38,11 +38,6 @@ Process::~Process()
         CloseHandle(m_handle);
 }
 
-Process Process::current()
-{
-    return GetCurrentProcess();
-}
-
 static ErrorOr<HANDLE> duplicate_inheritable_handle(HANDLE handle)
 {
     HANDLE duplicate = nullptr;

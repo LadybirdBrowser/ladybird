@@ -43,7 +43,7 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<WasmCompilerClient::Client>> launch_wasm_compi
 
 struct ImageDecoderConnection {
     IPC::TransportHandle handle;
-    pid_t pid { -1 };
+    u64 child_id { 0 };
 };
 
 // Launches an ImageDecoder that serves a single renderer or worker, which talks to it over the returned handle.

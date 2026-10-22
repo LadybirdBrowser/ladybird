@@ -1583,7 +1583,7 @@ void Application::launch_spare_web_content_process()
         }
 
         m_spare_web_content_process = web_content_client.release_value();
-        if (auto process = find_process(m_spare_web_content_process->pid()); process.has_value())
+        if (auto process = m_process_manager->find_child(m_spare_web_content_process->child_id()); process.has_value())
             process->set_title("(spare)"_utf16);
     });
 }
@@ -1964,9 +1964,9 @@ void Application::configure_request_server_control_client(Requests::RequestContr
     TabPerformanceMonitor::configure(control_client);
 }
 
-void Application::set_image_decoder_exit_handler(pid_t pid, Function<void()> handler)
+void Application::set_image_decoder_exit_handler(u64 child_id, Function<void()> handler)
 {
-    m_image_decoder_exit_handlers.set(pid, move(handler));
+    m_image_decoder_exit_handlers.set(child_id, move(handler));
 }
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
@@ -2135,9 +2135,9 @@ Core::EventLoop& Application::create_platform_event_loop()
     return Core::EventLoop::initialize_for_current_thread();
 }
 
-void Application::add_child_process(WebView::Process&& process)
+ChildIdentity Application::add_child_process(WebView::Process&& process)
 {
-    m_process_manager->add_process(move(process));
+    return m_process_manager->add_process(move(process));
 }
 
 #if defined(AK_OS_MACH)
@@ -2177,7 +2177,7 @@ void Application::process_did_exit(Process&& process, Optional<int>)
         }
         break;
     case ProcessType::ImageDecoder:
-        if (auto handler = m_image_decoder_exit_handlers.take(process.pid()); handler.has_value())
+        if (auto handler = m_image_decoder_exit_handlers.take(process.child_id()); handler.has_value())
             (*handler)();
         break;
     case ProcessType::MediaServer:

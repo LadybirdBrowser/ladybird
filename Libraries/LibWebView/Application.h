@@ -215,8 +215,8 @@ public:
     static IPC::HandleBrokerServer& handle_broker_server() { return *the().m_handle_broker_server; }
 #endif
 
-    // Runs the handler when the ImageDecoder with the given pid exits.
-    void set_image_decoder_exit_handler(pid_t, Function<void()>);
+    // Runs the handler when the ImageDecoder with the given child ID exits.
+    void set_image_decoder_exit_handler(u64 child_id, Function<void()>);
 #if defined(AK_OS_MACOS)
     static IPC::TransportBootstrapMachServer& transport_bootstrap_server() { return the().m_transport_bootstrap_server; }
     void set_browser_process_transport_handler(Function<void(NonnullOwnPtr<IPC::Transport>)> handler);
@@ -288,7 +288,7 @@ public:
 
     Main::Arguments const& command_line_arguments() const { return m_arguments; }
 
-    void add_child_process(Process&&);
+    ChildIdentity add_child_process(Process&&);
 
     // FIXME: Should these methods be part of Application, instead of deferring to ProcessManager?
 #if defined(AK_OS_MACH)
@@ -625,7 +625,7 @@ private:
     WebDriverSessionConfig m_webdriver_session_config;
 
     OwnPtr<RequestServerManager> m_request_server_manager;
-    HashMap<pid_t, Function<void()>> m_image_decoder_exit_handlers;
+    HashMap<u64, Function<void()>> m_image_decoder_exit_handlers;
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     RefPtr<WasmCompilerClient::Client> m_wasm_compiler_client;
 #endif

@@ -47,6 +47,8 @@ public:
 
     // Must be called while holding child_registration_lock().
     void register_child_transport(pid_t, TransportBootstrapMachPorts);
+    // For a child that was ended before it asked for its transport.
+    void unregister_child_transport(pid_t);
     ErrorOr<BootstrapRequestResult> handle_bootstrap_request(pid_t, Core::MachPort reply_port);
 
 private:

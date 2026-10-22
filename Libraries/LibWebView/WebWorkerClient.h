@@ -19,6 +19,7 @@
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
+#include <LibWebView/ChildIdentity.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 #include <WebWorker/WebWorkerClientEndpoint.h>
@@ -40,11 +41,12 @@ public:
     RequestServerSiteBindings& request_server_site_bindings() { return m_request_server_site_bindings; }
     void remove_blob_url_entries();
 
-    pid_t pid() const { return m_pid; }
+    pid_t pid() const { return m_child_identity.pid; }
+    u64 child_id() const { return m_child_identity.child_id; }
     void terminate_process();
 
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
-    void set_pid(pid_t pid) { m_pid = pid; }
+    void set_child_identity(ChildIdentity identity) { m_child_identity = identity; }
 
     virtual void did_close_worker() override;
     virtual void did_finish_loading_worker_script(bool worker_is_secure_context) override;
@@ -70,7 +72,7 @@ private:
     WeakPtr<BrowsingSession> m_session;
     RequestServerSiteBindings m_request_server_site_bindings;
 
-    pid_t m_pid { -1 };
+    ChildIdentity m_child_identity;
     Web::HTML::WorkerAgentId m_agent_id { 0 };
 
     // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use
