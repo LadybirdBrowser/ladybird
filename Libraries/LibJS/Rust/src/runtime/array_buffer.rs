@@ -43,6 +43,7 @@ use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::realm::Realm;
 use crate::runtime::typed_array::TypedArrayBase;
 use crate::runtime::value::same_value;
+use crate::runtime::value_conversions;
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 
 pub use crate::gc::primitive_storage::cage_base as primitive_storage_cage_base;
@@ -1034,6 +1035,58 @@ impl ArrayBuffer {
         source_block.copy_to_block(&destination_block, source_offset, destination_offset, count);
     }
 
+    /// GetValueFromBuffer of `count` elements of `source_type` from `source_offset` of this buffer, each followed by
+    /// SetValueInBuffer of the value as `destination_type` into `destination` from `destination_offset`, unordered and
+    /// little-endian, as typed arrays of different element types copy between each other.
+    /// OPTIMIZATION: For buffers that are neither shared nor the same, this is one pass over both blocks, without the
+    ///               checks and borrows of an access to each element.
+    pub fn convert_elements_to(
+        &self,
+        destination: &ArrayBuffer,
+        source_offset: usize,
+        source_type: ElementType,
+        destination_offset: usize,
+        destination_type: ElementType,
+        count: usize,
+    ) {
+        assert!(!core::ptr::eq(self, destination));
+        assert!(source_type.is_bigint() == destination_type.is_bigint());
+        if count == 0 {
+            return;
+        }
+        let source_block = self.data_block.borrow();
+        let destination_block = destination.data_block.borrow();
+        assert!(source_block.is_shared == Shared::No && destination_block.is_shared == Shared::No);
+        let (source_size, destination_size) = (source_type.size(), destination_type.size());
+        let in_bounds = |block: &DataBlock, offset: usize, element_size: usize| {
+            count
+                .checked_mul(element_size)
+                .and_then(|length| length.checked_add(offset))
+                .is_some_and(|end| end <= block.size())
+        };
+        assert!(in_bounds(&source_block, source_offset, source_size));
+        assert!(in_bounds(&destination_block, destination_offset, destination_size));
+        let source = source_block.data_at(source_offset);
+        let target = destination_block.data_at(destination_offset);
+        for index in 0..count {
+            // NB: The blocks of two buffers can still be the same external storage, as the buffers of a wasm memory in
+            //     two realms are. Each element is read before it is written, in the order of the spec's steps, so
+            //     such blocks end up as they would element by element.
+            // SAFETY: The blocks have the elements' bytes, which only this thread accesses, and nothing makes a
+            //         reference to them.
+            unsafe {
+                let bits = read_element_bits(source.add(index * source_size), source_size);
+                // NB: BigInt64 and BigUint64 elements of the same BigInt have the same bits.
+                let bits = if source_type.is_bigint() {
+                    bits
+                } else {
+                    number_to_element_bits(destination_type, number_from_element_bits(source_type, bits))
+                };
+                write_element_bits(target.add(index * destination_size), destination_size, bits);
+            }
+        }
+    }
+
     pub fn copy_data_to_block(
         &self,
         destination: &DataBlock,
@@ -1893,6 +1946,60 @@ pub fn binary16_bits_to_f64(bits: u16) -> f64 {
     sign * magnitude
 }
 
+/// NumericToRawBytes of the Number `number` as an element of the Number element type `element_type`, as a
+/// little-endian bit string in the low Element Size bytes.
+fn number_to_element_bits(element_type: ElementType, number: f64) -> u64 {
+    match element_type {
+        ElementType::Float16 => u64::from(f64_to_binary16_bits(number)),
+        ElementType::Float32 => u64::from((number as f32).to_bits()),
+        ElementType::Float64 => number.to_bits(),
+        ElementType::Int32 => u64::from(value_conversions::to_i32(number) as u32),
+        ElementType::Int16 => u64::from(value_conversions::to_i16(number) as u16),
+        ElementType::Int8 => u64::from(value_conversions::to_i8(number) as u8),
+        ElementType::Uint32 => u64::from(value_conversions::to_u32(number)),
+        ElementType::Uint16 => u64::from(value_conversions::to_u16(number)),
+        ElementType::Uint8 => u64::from(value_conversions::to_u8(number)),
+        ElementType::Uint8Clamped => u64::from(value_conversions::to_u8_clamp(number)),
+        ElementType::BigInt64 | ElementType::BigUint64 => unreachable!("BigInt elements are no Numbers"),
+    }
+}
+
+/// The little-endian bits of the element of `size` bytes at `address`.
+///
+/// # Safety
+///
+/// `address` must have the element's bytes, which nothing writes concurrently.
+unsafe fn read_element_bits(address: *const u8, size: usize) -> u64 {
+    // SAFETY: The caller passes an address that has the element's bytes.
+    unsafe {
+        match size {
+            1 => u64::from(address.read()),
+            2 => u64::from(u16::from_le(address.cast::<u16>().read_unaligned())),
+            4 => u64::from(u32::from_le(address.cast::<u32>().read_unaligned())),
+            8 => u64::from_le(address.cast::<u64>().read_unaligned()),
+            _ => unreachable!("elements have 1, 2, 4 or 8 bytes"),
+        }
+    }
+}
+
+/// Writes the low `size` bytes of `bits` little-endian to `address`.
+///
+/// # Safety
+///
+/// `address` must have room for the element's bytes, which nothing accesses concurrently.
+unsafe fn write_element_bits(address: *mut u8, size: usize, bits: u64) {
+    // SAFETY: The caller passes an address with room for the element's bytes.
+    unsafe {
+        match size {
+            1 => address.write(bits as u8),
+            2 => address.cast::<u16>().write_unaligned((bits as u16).to_le()),
+            4 => address.cast::<u32>().write_unaligned((bits as u32).to_le()),
+            8 => address.cast::<u64>().write_unaligned(bits.to_le()),
+            _ => unreachable!("elements have 1, 2, 4 or 8 bytes"),
+        }
+    }
+}
+
 // 25.1.3.14 RawBytesToNumeric ( type, rawBytes, isLittleEndian ), https://tc39.es/ecma262/#sec-rawbytestonumeric
 pub fn raw_bytes_to_numeric(vm: &Vm, element_type: ElementType, raw_value: &mut [u8], is_little_endian: bool) -> Value {
     // 1. Let elementSize be the Element Size value specified in Table 70 for Element Type type.
@@ -1909,6 +2016,25 @@ pub fn raw_bytes_to_numeric(vm: &Vm, element_type: ElementType, raw_value: &mut 
     let little_endian_value = u64::from_le_bytes(bytes);
 
     match element_type {
+        // 8. If IsBigIntElementType(type) is true, return the BigInt value that corresponds to intValue.
+        ElementType::BigInt64 => Value::from_bigint(BigInt::create(vm, NumBigInt::from(little_endian_value as i64))),
+        ElementType::BigUint64 => Value::from_bigint(BigInt::create(vm, NumBigInt::from(little_endian_value))),
+        // OPTIMIZATION: The Number values of the integer elements that fit in an i32 are made as int32 values directly.
+        ElementType::Uint8 | ElementType::Uint8Clamped => Value::from_i32(i32::from(little_endian_value as u8)),
+        ElementType::Uint16 => Value::from_i32(i32::from(little_endian_value as u16)),
+        ElementType::Int8 => Value::from_i32(i32::from(little_endian_value as u8 as i8)),
+        ElementType::Int16 => Value::from_i32(i32::from(little_endian_value as u16 as i16)),
+        ElementType::Int32 => Value::from_i32(little_endian_value as u32 as i32),
+        ElementType::Uint32 | ElementType::Float16 | ElementType::Float32 | ElementType::Float64 => {
+            Value::from_f64(number_from_element_bits(element_type, little_endian_value))
+        }
+    }
+}
+
+/// Steps 3 to 7 and 9 of RawBytesToNumeric, for a Number element type and the element's bytes concatenated as a
+/// little-endian bit string.
+fn number_from_element_bits(element_type: ElementType, little_endian_value: u64) -> f64 {
+    match element_type {
         // 3. If type is Float16, then
         ElementType::Float16 => {
             // a. Let value be the byte elements of rawBytes concatenated and interpreted as a little-endian bit string encoding of an IEEE 754-2019 binary16 value.
@@ -1916,11 +2042,11 @@ pub fn raw_bytes_to_numeric(vm: &Vm, element_type: ElementType, raw_value: &mut 
 
             // b. If value is an IEEE 754-2019 binary16 NaN value, return the NaN Number value.
             if value.is_nan() {
-                return Value::from_f64(f64::NAN);
+                return f64::NAN;
             }
 
             // c. Return the Number value that corresponds to value.
-            Value::from_f64(value)
+            value
         }
         // 4. If type is Float32, then
         ElementType::Float32 => {
@@ -1929,11 +2055,11 @@ pub fn raw_bytes_to_numeric(vm: &Vm, element_type: ElementType, raw_value: &mut 
 
             // b. If value is an IEEE 754-2019 binary32 NaN value, return the NaN Number value.
             if value.is_nan() {
-                return Value::from_f64(f64::NAN);
+                return f64::NAN;
             }
 
             // c. Return the Number value that corresponds to value.
-            Value::from_f64(f64::from(value))
+            f64::from(value)
         }
         // 5. If type is Float64, then
         ElementType::Float64 => {
@@ -1942,27 +2068,25 @@ pub fn raw_bytes_to_numeric(vm: &Vm, element_type: ElementType, raw_value: &mut 
 
             // b. If value is an IEEE 754-2019 binary64 NaN value, return the NaN Number value.
             if value.is_nan() {
-                return Value::from_f64(f64::NAN);
+                return f64::NAN;
             }
 
             // c. Return the Number value that corresponds to value.
-            Value::from_f64(value)
+            value
         }
         // 6. If IsUnsignedElementType(type) is true, then
         //     a. Let intValue be the byte elements of rawBytes concatenated and interpreted as a bit string encoding of an unsigned little-endian binary number.
         // 7. Else,
         //     a. Let intValue be the byte elements of rawBytes concatenated and interpreted as a bit string encoding of a binary little-endian two's complement number of bit length elementSize × 8.
         //
-        // 8. If IsBigIntElementType(type) is true, return the BigInt value that corresponds to intValue.
-        ElementType::BigInt64 => Value::from_bigint(BigInt::create(vm, NumBigInt::from(little_endian_value as i64))),
-        ElementType::BigUint64 => Value::from_bigint(BigInt::create(vm, NumBigInt::from(little_endian_value))),
         // 9. Otherwise, return the Number value that corresponds to intValue.
-        ElementType::Uint8 | ElementType::Uint8Clamped => Value::from_i32(i32::from(little_endian_value as u8)),
-        ElementType::Uint16 => Value::from_i32(i32::from(little_endian_value as u16)),
-        ElementType::Uint32 => Value::from_f64(f64::from(little_endian_value as u32)),
-        ElementType::Int8 => Value::from_i32(i32::from(little_endian_value as u8 as i8)),
-        ElementType::Int16 => Value::from_i32(i32::from(little_endian_value as u16 as i16)),
-        ElementType::Int32 => Value::from_i32(little_endian_value as u32 as i32),
+        ElementType::Uint8 | ElementType::Uint8Clamped => f64::from(little_endian_value as u8),
+        ElementType::Uint16 => f64::from(little_endian_value as u16),
+        ElementType::Uint32 => f64::from(little_endian_value as u32),
+        ElementType::Int8 => f64::from(little_endian_value as u8 as i8),
+        ElementType::Int16 => f64::from(little_endian_value as u16 as i16),
+        ElementType::Int32 => f64::from(little_endian_value as u32 as i32),
+        ElementType::BigInt64 | ElementType::BigUint64 => unreachable!("BigInt elements are no Numbers"),
     }
 }
 
@@ -1971,18 +2095,21 @@ pub fn raw_bytes_to_numeric(vm: &Vm, element_type: ElementType, raw_value: &mut 
 pub fn numeric_to_raw_bytes(vm: &Vm, element_type: ElementType, value: Value, is_little_endian: bool) -> [u8; 8] {
     assert!(value.is_number() || value.is_bigint());
     let little_endian_bytes: u64 = match element_type {
-        ElementType::Float16 => u64::from(f64_to_binary16_bits(value.to_double(vm).must())),
-        ElementType::Float32 => u64::from((value.to_double(vm).must() as f32).to_bits()),
-        ElementType::Float64 => value.to_double(vm).must().to_bits(),
         ElementType::BigInt64 => value.to_bigint_int64(vm).must() as u64,
         ElementType::BigUint64 => value.to_bigint_uint64(vm).must(),
-        ElementType::Int32 => u64::from(value.to_i32(vm).must() as u32),
-        ElementType::Int16 => u64::from(value.to_i16(vm).must() as u16),
-        ElementType::Int8 => u64::from(value.to_i8(vm).must() as u8),
-        ElementType::Uint32 => u64::from(value.to_u32(vm).must()),
-        ElementType::Uint16 => u64::from(value.to_u16(vm).must()),
-        ElementType::Uint8 => u64::from(value.to_u8(vm).must()),
-        ElementType::Uint8Clamped => u64::from(value.to_u8_clamp(vm).must()),
+        // OPTIMIZATION: ToInt8 to ToUint32 of an int32 are its low bits, and ToUint8Clamp of one is it clamped.
+        ElementType::Uint8Clamped if value.is_int32() => u64::from(value.as_i32().clamp(0, 255) as u8),
+        ElementType::Int8
+        | ElementType::Uint8
+        | ElementType::Int16
+        | ElementType::Uint16
+        | ElementType::Int32
+        | ElementType::Uint32
+            if value.is_int32() =>
+        {
+            u64::from(value.as_i32() as u32)
+        }
+        _ => number_to_element_bits(element_type, value.to_double(vm).must()),
     };
     let mut raw_bytes = little_endian_bytes.to_le_bytes();
     let element_size = element_type.size();
