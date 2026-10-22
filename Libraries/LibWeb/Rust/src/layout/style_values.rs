@@ -84,16 +84,40 @@ impl InsetValue<'_> {
     }
 }
 
+/// A padding read: the style's, or zero for a non-devolvable widget.
+#[derive(Clone, Copy)]
+pub(crate) enum PaddingValue<'a> {
+    FromStyle(&'a ComputedLengthPercentageOrAuto),
+    Zero,
+}
+
+impl PaddingValue<'_> {
+    pub(crate) fn to_px(self, reference: CssPixels) -> CssPixels {
+        match self {
+            Self::FromStyle(value) => value.to_px(reference),
+            Self::Zero => CssPixels::default(),
+        }
+    }
+
+    pub(crate) fn contains_percentage(self) -> bool {
+        match self {
+            Self::FromStyle(value) => value.contains_percentage(),
+            Self::Zero => false,
+        }
+    }
+}
+
 /// The layout pass view of a node's computed style: the pure payload view
 /// plus the resolved anchor insets the abspos engine threads to the four
-/// inset reads of the box it is placing, and the line builder's
-/// vertical-align keyword substitution. Every other read derefs to
-/// ComputedValuesView.
+/// inset reads of the box it is placing, the line builder's vertical-align
+/// keyword substitution, and the padding and border widths a non-devolvable
+/// widget drops. Every other read derefs to ComputedValuesView.
 #[derive(Clone, Copy)]
 pub(crate) struct StyleValues<'a> {
     style: ComputedValuesView<'a>,
     resolved_anchor_insets: Option<&'a formatting_context::ResolvedAnchorInsets>,
     vertical_align_override: Option<u8>,
+    is_non_devolvable_widget: bool,
 }
 
 impl<'a> std::ops::Deref for StyleValues<'a> {
@@ -111,12 +135,21 @@ impl<'a> StyleValues<'a> {
             style: ComputedValuesView::new(&payloads.groups),
             resolved_anchor_insets: None,
             vertical_align_override: None,
+            is_non_devolvable_widget: false,
         }
     }
 
     #[inline]
     pub(crate) fn for_node(callbacks: &LayoutPass<'a>, node: Node) -> Self {
-        StyleValues::new(callbacks.style_payloads(node))
+        StyleValues::new(callbacks.style_payloads(node)).for_kind(callbacks.node_data(node).kind.get())
+    }
+
+    /// The view for a box of `kind`. A non-devolvable widget is drawn natively to fill its box, so author padding and
+    /// borders don't apply to it.
+    #[inline]
+    pub(crate) fn for_kind(mut self, kind: NodeKind) -> Self {
+        self.is_non_devolvable_widget = node_facts::kind_is_non_devolvable_widget(kind);
+        self
     }
 
     pub(crate) fn with_resolved_insets(
@@ -178,6 +211,57 @@ impl<'a> StyleValues<'a> {
 
     pub(crate) fn inset_left(self) -> InsetValue<'a> {
         self.inset_value(InsetField::Left)
+    }
+
+    // AD-HOC: CSS UI only says a non-devolvable widget keeps its native appearance whatever its border; it doesn't say
+    //         the border takes no room, nor anything about padding. A native control fills its box, so its border
+    //         widths and its padding read as zero.
+    fn padding_unless_non_devolvable(self, padding: &'a ComputedLengthPercentageOrAuto) -> PaddingValue<'a> {
+        if self.is_non_devolvable_widget {
+            PaddingValue::Zero
+        } else {
+            PaddingValue::FromStyle(padding)
+        }
+    }
+
+    fn border_width_unless_non_devolvable(self, width: CssPixels) -> CssPixels {
+        if self.is_non_devolvable_widget {
+            CssPixels::default()
+        } else {
+            width
+        }
+    }
+
+    pub(crate) fn padding_top(self) -> PaddingValue<'a> {
+        self.padding_unless_non_devolvable(self.style.padding_top())
+    }
+
+    pub(crate) fn padding_right(self) -> PaddingValue<'a> {
+        self.padding_unless_non_devolvable(self.style.padding_right())
+    }
+
+    pub(crate) fn padding_bottom(self) -> PaddingValue<'a> {
+        self.padding_unless_non_devolvable(self.style.padding_bottom())
+    }
+
+    pub(crate) fn padding_left(self) -> PaddingValue<'a> {
+        self.padding_unless_non_devolvable(self.style.padding_left())
+    }
+
+    pub(crate) fn border_top_width(self) -> CssPixels {
+        self.border_width_unless_non_devolvable(self.style.border_top_width())
+    }
+
+    pub(crate) fn border_right_width(self) -> CssPixels {
+        self.border_width_unless_non_devolvable(self.style.border_right_width())
+    }
+
+    pub(crate) fn border_bottom_width(self) -> CssPixels {
+        self.border_width_unless_non_devolvable(self.style.border_bottom_width())
+    }
+
+    pub(crate) fn border_left_width(self) -> CssPixels {
+        self.border_width_unless_non_devolvable(self.style.border_left_width())
     }
 
     pub(crate) fn with_vertical_align_keyword(mut self, keyword: u8) -> Self {

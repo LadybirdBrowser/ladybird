@@ -429,7 +429,7 @@ impl Default for UsedValues {
 
 impl UsedValues {
     /// Resolves the left and right margins, borders and padding of `style`, with percentages against `basis`.
-    pub(crate) fn resolve_horizontal_box_model(&self, style: &ComputedValuesView<'_>, basis: CssPixels) {
+    pub(crate) fn resolve_horizontal_box_model(&self, style: &StyleValues<'_>, basis: CssPixels) {
         self.margin_left.set(style.margin_left().to_px(basis));
         self.margin_right.set(style.margin_right().to_px(basis));
         self.border_left.set(style.border_left_width());
@@ -439,7 +439,7 @@ impl UsedValues {
     }
 
     /// Resolves the top and bottom margins, borders and padding of `style`, with percentages against `basis`.
-    pub(crate) fn resolve_vertical_box_model(&self, style: &ComputedValuesView<'_>, basis: CssPixels) {
+    pub(crate) fn resolve_vertical_box_model(&self, style: &StyleValues<'_>, basis: CssPixels) {
         self.margin_top.set(style.margin_top().to_px(basis));
         self.margin_bottom.set(style.margin_bottom().to_px(basis));
         self.border_top.set(style.border_top_width());
@@ -449,7 +449,7 @@ impl UsedValues {
     }
 
     /// Resolves every margin, border and padding of `style`, with percentages against `basis`.
-    pub(crate) fn resolve_box_model(&self, style: &ComputedValuesView<'_>, basis: CssPixels) {
+    pub(crate) fn resolve_box_model(&self, style: &StyleValues<'_>, basis: CssPixels) {
         self.resolve_horizontal_box_model(style, basis);
         self.resolve_vertical_box_model(style, basis);
     }

@@ -132,7 +132,14 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
             if !recorder.is_visible(paintable) {
                 return;
             }
-            paint_base(recorder, paintable, phase);
+            if crate::layout::node_facts::kind_is_non_devolvable_widget(kind) {
+                // A non-devolvable widget keeps its native appearance whatever background it has. Layout already gave
+                // it zero border widths, so only its background is left to skip.
+                // https://drafts.csswg.org/css-ui/#non-devolvable
+                paint_base_with(recorder, paintable, phase, |_, _| {});
+            } else {
+                paint_base(recorder, paintable, phase);
+            }
             if phase == PaintPhase::Foreground {
                 match kind {
                     NodeKind::ImageBox => replaced::paint_image_foreground(recorder, paintable),

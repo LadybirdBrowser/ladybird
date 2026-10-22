@@ -7,56 +7,56 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div.radios--container> at [8,8] flex-container(row) [0+0+0 300 0+0+0] [0+0+0 189 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          Box <div.radios--main> at [8,8] flex-container(row) flex-item [0+0+0 170 6+0+0] [0+0+0 47 16+0+0] [FFC] children: not-inline
+          Box <div.radios--main> at [8,8] flex-container(row) flex-item [0+0+0 157 6+0+0] [0+0+0 47 16+0+0] [FFC] children: not-inline
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
-            RadioButton <input.radios--input> at [15,10] flex-item [0+2+5 0 5+2+0] [0+2+0 0 0+2+0] children: not-inline
+            RadioButton <input.radios--input> at [8,8] flex-item [0+0+0 1 0+0+0] [0+0+0 1 0+0+0] children: not-inline
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
-            BlockContainer <label.radios--value-button> at [40,10] flex-item [0+2+16 120 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 6, rect: [40,21.5 120x20] baseline: 16
+            BlockContainer <label.radios--value-button> at [27,10] flex-item [0+2+16 120 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 6, rect: [27,21.5 120x20] baseline: 16
                   "100 ML"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          Box <div.radios--main> at [8,71] flex-container(row) flex-item [0+0+0 150 6+0+0] [0+0+0 47 16+0+0] [FFC] children: not-inline
+          Box <div.radios--main> at [8,71] flex-container(row) flex-item [0+0+0 137 6+0+0] [0+0+0 47 16+0+0] [FFC] children: not-inline
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
-            RadioButton <input.radios--input> at [15,73] flex-item [0+2+5 0 5+2+0] [0+2+0 0 0+2+0] children: not-inline
+            RadioButton <input.radios--input> at [8,71] flex-item [0+0+0 1 0+0+0] [0+0+0 1 0+0+0] children: not-inline
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
-            BlockContainer <label.radios--value-button> at [40,73] flex-item [0+2+16 100 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 5, rect: [40,84.5 100x20] baseline: 16
+            BlockContainer <label.radios--value-button> at [27,73] flex-item [0+2+16 100 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 5, rect: [27,84.5 100x20] baseline: 16
                   "50 ML"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          Box <div.radios--main> at [8,134] flex-container(row) flex-item [0+0+0 150 6+0+0] [0+0+0 47 16+0+0] [FFC] children: not-inline
+          Box <div.radios--main> at [151,71] flex-container(row) flex-item [0+0+0 137 6+0+0] [0+0+0 47 16+0+0] [FFC] children: not-inline
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
-            RadioButton <input.radios--input> at [15,136] flex-item [0+2+5 0 5+2+0] [0+2+0 0 0+2+0] children: not-inline
+            RadioButton <input.radios--input> at [151,71] flex-item [0+0+0 1 0+0+0] [0+0+0 1 0+0+0] children: not-inline
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
-            BlockContainer <label.radios--value-button> at [40,136] flex-item [0+2+16 100 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 5, rect: [40,147.5 100x20] baseline: 16
+            BlockContainer <label.radios--value-button> at [170,73] flex-item [0+2+16 100 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 5, rect: [170,84.5 100x20] baseline: 16
                   "30 ML"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
           BlockContainer <(anonymous)> (not painted) [BFC] children: inline
             TextNode <#text> (not painted)
-          Box <div.radios--main> at [164,134] flex-container(row) flex-item [0+0+0 130 0+0+0] [0+0+0 47 16+0+0] [FFC] children: not-inline
+          Box <div.radios--main> at [8,134] flex-container(row) flex-item [0+0+0 117 0+0+0] [0+0+0 47 16+0+0] [FFC] children: not-inline
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
-            RadioButton <input.radios--input> at [171,136] flex-item [0+2+5 0 5+2+0] [0+2+0 0 0+2+0] children: not-inline
+            RadioButton <input.radios--input> at [8,134] flex-item [0+0+0 1 0+0+0] [0+0+0 1 0+0+0] children: not-inline
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
               TextNode <#text> (not painted)
-            BlockContainer <label.radios--value-button> at [196,136] flex-item [0+2+16 80 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 4, rect: [196,147.5 80x20] baseline: 16
+            BlockContainer <label.radios--value-button> at [27,136] flex-item [0+2+16 80 16+2+0] [0+2+0 43 0+2+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 4, rect: [27,147.5 80x20] baseline: 16
                   "15ML"
               TextNode <#text> (not painted)
             BlockContainer <(anonymous)> (not painted) [BFC] children: inline
@@ -129,7 +129,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x359] (z-index: auto)
-  SC for RadioButton<INPUT>.radios--input [15,10 0x0] (z-index: auto)
-  SC for RadioButton<INPUT>.radios--input [15,73 0x0] (z-index: auto)
-  SC for RadioButton<INPUT>.radios--input [15,136 0x0] (z-index: auto)
-  SC for RadioButton<INPUT>.radios--input [171,136 0x0] (z-index: auto)
+  SC for RadioButton<INPUT>.radios--input [8,8 1x1] (z-index: auto)
+  SC for RadioButton<INPUT>.radios--input [8,71 1x1] (z-index: auto)
+  SC for RadioButton<INPUT>.radios--input [151,71 1x1] (z-index: auto)
+  SC for RadioButton<INPUT>.radios--input [8,134 1x1] (z-index: auto)

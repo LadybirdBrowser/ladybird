@@ -84,14 +84,15 @@ impl<'pass> SizingContext<'pass> {
     }
 
     pub(super) fn style(&self, node: Node) -> StyleValues<'pass> {
+        let kind = self.callbacks.node_data(node).kind.get();
         if let Some((cached_node, payloads)) = self.style_cache.get()
             && cached_node == node
         {
-            return StyleValues::new(payloads);
+            return StyleValues::new(payloads).for_kind(kind);
         }
         let payloads = self.callbacks.style_payloads(node);
         self.style_cache.set(Some((node, payloads)));
-        StyleValues::new(payloads)
+        StyleValues::new(payloads).for_kind(kind)
     }
 
     #[track_caller]
