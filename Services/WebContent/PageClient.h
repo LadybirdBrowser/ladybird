@@ -360,6 +360,7 @@ private:
     virtual void page_did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem const&, StringView presentation_style) override;
     virtual void page_did_request_clipboard_entries(u64 request_id) override;
     virtual void page_did_request_spell_check(u64 request_id, Utf16String const& text) override;
+    virtual void page_did_request_writing_suggestion(u64 request_id, Utf16String const& text, u32 caret_offset) override;
     virtual void page_did_request_primary_paste() override;
     virtual void page_did_complete_paste_action() override;
     virtual void page_did_update_primary_selection(Utf16String const&) override;

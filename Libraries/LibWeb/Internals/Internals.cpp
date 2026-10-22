@@ -2838,6 +2838,25 @@ GC::Ref<WebIDL::Promise> Internals::spell_check_settled()
     return promise;
 }
 
+GC::Ref<WebIDL::Promise> Internals::request_writing_suggestion_for_testing(Utf16String const& text, WebIDL::UnsignedLong caret_offset)
+{
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    auto& page = this->page();
+    if (!page.writing_suggestions_available()) {
+        WebIDL::reject_promise(realm, promise, JS::PrimitiveString::create(vm(), "Writing suggestions are unavailable"_utf16));
+        return promise;
+    }
+    page.request_writing_suggestion(text, caret_offset, GC::create_function(heap(), [&realm, promise](Optional<WritingSuggestion> suggestion) {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        auto result = suggestion.has_value()
+            ? Utf16String::formatted("{}-{}:{}", suggestion->replacement_start, suggestion->replacement_length, suggestion->text)
+            : "(none)"_utf16;
+        WebIDL::resolve_promise(realm, promise, JS::PrimitiveString::create(realm.vm(), move(result)));
+    }));
+    return promise;
+}
+
 GC::Ref<WebIDL::Promise> Internals::activate_spelling_menu_item(Bindings::SpellingMenuItem item, WebIDL::UnsignedLong guess_index)
 {
     auto& realm = window().principal_realm();
