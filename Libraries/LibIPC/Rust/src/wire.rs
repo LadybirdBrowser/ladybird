@@ -81,15 +81,42 @@ pub trait Decode: Sized {
     }
 }
 
-#[derive(Default)]
+/// What an encoder can hand the bytes it encodes to, piece by piece, instead of keeping them.
+pub type Sink = Box<dyn FnMut(&[u8])>;
+
+/// Where an encoder puts the bytes it encodes.
+enum Output {
+    Bytes(Vec<u8>),
+    /// Each piece goes to the sink as soon as it is encoded.
+    Sink(Sink),
+}
+
 pub struct Encoder {
-    bytes: Vec<u8>,
+    output: Output,
     attachments: Vec<Attachment>,
+}
+
+impl Default for Encoder {
+    fn default() -> Self {
+        Self {
+            output: Output::Bytes(Vec::new()),
+            attachments: Vec::new(),
+        }
+    }
 }
 
 impl Encoder {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// An encoder that hands the bytes it encodes to `sink` as it goes, such as to append them to a C++
+    /// `IPC::Encoder`'s message, instead of keeping them. `finish()` then returns no bytes.
+    pub fn with_sink(sink: Sink) -> Self {
+        Self {
+            output: Output::Sink(sink),
+            attachments: Vec::new(),
+        }
     }
 
     pub fn encode<T: Encode + ?Sized>(&mut self, value: &T) -> Result<(), EncodeError> {
@@ -101,7 +128,38 @@ impl Encoder {
     }
 
     pub fn append_bytes(&mut self, bytes: &[u8]) {
-        self.bytes.extend_from_slice(bytes);
+        match &mut self.output {
+            Output::Bytes(output) => output.extend_from_slice(bytes),
+            Output::Sink(sink) => sink(bytes),
+        }
+    }
+
+    /// Appends `pieces`, which hold `byte_count` bytes in all.
+    fn append_pieces<const N: usize>(&mut self, byte_count: usize, pieces: impl Iterator<Item = [u8; N]>) {
+        match &mut self.output {
+            Output::Bytes(output) => {
+                output.reserve(byte_count);
+                for piece in pieces {
+                    output.extend_from_slice(&piece);
+                }
+            }
+            Output::Sink(sink) => {
+                // NB: A sink takes a call for each append, so hand it the pieces in chunks rather than one by one.
+                let mut chunk = [0u8; 512];
+                let mut length = 0;
+                for piece in pieces {
+                    if length + N > chunk.len() {
+                        sink(&chunk[..length]);
+                        length = 0;
+                    }
+                    chunk[length..length + N].copy_from_slice(&piece);
+                    length += N;
+                }
+                if length > 0 {
+                    sink(&chunk[..length]);
+                }
+            }
+        }
     }
 
     pub fn encode_size(&mut self, size: usize) -> Result<(), EncodeError> {
@@ -115,7 +173,11 @@ impl Encoder {
     }
 
     pub fn finish(self) -> (Vec<u8>, Vec<Attachment>) {
-        (self.bytes, self.attachments)
+        let bytes = match self.output {
+            Output::Bytes(bytes) => bytes,
+            Output::Sink(_) => Vec::new(),
+        };
+        (bytes, self.attachments)
     }
 }
 
@@ -198,10 +260,7 @@ macro_rules! impl_number {
 
                 fn encode_slice(elements: &[Self], encoder: &mut Encoder) -> Result<(), EncodeError> {
                     let byte_count = elements.len().checked_mul(size_of::<Self>()).ok_or(EncodeError::SizeTooLarge(elements.len()))?;
-                    encoder.bytes.reserve(byte_count);
-                    for element in elements {
-                        encoder.bytes.extend_from_slice(&element.to_ne_bytes());
-                    }
+                    encoder.append_pieces(byte_count, elements.iter().map(|element| element.to_ne_bytes()));
                     Ok(())
                 }
 
@@ -448,8 +507,7 @@ impl Encode for Utf16String {
         is_ascii.encode(encoder)?;
         encoder.encode_size(self.0.len())?;
         if is_ascii {
-            encoder.bytes.reserve(self.0.len());
-            encoder.bytes.extend(self.0.iter().map(|&code_unit| code_unit as u8));
+            encoder.append_pieces(self.0.len(), self.0.iter().map(|&code_unit| [code_unit as u8]));
         } else {
             u16::encode_slice(&self.0, encoder)?;
         }
@@ -669,6 +727,35 @@ mod tests {
         let decoded = decoder.decode().unwrap();
         assert!(decoder.is_at_end());
         (decoded, bytes)
+    }
+
+    fn encode_into_sink<T: Encode + ?Sized>(value: &T) -> Vec<u8> {
+        let output = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let sink_output = std::rc::Rc::clone(&output);
+        let mut encoder = Encoder::with_sink(Box::new(move |bytes| sink_output.borrow_mut().extend_from_slice(bytes)));
+        encoder.encode(value).unwrap();
+        let (bytes, attachments) = encoder.finish();
+        assert!(bytes.is_empty());
+        assert!(attachments.is_empty());
+        output.take()
+    }
+
+    #[test]
+    fn a_sink_receives_what_an_encoder_would_keep() {
+        fn check<T: Encode + ?Sized>(value: &T) {
+            let mut encoder = Encoder::new();
+            encoder.encode(value).unwrap();
+            assert_eq!(encode_into_sink(value), encoder.finish().0);
+        }
+        // NB: Long enough that numbers and ASCII code units fill the sink's chunk more than once.
+        check(&(0..1000u32).collect::<Vec<_>>());
+        check(&(0..1000).map(|value| f64::from(value) / 3.0).collect::<Vec<_>>());
+        check(&vec![0xabu8; 2000]);
+        check(&Utf16String("a".repeat(1500).encode_utf16().collect()));
+        check(&Utf16String("ü".repeat(1500).encode_utf16().collect()));
+        check(&Some(7i64));
+        check(&Utf8String::from_bytes(b"text".to_vec()).unwrap());
+        check(&vec![Some(1u16), None]);
     }
 
     #[test]
