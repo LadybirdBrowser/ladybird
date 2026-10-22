@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<table id="table" style="position: absolute; top: 0; left: 0; border-spacing: 0; clip: rect(0, 50px, 50px, 0);">
+    <tr><td id="cell" style="padding: 0; width: 100px; height: 100px; background: green;"></td></tr>
+</table>
+<script>
+    // The wrapper of a positioned table carries its clip, so a change of the clip clips the table anew.
+    test(() => {
+        const hit = () => {
+            const element = document.elementFromPoint(75, 75);
+            return element.id || element.nodeName;
+        };
+        println(`before: ${hit()}`);
+        table.style.clip = "rect(0, 100px, 100px, 0)";
+        println(`after: ${hit()}`);
+    });
+</script>
