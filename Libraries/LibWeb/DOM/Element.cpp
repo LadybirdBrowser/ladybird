@@ -2340,10 +2340,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         // with the pseudo-element styles it still computes.
         install_custom_property_environment();
         set_computed_style({}, new_style_record);
-        update_anchor_name_registry(nullptr, *computed_style());
-        update_animation_name_index(*this, nullptr, *computed_style());
+        auto new_computed_values = computed_style();
+        update_anchor_name_registry(nullptr, *new_computed_values);
+        update_animation_name_index(*this, nullptr, *new_computed_values);
         if (is_document_element())
-            style_computer.update_root_element_font_metrics(*computed_style());
+            style_computer.update_root_element_font_metrics(*new_computed_values);
         counters.element_computed_style_changes++;
         auto invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         invalidation |= recompute_pseudo_element_styles(read, did_change_custom_properties, false, nullptr, &pseudo_element_records, engine_record_damages);
