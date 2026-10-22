@@ -2552,17 +2552,21 @@ impl LayoutNodeArena {
     }
 
     /// Notes the visual contexts a style move with `damage`, an `FfiStyleInvalidationField` word, moves for `slot`'s
-    /// box, which the next recording builds again.
+    /// box, which the next recording builds again: those up to the level the word carries, and the nodes of the box's
+    /// stacking context where the move rebuilds it, as a z-index change does alone.
     pub(crate) fn note_style_visual_context_moves(&self, slot: NodeSlotId, damage: u32) {
         use crate::css::style::bridge::FfiStyleInvalidationField;
         use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
         let visual_contexts = (damage >> FfiStyleInvalidationField::VisualContextShift as u32)
             & FfiStyleInvalidationField::LevelMask as u32;
-        if visual_contexts == 0 || !crate::painting::paint_read::GeometryRead::paintable_row_is_populated(self, slot) {
+        let rebuilds_stacking_context = damage & FfiStyleInvalidationField::RebuildStackingContext as u32 != 0;
+        if (visual_contexts == 0 && !rebuilds_stacking_context)
+            || !crate::painting::paint_read::GeometryRead::paintable_row_is_populated(self, slot)
+        {
             return;
         }
-        let kind = match visual_contexts {
-            1 => VisualContextBoxDirtyKind::StyleValueChange,
+        let kind = match (visual_contexts, rebuilds_stacking_context) {
+            (1, false) => VisualContextBoxDirtyKind::StyleValueChange,
             _ => VisualContextBoxDirtyKind::StyleStructuralChange,
         };
         self.note_visual_context_box_dirty(slot, kind);
