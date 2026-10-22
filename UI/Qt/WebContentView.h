@@ -119,7 +119,7 @@ public:
     WebContentView(QWidget* window, Optional<WebView::CanonicalTraversable&> traversable = {}, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
 
-#if !defined(LADYBIRD_QT_USE_RHI_WIDGET) && !defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
+#if !defined(LADYBIRD_QT_USE_RHI_WIDGET)
     virtual void paintEvent(QPaintEvent*) override;
 #endif
     virtual void resizeEvent(QResizeEvent*) override;
@@ -166,6 +166,10 @@ public:
     };
     void update_palette(PaletteMode = PaletteMode::Default);
     Optional<QPixmap> tab_preview_pixmap(QSize const& maximum_size) const;
+
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    void set_has_rounded_corners(bool);
+#endif
 
     WebView::AccessibilityTreeManager const* accessibility_tree_manager() const { return m_accessibility_manager.ptr(); }
 
@@ -308,6 +312,7 @@ private:
     void destroy_iosurface_layer();
 
     void* m_iosurface_layer { nullptr };
+    bool m_has_rounded_corners { false };
 #endif
 
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET

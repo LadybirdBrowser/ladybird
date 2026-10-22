@@ -255,6 +255,9 @@ private:
     void update_vertical_tabs_button_layout();
     void update_tab_layout();
     void update_tab_chrome_visibility();
+#ifdef AK_OS_MACOS
+    void update_web_view_frame(Tab&);
+#endif
     void recreate_icons();
     void update_chrome_style();
     void update_vertical_tabs_overlay_geometry();
