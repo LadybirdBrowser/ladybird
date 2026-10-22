@@ -343,6 +343,10 @@ ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, Strin
 // This is heavily based on how SystemServer's Service creates its socket.
 ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
 {
+    auto socket_address_un = Core::SocketAddress::local(socket_path).to_sockaddr_un();
+    if (!socket_address_un.has_value())
+        return Error::from_string_literal("IPC socket path does not fit in sockaddr_un; the runtime directory path is too long");
+
     if (FileSystem::exists(socket_path))
         TRY(FileSystem::remove(socket_path, FileSystem::RecursionMode::Disallowed));
 
@@ -367,10 +371,7 @@ ErrorOr<int> Process::create_ipc_socket(ByteString const& socket_path)
 #    endif
 #endif
 
-    auto socket_address = Core::SocketAddress::local(socket_path);
-    auto socket_address_un = socket_address.to_sockaddr_un().release_value();
-
-    TRY(Core::System::bind(socket_fd, reinterpret_cast<sockaddr*>(&socket_address_un), sizeof(socket_address_un)));
+    TRY(Core::System::bind(socket_fd, reinterpret_cast<sockaddr*>(&*socket_address_un), sizeof(*socket_address_un)));
     TRY(Core::System::listen(socket_fd, 16));
 
     return socket_fd;
