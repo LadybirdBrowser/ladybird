@@ -20,10 +20,6 @@ use crate::types::{
     SubType, TableType, TagType, ValType,
 };
 
-/// The most locals one (count, type) run of a function may declare. Every local takes a slot of the function's
-/// machine stack frame, so this bounds the frame size a module can ask for.
-pub const MAX_LOCALS_PER_RUN: u32 = 42069;
-
 const SECTION_CUSTOM: u8 = 0;
 const SECTION_TYPE: u8 = 1;
 const SECTION_IMPORT: u8 = 2;
@@ -655,9 +651,6 @@ fn parse_function_body(section: &mut Reader<'_>) -> Result<FunctionBody> {
     let mut declared_local_count = 0u32;
     for _ in 0..run_count {
         let count = body.read_u32()?;
-        if count > MAX_LOCALS_PER_RUN {
-            return Err(Error::malformed("too many locals"));
-        }
         declared_local_count = declared_local_count
             .checked_add(count)
             .ok_or_else(|| Error::malformed("too many locals"))?;
