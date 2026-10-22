@@ -1076,6 +1076,11 @@ impl ChildListInsertionReuse<'_, '_> {
             if self.engine.subtree_affects_generated_content_state(child) {
                 return false;
             }
+            if self.layout.data(self.layout_node).kind.get() == NodeKind::FieldSetBox
+                && self.engine.element_box_kind(child) == ElementBoxKind::Legend
+            {
+                return false;
+            }
             let child_type_facts = self.engine.element_adjustment_facts(child);
             let child_is_svg_root = child_type_facts & element_adjustment_fact::IS_SVG_CONTAINER != 0;
             // NB: An SVG root owns its subtree and can be inserted like another replaced box. Graphics which
