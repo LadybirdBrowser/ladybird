@@ -24,7 +24,7 @@ public:
     static Optional<DecoderCapabilities> capabilities(ParsedCodec const&);
     static DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> try_create(FFmpegFunctions const&, CodecID, Audio::SampleSpecification const&, ReadonlyBytes codec_initialization_data);
     static DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> try_create(CodecID, Audio::SampleSpecification const&, ReadonlyBytes codec_initialization_data);
-    FFmpegAudioDecoder(FFmpegFunctions const&, AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
+    FFmpegAudioDecoder(FFmpegFunctions const&, CodecID, AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
     virtual ~FFmpegAudioDecoder() override;
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&) override;
@@ -39,6 +39,7 @@ private:
     DecoderErrorOr<void> write_block_up_to_next_discard_boundary(AudioBlock&);
 
     FFmpegFunctions const& m_functions;
+    CodecID m_codec_id;
     AVCodecContext* m_codec_context;
     AVPacket* m_packet;
     AVFrame* m_frame;

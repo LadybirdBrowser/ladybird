@@ -312,6 +312,105 @@ TEST_CASE(aac_configuration_record_rejects_a_truncated_config)
     EXPECT(!Media::Codecs::AAC::parse_configuration_record(escaped_without_extension, 0x40).has_value());
 }
 
+TEST_CASE(aac_explicit_spectral_band_replication_is_read_from_hierarchical_signaling)
+{
+    // SBR at 48000 Hz over an AAC-LC core at 48000 Hz, stereo, as hls.js 0.12.4 writes for Chromium.
+    Array<u8, 4> spectral_band_replication { 0x29, 0x91, 0x88, 0x00 };
+    auto parameters = Media::Codecs::AAC::parse_explicit_spectral_band_replication(spectral_band_replication);
+    EXPECT(parameters.has_value());
+    EXPECT_EQ(parameters->core_audio_object_type, Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE);
+    EXPECT_EQ(parameters->core_sample_rate, 48000u);
+    EXPECT_EQ(parameters->channel_count, 2);
+    EXPECT_EQ(parameters->general_audio_specific_config, Media::Codecs::AAC::GeneralAudioSpecificConfig {});
+    EXPECT_EQ(parameters->output_sample_rate, 48000u);
+
+    // Parametric stereo at 48000 Hz over a mono AAC-LC core at 24000 Hz.
+    Array<u8, 4> parametric_stereo { 0xeb, 0x09, 0x88, 0x00 };
+    parameters = Media::Codecs::AAC::parse_explicit_spectral_band_replication(parametric_stereo);
+    EXPECT(parameters.has_value());
+    EXPECT_EQ(parameters->core_sample_rate, 24000u);
+    EXPECT_EQ(parameters->channel_count, 1);
+    EXPECT_EQ(parameters->output_sample_rate, 48000u);
+}
+
+TEST_CASE(aac_explicit_spectral_band_replication_is_read_from_backward_compatible_signaling)
+{
+    auto created = TRY_OR_FAIL(Media::Codecs::AAC::create_configuration_record(Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, 24000, 2, 48000));
+    auto parameters = Media::Codecs::AAC::parse_explicit_spectral_band_replication(created.span());
+    EXPECT(parameters.has_value());
+    EXPECT_EQ(parameters->core_audio_object_type, Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE);
+    EXPECT_EQ(parameters->core_sample_rate, 24000u);
+    EXPECT_EQ(parameters->channel_count, 2);
+    EXPECT_EQ(parameters->general_audio_specific_config, Media::Codecs::AAC::GeneralAudioSpecificConfig {});
+    EXPECT_EQ(parameters->output_sample_rate, 48000u);
+
+    // A core coder delay lengthens the GASpecificConfig before the sync extension.
+    Array<u8, 7> depends_on_core_coder { 0x13, 0x92, 0x91, 0xa1, 0x5b, 0x96, 0x80 };
+    parameters = Media::Codecs::AAC::parse_explicit_spectral_band_replication(depends_on_core_coder);
+    EXPECT(parameters.has_value());
+    EXPECT_EQ(parameters->core_sample_rate, 22050u);
+    EXPECT_EQ(parameters->general_audio_specific_config.core_coder_delay, 0x1234);
+    EXPECT_EQ(parameters->output_sample_rate, 44100u);
+
+    Array<u8, 8> escaped_output_sample_rate { 0x11, 0x90, 0x56, 0xe5, 0xf8, 0x06, 0x1a, 0x80 };
+    parameters = Media::Codecs::AAC::parse_explicit_spectral_band_replication(escaped_output_sample_rate);
+    EXPECT(parameters.has_value());
+    EXPECT_EQ(parameters->output_sample_rate, 50000u);
+}
+
+TEST_CASE(aac_explicit_spectral_band_replication_is_absent_or_not_understood)
+{
+    Array<u8, 2> low_complexity { 0x11, 0x90 };
+    EXPECT(!Media::Codecs::AAC::parse_explicit_spectral_band_replication(low_complexity).has_value());
+
+    // The sync extension declares that SBR is not present.
+    Array<u8, 5> declared_absent { 0x11, 0x90, 0x56, 0xe5, 0x00 };
+    EXPECT(!Media::Codecs::AAC::parse_explicit_spectral_band_replication(declared_absent).has_value());
+
+    // A channel configuration of zero carries a program config element.
+    Array<u8, 4> program_config_element { 0x29, 0x81, 0x88, 0x00 };
+    EXPECT(!Media::Codecs::AAC::parse_explicit_spectral_band_replication(program_config_element).has_value());
+
+    // An AAC-LD core.
+    Array<u8, 4> low_delay_core { 0x29, 0x91, 0xdc, 0x00 };
+    EXPECT(!Media::Codecs::AAC::parse_explicit_spectral_band_replication(low_delay_core).has_value());
+
+    Array<u8, 3> truncated { 0x29, 0x91, 0x88 };
+    EXPECT(!Media::Codecs::AAC::parse_explicit_spectral_band_replication(truncated).has_value());
+}
+
+static Optional<FixedArray<u8>> core_configuration_record(ReadonlyBytes audio_specific_config)
+{
+    auto parameters = Media::Codecs::AAC::parse_explicit_spectral_band_replication(audio_specific_config);
+    if (!parameters.has_value())
+        return {};
+    return MUST(Media::Codecs::AAC::create_configuration_record(parameters->core_audio_object_type, parameters->core_sample_rate, parameters->channel_count, {}, parameters->general_audio_specific_config));
+}
+
+TEST_CASE(aac_configuration_record_is_recreated_from_its_core)
+{
+    Array<u8, 2> expected_low_complexity { 0x11, 0x90 };
+
+    Array<u8, 4> hierarchical { 0x29, 0x91, 0x88, 0x00 };
+    EXPECT_EQ(core_configuration_record(hierarchical)->span(), expected_low_complexity.span());
+
+    auto backward_compatible = TRY_OR_FAIL(Media::Codecs::AAC::create_configuration_record(Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, 48000, 2, 48000));
+    EXPECT_EQ(core_configuration_record(backward_compatible.span())->span(), expected_low_complexity.span());
+
+    // The GASpecificConfig is carried over: 960-sample frames, a core coder delay, and the third extension flag.
+    Array<u8, 4> frame_length_flag { 0x29, 0x91, 0x8a, 0x00 };
+    Array<u8, 2> expected_frame_length_flag { 0x11, 0x94 };
+    EXPECT_EQ(core_configuration_record(frame_length_flag)->span(), expected_frame_length_flag.span());
+
+    Array<u8, 7> depends_on_core_coder { 0x13, 0x92, 0x91, 0xa1, 0x5b, 0x96, 0x80 };
+    Array<u8, 4> expected_depends_on_core_coder { 0x13, 0x92, 0x91, 0xa0 };
+    EXPECT_EQ(core_configuration_record(depends_on_core_coder)->span(), expected_depends_on_core_coder.span());
+
+    Array<u8, 4> extension_flag_3 { 0x29, 0x91, 0x88, 0xc0 };
+    Array<u8, 3> expected_extension_flag_3 { 0x11, 0x91, 0x80 };
+    EXPECT_EQ(core_configuration_record(extension_flag_3)->span(), expected_extension_flag_3.span());
+}
+
 TEST_CASE(aac_configuration_record_is_created_from_stream_parameters)
 {
     auto low_complexity = TRY_OR_FAIL(Media::Codecs::AAC::create_configuration_record(Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, 48000, 2));

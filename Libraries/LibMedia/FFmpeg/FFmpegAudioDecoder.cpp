@@ -40,6 +40,16 @@ Optional<DecoderCapabilities> FFmpegAudioDecoder::capabilities(FFmpegFunctions c
     return DecoderCapabilities { .smooth = true, .power_efficient = true };
 }
 
+static DecoderErrorOr<Optional<FixedArray<u8>>> maybe_remove_aac_sbr_when_extension_sampling_frequency_is_invalid(CodecID codec_id, ReadonlyBytes codec_configuration)
+{
+    if (codec_id != CodecID::AAC)
+        return OptionalNone {};
+    auto spectral_band_replication = Codecs::AAC::parse_explicit_spectral_band_replication(codec_configuration);
+    if (!spectral_band_replication.has_value() || spectral_band_replication->output_sample_rate > spectral_band_replication->core_sample_rate)
+        return OptionalNone {};
+    return TRY(Codecs::AAC::create_configuration_record(spectral_band_replication->core_audio_object_type, spectral_band_replication->core_sample_rate, spectral_band_replication->channel_count, {}, spectral_band_replication->general_audio_specific_config));
+}
+
 DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create(FFmpegFunctions const& functions, CodecID codec_id, Audio::SampleSpecification const& sample_specification, ReadonlyBytes codec_initialization_data)
 {
     AVCodecContext* codec_context = nullptr;
@@ -61,6 +71,9 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create
     if (!codec_context)
         return DecoderError::format(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg codec context for codec {}", codec_id);
 
+    auto replacement_initialization_data = TRY(maybe_remove_aac_sbr_when_extension_sampling_frequency_is_invalid(codec_id, codec_initialization_data));
+    if (replacement_initialization_data.has_value())
+        codec_initialization_data = replacement_initialization_data->span();
     TRY(set_codec_initialization_data(functions, *codec_context, codec_id, codec_initialization_data));
     VERIFY(functions.av_opt_set_int(codec_context, "threads", min(Core::System::hardware_concurrency(), 4u), 0) == 0);
 
@@ -90,7 +103,7 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg frame"sv);
 
     memory_guard.disarm();
-    return DECODER_TRY_ALLOC(try_make<FFmpegAudioDecoder>(functions, codec_context, packet, frame));
+    return DECODER_TRY_ALLOC(try_make<FFmpegAudioDecoder>(functions, codec_id, codec_context, packet, frame));
 }
 
 Optional<DecoderCapabilities> FFmpegAudioDecoder::capabilities(ParsedCodec const& codec)
@@ -103,8 +116,9 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create
     return try_create(FFmpegFunctions::bundled(), codec_id, sample_specification, codec_initialization_data);
 }
 
-FFmpegAudioDecoder::FFmpegAudioDecoder(FFmpegFunctions const& functions, AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame)
+FFmpegAudioDecoder::FFmpegAudioDecoder(FFmpegFunctions const& functions, CodecID codec_id, AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame)
     : m_functions(functions)
+    , m_codec_id(codec_id)
     , m_codec_context(codec_context)
     , m_packet(packet)
     , m_frame(frame)
@@ -130,8 +144,12 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(CodedFrame const& co
 
     ScopeGuard clear_packet_side_data { [&] { m_functions.av_packet_free_side_data(m_packet); } };
     auto new_codec_configuration = coded_frame.new_codec_configuration();
-    if (new_codec_configuration.has_value() && !new_codec_configuration->is_empty())
+    if (new_codec_configuration.has_value() && !new_codec_configuration->is_empty()) {
+        auto replacement_configuration = TRY(maybe_remove_aac_sbr_when_extension_sampling_frequency_is_invalid(m_codec_id, *new_codec_configuration));
+        if (replacement_configuration.has_value())
+            new_codec_configuration = replacement_configuration->span();
         TRY(add_new_extradata_to_packet(m_functions, *m_packet, *new_codec_configuration));
+    }
 
     auto result = m_functions.avcodec_send_packet(m_codec_context, m_packet);
     switch (result) {
