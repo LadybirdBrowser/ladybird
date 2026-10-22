@@ -74,7 +74,7 @@ bool Exception::is(Tag const& tag) const
 {
     // 1. If this.[[Type]] is not equal to exceptionTag.[[Address]], return false.
     // 2. Return true.
-    return m_tag == tag.address();
+    return m_tag.ptr() == tag.address();
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-exception-stack

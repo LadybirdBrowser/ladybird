@@ -466,7 +466,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModuleTraits::execute_module(JS::HostModu
             // 1. Assert: externval is of the form global globaladdr.
             // 2. Let global globaladdr be externval.
             // 3. Let global_value be global_read(store, globaladdr).
-            auto globaladdr = entry.value.entity;
+            auto globaladdr = entry.value.entity.ptr();
             bool is_mutable = false;
             auto type = store.global_type(globaladdr, is_mutable);
 

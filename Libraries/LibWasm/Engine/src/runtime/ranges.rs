@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Sets of address ranges that the fault handler looks addresses up in: the reservations of memories, and later the
-//! code of compiled functions. A lookup takes no lock and only reads memory that is never freed, so it is
+//! Sets of address ranges that the fault handler looks addresses up in: the reservations of memories, and the code
+//! of compiled functions. A lookup takes no lock and only reads memory that is never freed, so it is
 //! async-signal-safe and cannot be blocked by a thread that is adding or removing a range. Adding and removing take a
 //! lock among themselves.
 //!

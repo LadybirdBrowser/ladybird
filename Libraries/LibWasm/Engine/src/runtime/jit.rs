@@ -33,7 +33,7 @@
 //! default).
 
 use super::ranges::RangeSet;
-use super::{FunctionAddress, FunctionInstance, FunctionKind, InstanceAddress, Store, Trap, Value};
+use super::{FunctionAddress, FunctionInstance, FunctionKind, InstanceAddress, Store, Trap};
 use crate::abi::ExecutionContext;
 use crate::types::ValType;
 use std::sync::OnceLock;
@@ -62,6 +62,7 @@ pub struct Options {
     pub threads: u32,
 }
 
+#[cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
 impl Options {
     fn compile_options(self) -> libwasm_jit::Options {
         libwasm_jit::Options {
@@ -126,33 +127,7 @@ pub fn options() -> Options {
     })
 }
 
-/// Export the runtime functions compiled code and the interpreter call, under the names the interpreter calls them
-/// by, with the System V calling convention on every x86-64 target.
-macro_rules! export {
-    ($($symbol:ident => $function:ident),* $(,)?) => {
-        $(
-            /// # Safety
-            ///
-            /// Only the interpreter and compiled code call this, with the context of the store they run in.
-            #[cfg(all(target_arch = "x86_64", windows))]
-            #[unsafe(no_mangle)]
-            pub unsafe extern "sysv64" fn $symbol(context: *mut ExecutionContext) -> u64 {
-                unsafe { $function(context) }
-            }
-
-            /// # Safety
-            ///
-            /// Only the interpreter and compiled code call this, with the context of the store they run in.
-            #[cfg(not(all(target_arch = "x86_64", windows)))]
-            #[unsafe(no_mangle)]
-            pub unsafe extern "C" fn $symbol(context: *mut ExecutionContext) -> u64 {
-                unsafe { $function(context) }
-            }
-        )*
-    };
-}
-
-export! {
+export_runtime_functions! {
     wasm_runtime_call_compiled => call_compiled,
     wasm_runtime_call_from_native => call_from_native,
     wasm_runtime_tier_up => tier_up,
@@ -181,7 +156,7 @@ unsafe fn tier_up(context: *mut ExecutionContext) -> u64 {
         }
         let at_loop = reason == 1;
         // NB: The interpreter charges a call once this returns, so every budget covers that.
-        let state = native::compile_function(store, address);
+        let state = native::compile_function(store, address, false);
         address.get_mut().header.tier_up_budget = match state {
             // A compiled function keeps a budget, so that frames of it still running in the interpreter continue
             // compiled at the next loop header they reach.
@@ -253,6 +228,10 @@ unsafe fn throw_from_native(context: *mut ExecutionContext) -> u64 {
         context as u64
     }
 }
+
+/// How many calls from compiled code into the interpreter may be in progress before the runtime compiles the
+/// functions it calls that way right away.
+const INTERPRETER_CALLS_FROM_NATIVE_BEFORE_COMPILING: u32 = 16;
 
 /// The budget of a function whose compile is pending: how much it runs in the interpreter before the runtime looks
 /// for the compile's result again.
@@ -404,32 +383,9 @@ pub unsafe fn redirect_fault(_context: *mut libc::c_void) -> bool {
 }
 
 /// Appends a line for code at `address` to the process's perf map.
+#[cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
 fn write_perf_map_entry(address: u64, size: usize, name: &str) {
     let _ = ak::perf_map::write_perf_map_entry(address as usize, size, name);
-}
-
-/// The TRAP_* code a trap of the runtime continues as in the interpreter, which keeps the details in the store.
-fn trap_code(trap: &Trap) -> u32 {
-    use crate::abi::*;
-    match trap {
-        Trap::Unreachable => TRAP_UNREACHABLE,
-        Trap::StackExhausted => TRAP_STACK_EXHAUSTED,
-        Trap::MemoryOutOfBounds => TRAP_MEMORY_OUT_OF_BOUNDS,
-        Trap::IntegerDivideByZero => TRAP_INTEGER_DIVIDE_BY_ZERO,
-        Trap::IntegerOverflow => TRAP_INTEGER_OVERFLOW,
-        Trap::InvalidConversion => TRAP_INVALID_CONVERSION,
-        Trap::UndefinedElement => TRAP_UNDEFINED_ELEMENT,
-        Trap::UninitializedElement => TRAP_UNINITIALIZED_ELEMENT,
-        Trap::IndirectCallTypeMismatch => TRAP_INDIRECT_CALL_TYPE_MISMATCH,
-        Trap::TableOutOfBounds => TRAP_TABLE_OUT_OF_BOUNDS,
-        Trap::NullReference => TRAP_NULL_REFERENCE,
-        Trap::CastFailure => TRAP_CAST_FAILURE,
-        Trap::ArrayOutOfBounds => TRAP_ARRAY_OUT_OF_BOUNDS,
-        Trap::UnalignedAtomic => TRAP_UNALIGNED_ATOMIC,
-        Trap::ExpectedSharedMemory => TRAP_EXPECTED_SHARED_MEMORY,
-        Trap::Host(_) => TRAP_RUNTIME,
-        Trap::UncaughtException(_) => TRAP_UNCAUGHT_EXCEPTION,
-    }
 }
 
 fn ir_type(ty: ValType) -> libwasm_jit::ir::Type {
@@ -453,9 +409,17 @@ pub struct CallShape {
     /// The slots of the parameters' home area, after which the result area pointer is, and where the result area
     /// starts.
     parameter_slots: usize,
+    #[cfg_attr(
+        not(all(unix, any(target_arch = "x86_64", target_arch = "aarch64"))),
+        allow(dead_code)
+    )]
     result_area_slot: usize,
     /// The slots of the outgoing area: the home slots, and the result area pointer and the result area if there is
     /// one.
+    #[cfg_attr(
+        not(all(unix, any(target_arch = "x86_64", target_arch = "aarch64"))),
+        allow(dead_code)
+    )]
     image_slots: usize,
     has_result_area: bool,
 }
@@ -608,26 +572,19 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
             }
         }
         let outcome = if let FunctionKind::Host(_) = function.kind {
-            // NB: Host functions take and return values.
-            let values: Vec<Value> = function
-                .ty
-                .params
-                .iter()
-                .zip(&shape.params)
-                .map(|(&ty, param)| {
-                    let start = parameter_slots - param.home - param.slots;
-                    Value::from_slots(ty, &arguments[start..])
-                })
-                .collect();
-            store.invoke(address, &values).map(|values| {
-                let mut slots = Vec::with_capacity(result_slots);
-                for value in values.iter().rev() {
-                    value.push_slots(&mut slots);
-                }
-                results.copy_from_slice(&slots);
-            })
+            store.call_host_slots(address, arguments.as_ptr(), results.as_mut_ptr())
         } else {
-            store.invoke_slots(address, arguments, results)
+            // NB: Tail calls from compiled code into the interpreter come through here, and the interpreter's tail
+            //     calls into compiled code go through the runtime, so functions that tail call each other across
+            //     the tiers keep a native frame per call until they are all compiled. Once a few such calls are in
+            //     progress, the function is compiled here and now instead of waiting for its compile thread.
+            if store.interpreter_calls_from_native >= INTERPRETER_CALLS_FROM_NATIVE_BEFORE_COMPILING {
+                native::compile_function(store, address, true);
+            }
+            store.interpreter_calls_from_native += 1;
+            let outcome = store.invoke_slots(address, arguments, results);
+            store.interpreter_calls_from_native -= 1;
+            outcome
         };
         match outcome {
             Ok(()) => {}
@@ -637,7 +594,7 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
                 return libwasm_jit::stubs::ADAPTER_RESUME;
             }
             Err(trap) => {
-                let code = trap_code(&trap);
+                let code = trap.code();
                 store.pending_trap = Some(trap);
                 return u64::from(code);
             }
@@ -902,12 +859,37 @@ mod native {
             let (outer, wide_function) = (export("outer"), export("wide"));
             wide.set(Some(wide_function));
             // The function whose frames the traps skip runs compiled, with a call image too large for the stack.
-            while super::compile_function(&mut store, wide_function) != super::CompileState::Compiled {
+            while super::compile_function(&mut store, wide_function, false) != super::CompileState::Compiled {
                 std::thread::sleep(std::time::Duration::from_millis(1));
             }
             store.invoke(outer, &[]).expect("the host function returns");
             assert!(super::large_image_buffers() <= 2);
             assert_eq!(super::large_images_in_use(), 0);
+        }
+
+        #[test]
+        fn tail_calls_across_tiers_keep_the_stack_bounded() {
+            use crate::runtime::{ExternValue, Store, Value};
+            if !crate::runtime::jit::enabled() {
+                return;
+            }
+            let bytes = include_bytes!("../../tests/fixtures/tail_calls_across_tiers.wasm");
+            let module = Arc::new(crate::compile(bytes).expect("the module is valid"));
+            let mut store = Store::new();
+            let instance = store.instantiate(module, &[]).expect("the module instantiates");
+            let export = |name| match store.instance(instance).export(name) {
+                Some(ExternValue::Function(function)) => function,
+                _ => panic!("no function {name}"),
+            };
+            let (even, odd) = (export("even"), export("odd"));
+            // NB: Even runs compiled, and odd runs interpreted for as long as it does not ask for its compile, as if
+            //     its compile thread never finished it.
+            assert_eq!(
+                super::compile_function(&mut store, even, true),
+                super::CompileState::Compiled
+            );
+            unsafe { odd.get_mut() }.header.tier_up_budget = u32::MAX;
+            assert_eq!(store.invoke(even, &[Value::I64(1_000_000)]), Ok(vec![Value::I64(44)]));
         }
 
         #[test]
@@ -950,6 +932,10 @@ mod native {
     struct Finished {
         key: CompileKey,
         code: Option<CompiledFunction>,
+        /// The module the compile is of. It keeps the module's address from going to another module until the
+        /// result is installed: a store that forgot the module meanwhile would install the code for the module at
+        /// that address, which the key also names.
+        _module: Weak<Module>,
     }
 
     /// Compiles `request`, or returns None if the compile fails.
@@ -997,7 +983,11 @@ mod native {
                             };
                             let code = compile(&mut context, &job.request);
                             // NB: The store may be gone, and its results with it.
-                            let _ = job.reply.send(Finished { key: job.key, code });
+                            let _ = job.reply.send(Finished {
+                                key: job.key,
+                                code,
+                                _module: Arc::downgrade(&job.request.module),
+                            });
                         }
                     });
                 // NB: The JIT needs one thread. If the process cannot start more, it compiles on those it started.
@@ -1128,6 +1118,10 @@ mod native {
             else {
                 return;
             };
+            // NB: A compile thread may finish a function that was compiled here and now while it worked on it.
+            if module.code.contains_key(&(key.function, key.osr)) {
+                return;
+            }
             let entry = compiled.and_then(|compiled| Some((module.add_code(&compiled.code)?, compiled)));
             let Some((entry, compiled)) = entry else {
                 module.failed.insert((key.function, key.osr));
@@ -1164,21 +1158,21 @@ mod native {
             });
         }
 
-        /// Where the compile of `key` is, after compiling it here and now in sync mode, or else having it compiled
-        /// in the background.
-        fn compile(&mut self, key: CompileKey) -> CompileState {
+        /// Where the compile of `key` is, after compiling it here and now in sync mode or if `now`, or else having it
+        /// compiled in the background.
+        fn compile(&mut self, key: CompileKey, now: bool) -> CompileState {
             if self.entry(key).is_some() {
                 return CompileState::Compiled;
             }
             if self.modules[&key.module].failed.contains(&(key.function, key.osr)) {
                 return CompileState::Failed;
             }
-            if super::options().sync {
+            if super::options().sync || now {
                 let code = self
                     .request(key)
                     .and_then(|request| compile(&mut self.context, &request));
                 self.finish(key, code);
-                return self.compile(key);
+                return self.compile(key, false);
             }
             if self.pending.insert(key) {
                 self.submit(key);
@@ -1224,7 +1218,7 @@ mod native {
             } else {
                 finished.extend(receiver.try_iter());
             }
-            for Finished { key, code } in finished {
+            for Finished { key, code, .. } in finished {
                 self.pending.remove(&key);
                 self.finish(key, code);
             }
@@ -1279,12 +1273,12 @@ mod native {
             let function = unsafe { address.get() };
             if let FunctionKind::Wasm { module, index, .. } = &function.kind {
                 let key = jit.key(module, *index, None);
-                jit.compile(key);
+                jit.compile(key, false);
             }
         }
         jit.take_finished(true);
         for address in functions {
-            if compile_function(store, address) == CompileState::Pending {
+            if compile_function(store, address, false) == CompileState::Pending {
                 // NB: Eager functions have no budget, so one whose compile is late asks for it like a hot one.
                 unsafe { address.get_mut() }.header.tier_up_budget = super::POLL_BUDGET + crate::abi::TIER_UP_CALL_COST;
             }
@@ -1292,8 +1286,8 @@ mod native {
     }
 
     /// Compiles a WebAssembly function, unless the store compiled its module's function already, and installs the
-    /// code once there is some.
-    pub fn compile_function(store: &mut Store, address: FunctionAddress) -> CompileState {
+    /// code once there is some. With `now`, compiles it on this thread even if a compile thread has it.
+    pub fn compile_function(store: &mut Store, address: FunctionAddress, now: bool) -> CompileState {
         let jit = store.jit.get_or_insert_with(Default::default);
         if jit.disabled {
             return CompileState::Failed;
@@ -1304,7 +1298,7 @@ mod native {
             return CompileState::Failed;
         };
         let key = jit.key(module, *index, None);
-        let state = jit.compile(key);
+        let state = jit.compile(key, now);
         if state == CompileState::Compiled {
             function.header.native_entry = jit.entry(key).expect("the function is compiled");
             function.header.kind = FUNCTION_KIND_COMPILED;
@@ -1465,7 +1459,7 @@ mod native {
                 return LoopEntry::Never;
             }
             let key = jit.key(module, *index, Some(offset));
-            match jit.compile(key) {
+            match jit.compile(key, false) {
                 CompileState::Compiled => {}
                 CompileState::Pending => return LoopEntry::Pending,
                 CompileState::Failed => return LoopEntry::Never,
@@ -1480,7 +1474,10 @@ mod native {
     }
 }
 
+// NB: The interface of the native module, for targets without a code generator, where the JIT is off and most of it
+//     goes unused.
 #[cfg(not(all(unix, any(target_arch = "x86_64", target_arch = "aarch64"))))]
+#[allow(dead_code)]
 mod native {
     use crate::abi::ExecutionContext;
     use crate::runtime::{InstanceAddress, Store};
@@ -1527,7 +1524,7 @@ mod native {
 
     pub fn compile_instance(_store: &mut Store, _instance: InstanceAddress) {}
 
-    pub fn compile_function(_store: &mut Store, _address: crate::runtime::FunctionAddress) -> CompileState {
+    pub fn compile_function(_store: &mut Store, _address: crate::runtime::FunctionAddress, _now: bool) -> CompileState {
         CompileState::Failed
     }
 

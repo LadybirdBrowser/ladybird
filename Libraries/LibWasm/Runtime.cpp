@@ -11,10 +11,52 @@
 
 namespace Wasm::Runtime {
 
+// NB: The types of Runtime.h mirror those of the C ABI, which they are bit_cast to and from.
+static_assert(to_underlying(ValueKind::I32) == to_underlying(FFI::WasmValueKind::I32));
+static_assert(to_underlying(ValueKind::I64) == to_underlying(FFI::WasmValueKind::I64));
+static_assert(to_underlying(ValueKind::F32) == to_underlying(FFI::WasmValueKind::F32));
+static_assert(to_underlying(ValueKind::F64) == to_underlying(FFI::WasmValueKind::F64));
+static_assert(to_underlying(ValueKind::V128) == to_underlying(FFI::WasmValueKind::V128));
+static_assert(to_underlying(ValueKind::Reference) == to_underlying(FFI::WasmValueKind::Reference));
+static_assert(to_underlying(HeapKind::Function) == to_underlying(FFI::WasmHeapKind::Function));
+static_assert(to_underlying(HeapKind::NoFunction) == to_underlying(FFI::WasmHeapKind::NoFunction));
+static_assert(to_underlying(HeapKind::Extern) == to_underlying(FFI::WasmHeapKind::Extern));
+static_assert(to_underlying(HeapKind::NoExtern) == to_underlying(FFI::WasmHeapKind::NoExtern));
+static_assert(to_underlying(HeapKind::Any) == to_underlying(FFI::WasmHeapKind::Any));
+static_assert(to_underlying(HeapKind::Eq) == to_underlying(FFI::WasmHeapKind::Eq));
+static_assert(to_underlying(HeapKind::I31) == to_underlying(FFI::WasmHeapKind::I31));
+static_assert(to_underlying(HeapKind::Struct) == to_underlying(FFI::WasmHeapKind::Struct));
+static_assert(to_underlying(HeapKind::Array) == to_underlying(FFI::WasmHeapKind::Array));
+static_assert(to_underlying(HeapKind::None) == to_underlying(FFI::WasmHeapKind::None));
+static_assert(to_underlying(HeapKind::Exception) == to_underlying(FFI::WasmHeapKind::Exception));
+static_assert(to_underlying(HeapKind::NoException) == to_underlying(FFI::WasmHeapKind::NoException));
+static_assert(to_underlying(HeapKind::Concrete) == to_underlying(FFI::WasmHeapKind::Concrete));
+static_assert(to_underlying(ExternKind::Function) == to_underlying(FFI::WasmExternKind::Function));
+static_assert(to_underlying(ExternKind::Table) == to_underlying(FFI::WasmExternKind::Table));
+static_assert(to_underlying(ExternKind::Memory) == to_underlying(FFI::WasmExternKind::Memory));
+static_assert(to_underlying(ExternKind::Global) == to_underlying(FFI::WasmExternKind::Global));
+static_assert(to_underlying(ExternKind::Tag) == to_underlying(FFI::WasmExternKind::Tag));
 static_assert(sizeof(ValueType) == sizeof(FFI::WasmValueType));
+static_assert(offsetof(ValueType, kind) == offsetof(FFI::WasmValueType, kind));
+static_assert(offsetof(ValueType, heap) == offsetof(FFI::WasmValueType, heap));
+static_assert(offsetof(ValueType, nullable) == offsetof(FFI::WasmValueType, nullable));
+static_assert(offsetof(ValueType, type_index) == offsetof(FFI::WasmValueType, type_index));
 static_assert(sizeof(Value) == sizeof(FFI::WasmValue));
+static_assert(offsetof(Value, kind) == offsetof(FFI::WasmValue, kind));
+static_assert(offsetof(Value, low) == offsetof(FFI::WasmValue, low));
+static_assert(offsetof(Value, high) == offsetof(FFI::WasmValue, high));
 static_assert(sizeof(Limits) == sizeof(FFI::WasmLimits));
+static_assert(offsetof(Limits, minimum) == offsetof(FFI::WasmLimits, minimum));
+static_assert(offsetof(Limits, maximum) == offsetof(FFI::WasmLimits, maximum));
+static_assert(offsetof(Limits, has_maximum) == offsetof(FFI::WasmLimits, has_maximum));
+static_assert(offsetof(Limits, address64) == offsetof(FFI::WasmLimits, address64));
+static_assert(offsetof(Limits, shared) == offsetof(FFI::WasmLimits, shared));
 static_assert(sizeof(ExternType) == sizeof(FFI::WasmExternType));
+static_assert(offsetof(ExternType, kind) == offsetof(FFI::WasmExternType, kind));
+static_assert(offsetof(ExternType, type_index) == offsetof(FFI::WasmExternType, type_index));
+static_assert(offsetof(ExternType, limits) == offsetof(FFI::WasmExternType, limits));
+static_assert(offsetof(ExternType, value_type) == offsetof(FFI::WasmExternType, value_type));
+static_assert(offsetof(ExternType, is_mutable) == offsetof(FFI::WasmExternType, mutable_));
 
 static FFI::WasmValueType to_ffi(ValueType type) { return bit_cast<FFI::WasmValueType>(type); }
 static FFI::WasmValue to_ffi(Value value) { return bit_cast<FFI::WasmValue>(value); }
@@ -449,6 +491,11 @@ void Store::set_host_object(GC::ForeignCell* cell, GC::Cell& object)
 void Store::set_host_object(GC::ForeignCell* cell, GC::ForeignCell& object)
 {
     FFI::wasm_set_host_object(cell, &object);
+}
+
+void* Store::host_object(GC::ForeignCell* cell) const
+{
+    return FFI::wasm_host_object(cell);
 }
 
 u64 Store::table_size(Entity table)

@@ -68,84 +68,55 @@ using WasmValueType = Wasm::Runtime::ValueType;
 using Wasm::Runtime::HeapKind;
 using Wasm::Runtime::ValueKind;
 
-template<typename T, typename Key>
-GC::Ptr<T> WebAssemblyCache::ObjectCache<T, Key>::get(Key key) const
-{
-    auto entry = m_objects.get(key);
-    if (!entry.has_value())
-        return nullptr;
-    return entry->ptr();
-}
-
-template<typename T, typename Key>
-void WebAssemblyCache::ObjectCache<T, Key>::set(Key key, T& object)
-{
-    // NB: Stale entries go once there are as many of them as live ones.
-    if (m_objects.size() >= 2 * m_live_after_pruning + 16) {
-        m_objects.remove_all_matching([](auto&, auto& weak) { return !weak; });
-        m_live_after_pruning = m_objects.size();
-    }
-    m_objects.set(key, object);
-}
-
-template<typename T, typename Key>
-void WebAssemblyCache::ObjectCache<T, Key>::for_each(Function<void(T&)> const& callback) const
-{
-    for (auto& entry : m_objects) {
-        if (entry.value)
-            callback(*entry.value);
-    }
-}
-
 // Exceptions and GC objects are the cells their references are the addresses of.
 static GC::ForeignCell* cell_of_reference(u64 reference)
 {
     return reinterpret_cast<GC::ForeignCell*>(static_cast<FlatPtr>(reference));
 }
 
-GC::Ptr<JS::NativeFunction> WebAssemblyCache::function_object(Entity function) const { return m_function_objects.get(function); }
-void WebAssemblyCache::set_function_object(Entity function, JS::NativeFunction& object)
+// NB: The objects of the caches are the ones the runtime keeps alive with their cells (Store::set_host_object()). The
+//     platform objects among them are C++ cells, and the others foreign cells.
+template<typename T>
+static GC::Ptr<T> cell_object(void* object)
 {
-    m_function_objects.set(function, object);
-    m_store->set_host_object(function, object);
+    return static_cast<T*>(static_cast<GC::Cell*>(object));
 }
-GC::Ptr<Global> WebAssemblyCache::global_object(Entity global) const { return m_global_objects.get(global); }
-void WebAssemblyCache::set_global_object(Entity global, Global& object)
+
+template<typename T>
+static GC::Ptr<T> foreign_cell_object(void* object)
 {
-    m_global_objects.set(global, object);
-    m_store->set_host_object(global, object);
+    return static_cast<T*>(static_cast<GC::ForeignCell*>(object));
 }
-GC::Ptr<Memory> WebAssemblyCache::memory_object(Entity memory) const { return m_memory_objects.get(memory); }
+
+GC::Ptr<JS::NativeFunction> WebAssemblyCache::function_object(Entity function) const { return foreign_cell_object<JS::NativeFunction>(m_store->host_object(function)); }
+void WebAssemblyCache::set_function_object(Entity function, JS::NativeFunction& object) { m_store->set_host_object(function, object); }
+GC::Ptr<Global> WebAssemblyCache::global_object(Entity global) const { return cell_object<Global>(m_store->host_object(global)); }
+void WebAssemblyCache::set_global_object(Entity global, Global& object) { m_store->set_host_object(global, object); }
+GC::Ptr<Memory> WebAssemblyCache::memory_object(Entity memory) const { return cell_object<Memory>(m_store->host_object(memory)); }
 void WebAssemblyCache::set_memory_object(Entity memory, Memory& object)
 {
-    m_memory_objects.set(memory, object);
     m_store->set_host_object(memory, object);
+    if (m_memory_objects.size() >= 2 * m_live_memory_objects_after_pruning + 16) {
+        m_memory_objects.remove_all_matching([](auto& weak) { return !weak; });
+        m_live_memory_objects_after_pruning = m_memory_objects.size();
+    }
+    m_memory_objects.append(object);
 }
-GC::Ptr<Table> WebAssemblyCache::table_object(Entity table) const { return m_table_objects.get(table); }
-void WebAssemblyCache::set_table_object(Entity table, Table& object)
+GC::Ptr<Table> WebAssemblyCache::table_object(Entity table) const { return cell_object<Table>(m_store->host_object(table)); }
+void WebAssemblyCache::set_table_object(Entity table, Table& object) { m_store->set_host_object(table, object); }
+void WebAssemblyCache::for_each_memory_object(Function<void(Memory&)> const& callback) const
 {
-    m_table_objects.set(table, object);
-    m_store->set_host_object(table, object);
+    for (auto& memory : m_memory_objects) {
+        if (memory)
+            callback(*memory);
+    }
 }
-void WebAssemblyCache::for_each_memory_object(Function<void(Memory&)> const& callback) const { m_memory_objects.for_each(callback); }
-GC::Ptr<Tag> WebAssemblyCache::tag_object(Entity tag) const { return m_tag_objects.get(tag); }
-void WebAssemblyCache::set_tag_object(Entity tag, Tag& object)
-{
-    m_tag_objects.set(tag, object);
-    m_store->set_host_object(tag, object);
-}
-GC::Ptr<Exception> WebAssemblyCache::exception_object(u64 exception) const { return m_exception_objects.get(exception); }
-void WebAssemblyCache::set_exception_object(u64 exception, Exception& object)
-{
-    m_exception_objects.set(exception, object);
-    m_store->set_host_object(cell_of_reference(exception), object);
-}
-GC::Ptr<JS::Object> WebAssemblyCache::gc_object(u64 object) const { return m_gc_objects.get(object); }
-void WebAssemblyCache::set_gc_object(u64 object, JS::Object& gc_object)
-{
-    m_gc_objects.set(object, gc_object);
-    m_store->set_host_object(cell_of_reference(object), gc_object);
-}
+GC::Ptr<Tag> WebAssemblyCache::tag_object(Entity tag) const { return cell_object<Tag>(m_store->host_object(tag)); }
+void WebAssemblyCache::set_tag_object(Entity tag, Tag& object) { m_store->set_host_object(tag, object); }
+GC::Ptr<Exception> WebAssemblyCache::exception_object(u64 exception) const { return cell_object<Exception>(m_store->host_object(cell_of_reference(exception))); }
+void WebAssemblyCache::set_exception_object(u64 exception, Exception& object) { m_store->set_host_object(cell_of_reference(exception), object); }
+GC::Ptr<JS::Object> WebAssemblyCache::gc_object(u64 object) const { return foreign_cell_object<JS::Object>(m_store->host_object(cell_of_reference(object))); }
+void WebAssemblyCache::set_gc_object(u64 object, JS::Object& gc_object) { m_store->set_host_object(cell_of_reference(object), gc_object); }
 
 WebAssemblyCache::~WebAssemblyCache() = default;
 
@@ -166,8 +137,7 @@ WebAssemblyCache::WebAssemblyCache(GC::Heap& heap)
     m_store->set_can_block(JS::agent_can_suspend(JS::VM::the()));
 
     Array<WasmValueType, 1> js_tag_parameters { WasmValueType::reference(HeapKind::Extern) };
-    m_js_tag = m_store->allocate_tag(js_tag_parameters);
-    m_js_tag_root = GC::Root<GC::ForeignCell> { m_js_tag };
+    m_js_tag_root = GC::Root<GC::ForeignCell> { m_store->allocate_tag(js_tag_parameters) };
 
     // https://webassembly.github.io/spec/js-api/#memory-objects
     // Whenever memory.grow is executed, refresh the memory buffer of the memory's Memory object, if it has one.
@@ -333,8 +303,20 @@ private:
 
 GC_DEFINE_ALLOCATOR(ExternValueBox);
 
-GC::Ptr<ExternValueBox> WebAssemblyCache::extern_value_box(JS::Value value) const { return m_extern_value_boxes.get(value); }
-void WebAssemblyCache::set_extern_value_box(JS::Value value, ExternValueBox& box) { m_extern_value_boxes.set(value, box); }
+GC::Ptr<ExternValueBox> WebAssemblyCache::extern_value_box(JS::Value value) const
+{
+    auto box = m_extern_value_boxes.get(value);
+    return box.has_value() ? box->ptr() : nullptr;
+}
+
+void WebAssemblyCache::set_extern_value_box(JS::Value value, ExternValueBox& box)
+{
+    if (m_extern_value_boxes.size() >= 2 * m_live_extern_value_boxes_after_pruning + 16) {
+        m_extern_value_boxes.remove_all_matching([](auto&, auto& weak) { return !weak; });
+        m_live_extern_value_boxes_after_pruning = m_extern_value_boxes.size();
+    }
+    m_extern_value_boxes.set(value, box);
+}
 
 static u64 host_reference_of(JS::VM& vm, JS::Value value)
 {
@@ -584,7 +566,7 @@ Wasm::Runtime::Entity create_host_function(JS::VM& vm, JS::FunctionObject& funct
         //     3. Let (store, address) be exn_alloc(store, type, « payload »).
         // 3. Throw a WebAssembly exception with address, which WebAssembly code can catch, and which is v again once it
         //    leaves WebAssembly.
-        Array<WasmValue, 1> payload { WasmValue::from_reference(value.is_null() ? 0 : host_reference_of(vm, value)) };
+        Array<WasmValue, 1> payload { MUST(to_webassembly_value(vm, value, WasmValueType::reference(HeapKind::Extern))) };
         return Wasm::Runtime::HostError::exception(store.allocate_exception(WebAssemblyCache::the().js_tag(), payload));
     };
     return cache.store().allocate_host_function(type, move(host_function), static_cast<u32>(function_index));
@@ -911,7 +893,7 @@ public:
 
     using Behavior = AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>;
 
-    Wasm::Runtime::Entity function_address() const { return m_function; }
+    Wasm::Runtime::Entity function_address() const { return m_function.ptr(); }
 
     JS::ThrowCompletionOr<JS::Value> call(JS::VM& vm) const
     {
@@ -935,7 +917,7 @@ private:
 
     Behavior m_behavior;
     // The function, which an Exported Function keeps alive.
-    Wasm::Runtime::Entity m_function { nullptr };
+    GC::Ptr<GC::ForeignCell> m_function;
 };
 
 GC_DEFINE_ALLOCATOR(ExportedFunctionHostData);

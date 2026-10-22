@@ -14,7 +14,6 @@
 use super::{Allocation, CONSTANT_INPUT, Location, NO_REGISTER, REGISTER_COUNT, SLOT_INPUT, call_result_types};
 use crate::convention::{self, Place};
 use crate::ir::{BlockId, Func, NONE, Op, Shape, Value};
-use crate::passes::cleanup::Liveliness;
 use crate::regalloc::liveness::{Liveness, block_start_position, edge_position, node_position, predecessor_index};
 use std::collections::HashMap;
 
@@ -85,9 +84,9 @@ impl Simulation<'_> {
     }
 }
 
-pub fn verify(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> Result<(), String> {
+pub fn verify(func: &Func, allocation: &Allocation) -> Result<(), String> {
     let mut liveness = Liveness::default();
-    liveness.compute(func, liveliness);
+    liveness.compute(func);
     let mut simulation = Simulation {
         liveness: &liveness,
         registers: [NONE; REGISTER_COUNT],
@@ -131,7 +130,7 @@ pub fn verify(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> 
         let data = func.blocks[block as usize];
         for value in data.start..data.end {
             let node = *func.node(value);
-            if liveliness.is_dead(value) || matches!(node.op, Op::Phi | Op::Forward) || node.op.is_entry_value() {
+            if node.op.is_entry_value() {
                 continue;
             }
             let record = *allocation.node(value);
@@ -273,7 +272,7 @@ pub fn verify(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> 
 }
 
 /// The allocation as text, for `dump-ir` and failures.
-pub fn dump(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> String {
+pub fn dump(func: &Func, allocation: &Allocation) -> String {
     use std::fmt::Write;
     let name = |location: &Location| match location {
         Location::Register(register) if convention::is_fpr(*register) => {
@@ -314,7 +313,7 @@ pub fn dump(func: &Func, liveliness: &Liveliness, allocation: &Allocation) -> St
         let data = func.blocks[block as usize];
         for value in data.start..data.end {
             let node = func.node(value);
-            if liveliness.is_dead(value) || matches!(node.op, Op::Phi | Op::Forward) || node.op.is_entry_value() {
+            if node.op.is_entry_value() {
                 continue;
             }
             let record = allocation.node(value);

@@ -439,13 +439,11 @@ fn parse_import_section(section: &mut Reader<'_>, module: &mut Module) -> Result
             0x01 => {
                 let table = parse_table_type(section)?;
                 module.table_space.push(table);
-                module.imported_table_count += 1;
                 ImportDescription::Table(table)
             }
             0x02 => {
                 let memory = parse_memory_type(section)?;
                 module.memory_space.push(memory);
-                module.imported_memory_count += 1;
                 ImportDescription::Memory(memory)
             }
             0x03 => {
@@ -457,7 +455,6 @@ fn parse_import_section(section: &mut Reader<'_>, module: &mut Module) -> Result
             0x04 => {
                 let tag = parse_tag_type(section)?;
                 module.tag_space.push(tag);
-                module.imported_tag_count += 1;
                 ImportDescription::Tag(tag)
             }
             _ => return Err(Error::malformed("malformed import kind")),

@@ -39,10 +39,6 @@ impl RefType {
         nullable: true,
         heap: HeapType::Func,
     };
-    pub const EXTERNREF: RefType = RefType {
-        nullable: true,
-        heap: HeapType::Extern,
-    };
     pub const EXNREF: RefType = RefType {
         nullable: true,
         heap: HeapType::Exn,
@@ -72,7 +68,6 @@ pub enum ValType {
 
 impl ValType {
     pub const FUNCREF: ValType = ValType::Ref(RefType::FUNCREF);
-    pub const EXTERNREF: ValType = ValType::Ref(RefType::EXTERNREF);
 
     pub fn is_reference(self) -> bool {
         matches!(self, Self::Ref(_))
@@ -136,16 +131,6 @@ impl StorageType {
         match self {
             Self::Val(value) => value,
             Self::I8 | Self::I16 => ValType::I32,
-        }
-    }
-
-    pub fn byte_size(self) -> u32 {
-        match self {
-            Self::I8 => 1,
-            Self::I16 => 2,
-            Self::Val(ValType::I32 | ValType::F32) => 4,
-            Self::Val(ValType::V128) => 16,
-            Self::Val(_) => 8,
         }
     }
 }

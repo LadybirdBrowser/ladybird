@@ -150,7 +150,8 @@ fn type_mismatch<T>() -> Result<T> {
 /// The type-level view of a module that validation checks against.
 pub struct TypeContext<'a> {
     pub types: &'a [SubType],
-    pub identities: &'a [u32],
+    /// The identity of each type, or none where the types are identities themselves, as in a store.
+    pub identities: Option<&'a [u32]>,
 }
 
 impl TypeContext<'_> {
@@ -185,7 +186,10 @@ impl TypeContext<'_> {
         }
         match (sub, sup) {
             (Concrete(a), Concrete(b)) => {
-                if self.identities[a as usize] == self.identities[b as usize] {
+                if self
+                    .identities
+                    .is_some_and(|identities| identities[a as usize] == identities[b as usize])
+                {
                     return true;
                 }
                 self.sub_type(a)
@@ -2207,7 +2211,7 @@ fn validate_types(module: &Module, identities: &mut Vec<u32>) -> Result<()> {
         identities.extend(group_identities);
         let types = TypeContext {
             types: &module.types,
-            identities,
+            identities: Some(identities),
         };
         for (offset, sub_type) in sub_types.iter().enumerate() {
             let index = group.start + offset as u32;
@@ -2234,7 +2238,7 @@ pub fn validate(module: &mut Module) -> Result<()> {
     module.type_identities = identities;
     let types = TypeContext {
         types: &module.types,
-        identities: &module.type_identities,
+        identities: Some(&module.type_identities),
     };
 
     for import in &module.imports {
@@ -2389,7 +2393,7 @@ pub fn validate(module: &mut Module) -> Result<()> {
             module,
             types: TypeContext {
                 types: &module.types,
-                identities: &module.type_identities,
+                identities: Some(&module.type_identities),
             },
             declared_functions: &declared,
             locals,

@@ -8,6 +8,5 @@
 
 pub mod cleanup;
 pub mod dominators;
-pub mod gvn;
 pub mod licm;
 pub mod schedule;

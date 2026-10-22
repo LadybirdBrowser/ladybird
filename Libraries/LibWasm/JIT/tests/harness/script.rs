@@ -44,33 +44,10 @@ struct LoadedModule {
     diverged: bool,
 }
 
-pub fn trap_code(trap: &Trap) -> u32 {
-    use libwasm_engine::abi::*;
-    match trap {
-        Trap::Unreachable => TRAP_UNREACHABLE,
-        Trap::StackExhausted => TRAP_STACK_EXHAUSTED,
-        Trap::MemoryOutOfBounds => TRAP_MEMORY_OUT_OF_BOUNDS,
-        Trap::IntegerDivideByZero => TRAP_INTEGER_DIVIDE_BY_ZERO,
-        Trap::IntegerOverflow => TRAP_INTEGER_OVERFLOW,
-        Trap::InvalidConversion => TRAP_INVALID_CONVERSION,
-        Trap::UndefinedElement => TRAP_UNDEFINED_ELEMENT,
-        Trap::UninitializedElement => TRAP_UNINITIALIZED_ELEMENT,
-        Trap::IndirectCallTypeMismatch => TRAP_INDIRECT_CALL_TYPE_MISMATCH,
-        Trap::TableOutOfBounds => TRAP_TABLE_OUT_OF_BOUNDS,
-        Trap::NullReference => TRAP_NULL_REFERENCE,
-        Trap::CastFailure => TRAP_CAST_FAILURE,
-        Trap::ArrayOutOfBounds => TRAP_ARRAY_OUT_OF_BOUNDS,
-        Trap::UnalignedAtomic => TRAP_UNALIGNED_ATOMIC,
-        Trap::ExpectedSharedMemory => TRAP_EXPECTED_SHARED_MEMORY,
-        Trap::Host(_) => TRAP_RUNTIME,
-        Trap::UncaughtException(_) => TRAP_UNCAUGHT_EXCEPTION,
-    }
-}
-
 pub fn outcome(result: Result<Vec<Value>, Trap>) -> Outcome {
     match result {
         Ok(values) => Outcome::Values(values),
-        Err(trap) => Outcome::Trap(trap_code(&trap)),
+        Err(trap) => Outcome::Trap(trap.code()),
     }
 }
 

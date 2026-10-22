@@ -44,7 +44,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> to_resizable_buffer(JS::Realm&);
     WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> buffer(JS::Realm&);
 
-    Wasm::Runtime::Entity address() const { return m_memory; }
+    Wasm::Runtime::Entity address() const { return m_memory.ptr(); }
     bool is_shared() const { return m_shared == Shared::Yes; }
     static Detail::WebAssemblyCache& cache() { return Detail::WebAssemblyCache::the(); }
 
@@ -53,7 +53,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    Wasm::Runtime::Entity m_memory { nullptr };
+    GC::Ptr<GC::ForeignCell> m_memory;
     Shared m_shared { Shared::No };
 };
 

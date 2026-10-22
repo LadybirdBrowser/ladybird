@@ -31,7 +31,7 @@ public:
     bool is_address64() const;
     Wasm::Runtime::ValueType element_type() const;
 
-    Wasm::Runtime::Entity address() const { return m_table; }
+    Wasm::Runtime::Entity address() const { return m_table.ptr(); }
     static Detail::WebAssemblyCache& cache() { return Detail::WebAssemblyCache::the(); }
 
 private:
@@ -39,7 +39,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    Wasm::Runtime::Entity m_table { nullptr };
+    GC::Ptr<GC::ForeignCell> m_table;
 };
 
 }

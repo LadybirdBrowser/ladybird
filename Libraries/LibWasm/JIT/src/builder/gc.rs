@@ -153,7 +153,7 @@ impl Builder {
 
     /// The bits of an element's value as the runtime's functions take them: the low and the high 64 bits.
     fn value_bits(&mut self, func: &mut Func, value: Value, storage: StorageType) -> (Value, Value) {
-        let value = Self::resolve(func, value);
+        let value = func.resolve(value);
         let zero = self.constant(func, Type::I64, 0);
         match storage {
             StorageType::Val(ValType::F32) => {
@@ -181,7 +181,7 @@ impl Builder {
 
     /// Whether `value` is the zero of its type, which every new object's fields start as.
     fn is_zero(&self, func: &Func, value: Value) -> bool {
-        let value = Self::resolve(func, value);
+        let value = func.resolve(value);
         func.node(value).constant() == Some(0) || (value == self.vector_zero && value != crate::ir::NONE)
     }
 
@@ -195,7 +195,7 @@ impl Builder {
         nullable: bool,
         cast: bool,
     ) -> Value {
-        let reference = Self::resolve(func, reference);
+        let reference = func.resolve(reference);
         let (test, identity, depth) = match heap {
             HeapType::Any | HeapType::Func | HeapType::Extern | HeapType::Exn => (HeapTest::NonNull, None, 0),
             HeapType::Eq => (HeapTest::Eq, None, 0),
@@ -273,7 +273,7 @@ impl Builder {
                 self.push(object);
             }
             STRUCT_GET | STRUCT_GET_S | STRUCT_GET_U => {
-                let object = Self::resolve(func, self.pop());
+                let object = func.resolve(self.pop());
                 Self::check_null(func, object);
                 let count = struct_fields(module, first).len() as u32;
                 let size = self.field_offset(module, first, count);
@@ -285,7 +285,7 @@ impl Builder {
             }
             STRUCT_SET => {
                 let value = self.pop();
-                let object = Self::resolve(func, self.pop());
+                let object = func.resolve(self.pop());
                 Self::check_null(func, object);
                 let count = struct_fields(module, first).len() as u32;
                 let size = self.field_offset(module, first, count);
@@ -370,8 +370,8 @@ impl Builder {
                 self.push(array);
             }
             ARRAY_GET | ARRAY_GET_S | ARRAY_GET_U => {
-                let index = Self::resolve(func, self.pop());
-                let array = Self::resolve(func, self.pop());
+                let index = func.resolve(self.pop());
+                let array = func.resolve(self.pop());
                 let storage = array_storage(module, first);
                 let size_log2 = storage.object_field_size().trailing_zeros() as u8;
                 let address = Self::append(
@@ -383,8 +383,8 @@ impl Builder {
             }
             ARRAY_SET => {
                 let value = self.pop();
-                let index = Self::resolve(func, self.pop());
-                let array = Self::resolve(func, self.pop());
+                let index = func.resolve(self.pop());
+                let array = func.resolve(self.pop());
                 let storage = array_storage(module, first);
                 let size_log2 = storage.object_field_size().trailing_zeros() as u8;
                 let address = Self::append(
@@ -394,7 +394,7 @@ impl Builder {
                 self.store_at(func, store_size_log2(storage), address, 0, value);
             }
             ARRAY_LEN => {
-                let array = Self::resolve(func, self.pop());
+                let array = func.resolve(self.pop());
                 Self::check_null(func, array);
                 let length = Self::append(
                     func,
@@ -449,7 +449,7 @@ impl Builder {
                 self.push(value);
             }
             REF_CAST | REF_CAST_NULL => {
-                let reference = Self::resolve(func, self.pop());
+                let reference = func.resolve(self.pop());
                 self.ref_test(
                     func,
                     module,
@@ -480,7 +480,7 @@ impl Builder {
                 self.push(reference);
             }
             I31_GET_S | I31_GET_U => {
-                let reference = Self::resolve(func, self.pop());
+                let reference = func.resolve(self.pop());
                 Self::check_null(func, reference);
                 let flags = u8::from(sub_opcode == I31_GET_S);
                 let value = self.pure(func, Node::new(Op::I31Get, Type::I32, flags, [reference, 0, 0]));

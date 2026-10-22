@@ -103,10 +103,9 @@ fn shuffles_run_the_same_compiled() {
     };
     let paths = [json.to_string_lossy().into_owned()];
     let expected_cases = 4 * patterns().len();
-    for (gvn, runtime) in [(false, false), (true, false), (false, true)] {
+    for runtime in [false, true] {
         let options = libwasm_jit::Options {
             verify_ir: true,
-            gvn,
             ..Default::default()
         };
         let totals = harness::script::run(&paths, false, options, runtime);
@@ -114,7 +113,7 @@ fn shuffles_run_the_same_compiled() {
             totals.cases, expected_cases,
             "not every call ran compiled (runtime: {runtime})"
         );
-        assert_eq!(totals.failures, 0, "gvn: {gvn}, runtime: {runtime}");
+        assert_eq!(totals.failures, 0, "runtime: {runtime}");
     }
     let _ = std::fs::remove_dir_all(&directory);
     assert_eq!(

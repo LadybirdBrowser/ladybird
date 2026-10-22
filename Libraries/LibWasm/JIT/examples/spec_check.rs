@@ -8,7 +8,7 @@
 //! with the interpreter (see `tests/harness/script.rs`).
 //!
 //! ```text
-//! spec_check [--verbose] [--stress-registers] [--no-licm] [--gvn] [--runtime] [--dump FILE] DIRECTORY|SCRIPT.json...
+//! spec_check [--verbose] [--stress-registers] [--no-licm] [--runtime] [--dump FILE] DIRECTORY|SCRIPT.json...
 //! ```
 //!
 //! `--dump FILE` writes what the interpreter did in every action to FILE, which should be the same on every
@@ -38,7 +38,6 @@ fn checked_main() {
             "--verbose" => verbose = true,
             "--stress-registers" => options.stress_registers = true,
             "--no-licm" => options.no_licm = true,
-            "--gvn" => options.gvn = true,
             "--runtime" => runtime = true,
             _ => paths.push(argument),
         }

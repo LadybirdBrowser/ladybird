@@ -27,7 +27,7 @@ public:
     static GC::Ref<Exception> from_address(u64 exception);
 
     u64 address() const { return m_exception; }
-    Wasm::Runtime::Entity tag_address() const { return m_tag; }
+    Wasm::Runtime::Entity tag_address() const { return m_tag.ptr(); }
 
     bool is(Tag const&) const;
     Variant<Utf16String, Empty> stack() const;
@@ -38,7 +38,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     u64 m_exception { 0 };
-    Wasm::Runtime::Entity m_tag { nullptr };
+    GC::Ptr<GC::ForeignCell> m_tag;
     Optional<Utf16String> m_stack;
 };
 

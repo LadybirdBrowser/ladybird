@@ -286,7 +286,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto vm = JS::VM::create();
     auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
     auto& realm = *root_execution_context->realm;
-    Wasm::Runtime::Store store { vm->heap() };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Wasm::Runtime::Store store { vm->heap() };
     // NB: The entities the utility allocates live until it exits.
     Vector<GC::Root<GC::ForeignCell>> roots;
     auto keep = [&](Entity entity) {
@@ -423,7 +423,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         auto callee = store.find_export(main_instance, export_name);
                         if (!callee.has_value() || callee->kind != ExternKind::Function)
                             return vm.throw_completion<JS::TypeError>(Utf16String::formatted("wasm reentry: no exported function '{}'", export_name));
-                        auto type = store.function_type(callee->entity);
+                        auto type = store.function_type(callee->entity.ptr());
                         Wasm::Runtime::Values wasm_arguments;
                         for (size_t index = 0; index < type.parameters.size(); ++index) {
                             auto value = vm.argument(index + 1);
@@ -444,7 +444,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                                 return vm.throw_completion<JS::TypeError>("wasm reentry: unsupported parameter type"_utf16);
                             }
                         }
-                        auto result = store.invoke(callee->entity, wasm_arguments);
+                        auto result = store.invoke(callee->entity.ptr(), wasm_arguments);
                         if (result.is_error())
                             return vm.throw_completion<JS::TypeError>(Utf16String::formatted("wasm reentry trapped: {}", result.error().message));
                         if (result.value().is_empty())
@@ -697,7 +697,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     main_instance = *instance;
     if (wasi_implementation) {
         if (auto memory = store.find_export(main_instance, "memory"sv); memory.has_value() && memory->kind == ExternKind::Memory)
-            wasi_implementation->set_memory(memory->entity);
+            wasi_implementation->set_memory(memory->entity.ptr());
     }
 
     if (exported_function_to_execute.is_empty())
@@ -709,7 +709,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         return 1;
     }
 
-    auto type = store.function_type(function->entity);
+    auto type = store.function_type(function->entity.ptr());
     Wasm::Runtime::Values values;
     for (auto& parameter : type.parameters) {
         if (values_to_push.is_empty()) {
@@ -722,7 +722,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
     }
 
-    auto result = timed(timings.execution, [&] { return store.invoke(function->entity, values); });
+    auto result = timed(timings.execution, [&] { return store.invoke(function->entity.ptr(), values); });
     if (result.is_error()) {
         if (wasi_implementation) {
             if (auto exit_code = wasi_implementation->exit_code(); exit_code.has_value())

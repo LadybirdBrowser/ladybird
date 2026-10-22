@@ -5,13 +5,13 @@
  */
 
 //! Compiles the interpreter, Libraries/LibWasm/Interpreter/interpreter.flap, against the layout constants of
-//! src/abi.rs, and assembles it into the crate. Also generates the C++ header of the C ABI in src/capi.rs.
+//! ../Module/src/abi.rs, and assembles it into the crate. Also generates the C++ header of the C ABI in src/capi.rs.
 
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-#[path = "src/abi.rs"]
+#[path = "../Module/src/abi.rs"]
 mod abi;
 
 fn write_if_changed(path: &PathBuf, contents: &str) {
@@ -26,7 +26,7 @@ fn main() {
     let output_directory = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR"));
     let interpreter_source = manifest_directory.join("../Interpreter/interpreter.flap");
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=src/abi.rs");
+    println!("cargo:rerun-if-changed=../Module/src/abi.rs");
     println!("cargo:rerun-if-changed={}", interpreter_source.display());
     println!("cargo::rustc-check-cfg=cfg(wasm_interpreter)");
     println!("cargo:rerun-if-changed=cbindgen.toml");

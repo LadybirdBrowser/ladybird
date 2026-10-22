@@ -125,7 +125,7 @@ impl Builder {
         if handler == NONE {
             self.terminate(func, Node::new(Op::Throw, Type::None, 0, [exception, 0, 0]), &[]);
         } else {
-            let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+            let slot = self.jump(func, NONE);
             self.add_throw_edge(handler, slot, exception);
         }
     }
@@ -146,7 +146,7 @@ impl Builder {
         // The payload is in operand stack order: the last value in the lowest slot.
         let mut slot = 0;
         for &param in params.iter().rev() {
-            let value = Self::resolve(func, self.pop());
+            let value = func.resolve(self.pop());
             self.write_payload(func, payload, slot, param, value);
             slot += param.slot_count();
         }
@@ -292,27 +292,7 @@ impl Builder {
             func.successors[self.edges[edge as usize].slot as usize] = block;
         }
         self.start_block(func, block);
-        let first = Self::resolve(
-            func,
-            self.edge_values[self.edges[self.scratch_values[0] as usize].values as usize],
-        );
-        let all_same = self
-            .scratch_values
-            .iter()
-            .all(|edge| Self::resolve(func, self.edge_values[self.edges[*edge as usize].values as usize]) == first);
-        let exception = if all_same {
-            first
-        } else {
-            let phi = Self::new_phi(func, block, Type::Ref);
-            let start = func.operands.len() as u32;
-            for &edge in &self.scratch_values {
-                let value = self.edge_values[self.edges[edge as usize].values as usize];
-                func.operands.push(Self::resolve(func, value));
-            }
-            func.nodes[phi as usize].args[0] = start;
-            func.nodes[phi as usize].args[1] = self.scratch_values.len() as u32;
-            phi
-        };
+        let exception = self.merge_edge_values(func, block, Type::Ref, 0);
         let context = self.instance_field(func, offset_of!(InstanceData, context));
         let zero = self.constant(func, Type::I64, 0);
         Self::append(
@@ -350,7 +330,7 @@ impl Builder {
     fn end_region(&mut self, func: &mut Func, index: usize) {
         let control = self.controls[index];
         if !control.unreachable {
-            let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+            let slot = self.jump(func, NONE);
             self.add_edge(index, slot);
             self.controls[index].unreachable = true;
         }
@@ -410,7 +390,7 @@ impl Builder {
                 for clause_index in control.clauses.0..control.clauses.0 + control.clauses.1 {
                     let clause = self.clauses[clause_index as usize];
                     let (block, slot) = if clause.kind == CATCH_ALL {
-                        let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+                        let slot = self.jump(func, NONE);
                         (self.current_block, slot)
                     } else {
                         self.test_tag(func, clause.tag, exception)
@@ -434,7 +414,7 @@ impl Builder {
         } else {
             // The end of the previous handler.
             if !control.unreachable {
-                let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+                let slot = self.jump(func, NONE);
                 self.add_edge(index, slot);
             }
             self.unnumber(control.numbering_mark);
@@ -490,7 +470,7 @@ impl Builder {
                 handler = self.controls[handler as usize].outer_handler;
             }
             if !control.unreachable {
-                let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+                let slot = self.jump(func, NONE);
                 self.add_edge(index, slot);
                 self.controls[index].unreachable = true;
             }

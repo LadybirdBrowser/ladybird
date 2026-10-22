@@ -8,7 +8,7 @@
 //! the JIT compiled with random arguments, and compares results, traps, memories and globals with the interpreter.
 //!
 //! ```text
-//! smith_check [--count N] [--seed S] [--keep DIRECTORY] [--wasm-tools PATH] [--stress-registers] [--no-licm] [--gvn]
+//! smith_check [--count N] [--seed S] [--keep DIRECTORY] [--wasm-tools PATH] [--stress-registers] [--no-licm]
 //!     [--simd] [--features gc,threads,memory64,multi-memory]
 //! ```
 //!
@@ -132,7 +132,7 @@ impl Random {
 fn outcome(result: Result<Vec<Value>, Trap>) -> Outcome {
     match result {
         Ok(values) => Outcome::Values(values),
-        Err(trap) => Outcome::Trap(harness::script::trap_code(&trap)),
+        Err(trap) => Outcome::Trap(trap.code()),
     }
 }
 
@@ -159,7 +159,6 @@ fn checked_main() {
     let mut keep = None;
     let mut stress_registers = false;
     let mut no_licm = false;
-    let mut gvn = false;
     let mut simd = false;
     let mut features: Vec<String> = Vec::new();
     let mut wasm_tools = std::env::var("HOME")
@@ -179,7 +178,6 @@ fn checked_main() {
             "--wasm-tools" => wasm_tools = arguments.next().expect("--wasm-tools PATH"),
             "--stress-registers" => stress_registers = true,
             "--no-licm" => no_licm = true,
-            "--gvn" => gvn = true,
             "--simd" => simd = true,
             "--features" => {
                 features = arguments
@@ -266,7 +264,6 @@ fn checked_main() {
                 verify_ir: true,
                 stress_registers,
                 no_licm,
-                gvn,
                 ..Options::default()
             },
         );

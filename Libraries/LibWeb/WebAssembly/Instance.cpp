@@ -125,7 +125,7 @@ static GC::Ref<JS::Object> create_exports_object(JS::Realm& realm, WebAssembly::
     // https://webassembly.github.io/spec/js-api/#create-an-exports-object
     for (auto& export_ : WebAssembly::Detail::WebAssemblyCache::the().store().instance_exports(instance.instance_address())) {
         auto name = Utf16FlyString::from_utf8(export_.name);
-        auto address = export_.value.entity;
+        auto address = export_.value.entity.ptr();
 
         switch (export_.value.kind) {
         case Wasm::Runtime::ExternKind::Function: {

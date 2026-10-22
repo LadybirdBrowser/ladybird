@@ -50,7 +50,7 @@ Global::Global(Wasm::Runtime::Entity global)
 void Global::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_global);
+    visitor.visit(m_global.ptr());
 }
 
 GlobalType Global::type() const
@@ -59,7 +59,7 @@ GlobalType Global::type() const
     // 2. Let globaladdr be global.[[Global]].
     // 3. Let globaltype be global_type(store, globaladdr).
     bool is_mutable = false;
-    auto value_type = Detail::WebAssemblyCache::the().store().global_type(m_global, is_mutable);
+    auto value_type = Detail::WebAssemblyCache::the().store().global_type(m_global.ptr(), is_mutable);
     return GlobalType { value_type, is_mutable };
 }
 
@@ -78,28 +78,18 @@ WebIDL::ExceptionOr<Wasm::Runtime::Value> Global::value() const
 
     // 5. Let value be global_read(store, globaladdr).
     // 6. Return value.
-    return Detail::WebAssemblyCache::the().store().global_get(m_global);
+    return Detail::WebAssemblyCache::the().store().global_get(m_global.ptr());
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-global-value
 WebIDL::ExceptionOr<void> Global::set_value(Wasm::Runtime::Value value)
 {
-    // 1. Let store be the current agent’s associated store.
-    // 2. Let globaladdr be this.[[Global]].
-    // 3. Let mut valuetype be global_type(store, globaladdr).
-    // 4. If valuetype is v128, throw a TypeError.
-    // 5. If mut is const, throw a TypeError.
-    auto global_type = type();
-    if (global_type.value.kind == Wasm::Runtime::ValueKind::V128)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set the value of a V128 global"_utf16 };
-    if (!global_type.mutable_)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set the value of a const global"_utf16 };
-
+    // NB: Steps 1 to 6 run in the bindings, which check the type before converting the value.
     // 7. Let store be global_write(store, globaladdr, value).
     // 8. If store is error, throw a RangeError exception.
     // 9. Set the current agent’s associated store to store.
-    // Note: The store cannot fail, because we checked for mut/val above.
-    Detail::WebAssemblyCache::the().store().global_set(m_global, value);
+    // NB: The store cannot fail, because the bindings checked the type.
+    Detail::WebAssemblyCache::the().store().global_set(m_global.ptr(), value);
     return {};
 }
 
@@ -172,6 +162,11 @@ WebIDL::ExceptionOr<JS::Value> value(JS::Realm& realm, WebAssembly::Global& glob
 // https://webassembly.github.io/spec/js-api/#dom-global-value
 WebIDL::ExceptionOr<void> set_value(JS::Realm& realm, WebAssembly::Global& global, JS::Value the_given_value)
 {
+    // 1. Let store be the current agent’s associated store.
+    // 2. Let globaladdr be this.[[Global]].
+    // 3. Let mut valuetype be global_type(store, globaladdr).
+    // 4. If valuetype is v128, throw a TypeError.
+    // 5. If mut is const, throw a TypeError.
     auto global_type = global.type();
     auto value_type = global_type.value;
     if (value_type.kind == Wasm::Runtime::ValueKind::V128)
@@ -180,6 +175,7 @@ WebIDL::ExceptionOr<void> set_value(JS::Realm& realm, WebAssembly::Global& globa
     if (!global_type.mutable_)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set the value of a const global"_utf16 };
 
+    // 6. Let value be ? ToWebAssemblyValue(the given value, valuetype).
     auto value = TRY(WebAssembly::Detail::to_webassembly_value(realm.vm(), the_given_value, value_type));
     return global.set_value(value);
 }

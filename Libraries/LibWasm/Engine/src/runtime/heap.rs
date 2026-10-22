@@ -129,16 +129,26 @@ pub unsafe fn set_host_object(cell: *mut u8, object: *mut c_void) {
     unsafe { *cell.add(CELL_FLAGS_OFFSET) |= CELL_FLAG_HOST_OBJECT };
 }
 
+/// The object `cell` keeps alive, or null if it keeps none.
+///
+/// # Safety
+///
+/// `cell` must be a live cell of the runtime.
+pub unsafe fn host_object(cell: *mut c_void) -> *mut c_void {
+    if unsafe { *cell.cast::<u8>().add(CELL_FLAGS_OFFSET) } & CELL_FLAG_HOST_OBJECT == 0 {
+        return core::ptr::null_mut();
+    }
+    HOST_OBJECTS.with_borrow(|objects| objects.get(&cell.addr()).copied().unwrap_or(core::ptr::null_mut()))
+}
+
 /// Visit the object `cell` keeps alive, if it keeps one.
 ///
 /// # Safety
 ///
 /// `cell` must be a live cell of the runtime.
 pub unsafe fn visit_host_object(cell: *mut c_void, visitor: &Visitor) {
-    if unsafe { *cell.cast::<u8>().add(CELL_FLAGS_OFFSET) } & CELL_FLAG_HOST_OBJECT == 0 {
-        return;
-    }
-    if let Some(object) = HOST_OBJECTS.with_borrow(|objects| objects.get(&cell.addr()).copied()) {
+    let object = unsafe { host_object(cell) };
+    if !object.is_null() {
         visitor.visit_cell(object.cast());
     }
 }
@@ -177,21 +187,6 @@ pub fn object_size_class(size: usize) -> Option<usize> {
     OBJECT_DATA_SIZE_CLASSES.iter().position(|&class| class >= size)
 }
 
-/// What every cell type needs from the rest of the runtime.
-pub struct CellFunctions {
-    pub object_visit_edges: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub object_destroy: unsafe extern "C" fn(*mut c_void),
-    pub object_external_memory_size: unsafe extern "C" fn(*const c_void) -> usize,
-    pub rtt_visit_edges: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub rtt_destroy: unsafe extern "C" fn(*mut c_void),
-    pub exception_visit_edges: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub exception_destroy: unsafe extern "C" fn(*mut c_void),
-    pub store_root_visit_edges: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub store_root_destroy: unsafe extern "C" fn(*mut c_void),
-    pub entity_visit_edges: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub entity_destroy: unsafe extern "C" fn(*mut c_void),
-}
-
 /// The allocators of the runtime's cell types, which LibGC requires to outlive every heap, so there is one set of
 /// them for the process, made with the first interface.
 struct Allocators {
@@ -224,84 +219,68 @@ unsafe extern "C" fn class_name(_: *const c_void, length: *mut usize) -> *const 
     NAME.as_ptr().cast()
 }
 
-fn type_info(
-    cell_size: usize,
-    visit_edges: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    destroy: Option<unsafe extern "C" fn(*mut c_void)>,
-    external_memory_size: Option<unsafe extern "C" fn(*const c_void) -> usize>,
-) -> &'static CellTypeInfo {
-    Box::leak(Box::new(CellTypeInfo {
-        cell_size: cell_size as u32,
+/// What LibGC knows each cell type by: its size and name, and the functions it visits and destroys cells with.
+fn type_info(cell_type: CellType) -> (&'static CellTypeInfo, &'static str) {
+    use super::{entity, gc};
+    type VisitEdges = unsafe extern "C" fn(*mut c_void, *mut c_void);
+    type Destroy = unsafe extern "C" fn(*mut c_void);
+    type ExternalMemorySize = unsafe extern "C" fn(*const c_void) -> usize;
+    let (visit_edges, destroy, external_memory_size, name): (VisitEdges, Destroy, Option<ExternalMemorySize>, _) =
+        match cell_type {
+            CellType::Object(_) => (
+                gc::object_visit_edges,
+                gc::object_destroy,
+                Some(gc::object_external_memory_size),
+                "WebAssembly object",
+            ),
+            CellType::Rtt => (gc::rtt_visit_edges, gc::rtt_destroy, None, "WebAssembly runtime type"),
+            CellType::Exception => (
+                gc::exception_visit_edges,
+                gc::exception_destroy,
+                None,
+                "WebAssembly exception",
+            ),
+            CellType::StoreRoot => (
+                gc::store_root_visit_edges,
+                gc::store_root_destroy,
+                None,
+                "WebAssembly store",
+            ),
+            CellType::Entity(kind) => (
+                entity::entity_visit_edges,
+                entity::entity_destroy,
+                None,
+                entity::ENTITY_NAMES[kind],
+            ),
+        };
+    let info = Box::leak(Box::new(CellTypeInfo {
+        cell_size: cell_size(cell_type) as u32,
         alignment: 16,
         kind: CELL_KIND_OTHER,
         visit_edges,
         finalize: None,
-        destroy,
+        destroy: Some(destroy),
         external_memory_size,
         class_name: Some(class_name),
-    }))
+    }));
+    (info, name)
 }
 
 impl Allocators {
-    fn new(interface: &GcInterface, functions: &CellFunctions) -> Self {
-        let create = |info: &'static CellTypeInfo, name: &'static str| unsafe {
-            (interface.gc_allocator_create)(info, name.as_ptr().cast(), name.len())
+    fn new(interface: &GcInterface) -> Self {
+        let create = |cell_type: CellType| {
+            let (info, name) = type_info(cell_type);
+            unsafe { (interface.gc_allocator_create)(info, name.as_ptr().cast(), name.len()) }
         };
-        let objects = OBJECT_DATA_SIZE_CLASSES
-            .iter()
-            .map(|&data_size| {
-                create(
-                    type_info(
-                        crate::abi::OBJECT_INLINE_DATA_OFFSET + data_size,
-                        functions.object_visit_edges,
-                        Some(functions.object_destroy),
-                        Some(functions.object_external_memory_size),
-                    ),
-                    "WebAssembly object",
-                )
-            })
-            .collect();
         Self {
-            objects,
-            rtt: create(
-                type_info(
-                    CELL_HEADER_SIZE + size_of::<crate::abi::Rtt>().next_multiple_of(16),
-                    functions.rtt_visit_edges,
-                    Some(functions.rtt_destroy),
-                    None,
-                ),
-                "WebAssembly runtime type",
-            ),
-            exception: create(
-                type_info(
-                    super::gc::EXCEPTION_CELL_SIZE,
-                    functions.exception_visit_edges,
-                    Some(functions.exception_destroy),
-                    None,
-                ),
-                "WebAssembly exception",
-            ),
-            store_root: create(
-                type_info(
-                    32,
-                    functions.store_root_visit_edges,
-                    Some(functions.store_root_destroy),
-                    None,
-                ),
-                "WebAssembly store",
-            ),
+            objects: (0..OBJECT_DATA_SIZE_CLASSES.len())
+                .map(|class| create(CellType::Object(class)))
+                .collect(),
+            rtt: create(CellType::Rtt),
+            exception: create(CellType::Exception),
+            store_root: create(CellType::StoreRoot),
             entities: (0..super::entity::ENTITY_KIND_COUNT)
-                .map(|kind| {
-                    create(
-                        type_info(
-                            cell_size(CellType::Entity(kind)),
-                            functions.entity_visit_edges,
-                            Some(functions.entity_destroy),
-                            None,
-                        ),
-                        super::entity::ENTITY_NAMES[kind],
-                    )
-                })
+                .map(|kind| create(CellType::Entity(kind)))
                 .collect(),
         }
     }
@@ -342,7 +321,7 @@ pub enum Heap {
 }
 
 impl Heap {
-    pub fn new(interface: Option<GcInterface>, functions: &CellFunctions) -> Self {
+    pub fn new(interface: Option<GcInterface>) -> Self {
         let Some(interface) = interface else {
             return Self::Standalone(core::cell::RefCell::new(Vec::new()));
         };
@@ -362,7 +341,7 @@ impl Heap {
             .all(|&offset| (offset as usize) < CELL_FLAGS_OFFSET),
             "the runtime's flags follow LibGC's cell header"
         );
-        let allocators = ALLOCATORS.get_or_init(|| Allocators::new(&interface, functions));
+        let allocators = ALLOCATORS.get_or_init(|| Allocators::new(&interface));
         FUNCTIONS.get_or_init(|| Functions(interface));
         Self::Gc(Box::new(GcHeap {
             interface,

@@ -24,7 +24,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<Instance>> create(JS::Realm&, Module& module, GC::Ptr<JS::Object> import_object);
     static GC::Ref<Instance> create(JS::Realm&, Wasm::Runtime::Entity instance);
 
-    Wasm::Runtime::Entity instance_address() const { return m_instance; }
+    Wasm::Runtime::Entity instance_address() const { return m_instance.ptr(); }
     // The world of the realm the instance was created in, the only one whose realms may read its exports.
     Bindings::WrapperWorld const& wrapper_world() const { return *m_wrapper_world; }
     GC::Ref<Global> global_instance(Wasm::Runtime::Entity);
@@ -36,7 +36,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    Wasm::Runtime::Entity m_instance { nullptr };
+    GC::Ptr<GC::ForeignCell> m_instance;
     GC::Ref<Bindings::WrapperWorld> m_wrapper_world;
 };
 

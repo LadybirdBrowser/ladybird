@@ -201,10 +201,6 @@ impl MemoryInstance {
         }
     }
 
-    pub fn maximum_pages(&self) -> u64 {
-        self.maximum_pages
-    }
-
     /// Grow by `delta` pages, returning the previous size in pages.
     pub fn grow(&mut self, delta: u64) -> Option<u64> {
         let previous = self.pages;

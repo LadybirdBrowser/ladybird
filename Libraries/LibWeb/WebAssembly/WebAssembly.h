@@ -56,12 +56,13 @@ struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> 
 
 // The surrounding agent's associated store, and the agent's Exported Function, Global, Memory, Table, Tag, Exception, and
 // Exported GC Object caches.
-// The store holds no wasm entity: each lives while the objects that stand for it, or other entities, refer to it. An
-// entity, exception, or GC object keeps the object of the caches that stands for it alive in turn, so that the object
-// stays the same one for as long as both live, and both go away together.
+// The store holds no wasm entity: each lives while the objects that stand for it, or other entities, refer to it. The
+// caches are the runtime's link from a cell to the object that stands for it (Store::set_host_object()), which keeps
+// the object alive in turn, so that the object stays the same one for as long as both live, and both go away together.
 class WebAssemblyCache {
     AK_MAKE_NONCOPYABLE(WebAssemblyCache);
     AK_MAKE_NONMOVABLE(WebAssemblyCache);
+    AK_ALLOC_WITH_KMALLOC;
 
 public:
     using Entity = Wasm::Runtime::Entity;
@@ -73,7 +74,7 @@ public:
 
     // The tag of the exceptions that carry JavaScript values through WebAssembly code, as their only (externref)
     // value.
-    Entity js_tag() const { return m_js_tag; }
+    Entity js_tag() const { return m_js_tag_root.ptr(); }
 
     GC::Ptr<JS::NativeFunction> function_object(Entity function) const;
     void set_function_object(Entity function, JS::NativeFunction&);
@@ -100,31 +101,13 @@ private:
     explicit WebAssemblyCache(GC::Heap&);
     ~WebAssemblyCache();
 
-    // Objects by entity, or by reference for exceptions and GC objects. An entry whose object is gone is stale: its
-    // entity is gone too, and its address may be reused.
-    template<typename T, typename Key = Entity>
-    class ObjectCache {
-    public:
-        GC::Ptr<T> get(Key) const;
-        void set(Key, T&);
-        void for_each(Function<void(T&)> const&) const;
-
-    private:
-        HashMap<Key, GC::Weak<T>> m_objects;
-        size_t m_live_after_pruning { 0 };
-    };
-
     NonnullOwnPtr<Wasm::Runtime::Store> m_store;
-    Entity m_js_tag { nullptr };
     GC::Root<GC::ForeignCell> m_js_tag_root;
-    ObjectCache<JS::NativeFunction> m_function_objects;
-    ObjectCache<WebAssembly::Global> m_global_objects;
-    ObjectCache<WebAssembly::Memory> m_memory_objects;
-    ObjectCache<WebAssembly::Table> m_table_objects;
-    ObjectCache<WebAssembly::Tag> m_tag_objects;
-    ObjectCache<WebAssembly::Exception, u64> m_exception_objects;
-    ObjectCache<JS::Object, u64> m_gc_objects;
-    ObjectCache<ExternValueBox, JS::Value> m_extern_value_boxes;
+    // NB: An entry whose object is gone is stale. Stale entries go once there are as many of them as live ones.
+    Vector<GC::Weak<WebAssembly::Memory>> m_memory_objects;
+    size_t m_live_memory_objects_after_pruning { 0 };
+    HashMap<JS::Value, GC::Weak<ExternValueBox>> m_extern_value_boxes;
+    size_t m_live_extern_value_boxes_after_pruning { 0 };
 };
 
 // https://webassembly.github.io/spec/js-api/#exported-function

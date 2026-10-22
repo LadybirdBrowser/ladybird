@@ -23,29 +23,6 @@ impl Liveliness {
     }
 }
 
-fn resolve(func: &Func, mut value: Value) -> Value {
-    while func.nodes[value as usize].op == Op::Forward {
-        value = func.nodes[value as usize].args[0];
-    }
-    value
-}
-
-/// Whether a phi's inputs are only itself and one other value.
-fn trivial_input(func: &Func, phi: Value) -> Option<Value> {
-    let mut same = NONE;
-    for &input in func.inputs(phi) {
-        let input = resolve(func, input);
-        if input == phi || input == same {
-            continue;
-        }
-        if same != NONE {
-            return None;
-        }
-        same = input;
-    }
-    (same != NONE).then_some(same)
-}
-
 pub fn cleanup(func: &mut Func, state: &mut Liveliness) {
     // Trivial phis, to a fixed point over the phis only.
     loop {
@@ -55,12 +32,9 @@ pub fn cleanup(func: &mut Func, state: &mut Liveliness) {
             while phi != NONE {
                 let next = func.nodes[phi as usize].args[2];
                 if func.nodes[phi as usize].op == Op::Phi
-                    && let Some(value) = trivial_input(func, phi)
+                    && let Some(value) = func.trivial_phi_input(phi)
                 {
-                    let node = &mut func.nodes[phi as usize];
-                    node.op = Op::Forward;
-                    node.args[0] = value;
-                    node.args[1] = 0;
+                    func.forward(phi, value);
                     changed = true;
                 }
                 phi = next;
@@ -85,7 +59,7 @@ pub fn cleanup(func: &mut Func, state: &mut Liveliness) {
         match node.op.shape() {
             Shape::Fixed(inputs) => {
                 for slot in 0..inputs as usize {
-                    let input = resolve(func, node.args[slot]);
+                    let input = func.resolve(node.args[slot]);
                     func.nodes[index].args[slot] = input;
                     state.uses[input as usize] += 1;
                 }
@@ -93,7 +67,7 @@ pub fn cleanup(func: &mut Func, state: &mut Liveliness) {
             Shape::Variadic => {
                 let start = node.args[0] as usize;
                 for slot in start..start + node.args[1] as usize {
-                    let input = resolve(func, func.operands[slot]);
+                    let input = func.resolve(func.operands[slot]);
                     func.operands[slot] = input;
                     state.uses[input as usize] += 1;
                 }

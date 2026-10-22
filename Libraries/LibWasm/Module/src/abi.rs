@@ -66,6 +66,13 @@ pub const FUNCTION_KIND_COMPILED: u32 = 3;
 /// What a call costs of the callee's tier-up budget.
 pub const TIER_UP_CALL_COST: u32 = 10;
 
+/// The pseudo-instructions the runtime enters the interpreter at: Enter pushes the arguments, CallEntry calls the
+/// function, and the function returns to Exit, which leaves the interpreter.
+pub const OPCODE_ENTER: u8 = 0xf0;
+pub const OPCODE_EXIT: u8 = 0xf1;
+pub const OPCODE_CALL_ENTRY: u8 = 0xf3;
+/// The pseudo-instruction a faulting memory access continues at.
+pub const OPCODE_MEMORY_FAULT: u8 = 0xf2;
 /// The pseudo-instruction compiled code traps through, with the trap code in the context's first argument.
 pub const OPCODE_TRAP_FROM_NATIVE: u8 = 0xef;
 
@@ -278,12 +285,6 @@ pub struct EntryRecord {
     pub saved_entry_fp: u64,
     pub saved_entry_record: *mut EntryRecord,
 }
-
-/// The pseudo-instructions the interpreter starts and ends at, behind the 0xFF opcode no WebAssembly instruction uses.
-pub const INTERNAL_OPCODE: u8 = 0xff;
-pub const INTERNAL_ENTER: u8 = 0;
-pub const INTERNAL_EXIT: u8 = 1;
-pub const INTERNAL_MEMORY_FAULT: u8 = 2;
 
 /// The layout constants of everything above, in the format flapc reads.
 pub fn layout_constants() -> String {

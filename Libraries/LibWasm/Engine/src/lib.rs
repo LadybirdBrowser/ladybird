@@ -7,7 +7,8 @@
 //! # LibWasm
 //!
 //! A WebAssembly engine: the binary format decoder, the validator, which also builds the side tables the in-place
-//! interpreter branches with, and (in later steps) the runtime, the interpreter, and the JIT.
+//! interpreter branches with, the runtime, the interpreter, and the JIT's runtime half (the compiler is
+//! libwasm_jit).
 
 #[cfg(feature = "allocator")]
 extern crate ladybird_allocator;

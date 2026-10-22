@@ -7,7 +7,7 @@
 //! Compiles every function of WebAssembly modules and reports how long it took.
 //!
 //! ```text
-//! compile_all [--threads N] [--runs N] [--verify] [--stress-registers] [--no-licm] [--gvn] [--quiet]
+//! compile_all [--threads N] [--runs N] [--verify] [--stress-registers] [--no-licm] [--quiet]
 //!             [--dump-ir FUNCTION [--osr PC]] [--dump-asm] MODULE|DIRECTORY...
 //! ```
 //!
@@ -85,7 +85,6 @@ fn parse_arguments() -> Arguments {
             "--verify" => arguments.options.verify_ir = true,
             "--stress-registers" => arguments.options.stress_registers = true,
             "--no-licm" => arguments.options.no_licm = true,
-            "--gvn" => arguments.options.gvn = true,
             "--quiet" => arguments.quiet = true,
             "--dump-asm" => arguments.options.dump_asm = true,
             "--osr" => arguments.osr = Some(iterator.next().and_then(|n| n.parse().ok()).expect("--osr PC")),
@@ -290,7 +289,6 @@ fn main() {
                 stats.slots += result.stats.slots;
                 stats.moves += result.stats.moves;
                 stats.hoisted += result.stats.hoisted;
-                stats.eliminated += result.stats.eliminated;
             }
         }
         let mut worst = (0.0, 0, 0);
@@ -377,12 +375,11 @@ fn main() {
             );
         }
         println!(
-            "  per byte: {:.2} nodes, {:.3} slots, {:.3} moves; {} nodes hoisted out of loops, {} numbered away",
+            "  per byte: {:.2} nodes, {:.3} slots, {:.3} moves; {} nodes hoisted out of loops",
             stats.nodes as f64 / compiled_bytes.max(1) as f64,
             stats.slots as f64 / compiled_bytes.max(1) as f64,
             stats.moves as f64 / compiled_bytes.max(1) as f64,
-            stats.hoisted,
-            stats.eliminated
+            stats.hoisted
         );
         for (what, count) in &failures {
             println!("  unsupported: {count} x {what}");

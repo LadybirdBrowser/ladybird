@@ -475,7 +475,7 @@ impl Builder {
         self.write_local(flag, one);
         let stack_types = std::mem::take(&mut self.osr.as_mut().expect("this is an OSR compile").stack_types);
         let stack = Self::load_frame_stack(func, frame, &stack_types);
-        let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+        let slot = self.jump(func, NONE);
         let osr = self.osr.as_mut().expect("this is an OSR compile");
         osr.frame = frame;
         osr.flag = flag;
@@ -563,13 +563,6 @@ impl Builder {
     }
 
     /// The value a forwarded phi stands for.
-    fn resolve(func: &Func, mut value: Value) -> Value {
-        while func.nodes[value as usize].op == Op::Forward {
-            value = func.nodes[value as usize].args[0];
-        }
-        value
-    }
-
     /// A pure node, or the value of an equal one that dominates the current position.
     fn pure(&mut self, func: &mut Func, node: Node) -> Value {
         let key = numbering_key(&node);
@@ -601,7 +594,7 @@ impl Builder {
     }
 
     fn binary_with_flags(&mut self, func: &mut Func, op: Op, ty: Type, flags: u8, a: Value, b: Value) -> Value {
-        let (a, b) = (Self::resolve(func, a), Self::resolve(func, b));
+        let (a, b) = (func.resolve(a), func.resolve(b));
         let result_type = if op == Op::Compare { Type::I32 } else { ty };
         match fold::binary(func, op, ty, flags, a, b) {
             Folded::Value(value) => value,
@@ -618,7 +611,7 @@ impl Builder {
     }
 
     fn unary(&mut self, func: &mut Func, op: Op, ty: Type, a: Value) -> Value {
-        let a = Self::resolve(func, a);
+        let a = func.resolve(a);
         match fold::unary(func, op, ty, a) {
             Some(Folded::Value(value)) => value,
             Some(Folded::Constant(bits)) => self.constant(func, ty, bits),
@@ -679,11 +672,9 @@ impl Builder {
     fn lookup(&self, func: &Func, block: BlockId, local: u32) -> Option<Value> {
         let (cached_block, value) = self.current[local as usize];
         if cached_block == block {
-            return Some(Self::resolve(func, value));
+            return Some(func.resolve(value));
         }
-        self.definitions
-            .get(key(block, local))
-            .map(|value| Self::resolve(func, value))
+        self.definitions.get(key(block, local)).map(|value| func.resolve(value))
     }
 
     fn read_local(&mut self, func: &mut Func, block: BlockId, local: u32) -> Value {
@@ -863,8 +854,8 @@ impl Builder {
     /// on, which it removes: their value if they are all the same, else a new phi of them.
     fn merge_collected(&mut self, func: &mut Func, block: BlockId, ty: Type, start: u32) -> Value {
         let values = &self.read_values[start as usize..];
-        let first = Self::resolve(func, values[0]);
-        let value = if values[1..].iter().all(|value| Self::resolve(func, *value) == first) {
+        let first = func.resolve(values[0]);
+        let value = if values[1..].iter().all(|value| func.resolve(*value) == first) {
             first
         } else {
             let phi = Self::new_phi(func, block, ty);
@@ -878,27 +869,25 @@ impl Builder {
         value
     }
 
+    /// Value `index` of each of the edges `collect_edges()` collected, merged at the start of `block`.
+    fn merge_edge_values(&mut self, func: &mut Func, block: BlockId, ty: Type, index: usize) -> Value {
+        let start = self.read_values.len() as u32;
+        for position in 0..self.scratch_values.len() {
+            let edge = self.scratch_values[position];
+            let value = self.edge_values[self.edges[edge as usize].values as usize + index];
+            self.read_values.push(value);
+        }
+        self.merge_collected(func, block, ty, start)
+    }
+
     /// Forwards `phi` if its inputs are only itself and one other value, which it returns; returns `phi` otherwise.
     fn try_remove_trivial_phi(func: &mut Func, phi: Value) -> Value {
-        let mut same = NONE;
-        for &input in func.inputs(phi) {
-            let input = Self::resolve(func, input);
-            if input == phi || input == same {
-                continue;
-            }
-            if same != NONE {
-                return phi;
-            }
-            same = input;
-        }
-        if same == NONE {
-            // Only reachable through itself: the loop is never entered with a value for it.
+        // NB: A phi with no other input is only reachable through itself: the loop is never entered with a value for
+        //     it, and the phi stays.
+        let Some(same) = func.trivial_phi_input(phi) else {
             return phi;
-        }
-        let node = &mut func.nodes[phi as usize];
-        node.op = Op::Forward;
-        node.args[0] = same;
-        node.args[1] = 0;
+        };
+        func.forward(phi, same);
         same
     }
 
@@ -930,6 +919,12 @@ impl Builder {
 
     /// Records a branch from the current block to the label of `controls[index]`, carrying the top values of the
     /// stack, through the successor `slot`.
+    /// Ends the current block with a jump to `target`, or to a block the caller sets later if it is NONE, and returns
+    /// the jump's successor slot.
+    fn jump(&mut self, func: &mut Func, target: BlockId) -> u32 {
+        self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[target])
+    }
+
     fn add_edge(&mut self, index: usize, slot: u32) {
         let control = self.controls[index];
         let (_, arity) = control.label_arity();
@@ -1075,11 +1070,11 @@ impl Builder {
                 self.set_unreachable();
             }
             I::BrIf(depth) => {
-                let condition = Self::resolve(func, self.pop());
+                let condition = func.resolve(self.pop());
                 self.conditional_branch(func, depth, condition);
             }
             I::BrTable { .. } => {
-                let index = Self::resolve(func, self.pop());
+                let index = func.resolve(self.pop());
                 self.branch_table(func, index, decoder.targets());
                 self.set_unreachable();
             }
@@ -1093,9 +1088,9 @@ impl Builder {
                 self.pop();
             }
             I::Select | I::SelectTyped(_) => {
-                let condition = Self::resolve(func, self.pop());
-                let if_false = Self::resolve(func, self.pop());
-                let if_true = Self::resolve(func, self.pop());
+                let condition = func.resolve(self.pop());
+                let if_false = func.resolve(self.pop());
+                let if_true = func.resolve(self.pop());
                 let value = match func.node(condition).constant() {
                     Some(0) => if_false,
                     Some(_) => if_true,
@@ -1113,12 +1108,12 @@ impl Builder {
                 self.push(value);
             }
             I::LocalSet(local) => {
-                let value = Self::resolve(func, self.pop());
+                let value = func.resolve(self.pop());
                 self.write_local(local, value);
                 self.note_loop_write(func.blocks[self.current_block as usize].loop_index, local);
             }
             I::LocalTee(local) => {
-                let value = Self::resolve(func, *self.stack.last().expect("validated code has an operand"));
+                let value = func.resolve(*self.stack.last().expect("validated code has an operand"));
                 self.write_local(local, value);
                 self.note_loop_write(func.blocks[self.current_block as usize].loop_index, local);
             }
@@ -1129,15 +1124,15 @@ impl Builder {
                 let offset = argument.offset as u32;
                 if opcode <= opcode::I64_LOAD32_U {
                     let (kind, ty) = load_kind(opcode);
-                    let index = Self::resolve(func, self.pop());
+                    let index = func.resolve(self.pop());
                     let value = Self::append(
                         func,
                         Node::new(Op::Load, ty, kind as u8, [self.memory_base, index, offset]),
                     );
                     self.push(value);
                 } else {
-                    let value = Self::resolve(func, self.pop());
-                    let index = Self::resolve(func, self.pop());
+                    let value = func.resolve(self.pop());
+                    let index = func.resolve(self.pop());
                     let size_log2 = store_size_log2(opcode);
                     let start = func.operands.len() as u32;
                     func.operands.extend_from_slice(&[self.memory_base, index, value]);
@@ -1168,7 +1163,7 @@ impl Builder {
                     opcode::misc::I64_TRUNC_SAT_F32_S | opcode::misc::I64_TRUNC_SAT_F64_S => (Op::TruncSatS, Type::I64),
                     _ => (Op::TruncSatU, Type::I64),
                 };
-                let a = Self::resolve(func, self.pop());
+                let a = func.resolve(self.pop());
                 let value = self.pure(func, Node::new(op, ty, 0, [a, 0, 0]));
                 self.push(value);
             }
@@ -1197,7 +1192,7 @@ impl Builder {
             I::Delegate(label) => self.delegate(func, label),
             I::Throw(tag) => self.throw_tag(func, module, tag),
             I::ThrowRef => {
-                let exception = Self::resolve(func, self.pop());
+                let exception = func.resolve(self.pop());
                 Self::append(
                     func,
                     Node::new(Op::CheckNull, Type::None, TRAP_NULL_REFERENCE as u8, [exception, 0, 0]),
@@ -1227,7 +1222,7 @@ impl Builder {
                 self.push(value);
             }
             I::RefAsNonNull => {
-                let reference = Self::resolve(func, self.pop());
+                let reference = func.resolve(self.pop());
                 Self::append(
                     func,
                     Node::new(Op::CheckNull, Type::None, TRAP_NULL_REFERENCE as u8, [reference, 0, 0]),
@@ -1235,7 +1230,7 @@ impl Builder {
                 self.push(reference);
             }
             I::BrOnNull(depth) => {
-                let reference = Self::resolve(func, self.pop());
+                let reference = func.resolve(self.pop());
                 let is_null = self.unary(func, Op::Eqz, Type::I32, reference);
                 self.conditional_branch(func, depth, is_null);
                 if !self.is_unreachable() {
@@ -1243,7 +1238,7 @@ impl Builder {
                 }
             }
             I::BrOnNonNull(depth) => {
-                let reference = Self::resolve(func, *self.stack.last().expect("br_on_non_null has an operand"));
+                let reference = func.resolve(*self.stack.last().expect("br_on_non_null has an operand"));
                 let null = self.constant(func, Type::Ref, 0);
                 let is_not_null =
                     self.binary_with_flags(func, Op::Compare, Type::Ref, IntCondition::Ne as u8, reference, null);
@@ -1330,11 +1325,11 @@ impl Builder {
             match op {
                 Compare => self.binary_with_flags(func, op, ty, flags, a, b),
                 FloatCompare => {
-                    let (a, b) = (Self::resolve(func, a), Self::resolve(func, b));
+                    let (a, b) = (func.resolve(a), func.resolve(b));
                     self.pure(func, Node::new(op, I32, flags, [a, b, 0]))
                 }
                 _ if ty.is_float() => {
-                    let (a, b) = (Self::resolve(func, a), Self::resolve(func, b));
+                    let (a, b) = (func.resolve(a), func.resolve(b));
                     self.pure(func, Node::new(op, ty, 0, [a, b, 0]))
                 }
                 _ => self.binary(func, op, ty, a, b),
@@ -1342,7 +1337,7 @@ impl Builder {
         } else {
             let a = self.pop();
             if ty.is_float() || matches!(op, TruncS | TruncU | Reinterpret) {
-                let a = Self::resolve(func, a);
+                let a = func.resolve(a);
                 let node = Node::new(op, ty, 0, [a, 0, 0]);
                 if node.effect() == crate::ir::Effect::Pure {
                     self.pure(func, node)
@@ -1393,7 +1388,7 @@ impl Builder {
                 block
             }
             None => {
-                self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[header]);
+                self.jump(func, header);
                 self.current_block
             }
         };
@@ -1447,7 +1442,7 @@ impl Builder {
         if !first {
             // The way in from the frame comes from the branch of the loop around this one, through a block that loads
             // the operand stack this loop starts with. It goes before the loop's header, in linear order.
-            let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+            let slot = self.jump(func, NONE);
             entry = Some((self.current_block, slot));
             let load = self.new_block(func);
             Self::set_predecessors(func, load, &[osr.block]);
@@ -1461,7 +1456,7 @@ impl Builder {
                 self.write_local(osr.flag, one);
             }
             osr.block = load;
-            osr.slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+            osr.slot = self.jump(func, NONE);
         }
         // The values the loop's parameters have from the frame, which only the loop the frame is at needs.
         if !target {
@@ -1491,7 +1486,7 @@ impl Builder {
         self.controls[index].edges = edge;
         let mut below = Vec::with_capacity(height);
         for position in 0..height {
-            let normal = Self::resolve(func, self.stack[position]);
+            let normal = func.resolve(self.stack[position]);
             let phi = Self::new_phi(func, header, func.node(normal).ty);
             below.push((phi, normal, osr.stack[position]));
             self.stack[position] = phi;
@@ -1525,7 +1520,7 @@ impl Builder {
         // The flag is down from here on, so that no back edge or exit of a loop carries it.
         let zero = self.constant(func, Type::I32, 0);
         self.write_local(flag, zero);
-        let onward_slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+        let onward_slot = self.jump(func, NONE);
         let body = self.new_block(func);
         Self::set_predecessors(func, body, &[block]);
         func.successors[slot as usize + 1] = body;
@@ -1538,7 +1533,7 @@ impl Builder {
     }
 
     fn begin_if(&mut self, func: &mut Func, params: (u32, u32), results: (u32, u32)) {
-        let condition = Self::resolve(func, self.pop());
+        let condition = func.resolve(self.pop());
         let then_block = self.new_block(func);
         let slot = self.terminate(
             func,
@@ -1561,7 +1556,7 @@ impl Builder {
         let index = self.controls.len() - 1;
         let control = self.controls[index];
         if !control.unreachable {
-            let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+            let slot = self.jump(func, NONE);
             self.add_edge(index, slot);
         }
         self.unnumber(control.numbering_mark);
@@ -1629,7 +1624,7 @@ impl Builder {
             return;
         }
         if reachable {
-            let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+            let slot = self.jump(func, NONE);
             self.add_edge(index, slot);
         }
         let control = self.controls[index];
@@ -1644,26 +1639,9 @@ impl Builder {
         }
         self.start_block(func, merge);
         for result in 0..arity {
-            let first = self.edge_values[self.edges[self.scratch_values[0] as usize].values as usize + result];
-            let first = Self::resolve(func, first);
-            let all_same = self.scratch_values.iter().all(|edge| {
-                let value = self.edge_values[self.edges[*edge as usize].values as usize + result];
-                Self::resolve(func, value) == first
-            });
-            if all_same {
-                self.stack.push(first);
-                continue;
-            }
             let ty = self.types[(control.results.0 + result as u32) as usize];
-            let phi = Self::new_phi(func, merge, ty);
-            let start = func.operands.len() as u32;
-            for &edge in &self.scratch_values {
-                let value = self.edge_values[self.edges[edge as usize].values as usize + result];
-                func.operands.push(Self::resolve(func, value));
-            }
-            func.nodes[phi as usize].args[0] = start;
-            func.nodes[phi as usize].args[1] = self.scratch_values.len() as u32;
-            self.stack.push(phi);
+            let value = self.merge_edge_values(func, merge, ty, result);
+            self.stack.push(value);
         }
         self.controls.pop();
     }
@@ -1698,7 +1676,7 @@ impl Builder {
             let start = func.operands.len() as u32;
             for &edge in &edge_list {
                 let value = self.edge_values[self.edges[edge as usize].values as usize + offset];
-                func.operands.push(Self::resolve(func, value));
+                func.operands.push(func.resolve(value));
             }
             func.nodes[phi as usize].args[0] = start;
             func.nodes[phi as usize].args[1] = edge_list.len() as u32;
@@ -1756,7 +1734,7 @@ impl Builder {
             let after = self.new_block(func);
             let loop_index = control.loop_index as usize;
             func.loops[loop_index].last = func.blocks.len() as u32 - 2;
-            self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[after]);
+            self.jump(func, after);
             let from = self.current_block;
             Self::set_predecessors(func, after, &[from]);
             self.start_block(func, after);
@@ -1777,7 +1755,7 @@ impl Builder {
                 let start = func.operands.len() as u32;
                 let top = self.stack.len() - count;
                 for position in top..self.stack.len() {
-                    let value = Self::resolve(func, self.stack[position]);
+                    let value = func.resolve(self.stack[position]);
                     func.operands.push(value);
                 }
                 self.terminate(
@@ -1787,11 +1765,11 @@ impl Builder {
                 );
             }
             ControlKind::Loop => {
-                let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[control.block]);
+                let slot = self.jump(func, control.block);
                 self.add_edge(index, slot);
             }
             _ => {
-                let slot = self.terminate(func, Node::new(Op::Jump, Type::None, 0, [0; 3]), &[NONE]);
+                let slot = self.jump(func, NONE);
                 self.add_edge(index, slot);
             }
         }
@@ -1957,7 +1935,7 @@ impl Builder {
     }
 
     fn global_set(&mut self, func: &mut Func, global: u32) {
-        let value = Self::resolve(func, self.pop());
+        let value = func.resolve(self.pop());
         let storage = self.global_storage(func, global);
         let ty = func.node(value).ty;
         Self::append(func, Node::new(Op::GlobalSet, Type::None, 0, [storage, value, global]));

@@ -13,8 +13,8 @@
 //! them alive; other host values are never followed.
 
 use super::heap::{
-    CELL_HEADER_SIZE, CellFunctions, CellType, Heap, TRACE_FUNCTION, TRACE_NONE, TRACE_REFERENCE, Visitor,
-    forget_host_object, object_size_class, visit_host_object,
+    CELL_HEADER_SIZE, CellType, Heap, TRACE_FUNCTION, TRACE_NONE, TRACE_REFERENCE, Visitor, forget_host_object,
+    object_size_class, visit_host_object,
 };
 use super::{Store, TagAddress, Value};
 pub use crate::abi::EXCEPTION_CELL_SIZE;
@@ -31,20 +31,6 @@ const STORE_ROOT_STORE_OFFSET: usize = 16;
 
 /// The largest data an object can have.
 const MAX_OBJECT_DATA_SIZE: u64 = 1 << 31;
-
-pub static CELL_FUNCTIONS: CellFunctions = CellFunctions {
-    object_visit_edges,
-    object_destroy,
-    object_external_memory_size,
-    rtt_visit_edges,
-    rtt_destroy,
-    exception_visit_edges,
-    exception_destroy,
-    store_root_visit_edges,
-    store_root_destroy,
-    entity_visit_edges: super::entity::entity_visit_edges,
-    entity_destroy: super::entity::entity_destroy,
-};
 
 unsafe fn read<T: Copy>(cell: *const c_void, offset: usize) -> T {
     unsafe { cell.cast::<u8>().add(offset).cast::<T>().read() }
@@ -170,9 +156,9 @@ pub fn allocate_rtt(store: &Store, identity: u32) -> *const Rtt {
     rtt
 }
 
-unsafe extern "C" fn rtt_visit_edges(_: *mut c_void, _: *mut c_void) {}
+pub(super) unsafe extern "C" fn rtt_visit_edges(_: *mut c_void, _: *mut c_void) {}
 
-unsafe extern "C" fn rtt_destroy(cell: *mut c_void) {
+pub(super) unsafe extern "C" fn rtt_destroy(cell: *mut c_void) {
     unsafe {
         let rtt = &*rtt_of_cell(cell.cast());
         free(rtt.display, rtt.depth as usize + 1);
@@ -238,7 +224,7 @@ unsafe fn out_of_line_data(cell: *const c_void) -> Option<(*mut u64, usize)> {
     }
 }
 
-unsafe extern "C" fn object_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
+pub(super) unsafe extern "C" fn object_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
     let visitor = Visitor::new(visitor);
     unsafe {
         visit_host_object(cell, &visitor);
@@ -266,7 +252,7 @@ unsafe extern "C" fn object_visit_edges(cell: *mut c_void, visitor: *mut c_void)
     }
 }
 
-unsafe extern "C" fn object_destroy(cell: *mut c_void) {
+pub(super) unsafe extern "C" fn object_destroy(cell: *mut c_void) {
     unsafe {
         forget_host_object(cell);
         if let Some((block, words)) = out_of_line_data(cell) {
@@ -275,7 +261,7 @@ unsafe extern "C" fn object_destroy(cell: *mut c_void) {
     }
 }
 
-unsafe extern "C" fn object_external_memory_size(cell: *const c_void) -> usize {
+pub(super) unsafe extern "C" fn object_external_memory_size(cell: *const c_void) -> usize {
     unsafe { out_of_line_data(cell).map_or(0, |(_, words)| words * 8) }
 }
 
@@ -317,7 +303,7 @@ pub fn exception(reference: u64) -> Exception {
     }
 }
 
-unsafe extern "C" fn exception_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
+pub(super) unsafe extern "C" fn exception_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
     let visitor = Visitor::new(visitor);
     unsafe {
         visit_host_object(cell, &visitor);
@@ -332,7 +318,7 @@ unsafe extern "C" fn exception_visit_edges(cell: *mut c_void, visitor: *mut c_vo
     }
 }
 
-unsafe extern "C" fn exception_destroy(cell: *mut c_void) {
+pub(super) unsafe extern "C" fn exception_destroy(cell: *mut c_void) {
     unsafe {
         forget_host_object(cell);
         let length: u64 = read(cell, EXCEPTION_LENGTH_OFFSET);
@@ -353,7 +339,7 @@ pub(crate) fn detach_store_root(cell: *mut u8) {
     unsafe { write(cell, STORE_ROOT_STORE_OFFSET, 0u64) };
 }
 
-unsafe extern "C" fn store_root_destroy(cell: *mut c_void) {
+pub(super) unsafe extern "C" fn store_root_destroy(cell: *mut c_void) {
     unsafe {
         let store: *mut Store = read(cell, STORE_ROOT_STORE_OFFSET);
         if let Some(store) = store.as_mut() {
@@ -362,7 +348,7 @@ unsafe extern "C" fn store_root_destroy(cell: *mut c_void) {
     }
 }
 
-unsafe extern "C" fn store_root_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
+pub(super) unsafe extern "C" fn store_root_visit_edges(cell: *mut c_void, visitor: *mut c_void) {
     unsafe {
         let store: *const Store = read(cell, STORE_ROOT_STORE_OFFSET);
         if let Some(store) = store.as_ref() {
@@ -460,8 +446,7 @@ impl Store {
 }
 
 unsafe fn store_field(address: *mut u8, kind: u8, value: Value) {
-    let mut slots = Vec::with_capacity(2);
-    value.push_slots(&mut slots);
+    let (slots, _) = value.to_slots();
     let mask = match kind {
         STORAGE_I8 => 0xff,
         STORAGE_I16 => 0xffff,

@@ -19,7 +19,6 @@
 
 use crate::convention::{self, Place, Register};
 use crate::ir::{BlockId, Func, NONE, Op, Type, Value};
-use crate::passes::cleanup::Liveliness;
 
 pub fn node_position(value: Value) -> u32 {
     4 * value + 2
@@ -56,9 +55,9 @@ pub const NO_HINT: u8 = u8::MAX;
 
 /// Whether a node is a value the register allocator gives a location.
 #[inline]
-pub fn is_allocated(func: &Func, liveliness: &Liveliness, value: Value) -> bool {
+pub fn is_allocated(func: &Func, value: Value) -> bool {
     let node = func.node(value);
-    node.ty != Type::None && !node.op.is_constant() && !liveliness.is_dead(value)
+    node.ty != Type::None && !node.op.is_constant()
 }
 
 impl Liveness {
@@ -88,7 +87,7 @@ impl Liveness {
         uses.get(index).copied()
     }
 
-    pub fn compute(&mut self, func: &Func, liveliness: &Liveliness) {
+    pub fn compute(&mut self, func: &Func) {
         let count = func.nodes.len();
         self.definition.clear();
         self.definition.resize(count, NONE);
@@ -116,9 +115,6 @@ impl Liveness {
             }
             for value in data.start..data.end {
                 let node = func.node(value);
-                if liveliness.is_dead(value) || matches!(node.op, Op::Phi | Op::Forward) {
-                    continue;
-                }
                 if node.op.is_entry_value() {
                     if !node.op.is_constant() && node.ty != Type::None {
                         self.definition[value as usize] = 0;
@@ -158,7 +154,7 @@ impl Liveness {
             let data = &func.blocks[block as usize];
             for value in data.start..data.end {
                 let node = func.node(value);
-                if liveliness.is_dead(value) || matches!(node.op, Op::Phi | Op::Forward) || node.op.is_entry_value() {
+                if node.op.is_entry_value() {
                     continue;
                 }
                 let position = node_position(value);

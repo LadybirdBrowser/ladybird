@@ -25,7 +25,13 @@
 #include <LibTest/JavaScriptTestHost.h>
 #include <LibWasm/Runtime.h>
 #include <string.h>
-#include <sys/resource.h>
+
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#    include <psapi.h>
+#else
+#    include <sys/resource.h>
+#endif
 
 TEST_ROOT("Libraries/LibWasm/Tests");
 
@@ -121,7 +127,7 @@ public:
         s_store = nullptr;
     }
 
-    Wasm::Runtime::Entity instance() const { return m_instance; }
+    Wasm::Runtime::Entity instance() const { return m_instance.ptr(); }
 
     // Keep an entity of the current file alive, since the tests refer to entities by number.
     static Wasm::Runtime::Entity keep(Wasm::Runtime::Entity entity)
@@ -226,7 +232,7 @@ private:
     // NB: The last store is left for the process to reclaim, since the heap it roots its cells in is gone at exit.
     static Wasm::Runtime::Store* s_store;
     RefPtr<Wasm::Runtime::Module> m_module;
-    Wasm::Runtime::Entity m_instance { nullptr };
+    GC::Ptr<GC::ForeignCell> m_instance;
 };
 
 GC_DEFINE_ALLOCATOR(WebAssemblyModule);
@@ -292,13 +298,20 @@ TESTJS_GLOBAL_FUNCTION(validate_webassembly_module, validateWebAssemblyModule)
 // The most memory the process has had resident, in bytes.
 TESTJS_GLOBAL_FUNCTION(peak_resident_memory_size, peakResidentMemorySize)
 {
+#if defined(AK_OS_WINDOWS)
+    PROCESS_MEMORY_COUNTERS counters {};
+    if (!GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters)))
+        return vm.throw_completion<JS::TypeError>("GetProcessMemoryInfo failed"_utf16);
+    return JS::Value(static_cast<double>(counters.PeakWorkingSetSize));
+#else
     struct rusage usage {};
     if (getrusage(RUSAGE_SELF, &usage) != 0)
         return vm.throw_completion<JS::TypeError>("getrusage failed"_utf16);
-#if defined(AK_OS_MACOS)
+#    if defined(AK_OS_MACOS)
     return JS::Value(static_cast<double>(usage.ru_maxrss));
-#else
+#    else
     return JS::Value(static_cast<double>(usage.ru_maxrss) * 1024);
+#    endif
 #endif
 }
 
@@ -470,11 +483,11 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
         return vm.throw_completion<JS::TypeError>(Utf16String::formatted("'{}' could not be found", name));
     // NB: A function is its entity's address, which a double holds exactly.
     if (value->kind == ExternKind::Function)
-        return JS::Value(static_cast<double>(bit_cast<FlatPtr>(value->entity)));
+        return JS::Value(static_cast<double>(bit_cast<FlatPtr>(value->entity.ptr())));
     if (value->kind == ExternKind::Global) {
         bool is_mutable = false;
-        auto type = store().global_type(value->entity, is_mutable);
-        auto global = store().global_get(value->entity);
+        auto type = store().global_type(value->entity.ptr(), is_mutable);
+        auto global = store().global_get(value->entity.ptr());
         switch (type.kind) {
         case ValueKind::I32:
             return JS::Value(static_cast<double>(global.to_i32()));

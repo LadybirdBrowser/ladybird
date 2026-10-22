@@ -94,7 +94,7 @@ impl Builder {
         let kind = simd_kind(sub_opcode).expect("validation rejects unknown SIMD instructions");
         let value = match kind {
             SimdKind::Load { size } => {
-                let index = Self::resolve(func, self.pop());
+                let index = func.resolve(self.pop());
                 let argument = decoder.simd_argument();
                 let size_log2 = size.trailing_zeros() as u8;
                 let (base, index, offset) = self.simd_address(func, module, checked, argument, index, size_log2);
@@ -104,8 +104,8 @@ impl Builder {
                 )
             }
             SimdKind::Store { .. } => {
-                let value = Self::resolve(func, self.pop());
-                let index = Self::resolve(func, self.pop());
+                let value = func.resolve(self.pop());
+                let index = func.resolve(self.pop());
                 let address = self.simd_address(func, module, checked, decoder.simd_argument(), index, 4);
                 self.store(func, address, value, 4);
                 return;
@@ -113,8 +113,8 @@ impl Builder {
             SimdKind::LoadLane { size } => {
                 // A scalar load, and its value replacing the lane.
                 let lane = u32::from(decoder.simd_lane());
-                let vector = Self::resolve(func, self.pop());
-                let index = Self::resolve(func, self.pop());
+                let vector = func.resolve(self.pop());
+                let index = func.resolve(self.pop());
                 let argument = decoder.simd_argument();
                 let size_log2 = size.trailing_zeros() as u8;
                 let (base, index, offset) = self.simd_address(func, module, checked, argument, index, size_log2);
@@ -133,8 +133,8 @@ impl Builder {
             SimdKind::StoreLane { size } => {
                 // The lane extracted, and stored as a scalar.
                 let lane = u32::from(decoder.simd_lane());
-                let vector = Self::resolve(func, self.pop());
-                let index = Self::resolve(func, self.pop());
+                let vector = func.resolve(self.pop());
+                let index = func.resolve(self.pop());
                 let (ty, extract, size_log2) = match size {
                     1 => (Type::I32, I8X16_EXTRACT_LANE_U, 0),
                     2 => (Type::I32, I16X8_EXTRACT_LANE_U, 1),
@@ -151,8 +151,8 @@ impl Builder {
                 self.vector_constant(func, bits)
             }
             SimdKind::Shuffle => {
-                let mut b = Self::resolve(func, self.pop());
-                let mut a = Self::resolve(func, self.pop());
+                let mut b = func.resolve(self.pop());
+                let mut a = func.resolve(self.pop());
                 let mut lanes = decoder.simd_bytes();
                 // A shuffle of one vector names it twice, with lanes 0 to 15, so that the other one need not live
                 // on for it, and code generation sees what it is.
@@ -174,25 +174,25 @@ impl Builder {
                 } else {
                     Type::V128
                 };
-                let a = Self::resolve(func, self.pop());
+                let a = func.resolve(self.pop());
                 self.pure(func, Node::new(Op::VectorUnary, result, 0, [a, sub_opcode, 0]))
             }
             SimdKind::Binary | SimdKind::Shift => {
-                let b = Self::resolve(func, self.pop());
-                let a = Self::resolve(func, self.pop());
+                let b = func.resolve(self.pop());
+                let a = func.resolve(self.pop());
                 self.pure(func, Node::new(Op::VectorBinary, Type::V128, 0, [a, b, sub_opcode]))
             }
             SimdKind::Ternary => {
-                let c = Self::resolve(func, self.pop());
-                let b = Self::resolve(func, self.pop());
-                let a = Self::resolve(func, self.pop());
+                let c = func.resolve(self.pop());
+                let b = func.resolve(self.pop());
+                let a = func.resolve(self.pop());
                 self.pure(
                     func,
                     Node::new(Op::VectorTernary, Type::V128, sub_opcode as u8, [a, b, c]),
                 )
             }
             SimdKind::ExtractLane { result, .. } => {
-                let a = Self::resolve(func, self.pop());
+                let a = func.resolve(self.pop());
                 let lane = u32::from(decoder.simd_lane());
                 self.pure(
                     func,
@@ -200,8 +200,8 @@ impl Builder {
                 )
             }
             SimdKind::ReplaceLane { .. } => {
-                let b = Self::resolve(func, self.pop());
-                let a = Self::resolve(func, self.pop());
+                let b = func.resolve(self.pop());
+                let a = func.resolve(self.pop());
                 let lane = u32::from(decoder.simd_lane());
                 self.pure(
                     func,
