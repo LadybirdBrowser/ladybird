@@ -7,6 +7,7 @@
 //! Runtime data: fields of memories, tables and segments, table elements, the checks of indirect calls, and calls of
 //! the runtime's functions.
 
+use super::gc::Operand32;
 use super::{CodeGenerator, FP, SCRATCH, gpr};
 use crate::asm::x86_64::AluOp;
 use crate::asm::x86_64::Cond;
@@ -154,6 +155,10 @@ impl CodeGenerator<'_> {
                     let trap = self.trap_label(libwasm_module::abi::TRAP_RUNTIME);
                     self.asm.test_rr(Width::W64, target, target);
                     self.asm.jcc(Cond::Equal, trap);
+                } else if let Some(value) = helper.trap_value() {
+                    let trap = self.trap_label(libwasm_module::abi::TRAP_RUNTIME);
+                    self.asm.cmp_ri(Width::W64, target, value as i32);
+                    self.asm.jcc(Cond::Equal, trap);
                 }
             }
             _ => unreachable!("{} is no runtime operation", node.op.name()),
@@ -197,22 +202,12 @@ impl CodeGenerator<'_> {
                 SCRATCH,
                 &Address::new(target, offset_of!(Rtt, depth) as i32),
             );
-            // The expected type is a supertype if it is at its depth in the actual type's display.
-            self.asm.cmp_mr(
-                Width::W32,
-                &Address::new(actual, offset_of!(Rtt, depth) as i32),
-                SCRATCH,
-            );
-            self.asm.jcc(Cond::Below, mismatch);
-            self.asm.mov_rm(
-                Width::W64,
+            self.check_subtype(
                 actual,
-                &Address::new(actual, offset_of!(Rtt, display) as i32),
+                Operand32::Register(SCRATCH),
+                Operand32::Register(check.identity),
+                mismatch,
             );
-            self.asm
-                .mov_rm(Width::W32, actual, &Address::indexed(actual, SCRATCH, Scale::Four, 0));
-            self.asm.cmp_rr(Width::W32, actual, check.identity);
-            self.asm.jcc(Cond::NotEqual, mismatch);
             self.asm.jmp(check.back);
         }
     }

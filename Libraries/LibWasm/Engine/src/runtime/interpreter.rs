@@ -125,14 +125,21 @@ pub fn stack_limit(reserve: usize) -> u64 {
         static LOWEST: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     }
     let lowest = LOWEST.with(|lowest| {
-        if lowest.get() == 0 {
-            let marker = 0u8;
-            let current = &raw const marker as usize;
-            lowest.set(thread_stack_lowest_address().unwrap_or(current.saturating_sub(1024 * 1024)));
+        if lowest.get() == 0
+            && let Some(address) = thread_stack_lowest_address()
+        {
+            lowest.set(address);
         }
         lowest.get()
     });
-    (lowest + reserve) as u64
+    if lowest != 0 {
+        return (lowest + reserve) as u64;
+    }
+    // NB: Without the stack's bounds, the limit is a mebibyte below wherever this is called from, which depends on the
+    //     caller, so it is not cached.
+    let marker = 0u8;
+    let current = &raw const marker as usize;
+    (current.saturating_sub(1024 * 1024) + reserve) as u64
 }
 
 #[cfg(target_os = "linux")]

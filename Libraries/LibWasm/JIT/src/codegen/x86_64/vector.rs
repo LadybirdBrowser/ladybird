@@ -579,8 +579,13 @@ impl CodeGenerator<'_> {
                 }
             }
             Op::Shuffle => {
-                let lanes = func.constants[node.args[2] as usize].to_le_bytes();
                 let single = node.args[0] == node.args[1];
+                let mut lanes = func.constants[node.args[2] as usize].to_le_bytes();
+                if single {
+                    // NB: The builder makes the lanes of a shuffle of one vector 0 to 15, but its operands may have
+                    //     become the same value since; the patterns below take lanes of one vector.
+                    lanes = lanes.map(|lane| lane & 15);
+                }
                 let temp = if temp == crate::regalloc::NO_REGISTER {
                     0
                 } else {

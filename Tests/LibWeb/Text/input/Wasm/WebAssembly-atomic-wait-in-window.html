@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // (module
+    //   (memory 1 1 shared)
+    //   (func (export "wait") (param i32) (result i32)
+    //     (memory.atomic.wait32 (i32.const 0) (local.get 0) (i64.const 0))))
+    const bytes = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, 0x01, 0x7f, 0x01, 0x7f,
+        0x03, 0x02, 0x01, 0x00, 0x05, 0x04, 0x01, 0x03, 0x01, 0x01, 0x07, 0x08, 0x01, 0x04, 0x77, 0x61,
+        0x69, 0x74, 0x00, 0x00, 0x0a, 0x0e, 0x01, 0x0c, 0x00, 0x41, 0x00, 0x20, 0x00, 0x42, 0x00, 0xfe,
+        0x01, 0x02, 0x00, 0x0b,
+    ]);
+
+    test(() => {
+        // A window's agent cannot block, so memory.atomic.wait traps, whether or not the value matches.
+        const exports = new WebAssembly.Instance(new WebAssembly.Module(bytes)).exports;
+        for (const expected of [0, 1]) {
+            try {
+                println(`wait for ${expected}: ${exports.wait(expected)}`);
+            } catch (exception) {
+                println(`wait for ${expected}: ${exception.constructor.name}`);
+            }
+        }
+    });
+</script>

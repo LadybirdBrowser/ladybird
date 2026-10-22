@@ -12,6 +12,7 @@ use crate::abi::{
     ExecutionContext, FRAME_FUNCTION, FRAME_HEADER_SIZE, FRAME_INSTANCE, FRAME_RETURN_IP, FRAME_SAVED_FP, MemoryData,
     TableData,
 };
+use crate::futex::{self, AtomicWaitResult, WaitWord};
 use crate::validator::{CatchKind, NO_EXCEPTION_LOCAL, NOT_DELEGATED};
 
 /// Export the runtime functions under the names the interpreter calls them by. The interpreter calls them with the
@@ -287,17 +288,10 @@ pub(crate) unsafe fn unwind(
     }
 }
 
-/// The threads waiting in `memory.atomic.wait`, with the address they wait on, oldest first.
-static WAITERS: std::sync::Mutex<Vec<(u64, std::sync::Arc<Waiter>)>> = std::sync::Mutex::new(Vec::new());
-
-struct Waiter {
-    woken: std::sync::Mutex<bool>,
-    condition: std::sync::Condvar,
-}
-
 /// Wait on the shared memory location at address `arguments[0]` while it holds `arguments[1]` (compared at
 /// `arguments[3]` bytes), for at most `arguments[2]` nanoseconds if that is not negative. Returns 0 when woken, 1 if
-/// the location held another value, and 2 when the time ran out.
+/// the location held another value, and 2 when the time ran out, or WAIT_CANNOT_BLOCK with the trap in the store if
+/// the store's agent cannot block.
 ///
 /// # Safety
 ///
@@ -311,56 +305,28 @@ unsafe fn wait(context: *mut ExecutionContext) -> u64 {
             (*context).arguments[3],
         )
     };
-    let waiter = {
-        let mut waiters = WAITERS.lock().expect("the waiter list is never poisoned");
-        // Notifies take the lock, so none can come between reading the value and waiting for it.
-        let current = unsafe {
-            if size == 4 {
-                u64::from((*(address as *const std::sync::atomic::AtomicU32)).load(std::sync::atomic::Ordering::SeqCst))
-            } else {
-                (*(address as *const std::sync::atomic::AtomicU64)).load(std::sync::atomic::Ordering::SeqCst)
-            }
-        };
-        if current != expected {
-            return 1;
+    let store = unsafe { store_of(context) };
+    if !store.can_block {
+        store.pending_trap = Some(Trap::Host(
+            "memory.atomic.wait in an agent that cannot block".to_string(),
+        ));
+        return crate::abi::WAIT_CANNOT_BLOCK;
+    }
+    // NB: The waits and wakes are those of Atomics.wait and Atomics.notify (LibJS's futex), whose waiter lists are
+    //     the operating system's, per address: JavaScript and WebAssembly wake each other, as the memory model's
+    //     single WaiterList per location requires.
+    let word = unsafe {
+        if size == 4 {
+            WaitWord::Word32(&*(address as *const std::sync::atomic::AtomicU32))
+        } else {
+            WaitWord::Word64(&*(address as *const std::sync::atomic::AtomicU64))
         }
-        let waiter = std::sync::Arc::new(Waiter {
-            woken: std::sync::Mutex::new(false),
-            condition: std::sync::Condvar::new(),
-        });
-        waiters.push((address, waiter.clone()));
-        waiter
     };
-    let mut woken = waiter.woken.lock().expect("a waiter is never poisoned");
-    if timeout < 0 {
-        while !*woken {
-            woken = waiter.condition.wait(woken).expect("a waiter is never poisoned");
-        }
-        return 0;
-    }
-    let deadline = std::time::Instant::now() + std::time::Duration::from_nanos(timeout as u64);
-    while !*woken {
-        let now = std::time::Instant::now();
-        if now >= deadline {
-            break;
-        }
-        woken = waiter
-            .condition
-            .wait_timeout(woken, deadline - now)
-            .expect("a waiter is never poisoned")
-            .0;
-    }
-    if *woken {
-        return 0;
-    }
-    drop(woken);
-    let mut waiters = WAITERS.lock().expect("the waiter list is never poisoned");
-    waiters.retain(|(_, other)| !std::sync::Arc::ptr_eq(other, &waiter));
-    // A notify may have come in after the time ran out but before the waiter left the list.
-    if *waiter.woken.lock().expect("a waiter is never poisoned") {
-        0
-    } else {
-        2
+    let timeout = (timeout >= 0).then(|| std::time::Duration::from_nanos(timeout as u64));
+    match futex::atomic_wait(word, expected, timeout) {
+        AtomicWaitResult::Woken => 0,
+        AtomicWaitResult::NotEqual => 1,
+        AtomicWaitResult::TimedOut => 2,
     }
 }
 
@@ -372,16 +338,6 @@ unsafe fn wait(context: *mut ExecutionContext) -> u64 {
 /// Only the interpreter calls this.
 unsafe fn notify(context: *mut ExecutionContext) -> u64 {
     let (address, count) = unsafe { ((*context).arguments[0], (*context).arguments[1]) };
-    let mut waiters = WAITERS.lock().expect("the waiter list is never poisoned");
-    let mut woken = 0;
-    waiters.retain(|(waiting_on, waiter)| {
-        if woken >= count || *waiting_on != address {
-            return true;
-        }
-        *waiter.woken.lock().expect("a waiter is never poisoned") = true;
-        waiter.condition.notify_one();
-        woken += 1;
-        false
-    });
-    woken
+    let word = unsafe { &*(address as *const std::sync::atomic::AtomicU32) };
+    futex::atomic_notify(word, usize::try_from(count).unwrap_or(usize::MAX)) as u64
 }

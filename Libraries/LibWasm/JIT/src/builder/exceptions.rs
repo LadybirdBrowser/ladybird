@@ -77,11 +77,15 @@ impl Builder {
     /// A legacy `try` whose body starts at module offset `body`.
     pub(super) fn begin_try(&mut self, module: &Module, params: (u32, u32), results: (u32, u32), body: usize) {
         let info = &module.function_infos[self.defined as usize];
-        let region = info
-            .try_regions
-            .iter()
-            .find(|region| region.start as usize == body)
-            .expect("validation made a region of every try");
+        // NB: The regions are in the order their instructions appear, and the builder meets them in that order (but
+        //     for those in unreachable code, which it skips), so the region is at or after the cursor.
+        let regions = &info.try_regions;
+        while (regions[self.try_region_cursor].start as usize) < body {
+            self.try_region_cursor += 1;
+        }
+        let region = &regions[self.try_region_cursor];
+        assert_eq!(region.start as usize, body, "validation made a region of every try");
+        self.try_region_cursor += 1;
         let start = self.clauses.len();
         let clauses =
             &info.catch_clauses[region.first_clause as usize..(region.first_clause + region.clause_count) as usize];

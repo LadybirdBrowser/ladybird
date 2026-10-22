@@ -205,6 +205,8 @@ pub struct FunctionInstance {
     /// What `header.vector_storage` points at.
     pub vector_storage: Box<[u32]>,
     pub kind: FunctionKind,
+    /// Where compiled code passes its values, once a call between the tiers needed it.
+    pub native_shapes: std::cell::OnceCell<Box<jit::NativeShapes>>,
 }
 
 /// A table. The interpreter sees its data, which is its first field and so at its handle.
@@ -340,6 +342,9 @@ pub struct Store {
     pending_trap: Option<Trap>,
     /// What runs after `memory.grow` grows a memory.
     pub memory_grow_callback: Option<Rc<dyn Fn(MemoryAddress)>>,
+    /// Whether the agent the store runs code for may block, its [[CanBlock]]: `memory.atomic.wait` traps where it
+    /// may not. The embedder decides (a browser's window agents may not block).
+    pub can_block: bool,
     /// The store's compiled code, once it has some.
     jit: Option<jit::StoreJit>,
 }
@@ -393,6 +398,7 @@ impl Store {
             root: None,
             rtt_pointers: Vec::new(),
             memory_grow_callback: None,
+            can_block: true,
             jit: None,
         }
     }
@@ -565,6 +571,7 @@ impl Store {
                 ty,
                 vector_storage: Box::new([]),
                 kind: FunctionKind::Host(callback),
+                native_shapes: std::cell::OnceCell::new(),
             },
         );
         unsafe { function.get_mut() }.header.host = function.as_ptr().cast_const().cast();
@@ -820,6 +827,7 @@ impl Store {
                         index: module.imported_function_count + offset as u32,
                         instance: instance_address,
                     },
+                    native_shapes: std::cell::OnceCell::new(),
                 },
             );
             functions.push(address);
@@ -965,6 +973,8 @@ impl Store {
                 let instance = unsafe { instance_address.get_mut() };
                 let table_address = instance.tables[*table as usize];
                 let values = std::mem::take(&mut instance.element_storage[index]);
+                // NB: The segment no longer owns the values, so it does not point at them either.
+                instance.element_segments[index].contents = std::ptr::null();
                 let table = self.table_mut(table_address);
                 let end = offset.checked_add(values.len() as u64);
                 if end.is_none_or(|end| end > table.elements.len() as u64) {
@@ -1075,18 +1085,42 @@ impl Store {
         if let FunctionKind::Host(_) = function.kind {
             return self.call_host(address, arguments);
         }
-        let ty = function.ty.clone();
-        let header: *const FunctionHeader = &raw const function.header;
         // The arguments are laid out as they will be on the operand stack, which grows down: the last one first.
         let mut argument_slots = Vec::new();
         for argument in arguments.iter().rev() {
             argument.push_slots(&mut argument_slots);
         }
         let mut result_slots = vec![0u64; function.header.result_slots as usize];
+        self.invoke_slots(address, &argument_slots, &mut result_slots)?;
+        // The results are laid out as the operand stack holds them, the first one in the highest slots.
+        let function = self.function(address);
+        let mut results = Vec::with_capacity(function.ty.results.len());
+        let mut slot = result_slots.len();
+        for &result in &function.ty.results {
+            slot -= result.slot_count() as usize;
+            results.push(Value::from_slots(result, &result_slots[slot..]));
+        }
+        Ok(results)
+    }
+
+    /// Calls the WebAssembly function `address` with the slots of its arguments as the operand stack holds them (the
+    /// last argument in the lowest slots), and stores its results' slots the same way in `result_slots`.
+    pub fn invoke_slots(
+        &mut self,
+        address: FunctionAddress,
+        argument_slots: &[u64],
+        result_slots: &mut [u64],
+    ) -> Result<(), Trap> {
+        let function = self.function(address);
+        debug_assert!(!matches!(function.kind, FunctionKind::Host(_)));
+        debug_assert_eq!(argument_slots.len(), function.header.param_slots as usize);
+        debug_assert_eq!(result_slots.len(), function.header.result_slots as usize);
+        let header: *const FunctionHeader = &raw const function.header;
         let is_outermost = self.context.entry_record.is_null();
         if is_outermost {
             self.context.stack_limit = interpreter::stack_limit(STACK_RESERVE);
         }
+        let large_images = jit::large_images_in_use();
         self.context.store = (self as *mut Store).cast();
         let mut record = EntryRecord {
             function: header,
@@ -1099,17 +1133,12 @@ impl Store {
             saved_entry_record: std::ptr::null_mut(),
         };
         unsafe { interpreter::enter(&mut record) };
+        // NB: A trap may have skipped calls into compiled code that held large images.
+        jit::release_large_images(large_images);
         if record.trap != 0 {
             return Err(Trap::from_code(record.trap, self.pending_trap.take()));
         }
-        // The results are laid out as the operand stack holds them, the first one in the highest slots.
-        let mut results = Vec::with_capacity(ty.results.len());
-        let mut slot = result_slots.len();
-        for &result in &ty.results {
-            slot -= result.slot_count() as usize;
-            results.push(Value::from_slots(result, &result_slots[slot..]));
-        }
-        Ok(results)
+        Ok(())
     }
 
     fn call_host(&mut self, address: FunctionAddress, arguments: &[Value]) -> Result<Vec<Value>, Trap> {

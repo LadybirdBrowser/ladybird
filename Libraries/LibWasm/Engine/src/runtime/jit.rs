@@ -33,7 +33,7 @@
 //! default).
 
 use super::ranges::RangeSet;
-use super::{FunctionAddress, FunctionInstance, InstanceAddress, Store, Trap, Value};
+use super::{FunctionAddress, FunctionInstance, FunctionKind, InstanceAddress, Store, Trap, Value};
 use crate::abi::ExecutionContext;
 use crate::types::ValType;
 use std::sync::OnceLock;
@@ -117,7 +117,11 @@ pub fn options() -> Options {
                 }
             }
         }
-        options.enabled &= cfg!(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")));
+        // NB: Only where compiled code can trap on memory faults (see `redirect_fault()`) and have executable memory.
+        options.enabled &= cfg!(any(
+            all(any(target_os = "linux", target_os = "macos"), target_arch = "x86_64"),
+            all(any(target_os = "linux", target_os = "macos"), target_arch = "aarch64")
+        ));
         options
     })
 }
@@ -166,7 +170,7 @@ unsafe fn tier_up(context: *mut ExecutionContext) -> u64 {
         let [header, pc, reason, frame, ..] = (*context).arguments;
         let address = FunctionAddress::from_ptr(header as *const FunctionInstance);
         let store = store_of(context);
-        if !options().enabled {
+        if !enabled() {
             address.get_mut().header.tier_up_budget = u32::MAX;
             return 0;
         }
@@ -180,7 +184,7 @@ unsafe fn tier_up(context: *mut ExecutionContext) -> u64 {
         let state = native::compile_function(store, address);
         address.get_mut().header.tier_up_budget = match state {
             // A compiled function keeps a budget, so that frames of it still running in the interpreter continue
-            // compiled at their next outermost loop.
+            // compiled at the next loop header they reach.
             native::CompileState::Compiled => options().threshold.max(1) + crate::abi::TIER_UP_CALL_COST,
             native::CompileState::Pending => POLL_BUDGET + crate::abi::TIER_UP_CALL_COST,
             native::CompileState::Failed => u32::MAX,
@@ -264,7 +268,7 @@ const DEFAULT_THRESHOLD: u32 = 1000;
 /// few billion calls and loop iterations.
 pub fn initial_tier_up_budget() -> u32 {
     let options = options();
-    if options.enabled && !options.eager {
+    if enabled() && !options.eager {
         options.threshold
     } else {
         u32::MAX
@@ -273,10 +277,16 @@ pub fn initial_tier_up_budget() -> u32 {
 
 /// What `native_entry` starts as in a new function's header.
 pub fn initial_native_entry() -> u64 {
-    if !options().enabled {
+    if !enabled() {
         return 0;
     }
     native::stubs().adapter
+}
+
+/// Whether the JIT runs: if `LIBWASM_JIT` wants it and the process has executable memory for its stubs, which a
+/// hardened runtime without the JIT entitlement does not give it.
+pub(crate) fn enabled() -> bool {
+    options().enabled && native::try_stubs().is_some()
 }
 
 impl Store {
@@ -288,7 +298,10 @@ impl Store {
 
 /// Called once a module is instantiated, before its start function runs.
 pub fn instantiated(store: &mut Store, instance: InstanceAddress) {
-    if options().eager {
+    if let Some(jit) = store.jit.as_mut() {
+        native::forget_dead_modules(jit);
+    }
+    if options().eager && enabled() {
         native::compile_instance(store, instance);
     }
 }
@@ -304,7 +317,7 @@ pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
         let context = context.cast::<libc::ucontext_t>();
         let registers = &mut (*context).uc_mcontext.gregs;
         let pc = registers[libc::REG_RIP as usize] as usize;
-        let Some(stubs) = native::STUBS.get() else {
+        let Some(stubs) = native::STUBS.get().and_then(Option::as_ref) else {
             return false;
         };
         if !CODE_RANGES.contains(pc) {
@@ -326,7 +339,7 @@ pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
     unsafe {
         let context = context.cast::<libc::ucontext_t>();
         let mcontext = &mut (*context).uc_mcontext;
-        let Some(stubs) = native::STUBS.get() else {
+        let Some(stubs) = native::STUBS.get().and_then(Option::as_ref) else {
             return false;
         };
         if !CODE_RANGES.contains(mcontext.pc as usize) {
@@ -348,7 +361,7 @@ pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
     unsafe {
         let context = context.cast::<libc::ucontext_t>();
         let state = &mut (*(*context).uc_mcontext).__ss;
-        let Some(stubs) = native::STUBS.get() else {
+        let Some(stubs) = native::STUBS.get().and_then(Option::as_ref) else {
             return false;
         };
         if !CODE_RANGES.contains(state.__pc as usize) {
@@ -360,8 +373,30 @@ pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
     }
 }
 
+/// Redirects a memory fault in compiled code to the trap exit. `context` is the signal handler's.
+///
+/// # Safety
+///
+/// Only the fault handler calls this, with its context.
+#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+pub unsafe fn redirect_fault(context: *mut libc::c_void) -> bool {
+    unsafe {
+        let context = context.cast::<libc::ucontext_t>();
+        let state = &mut (*(*context).uc_mcontext).__ss;
+        let Some(stubs) = native::STUBS.get().and_then(Option::as_ref) else {
+            return false;
+        };
+        if !CODE_RANGES.contains(state.__rip as usize) {
+            return false;
+        }
+        state.__rip = stubs.trap_exit;
+        state.__rdi = u64::from(crate::abi::TRAP_MEMORY_OUT_OF_BOUNDS);
+        true
+    }
+}
+
 #[cfg(not(any(
-    all(target_os = "linux", target_arch = "x86_64"),
+    all(any(target_os = "linux", target_os = "macos"), target_arch = "x86_64"),
     all(any(target_os = "linux", target_os = "macos"), target_arch = "aarch64")
 )))]
 pub unsafe fn redirect_fault(_context: *mut libc::c_void) -> bool {
@@ -397,37 +432,116 @@ fn trap_code(trap: &Trap) -> u32 {
     }
 }
 
-/// The value of type `ty` in `words`, as compiled code holds it: zero-extended i32 values, f32 values in the low 32
-/// bits.
-fn value_from_words(ty: ValType, words: &[u64]) -> Value {
-    match ty {
-        ValType::I32 => Value::I32(words[0] as u32 as i32),
-        ValType::I64 => Value::I64(words[0] as i64),
-        ValType::F32 => Value::F32(words[0] as u32),
-        ValType::F64 => Value::F64(words[0]),
-        ValType::Ref(_) => Value::Ref(words[0]),
-        ValType::V128 => Value::V128(u128::from(words[0]) | (u128::from(words[1]) << 64)),
-    }
+fn ir_type(ty: ValType) -> libwasm_jit::ir::Type {
+    libwasm_jit::builder::ir_type(ty).expect("the JIT has a type for every value")
 }
 
-fn words_of_value(value: &Value, words: &mut [u64]) {
-    match *value {
-        Value::I32(value) => words[0] = u64::from(value as u32),
-        Value::I64(value) => words[0] = value as u64,
-        Value::F32(bits) => words[0] = u64::from(bits),
-        Value::F64(bits) | Value::Ref(bits) => words[0] = bits,
-        Value::V128(bits) => {
-            words[0] = bits as u64;
-            words[1] = (bits >> 64) as u64;
+/// Where compiled code passes the parameters and results of a function, worked out once per function (in
+/// `FunctionInstance::native_shapes`), so that calls between the tiers allocate nothing, and own nothing that a trap,
+/// which leaves through the compiled code and skips their frames, would leak.
+pub struct NativeShapes {
+    /// Of calls of the function.
+    pub call: CallShape,
+    /// Of an OSR compile of it, which takes the fp of an interpreter frame.
+    pub osr: CallShape,
+}
+
+/// Where compiled code passes values of a signature (see `libwasm_jit::convention`).
+pub struct CallShape {
+    params: Box<[ValueShape]>,
+    results: Box<[ValueShape]>,
+    /// The slots of the parameters' home area, after which the result area pointer is, and where the result area
+    /// starts.
+    parameter_slots: usize,
+    result_area_slot: usize,
+    /// The slots of the outgoing area: the home slots, and the result area pointer and the result area if there is
+    /// one.
+    image_slots: usize,
+    has_result_area: bool,
+}
+
+/// Where compiled code passes one value: its type, its place, the slot of its home (or of its place among the
+/// results), the slots it takes, and for a register, its position among the registers of its class.
+#[derive(Clone, Copy)]
+struct ValueShape {
+    ty: libwasm_jit::ir::Type,
+    place: libwasm_jit::convention::Place,
+    home: usize,
+    slots: usize,
+    register: usize,
+}
+
+impl CallShape {
+    fn new(params: &[libwasm_jit::ir::Type], results: &[libwasm_jit::ir::Type]) -> Self {
+        use libwasm_jit::convention;
+        let shapes = |types: &[libwasm_jit::ir::Type], places: &[convention::Place]| -> Box<[ValueShape]> {
+            let (mut gprs, mut xmms) = (0, 0);
+            types
+                .iter()
+                .zip(places)
+                .enumerate()
+                .map(|(index, (&ty, &place))| {
+                    let counter = if ty.uses_xmm() { &mut xmms } else { &mut gprs };
+                    let register = *counter;
+                    if let convention::Place::Register(_) = place {
+                        *counter += 1;
+                    }
+                    ValueShape {
+                        ty,
+                        place,
+                        home: convention::home_slot(types, index) as usize,
+                        slots: ty.slots() as usize,
+                        register,
+                    }
+                })
+                .collect()
+        };
+        let mut places = Vec::new();
+        convention::parameter_places(params, &mut places);
+        let param_shapes = shapes(params, &places);
+        convention::result_places(results, &mut places);
+        let result_shapes = shapes(results, &places);
+        Self {
+            params: param_shapes,
+            results: result_shapes,
+            parameter_slots: convention::slots(params) as usize,
+            result_area_slot: convention::result_area_slot(params) as usize,
+            image_slots: (convention::outgoing_size(params, results) / 8) as usize,
+            has_result_area: convention::has_result_area(results),
         }
     }
 }
 
-fn ir_types(types: &[ValType]) -> Vec<libwasm_jit::ir::Type> {
-    types
-        .iter()
-        .map(|ty| libwasm_jit::builder::ir_type(*ty).expect("the JIT has a type for every value"))
-        .collect()
+/// The shapes of `function`'s calls, made the first time they are needed.
+fn shapes(function: &FunctionInstance) -> &NativeShapes {
+    function.native_shapes.get_or_init(|| {
+        let params: Vec<_> = function.ty.params.iter().map(|ty| ir_type(*ty)).collect();
+        let results: Vec<_> = function.ty.results.iter().map(|ty| ir_type(*ty)).collect();
+        Box::new(NativeShapes {
+            call: CallShape::new(&params, &results),
+            osr: CallShape::new(&[libwasm_jit::ir::Type::Pointer], &results),
+        })
+    })
+}
+
+/// The bits of a slot of a value of type `ty` that compiled code holds in a 64-bit register: i32 and f32 values
+/// zero-extended.
+fn slot_bits(ty: libwasm_jit::ir::Type, word: u64) -> u64 {
+    if matches!(ty, libwasm_jit::ir::Type::I32 | libwasm_jit::ir::Type::F32) {
+        word & 0xffff_ffff
+    } else {
+        word
+    }
+}
+
+/// How many of the thread's large call images are in use, which the runtime notes when it enters the interpreter and
+/// restores when the entry returns, so that the images of calls a trap skipped are free again.
+pub fn large_images_in_use() -> usize {
+    native::large_images_in_use()
+}
+
+pub fn release_large_images(in_use: usize) {
+    native::release_large_images(in_use);
 }
 
 /// Calls a compiled function from the interpreter: `arguments[0]` is its header and `arguments[1]` the top of the
@@ -450,40 +564,76 @@ unsafe fn call_compiled(context: *mut ExecutionContext) -> u64 {
 /// header, `arguments[1]` the adapter's save area, and `arguments[2]` the adapter's frame, above which the home
 /// slots of the arguments are. Returns 0 with the results in place, or a trap code, with the trap in the store.
 unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
-    use libwasm_jit::convention::{self, Place};
+    use libwasm_jit::convention::Place;
     unsafe {
         let [header, save_area, frame, ..] = (*context).arguments;
         let function = &*(header as *const FunctionInstance);
-        let ty = function.ty.clone();
+        let shape = &shapes(function).call;
         let save_area = save_area as *mut u64;
-        let params = ir_types(&ty.params);
-        let mut places = Vec::new();
-        convention::parameter_places(&params, &mut places);
-        let (mut gprs, mut xmms) = (0, 0);
-        let mut arguments = Vec::with_capacity(params.len());
-        for (index, place) in places.iter().enumerate() {
-            let words = match *place {
-                Place::Register(_) if params[index].uses_xmm() => {
-                    xmms += 1;
-                    ak::slice_from_raw_parts(save_area.add(convention::GPR_ARGUMENTS.len() + 2 * (xmms - 1)), 2)
-                }
-                Place::Register(_) => {
-                    gprs += 1;
-                    ak::slice_from_raw_parts(save_area.add(gprs - 1), 1)
-                }
-                Place::Memory(slot) => {
-                    ak::slice_from_raw_parts((frame as *const u64).add(slot as usize), params[index].slots() as usize)
-                }
-            };
-            arguments.push(value_from_words(ty.params[index], words));
-        }
+        let frame = frame as *mut u64;
+        // Where a value is in the adapter's save area, or in the home slots above its frame.
+        let location = |value: &ValueShape| match value.place {
+            Place::Register(_) if value.ty.uses_xmm() => {
+                save_area.add(libwasm_jit::convention::GPR_ARGUMENTS.len() + 2 * value.register)
+            }
+            Place::Register(_) => save_area.add(value.register),
+            Place::Memory(slot) => frame.add(slot as usize),
+        };
         let store = store_of(context);
         let address = FunctionAddress::from_ptr(function);
-        let results = match store.invoke(address, &arguments) {
-            Ok(results) => results,
+        let parameter_slots = function.header.param_slots as usize;
+        let result_slots = function.header.result_slots as usize;
+        // NB: On the stack where they fit; this frame is never skipped, since traps come back as results here.
+        const SMALL: usize = 32;
+        let (mut small_arguments, mut small_results) = ([0u64; SMALL], [0u64; SMALL]);
+        let (mut large_arguments, mut large_results) = (Vec::new(), Vec::new());
+        let arguments: &mut [u64] = if parameter_slots <= SMALL {
+            &mut small_arguments[..parameter_slots]
+        } else {
+            large_arguments.resize(parameter_slots, 0);
+            &mut large_arguments
+        };
+        let results: &mut [u64] = if result_slots <= SMALL {
+            &mut small_results[..result_slots]
+        } else {
+            large_results.resize(result_slots, 0);
+            &mut large_results
+        };
+        // The operand stack grows down, so the first value is in the highest slots.
+        for param in &shape.params {
+            let source = location(param);
+            let start = parameter_slots - param.home - param.slots;
+            for slot in 0..param.slots {
+                arguments[start + slot] = slot_bits(param.ty, *source.add(slot));
+            }
+        }
+        let outcome = if let FunctionKind::Host(_) = function.kind {
+            // NB: Host functions take and return values.
+            let values: Vec<Value> = function
+                .ty
+                .params
+                .iter()
+                .zip(&shape.params)
+                .map(|(&ty, param)| {
+                    let start = parameter_slots - param.home - param.slots;
+                    Value::from_slots(ty, &arguments[start..])
+                })
+                .collect();
+            store.invoke(address, &values).map(|values| {
+                let mut slots = Vec::with_capacity(result_slots);
+                for value in values.iter().rev() {
+                    value.push_slots(&mut slots);
+                }
+                results.copy_from_slice(&slots);
+            })
+        } else {
+            store.invoke_slots(address, arguments, results)
+        };
+        match outcome {
+            Ok(()) => {}
             Err(Trap::UncaughtException(exception)) => {
                 // NB: The adapter's frame is a frame of the compiled caller's callee.
-                native::unwind(store, exception, frame);
+                native::unwind(store, exception, frame as u64);
                 return libwasm_jit::stubs::ADAPTER_RESUME;
             }
             Err(trap) => {
@@ -491,26 +641,24 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
                 store.pending_trap = Some(trap);
                 return u64::from(code);
             }
+        }
+        let area = if shape.has_result_area {
+            *frame.add(shape.parameter_slots) as *mut u64
+        } else {
+            std::ptr::null_mut()
         };
-        let result_types = ir_types(&ty.results);
-        convention::result_places(&result_types, &mut places);
-        let area = *(frame as *const u64).add(convention::result_area_pointer(&params) as usize) as *mut u64;
-        let (mut gprs, mut xmms) = (0, 0);
-        for (index, place) in places.iter().enumerate() {
-            let words = match *place {
-                Place::Register(_) if result_types[index].uses_xmm() => {
-                    xmms += 1;
-                    ak::slice_from_raw_parts_mut(save_area.add(convention::GPR_ARGUMENTS.len() + 2 * (xmms - 1)), 2)
+        for result in &shape.results {
+            let destination = match result.place {
+                Place::Register(_) if result.ty.uses_xmm() => {
+                    save_area.add(libwasm_jit::convention::GPR_ARGUMENTS.len() + 2 * result.register)
                 }
-                Place::Register(_) => {
-                    gprs += 1;
-                    ak::slice_from_raw_parts_mut(save_area.add(gprs - 1), 1)
-                }
-                Place::Memory(slot) => {
-                    ak::slice_from_raw_parts_mut(area.add(slot as usize), result_types[index].slots() as usize)
-                }
+                Place::Register(_) => save_area.add(result.register),
+                Place::Memory(slot) => area.add(slot as usize),
             };
-            words_of_value(&results[index], words);
+            let start = result_slots - result.home - result.slots;
+            for slot in 0..result.slots {
+                *destination.add(slot) = slot_bits(result.ty, results[start + slot]);
+            }
         }
         0
     }
@@ -518,16 +666,16 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
 
 #[cfg(all(unix, any(target_arch = "x86_64", target_arch = "aarch64")))]
 mod native {
-    use super::{CODE_RANGES, ir_types, value_from_words, words_of_value};
+    use super::{CODE_RANGES, CallShape, shapes, slot_bits};
     use crate::abi::{ExecutionContext, FUNCTION_KIND_COMPILED, FunctionHeader, OPCODE_TRAP_FROM_NATIVE};
     use crate::module::Module;
     use crate::runtime::{FunctionAddress, FunctionInstance, FunctionKind, InstanceAddress, Store, helpers};
-    use libwasm_jit::convention::{self, Place};
+    use libwasm_jit::convention::Place;
     use libwasm_jit::stubs::NativeCall;
     use libwasm_jit::{CompileContext, CompileRequest, CompiledFunction, RuntimeInfo};
     use std::collections::{HashMap, HashSet};
     use std::sync::mpsc::{Receiver, Sender, channel};
-    use std::sync::{Arc, Mutex, OnceLock};
+    use std::sync::{Arc, Mutex, OnceLock, Weak};
 
     /// The code the process's stores share.
     pub struct Stubs {
@@ -539,46 +687,55 @@ mod native {
         pub runtime: RuntimeInfo,
     }
 
-    pub static STUBS: OnceLock<Stubs> = OnceLock::new();
+    /// The stubs, or None if the process has no executable memory for them.
+    pub static STUBS: OnceLock<Option<Stubs>> = OnceLock::new();
 
+    /// The stubs, once the JIT is known to run (see `super::enabled()`).
     pub fn stubs() -> &'static Stubs {
-        STUBS.get_or_init(|| {
-            let handler = crate::runtime::interpreter::dispatch_table_entry(OPCODE_TRAP_FROM_NATIVE) as u64;
-            // NB: The trap exit goes first, so that the others can jump to it. The chunk is never freed.
-            let mut chunk = CodeChunk::new(64 * 1024);
-            let trap_exit = chunk.add(&libwasm_jit::stubs::trap_exit(handler));
-            let runtime = RuntimeInfo {
-                trap_exit,
-                memory_grow: helpers::wasm_runtime_memory_grow as *const () as u64,
-                table_grow: helpers::wasm_runtime_table_grow as *const () as u64,
-                call_host: helpers::wasm_runtime_call_host as *const () as u64,
-                allocate: helpers::wasm_runtime_allocate as *const () as u64,
-                wait: helpers::wasm_runtime_wait as *const () as u64,
-                notify: helpers::wasm_runtime_notify as *const () as u64,
-                allocate_exception: super::wasm_runtime_allocate_exception as *const () as u64,
-                throw: super::wasm_runtime_throw_from_native as *const () as u64,
-            };
-            let (trampoline, return_offset) = libwasm_jit::stubs::entry_trampoline();
-            let entry = chunk.add(&trampoline);
-            let adapter_code =
-                libwasm_jit::stubs::runtime_adapter(super::wasm_runtime_call_from_native as *const () as u64, &runtime);
-            let adapter = chunk.add(&adapter_code);
-            if super::options().perf_map {
-                super::write_perf_map_entry(entry, trampoline.len(), "wasm-entry-trampoline");
-                super::write_perf_map_entry(adapter, adapter_code.len(), "wasm-runtime-adapter");
-            }
-            std::mem::forget(chunk);
-            Stubs {
-                trap_exit,
-                entry,
-                entry_return: entry + return_offset as u64,
-                adapter,
-                runtime,
-            }
+        try_stubs().expect("compiled code runs only with its stubs")
+    }
+
+    pub fn try_stubs() -> Option<&'static Stubs> {
+        STUBS.get_or_init(make_stubs).as_ref()
+    }
+
+    fn make_stubs() -> Option<Stubs> {
+        let handler = crate::runtime::interpreter::dispatch_table_entry(OPCODE_TRAP_FROM_NATIVE) as u64;
+        // NB: The trap exit goes first, so that the others can jump to it. The chunk is never freed.
+        let mut chunk = CodeChunk::new(64 * 1024)?;
+        let trap_exit = chunk.add(&libwasm_jit::stubs::trap_exit(handler))?;
+        let runtime = RuntimeInfo {
+            trap_exit,
+            memory_grow: helpers::wasm_runtime_memory_grow as *const () as u64,
+            table_grow: helpers::wasm_runtime_table_grow as *const () as u64,
+            call_host: helpers::wasm_runtime_call_host as *const () as u64,
+            allocate: helpers::wasm_runtime_allocate as *const () as u64,
+            wait: helpers::wasm_runtime_wait as *const () as u64,
+            notify: helpers::wasm_runtime_notify as *const () as u64,
+            allocate_exception: super::wasm_runtime_allocate_exception as *const () as u64,
+            throw: super::wasm_runtime_throw_from_native as *const () as u64,
+        };
+        let (trampoline, return_offset) = libwasm_jit::stubs::entry_trampoline();
+        let entry = chunk.add(&trampoline)?;
+        let adapter_code =
+            libwasm_jit::stubs::runtime_adapter(super::wasm_runtime_call_from_native as *const () as u64, &runtime);
+        let adapter = chunk.add(&adapter_code)?;
+        if super::options().perf_map {
+            super::write_perf_map_entry(entry, trampoline.len(), "wasm-entry-trampoline");
+            super::write_perf_map_entry(adapter, adapter_code.len(), "wasm-runtime-adapter");
+        }
+        std::mem::forget(chunk);
+        Some(Stubs {
+            trap_exit,
+            entry,
+            entry_return: entry + return_offset as u64,
+            adapter,
+            runtime,
         })
     }
 
-    /// Executable memory, written while it is not executable.
+    /// Executable memory, written while it is not executable (on macOS, while the writing thread's view of it is not).
+    /// Failing to map it, or to make it writable, fails the compile, which leaves the function interpreted.
     struct CodeChunk {
         base: *mut u8,
         size: usize,
@@ -587,13 +744,19 @@ mod native {
 
     const CHUNK_SIZE: usize = 16 << 20;
 
+    /// How many compiles a store installs between looking for modules that died.
+    const SWEEP_INTERVAL: usize = 64;
+
     fn page_size() -> usize {
         static PAGE_SIZE: OnceLock<usize> = OnceLock::new();
         *PAGE_SIZE.get_or_init(|| unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize)
     }
 
+    /// The longest an eager instantiation waits for its compiles.
+    const EAGER_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
+
     impl CodeChunk {
-        fn new(size: usize) -> Self {
+        fn new(size: usize) -> Option<Self> {
             // NB: macOS on Apple silicon maps code writable and executable at once, with MAP_JIT, and switches each
             //     thread's view of it between the two with pthread_jit_write_protect_np().
             #[cfg(target_os = "macos")]
@@ -607,26 +770,32 @@ mod native {
                 libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
             );
             let base = unsafe { libc::mmap(std::ptr::null_mut(), size, protection, flags, -1, 0) };
-            assert_ne!(base, libc::MAP_FAILED, "no memory for compiled code");
-            assert!(
-                CODE_RANGES.add(base as usize, size),
-                "too much compiled code to fault in"
-            );
-            Self {
+            if base == libc::MAP_FAILED {
+                return None;
+            }
+            // NB: The fault handler has to know the code, or faults in it would crash the process.
+            if !CODE_RANGES.add(base as usize, size) {
+                unsafe { libc::munmap(base, size) };
+                return None;
+            }
+            Some(Self {
                 base: base.cast(),
                 size,
                 used: 0,
-            }
+            })
         }
 
         fn has_room(&self, length: usize) -> bool {
             self.used.next_multiple_of(16) + length <= self.size
         }
 
-        /// Copies `code` in and returns its address.
-        fn add(&mut self, code: &[u8]) -> u64 {
+        /// Copies `code` in and returns its address, or None if the pages could not be made writable, which leaves them
+        /// as they were.
+        // NB: On macOS, switching the thread's view of the code cannot fail.
+        #[cfg_attr(target_os = "macos", allow(clippy::unnecessary_wraps))]
+        fn add(&mut self, code: &[u8]) -> Option<u64> {
             let start = self.used.next_multiple_of(16);
-            assert!(start + code.len() <= self.size);
+            debug_assert!(start + code.len() <= self.size);
             #[cfg(target_os = "macos")]
             unsafe {
                 libc::pthread_jit_write_protect_np(0);
@@ -640,19 +809,124 @@ mod native {
                 let first_page = start / page_size * page_size;
                 let length = (start + code.len()).next_multiple_of(page_size) - first_page;
                 let region = self.base.add(first_page);
-                assert_eq!(
-                    libc::mprotect(region.cast(), length, libc::PROT_READ | libc::PROT_WRITE),
-                    0
-                );
+                if libc::mprotect(region.cast(), length, libc::PROT_READ | libc::PROT_WRITE) != 0 {
+                    return None;
+                }
                 std::ptr::copy_nonoverlapping(code.as_ptr(), self.base.add(start), code.len());
-                assert_eq!(
-                    libc::mprotect(region.cast(), length, libc::PROT_READ | libc::PROT_EXEC),
-                    0
-                );
+                // NB: The pages may hold code that is installed already, which must not stop being executable. The
+                //     change back can only fail for lack of kernel memory, when the process cannot go on anyway.
+                if libc::mprotect(region.cast(), length, libc::PROT_READ | libc::PROT_EXEC) != 0 {
+                    eprintln!(
+                        "LibWasm JIT: making compiled code executable again failed: {}",
+                        std::io::Error::last_os_error()
+                    );
+                    std::process::abort();
+                }
                 libwasm_jit::runtime::flush_instruction_cache(self.base as usize + start, code.len());
             }
             self.used = start + code.len();
-            self.base as u64 + start as u64
+            Some(self.base as u64 + start as u64)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{CODE_RANGES, CompileContext, StoreJit};
+        use std::sync::Arc;
+
+        #[test]
+        fn a_failed_mapping_makes_no_chunk() {
+            assert!(super::CodeChunk::new(1 << 60).is_none());
+        }
+
+        #[test]
+        fn code_goes_away_with_its_module() {
+            // (module (func))
+            const MODULE: &[u8] = &[
+                0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01,
+                0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b,
+            ];
+            let module = Arc::new(crate::compile(MODULE).expect("the module is valid"));
+            let mut jit = StoreJit::default();
+            let key = jit.key(&module, 0, None);
+            let request = jit.request(key).expect("the module lives");
+            let code = super::compile(&mut CompileContext::default(), &request);
+            drop(request);
+            jit.finish(key, code);
+            let entry = jit.entry(key).expect("the function compiled");
+            assert!(CODE_RANGES.contains(entry as usize));
+            jit.forget_dead_modules();
+            assert!(jit.entry(key).is_some(), "the module still lives");
+            drop(module);
+            jit.forget_dead_modules();
+            assert!(jit.modules.is_empty());
+            assert!(!CODE_RANGES.contains(entry as usize));
+        }
+
+        #[test]
+        fn traps_inside_one_entry_free_their_large_images() {
+            use crate::runtime::{ExternValue, FunctionAddress, Store, Value};
+            use std::cell::Cell;
+            use std::rc::Rc;
+            if !crate::runtime::jit::enabled() {
+                return;
+            }
+            let bytes = include_bytes!("../../tests/fixtures/nested_traps.wasm");
+            let module = Arc::new(crate::compile(bytes).expect("the module is valid"));
+            let mut store = Store::new();
+            let wide: Rc<Cell<Option<FunctionAddress>>> = Rc::default();
+            let wide_in_host = wide.clone();
+            let host = store.allocate_host_function(
+                crate::types::FuncType {
+                    params: Vec::new(),
+                    results: Vec::new(),
+                },
+                Rc::new(move |store: &mut Store, _: &[Value]| {
+                    // NB: The interpreter calls the compiled function, so every call has a large image, which the trap
+                    //     skips.
+                    let wide = wide_in_host.get().expect("the instance exists");
+                    let arguments = [Value::I64(0); 70];
+                    for _ in 0..1_000_000 {
+                        assert!(store.invoke(wide, &arguments).is_err());
+                    }
+                    Ok(Vec::new())
+                }),
+            );
+            let instance = store
+                .instantiate(module, &[ExternValue::Function(host)])
+                .expect("the module instantiates");
+            let export = |name| match store.instance(instance).export(name) {
+                Some(ExternValue::Function(function)) => function,
+                _ => panic!("no function {name}"),
+            };
+            let (outer, wide_function) = (export("outer"), export("wide"));
+            wide.set(Some(wide_function));
+            // The function whose frames the traps skip runs compiled, with a call image too large for the stack.
+            while super::compile_function(&mut store, wide_function) != super::CompileState::Compiled {
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+            store.invoke(outer, &[]).expect("the host function returns");
+            assert!(super::large_image_buffers() <= 2);
+            assert_eq!(super::large_images_in_use(), 0);
+        }
+
+        #[test]
+        fn a_compile_finishing_after_its_module_died_maps_nothing() {
+            // (module (func))
+            const MODULE: &[u8] = &[
+                0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01,
+                0x00, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b,
+            ];
+            let module = Arc::new(crate::compile(MODULE).expect("the module is valid"));
+            let mut jit = StoreJit::default();
+            let key = jit.key(&module, 0, None);
+            let request = jit.request(key).expect("the module lives");
+            let code = super::compile(&mut CompileContext::default(), &request);
+            drop(request);
+            drop(module);
+            jit.finish(key, code);
+            assert!(jit.entry(key).is_none());
+            assert!(jit.modules.values().all(|module| module.chunks.is_empty()));
         }
     }
 
@@ -675,7 +949,16 @@ mod native {
     /// A compile a compile thread finished, for the store that asked for it.
     struct Finished {
         key: CompileKey,
-        code: Result<CompiledFunction, libwasm_jit::CompileFailure>,
+        code: Option<CompiledFunction>,
+    }
+
+    /// Compiles `request`, or returns None if the compile fails.
+    ///
+    /// NB: A panic of the compiler is a bug, and aborts the process like any other: the crates of a process share the
+    ///     panic hooks and runtime of whichever copy of the standard library the dynamic linker binds first, so
+    ///     neither catching it nor keeping it out of the crash report can be relied on.
+    fn compile(context: &mut CompileContext, request: &CompileRequest) -> Option<CompiledFunction> {
+        libwasm_jit::compile(context, request).ok()
     }
 
     struct Job {
@@ -712,7 +995,7 @@ mod native {
                             let Ok(job) = job else {
                                 return;
                             };
-                            let code = libwasm_jit::compile(&mut context, &job.request);
+                            let code = compile(&mut context, &job.request);
                             // NB: The store may be gone, and its results with it.
                             let _ = job.reply.send(Finished { key: job.key, code });
                         }
@@ -748,36 +1031,64 @@ mod native {
         Never,
     }
 
-    /// A store's compiled code.
+    /// A store's compiled code, kept with the module it is of, for as long as the module lives: its functions and
+    /// instances hold it, and code of a module only runs in frames of its functions.
     #[derive(Default)]
     pub struct StoreJit {
-        chunks: Vec<CodeChunk>,
         context: CompileContext,
-        /// The code of each compile, and the compiles that failed.
-        code: HashMap<CompileKey, u64>,
-        failed: HashSet<CompileKey>,
+        /// What the store compiled of each module, by the module's address.
+        modules: HashMap<usize, ModuleCode>,
         /// The return addresses of the calls in compiled code that handle exceptions.
         exception_sites: HashSet<u64>,
         /// The compiles the compile threads have yet to finish, and where they send them.
         pending: HashSet<CompileKey>,
         finished: Option<(Sender<Finished>, Receiver<Finished>)>,
-        /// The modules of the keys, so that their addresses stay theirs.
-        modules: HashMap<usize, Arc<Module>>,
+        /// How many modules gained code since the store last looked for modules that died.
+        new_code: usize,
         pub disabled: bool,
     }
 
-    impl StoreJit {
-        fn add_code(&mut self, code: &[u8]) -> u64 {
+    /// The code a store compiled of one module. The reference to the module is weak, so that the module, and then
+    /// its code, goes away with its last function or instance; until the store forgets it, the address is not
+    /// reused for another module.
+    struct ModuleCode {
+        module: Weak<Module>,
+        chunks: Vec<CodeChunk>,
+        /// The code of each compile (by function and OSR loop), and the compiles that failed.
+        code: HashMap<(u32, Option<u32>), u64>,
+        failed: HashSet<(u32, Option<u32>)>,
+        /// The exception sites in the code.
+        exception_sites: Vec<u64>,
+    }
+
+    /// The first chunk of a module's code; each next one is twice as large, up to `CHUNK_SIZE`.
+    const FIRST_CHUNK_SIZE: usize = 64 << 10;
+
+    impl ModuleCode {
+        /// Copies `code` into executable memory and returns its address, or None if there is none to be had.
+        fn add_code(&mut self, code: &[u8]) -> Option<u64> {
             if !self.chunks.last().is_some_and(|chunk| chunk.has_room(code.len())) {
+                let size = self
+                    .chunks
+                    .last()
+                    .map_or(FIRST_CHUNK_SIZE, |chunk| (chunk.size * 2).min(CHUNK_SIZE));
                 self.chunks
-                    .push(CodeChunk::new(CHUNK_SIZE.max(code.len().next_multiple_of(page_size()))));
+                    .push(CodeChunk::new(size.max(code.len().next_multiple_of(page_size())))?);
             }
             self.chunks.last_mut().expect("there is a chunk").add(code)
         }
+    }
 
+    impl StoreJit {
         fn key(&mut self, module: &Arc<Module>, function: u32, osr: Option<u32>) -> CompileKey {
             let address = Arc::as_ptr(module) as usize;
-            self.modules.entry(address).or_insert_with(|| module.clone());
+            self.modules.entry(address).or_insert_with(|| ModuleCode {
+                module: Arc::downgrade(module),
+                chunks: Vec::new(),
+                code: HashMap::new(),
+                failed: HashSet::new(),
+                exception_sites: Vec::new(),
+            });
             CompileKey {
                 module: address,
                 function,
@@ -785,50 +1096,87 @@ mod native {
             }
         }
 
-        fn request(&self, key: CompileKey) -> CompileRequest {
-            CompileRequest {
-                module: self.modules[&key.module].clone(),
+        fn request(&self, key: CompileKey) -> Option<CompileRequest> {
+            Some(CompileRequest {
+                module: self.modules[&key.module].module.upgrade()?,
                 function: key.function,
                 runtime: stubs().runtime,
                 options: super::options().compile_options(),
                 osr: key.osr,
-            }
+            })
+        }
+
+        /// The code of a compile, if there is some.
+        fn entry(&self, key: CompileKey) -> Option<u64> {
+            self.modules
+                .get(&key.module)?
+                .code
+                .get(&(key.function, key.osr))
+                .copied()
         }
 
         /// Installs the result of a compile.
-        fn finish(&mut self, key: CompileKey, compiled: Result<CompiledFunction, libwasm_jit::CompileFailure>) {
-            let Ok(CompiledFunction {
-                code, exception_sites, ..
-            }) = compiled
+        fn finish(&mut self, key: CompileKey, compiled: Option<CompiledFunction>) {
+            if self.new_code >= SWEEP_INTERVAL {
+                self.forget_dead_modules();
+            }
+            // NB: A module that died while its function compiled gets no code.
+            let Some(module) = self
+                .modules
+                .get_mut(&key.module)
+                .filter(|module| module.module.strong_count() > 0)
             else {
-                self.failed.insert(key);
                 return;
             };
-            let entry = self.add_code(&code);
-            self.exception_sites
-                .extend(exception_sites.iter().map(|offset| entry + u64::from(*offset)));
+            let entry = compiled.and_then(|compiled| Some((module.add_code(&compiled.code)?, compiled)));
+            let Some((entry, compiled)) = entry else {
+                module.failed.insert((key.function, key.osr));
+                return;
+            };
+            self.new_code += 1;
+            for offset in &compiled.exception_sites {
+                let site = entry + u64::from(*offset);
+                module.exception_sites.push(site);
+                self.exception_sites.insert(site);
+            }
             if super::options().perf_map {
                 let name = match key.osr {
                     None => format!("wasm-function-{}", key.function),
                     Some(offset) => format!("wasm-function-{}-osr-{offset}", key.function),
                 };
-                super::write_perf_map_entry(entry, code.len(), &name);
+                super::write_perf_map_entry(entry, compiled.code.len(), &name);
             }
-            self.code.insert(key, entry);
+            module.code.insert((key.function, key.osr), entry);
+        }
+
+        /// Frees the code of the modules that died, which no function or instance runs any more.
+        fn forget_dead_modules(&mut self) {
+            self.new_code = 0;
+            let exception_sites = &mut self.exception_sites;
+            self.modules.retain(|_, module| {
+                if module.module.strong_count() > 0 {
+                    return true;
+                }
+                for site in &module.exception_sites {
+                    exception_sites.remove(site);
+                }
+                false
+            });
         }
 
         /// Where the compile of `key` is, after compiling it here and now in sync mode, or else having it compiled
         /// in the background.
         fn compile(&mut self, key: CompileKey) -> CompileState {
-            if self.code.contains_key(&key) {
+            if self.entry(key).is_some() {
                 return CompileState::Compiled;
             }
-            if self.failed.contains(&key) {
+            if self.modules[&key.module].failed.contains(&(key.function, key.osr)) {
                 return CompileState::Failed;
             }
             if super::options().sync {
-                let request = self.request(key);
-                let code = libwasm_jit::compile(&mut self.context, &request);
+                let code = self
+                    .request(key)
+                    .and_then(|request| compile(&mut self.context, &request));
                 self.finish(key, code);
                 return self.compile(key);
             }
@@ -839,7 +1187,9 @@ mod native {
         }
 
         fn submit(&mut self, key: CompileKey) {
-            let request = self.request(key);
+            let request = self
+                .request(key)
+                .expect("a function of the module asks for the compile");
             let (reply, _) = self.finished.get_or_insert_with(channel);
             let job = Job {
                 key,
@@ -861,8 +1211,15 @@ mod native {
             };
             let mut finished = Vec::new();
             if wait {
+                // NB: Every job gets an answer, but if one never came, the store would wait forever; past the
+                //     deadline, what is still pending is installed later, as in the background.
+                let deadline = std::time::Instant::now() + EAGER_WAIT;
                 for _ in 0..self.pending.len() {
-                    finished.push(receiver.recv().expect("the store holds a sender"));
+                    let Ok(done) = receiver.recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()))
+                    else {
+                        break;
+                    };
+                    finished.push(done);
                 }
             } else {
                 finished.extend(receiver.try_iter());
@@ -901,6 +1258,10 @@ mod native {
         }
     }
 
+    pub fn forget_dead_modules(jit: &mut StoreJit) {
+        jit.forget_dead_modules();
+    }
+
     pub fn install_finished(jit: &mut StoreJit) {
         if !jit.pending.is_empty() {
             jit.take_finished(false);
@@ -923,7 +1284,10 @@ mod native {
         }
         jit.take_finished(true);
         for address in functions {
-            compile_function(store, address);
+            if compile_function(store, address) == CompileState::Pending {
+                // NB: Eager functions have no budget, so one whose compile is late asks for it like a hot one.
+                unsafe { address.get_mut() }.header.tier_up_budget = super::POLL_BUDGET + crate::abi::TIER_UP_CALL_COST;
+            }
         }
     }
 
@@ -942,7 +1306,7 @@ mod native {
         let key = jit.key(module, *index, None);
         let state = jit.compile(key);
         if state == CompileState::Compiled {
-            function.header.native_entry = jit.code[&key];
+            function.header.native_entry = jit.entry(key).expect("the function is compiled");
             function.header.kind = FUNCTION_KIND_COMPILED;
         }
         state
@@ -952,40 +1316,66 @@ mod native {
         unsafe {
             let [header, top, ..] = (*context).arguments;
             let function = &*(header as *const FunctionInstance);
-            let params = ir_types(&function.ty.params);
+            let shape = &shapes(function).call;
             let parameter_slots = function.header.param_slots as usize;
             // The operand stack grows down, so the first argument is in the highest slots, and the results replace
             // the arguments.
             let stack = top as *mut u64;
-            let arguments = |index: usize| {
-                let home = convention::home_slot(&params, index) as usize;
-                stack
-                    .add(parameter_slots - home - params[index].slots() as usize)
-                    .cast_const()
-            };
             run(
                 function,
                 function.header.native_entry,
-                &params,
-                arguments,
+                shape,
+                |_, param| stack.add(parameter_slots - param.home - param.slots).cast_const(),
                 stack.add(parameter_slots),
             )
         }
     }
 
-    /// Calls `entry`, compiled code of `function` that takes arguments of types `params`, the `index`th of which
-    /// is at `argument(index)`. Stores the function's results on an operand stack ending at `end`, and returns its
-    /// new top, or the exception it threw. A trap leaves through the code and does not return.
+    /// The images of calls whose image does not fit on the stack, one per call in progress, and how many calls use one.
+    /// A trap skips the calls between it and the innermost interpreter entry, which leaves their images counted until
+    /// that entry returns and releases them (see `super::release_large_images()`).
+    struct LargeImages {
+        buffers: Vec<Box<[u64]>>,
+        in_use: usize,
+    }
+
+    thread_local! {
+        static LARGE_IMAGES: std::cell::RefCell<LargeImages> = const {
+            std::cell::RefCell::new(LargeImages {
+                buffers: Vec::new(),
+                in_use: 0,
+            })
+        };
+    }
+
+    pub fn large_images_in_use() -> usize {
+        LARGE_IMAGES.with(|images| images.borrow().in_use)
+    }
+
+    pub fn release_large_images(in_use: usize) {
+        LARGE_IMAGES.with(|images| images.borrow_mut().in_use = in_use);
+    }
+
+    #[cfg(test)]
+    pub fn large_image_buffers() -> usize {
+        LARGE_IMAGES.with(|images| images.borrow().buffers.len())
+    }
+
+    /// Calls `entry`, compiled code of `function` whose values `shape` describes, with the `index`th argument at
+    /// `argument(index, param)`. Stores the function's results on an operand stack ending at `end`, and returns its
+    /// new top, or the exception it threw.
+    ///
+    /// NB: A trap leaves through the compiled code and does not return, skipping this frame and its callers' up to
+    ///     the interpreter, so none of them may own anything that needs dropping.
     unsafe fn run(
         function: &FunctionInstance,
         entry: u64,
-        params: &[libwasm_jit::ir::Type],
-        argument: impl Fn(usize) -> *const u64,
+        shape: &CallShape,
+        argument: impl Fn(usize, &super::ValueShape) -> *const u64,
         end: *mut u64,
     ) -> Result<u64, u64> {
         unsafe {
             let header_data: &FunctionHeader = &function.header;
-            let results = ir_types(&function.ty.results);
             let result_slots = header_data.result_slots as usize;
             let mut call = NativeCall {
                 entry,
@@ -995,82 +1385,74 @@ mod native {
                 result_pointer_slot: u64::MAX,
                 ..NativeCall::default()
             };
-            let parameter_slots = convention::slots(params) as usize;
-            let image_slots = (convention::outgoing_size(params, &results) / 8) as usize;
-            // NB: On the stack where it fits, since a trap leaves through compiled code and skips this frame, which
-            //     leaks what it owns.
             const SMALL_IMAGE: usize = 64;
             let mut small_image = [0u64; SMALL_IMAGE];
-            let mut large_image = Vec::new();
-            let image = if image_slots <= SMALL_IMAGE {
-                small_image.as_mut_ptr()
+            let large = shape.image_slots > SMALL_IMAGE;
+            let image = if large {
+                LARGE_IMAGES.with(|images| {
+                    let mut images = images.borrow_mut();
+                    let index = images.in_use;
+                    images.in_use += 1;
+                    if images.buffers.len() <= index {
+                        images.buffers.push(Box::new([]));
+                    }
+                    if images.buffers[index].len() < shape.image_slots {
+                        images.buffers[index] = vec![0; shape.image_slots].into_boxed_slice();
+                    }
+                    images.buffers[index].as_mut_ptr()
+                })
             } else {
-                large_image.resize(image_slots, 0);
-                large_image.as_mut_ptr()
+                small_image.as_mut_ptr()
             };
-            let mut places = Vec::new();
-            convention::parameter_places(params, &mut places);
-            let (mut gprs, mut xmms) = (0, 0);
-            for (index, place) in places.iter().enumerate() {
-                let home = convention::home_slot(params, index) as usize;
-                let count = params[index].slots() as usize;
-                let source = argument(index);
-                std::ptr::copy_nonoverlapping(source, image.add(home), count);
-                if let Place::Register(_) = place {
-                    if params[index].uses_xmm() {
-                        call.xmms[xmms] = [*source, if count == 2 { *source.add(1) } else { 0 }];
-                        xmms += 1;
+            for (index, param) in shape.params.iter().enumerate() {
+                let source = argument(index, param);
+                std::ptr::copy_nonoverlapping(source, image.add(param.home), param.slots);
+                if let Place::Register(_) = param.place {
+                    if param.ty.uses_xmm() {
+                        call.xmms[param.register] = [*source, if param.slots == 2 { *source.add(1) } else { 0 }];
                     } else {
-                        call.gprs[gprs] = *source;
-                        gprs += 1;
+                        call.gprs[param.register] = *source;
                     }
                 }
             }
-            if convention::has_result_area(&results) {
-                call.result_pointer_slot = parameter_slots as u64;
+            if shape.has_result_area {
+                call.result_pointer_slot = shape.parameter_slots as u64;
+                call.result_area_slot = shape.result_area_slot as u64;
             }
             call.image = image as u64;
-            call.image_slots = image_slots as u64;
+            call.image_slots = shape.image_slots as u64;
             let trampoline: extern "C" fn(*mut NativeCall) = std::mem::transmute(stubs().entry as usize);
             trampoline(&raw mut call);
+            if large {
+                LARGE_IMAGES.with(|images| images.borrow_mut().in_use -= 1);
+            }
             let context = (*header_data.instance).context;
             if (*context).exception != 0 {
                 return Err(std::mem::take(&mut (*context).exception));
             }
             let return_top = end.sub(result_slots);
-            convention::result_places(&results, &mut places);
-            let (mut gprs, mut xmms) = (0, 0);
-            for (index, place) in places.iter().enumerate() {
-                let home = convention::home_slot(&results, index) as usize;
-                let count = results[index].slots() as usize;
+            for result in &shape.results {
                 let mut words = [0u64; 2];
-                match *place {
-                    Place::Register(_) if results[index].uses_xmm() => {
-                        words = call.result_xmms[xmms];
-                        xmms += 1;
-                    }
-                    Place::Register(_) => {
-                        words[0] = call.result_gprs[gprs];
-                        gprs += 1;
-                    }
+                match result.place {
+                    Place::Register(_) if result.ty.uses_xmm() => words = call.result_xmms[result.register],
+                    Place::Register(_) => words[0] = call.result_gprs[result.register],
                     Place::Memory(slot) => {
-                        let area = image.add(parameter_slots + 1 + slot as usize);
-                        words[..count].copy_from_slice(ak::slice_from_raw_parts(area, count));
+                        let area = image.add(shape.result_area_slot + slot as usize);
+                        words[..result.slots].copy_from_slice(ak::slice_from_raw_parts(area, result.slots));
                     }
                 }
-                // NB: Through a value, so that i32 and f32 results take their slot's low half only.
-                let value = value_from_words(function.ty.results[index], &words);
-                words_of_value(&value, &mut words);
                 // The first result is in the highest slots.
-                let destination = return_top.add(result_slots - home - count);
-                std::ptr::copy_nonoverlapping(words.as_ptr(), destination, count);
+                let destination = return_top.add(result_slots - result.home - result.slots);
+                for (slot, word) in words[..result.slots].iter().enumerate() {
+                    *destination.add(slot) = slot_bits(result.ty, *word);
+                }
             }
             Ok(return_top as u64)
         }
     }
 
     /// Continues the interpreter frame at `frame`, of `address`, compiled at the loop at `pc` (OSR), once there is
-    /// code for that. It cannot be entered at a loop in another loop, or if the function does not compile.
+    /// code for that. It cannot be entered at a loop in a legacy catch handler (see `CompileFailure::NoOsrEntry`).
     pub unsafe fn enter_at_loop(store: &mut Store, address: FunctionAddress, pc: u64, frame: u64) -> LoopEntry {
         unsafe {
             let function = address.get();
@@ -1088,10 +1470,9 @@ mod native {
                 CompileState::Pending => return LoopEntry::Pending,
                 CompileState::Failed => return LoopEntry::Never,
             }
-            let entry = jit.code[&key];
-            let params = [libwasm_jit::ir::Type::Pointer];
+            let entry = jit.entry(key).expect("the loop is compiled");
             let base = (frame as *mut u8).sub(crate::abi::FRAME_HEADER_SIZE).cast::<u64>();
-            match run(function, entry, &params, |_| &raw const frame, base) {
+            match run(function, entry, &shapes(function).osr, |_, _| &raw const frame, base) {
                 Ok(top) => LoopEntry::Ran(top),
                 Err(exception) => LoopEntry::Threw(exception),
             }
@@ -1109,11 +1490,17 @@ mod native {
         pub adapter: u64,
     }
 
-    pub static STUBS: std::sync::OnceLock<Stubs> = std::sync::OnceLock::new();
+    pub static STUBS: std::sync::OnceLock<Option<Stubs>> = std::sync::OnceLock::new();
 
     pub fn stubs() -> &'static Stubs {
         unreachable!("the JIT is off where it has no code generator")
     }
+
+    pub fn try_stubs() -> Option<&'static Stubs> {
+        None
+    }
+
+    pub fn forget_dead_modules(_jit: &mut StoreJit) {}
 
     #[derive(Default)]
     pub struct StoreJit {
@@ -1156,6 +1543,12 @@ mod native {
     pub unsafe fn call_compiled(_context: *mut ExecutionContext) -> Result<u64, u64> {
         unreachable!("the JIT is off where it has no code generator")
     }
+
+    pub fn large_images_in_use() -> usize {
+        0
+    }
+
+    pub fn release_large_images(_in_use: usize) {}
 }
 
 pub use native::StoreJit;

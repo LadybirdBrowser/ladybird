@@ -121,6 +121,12 @@ pub enum StorageType {
 }
 
 impl StorageType {
+    /// The bytes a struct field or array element of this storage type takes in a GC object's data (see
+    /// `abi::STORAGE_64`): 16 for a v128, else 8.
+    pub fn object_field_size(self) -> u32 {
+        if self == Self::Val(ValType::V128) { 16 } else { 8 }
+    }
+
     pub fn is_packed(self) -> bool {
         matches!(self, Self::I8 | Self::I16)
     }

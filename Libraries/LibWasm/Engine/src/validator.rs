@@ -1523,7 +1523,14 @@ impl FunctionValidator<'_> {
                 let type_index = reader.read_u32()?;
                 let count = reader.read_u32()?;
                 let element = self.array_type(type_index)?;
-                for _ in 0..count {
+                // NB: Beyond the operands on the stack, an unreachable frame's stack is polymorphic and every pop
+                //     succeeds; those pops change nothing, so they are skipped rather than done up to 2^32 times.
+                let frame = self.frames.last().expect("validation always has a frame");
+                let available = self.operands.len() - frame.height;
+                if count as usize > available && !frame.unreachable {
+                    return type_mismatch();
+                }
+                for _ in 0..(count as usize).min(available) {
                     self.pop_expecting(element.storage.unpacked())?;
                 }
                 self.push_value(reference(false, type_index));

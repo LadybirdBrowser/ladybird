@@ -1,0 +1,42 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // (module
+    //   (import "m" "f" (func $f (result i32)))
+    //   (import "m" "g" (global $g i32))
+    //   (import "m" "h" (func $h (result i32)))
+    //   (func (export "callF") (result i32) (call $f))
+    //   (func (export "callH") (result i32) (call $h))
+    //   (func (export "g") (result i32) (global.get $g)))
+    const bytes = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x02,
+        0x14, 0x03, 0x01, 0x6d, 0x01, 0x66, 0x00, 0x00, 0x01, 0x6d, 0x01, 0x67, 0x03, 0x7f, 0x00, 0x01,
+        0x6d, 0x01, 0x68, 0x00, 0x00, 0x03, 0x04, 0x03, 0x00, 0x00, 0x00, 0x07, 0x15, 0x03, 0x05, 0x63,
+        0x61, 0x6c, 0x6c, 0x46, 0x00, 0x02, 0x05, 0x63, 0x61, 0x6c, 0x6c, 0x48, 0x00, 0x03, 0x01, 0x67,
+        0x00, 0x04, 0x0a, 0x10, 0x03, 0x04, 0x00, 0x10, 0x00, 0x0b, 0x04, 0x00, 0x10, 0x01, 0x0b, 0x04,
+        0x00, 0x23, 0x00, 0x0b,
+    ]);
+
+    test(() => {
+        // The host function and the global made for the first two imports must survive a collection that user code
+        // runs while the later imports are read.
+        const module = new WebAssembly.Module(bytes);
+        const imports = {
+            m: {
+                f: () => 1,
+                g: 42,
+                get h() {
+                    internals.gc();
+                    // Reuses the memory of anything the collection freed.
+                    const garbage = [];
+                    for (let i = 0; i < 10000; ++i)
+                        garbage.push(new WebAssembly.Global({ value: "i32" }, i));
+                    internals.gc();
+                    return () => 2;
+                },
+            },
+        };
+        const exports = new WebAssembly.Instance(module, imports).exports;
+        println(`callF: ${exports.callF()}, g: ${exports.g()}, callH: ${exports.callH()}`);
+    });
+</script>

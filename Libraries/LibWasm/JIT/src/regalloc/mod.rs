@@ -78,6 +78,19 @@ pub struct Move {
     pub vector: bool,
 }
 
+/// The storage of `resolve_many()`: the pending readers of each location, the pending move that writes each
+/// location, the locations read as a v128, the locations whose value went to the cycle slot, which pending moves are
+/// placed, and the moves ready to be placed.
+#[derive(Default)]
+struct MoveScratch {
+    readers: crate::table::Table<u64>,
+    writers: crate::table::Table<u64>,
+    vector_reads: crate::table::Table<u64>,
+    saved: crate::table::Table<u64>,
+    done: Vec<bool>,
+    ready: Vec<u32>,
+}
+
 /// How the allocator placed one node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NodeAllocation {
@@ -364,8 +377,7 @@ pub struct Allocator {
     current_block: BlockId,
     pending: Vec<Move>,
     resolved: Vec<Move>,
-    /// How many pending moves read each location, in `resolve_many()`.
-    readers: crate::table::Table<u64>,
+    move_scratch: MoveScratch,
     places: Vec<Place>,
     types: Vec<Type>,
     /// The inputs of the node being allocated, whose registers only it may take.
@@ -856,8 +868,9 @@ impl Allocator {
         allocation.moves.extend_from_slice(&self.resolved);
     }
 
-    /// `resolve()` for many moves, like the edges into a merge with many phis: it counts the readers of each
-    /// location, so that finding the moves whose destination nobody reads any more takes one pass, not one per move.
+    /// `resolve()` for many moves, like the edges into a merge with many phis, in linear time: it counts the pending
+    /// readers of each location, and places a move once nothing reads its destination any more, which may make the
+    /// move into its source ready in turn.
     fn resolve_many(&mut self, allocation: &mut Allocation) {
         fn key(location: Location) -> u64 {
             match location {
@@ -868,53 +881,84 @@ impl Allocator {
                 Location::Constant(value) => (5 << 40) | u64::from(value),
             }
         }
-        let readers = &mut self.readers;
-        readers.clear();
-        let add = |readers: &mut crate::table::Table<u64>, location: Location, delta: i64| {
-            let count = i64::from(readers.get(key(location)).unwrap_or(0)) + delta;
-            readers.insert(key(location), count as u32);
-        };
-        for pending in &self.pending {
-            add(readers, pending.from, 1);
+        let scratch = &mut self.move_scratch;
+        scratch.readers.clear();
+        scratch.writers.clear();
+        scratch.vector_reads.clear();
+        scratch.saved.clear();
+        scratch.done.clear();
+        scratch.done.resize(self.pending.len(), false);
+        scratch.ready.clear();
+        for (index, pending) in self.pending.iter().enumerate() {
+            let source = key(pending.from);
+            let count = scratch.readers.get(source).unwrap_or(0);
+            scratch.readers.insert(source, count + 1);
+            if pending.vector {
+                scratch.vector_reads.insert(source, 1);
+            }
+            let previous = scratch.writers.insert(key(pending.to), index as u32);
+            debug_assert!(previous.is_none(), "parallel moves write each location once");
         }
-        while !self.pending.is_empty() {
-            let mut progress = false;
-            let mut index = 0;
-            while index < self.pending.len() {
-                if readers.get(key(self.pending[index].to)).unwrap_or(0) == 0 {
-                    let ready = self.pending.swap_remove(index);
-                    add(readers, ready.from, -1);
-                    self.resolved.push(ready);
-                    progress = true;
-                } else {
-                    index += 1;
-                }
+        for (index, pending) in self.pending.iter().enumerate() {
+            if scratch.readers.get(key(pending.to)).unwrap_or(0) == 0 {
+                scratch.ready.push(index as u32);
             }
-            if progress || self.pending.is_empty() {
-                continue;
-            }
-            // Every destination is still a source: the moves form cycles. Save one destination in the cycle slot.
+        }
+        let temp = |allocation: &mut Allocation| {
             if allocation.cycle_slot == NO_SLOT {
                 // NB: Two slots, in case the value is a v128.
                 allocation.slot_count += 2;
                 allocation.cycle_slot = convention::spill_slot_offset(allocation.slot_count - 1);
             }
-            let saved = self.pending[0].to;
-            let temp = Location::Slot(allocation.cycle_slot);
-            let vector = self.pending[0].vector;
-            self.resolved.push(Move {
-                from: saved,
-                to: temp,
-                vector,
-            });
-            for pending in &mut self.pending {
-                if pending.from == saved {
-                    pending.from = temp;
-                    add(readers, saved, -1);
-                    add(readers, temp, 1);
+            Location::Slot(allocation.cycle_slot)
+        };
+        let mut unfinished = 0;
+        loop {
+            while let Some(index) = scratch.ready.pop() {
+                let index = index as usize;
+                if scratch.done[index] {
+                    continue;
+                }
+                scratch.done[index] = true;
+                let mut ready = self.pending[index];
+                let source = key(ready.from);
+                if scratch.saved.get(source).is_some() {
+                    // The source was overwritten after its value went to the cycle slot.
+                    ready.from = temp(allocation);
+                    self.resolved.push(ready);
+                    continue;
+                }
+                self.resolved.push(ready);
+                let count = scratch.readers.get(source).unwrap_or(0) - 1;
+                scratch.readers.insert(source, count);
+                if count == 0
+                    && let Some(writer) = scratch.writers.get(source)
+                {
+                    scratch.ready.push(writer);
                 }
             }
+            while unfinished < self.pending.len() && scratch.done[unfinished] {
+                unfinished += 1;
+            }
+            if unfinished == self.pending.len() {
+                break;
+            }
+            // Every destination left is still a source: the moves form cycles. Save one destination in the cycle
+            // slot, after which its readers read it there and its move is ready. The cycle runs to its end before
+            // the slot is needed again.
+            let saved = self.pending[unfinished].to;
+            let saved_key = key(saved);
+            let to = temp(allocation);
+            self.resolved.push(Move {
+                from: saved,
+                to,
+                vector: scratch.vector_reads.get(saved_key).is_some(),
+            });
+            scratch.saved.insert(saved_key, 1);
+            scratch.readers.insert(saved_key, 0);
+            scratch.ready.push(unfinished as u32);
         }
+        self.pending.clear();
     }
 
     // Nodes.
@@ -1301,4 +1345,49 @@ pub fn edge_slot(func: &Func, from: BlockId, to: BlockId) -> u32 {
         .position(|successor| *successor == to)
         .expect("predecessors list their successors");
     data.successors_start + index as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Allocation, Allocator, Location, Move, NO_SLOT};
+    use crate::ir::Func;
+    use std::collections::HashMap;
+
+    /// Runs `moves` as `resolve()` orders them, and checks that every destination gets what its source had before.
+    fn check(moves: &[(u8, u8)]) {
+        let mut allocator = Allocator::default();
+        let mut allocation = Allocation {
+            cycle_slot: NO_SLOT,
+            ..Allocation::default()
+        };
+        allocator.pending.extend(moves.iter().map(|&(from, to)| Move {
+            from: Location::Register(from),
+            to: Location::Register(to),
+            vector: false,
+        }));
+        allocator.resolve(&Func::default(), &mut allocation);
+        let mut state: HashMap<Location, u64> = (0..64)
+            .map(|register| (Location::Register(register), u64::from(register)))
+            .collect();
+        for placed in &allocation.moves {
+            let value = state[&placed.from];
+            state.insert(placed.to, value);
+        }
+        for &(from, to) in moves {
+            assert_eq!(state[&Location::Register(to)], u64::from(from), "{moves:?}");
+        }
+    }
+
+    #[test]
+    fn parallel_moves_keep_their_sources() {
+        // A long chain, one cycle through everything, two cycles, and fan-out from cycle members.
+        check(&(0..40).map(|index| (index + 1, index)).collect::<Vec<_>>());
+        check(&(0..40).map(|index| ((index + 1) % 40, index)).collect::<Vec<_>>());
+        let mut two: Vec<(u8, u8)> = (0..10).map(|index| ((index + 1) % 10, index)).collect();
+        two.extend((10..20).map(|index| (10 + (index + 1) % 10, index)));
+        check(&two);
+        let mut fan: Vec<(u8, u8)> = (0..12).map(|index| ((index + 1) % 12, index)).collect();
+        fan.extend((20..30).map(|index| (index % 12, index)));
+        check(&fan);
+    }
 }

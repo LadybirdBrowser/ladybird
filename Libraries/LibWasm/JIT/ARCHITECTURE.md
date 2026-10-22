@@ -29,11 +29,10 @@ reused from one compile to the next:
 `Options::verify_ir` checks the IR after building and after cleanup (`ir/verify.rs`), and the
 register allocation (`regalloc/verify.rs`).
 
-The JIT is meant to compile every function that validates, of any size: a hot function that does
-not compile would run interpreted forever. Until the JIT gets there, functions that use something it
-does not compile yet fail with `CompileFailure::Unsupported` and stay interpreted: exceptions. Nothing
-fails for its size, depth, number of locals or
-register pressure.
+The JIT compiles every function that validates, of any size: a hot function that did not compile
+would run interpreted forever. Nothing fails for its size, depth, number of locals or register
+pressure. The only compile that can fail is an OSR compile at a loop in a legacy catch handler
+(`CompileFailure::NoOsrEntry`), whose frame then stays interpreted.
 
 ## 2. Decoding
 
@@ -336,8 +335,17 @@ there; a phi in a register with a slot is stored where its block starts.
 ## 10. The runtime
 
 The engine's `runtime/jit.rs` decides what is compiled, installs it, and connects compiled code with
-the interpreter and the host. `LIBWASM_JIT` configures it: `eager` compiles every function when its
-module is instantiated, `perf-map` writes `/tmp/perf-PID.map`. It is off otherwise for now.
+the interpreter and the host. The JIT is on by default; `LIBWASM_JIT` configures it (`off`, `forced`,
+`eager`, `threshold=N`, `perf-map`, the stress modes; see the module's documentation).
+
+- **Tier-up.** The interpreter charges each function's `tier_up_budget` for calls and loop
+  iterations and asks the runtime once it runs out. The runtime sends the compile to the process's
+  compile threads and lets the interpreter go on, asking again after a small budget; it installs the
+  code once it is done. At a loop, it continues the frame compiled (OSR): an OSR compile enters the
+  outermost loop around the frame's position and branches down to the loop the frame is at.
+- **Exceptions.** Compiled code handles its own handlers in IR. An exception that leaves compiled
+  code is unwound over the compiled frames to the first call that checks for exceptions or to the
+  entry trampoline, and from there goes on in the interpreter frame that called it.
 
 - **Installing** a function's code stores it in its header: `native_entry`, and the kind
   `FUNCTION_KIND_COMPILED`. Code is per module function, so each store compiles a module's function

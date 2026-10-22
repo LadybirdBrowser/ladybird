@@ -34,7 +34,8 @@ impl CodeGenerator<'_> {
                 let results = call_result_types(func, value);
                 if convention::has_result_area(&results) {
                     let pointer = 8 * argument_slots as i32;
-                    self.asm.lea(Width::W64, SCRATCH, &Address::new(SP, pointer + 8));
+                    let area = 8 * (argument_slots + 1).next_multiple_of(2) as i32;
+                    self.asm.lea(Width::W64, SCRATCH, &Address::new(SP, area));
                     self.asm.mov_mr(Width::W64, &Address::new(SP, pointer), SCRATCH);
                 }
                 let callee = gpr(convention::CALLEE_REGISTER);
@@ -54,7 +55,7 @@ impl CodeGenerator<'_> {
                 convention::result_places(&results, &mut places);
                 if let Place::Memory(slot) = places[index] {
                     let output = self.allocation.node(value).output;
-                    let area = 8 * (argument_slots(func, call) as i32 + 1);
+                    let area = 8 * (argument_slots(func, call) + 1).next_multiple_of(2) as i32;
                     let address = Address::new(SP, area + 8 * slot as i32);
                     if node.ty == Type::V128 {
                         self.load_vector(fpr(output).0, &address);
@@ -79,14 +80,11 @@ impl CodeGenerator<'_> {
             .collect::<Vec<_>>();
         let has_result_area = convention::has_result_area(&func.results);
         let callee_slots = convention::slots(&parameters);
-        let own_slots = convention::slots(&func.params);
-        let needed = callee_slots + u32::from(has_result_area);
-        let available = own_slots + u32::from(has_result_area);
-        let slide = if needed > available {
-            (8 * (needed - available)).next_multiple_of(16) as i32
-        } else {
-            0
-        };
+        // NB: The callee returns the function's results, so both have a result area or neither has. Moving the bottom
+        //     of the frame by the difference of their incoming areas, down or up, keeps the area's top in place.
+        let needed = convention::incoming_area_slots(&parameters, &func.results);
+        let available = convention::incoming_area_slots(&func.params, &func.results);
+        let slide = 8 * (needed as i32 - available as i32);
         // NB: The callee's operands are in their registers, which leaves rax and rbx free.
         let (return_address, saved_fp) = (Gpr(convention::RAX), Gpr(convention::RBX));
         if slide != 0 {

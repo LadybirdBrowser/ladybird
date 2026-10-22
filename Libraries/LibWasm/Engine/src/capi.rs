@@ -1401,6 +1401,16 @@ pub unsafe extern "C" fn wasm_store_clear_memory_grow_callback(store: *mut WasmS
     store_of(store).memory_grow_callback = None;
 }
 
+/// Sets whether the agent the store runs code for may block, which `memory.atomic.wait` needs.
+///
+/// # Safety
+///
+/// `store` must be a live store.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn wasm_store_set_can_block(store: *mut WasmStore, can_block: bool) {
+    store_of(store).can_block = can_block;
+}
+
 // WASI.
 
 /// The state of a WASI command, whose functions a store gets with `wasm_wasi_allocate_function()`.

@@ -9,7 +9,8 @@
 //! Objects are cells of the runtime's heap (see `abi::Rtt`): the Rtt first, the data's address at OBJECT_DATA_OFFSET
 //! and an array's length at OBJECT_LENGTH_OFFSET. Data of up to `MAX_INLINE_DATA_SIZE` bytes is inline at
 //! OBJECT_INLINE_DATA_OFFSET, so a struct's fields are at constant offsets from the object where the struct is small
-//! enough. Fields take 8 bytes (16 for v128), with packed and 32-bit values zero-extended in them.
+//! enough. Fields take `StorageType::object_field_size()` bytes, with packed and 32-bit values zero-extended in them:
+//! the runtime's layout, which `abi` and `types` define for both.
 //!
 //! GC references in compiled frames need nothing special: the collector scans the stack conservatively and recognizes
 //! pointers into cells, and every allocation is a call of the runtime, around which values live in stack slots or in
@@ -21,25 +22,13 @@ use super::Builder;
 use crate::ir::{Func, HeapTest, Helper, LoadKind, Node, Op, REF_TEST_CAST, REF_TEST_NULLABLE, Type, Value};
 use libwasm_module::Module;
 use libwasm_module::abi::{
-    InstanceData, OBJECT_DATA_OFFSET, OBJECT_INLINE_DATA_OFFSET, OBJECT_LENGTH_OFFSET, TRAP_MEMORY_OUT_OF_BOUNDS,
-    TRAP_NULL_REFERENCE, TRAP_TABLE_OUT_OF_BOUNDS,
+    InstanceData, MAX_INLINE_DATA_SIZE, OBJECT_DATA_OFFSET, OBJECT_INLINE_DATA_OFFSET, OBJECT_LENGTH_OFFSET,
+    TRAP_MEMORY_OUT_OF_BOUNDS, TRAP_NULL_REFERENCE, TRAP_TABLE_OUT_OF_BOUNDS,
 };
 use libwasm_module::opcode::gc::*;
 use libwasm_module::opcode::simd::I64X2_EXTRACT_LANE;
 use libwasm_module::types::{CompositeType, HeapType, StorageType, ValType};
 use std::mem::offset_of;
-
-/// The most data an object has inline, which is the largest size class of the runtime's heap (heap.rs).
-pub const MAX_INLINE_DATA_SIZE: u32 = 4096;
-
-/// The bytes a field or element of `storage` takes in an object.
-fn storage_bytes(storage: StorageType) -> u32 {
-    if storage == StorageType::Val(ValType::V128) {
-        16
-    } else {
-        8
-    }
-}
 
 /// The bytes an element of `storage` takes in a data segment.
 fn data_bytes(storage: StorageType) -> u64 {
@@ -99,7 +88,7 @@ impl Builder {
         for (index, field_type) in struct_fields(module, type_index).iter().enumerate() {
             self.field_offsets
                 .insert((u64::from(type_index) << 32) | index as u64, offset);
-            offset += storage_bytes(field_type.storage);
+            offset += field_type.storage.object_field_size();
         }
         let count = struct_fields(module, type_index).len() as u64;
         self.field_offsets.insert((u64::from(type_index) << 32) | count, offset);
@@ -117,7 +106,7 @@ impl Builder {
     /// Where the data of an object with `size` bytes of it is: the object and the offset of its inline data, or the
     /// address of data outside the heap.
     fn object_data(func: &mut Func, object: Value, size: u32) -> (Value, u32) {
-        if size <= MAX_INLINE_DATA_SIZE {
+        if size as usize <= MAX_INLINE_DATA_SIZE {
             return (object, OBJECT_INLINE_DATA_OFFSET as u32);
         }
         let data = Self::append(
@@ -309,7 +298,7 @@ impl Builder {
                 let count = self.pop();
                 let storage = array_storage(module, first);
                 let length = self.unary(func, Op::ExtendI32U, Type::I64, count);
-                let element_size = self.constant(func, Type::I64, u64::from(storage_bytes(storage)));
+                let element_size = self.constant(func, Type::I64, u64::from(storage.object_field_size()));
                 let size = self.binary(func, Op::Mul, Type::I64, length, element_size);
                 let array = if sub_opcode == ARRAY_NEW {
                     let value = self.pop();
@@ -328,7 +317,7 @@ impl Builder {
             ARRAY_NEW_FIXED => {
                 let storage = array_storage(module, first);
                 let values = self.stack.split_off(self.stack.len() - second as usize);
-                let element_size = storage_bytes(storage);
+                let element_size = storage.object_field_size();
                 let data_size = second * element_size;
                 let size = self.constant(func, Type::I64, u64::from(data_size));
                 let length = self.constant(func, Type::I64, u64::from(second));
@@ -373,7 +362,7 @@ impl Builder {
                     Type::None,
                 );
                 let length = self.unary(func, Op::ExtendI32U, Type::I64, count);
-                let element_size = self.constant(func, Type::I64, u64::from(storage_bytes(storage)));
+                let element_size = self.constant(func, Type::I64, u64::from(storage.object_field_size()));
                 let size = self.binary(func, Op::Mul, Type::I64, length, element_size);
                 let array = self.allocate(func, first, size, length);
                 let zero = self.constant(func, Type::I64, 0);
@@ -384,7 +373,7 @@ impl Builder {
                 let index = Self::resolve(func, self.pop());
                 let array = Self::resolve(func, self.pop());
                 let storage = array_storage(module, first);
-                let size_log2 = storage_bytes(storage).trailing_zeros() as u8;
+                let size_log2 = storage.object_field_size().trailing_zeros() as u8;
                 let address = Self::append(
                     func,
                     Node::new(Op::ElementAddress, Type::Pointer, size_log2, [array, index, 0]),
@@ -397,7 +386,7 @@ impl Builder {
                 let index = Self::resolve(func, self.pop());
                 let array = Self::resolve(func, self.pop());
                 let storage = array_storage(module, first);
-                let size_log2 = storage_bytes(storage).trailing_zeros() as u8;
+                let size_log2 = storage.object_field_size().trailing_zeros() as u8;
                 let address = Self::append(
                     func,
                     Node::new(Op::ElementAddress, Type::Pointer, size_log2, [array, index, 0]),

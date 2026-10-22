@@ -218,8 +218,10 @@ pub struct NativeCall {
     /// call, and back after it.
     pub image: u64,
     pub image_slots: u64,
-    /// The slot of the result area pointer in the image, or u64::MAX.
+    /// The slot of the result area pointer in the image, or u64::MAX, and the slot the result area starts at
+    /// (`convention::result_area_slot()`); the image lays them out as the outgoing area does.
     pub result_pointer_slot: u64,
+    pub result_area_slot: u64,
     /// x0 and x1 after the call.
     pub result_gprs: [u64; 2],
     /// v0 and v1 after the call.
@@ -315,18 +317,25 @@ pub fn entry_trampoline() -> (Vec<u8>, usize) {
         MemOperand::Offset(record, call_field(offset_of!(NativeCall, image))),
     );
     copy_words(&mut asm, x(12), x(11), count, x(13));
+    // The result area pointer points at the result area on the stack.
     let no_area = asm.new_label();
+    let (pointer, area) = (x(10), x(15));
     asm.ldr(
         Width::W64,
-        x(10),
+        pointer,
         MemOperand::Offset(record, call_field(offset_of!(NativeCall, result_pointer_slot))),
     );
-    asm.cmn_imm(Width::W64, x(10), 1, false);
+    asm.cmn_imm(Width::W64, pointer, 1, false);
     asm.b_cond(Cond::Eq, no_area);
+    asm.ldr(
+        Width::W64,
+        area,
+        MemOperand::Offset(record, call_field(offset_of!(NativeCall, result_area_slot))),
+    );
     asm.mov_sp(x(11), SP);
-    asm.add(Width::W64, x(11), x(11), x(10), Shift::Lsl, 3);
-    asm.add_imm(Width::W64, x(12), x(11), 8, false);
-    asm.str(Width::W64, x(12), MemOperand::Offset(x(11), 0));
+    asm.add(Width::W64, x(12), x(11), area, Shift::Lsl, 3);
+    asm.add(Width::W64, x(13), x(11), pointer, Shift::Lsl, 3);
+    asm.str(Width::W64, x(12), MemOperand::Offset(x(13), 0));
     asm.bind(no_area);
     for index in 0..8u8 {
         let offset = call_field(offset_of!(NativeCall, xmms) + 16 * index as usize);

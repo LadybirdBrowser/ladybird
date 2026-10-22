@@ -103,8 +103,8 @@ pub struct CompileRequest {
     pub function: u32,
     pub runtime: RuntimeInfo,
     pub options: Options,
-    /// For an OSR compile, the module offset of the outermost loop that it continues an interpreter frame at. Its
-    /// code takes the frame's fp as its only argument and returns the function's results.
+    /// For an OSR compile, the module offset of the loop that it continues an interpreter frame at, in any number of
+    /// other loops. Its code takes the frame's fp as its only argument and returns the function's results.
     pub osr: Option<u32>,
 }
 

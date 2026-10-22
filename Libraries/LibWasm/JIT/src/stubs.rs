@@ -202,8 +202,10 @@ pub struct NativeCall {
     /// call, and back after it.
     pub image: u64,
     pub image_slots: u64,
-    /// The slot of the result area pointer in the image, or u64::MAX.
+    /// The slot of the result area pointer in the image, or u64::MAX, and the slot the result area starts at
+    /// (`convention::result_area_slot()`); the image lays them out as the outgoing area does.
     pub result_pointer_slot: u64,
+    pub result_area_slot: u64,
     /// rax and rdx after the call.
     pub result_gprs: [u64; 2],
     /// xmm0 and xmm1 after the call.
@@ -309,16 +311,18 @@ pub fn entry_trampoline() -> (Vec<u8>, usize) {
     asm.mov_rm(Width::W64, rsi, &call_field(offset_of!(NativeCall, image)));
     asm.mov_rr(Width::W64, rdi, SP);
     copy_words(&mut asm, rsi, rdi, rcx, rdx);
+    // The result area pointer points at the result area on the stack.
     let no_area = asm.new_label();
     asm.mov_rm(
         Width::W64,
         rax,
-        &Address::new(record, field(offset_of!(NativeCall, result_pointer_slot))),
+        &call_field(offset_of!(NativeCall, result_pointer_slot)),
     );
     asm.cmp_ri(Width::W64, rax, -1);
     asm.jcc(Cond::Equal, no_area);
-    asm.lea(Width::W64, rdx, &Address::indexed(SP, rax, crate::asm::Scale::Eight, 8));
-    asm.mov_mr(Width::W64, &Address::indexed(SP, rax, crate::asm::Scale::Eight, 0), rdx);
+    asm.mov_rm(Width::W64, rcx, &call_field(offset_of!(NativeCall, result_area_slot)));
+    asm.lea(Width::W64, rsi, &Address::indexed(SP, rcx, crate::asm::Scale::Eight, 0));
+    asm.mov_mr(Width::W64, &Address::indexed(SP, rax, crate::asm::Scale::Eight, 0), rsi);
     asm.bind(no_area);
     for index in 0..8u8 {
         let address = Address::new(record, field(offset_of!(NativeCall, xmms) + 16 * index as usize));

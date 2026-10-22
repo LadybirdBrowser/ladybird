@@ -425,6 +425,11 @@ void Store::set_memory_grow_callback(Function<void(Entity)> callback)
         this);
 }
 
+void Store::set_can_block(bool can_block)
+{
+    FFI::wasm_store_set_can_block(m_store, can_block);
+}
+
 u64 Store::table_size(Entity table)
 {
     return FFI::wasm_store_table_size(m_store, to_ffi(table));

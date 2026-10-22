@@ -7,6 +7,7 @@
 //! Runtime data: fields of memories, tables and segments, table elements, the checks of indirect calls, and calls of
 //! the runtime's functions.
 
+use super::gc::Operand32;
 use super::{ADDRESS, CodeGenerator, FP, SCRATCH, gpr};
 use crate::asm::aarch64::{Cond, Extend, MemOperand, XZR};
 use crate::asm::{Gpr, Label, Width};
@@ -168,6 +169,10 @@ impl CodeGenerator<'_> {
                 } else if helper.traps_on_zero() {
                     let trap = self.trap_label(libwasm_module::abi::TRAP_RUNTIME);
                     self.asm.cbz(Width::W64, result, trap);
+                } else if let Some(value) = helper.trap_value() {
+                    let trap = self.trap_label(libwasm_module::abi::TRAP_RUNTIME);
+                    self.asm.cmp_imm(Width::W64, result, value as u32, false);
+                    self.asm.b_cond(crate::asm::aarch64::Cond::Eq, trap);
                 }
             }
             _ => unreachable!("{} is no runtime operation", node.op.name()),
@@ -215,31 +220,12 @@ impl CodeGenerator<'_> {
                 SCRATCH,
                 MemOperand::Offset(target, field(offset_of!(Rtt, depth))),
             );
-            // The expected type is a supertype if it is at its depth in the actual type's display.
-            self.asm.ldr(
-                Width::W32,
-                ADDRESS,
-                MemOperand::Offset(actual, field(offset_of!(Rtt, depth))),
-            );
-            self.asm.cmp(Width::W32, ADDRESS, SCRATCH);
-            self.asm.b_cond(Cond::Lo, mismatch);
-            self.asm.ldr(
-                Width::W64,
+            self.check_subtype(
                 actual,
-                MemOperand::Offset(actual, field(offset_of!(Rtt, display))),
+                Operand32::Register(SCRATCH),
+                Operand32::Register(check.identity),
+                mismatch,
             );
-            self.asm.ldr(
-                Width::W32,
-                actual,
-                MemOperand::Register {
-                    base: actual,
-                    index: SCRATCH,
-                    extend: Extend::Uxtx,
-                    shifted: true,
-                },
-            );
-            self.asm.cmp(Width::W32, actual, check.identity);
-            self.asm.b_cond(Cond::Ne, mismatch);
             self.asm.b(check.back);
         }
     }

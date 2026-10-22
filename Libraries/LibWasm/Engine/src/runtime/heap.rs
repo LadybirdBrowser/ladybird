@@ -119,10 +119,7 @@ pub enum CellType {
     Entity(usize),
 }
 
-/// The sizes of the data a GC object can keep inline. Larger data is allocated outside of the heap.
-pub const OBJECT_DATA_SIZE_CLASSES: [usize; 17] = [
-    0, 16, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096,
-];
+pub use crate::abi::OBJECT_DATA_SIZE_CLASSES;
 
 /// The size class of objects with `size` bytes of data, or None if the data does not fit inline.
 pub fn object_size_class(size: usize) -> Option<usize> {

@@ -50,6 +50,21 @@ pub fn run_main<T: Send + 'static>(main: impl FnOnce() -> T + Send + 'static) ->
     main()
 }
 
+/// Counts the panics of every thread from the first call on, so that a test sees those of the runtime's compile
+/// threads, which would otherwise only leave the functions they compile interpreted.
+pub fn panics() -> &'static std::sync::atomic::AtomicUsize {
+    static PANICS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    static INSTALL: std::sync::Once = std::sync::Once::new();
+    INSTALL.call_once(|| {
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            PANICS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            previous(info);
+        }));
+    });
+    &PANICS
+}
+
 /// The trap code of a call that reached a function the JIT did not compile.
 pub const TRAP_NOT_COMPILED: u32 = 100;
 

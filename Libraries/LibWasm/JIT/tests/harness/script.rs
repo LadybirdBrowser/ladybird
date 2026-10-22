@@ -559,3 +559,27 @@ pub fn run_with_dump(
     }
     totals
 }
+
+/// Writes `text`, a script in the spec testsuite's text format, to `directory` as `NAME.json` and the binary modules
+/// next to it, and returns the JSON file's path, or None where there is no wasm-tools to convert it.
+pub fn write_wast(directory: &Path, name: &str, text: &str) -> Option<PathBuf> {
+    std::fs::create_dir_all(directory).unwrap();
+    let wast = directory.join(format!("{name}.wast"));
+    std::fs::write(&wast, text).unwrap();
+    let json = directory.join(format!("{name}.json"));
+    let status = std::process::Command::new(std::env::var("WASM_TOOLS").unwrap_or_else(|_| "wasm-tools".into()))
+        .arg("json-from-wast")
+        .arg(&wast)
+        .arg("-o")
+        .arg(&json)
+        .arg("--wasm-dir")
+        .arg(directory)
+        .status()
+        .ok()?;
+    assert!(
+        status.success(),
+        "wasm-tools json-from-wast failed on {}",
+        wast.display()
+    );
+    Some(json)
+}

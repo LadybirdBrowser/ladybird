@@ -9,7 +9,7 @@
 
 use super::{CodeGenerator, FP, SCRATCH, gpr};
 use crate::asm::x86_64::{AluOp, Cond};
-use crate::asm::{Address, Gpr, Scale, Width};
+use crate::asm::{Address, Gpr, Label, Scale, Width};
 use crate::convention::{self, Register};
 use crate::ir::{AtomicOp, CHECKED_ATOMIC, CHECKED_MEMORY64, HeapTest, Op, REF_TEST_CAST, REF_TEST_NULLABLE, Value};
 use crate::regalloc::CONSTANT_INPUT;
@@ -19,6 +19,13 @@ use libwasm_module::abi::{
     TRAP_NULL_REFERENCE, TRAP_UNALIGNED_ATOMIC,
 };
 use std::mem::offset_of;
+
+/// An operand of a 32-bit comparison: a register, or an immediate.
+#[derive(Clone, Copy)]
+pub(super) enum Operand32 {
+    Register(Gpr),
+    Immediate(i32),
+}
 
 fn field(offset: usize) -> i32 {
     offset as i32
@@ -223,6 +230,30 @@ impl CodeGenerator<'_> {
         );
     }
 
+    /// `cmp dword [address], operand`.
+    fn compare32(&mut self, address: &Address, operand: Operand32) {
+        match operand {
+            Operand32::Register(register) => self.asm.cmp_mr(Width::W32, address, register),
+            Operand32::Immediate(immediate) => self.asm.cmp_mi(Width::W32, address, immediate),
+        }
+    }
+
+    /// Jumps to `failed` unless the type whose Rtt is in `rtt` is the expected type, of `identity` at `depth`, or a
+    /// subtype of it: a type's display lists the identities of its supertypes by depth, and its own last. Clobbers
+    /// `rtt`.
+    pub(super) fn check_subtype(&mut self, rtt: Gpr, depth: Operand32, identity: Operand32, failed: Label) {
+        self.compare32(&Address::new(rtt, field(offset_of!(Rtt, depth))), depth);
+        self.asm.jcc(Cond::Below, failed);
+        self.asm
+            .mov_rm(Width::W64, rtt, &Address::new(rtt, field(offset_of!(Rtt, display))));
+        let entry = match depth {
+            Operand32::Register(depth) => Address::indexed(rtt, depth, Scale::Four, 0),
+            Operand32::Immediate(depth) => Address::new(rtt, 4 * depth),
+        };
+        self.compare32(&entry, identity);
+        self.asm.jcc(Cond::NotEqual, failed);
+    }
+
     /// `RefTest`: whether a reference matches a heap type, as 0 or 1, or for a cast a trap where it does not.
     fn ref_test(&mut self, value: Value) {
         let func = self.func;
@@ -241,26 +272,13 @@ impl CodeGenerator<'_> {
         self.asm.test_rr(Width::W64, reference, reference);
         let null_matches = node.flags & REF_TEST_NULLABLE != 0;
         self.asm.jcc(Cond::Equal, if null_matches { matched } else { failed });
-        let compare_identity = |generator: &mut Self, address: &Address| {
-            if identity == CONSTANT_INPUT {
-                let bits = generator.immediate(value, 1);
-                generator.asm.cmp_mi(Width::W32, address, bits as i32);
-            } else {
-                generator.asm.cmp_mr(Width::W32, address, gpr(identity));
-            }
+        let identity = if identity == CONSTANT_INPUT {
+            Operand32::Immediate(self.immediate(value, 1) as i32)
+        } else {
+            Operand32::Register(gpr(identity))
         };
-        // Whether the Rtt in `rtt` is the expected type or a subtype of it: the expected type is in its display at
-        // the expected type's depth.
         let subtype_check = |generator: &mut Self, rtt: Gpr| {
-            generator
-                .asm
-                .cmp_mi(Width::W32, &Address::new(rtt, field(offset_of!(Rtt, depth))), depth);
-            generator.asm.jcc(Cond::Below, failed);
-            generator
-                .asm
-                .mov_rm(Width::W64, rtt, &Address::new(rtt, field(offset_of!(Rtt, display))));
-            compare_identity(generator, &Address::new(rtt, 4 * depth));
-            generator.asm.jcc(Cond::NotEqual, failed);
+            generator.check_subtype(rtt, Operand32::Immediate(depth), identity, failed);
         };
         match HeapTest::from_flags(node.flags) {
             HeapTest::NonNull => {}
@@ -303,7 +321,7 @@ impl CodeGenerator<'_> {
             HeapTest::ConcreteFunction => {
                 let [rtt, rtts] = [gpr(record.temps[0]), gpr(record.temps[1])];
                 let type_identity = Address::new(reference, field(offset_of!(FunctionHeader, type_identity)));
-                compare_identity(self, &type_identity);
+                self.compare32(&type_identity, identity);
                 self.asm.jcc(Cond::Equal, matched);
                 self.asm.mov_rm(Width::W32, rtt, &type_identity);
                 self.asm

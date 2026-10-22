@@ -93,10 +93,6 @@ fn trace_of_storage(kind: u8) -> u8 {
     }
 }
 
-fn storage_size(kind: u8) -> u32 {
-    if kind == STORAGE_V128 { 16 } else { 8 }
-}
-
 fn leak<T>(values: Vec<T>) -> *const T {
     Box::leak(values.into_boxed_slice()).as_ptr()
 }
@@ -141,15 +137,16 @@ pub fn allocate_rtt(store: &Store, identity: u32) -> *const Rtt {
                 .collect();
             let mut offsets = Vec::with_capacity(kinds.len());
             let mut offset = 0;
-            for &kind in &kinds {
+            for field in fields {
                 offsets.push(offset);
-                offset += storage_size(kind);
+                offset += field.storage.object_field_size();
             }
             (RTT_KIND_STRUCT, kinds, offsets, offset)
         }
         CompositeType::Array(element) => {
             let kind = storage_kind(element.storage, &store.types);
-            (RTT_KIND_ARRAY, vec![kind], Vec::new(), storage_size(kind))
+            let size = element.storage.object_field_size();
+            (RTT_KIND_ARRAY, vec![kind], Vec::new(), size)
         }
     };
     let depth = display.len() as u32 - 1;
@@ -195,7 +192,7 @@ unsafe extern "C" fn rtt_destroy(cell: *mut c_void) {
 }
 
 /// Allocate a zeroed object of the type `rtt` with `data_size` bytes of data and, for an array, `length` elements.
-/// Returns zero if the data is too large.
+/// Returns zero if the data is too large, or if there is no memory for it.
 pub fn allocate_object(heap: &Heap, rtt: *const Rtt, data_size: u64, length: u64) -> u64 {
     if data_size > MAX_OBJECT_DATA_SIZE {
         return 0;
@@ -209,8 +206,13 @@ pub fn allocate_object(heap: &Heap, rtt: *const Rtt, data_size: u64, length: u64
             // The data lives outside the heap, after a word that holds the number of words after it. It counts towards
             // the next collection before the cell is allocated, which may collect.
             let words = data_size.div_ceil(8) as usize;
+            let mut block = Vec::new();
+            if block.try_reserve_exact(words + 1).is_err() {
+                return 0;
+            }
+            block.resize(words + 1, 0u64);
             heap.did_allocate_external_memory((words + 1) * 8);
-            let block = Box::leak(vec![0u64; words + 1].into_boxed_slice());
+            let block = Box::leak(block.into_boxed_slice());
             block[0] = words as u64;
             let data = unsafe { block.as_mut_ptr().add(1) }.cast::<u8>();
             (heap.allocate_cell(CellType::Object(0)), data)
@@ -375,11 +377,15 @@ impl Store {
         allocate_object(&self.heap, rtt, data_size, length)
     }
 
-    /// Allocate a struct of the type `identity` with the given field values.
+    /// Allocate a struct of the type `identity` with the given field values, or return zero if there is no memory
+    /// for it.
     pub fn allocate_struct(&mut self, identity: u32, fields: &[Value]) -> u64 {
         let rtt: *const Rtt = self.rtt(identity);
         let size = u64::from(unsafe { (*rtt).size });
         let object = self.allocate_object(rtt, size, 0);
+        if object == 0 {
+            return 0;
+        }
         let data = unsafe { read::<*mut u8>(object as *const c_void, OBJECT_DATA_OFFSET) };
         for (index, value) in fields.iter().enumerate() {
             unsafe {
@@ -402,6 +408,22 @@ impl Store {
         let data = unsafe { read::<*mut u8>(object as *const c_void, OBJECT_DATA_OFFSET) };
         for (index, value) in values.iter().enumerate() {
             unsafe { store_field(data.add(index * element_size as usize), kind, *value) };
+        }
+        object
+    }
+
+    /// Allocate an array of the type `identity` with `length` elements of `value`, or return zero if it is too large
+    /// or there is no memory for it.
+    pub fn allocate_filled_array(&mut self, identity: u32, value: Value, length: u32) -> u64 {
+        let rtt: *const Rtt = self.rtt(identity);
+        let (element_size, kind) = unsafe { (u64::from((*rtt).size), *(*rtt).field_kinds) };
+        let object = self.allocate_object(rtt, u64::from(length) * element_size, u64::from(length));
+        if object == 0 {
+            return 0;
+        }
+        let data = unsafe { read::<*mut u8>(object as *const c_void, OBJECT_DATA_OFFSET) };
+        for index in 0..length as usize {
+            unsafe { store_field(data.add(index * element_size as usize), kind, value) };
         }
         object
     }
