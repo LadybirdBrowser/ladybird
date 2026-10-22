@@ -1,4 +1,5 @@
-;; Two functions that tail call each other through references, once for each step down to 0.
+;; Two functions that tail call each other through references, once for each step down to 0, and functions that tail
+;; call one with many more parameters than they have, one of them after a loop.
 (module
   (type $step (func (param i64) (result i64)))
   (global $even (ref $step) (ref.func $even))
@@ -11,4 +12,15 @@
   (func $odd (export "odd") (type $step)
     (if (result i64) (i64.eqz (local.get 0))
       (then (i64.const 99))
-      (else (return_call_ref $step (i64.sub (local.get 0) (i64.const 1)) (global.get $even))))))
+      (else (return_call_ref $step (i64.sub (local.get 0) (i64.const 1)) (global.get $even)))))
+  (func $many (export "many") (param i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64 i64) (result i64)
+    (i64.add (i64.mul (local.get 0) (i64.const 1000)) (local.get 39)))
+  (func (export "few") (param i64) (result i64)
+    (return_call $many (local.get 0) (i64.const 1) (i64.const 2) (i64.const 3) (i64.const 4) (i64.const 5) (i64.const 6) (i64.const 7) (i64.const 8) (i64.const 9) (i64.const 10) (i64.const 11) (i64.const 12) (i64.const 13) (i64.const 14) (i64.const 15) (i64.const 16) (i64.const 17) (i64.const 18) (i64.const 19) (i64.const 20) (i64.const 21) (i64.const 22) (i64.const 23) (i64.const 24) (i64.const 25) (i64.const 26) (i64.const 27) (i64.const 28) (i64.const 29) (i64.const 30) (i64.const 31) (i64.const 32) (i64.const 33) (i64.const 34) (i64.const 35) (i64.const 36) (i64.const 37) (i64.const 38) (i64.const 39)))
+  (func (export "loops") (param $count i64) (result i64)
+    (local $sum i64)
+    (loop $again
+      (local.set $sum (i64.add (local.get $sum) (local.get $count)))
+      (local.set $count (i64.sub (local.get $count) (i64.const 1)))
+      (br_if $again (i64.ne (local.get $count) (i64.const 0))))
+    (return_call $many (local.get $sum) (i64.const 1) (i64.const 2) (i64.const 3) (i64.const 4) (i64.const 5) (i64.const 6) (i64.const 7) (i64.const 8) (i64.const 9) (i64.const 10) (i64.const 11) (i64.const 12) (i64.const 13) (i64.const 14) (i64.const 15) (i64.const 16) (i64.const 17) (i64.const 18) (i64.const 19) (i64.const 20) (i64.const 21) (i64.const 22) (i64.const 23) (i64.const 24) (i64.const 25) (i64.const 26) (i64.const 27) (i64.const 28) (i64.const 29) (i64.const 30) (i64.const 31) (i64.const 32) (i64.const 33) (i64.const 34) (i64.const 35) (i64.const 36) (i64.const 37) (i64.const 38) (i64.const 39))))

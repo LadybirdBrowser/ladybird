@@ -75,6 +75,9 @@ pub const OPCODE_CALL_ENTRY: u8 = 0xf3;
 pub const OPCODE_MEMORY_FAULT: u8 = 0xf2;
 /// The pseudo-instruction compiled code traps through, with the trap code in the context's first argument.
 pub const OPCODE_TRAP_FROM_NATIVE: u8 = 0xef;
+/// The pseudo-instruction that calls the function a compiled function the interpreter called tail called, in that
+/// function's place, when it does not run compiled.
+pub const OPCODE_CALL_PENDING: u8 = 0xee;
 
 /// One function, as the interpreter sees it. Function references point at these.
 #[repr(C)]

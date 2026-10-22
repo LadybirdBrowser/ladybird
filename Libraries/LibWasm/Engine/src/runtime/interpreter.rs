@@ -6,10 +6,17 @@
 
 //! Entering the interpreter, and turning faulting memory accesses inside it into traps.
 
-use crate::abi::{EntryRecord, OPCODE_CALL_ENTRY, OPCODE_ENTER, OPCODE_EXIT};
+use crate::abi::{EntryRecord, OPCODE_CALL_ENTRY, OPCODE_CALL_PENDING, OPCODE_ENTER, OPCODE_EXIT};
 
 /// The code the runtime enters the interpreter at (see `OPCODE_ENTER`).
 static ENTRY_CODE: [u8; 3] = [OPCODE_ENTER, OPCODE_CALL_ENTRY, OPCODE_EXIT];
+
+/// The code the interpreter continues at to call a pending tail call (see `OPCODE_CALL_PENDING`).
+static CALL_PENDING_CODE: [u8; 1] = [OPCODE_CALL_PENDING];
+
+pub fn call_pending_code() -> u64 {
+    CALL_PENDING_CODE.as_ptr() as u64
+}
 
 // The interpreter uses the System V calling convention on every x86-64 target, Windows included.
 #[cfg(all(wasm_interpreter, not(all(target_arch = "x86_64", windows))))]

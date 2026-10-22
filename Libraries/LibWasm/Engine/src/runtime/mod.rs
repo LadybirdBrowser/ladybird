@@ -388,8 +388,6 @@ pub struct Store {
     pub can_block: bool,
     /// The store's compiled code, once it has some.
     jit: Option<jit::StoreJit>,
-    /// How many calls from compiled code into the interpreter are in progress.
-    interpreter_calls_from_native: u32,
 }
 
 impl Default for Store {
@@ -443,7 +441,6 @@ impl Store {
             memory_grow_callback: None,
             can_block: true,
             jit: None,
-            interpreter_calls_from_native: 0,
         }
     }
 

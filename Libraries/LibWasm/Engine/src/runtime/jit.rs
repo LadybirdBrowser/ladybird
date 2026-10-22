@@ -139,7 +139,9 @@ export_runtime_functions! {
 /// and 1 for a loop, whose instruction `arguments[1]` points at, in the frame at `arguments[3]`. Compiles the function
 /// if the JIT is on, or has it compiled in the background. At a loop, continues the frame in compiled code if it can
 /// (OSR) and returns the top of the frame's operand stack with the results on it, or if the frame threw an exception,
-/// 1 if a handler of the interpreter caught it and 2 if it left the interpreter; returns 0 otherwise.
+/// 1 if a handler of the interpreter caught it and 2 if it left the interpreter, or 3 if the frame tail called a
+/// function that does not run compiled, which the interpreter calls in its place at the CallPending pseudo-instruction
+/// `arguments[4]` points at (see `call_compiled()`); returns 0 otherwise.
 unsafe fn tier_up(context: *mut ExecutionContext) -> u64 {
     unsafe {
         let [header, pc, reason, frame, ..] = (*context).arguments;
@@ -180,6 +182,15 @@ unsafe fn tier_up(context: *mut ExecutionContext) -> u64 {
                     0 => 2,
                     resumed => resumed,
                 }
+            }
+            native::LoopEntry::TailCalled => {
+                let read = |offset: isize| *((frame as *const u8).offset(offset) as *const u64);
+                native::pass_tail_call(store, context);
+                let arguments = &mut (*context).arguments;
+                arguments[2] = read(crate::abi::FRAME_RETURN_VSP);
+                arguments[3] = read(crate::abi::FRAME_RETURN_IP);
+                arguments[4] = super::interpreter::call_pending_code();
+                3
             }
             native::LoopEntry::Pending => {
                 address.get_mut().header.tier_up_budget = POLL_BUDGET + crate::abi::TIER_UP_CALL_COST;
@@ -228,10 +239,6 @@ unsafe fn throw_from_native(context: *mut ExecutionContext) -> u64 {
         context as u64
     }
 }
-
-/// How many calls from compiled code into the interpreter may be in progress before the runtime compiles the
-/// functions it calls that way right away.
-const INTERPRETER_CALLS_FROM_NATIVE_BEFORE_COMPILING: u32 = 16;
 
 /// The budget of a function whose compile is pending: how much it runs in the interpreter before the runtime looks
 /// for the compile's result again.
@@ -511,14 +518,28 @@ pub fn release_large_images(in_use: usize) {
 /// Calls a compiled function from the interpreter: `arguments[0]` is its header and `arguments[1]` the top of the
 /// operand stack, where its arguments are, `arguments[2]` where the call returns to and `arguments[3]` the caller's
 /// frame. Replaces the arguments with its results and returns the new top, or if it threw an exception, 1 if a
-/// handler of the interpreter caught it, or 0 if it left the interpreter (see `rethrow_in_interpreter`).
+/// handler of the interpreter caught it, or 0 if it left the interpreter (see `rethrow_in_interpreter`). Returns 2 if
+/// it tail called a function that does not run compiled, which the interpreter calls in its place at the CallPending
+/// pseudo-instruction `arguments[4]` points at, with where the results go in `arguments[2]` and where the call returns
+/// to in `arguments[3]`.
 unsafe fn call_compiled(context: *mut ExecutionContext) -> u64 {
     unsafe {
         // NB: The compiled code's calls into the runtime and the helpers it calls reuse the context's arguments.
-        let [_, _, return_ip, frame, ..] = (*context).arguments;
+        let [header, top, return_ip, frame, ..] = (*context).arguments;
         match native::call_compiled(context) {
-            Ok(top) => top,
-            Err(exception) => rethrow_in_interpreter(context, store_of(context), exception, frame, return_ip - 1),
+            native::Ran::Returned(top) => top,
+            native::Ran::Threw(exception) => {
+                rethrow_in_interpreter(context, store_of(context), exception, frame, return_ip - 1)
+            }
+            native::Ran::TailCalled => {
+                let parameter_slots = (*(header as *const FunctionInstance)).header.param_slots;
+                native::pass_tail_call(store_of(context), context);
+                let arguments = &mut (*context).arguments;
+                arguments[2] = top + 8 * u64::from(parameter_slots);
+                arguments[3] = return_ip;
+                arguments[4] = super::interpreter::call_pending_code();
+                2
+            }
         }
     }
 }
@@ -573,17 +594,13 @@ unsafe fn call_from_native(context: *mut ExecutionContext) -> u64 {
         let outcome = if let FunctionKind::Host(_) = function.kind {
             store.call_host_slots(address, arguments.as_ptr(), results.as_mut_ptr())
         } else {
-            // NB: Tail calls from compiled code into the interpreter come through here, and the interpreter's tail
-            //     calls into compiled code go through the runtime, so functions that tail call each other across
-            //     the tiers keep a native frame per call until they are all compiled. Once a few such calls are in
-            //     progress, the function is compiled here and now instead of waiting for its compile thread.
-            if store.interpreter_calls_from_native >= INTERPRETER_CALLS_FROM_NATIVE_BEFORE_COMPILING {
-                native::compile_function(store, address, true);
+            // NB: A tail call from compiled code that the interpreter called returns to the interpreter, which makes
+            //     it in that code's place, so that functions that tail call each other across the tiers do not keep
+            //     a native frame per call.
+            if native::defer_tail_call(store, address, frame as u64, arguments) {
+                return 0;
             }
-            store.interpreter_calls_from_native += 1;
-            let outcome = store.invoke_slots(address, arguments, results);
-            store.interpreter_calls_from_native -= 1;
-            outcome
+            store.invoke_slots(address, arguments, results)
         };
         match outcome {
             Ok(()) => {}
@@ -884,13 +901,65 @@ mod native {
             };
             let (even, odd) = (export("even"), export("odd"));
             // NB: Even runs compiled, and odd runs interpreted for as long as it does not ask for its compile, as if
-            //     its compile thread never finished it.
+            //     its compile thread never finished it, or its compile failed.
             assert_eq!(
                 super::compile_function(&mut store, even, true),
                 super::CompileState::Compiled
             );
             unsafe { odd.get_mut() }.header.tier_up_budget = u32::MAX;
             assert_eq!(store.invoke(even, &[Value::I64(1_000_000)]), Ok(vec![Value::I64(44)]));
+            assert_ne!(unsafe { odd.get() }.header.kind, crate::abi::FUNCTION_KIND_COMPILED);
+        }
+
+        #[test]
+        fn tail_calls_from_compiled_code_pass_more_arguments_to_the_interpreter() {
+            use crate::runtime::{ExternValue, Store, Value};
+            if !crate::runtime::jit::enabled() {
+                return;
+            }
+            let bytes = include_bytes!("../../tests/fixtures/tail_calls_across_tiers.wasm");
+            let module = Arc::new(crate::compile(bytes).expect("the module is valid"));
+            let mut store = Store::new();
+            let instance = store.instantiate(module, &[]).expect("the module instantiates");
+            let export = |name| match store.instance(instance).export(name) {
+                Some(ExternValue::Function(function)) => function,
+                _ => panic!("no function {name}"),
+            };
+            let (few, many) = (export("few"), export("many"));
+            assert_eq!(
+                super::compile_function(&mut store, few, true),
+                super::CompileState::Compiled
+            );
+            unsafe { many.get_mut() }.header.tier_up_budget = u32::MAX;
+            assert_eq!(store.invoke(few, &[Value::I64(5)]), Ok(vec![Value::I64(5039)]));
+        }
+
+        #[test]
+        fn frames_continued_compiled_at_a_loop_tail_call_the_interpreter() {
+            use crate::runtime::{ExternValue, FunctionKind, Store, Value};
+            if !crate::runtime::jit::enabled() {
+                return;
+            }
+            let bytes = include_bytes!("../../tests/fixtures/tail_calls_across_tiers.wasm");
+            let module = Arc::new(crate::compile(bytes).expect("the module is valid"));
+            let mut store = Store::new();
+            let instance = store.instantiate(module, &[]).expect("the module instantiates");
+            let export = |name| match store.instance(instance).export(name) {
+                Some(ExternValue::Function(function)) => function,
+                _ => panic!("no function {name}"),
+            };
+            let (loops, many) = (export("loops"), export("many"));
+            unsafe { many.get_mut() }.header.tier_up_budget = u32::MAX;
+            // NB: The loop is the function's first instruction, and its frame continues compiled there at once.
+            let FunctionKind::Wasm { module, index, .. } = &unsafe { loops.get() }.kind else {
+                unreachable!("the function is a WebAssembly function");
+            };
+            let body = &module.code[(*index - module.imported_function_count) as usize];
+            let jit = store.jit.get_or_insert_with(Default::default);
+            let key = jit.key(module, *index, Some(body.code.start));
+            assert_eq!(jit.compile(key, true), super::CompileState::Compiled);
+            unsafe { loops.get_mut() }.header.tier_up_budget = crate::abi::TIER_UP_CALL_COST;
+            assert_eq!(store.invoke(loops, &[Value::I64(3)]), Ok(vec![Value::I64(6039)]));
         }
 
         #[test]
@@ -1051,6 +1120,8 @@ mod native {
         Ran(u64),
         /// The frame threw this exception, which its own handlers did not catch.
         Threw(u64),
+        /// The frame tail called a function that does not run compiled (see `defer_tail_call()`).
+        TailCalled,
         /// The code for the loop is still compiling.
         Pending,
         /// The frame cannot continue compiled at this loop.
@@ -1071,6 +1142,11 @@ mod native {
         finished: Option<(Sender<Finished>, Receiver<Finished>)>,
         /// How many modules gained code since the store last looked for modules that died.
         new_code: usize,
+        /// A tail call that compiled code the entry trampoline called made of a function that does not run compiled,
+        /// with its argument slots in operand stack order, which the interpreter makes once the trampoline returns
+        /// (see `defer_tail_call()`).
+        tail_call: Option<FunctionAddress>,
+        tail_call_arguments: Vec<u64>,
         pub disabled: bool,
     }
 
@@ -1342,7 +1418,7 @@ mod native {
         state
     }
 
-    pub unsafe fn call_compiled(context: *mut ExecutionContext) -> Result<u64, u64> {
+    pub unsafe fn call_compiled(context: *mut ExecutionContext) -> Ran {
         unsafe {
             let [header, top, ..] = (*context).arguments;
             let function = &*(header as *const FunctionInstance);
@@ -1391,9 +1467,19 @@ mod native {
         LARGE_IMAGES.with(|images| images.borrow().buffers.len())
     }
 
+    /// How a call of compiled code through the entry trampoline ended.
+    pub enum Ran {
+        /// It returned, with its results on the operand stack, whose new top this is.
+        Returned(u64),
+        /// It threw this exception, which its own handlers did not catch.
+        Threw(u64),
+        /// It tail called a function that does not run compiled, which the interpreter calls in its place (see
+        /// `defer_tail_call()`).
+        TailCalled,
+    }
+
     /// Calls `entry`, compiled code of `function` whose values `shape` describes, with the `index`th argument at
-    /// `argument(index, param)`. Stores the function's results on an operand stack ending at `end`, and returns its
-    /// new top, or the exception it threw.
+    /// `argument(index, param)`. Stores the function's results on an operand stack ending at `end`.
     ///
     /// NB: A trap leaves through the compiled code and does not return, skipping this frame and its callers' up to
     ///     the interpreter, so none of them may own anything that needs dropping.
@@ -1403,7 +1489,7 @@ mod native {
         shape: &CallShape,
         argument: impl Fn(usize, &super::ValueShape) -> *const u64,
         end: *mut u64,
-    ) -> Result<u64, u64> {
+    ) -> Ran {
         unsafe {
             let header_data: &FunctionHeader = &function.header;
             let result_slots = header_data.result_slots as usize;
@@ -1458,7 +1544,11 @@ mod native {
             }
             let context = (*header_data.instance).context;
             if (*context).exception != 0 {
-                return Err(std::mem::take(&mut (*context).exception));
+                return Ran::Threw(std::mem::take(&mut (*context).exception));
+            }
+            let jit = super::store_of(context).jit.as_ref().expect("compiled code ran");
+            if jit.tail_call.is_some() {
+                return Ran::TailCalled;
             }
             let return_top = end.sub(result_slots);
             for result in &shape.results {
@@ -1477,7 +1567,35 @@ mod native {
                     *destination.add(slot) = slot_bits(result.ty, *word);
                 }
             }
-            Ok(return_top as u64)
+            Ran::Returned(return_top as u64)
+        }
+    }
+
+    /// Whether the call of `address` with `arguments`, through the runtime adapter whose frame is `frame`, is a tail
+    /// call of compiled code that the entry trampoline called. If so, keeps the call for the interpreter to make in
+    /// place of that code once the trampoline returns, which it does when the adapter returns. The interpreter's
+    /// tail calls of compiled code make their calls through the trampoline too, so functions that tail call each
+    /// other across the tiers then run in constant stack space.
+    pub unsafe fn defer_tail_call(store: &mut Store, address: FunctionAddress, frame: u64, arguments: &[u64]) -> bool {
+        let return_address = unsafe { *(frame.wrapping_add_signed(crate::abi::FRAME_RETURN_IP as i64) as *const u64) };
+        if return_address != stubs().entry_return {
+            return false;
+        }
+        let jit = store.jit.as_mut().expect("compiled code ran");
+        jit.tail_call = Some(address);
+        jit.tail_call_arguments.clear();
+        jit.tail_call_arguments.extend_from_slice(arguments);
+        true
+    }
+
+    /// Passes the tail call `defer_tail_call()` kept to the interpreter: the callee's header in the context's first
+    /// argument, and the address of its argument slots in the second.
+    pub unsafe fn pass_tail_call(store: &mut Store, context: *mut ExecutionContext) {
+        let jit = store.jit.as_mut().expect("compiled code ran");
+        let function = jit.tail_call.take().expect("compiled code tail called");
+        unsafe {
+            (*context).arguments[0] = function.as_ptr() as u64;
+            (*context).arguments[1] = jit.tail_call_arguments.as_ptr() as u64;
         }
     }
 
@@ -1503,8 +1621,9 @@ mod native {
             let entry = jit.entry(key).expect("the loop is compiled");
             let base = (frame as *mut u8).sub(crate::abi::FRAME_HEADER_SIZE).cast::<u64>();
             match run(function, entry, &shapes(function).osr, |_, _| &raw const frame, base) {
-                Ok(top) => LoopEntry::Ran(top),
-                Err(exception) => LoopEntry::Threw(exception),
+                Ran::Returned(top) => LoopEntry::Ran(top),
+                Ran::Threw(exception) => LoopEntry::Threw(exception),
+                Ran::TailCalled => LoopEntry::TailCalled,
             }
         }
     }
@@ -1550,8 +1669,28 @@ mod native {
     pub enum LoopEntry {
         Ran(u64),
         Threw(u64),
+        TailCalled,
         Pending,
         Never,
+    }
+
+    pub enum Ran {
+        Returned(u64),
+        Threw(u64),
+        TailCalled,
+    }
+
+    pub unsafe fn defer_tail_call(
+        _store: &mut Store,
+        _address: crate::runtime::FunctionAddress,
+        _frame: u64,
+        _arguments: &[u64],
+    ) -> bool {
+        unreachable!("the JIT is off where it has no code generator")
+    }
+
+    pub unsafe fn pass_tail_call(_store: &mut Store, _context: *mut ExecutionContext) {
+        unreachable!("the JIT is off where it has no code generator")
     }
 
     pub unsafe fn unwind(_store: &mut Store, _exception: u64, _frame: u64) {
@@ -1573,7 +1712,7 @@ mod native {
         LoopEntry::Never
     }
 
-    pub unsafe fn call_compiled(_context: *mut ExecutionContext) -> Result<u64, u64> {
+    pub unsafe fn call_compiled(_context: *mut ExecutionContext) -> Ran {
         unreachable!("the JIT is off where it has no code generator")
     }
 
