@@ -24,6 +24,6 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
     if (!decoder.has_value())
         return 0;
 
-    (void)decoder->to_utf8(encoded_data, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement);
+    (void)decoder->to_utf8(encoded_data);
     return 0;
 }

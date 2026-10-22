@@ -171,7 +171,7 @@ ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_en
         return Error::from_string_literal("No Decoder found");
     }
     // 2. Decode stylesheet’s stream of bytes with fallback encoding fallback, and return the result.
-    return TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, encoded_string);
+    return TextCodec::decode_to_utf16(encoded_string, *decoder);
 }
 
 bool is_valid_animation_name_custom_ident(Utf16View ident)

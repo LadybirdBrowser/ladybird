@@ -84,10 +84,10 @@ static void convert_to_xml_error_document(DOM::Document& document, Utf16String e
 
 bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<StringView> content_encoding)
 {
-    Optional<TextCodec::Decoder&> decoder = TextCodec::bom_sniff_to_decoder(data);
+    Optional<TextCodec::Decoder&> decoder;
     // The actual HTTP headers and other metadata, not the headers as mutated or implied by the algorithms given in this specification,
     // are the ones that must be used when determining the character encoding according to the rules given in the above specifications.
-    if (!decoder.has_value() && content_encoding.has_value())
+    if (content_encoding.has_value())
         decoder = TextCodec::decoder_for(*content_encoding);
     // https://www.w3.org/TR/xml/#charencoding
     // [...] it is a fatal error [...] for an entity which begins with neither a Byte Order Mark nor an encoding
@@ -96,7 +96,7 @@ bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optiona
         decoder = TextCodec::decoder_for("UTF-8"sv);
     VERIFY(decoder.has_value());
     // Well-formed XML documents contain only properly encoded characters
-    auto source_or_error = decoder->to_utf8(data, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal);
+    auto source_or_error = TextCodec::decode_to_utf8(data, *decoder, TextCodec::ErrorMode::Fatal);
     if (source_or_error.is_error()) {
         convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_utf16);
         return false;
@@ -201,10 +201,10 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
         content_encoding = *maybe_encoding;
 
     auto process_body = GC::create_function(GC::Heap::the(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
-        Optional<TextCodec::Decoder&> decoder = TextCodec::bom_sniff_to_decoder(data);
+        Optional<TextCodec::Decoder&> decoder;
         // The actual HTTP headers and other metadata, not the headers as mutated or implied by the algorithms given in this specification,
         // are the ones that must be used when determining the character encoding according to the rules given in the above specifications.
-        if (!decoder.has_value() && content_encoding.has_value())
+        if (content_encoding.has_value())
             decoder = TextCodec::decoder_for(content_encoding->bytes_as_string_view());
         // https://www.w3.org/TR/xml/#charencoding
         // [...] it is a fatal error [...] for an entity which begins with neither a Byte Order Mark nor an encoding
@@ -213,7 +213,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             decoder = TextCodec::decoder_for("UTF-8"sv);
         VERIFY(decoder.has_value());
         // Well-formed XML documents contain only properly encoded characters
-        auto source = decoder->to_utf8(data, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Fatal);
+        auto source = TextCodec::decode_to_utf8(data, *decoder, TextCodec::ErrorMode::Fatal);
         if (source.is_error()) {
             // FIXME: Insert error message into the document.
             dbgln("Failed to decode XML document: {}", source.error());
@@ -292,7 +292,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
             parser->tokenizer().switch_to(HTML::HTMLTokenizer::State::PLAINTEXT);
             auto decoder = TextCodec::decoder_for(encoding);
             VERIFY(decoder.has_value());
-            auto decoded = TextCodec::convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, data).release_value_but_fixme_should_propagate_errors();
+            auto decoded = TextCodec::decode_to_utf16(data, *decoder).release_value_but_fixme_should_propagate_errors();
             parser->tokenizer().insert_input_at_insertion_point(decoded);
             parser->tokenizer().insert_eof();
             parser->run(url);

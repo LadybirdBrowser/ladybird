@@ -172,7 +172,7 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(ByteBuffer
         // 5. Decode bytes using fallback encoding encoding, and return the result.
         auto decoder = TextCodec::decoder_for(encoding.value_or("UTF-8"sv));
         VERIFY(decoder.has_value());
-        auto utf8_result = TRY_OR_THROW_OOM(JS::VM::the(), convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder.value(), bytes));
+        auto utf8_result = TRY_OR_THROW_OOM(JS::VM::the(), TextCodec::decode_to_utf8(bytes, decoder.value()));
         return Utf16String::from_utf8(utf8_result);
     }
     case Type::ArrayBuffer:

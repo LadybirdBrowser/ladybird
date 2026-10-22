@@ -100,7 +100,6 @@ pub unsafe extern "C" fn textcodec_rust_decode_to_utf8(
     encoding_label_len: usize,
     input: *const u8,
     input_len: usize,
-    remove_bom: bool,
     fatal: bool,
     ctx: *mut c_void,
     on_bytes: FfiBytesFn,
@@ -117,11 +116,7 @@ pub unsafe extern "C" fn textcodec_rust_decode_to_utf8(
                 return false;
             };
 
-            let (output, had_errors) = if remove_bom {
-                encoding.decode_with_bom_removal(input)
-            } else {
-                encoding.decode_without_bom_handling(input)
-            };
+            let (output, had_errors) = encoding.decode_without_bom_handling(input);
             if fatal && had_errors {
                 return false;
             }

@@ -556,7 +556,7 @@ ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(SearchSugge
     if (!decoder.has_value())
         decoder = TextCodec::decoder_for_exact_name("UTF-8"sv);
 
-    auto decoded_response = TRY(decoder->to_utf8(response, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
+    auto decoded_response = TRY(TextCodec::decode_to_utf8(response, *decoder));
     auto json = TRY(JsonValue::from_string(decoded_response));
 
     switch (provider.response_format) {

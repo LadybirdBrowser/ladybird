@@ -418,7 +418,7 @@ GC::Ref<WebIDL::Promise> Blob::text(JS::Object const& relevant_global_object)
         auto const& array_buffer = static_cast<JS::ArrayBuffer const&>(object);
 
         auto decoder = TextCodec::decoder_for("UTF-8"sv);
-        auto utf8_text = TRY_OR_THROW_OOM(vm, TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, ReadonlyBytes { array_buffer.data_at(0), array_buffer.byte_length() }));
+        auto utf8_text = TRY_OR_THROW_OOM(vm, TextCodec::decode_to_utf8(ReadonlyBytes { array_buffer.data_at(0), array_buffer.byte_length() }, *decoder));
         return JS::PrimitiveString::create(vm, Utf16String::from_utf8(utf8_text));
     }));
 }

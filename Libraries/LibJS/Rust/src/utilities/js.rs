@@ -2015,9 +2015,8 @@ fn decode_utf16_with_replacement(bytes: &[u8], code_unit_from_bytes: fn([u8; 2])
     output
 }
 
-/// TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark() with the windows-1252
-/// decoder.
-fn convert_input_to_utf8_using_windows_1252_unless_there_is_a_byte_order_mark(input: &[u8]) -> String {
+/// TextCodec::decode_to_utf8() with the windows-1252 decoder as the fallback.
+fn decode_to_utf8_with_windows_1252_fallback(input: &[u8]) -> String {
     if let Some(input) = input.strip_prefix(b"\xEF\xBB\xBF") {
         return String::from_utf8_lossy(input).into_owned();
     }
@@ -2155,10 +2154,7 @@ fn ladybird_main(arguments: &[String], line_editor: Option<JSLineEditor>) -> c_i
             if utf16_from_wtf8(&file_contents).is_some() {
                 builder.extend_from_slice(&file_contents);
             } else {
-                builder.extend_from_slice(
-                    convert_input_to_utf8_using_windows_1252_unless_there_is_a_byte_order_mark(&file_contents)
-                        .as_bytes(),
-                );
+                builder.extend_from_slice(decode_to_utf8_with_windows_1252_fallback(&file_contents).as_bytes());
             }
         }
 
