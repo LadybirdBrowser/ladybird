@@ -619,6 +619,11 @@ static QColor chrome_control_soft_hover(QPalette const& palette)
     return is_dark(palette) ? QColor(255, 255, 255, 24) : QColor(0, 0, 0, 16);
 }
 
+QColor location_edit_border(QPalette const& palette)
+{
+    return is_dark(palette) ? mix(chrome_background(palette), chrome_border(palette), 0.36) : chrome_border(palette);
+}
+
 static QColor location_edit_focus_border(QPalette const& palette)
 {
     return mix(chrome_border(palette), chrome_accent(), is_dark(palette) ? 0.50 : 0.54);
@@ -635,7 +640,7 @@ QString location_edit_style_sheet(QPalette const& palette)
     auto hover_color = mix(surface_color, QColor(soft_hover.rgb()), soft_hover.alpha() / 255.0);
     auto focus_color = dark ? mix(surface_color, QColor(255, 255, 255), 0.035) : surface_color;
 
-    auto border_color = dark ? mix(chrome_background(palette), chrome_border(palette), 0.36) : chrome_border(palette);
+    auto border_color = location_edit_border(palette);
     auto hover_border_color = border_color;
     auto focus_border_color = location_edit_focus_border(palette);
 

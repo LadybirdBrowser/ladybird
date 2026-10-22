@@ -31,6 +31,7 @@ QColor chrome_surface_pressed(QPalette const&);
 QColor chrome_control_border(QPalette const&);
 QColor chrome_active_tab_surface(QPalette const&);
 QColor chrome_border(QPalette const&);
+QColor location_edit_border(QPalette const&);
 QColor chrome_separator(QPalette const&);
 QColor chrome_window_outline(QPalette const&);
 QColor chrome_accent();
