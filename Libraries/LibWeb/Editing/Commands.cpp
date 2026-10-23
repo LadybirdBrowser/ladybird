@@ -1449,6 +1449,9 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16View)
                 MUST(selection.collapse(start_node->parent(), start_node->index() + 1));
                 auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
                 MUST(insert_node_into_range(*active_range(document), br));
+
+                // NB: Inserting the br made the selection span it. Collapse it again after the newline.
+                MUST(selection.collapse(start_node, text_node->length()));
             }
             return true;
         }
@@ -1469,8 +1472,8 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16View)
             if (!text->next_sibling()) {
                 auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
                 MUST(insert_node_into_range(*active_range(document), br));
-                MUST(selection.collapse(text->parent(), text->index() + 1));
             }
+            MUST(selection.collapse(text, 1));
             return true;
         }
     }
