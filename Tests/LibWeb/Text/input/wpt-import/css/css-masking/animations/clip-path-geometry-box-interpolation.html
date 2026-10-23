@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Masking Test: clip-path geometry-box interpolation with allow-discrete</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-2/#shape-function">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+  <script>
+    // Same shape(), different geometry-box: should switch discretely at 0.5 (no interpolation of shape params)
+    test_interpolation({
+      property: 'clip-path',
+      behavior: 'allow-discrete',
+      from: 'shape(from 0px 0px, line to 10px 10px) border-box',
+      to: 'shape(from 1px 1px, line to 20px 20px) content-box',
+    }, [
+      { at: -0.1, expect: 'shape(from 0px 0px, line to 10px 10px)' },
+      { at: 0, expect: 'shape(from 0px 0px, line to 10px 10px)' },
+      { at: 0.4, expect: 'shape(from 0px 0px, line to 10px 10px)' },
+      { at: 0.5, expect: 'shape(from 1px 1px, line to 20px 20px) content-box' },
+      { at: 1, expect: 'shape(from 1px 1px, line to 20px 20px) content-box' },
+      { at: 1.5, expect: 'shape(from 1px 1px, line to 20px 20px) content-box' },
+    ]);
+
+    // Omitted geometry-box defaults to border-box.
+    test_interpolation({
+      property: 'clip-path',
+      behavior: 'allow-discrete',
+      from: 'shape(from 0px 0px, line to 10px 10px)', // defaults to border-box
+      to: 'shape(from 0px 0px, line to 20px 20px) padding-box',
+    }, [
+      { at: -0.1, expect: 'shape(from 0px 0px, line to 10px 10px)' },
+      { at: 0, expect: 'shape(from 0px 0px, line to 10px 10px)' },
+      { at: 0.4, expect: 'shape(from 0px 0px, line to 10px 10px)' },
+      { at: 0.5, expect: 'shape(from 0px 0px, line to 20px 20px) padding-box' },
+      { at: 1, expect: 'shape(from 0px 0px, line to 20px 20px) padding-box' },
+      { at: 1.5, expect: 'shape(from 0px 0px, line to 20px 20px) padding-box' },
+    ]);
+
+    // Same shape(), same geometry-box.
+    test_interpolation({
+      property: 'clip-path',
+      behavior: 'allow-discrete',
+      from: 'shape(from 0px 0px, line to 10px 10px) margin-box',
+      to: 'shape(from 10px 10px, line to 20px 20px) margin-box',
+    }, [
+      { at: -0.1, expect: 'shape(from -1px -1px, line to 9px 9px) margin-box' },
+      { at: 0, expect: 'shape(from 0px 0px, line to 10px 10px) margin-box' },
+      { at: 0.4, expect: 'shape(from 4px 4px, line to 14px 14px) margin-box' },
+      { at: 0.5, expect: 'shape(from 5px 5px, line to 15px 15px) margin-box' },
+      { at: 1, expect: 'shape(from 10px 10px, line to 20px 20px) margin-box' },
+      { at: 1.5, expect: 'shape(from 15px 15px, line to 25px 25px) margin-box' },
+    ]);
+
+    // circle(), different geometry-box should switch discretely.
+    test_interpolation({
+      property: 'clip-path',
+      behavior: 'allow-discrete',
+      from: 'circle(10px) border-box',
+      to: 'circle(30px) content-box',
+    }, [
+      { at: -0.1, expect: 'circle(10px)' },
+      { at: 0, expect: 'circle(10px)' },
+      { at: 0.4, expect: 'circle(10px)' },
+      { at: 0.5, expect: 'circle(30px) content-box' },
+      { at: 1, expect: 'circle(30px) content-box' },
+      { at: 1.5, expect: 'circle(30px) content-box' },
+    ]);
+
+    // circle(), omitted geometry-box defaults to border-box.
+    test_interpolation({
+      property: 'clip-path',
+      behavior: 'allow-discrete',
+      from: 'circle(20px)',
+      to: 'circle(20px) padding-box',
+    }, [
+      { at: -0.1, expect: 'circle(20px)' },
+      { at: 0, expect: 'circle(20px)' },
+      { at: 0.4, expect: 'circle(20px)' },
+      { at: 0.5, expect: 'circle(20px) padding-box' },
+      { at: 1, expect: 'circle(20px) padding-box' },
+      { at: 1.5, expect: 'circle(20px) padding-box' },
+    ]);
+
+    // circle(), same geometry-box should interpolate radius smoothly.
+    test_interpolation({
+      property: 'clip-path',
+      behavior: 'allow-discrete',
+      from: 'circle(10px) margin-box',
+      to: 'circle(30px) margin-box',
+    }, [
+      { at: -0.1, expect: 'circle(8px) margin-box' },
+      { at: 0, expect: 'circle(10px) margin-box' },
+      { at: 0.4, expect: 'circle(18px) margin-box' },
+      { at: 0.5, expect: 'circle(20px) margin-box' },
+      { at: 1, expect: 'circle(30px) margin-box' },
+      { at: 1.5, expect: 'circle(40px) margin-box' },
+    ]);
+  </script>
+</body>

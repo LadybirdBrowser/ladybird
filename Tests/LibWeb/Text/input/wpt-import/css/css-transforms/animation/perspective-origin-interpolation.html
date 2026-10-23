@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>perspective-origin interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#perspective-origin-property">
+<meta name="assert" content="perspective-origin supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  perspective-origin: 30px 10px;
+}
+.target {
+  display: inline-block;
+  perspective: 50;
+  margin-top: 50px;
+  margin-bottom: 25px;
+  perspective-origin: 10px 30px;
+}
+.transformed {
+  width: 50px;
+  height: 50px;
+  background: black;
+  transform: rotateY(45deg);
+}
+.expected .transformed {
+  background: green;
+}
+.expected {
+  position: relative;
+  left: -50px;
+  opacity: 0.75;
+}
+</style>
+<body>
+<template id="target-template">
+<div><div class="transformed"></div></div>
+</template>
+<script>
+test_interpolation({
+  property: 'perspective-origin',
+  from: neutralKeyframe,
+  to: '20px 20px',
+}, [
+  {at: -0.3, expect: '7px 33px'},
+  {at: 0, expect: '10px 30px'},
+  {at: 0.3, expect: '13px 27px'},
+  {at: 0.6, expect: '16px 24px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '25px 15px'},
+]);
+
+test_interpolation({
+  property: 'perspective-origin',
+  from: 'initial',
+  to: '20px 20px',
+}, [
+  {at: -0.3, expect: '26.5px 26.5px'},
+  {at: 0, expect: '25px 25px'},
+  {at: 0.3, expect: '23.5px 23.5px'},
+  {at: 0.6, expect: '22px 22px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '17.5px 17.5px'},
+]);
+
+test_interpolation({
+  property: 'perspective-origin',
+  from: 'inherit',
+  to: '20px 20px',
+}, [
+  {at: -0.3, expect: '33px 7px'},
+  {at: 0, expect: '30px 10px'},
+  {at: 0.3, expect: '27px 13px'},
+  {at: 0.6, expect: '24px 16px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '15px 25px'},
+]);
+
+test_interpolation({
+  property: 'perspective-origin',
+  from: 'unset',
+  to: '20px 20px',
+}, [
+  {at: -0.3, expect: '26.5px 26.5px'},
+  {at: 0, expect: '25px 25px'},
+  {at: 0.3, expect: '23.5px 23.5px'},
+  {at: 0.6, expect: '22px 22px'},
+  {at: 1, expect: '20px 20px'},
+  {at: 1.5, expect: '17.5px 17.5px'},
+]);
+
+test_interpolation({
+  property: 'perspective-origin',
+  from: '0% 50%',
+  to: '100% 150%'
+}, [
+  {at: -0.3, expect: '-30% 20%'},
+  {at: 0, expect: '0% 50%'},
+  {at: 0.3, expect: '30% 80%'},
+  {at: 0.6, expect: '60% 110%'},
+  {at: 1, expect: '100% 150%'},
+  {at: 1.5, expect: '150% 200%'}
+]);
+</script>
+</body>

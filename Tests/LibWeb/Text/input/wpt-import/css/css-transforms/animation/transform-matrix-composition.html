@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform-matrix composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#ctm">
+<meta name="assert" content="transform-matrix supports animation as a transform list">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+// For matrix and matrix3d, addition is defined as concatenation whilst
+// accumulation works by decomposing the matrix and then accumulating the
+// decomposed functions. We can therefore test the difference between the
+// two by mixing functions such that a naive multiplication would look
+// different than the accumulation behavior.
+//
+// Note that due to the complexities of decomposition the test space here is
+// huge; we cover some basic cases and hope that the tests for the individual
+// functions provide a lot of the remaining coverage.
+
+// Creates a matrix3d function, encoding the passed rotation and translation.
+// Note that the translate will not be affected by the rotation.
+function create3dMatrix(x, y, z, radians, translateX) {
+  // Normalize the rotation axes.
+  const length = Math.sqrt(x*x + y*y + z*z);
+  x /= length;
+  y /= length;
+  z /= length;
+
+  const sc = Math.sin(radians / 2) * Math.cos(radians / 2);
+  const sq = Math.sin(radians / 2) * Math.sin(radians / 2);
+
+  // https://drafts.csswg.org/css-transforms-2/#Rotate3dDefined
+  // https://drafts.csswg.org/css-transforms-2/#Translate3dDefined
+  return 'matrix3d(' + [
+      1 - 2 * (y*y + z*z) * sq,
+      2 * (x * y * sq + z * sc),
+      2 * (x * z * sq - y * sc),
+      0,
+      2 * (x * y * sq - z * sc),
+      1 - 2 * (x*x + z*z) * sq,
+      2 * (y * z * sq + x * sc),
+      0,
+      2 * (x * z * sq + y * sc),
+      2 * (y * z * sq - x * sc),
+      1 - 2 * (x*x + y*y) * sq,
+      0,
+      translateX, 0, 0, 1].join() + ')';
+}
+
+// ------------ Addition tests --------------
+
+test_composition({
+  property: 'transform',
+  // translateX(100px) rotate(90deg)
+  underlying: 'matrix(0, 1, -1, 0, 100, 0)',
+  // translateX(100px)
+  addFrom: 'matrix(1, 0, 0, 1, 100, 0)',
+  // translateX(200px)
+  addTo: 'matrix(1, 0, 0, 1, 200, 0)',
+}, [
+  {at: -0.5, expect: 'matrix(0, 1, -1, 0, 100, 50)'},
+  {at: 0, expect: 'matrix(0, 1, -1, 0, 100, 100)'},
+  {at: 0.25, expect: 'matrix(0, 1, -1, 0, 100, 125)'},
+  {at: 0.5, expect: 'matrix(0, 1, -1, 0, 100, 150)'},
+  {at: 0.75, expect: 'matrix(0, 1, -1, 0, 100, 175)'},
+  {at: 1, expect: 'matrix(0, 1, -1, 0, 100, 200)'},
+  {at: 1.5, expect: 'matrix(0, 1, -1, 0, 100, 250)'},
+]);
+
+test_composition({
+  property: 'transform',
+  // translateX(100px) rotate3d(1, 1, 0, 45deg)
+  underlying: create3dMatrix(1, 1, 0, Math.PI / 4, 100),
+  // translateX(100px)
+  addFrom: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 100, 0, 0, 1)',
+  // translateX(200px)
+  addTo: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 200, 0, 0, 1)',
+}, [
+  // matrix3ds are hard to read; these are the decomposed forms for clarity
+  {at: -0.5, expect: 'translateX(100px) rotate3d(1, 1, 0, 45deg) translateX(50px)'},
+  {at: 0, expect: 'translateX(100px) rotate3d(1, 1, 0, 45deg) translateX(100px)'},
+  {at: 0.25, expect: 'translateX(100px) rotate3d(1, 1, 0, 45deg) translateX(125px)'},
+  {at: 0.5, expect: 'translateX(100px) rotate3d(1, 1, 0, 45deg) translateX(150px)'},
+  {at: 0.75, expect: 'translateX(100px) rotate3d(1, 1, 0, 45deg) translateX(175px)'},
+  {at: 1, expect: 'translateX(100px) rotate3d(1, 1, 0, 45deg) translateX(200px)'},
+  {at: 1.5, expect: 'translateX(100px) rotate3d(1, 1, 0, 45deg) translateX(250px)'},
+]);
+
+// Addition of non-invertible matrices is still defined as concatenation so
+// includes the underlying value.
+
+test_composition({
+  property: 'transform',
+  // Non-invertible.
+  underlying: 'matrix(1, 1, 0, 0, 0, 100)',
+  // translateX(100px)
+  addFrom: 'matrix(1, 0, 0, 1, 100, 0)',
+  // translateX(200px)
+  addTo: 'matrix(1, 0, 0, 1, 200, 0)',
+}, [
+  {at: -0.5, expect: 'matrix(1, 1, 0, 0, 100, 200)'},
+  {at: 0, expect: 'matrix(1, 1, 0, 0, 100, 200)'},
+  {at: 0.25, expect: 'matrix(1, 1, 0, 0, 100, 200)'},
+  {at: 0.5, expect: 'matrix(1, 1, 0, 0, 200, 300)'},
+  {at: 0.75, expect: 'matrix(1, 1, 0, 0, 200, 300)'},
+  {at: 1, expect: 'matrix(1, 1, 0, 0, 200, 300)'},
+  {at: 1.5, expect: 'matrix(1, 1, 0, 0, 200, 300)'},
+]);
+
+test_composition({
+  property: 'transform',
+  // translateX(100px)
+  underlying: 'matrix(1, 0, 0, 1, 100, 0)',
+  // Non-invertible
+  addFrom: 'matrix(1, 1, 0, 0, 0, 100)',
+  // translateX(200px)
+  addTo: 'matrix(1, 0, 0, 1, 200, 0)',
+}, [
+  {at: -0.5, expect: 'matrix(1, 1, 0, 0, 100, 100)'},
+  {at: 0, expect: 'matrix(1, 1, 0, 0, 100, 100)'},
+  {at: 0.25, expect: 'matrix(1, 1, 0, 0, 100, 100)'},
+  {at: 0.5, expect: 'matrix(1, 0, 0, 1, 300, 0)'},
+  {at: 0.75, expect: 'matrix(1, 0, 0, 1, 300, 0)'},
+  {at: 1, expect: 'matrix(1, 0, 0, 1, 300, 0)'},
+  {at: 1.5, expect: 'matrix(1, 0, 0, 1, 300, 0)'},
+]);
+
+// ------------ Accumulation tests --------------
+
+test_composition({
+  property: 'transform',
+  // translateX(100px) rotate(90deg)
+  underlying: 'matrix(0, 1, -1, 0, 100, 0)',
+  // translateX(100px)
+  accumulateFrom: 'matrix(1, 0, 0, 1, 100, 0)',
+  // translateX(200px)
+  accumulateTo: 'matrix(1, 0, 0, 1, 200, 0)',
+}, [
+  {at: -0.5, expect: 'matrix(0, 1, -1, 0, 150, 0)'},
+  {at: 0, expect: 'matrix(0, 1, -1, 0, 200, 0)'},
+  {at: 0.25, expect: 'matrix(0, 1, -1, 0, 225, 0)'},
+  {at: 0.5, expect: 'matrix(0, 1, -1, 0, 250, 0)'},
+  {at: 0.75, expect: 'matrix(0, 1, -1, 0, 275, 0)'},
+  {at: 1, expect: 'matrix(0, 1, -1, 0, 300, 0)'},
+  {at: 1.5, expect: 'matrix(0, 1, -1, 0, 350, 0)'},
+]);
+
+test_composition({
+  property: 'transform',
+  // translateX(100px) rotate3d(1, 1, 0, 45deg)
+  underlying: create3dMatrix(1, 1, 0, Math.PI / 4, 100),
+  // translateX(100px)
+  accumulateFrom: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 100, 0, 0, 1)',
+  // translateX(200px)
+  accumulateTo: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 200, 0, 0, 1)',
+}, [
+  // matrix3ds are hard to read; these are the decomposed forms for clarity
+  {at: -0.5, expect: 'translateX(150px) rotate3d(1, 1, 0, 45deg)'},
+  {at: 0, expect: 'translateX(200px) rotate3d(1, 1, 0, 45deg)'},
+  {at: 0.25, expect: 'translateX(225px) rotate3d(1, 1, 0, 45deg)'},
+  {at: 0.5, expect: 'translateX(250px) rotate3d(1, 1, 0, 45deg)'},
+  {at: 0.75, expect: 'translateX(275px) rotate3d(1, 1, 0, 45deg)'},
+  {at: 1, expect: 'translateX(300px) rotate3d(1, 1, 0, 45deg)'},
+  {at: 1.5, expect: 'translateX(350px) rotate3d(1, 1, 0, 45deg)'},
+]);
+
+// Accumulation of non-invertible matrices falls back to replace behavior.
+
+test_composition({
+  property: 'transform',
+  // Non-invertible.
+  underlying: 'matrix(1, 1, 0, 0, 0, 100)',
+  // translateX(100px)
+  accumulateFrom: 'matrix(1, 0, 0, 1, 100, 0)',
+  // translateX(200px)
+  accumulateTo: 'matrix(1, 0, 0, 1, 200, 0)',
+}, [
+  {at: -0.5, expect: 'matrix(1, 0, 0, 1, 50, 0)'},
+  {at: 0, expect: 'matrix(1, 0, 0, 1, 100, 0)'},
+  {at: 0.25, expect: 'matrix(1, 0, 0, 1, 125, 0)'},
+  {at: 0.5, expect: 'matrix(1, 0, 0, 1, 150, 0)'},
+  {at: 0.75, expect: 'matrix(1, 0, 0, 1, 175, 0)'},
+  {at: 1, expect: 'matrix(1, 0, 0, 1, 200, 0)'},
+  {at: 1.5, expect: 'matrix(1, 0, 0, 1, 250, 0)'},
+]);
+
+test_composition({
+  property: 'transform',
+  // translateX(100px)
+  underlying: 'matrix(1, 0, 0, 1, 100, 0)',
+  // Non-invertible
+  accumulateFrom: 'matrix(1, 1, 0, 0, 0, 100)',
+  // translateX(200px)
+  accumulateTo: 'matrix(1, 0, 0, 1, 200, 0)',
+}, [
+  {at: -0.5, expect: 'matrix(1, 1, 0, 0, 0, 100)'},
+  {at: 0, expect: 'matrix(1, 1, 0, 0, 0, 100)'},
+  {at: 0.25, expect: 'matrix(1, 1, 0, 0, 0, 100)'},
+  {at: 0.5, expect: 'matrix(1, 0, 0, 1, 300, 0)'},
+  {at: 0.75, expect: 'matrix(1, 0, 0, 1, 300, 0)'},
+  {at: 1, expect: 'matrix(1, 0, 0, 1, 300, 0)'},
+  {at: 1.5, expect: 'matrix(1, 0, 0, 1, 300, 0)'},
+]);
+</script>
+</body>

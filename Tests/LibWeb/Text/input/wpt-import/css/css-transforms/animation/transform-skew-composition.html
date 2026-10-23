@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform-skew composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#two-d-transform-functions">
+<meta name="assert" content="transform-skew supports animation as a transform list">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+// Addition (aka concatenation) of two skew functions skew(a) and skew(b)
+// results in computing tan(a) + tan(b), whereas accumulation results in summing
+// the components to get tan(a + b).
+
+// ------------ Addition tests --------------
+
+test_composition({
+  property: 'transform',
+  underlying: 'skewX(10deg)',
+  addFrom: 'skewX(30deg)',
+  addTo: 'skewX(50deg)',
+}, [
+  {at: -0.5, expect: 'skewX(10deg) skewX(20deg)'},
+  {at: 0, expect: 'skewX(10deg) skewX(30deg)'},
+  {at: 0.25, expect: 'skewX(10deg) skewX(35deg)'},
+  {at: 0.5, expect: 'skewX(10deg) skewX(40deg)'},
+  {at: 0.75, expect: 'skewX(10deg) skewX(45deg)'},
+  {at: 1, expect: 'skewX(10deg) skewX(50deg)'},
+  {at: 1.5, expect: 'skewX(10deg) skewX(60deg)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'skewY(10deg)',
+  addFrom: 'skewY(30deg)',
+  addTo: 'skewY(50deg)',
+}, [
+  {at: -0.5, expect: 'skewY(10deg) skewY(20deg)'},
+  {at: 0, expect: 'skewY(10deg) skewY(30deg)'},
+  {at: 0.25, expect: 'skewY(10deg) skewY(35deg)'},
+  {at: 0.5, expect: 'skewY(10deg) skewY(40deg)'},
+  {at: 0.75, expect: 'skewY(10deg) skewY(45deg)'},
+  {at: 1, expect: 'skewY(10deg) skewY(50deg)'},
+  {at: 1.5, expect: 'skewY(10deg) skewY(60deg)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'skew(10deg, 20deg)',
+  addFrom: 'skew(30deg, 10deg)',
+  addTo: 'skew(50deg, 50deg)',
+}, [
+  {at: -0.5, expect: 'skew(10deg, 20deg) skew(20deg, -10deg)'},
+  {at: 0, expect: 'skew(10deg, 20deg) skew(30deg, 10deg)'},
+  {at: 0.25, expect: 'skew(10deg, 20deg) skew(35deg, 20deg)'},
+  {at: 0.5, expect: 'skew(10deg, 20deg) skew(40deg, 30deg)'},
+  {at: 0.75, expect: 'skew(10deg, 20deg) skew(45deg, 40deg)'},
+  {at: 1, expect: 'skew(10deg, 20deg) skew(50deg, 50deg)'},
+  {at: 1.5, expect: 'skew(10deg, 20deg) skew(60deg, 70deg)'},
+]);
+
+// ------------ Accumulation tests --------------
+
+test_composition({
+  property: 'transform',
+  underlying: 'skewX(45deg)',
+  accumulateFrom: 'skewX(30deg)',
+  accumulateTo: 'skewX(70deg)',
+}, [
+  {at: -0.5, expect: 'skewX(55deg)'},
+  {at: 0, expect: 'skewX(75deg)'},
+  {at: 0.25, expect: 'skewX(85deg)'},
+  {at: 0.5, expect: 'skewX(95deg)'},
+  {at: 0.75, expect: 'skewX(105deg)'},
+  {at: 1, expect: 'skewX(115deg)'},
+  {at: 1.5, expect: 'skewX(135deg)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'skewY(45deg)',
+  accumulateFrom: 'skewY(30deg)',
+  accumulateTo: 'skewY(70deg)',
+}, [
+  {at: -0.5, expect: 'skewY(55deg)'},
+  {at: 0, expect: 'skewY(75deg)'},
+  {at: 0.25, expect: 'skewY(85deg)'},
+  {at: 0.5, expect: 'skewY(95deg)'},
+  {at: 0.75, expect: 'skewY(105deg)'},
+  {at: 1, expect: 'skewY(115deg)'},
+  {at: 1.5, expect: 'skewY(135deg)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'skew(10deg, 45deg)',
+  accumulateFrom: 'skew(20deg, 30deg)',
+  accumulateTo: 'skew(40deg, 70deg)',
+}, [
+  {at: -0.5, expect: 'skew(20deg, 55deg)'},
+  {at: 0, expect: 'skew(30deg, 75deg)'},
+  {at: 0.25, expect: 'skew(35deg, 85deg)'},
+  {at: 0.5, expect: 'skew(40deg, 95deg)'},
+  {at: 0.75, expect: 'skew(45deg, 105deg)'},
+  {at: 1, expect: 'skew(50deg, 115deg)'},
+  {at: 1.5, expect: 'skew(60deg, 135deg)'},
+]);
+
+// The skew{X,Y} functions DO NOT share the same primitive type, so cannot be
+// accumlated between directly. Instead, they fall back to matrix accumulation,
+// which this tests for.
+test_composition({
+  property: 'transform',
+  underlying: 'skewX(45deg)',
+  accumulateFrom: 'skewY(45deg)',
+  accumulateTo: 'skewY(45deg)',
+}, [
+  // Note that this is not equivalent to any form of combined skews.
+  {at: 0.5, expect: 'matrix(1, 1, 0.5, 1.5, 0, 0)'},
+]);
+</script>
+</body>
