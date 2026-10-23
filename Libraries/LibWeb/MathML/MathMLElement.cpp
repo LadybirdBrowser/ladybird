@@ -9,7 +9,6 @@
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/MathML/AttributeNames.h>
 #include <LibWeb/MathML/MathMLElement.h>
@@ -114,11 +113,14 @@ void MathMLElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
             // In that case the user agent is expected to treat the scriptlevel attribute as a presentational hint
             // setting the element's math-depth property to the corresponding value. More precisely, +<U>, -<U> and <U>
             // are respectively mapped to add(<U>) add(<-U>) and <U>.
-            if (Optional<Utf16View> parsed_value = HTML::parse_integer_digits(value); parsed_value.has_value()) {
-                auto string_value = parsed_value.value();
-                if (auto integer_value = parsed_value->to_number<i32>(TrimWhitespace::No); integer_value.has_value()) {
+            // NB: The whole value has to be an optional sign followed by ASCII digits.
+            auto digits = value;
+            if (!digits.is_empty() && (digits.code_unit_at(0) == '+' || digits.code_unit_at(0) == '-'))
+                digits = digits.substring_view(1);
+            if (!digits.is_empty() && all_of(digits, [](u32 code_point) { return is_ascii_digit(code_point); })) {
+                if (auto integer_value = value.to_number<i32>(TrimWhitespace::No); integer_value.has_value()) {
                     auto style_value = [&]() -> NonnullRefPtr<CSS::StyleValue const> {
-                        if (string_value.code_unit_at(0) == '+' || string_value.code_unit_at(0) == '-')
+                        if (value.code_unit_at(0) == '+' || value.code_unit_at(0) == '-')
                             return CSS::FunctionStyleValue::create("add"_utf16_fly_string, CSS::IntegerStyleValue::create(integer_value.release_value()));
 
                         return CSS::IntegerStyleValue::create(integer_value.release_value());
