@@ -48,7 +48,7 @@ public:
     WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, Window::PostMessageOptions const&);
 
     Vector<GC::Root<Navigable>> document_tree_child_navigables();
-    OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
+    GC::OrderedRootHashMap<Utf16FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
 
     CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map() { return m_cross_origin_property_descriptor_map; }
 

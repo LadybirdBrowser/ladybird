@@ -84,7 +84,7 @@ private:
 
     bool is_platform_object_same_origin() const;
     Vector<GC::Root<Navigable>> document_tree_child_navigables() const;
-    OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set() const;
+    GC::OrderedRootHashMap<Utf16FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set() const;
     Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::PropertyKey const&) const;
     GC::RootVector<JS::Value> cross_origin_own_property_keys() const;
 
