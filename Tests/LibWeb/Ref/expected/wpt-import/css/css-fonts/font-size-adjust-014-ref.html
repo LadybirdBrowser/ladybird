@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Reference: font-size-adjust property</title>
+    <style>
+        .outer {
+            font: 50px/1 monospace;
+            height: 100px;
+        }
+        .ref {
+            font-family: serif;
+            font-size-adjust: 0.5;
+        }
+        .tall-inline-block {
+            display: inline-block;
+            height: 100px;
+        }
+        .description {
+            font-family: serif;
+            font-size: 16px;
+            font-size-adjust: from-font;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="description">
+            All four instances of "foobar" should be the same size; the font of the outer div
+            should not affect <tt>font-size-adjust:from-font</tt> on the inner.
+        </div>
+        <div class="outer">
+            <span class="ref">
+                foobar<span class="tall-inline-block"></span>
+            </span>
+        </div>
+        <div class="outer">
+            <span class="ref">
+                foobar<span class="tall-inline-block"></span>
+            </span>
+        </div>
+        <div class="outer">
+            <span class="ref">
+                foobar<span class="tall-inline-block"></span>
+            </span>
+        </div>
+        <div class="outer">
+            <span class="ref">
+                foobar<span class="tall-inline-block"></span>
+            </span>
+        </div>
+    </div>
+</html>

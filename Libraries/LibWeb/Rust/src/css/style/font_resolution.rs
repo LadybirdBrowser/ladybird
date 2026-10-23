@@ -5,7 +5,9 @@
  */
 
 use super::HashMap;
-use super::bridge::{FONT_RESOLUTION_FEATURE_INPUT_COUNT, FfiFontResolutionRequest, FfiHostHandle, FfiResolvedFont};
+use super::bridge::{
+    FONT_RESOLUTION_FEATURE_INPUT_COUNT, FfiFontResolutionRequest, FfiHostHandle, FfiResolvedFont, FontSizeAdjustKind,
+};
 use super::tree::TreeScopeID;
 use crate::css::host_shared::HostShared;
 use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
@@ -42,6 +44,9 @@ struct FontResolutionKey {
     font_weight: u64,
     font_width: u64,
     font_optical_sizing: u8,
+    font_size_adjust: FontSizeAdjustKind,
+    font_size_adjust_metric: u8,
+    font_size_adjust_value: u64,
     font_feature_values_scope: u32,
 }
 
@@ -55,6 +60,9 @@ impl FontResolutionKey {
             font_weight: request.font_weight.to_bits(),
             font_width: request.font_width.to_bits(),
             font_optical_sizing: request.font_optical_sizing,
+            font_size_adjust: request.font_size_adjust,
+            font_size_adjust_metric: request.font_size_adjust_metric,
+            font_size_adjust_value: request.font_size_adjust_value.to_bits(),
             font_feature_values_scope: request.font_feature_values_scope,
         }
     }
@@ -378,6 +386,9 @@ mod tests {
             font_weight: 400.0,
             font_width: 100.0,
             font_optical_sizing: 0,
+            font_size_adjust: FontSizeAdjustKind::None,
+            font_size_adjust_metric: 0,
+            font_size_adjust_value: 0.0,
             font_feature_values_scope: 0,
             font_environment_generation: 1,
         };
@@ -438,6 +449,9 @@ mod tests {
             font_weight: 700.0,
             font_width: 100.0,
             font_optical_sizing: 0,
+            font_size_adjust: FontSizeAdjustKind::None,
+            font_size_adjust_metric: 0,
+            font_size_adjust_value: 0.0,
             font_feature_values_scope: 0,
             font_environment_generation: 1,
         };

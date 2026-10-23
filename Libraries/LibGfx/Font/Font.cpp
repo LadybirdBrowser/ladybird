@@ -82,6 +82,34 @@ FontPixelMetrics Font::compute_pixel_metrics() const
     return metrics;
 }
 
+float Font::cap_height() const
+{
+    // https://drafts.csswg.org/css-values-4/#cap
+    // In the cases where it is impossible or impractical to determine the cap-height, the font’s ascent must be used.
+    hb_position_t cap_height = 0;
+    if (hb_ot_metrics_get_position(m_harfbuzz_font, HB_OT_METRICS_TAG_CAP_HEIGHT, &cap_height) && cap_height > 0)
+        return static_cast<float>(cap_height) / text_shaping_resolution;
+    return m_pixel_metrics.ascent;
+}
+
+Optional<float> Font::horizontal_advance_of_code_point(u32 code_point) const
+{
+    hb_codepoint_t glyph_id = 0;
+    if (!hb_font_get_nominal_glyph(m_harfbuzz_font, code_point, &glyph_id))
+        return {};
+    return static_cast<float>(hb_font_get_glyph_h_advance(m_harfbuzz_font, glyph_id)) / text_shaping_resolution;
+}
+
+Optional<float> Font::vertical_advance_of_code_point(u32 code_point) const
+{
+    hb_codepoint_t glyph_id = 0;
+    if (!hb_font_get_nominal_glyph(m_harfbuzz_font, code_point, &glyph_id))
+        return {};
+    // NB: HarfBuzz measures vertical advances downwards as negative.
+    auto advance = hb_font_get_glyph_v_advance(m_harfbuzz_font, glyph_id);
+    return static_cast<float>(advance < 0 ? -advance : advance) / text_shaping_resolution;
+}
+
 float Font::width(Utf16View const& view) const { return measure_text_width(view, *this); }
 
 NonnullRefPtr<Font> Font::invisible_variant() const

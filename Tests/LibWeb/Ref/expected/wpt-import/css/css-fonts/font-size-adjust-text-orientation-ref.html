@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-size-adjust and text-orientation</title>
+<link rel="author" title="ChangSeok Oh" href="mailto:changseok@webkit.org" />
+<link rel="help" href="https://www.w3.org/TR/css-fonts-5/#font-size-adjust-prop" />
+<style>
+@font-face {
+  font-family: IcTestFullWidth;
+  src: url(../css-values/resources/IcTestFullWidth.woff2);
+}
+div {
+  font-family: IcTestFullWidth;
+  font-size: 40px;
+  font-size-adjust: ic-width 1.0;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+</style>
+<div>あ</div>

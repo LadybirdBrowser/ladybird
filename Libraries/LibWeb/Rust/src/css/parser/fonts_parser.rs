@@ -15,9 +15,9 @@ use super::value_parser::{
 use crate::css::css_enums::{
     font_tech, keyword, keyword_from_ascii_case_insensitive, keyword_to_common_lig_value,
     keyword_to_contextual_alt_value, keyword_to_discretionary_lig_value, keyword_to_east_asian_variant,
-    keyword_to_east_asian_width, keyword_to_font_style_keyword, keyword_to_font_tech, keyword_to_generic_font_family,
-    keyword_to_historical_lig_value, keyword_to_numeric_figure_value, keyword_to_numeric_fraction_value,
-    keyword_to_numeric_spacing_value,
+    keyword_to_east_asian_width, keyword_to_font_size_adjust_metric, keyword_to_font_style_keyword,
+    keyword_to_font_tech, keyword_to_generic_font_family, keyword_to_historical_lig_value,
+    keyword_to_numeric_figure_value, keyword_to_numeric_fraction_value, keyword_to_numeric_spacing_value,
 };
 use crate::css::css_string::CssString;
 use crate::css::property_metadata::property_id;
@@ -159,6 +159,53 @@ fn parse_font_style(context: &ParseContext, values: &[ComponentValue]) -> Option
     Some(StyleValueData::FontStyle {
         font_style,
         angle_value: angle_value.map_or_else(RetainedStyleValueData::none, retained),
+    })
+}
+
+// https://drafts.csswg.org/css-fonts-5/#font-size-adjust-prop
+// none | [ ex-height | cap-height | ch-width | ic-width | ic-height ]? [ from-font | <number [0,∞]> ]
+// NB: Anything but none is a tuple of the metric keyword, absent for the default ex-height, and the value: a number,
+//     or the from-font keyword until computation replaces it with the first available font's own metric.
+fn parse_font_size_adjust(context: &ParseContext, values: &[ComponentValue]) -> Option<StyleValueData> {
+    let mut tokens = TokenStream::new(values);
+    tokens.discard_whitespace();
+    let mut metric = None;
+    if let Some((keyword, keyword_value)) = keyword_value(tokens.next_token()) {
+        if keyword == keyword::NONE {
+            tokens.discard_a_token();
+            tokens.discard_whitespace();
+            return (!tokens.has_next_token()).then_some(keyword_value);
+        }
+        if keyword_to_font_size_adjust_metric(keyword).is_some() {
+            tokens.discard_a_token();
+            // ex-height is the default metric, which serializes as nothing.
+            if keyword != keyword::EX_HEIGHT {
+                metric = Some(keyword_value);
+            }
+        }
+    }
+    tokens.discard_whitespace();
+    let value = match keyword_value(tokens.next_token()) {
+        Some((keyword::FROM_FONT, keyword_value)) => {
+            tokens.discard_a_token();
+            keyword_value
+        }
+        _ => parse_number_from_stream(
+            context,
+            property_id::FONT_SIZE_ADJUST,
+            &mut tokens,
+            NumericRange::NON_NEGATIVE,
+        )?,
+    };
+    tokens.discard_whitespace();
+    if tokens.has_next_token() {
+        return None;
+    }
+    Some(StyleValueData::Tuple {
+        values: RetainedStyleValueDataList::from_retained_values(vec![
+            metric.map_or_else(RetainedStyleValueData::none, retained),
+            retained(value),
+        ]),
     })
 }
 
@@ -631,6 +678,7 @@ pub(crate) fn parse_font_property(context: &ParseContext, property: u16, values:
         property,
         property_id::FONT_FAMILY
             | property_id::FONT_STYLE
+            | property_id::FONT_SIZE_ADJUST
             | property_id::FONT_FEATURE_SETTINGS
             | property_id::FONT_VARIATION_SETTINGS
             | property_id::FONT_VARIANT_ALTERNATES
@@ -663,6 +711,7 @@ pub(crate) fn parse_font_property(context: &ParseContext, property: u16, values:
     let parsed = match property {
         property_id::FONT_FAMILY => parse_font_family(context, values),
         property_id::FONT_STYLE => parse_font_style(context, values),
+        property_id::FONT_SIZE_ADJUST => parse_font_size_adjust(context, values),
         property_id::FONT_FEATURE_SETTINGS => parse_font_feature_settings(context, values),
         property_id::FONT_VARIATION_SETTINGS => parse_font_variation_settings(context, values),
         property_id::FONT_VARIANT_ALTERNATES => parse_font_variant_alternates(context, values),

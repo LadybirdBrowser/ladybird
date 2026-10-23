@@ -31,6 +31,8 @@ struct AK::Traits<Web::CSS::ComputedFontCacheKey> : public AK::DefaultTraits<Web
 
         hash = pair_int_hash(hash, to_underlying(key.font_optical_sizing));
         hash = pair_int_hash(hash, Traits<Web::CSSPixels>::hash(key.font_size));
+        if (key.font_size_adjust.has_value())
+            hash = pair_int_hash(hash, pair_int_hash(to_underlying(key.font_size_adjust->metric), Traits<double>::hash(key.font_size_adjust->value)));
         hash = pair_int_hash(hash, key.font_slope);
         hash = pair_int_hash(hash, Traits<double>::hash(key.font_weight));
         hash = pair_int_hash(hash, Traits<double>::hash(key.font_width.value()));

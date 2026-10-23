@@ -445,6 +445,22 @@ pub enum FontResolutionFeatureInput {
     TextRendering,
 }
 
+/// What a resolution request's `font-size-adjust` asks of the resolver.
+/// https://drafts.csswg.org/css-fonts-5/#font-size-adjust-prop
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Default, Debug)]
+pub enum FontSizeAdjustKind {
+    /// `none`: the resolver selects fonts at the computed font size.
+    #[default]
+    None,
+    /// A number: the resolver scales the size it selects fonts at so that the metric of the first
+    /// available font is that proportion of the computed font size.
+    Number,
+    /// `from-font`: the resolver measures the metric of the first available font, which is the
+    /// number the value computes to, and sizes the other fonts by that number.
+    FromFont,
+}
+
 /// How many values a resolution request names, one per `FontResolutionFeatureInput`.
 pub const FONT_RESOLUTION_FEATURE_INPUT_COUNT: usize = 11;
 const _: () = assert!(FontResolutionFeatureInput::TextRendering as usize + 1 == FONT_RESOLUTION_FEATURE_INPUT_COUNT);
@@ -462,6 +478,12 @@ pub struct FfiFontResolutionRequest {
     pub font_weight: f64,
     pub font_width: f64,
     pub font_optical_sizing: u8,
+    /// The computed `font-size-adjust`: its kind, the metric it normalizes (a
+    /// `font_size_adjust_metric` value), and the number for `FontSizeAdjustKind::Number`. The
+    /// metric and number are zero for `FontSizeAdjustKind::None`.
+    pub font_size_adjust: FontSizeAdjustKind,
+    pub font_size_adjust_metric: u8,
+    pub font_size_adjust_value: f64,
     /// The tree scope whose `@font-feature-values` `font-variant-alternates` names features
     /// through, or the document's where the request names no `font-variant-alternates`.
     pub font_feature_values_scope: u32,
@@ -488,6 +510,10 @@ pub struct FfiResolvedFont {
     pub descent: f32,
     pub x_height: f32,
     pub zero_advance: f32,
+    /// For a request naming `from-font`, the number it computes to: the request's metric of the
+    /// first available font, divided by that font's size. Zero for other requests, and where the
+    /// font has no size to divide by.
+    pub font_size_adjust_from_font: f64,
 }
 
 impl Default for FfiStyleTransactionView {

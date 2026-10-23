@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 12 tests
+Found 13 tests
 
-12 Pass
+13 Pass
+Pass	Property font-size-adjust should be reset to its initial value.
 Pass	Property font-kerning should be reset to its initial value.
 Pass	Property font-variant-caps should be reset to its initial value.
 Pass	Property font-variant-ligatures should be reset to its initial value.

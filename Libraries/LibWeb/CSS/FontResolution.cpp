@@ -228,10 +228,44 @@ static Gfx::ShapeFeatures shape_features_for(ComputedFontCacheKey const& key, Fo
     return features;
 }
 
+// The metric of a font that font-size-adjust normalizes, divided by the font's size, or zero for a font without a size.
+static double font_size_adjust_aspect_value(Gfx::Font const& font, FontSizeAdjustMetric metric)
+{
+    auto font_size = font.pixel_size();
+    if (!(font_size > 0))
+        return 0;
+    auto const& metrics = font.pixel_metrics();
+
+    // https://drafts.csswg.org/css-fonts-5/#font-size-adjust-prop
+    switch (metric) {
+    case FontSizeAdjustMetric::ExHeight:
+        // Normalize the aspect value of the fonts, using the x-height divided by the font size.
+        return metrics.x_height / font_size;
+    case FontSizeAdjustMetric::CapHeight:
+        // Normalize the cap-height of the fonts, using the cap-height by the font size.
+        return font.cap_height() / font_size;
+    case FontSizeAdjustMetric::ChWidth:
+        // Normalize the horizontal narrow pitch of the fonts, using the advance width of “0” (ZERO, U+0030) divided by
+        // the font size.
+        return metrics.advance_of_ascii_zero / font_size;
+    case FontSizeAdjustMetric::IcWidth:
+        // Normalize the horizontal wide pitch of the font, using the advance width of “水” (CJK water ideograph,
+        // U+6C34) divided by the font size.
+        // NB: Where the font has no such glyph, this assumes 1em, as the ic unit does:
+        //     https://drafts.csswg.org/css-values-4/#ic
+        return font.horizontal_advance_of_code_point(0x6C34).value_or(font_size) / font_size;
+    case FontSizeAdjustMetric::IcHeight:
+        // Normalize the vertical wide pitch of the font, using the advance height of “水” (CJK water ideograph,
+        // U+6C34) divided by the font size.
+        return font.vertical_advance_of_code_point(0x6C34).value_or(font_size) / font_size;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family)
 {
     auto const& font_families = key.font_families;
-    auto const& font_size = key.font_size;
+    auto font_size = key.font_size.to_float();
     auto slope = key.font_slope;
     auto font_weight = key.font_weight;
     auto const& font_width = key.font_width;
@@ -240,26 +274,69 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
     auto weight = round_to<int>(font_weight);
 
-    // FIXME: We need to respect `font-size-adjust` once that is implemented.
-    auto font_size_used_value = font_size.to_float();
-
+    // The size the lookups below select fonts at, which font-size-adjust can change for each family.
     Gfx::FontVariationSettings variation;
-    variation.set_weight(font_weight);
-    variation.set_width(font_width.value());
+    float font_size_in_pt = 0;
+    auto select_fonts_at = [&](float font_size_used_value) {
+        variation = {};
+        variation.set_weight(font_weight);
+        variation.set_width(font_width.value());
 
-    // NB: The spec recommends that we use the 'used value' of font-size for 'opsz' when font-optical-sizing is 'auto'.
-    // FIXME: User agents must not select a value for the "opsz" axis which is not supported by the font used for
-    //        rendering the text. This can be accomplished by clamping a chosen value to the range supported by the
-    //        font. https://drafts.csswg.org/css-fonts/#font-optical-sizing-def
-    if (font_optical_sizing == FontOpticalSizing::Auto)
-        variation.set_optical_sizing(font_size_used_value);
+        // NB: The spec recommends that we use the 'used value' of font-size for 'opsz' when font-optical-sizing is 'auto'.
+        // FIXME: User agents must not select a value for the "opsz" axis which is not supported by the font used for
+        //        rendering the text. This can be accomplished by clamping a chosen value to the range supported by the
+        //        font. https://drafts.csswg.org/css-fonts/#font-optical-sizing-def
+        if (font_optical_sizing == FontOpticalSizing::Auto)
+            variation.set_optical_sizing(font_size_used_value);
 
-    Parser::ValueParserFFI::rust_font_variation_axes(feature_value_data(key, FontResolutionFeatureInput::FontVariationSettings), &variation, [](void* variation, u32 tag, double value) {
-        static_cast<Gfx::FontVariationSettings*>(variation)->axes.set(Gfx::FourCC::from_u32(tag), value);
-    });
+        Parser::ValueParserFFI::rust_font_variation_axes(feature_value_data(key, FontResolutionFeatureInput::FontVariationSettings), &variation, [](void* variation, u32 tag, double value) {
+            static_cast<Gfx::FontVariationSettings*>(variation)->axes.set(Gfx::FourCC::from_u32(tag), value);
+        });
 
-    // FIXME: Implement the full font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
-    float const font_size_in_pt = font_size_used_value * 0.75f;
+        // FIXME: Implement the full font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
+        font_size_in_pt = font_size_used_value * 0.75f;
+    };
+    select_fonts_at(font_size);
+
+    // https://drafts.csswg.org/css-fonts-5/#font-size-adjust-prop
+    // Each font’s used size is normalized to match the chosen font metric to this specified proportion of the computed
+    // 'font-size'. In other words, for each glyph, the adjusted font size to use u is calculated as:
+    //     u = ( m / m′ ) s
+    // where:
+    //     s = computed 'font-size' value
+    //     m = metric as specified by the 'font-size-adjust' property
+    //     m′ = metric as specified in the actual font
+    //     u = adjusted font-size to use
+    // NB: This measures m′ in the first font each family resolves to, and sizes all of that family's fonts by it.
+    auto adjusted_font_size_for = [&](Gfx::Font const& font) -> Optional<float> {
+        if (!key.font_size_adjust.has_value())
+            return {};
+        auto aspect_value = font_size_adjust_aspect_value(font, key.font_size_adjust->metric);
+        // ISSUE(6384): If the required font metric cannot be derived from a font, then that font’s size is not adjusted.
+        if (!(aspect_value > 0))
+            return {};
+        auto adjusted_font_size = CSSPixels::nearest_value_for(key.font_size_adjust->value / aspect_value * font_size).to_float();
+        if (adjusted_font_size == font_size)
+            return {};
+        return adjusted_font_size;
+    };
+    auto with_font_size_adjust = [&](auto find) -> RefPtr<Gfx::FontCascadeList const> {
+        auto found_font_list = find();
+        if (!key.font_size_adjust.has_value() || !found_font_list)
+            return found_font_list;
+        Gfx::Font const* first_font = nullptr;
+        found_font_list->for_each_font_entry([&](auto const& entry) {
+            if (!first_font)
+                first_font = entry.font.ptr();
+        });
+        auto adjusted_font_size = first_font ? adjusted_font_size_for(*first_font) : Optional<float> {};
+        if (!adjusted_font_size.has_value())
+            return found_font_list;
+        select_fonts_at(*adjusted_font_size);
+        auto adjusted_font_list = find();
+        select_fonts_at(font_size);
+        return adjusted_font_list ? adjusted_font_list : found_font_list;
+    };
 
 #ifdef AK_OS_MACOS
     auto find_macos_system_ui_font = [&](Gfx::SystemUIFontKind kind, Utf16FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
@@ -359,12 +436,11 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
     auto font_list = Gfx::FontCascadeList::create();
 
     for (auto const& family : font_families) {
-        RefPtr<Gfx::FontCascadeList const> other_font_list;
-        if (family.has<GenericFontFamily>()) {
-            other_font_list = find_generic_font(family.get<GenericFontFamily>());
-        } else {
-            other_font_list = find_font(family.get<ComputedFontFamilyName>().name);
-        }
+        auto other_font_list = with_font_size_adjust([&] {
+            if (family.has<GenericFontFamily>())
+                return find_generic_font(family.get<GenericFontFamily>());
+            return find_font(family.get<ComputedFontFamilyName>().name);
+        });
 
         if (other_font_list)
             font_list->extend(*other_font_list);
@@ -372,8 +448,13 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
 
     // NB: @font-feature-values can't apply to the default font since it's not loaded from CSS
     auto default_font = Platform::FontPlugin::the().default_font(font_size_in_pt, variation, shape_features_for(key, nullptr));
+    if (auto adjusted_font_size = adjusted_font_size_for(*default_font); adjusted_font_size.has_value()) {
+        select_fonts_at(*adjusted_font_size);
+        default_font = Platform::FontPlugin::the().default_font(font_size_in_pt, variation, shape_features_for(key, nullptr));
+        select_fonts_at(font_size);
+    }
     if (font_list->is_empty()) {
-        if (auto fallback_font_list = find_font(Utf16FlyString::from_fly_string(Platform::FontPlugin::the().generic_font_name(Platform::GenericFont::UiSansSerif))))
+        if (auto fallback_font_list = with_font_size_adjust([&] { return find_font(Utf16FlyString::from_fly_string(Platform::FontPlugin::the().generic_font_name(Platform::GenericFont::UiSansSerif))); }))
             font_list->extend(*fallback_font_list);
     }
     if (font_list->is_empty()) {
@@ -388,10 +469,12 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
 
     if (Platform::FontPlugin::the().is_layout_test_mode()) {
         for (auto font_name : Platform::FontPlugin::the().symbol_font_names()) {
-            if (auto other_font_list = find_font(Utf16FlyString::from_fly_string(font_name)))
+            if (auto other_font_list = with_font_size_adjust([&] { return find_font(Utf16FlyString::from_fly_string(font_name)); }))
                 font_list->extend_fallback(*other_font_list);
         }
     } else {
+        // FIXME: Normalize the size of each system fallback font by font-size-adjust as well, rather than giving it
+        //        the size of the cascade's first font.
         font_list->set_system_font_fallback_callback([](u32 code_point, Gfx::EmojiPresentation presentation, Gfx::Font const& reference_font) -> RefPtr<Gfx::Font const> {
             Gfx::SystemFallbackFontKey key {
                 .code_point = code_point,
@@ -528,6 +611,8 @@ static StyleEngineFFI::FfiResolvedFont resolve_font_for_style_engine(void const*
         .feature_values = {},
         .font_feature_values_scope = TreeScopeID { request.font_feature_values_scope },
     };
+    if (request.font_size_adjust == StyleEngineFFI::FontSizeAdjustKind::Number)
+        key.font_size_adjust = FontSizeAdjust { static_cast<FontSizeAdjustMetric>(request.font_size_adjust_metric), request.font_size_adjust_value };
     // The engine names a value for each feature input whose property does not have its initial value.
     for (size_t index = 0; index < key.feature_values.size(); ++index) {
         if (auto handle = request.font_feature_values[index])
@@ -536,9 +621,25 @@ static StyleEngineFFI::FfiResolvedFont resolve_font_for_style_engine(void const*
     auto const& font_faces = *static_cast<FontFaceSnapshot const*>(snapshot);
     auto const& cascade_memo = *static_cast<FontCascadeMemo const*>(memo);
     FontFeatureValuesProvider font_feature_values_for_family = [&](Utf16FlyString const& family) -> FontFeatureValues const& { return font_faces.font_feature_values(key.font_feature_values_scope, family); };
-    auto font_list = resolved_for == ResolvedFor::Fork
-        ? cascade_memo.resolve_for_fork(font_faces, key, font_feature_values_for_family)
-        : cascade_memo.resolve(font_faces, key, font_feature_values_for_family);
+    auto resolve = [&] {
+        return resolved_for == ResolvedFor::Fork
+            ? cascade_memo.resolve_for_fork(font_faces, key, font_feature_values_for_family)
+            : cascade_memo.resolve(font_faces, key, font_feature_values_for_family);
+    };
+    auto font_list = resolve();
+    double font_size_adjust_from_font = 0;
+    if (request.font_size_adjust == StyleEngineFFI::FontSizeAdjustKind::FromFont) {
+        // https://drafts.csswg.org/css-fonts-5/#valdef-font-size-adjust-from-font
+        // Computes to the <number> corresponding to the specified metric of the first available font, if it exists.
+        // Otherwise, the same as none.
+        // NB: The element's other fonts are then sized by that number.
+        auto metric = static_cast<FontSizeAdjustMetric>(request.font_size_adjust_metric);
+        font_size_adjust_from_font = font_size_adjust_aspect_value(font_list->first_available_font(), metric);
+        if (font_size_adjust_from_font > 0) {
+            key.font_size_adjust = FontSizeAdjust { metric, font_size_adjust_from_font };
+            font_list = resolve();
+        }
+    }
     // The metric probe must not load a face: the first available font answers without one.
     auto const& first_available_font = font_list->first_available_font();
     auto const metrics = first_available_font.pixel_metrics();
@@ -555,6 +656,7 @@ static StyleEngineFFI::FfiResolvedFont resolve_font_for_style_engine(void const*
         .descent = metrics.descent,
         .x_height = metrics.x_height,
         .zero_advance = metrics.advance_of_ascii_zero,
+        .font_size_adjust_from_font = font_size_adjust_from_font,
     };
 }
 

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 36 tests
 
-34 Pass
-2 Fail
+35 Pass
+1 Fail
 Pass	pre test setup
 Pass	backgroundAttachment should be applied to first-letter pseudo elements.
 Pass	backgroundBlendMode should be applied to first-letter pseudo elements.
@@ -22,7 +22,7 @@ Pass	color should be applied to first-letter pseudo elements.
 Pass	float should be applied to first-letter pseudo elements.
 Pass	font should be applied to first-letter pseudo elements.
 Pass	fontFeatureSettings should be applied to first-letter pseudo elements.
-Fail	fontSizeAdjust should be applied to first-letter pseudo elements.
+Pass	fontSizeAdjust should be applied to first-letter pseudo elements.
 Pass	fontKerning should be applied to first-letter pseudo elements.
 Pass	fontVariationSettings should be applied to first-letter pseudo elements.
 Pass	letterSpacing should be applied to first-letter pseudo elements.

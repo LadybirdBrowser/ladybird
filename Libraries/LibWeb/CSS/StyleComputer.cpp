@@ -1933,6 +1933,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
     case PropertyID::FontKerning:
     case PropertyID::FontOpticalSizing:
     case PropertyID::FontSize:
+    case PropertyID::FontSizeAdjust:
     case PropertyID::FontStyle:
     case PropertyID::FontVariantAlternates:
     case PropertyID::FontVariantCaps:

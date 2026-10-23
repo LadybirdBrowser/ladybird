@@ -428,8 +428,8 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, ResolvedFon
             CSS::PropertyID::FontKerning,
             CSS::PropertyID::FontLanguageOverride,
             CSS::PropertyID::FontOpticalSizing,
-            // FIXME: PropertyID::FontSizeAdjust,
             CSS::PropertyID::FontVariationSettings,
+            CSS::PropertyID::FontSizeAdjust,
         },
         {
             // Set explicitly
@@ -446,8 +446,8 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, ResolvedFon
             property_initial_value(CSS::PropertyID::FontKerning),           // font-kerning,
             property_initial_value(CSS::PropertyID::FontLanguageOverride),  // font-language-override
             property_initial_value(CSS::PropertyID::FontOpticalSizing),     // font-optical-sizing,
-                                                                            // FIXME: font-size-adjust,
             property_initial_value(CSS::PropertyID::FontVariationSettings), // font-variation-settings
+            property_initial_value(CSS::PropertyID::FontSizeAdjust),        // font-size-adjust
         });
 
     CSS::FontResolutionFeatureValues feature_values;

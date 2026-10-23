@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>Crash test for using a generic font family and font-size-adjust together.</title>
+<link rel="author" title="ChangSeok Oh" href="mailto:changseok@webkit.org">
+<link rel="help" href="https://crbug.com/1458673">
+<style>
+.crash {
+  font-family: fantasy;
+  font-size-adjust: 1.0;
+}
+</style>
+<div class="crash">Test passes if it does not crash.</div>

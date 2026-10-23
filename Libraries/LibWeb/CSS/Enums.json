@@ -616,6 +616,13 @@
     "auto",
     "none"
   ],
+  "font-size-adjust-metric": [
+    "ex-height",
+    "cap-height",
+    "ch-width",
+    "ic-width",
+    "ic-height"
+  ],
   "font-smoothing": [
     "auto",
     "none",

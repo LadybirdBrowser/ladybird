@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fonts Reference: font-size-adjust - greater than aspect value of font</title>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+  div {
+    position: absolute;
+    font: 40px/40px Ahem;
+    color: orange;
+  }
+  #test {
+    color: blue;
+    font-size: 45px;
+  }
+</style>
+<body>
+  <p>Test passes if the size of the blue rectangle is greater than the orange rectangle.</p>
+  <div id="test">FillerText</div>
+  <div>FillerText</div>
+</body>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fonts Test: font-size-adjust effect on font-dependent units</title>
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+<link rel="help" title="2.6 Relative sizing: the font-size-adjust property"
+      href="https://drafts.csswg.org/css-fonts/#font-size-adjust-prop">
+<link rel="help" title="6.1.1. Font-relative Lengths: the em, rem, ex, rex, cap, rcap, ch, rch, ic, ric, lh, rlh units"
+      href="https://drafts.csswg.org/css-values-4/#font-relative-lengths">
+<meta name="assert" content="font-size-adjust affects the size of the 'ch' unit consistently regardless of the ordering of properties.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-size-adjust-order-001-ref.html">
+<style>
+  div {
+    margin: 10px;
+    font: 20px monospace;
+    background: yellow;
+  }
+  #bg {
+    width: 12ch;
+    height: 2em;
+    background: red;
+    position: absolute;
+    z-index: -1;
+  }
+  #test1 {
+    /* Size the font by its ex-height; this will enlarge the glyphs
+       so the red background block is hidden. */
+    font-size-adjust: 1.0;
+    width: 10ch;
+  }
+  #test2 {
+    /* This should work exactly the same. */
+    width: 10ch;
+    font-size-adjust: 1.0;
+  }
+</style>
+<body>
+  <p>Test passes if both blocks render the same, and there is no red:</p>
+  <div id="bg"></div>
+  <div id="test1">The quick brown fox jumps over the lazy dog</div>
+  <div id="bg"></div>
+  <div id="test2">The quick brown fox jumps over the lazy dog</div>
+</body>
