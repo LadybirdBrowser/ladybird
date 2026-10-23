@@ -147,7 +147,6 @@ private:
         AudioDecoderSelection m_decoder_that_failed_due_to_missing_features;
         Optional<CodedFrame> m_frame_awaiting_decoder_replacement;
         OwnPtr<AudioDecoder> m_decoder;
-        bool m_decoder_needs_keyframe_next_seek { false };
         bool m_decoder_needs_codec_configuration_next_seek { true };
         NonnullOwnPtr<Audio::AudioConverter> m_converter;
         i64 m_last_output_frame { NumericLimits<i64>::min() };

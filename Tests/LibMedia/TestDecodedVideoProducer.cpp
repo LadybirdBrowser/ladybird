@@ -747,6 +747,64 @@ TEST_CASE(seeks_land_on_the_right_frame_while_output_arrives_asynchronously)
     }
 }
 
+// Seeking back to an earlier time within the frame of the last sample the demuxer read lets the demuxer keep its
+// position, so the decoder will not output that frame again. The seek must still land on it.
+TEST_CASE(a_seek_back_within_the_last_decoded_frame_lands_on_it)
+{
+    auto& loop = never_destroyed_event_loop();
+    // A decoder that delays its output would hold back the last frame read before the demuxer blocks.
+    auto withheld_outputs = make_ref_counted<WithheldOutputs>();
+    WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(withheld_outputs);
+    ScopeGuard stop_withholding = [] { WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(nullptr); };
+
+    auto sample_timestamps = presentation_timestamps_of_first_samples("./vp9_in_webm.webm"sv, 4);
+    VERIFY(sample_timestamps.size() == 4);
+    auto last_read_sample_timestamp = sample_timestamps[2];
+    auto frame_interval_in_milliseconds = (sample_timestamps[3] - last_read_sample_timestamp).to_milliseconds();
+
+    auto [inner_demuxer, track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
+    auto demuxer = BlockingDemuxer::create(inner_demuxer, 3);
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, track));
+    producer->set_error_handler([&](Media::DecoderError&& error) {
+        FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
+    });
+    producer->seek(last_read_sample_timestamp + AK::Duration::from_milliseconds(frame_interval_in_milliseconds * 3 / 4));
+    producer->start();
+    AsynchronousOutputReleaser releaser { withheld_outputs };
+
+    auto time_limit = AK::Duration::from_seconds(5);
+    auto peek_frame = [&] -> RefPtr<Media::VideoFrame> {
+        auto deadline = MonotonicTime::now_coarse() + time_limit;
+        while (MonotonicTime::now_coarse() < deadline) {
+            auto output = producer->peek();
+            if (output.status == Media::PipelineStatus::HaveData)
+                return output.frame;
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        }
+        return nullptr;
+    };
+
+    auto frame = peek_frame();
+    if (frame == nullptr) {
+        FAIL("The first seek did not resolve");
+        return;
+    }
+    EXPECT_EQ(frame->timestamp(), last_read_sample_timestamp);
+    if (!demuxer->wait_until_a_read_blocks(time_limit)) {
+        FAIL("Timed out waiting for the decode thread to block on the demuxer");
+        return;
+    }
+
+    producer->seek(last_read_sample_timestamp + AK::Duration::from_milliseconds(frame_interval_in_milliseconds / 4));
+    demuxer->stop_blocking_reads();
+    frame = peek_frame();
+    if (frame == nullptr) {
+        FAIL("The second seek did not resolve");
+        return;
+    }
+    EXPECT_EQ(frame->timestamp(), last_read_sample_timestamp);
+}
+
 // A stream can grow after the demuxer reported its end, by which point the decoder was drained on that report.
 // Nothing can be decoded from the samples that follow, so they are ignored rather than ending playback in an error.
 TEST_CASE(samples_that_follow_a_transient_end_of_stream_are_ignored)
