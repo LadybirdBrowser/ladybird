@@ -299,12 +299,17 @@ fraction_exit:
             while (!is_eof(string, position) && is_ascii_digit(code_unit_at(string, position)))
                 ++position;
             auto digits = string.substring_view(start_index, position - start_index);
-            auto optional_value = digits.template to_number<i32>();
-            exponent *= optional_value.value();
+            // NB: Any exponent beyond 1000 makes value overflow to infinity or underflow to zero, so clamp it there.
+            //     This also covers digits that do not fit an i32.
+            auto exponent_magnitude = min(digits.template to_number<i32>().value_or(NumericLimits<i32>::max()), 1000);
+            exponent *= static_cast<i16>(exponent_magnitude);
         }
 
         // 14.6. Multiply value by ten raised to the exponentth power.
-        value *= pow(10, exponent);
+        // NB: A zero value stays zero for any exponent. Skip the multiplication, as zero times an infinite power of
+        //     ten would be NaN.
+        if (value != 0)
+            value *= pow(10, exponent);
     }
 
 conversion:
