@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
@@ -55,7 +56,7 @@ private:
         size_t node_end { 0 };
         bool checked { false };
     };
-    using Paragraph = Vector<ParagraphPiece>;
+    using Paragraph = GC::ConservativeVector<ParagraphPiece>;
 
     struct RequestPiece {
         GC::Weak<DOM::Text> text;
