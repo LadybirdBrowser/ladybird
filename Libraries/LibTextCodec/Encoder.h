@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <AK/Function.h>
+#include <AK/StringView.h>
 #include <LibTextCodec/Export.h>
 #include <LibTextCodec/Forward.h>
 
