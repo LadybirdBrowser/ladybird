@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 678 tests
 
-675 Pass
-3 Fail
+677 Pass
+1 Fail
 Pass	Property color value 'hsl(from hsl(none 50% 50%) h s l)'
 Pass	Property color value 'hsl(from hsl(180 none 50%) h s l)'
 Pass	Property color value 'hsl(from hsl(180 50% none) h s l)'
@@ -220,7 +220,7 @@ Pass	Property color value 'color-mix(in hwb, oklab(0.5 none 0.1), hwb(11 33 44))
 Pass	Property color value 'color-mix(in hwb, oklab(0.5 0.1 none), hwb(11 33 44))'
 Pass	Property color value 'color-mix(in hwb, oklab(none none 0.1), hwb(11 33 44))'
 Pass	Property color value 'color-mix(in hwb, oklab(0.5 none none), hwb(11 33 44))'
-Fail	Property color value 'color-mix(in hwb, oklab(none 0.1 none), hwb(11 33 44))'
+Pass	Property color value 'color-mix(in hwb, oklab(none 0.1 none), hwb(11 33 44))'
 Pass	Property color value 'color-mix(in hwb, oklab(none none none), hwb(11 33 44))'
 Pass	Property color value 'color-mix(in hwb, rgb(none none none), hwb(11 33 44))'
 Pass	Property color value 'color-mix(in hwb, color(display-p3 none none none), hwb(11 33 44))'
@@ -264,7 +264,7 @@ Pass	Property color value 'color-mix(in hwb, oklab(0.5 none 0.1))'
 Pass	Property color value 'color-mix(in hwb, oklab(0.5 0.1 none))'
 Pass	Property color value 'color-mix(in hwb, oklab(none none 0.1))'
 Pass	Property color value 'color-mix(in hwb, oklab(0.5 none none))'
-Fail	Property color value 'color-mix(in hwb, oklab(none 0.1 none))'
+Pass	Property color value 'color-mix(in hwb, oklab(none 0.1 none))'
 Pass	Property color value 'color-mix(in hwb, oklab(none none none))'
 Pass	Property color value 'color-mix(in hwb, rgb(none none none))'
 Pass	Property color value 'color-mix(in hwb, color(display-p3 none none none))'

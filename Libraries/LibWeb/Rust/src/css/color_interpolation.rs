@@ -196,30 +196,6 @@ fn substitute_missing_components(
     }
 }
 
-fn mark_powerless_hue_after_conversion(
-    source_type: u8,
-    target_type: u8,
-    components: [f32; 4],
-    missing: &mut [bool; 4],
-) {
-    if source_type == target_type {
-        return;
-    }
-    // NB: Achromatic colors converted through the sRGB -> XYZ-D65 -> XYZ-D50 -> Lab -> LCH chain accumulate
-    //     floating-point error of ~0.016 in the chroma component due to the Bradford chromatic adaptation matrices.
-    //     This is the worst case for all color conversion types, so the threshold is large enough to account for this.
-    const ACHROMATIC_THRESHOLD: f32 = 0.02;
-    let powerless = match target_type {
-        color_conversion::HSL => components[1].abs() < ACHROMATIC_THRESHOLD,
-        color_conversion::HWB => components[1] + components[2] >= 1.0 - ACHROMATIC_THRESHOLD,
-        color_conversion::LCH | color_conversion::OKLCH => components[1].abs() < ACHROMATIC_THRESHOLD,
-        _ => false,
-    };
-    if powerless {
-        missing[hue_index(target_type).unwrap()] = true;
-    }
-}
-
 fn retained_number(value: f32) -> RetainedStyleValueData {
     RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value: value as f64 }))
 }
@@ -396,10 +372,32 @@ fn convert_for_interpolation(color: &ResolvedColor, target_type: u8, is_polar: b
         ];
         source_missing[..3].copy_from_slice(&missing);
     }
-    let components = color_conversion::convert(color.color_type, target_type, source_components)?;
+    let mut components = color_conversion::convert(color.color_type, target_type, source_components)?;
     let mut missing = carry_forward_missing_components(source_missing, color.color_type, target_type);
-    if is_polar {
-        mark_powerless_hue_after_conversion(color.color_type, target_type, components, &mut missing);
+    if is_polar && color.color_type != target_type {
+        // https://drafts.csswg.org/css-color-4/#powerless
+        // However, if a color is automatically produced by color space conversion, then any powerless components in
+        // the result must instead be set to missing, instead of whatever value was produced by the conversion
+        // process.
+        let scale = if matches!(target_type, color_conversion::HSL | color_conversion::HWB) {
+            100.0
+        } else {
+            1.0
+        };
+        let mut target_components = [
+            f64::from(components[0]),
+            f64::from(components[1]) * scale,
+            f64::from(components[2]) * scale,
+        ];
+        let mut target_missing = [missing[0], missing[1], missing[2]];
+        make_powerless_hue_missing(target_type, &mut target_components, &mut target_missing);
+        components = [
+            target_components[0] as f32,
+            (target_components[1] / scale) as f32,
+            (target_components[2] / scale) as f32,
+            components[3],
+        ];
+        missing[..3].copy_from_slice(&target_missing);
     }
     Some((components, missing))
 }

@@ -1264,16 +1264,17 @@ pub(crate) fn make_powerless_hue_missing(color_type: u8, components: &mut [f64; 
     // hue component as powerless if the chroma (or other measure of colorfulness, such as saturation in hsl)
     // is less than or equal to the epsilon (ε) specified for that color space.
     let (hue_index, colorfulness_index, epsilon) = match color_type {
-        ct::HSL => (0, 1, 0.001),
+        ct::HSL => (0, 1, 0.001_f64),
         ct::LCH => (2, 1, 0.0015),
         ct::OKLCH => (2, 1, 0.000004),
         ct::HWB => {
             // For hwb follow these steps instead:
+            // NB: Components are stored in single precision, so they are compared at that precision.
             let sum = components[1] + components[2];
-            if sum >= 99.999 {
+            if sum as f32 >= 99.999_f32 {
                 missing[0] = true;
                 // 1. if W + B is greater than or equal to ε and W + B is less than 100
-                if sum < 100.0 {
+                if (sum as f32) < 100.0 {
                     // 1.1. if W and B are not missing
                     if !missing[1] && !missing[2] {
                         // 1.1.1. set B to 100 - W
@@ -1296,7 +1297,7 @@ pub(crate) fn make_powerless_hue_missing(color_type: u8, components: &mut [f64; 
         _ => return,
     };
     let colorfulness = components[colorfulness_index];
-    if colorfulness <= epsilon {
+    if colorfulness as f32 <= epsilon as f32 {
         missing[hue_index] = true;
         // When changing a powerless hue component to a missing component, the chroma (or other measure of
         // colorfulness, such as saturation in hsl; see analogous components) is set to zero to avoid amplifying
