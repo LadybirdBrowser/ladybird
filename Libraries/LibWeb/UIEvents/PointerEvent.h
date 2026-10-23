@@ -46,8 +46,8 @@ struct PointerEventOptions : public MouseEventOptions {
     Utf16FlyString pointer_type {};
     bool is_primary { false };
     WebIDL::Long persistent_device_id { 0 };
-    Vector<GC::Ref<PointerEvent>> coalesced_events;
-    Vector<GC::Ref<PointerEvent>> predicted_events;
+    GC::RootVector<GC::Ref<PointerEvent>> coalesced_events;
+    GC::RootVector<GC::Ref<PointerEvent>> predicted_events;
 };
 
 // https://w3c.github.io/pointerevents/#pointerevent-interface
