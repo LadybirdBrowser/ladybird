@@ -49,6 +49,32 @@ pub(crate) fn aligned_static_offset(
     offset
 }
 
+/// The static position rect relative to the containing block rect that insets are measured from, as the sizing
+/// rules take it.
+/// https://www.w3.org/TR/CSS22/visudet.html#abs-non-replaced-width
+/// The static position for 'left' is the distance from the left edge of the containing block to the left margin edge
+/// of a hypothetical box that would have been the first box of the element if its 'position' property had been
+/// 'static' and 'float' had been 'none'.
+/// NB: An axis that is not placed at its static position adds the containing block rect offset to its used inset, so
+///     its static position rect already stands relative to the containing block rect.
+fn static_position_rect_for_sizing(inputs: &abspos_inputs::AbsposLayoutInputs) -> abspos_inputs::StaticPositionRect {
+    let info = &inputs.containing_block_info;
+    let translation = |mode: abspos_inputs::AbsposAxisMode, origin: CssPixels| {
+        if mode == abspos_inputs::AbsposAxisMode::StaticPosition {
+            CssPixels::default() - origin
+        } else {
+            CssPixels::default()
+        }
+    };
+    formatting_context::translate_static_position_rect(
+        inputs.static_position_rect,
+        FfiCssPixelPoint {
+            x: translation(info.inline_axis_mode, info.rect.offset.inline_offset),
+            y: translation(info.block_axis_mode, info.rect.offset.block_offset),
+        },
+    )
+}
+
 fn out_of_flow_root_space(inputs: abspos_inputs::AbsposLayoutInputs) -> (AvailableSpace, ContainingBlockConstraints) {
     let containing_block_size = geometry::LogicalSize {
         inline_size: clamp_to_max_dimension_value(inputs.containing_block_info.rect.size.inline_size),
@@ -1853,14 +1879,14 @@ impl<'pass> AbsposEngine<'pass> {
             node,
             available_space,
             constraints,
-            inputs.static_position_rect,
+            static_position_rect_for_sizing(&inputs),
             resolved,
         );
         self.compute_block_size(
             node,
             available_space,
             constraints,
-            inputs.static_position_rect,
+            static_position_rect_for_sizing(&inputs),
             BlockSizePass::BeforeInsideLayout,
             resolved,
         );
@@ -1917,7 +1943,7 @@ impl<'pass> AbsposEngine<'pass> {
                 node,
                 available_space,
                 constraints,
-                inputs.static_position_rect,
+                static_position_rect_for_sizing(&inputs),
                 BlockSizePass::AfterInsideLayout {
                     automatic_content_block_size_of_inside_layout,
                 },
