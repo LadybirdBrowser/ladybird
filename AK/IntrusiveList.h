@@ -153,7 +153,10 @@ private:
 
 template<typename T, typename Container>
 class IntrusiveListNode {
+    AK_MAKE_NONCOPYABLE(IntrusiveListNode);
+
 public:
+    IntrusiveListNode() = default;
     ~IntrusiveListNode();
     void remove();
     bool is_in_list() const;
