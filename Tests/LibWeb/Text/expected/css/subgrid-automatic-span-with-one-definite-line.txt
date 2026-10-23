@@ -1,0 +1,4 @@
+start: x=50 width=100
+start-auto: x=50 width=100
+end: x=100 width=100
+explicit-span: x=50 width=100
