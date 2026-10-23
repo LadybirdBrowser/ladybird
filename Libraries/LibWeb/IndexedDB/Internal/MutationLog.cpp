@@ -125,9 +125,9 @@ void MutationLog::note_index_record_stored(GC::Ref<Index> index, IndexRecord rec
 
 void MutationLog::append_changes(Utf16String const& database_name, Utf16String const& object_store_name, TransactionChanges& changes) const
 {
-    Vector<GC::Ref<Key>> stored_keys;
-    Vector<GC::Ref<Key>> changed_keys;
-    Vector<GC::Ref<Key>> deleted_keys;
+    GC::RootVector<GC::Ref<Key>> stored_keys;
+    GC::RootVector<GC::Ref<Key>> changed_keys;
+    GC::RootVector<GC::Ref<Key>> deleted_keys;
 
     auto remove_key = [](Vector<GC::Ref<Key>>& keys, Key& key) {
         return keys.remove_first_matching([&](auto const& existing) {
