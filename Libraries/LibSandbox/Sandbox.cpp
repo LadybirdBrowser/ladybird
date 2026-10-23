@@ -43,6 +43,10 @@ int sandbox_init_with_parameters(char const* profile, u64 flags, char const* con
 #    include <malloc.h>
 #endif
 
+#if defined(AK_OS_LINUX) && defined(HAS_ADDRESS_SANITIZER)
+#    include <sanitizer/common_interface_defs.h>
+#endif
+
 namespace Sandbox {
 
 ErrorOr<void> install_no_new_privileges()
@@ -59,6 +63,13 @@ ErrorOr<void> configure_runtime()
 #if defined(AK_OS_LINUX) && defined(__GLIBC__) && defined(M_ARENA_MAX) && !defined(HAS_ADDRESS_SANITIZER)
     if (mallopt(M_ARENA_MAX, 4) == 0)
         return Error::from_string_literal("mallopt(M_ARENA_MAX) failed");
+#endif
+#if defined(AK_OS_LINUX) && defined(HAS_ADDRESS_SANITIZER)
+    // The sanitizers symbolize a report through an llvm-symbolizer process they start the first time they need one, but
+    // the seccomp filter kills the fork and Landlock refuses the exec once the sandbox is in place, so a report would be
+    // lost with its stack. Symbolize one address now so that process is already running when a report needs it.
+    char symbolized_pc[64];
+    __sanitizer_symbolize_pc(__builtin_return_address(0), "%p %F", symbolized_pc, sizeof(symbolized_pc));
 #endif
     return {};
 }
