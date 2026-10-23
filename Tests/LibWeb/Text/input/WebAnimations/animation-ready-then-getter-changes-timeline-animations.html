@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        const target = document.getElementById("target");
+        const timeline = document.timeline;
+        const animations = [];
+
+        let thenGetterRan = false;
+        function thenGetter() {
+            if (thenGetterRan)
+                return;
+            thenGetterRan = true;
+            for (const animation of animations) {
+                animation.timeline = null;
+                animation.timeline = timeline;
+            }
+            for (let i = 0; i < 256; ++i)
+                new Animation(null, timeline);
+        }
+
+        for (let i = 0; i < 16; ++i) {
+            const effect = new KeyframeEffect(target, [{ opacity: 0 }, { opacity: 1 }], { duration: 100000 });
+            const animation = new Animation(effect, timeline);
+            Object.defineProperty(animation, "then", { get: thenGetter });
+            animations.push(animation);
+            animation.play();
+        }
+
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        println(`then getter ran: ${thenGetterRan}`);
+    });
+</script>
