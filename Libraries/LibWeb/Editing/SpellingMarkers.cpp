@@ -71,7 +71,7 @@ void SpellingMarkers::remove_all(DOM::Text& text)
 
 void SpellingMarkers::remove_markers_for_word(Utf16View word)
 {
-    Vector<GC::Ref<DOM::Text>> changed;
+    GC::RootVector<GC::Ref<DOM::Text>> changed;
     m_markers.for_each_live_value([&](NodeMarkers& entry) {
         auto text = entry.text.ptr();
         if (!text)
