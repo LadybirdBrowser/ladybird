@@ -1,0 +1,4 @@
+direct before: foo<br>abc<div>bar</div>
+direct after: foo<br><div>bar</div>
+wrapped before: foo<span>x<br></span>abc<div>bar</div>
+wrapped after: foo<span>x<br></span><div>bar</div>

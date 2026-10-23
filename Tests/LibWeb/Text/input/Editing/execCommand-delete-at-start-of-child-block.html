@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host" contenteditable><br><div>bar</div></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        host.focus();
+        getSelection().collapse(host.querySelector("div").firstChild, 0);
+        println(`Before: ${host.innerHTML}`);
+        document.execCommand("delete");
+        println(`After: ${host.innerHTML}`);
+    });
+</script>

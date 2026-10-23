@@ -1047,6 +1047,43 @@ static void restore_white_space_of_nodes(Vector<RecordedWhiteSpace> const& recor
     }
 }
 
+// Whether nothing visible precedes point on its line, i.e. whether point is at the start of a block, or follows a br or a
+// preserved newline.
+static bool is_at_start_of_line(DOM::BoundaryPoint point)
+{
+    auto ends_with_preserved_newline = [](DOM::Node const& node) {
+        auto* text = as_if<DOM::Text>(node);
+        return text && text->length() > 0 && text->data().code_unit_at(text->length() - 1) == u'\n'
+            && resolved_white_space(const_cast<DOM::Text&>(*text)).preserves_line_breaks();
+    };
+
+    GC::Ptr<DOM::Node> node = point.node;
+    auto offset = point.offset;
+    if (auto* text = as_if<DOM::Text>(*node)) {
+        if (offset > 0)
+            return text->data().code_unit_at(offset - 1) == u'\n' && resolved_white_space(*text).preserves_line_breaks();
+        offset = text->index();
+        node = text->parent();
+    }
+
+    while (node && !is_block_start_point({ *node, offset })) {
+        auto* child = node->child_at_index(offset - 1);
+        // NB: A visible inline element such as a span can end with a br or a preserved newline, so look into it.
+        if (child && is_visible_node(*child) && !child->has_children())
+            return ends_with_preserved_newline(*child);
+        if (offset == 0 || !child) {
+            if (is_block_node(*node) || node->is_editing_host())
+                return true;
+            offset = node->index();
+            node = node->parent();
+        } else {
+            node = child;
+            offset = child->length();
+        }
+    }
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#delete-the-selection
 void delete_the_selection(Selection& selection, bool block_merging, bool strip_wrappers, Selection::Direction direction)
 {
@@ -1150,6 +1187,9 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     // 10. Call extend(end node, end offset) on the context object's selection.
     MUST(selection.extend(end.node, end.offset));
 
+    // NB: See the INTEROP note at step 30.
+    auto starts_at_start_of_line = is_at_start_of_line(start);
+
     // 12. Let start block be the active range's start node.
     GC::Ptr<DOM::Node> start_block = active_range(document)->start_container();
 
@@ -1208,6 +1248,11 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         return;
     }
 
+    // NB: See the INTEROP note at step 30. Record whether the selection contains anything to delete before the steps
+    //     below delete it.
+    bool selection_has_content = (is<DOM::Text>(*start.node) && start.node->is_editable() && start.offset < start.node->length())
+        || (is<DOM::Text>(*end.node) && end.node->is_editable() && end.offset > 0);
+
     // 22. If start node is an editable Text node, call deleteData() on it, with start offset as the first argument and
     //     (length of start node − start offset) as the second argument.
     if (is<DOM::Text>(*start.node) && start.node->is_editable())
@@ -1230,6 +1275,8 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
         return IterationDecision::Continue;
     });
+    if (!node_list.is_empty())
+        selection_has_content = true;
 
     // 25. For each node in node list:
     for (auto node : node_list) {
@@ -1285,6 +1332,16 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         restore_states_and_values(document, overrides);
 
         // 4. Abort these steps.
+        return;
+    }
+
+    // INTEROP: If the selection started at the start of a line and ended in a descendant block of start block, browsers
+    //          only delete the selected content and the preceding lines, without moving the first line of end block
+    //          out of it. The caret then goes to where the selection ended. If the selection contained nothing, the
+    //          steps below are what deletes the line break before end block, so this does not apply.
+    if (starts_at_start_of_line && selection_has_content && start_block->is_ancestor_of(*end_block)) {
+        MUST(selection.collapse_to_end());
+        restore_states_and_values(document, overrides);
         return;
     }
 

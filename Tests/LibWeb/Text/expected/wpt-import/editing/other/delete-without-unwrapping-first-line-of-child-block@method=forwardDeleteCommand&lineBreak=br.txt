@@ -2,29 +2,30 @@ Harness status: OK
 
 Found 25 tests
 
-25 Fail
-Fail	document.execCommand("forwarddelete") at abc<br>{<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at abc<br>{<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at <br>[abc<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at <br>[abc<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at <br>{<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at <br>{<br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at {<br><br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at {<br><br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at [abc<br><br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at [abc<br><br><div id="child">]def<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at abc<br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at abc<br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at <br>[abc<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at <br>[abc<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at <br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at <br>{<br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at {<br><br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at {<br><br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at [abc<br><br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("insertText", false, "X") at [abc<br><br><div id="child">d]ef<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at abc<br>{}<br><div id="child">def<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at <br>{}<br><div id="child">def<br>ghi</div>
-Fail	document.execCommand("forwarddelete") at {}<br><div id="child">def<br>ghi</div>
+23 Pass
+2 Fail
+Pass	document.execCommand("forwarddelete") at abc<br>{<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at abc<br>{<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at <br>[abc<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at <br>[abc<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at <br>{<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at <br>{<br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at {<br><br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at {<br><br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at [abc<br><br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at [abc<br><br><div id="child">]def<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at abc<br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at abc<br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at <br>[abc<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at <br>[abc<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at <br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at <br>{<br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at {<br><br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at {<br><br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at [abc<br><br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("insertText", false, "X") at [abc<br><br><div id="child">d]ef<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at abc<br>{}<br><div id="child">def<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at <br>{}<br><div id="child">def<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at {}<br><div id="child">def<br>ghi</div>
 Fail	document.execCommand("forwarddelete") at <b>abc<br>{}<br></b></b><div id="child">def<br>ghi</div>
 Fail	document.execCommand("forwarddelete") at <b>{}<br></b><div id="child">def<br>ghi</div>

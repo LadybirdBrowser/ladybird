@@ -1,0 +1,2 @@
+Before: <br><div>bar</div>
+After: bar
