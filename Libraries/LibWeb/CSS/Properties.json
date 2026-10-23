@@ -2643,6 +2643,17 @@
       "font-width"
     ]
   },
+  "forced-color-adjust": {
+    "style-group": "InheritedUIValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "forced-color-adjust"
+    ]
+  },
   "gap": {
     "initial": "normal",
     "valid-types": [

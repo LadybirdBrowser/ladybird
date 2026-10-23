@@ -903,6 +903,7 @@ pub struct InheritedUIValues {
     pub accent_color: ComputedColorOrAuto,
     pub cursor: RetainedComputedCursorList,
     pub pointer_events: u8,
+    pub forced_color_adjust: u8,
     pub interpolate_size: u8,
     pub scrollbar_color: ComputedScrollbarColor,
     pub color_scheme: u8,

@@ -685,6 +685,11 @@
     "extra-expanded",
     "ultra-expanded"
   ],
+  "forced-color-adjust": [
+    "auto",
+    "none",
+    "preserve-parent-color"
+  ],
   "generic-font-family": [
     "serif",
     "sans-serif",

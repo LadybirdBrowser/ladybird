@@ -906,6 +906,7 @@ impl_computed_payload_clone_and_eq!(InheritedUIValues {
     accent_color,
     cursor,
     pointer_events,
+    forced_color_adjust,
     interpolate_size,
     scrollbar_color,
     color_scheme,
@@ -2173,6 +2174,7 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             ACCENT_COLOR => RequireKeyword(k::AUTO),
             CURSOR => RequireKeyword(k::AUTO),
             POINTER_EVENTS @ pointer_events => EnumKeyword(enums::keyword_to_pointer_events),
+            FORCED_COLOR_ADJUST @ forced_color_adjust => EnumKeyword(enums::keyword_to_forced_color_adjust),
             INTERPOLATE_SIZE @ interpolate_size => EnumKeyword(enums::keyword_to_interpolate_size),
             SCROLLBAR_COLOR => RequireKeyword(k::AUTO),
             COLOR_SCHEME @ color_scheme => ResolvedU8,
@@ -3207,6 +3209,7 @@ impl InheritedUIValues {
                 predefined: crate::css::css_enums::cursor_predefined::AUTO,
             }]),
             pointer_events: crate::css::css_enums::pointer_events::AUTO,
+            forced_color_adjust: crate::css::css_enums::forced_color_adjust::AUTO,
             interpolate_size: crate::css::css_enums::interpolate_size::NUMERIC_ONLY,
             scrollbar_color: crate::css::computed_value_types::ComputedScrollbarColor {
                 thumb_color: 0,

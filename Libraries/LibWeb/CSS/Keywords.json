@@ -573,6 +573,7 @@
   "preserve",
   "preserve-3d",
   "preserve-breaks",
+  "preserve-parent-color",
   "preserve-spaces",
   "pretty",
   "progress",
