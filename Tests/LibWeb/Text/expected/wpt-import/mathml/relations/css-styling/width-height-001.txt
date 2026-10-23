@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 103 tests
 
-94 Pass
-9 Fail
+95 Pass
+8 Fail
 Pass	width and height properties on a
 Pass	inline-size and block-size properties on a
 Pass	width and height properties on a (content overflowing)
@@ -39,7 +39,7 @@ Pass	width property on mn (preferred width)
 Pass	width and height properties on mo
 Pass	inline-size and block-size properties on mo
 Pass	width and height properties on mo (content overflowing)
-Fail	width property on mo (preferred width)
+Pass	width property on mo (preferred width)
 Pass	width and height properties on mover
 Pass	inline-size and block-size properties on mover
 Pass	width and height properties on mover (content overflowing)

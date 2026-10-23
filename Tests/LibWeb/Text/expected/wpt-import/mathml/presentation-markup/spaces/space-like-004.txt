@@ -2,8 +2,9 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	complex space-like subtree
+3 Pass
+1 Fail
+Pass	complex space-like subtree
 Fail	complex space-like subtree, from in-flow children
-Fail	complex non-space-like subtree
-Fail	complex non-space-like subtree, from in-flow children
+Pass	complex non-space-like subtree
+Pass	complex non-space-like subtree, from in-flow children

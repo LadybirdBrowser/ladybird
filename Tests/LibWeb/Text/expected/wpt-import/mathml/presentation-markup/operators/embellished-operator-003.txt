@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-14 Fail
-Fail	maction (embellished operator)
-Fail	maction (embellished operator, from in-flow children)
-Fail	maction (not embellished operator)
-Fail	maction (not embellished operator, from in-flow children)
-Fail	maction (not embellished operator, empty)
-Fail	maction (embellished operator, one child)
-Fail	maction (embellished operator, complex)
-Fail	semantics (embellished operator)
-Fail	semantics (embellished operator, from in-flow children)
-Fail	semantics (not embellished operator)
-Fail	semantics (not embellished operator, from in-flow children)
-Fail	semantics (not embellished operator, empty)
-Fail	semantics (embellished operator, one child)
-Fail	semantics (embellished operator, complex)
+14 Pass
+Pass	maction (embellished operator)
+Pass	maction (embellished operator, from in-flow children)
+Pass	maction (not embellished operator)
+Pass	maction (not embellished operator, from in-flow children)
+Pass	maction (not embellished operator, empty)
+Pass	maction (embellished operator, one child)
+Pass	maction (embellished operator, complex)
+Pass	semantics (embellished operator)
+Pass	semantics (embellished operator, from in-flow children)
+Pass	semantics (not embellished operator)
+Pass	semantics (not embellished operator, from in-flow children)
+Pass	semantics (not embellished operator, empty)
+Pass	semantics (embellished operator, one child)
+Pass	semantics (embellished operator, complex)
