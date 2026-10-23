@@ -97,17 +97,15 @@ impl Utf16SliceExt for [u16] {
 }
 
 #[repr(C)]
-pub struct FfiCustomPropertyStoreEntry<'a> {
+pub struct FfiCustomPropertyStoreEntry {
     pub name_raw: usize,
-    pub name: FfiUtf16View<'a>,
     pub important: bool,
     pub data: *const c_void,
 }
 
 #[derive(Clone)]
 pub(crate) struct CustomPropertyEntry {
-    _name: Utf16FlyString,
-    pub(crate) name: Arc<[u16]>,
+    pub(crate) name: Utf16FlyString,
     pub(crate) value: RetainedStyleValueData,
     pub(crate) important: bool,
 }
@@ -115,7 +113,6 @@ pub(crate) struct CustomPropertyEntry {
 pub struct CustomPropertyStore {
     pub(crate) own_values: HashMap<usize, CustomPropertyEntry>,
     pub(crate) declared_names: Vec<usize>,
-    own_names: HashMap<Arc<[u16]>, usize>,
     parent: Option<Arc<CustomPropertyStore>>,
     inheritance_parent: Option<Arc<CustomPropertyStore>>,
     ancestor_count: u8,
@@ -531,12 +528,12 @@ impl CustomPropertyRegistry {
         &self,
         inherited: Option<&CustomPropertyStore>,
         name_raw: usize,
-        name: &[u16],
+        name: &Utf16FlyString,
         value: CustomPropertyValueToFinalize<'_>,
         finalization: &CustomPropertyFinalization<'_>,
     ) -> Result<(RetainedStyleValueData, RegisteredValueReads), RetainedStyleValueData> {
         use crate::css::style_compute::keyword;
-        let registration = self.registration(name);
+        let registration = self.registrations.get(name);
         let initial = || {
             registration.map_or_else(
                 || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
@@ -552,7 +549,7 @@ impl CustomPropertyRegistry {
         let value = match value.to_css_wide_keyword() {
             // https://drafts.csswg.org/css-mixins/#resolve-function-styles
             // On result, all CSS-wide keywords are left unresolved.
-            Some(keyword) if !name.iter().copied().eq("result".encode_utf16()) => {
+            Some(keyword) if *name != Utf16FlyString::from_utf8("result") => {
                 let resolved = match keyword {
                     keyword::INITIAL => initial(),
                     keyword::INHERIT => inherited_value(),
@@ -695,26 +692,23 @@ impl CustomPropertyStore {
         animated: impl ExactSizeIterator<Item = (usize, CustomPropertyEntry)>,
         base: Option<&Self>,
     ) -> Self {
-        let (mut own_values, mut own_names, parent, inheritance_parent, ancestor_count) = match base {
+        let (mut own_values, parent, inheritance_parent, ancestor_count) = match base {
             Some(base) => (
                 base.own_values.clone(),
-                base.own_names.clone(),
                 base.parent.clone(),
                 base.inheritance_parent.clone(),
                 base.ancestor_count,
             ),
-            None => (HashMap::new(), HashMap::new(), None, None, 0),
+            None => (HashMap::new(), None, None, 0),
         };
         let mut declared_names = Vec::with_capacity(animated.len());
         for (name_raw, entry) in animated {
             declared_names.push(name_raw);
-            own_names.insert(entry.name.clone(), name_raw);
             own_values.insert(name_raw, entry);
         }
         Self {
             own_values,
             declared_names,
-            own_names,
             ancestor_count,
             parent,
             inheritance_parent,
@@ -745,18 +739,15 @@ impl CustomPropertyStore {
             .or_else(|| self.parent.as_ref()?.get(name_raw))
     }
 
-    fn get_by_name_with_owner(&self, name: &[u16]) -> Option<(&CustomPropertyEntry, &CustomPropertyStore)> {
-        self.own_names
-            .get(name)
-            .and_then(|name_raw| self.own_values.get(name_raw))
+    fn get_by_name_with_owner(&self, name: &Utf16FlyString) -> Option<(&CustomPropertyEntry, &CustomPropertyStore)> {
+        self.own_values
+            .get(&name.raw_identity())
             .map(|entry| (entry, self))
             .or_else(|| self.parent.as_ref()?.get_by_name_with_owner(name))
     }
 
-    fn get_own_by_name(&self, name: &[u16]) -> Option<&CustomPropertyEntry> {
-        self.own_names
-            .get(name)
-            .and_then(|name_raw| self.own_values.get(name_raw))
+    fn get_own_by_name(&self, name: &Utf16FlyString) -> Option<&CustomPropertyEntry> {
+        self.own_values.get(&name.raw_identity())
     }
 
     /// What a child inherits of this store: the store without the entries a registration keeps
@@ -765,7 +756,7 @@ impl CustomPropertyStore {
         if self.hands_down_every_value(registry) {
             return None;
         }
-        let inherits = |entry: &CustomPropertyEntry| registry.name_inherits(&entry._name);
+        let inherits = |entry: &CustomPropertyEntry| registry.name_inherits(&entry.name);
         let own_values: HashMap<usize, CustomPropertyEntry> = self
             .own_values
             .iter()
@@ -773,10 +764,6 @@ impl CustomPropertyStore {
             .map(|(&name_raw, entry)| (name_raw, entry.clone()))
             .collect();
         Some(Arc::new(Self {
-            own_names: own_values
-                .iter()
-                .map(|(&name_raw, entry)| (entry.name.clone(), name_raw))
-                .collect(),
             declared_names: self
                 .declared_names
                 .iter()
@@ -814,7 +801,7 @@ impl CustomPropertyStore {
     pub(crate) fn hands_down_every_value(&self, registry: &CustomPropertyRegistry) -> bool {
         self.own_values
             .values()
-            .all(|entry| registry.name_inherits(&entry._name))
+            .all(|entry| registry.name_inherits(&entry.name))
     }
 
     pub(crate) fn value_matches(&self, name_raw: usize, value: &StyleValueData) -> bool {
@@ -830,12 +817,10 @@ impl CustomPropertyStore {
         mut parent: Option<Arc<CustomPropertyStore>>,
         entries: Vec<(usize, CustomPropertyEntry)>,
     ) -> Arc<CustomPropertyStore> {
-        let mut own_names = HashMap::with_capacity(entries.len());
         let mut own_values = HashMap::with_capacity(entries.len());
         let mut declared_names = Vec::with_capacity(entries.len());
         for (name_raw, entry) in entries {
             declared_names.push(name_raw);
-            own_names.insert(entry.name.clone(), name_raw);
             own_values.insert(name_raw, entry);
         }
 
@@ -846,7 +831,6 @@ impl CustomPropertyStore {
                 while let Some(current) = ancestor {
                     for (&name_raw, entry) in &current.own_values {
                         if let std::collections::hash_map::Entry::Vacant(slot) = own_values.entry(name_raw) {
-                            own_names.insert(entry.name.clone(), name_raw);
                             slot.insert(entry.clone());
                         }
                     }
@@ -857,7 +841,6 @@ impl CustomPropertyStore {
             } else if current_parent.own_values.len() <= ABSORB_THRESHOLD {
                 for (&name_raw, entry) in &current_parent.own_values {
                     if let std::collections::hash_map::Entry::Vacant(slot) = own_values.entry(name_raw) {
-                        own_names.insert(entry.name.clone(), name_raw);
                         slot.insert(entry.clone());
                     }
                 }
@@ -873,7 +856,6 @@ impl CustomPropertyStore {
         Arc::new(CustomPropertyStore {
             own_values,
             declared_names,
-            own_names,
             inheritance_parent,
             parent,
             ancestor_count,
@@ -895,7 +877,6 @@ impl CustomPropertyStore {
                 (
                     name_raw,
                     CustomPropertyEntry {
-                        _name: source._name.clone(),
                         name: source.name.clone(),
                         value,
                         important: source.important,
@@ -910,16 +891,15 @@ impl CustomPropertyStore {
     /// Every name and value pointer must remain live for this call.
     pub(crate) unsafe fn cascaded_child(
         parent: Option<Arc<CustomPropertyStore>>,
-        values: Vec<(usize, Arc<[u16]>, bool, *const c_void)>,
+        values: Vec<(usize, bool, *const c_void)>,
     ) -> Arc<CustomPropertyStore> {
         let entries = values
             .into_iter()
-            .map(|(name_raw, name, important, value)| {
+            .map(|(name_raw, important, value)| {
                 (
                     name_raw,
                     CustomPropertyEntry {
-                        _name: unsafe { Utf16FlyString::from_raw_borrowed(name_raw) },
-                        name,
+                        name: unsafe { Utf16FlyString::from_raw_borrowed(name_raw) },
                         value: unsafe {
                             RetainedStyleValueData::from_retained_pointer(
                                 crate::css::style_value::retain_style_value(value.cast()).cast(),
@@ -1300,7 +1280,7 @@ pub(crate) fn finalize_element_custom_property(
     finalization: &CustomPropertyFinalization,
     reads: &mut RegisteredValueReads,
     name_raw: usize,
-    name: &[u16],
+    name: &Utf16FlyString,
     value: CustomPropertyValueToFinalize<'_>,
 ) -> RetainedStyleValueData {
     let (value, value_reads) = registry
@@ -1318,11 +1298,11 @@ thread_local! {
 fn compute_element_custom_property(
     store: &CustomPropertyStore,
     registry: &CustomPropertyRegistry,
-    name: &[u16],
+    name: &Utf16FlyString,
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> Result<RetainedStyleValueData, ()> {
-    let name_raw = store.own_names[name];
+    let name_raw = name.raw_identity();
 
     if let Some(cached) = context.element_values.as_deref().ok_or(())?.get(&name_raw) {
         return Ok(cached.clone());
@@ -1372,7 +1352,10 @@ fn compute_element_custom_property(
             tokens,
             &mut property_context,
             recursion_depth,
-            Some(SubstitutionContextDependency::Property(name.to_vec(), None)),
+            Some(SubstitutionContextDependency::Property(
+                name.to_utf16().into_owned(),
+                None,
+            )),
         );
 
         context.substitution_limit_hits = property_context.substitution_limit_hits;
@@ -1732,12 +1715,13 @@ fn resolve_custom_property_with_lookup(
     }
     let registration = registry.and_then(|registry| registry.registration(name));
     let entry_and_owner = store.and_then(|store| {
+        let name = Utf16FlyString::from_utf16(name);
         if lookup == CustomPropertyLookup::ExplicitInheritance {
-            return store.get_by_name_with_owner(name);
+            return store.get_by_name_with_owner(&name);
         }
         match registration {
-            Some(registration) if !registration.inherits => store.get_own_by_name(name).map(|entry| (entry, store)),
-            _ => store.get_by_name_with_owner(name),
+            Some(registration) if !registration.inherits => store.get_own_by_name(&name).map(|entry| (entry, store)),
+            _ => store.get_by_name_with_owner(&name),
         }
     });
     let Some((entry, owner)) = entry_and_owner else {
@@ -1747,13 +1731,13 @@ fn resolve_custom_property_with_lookup(
     };
     if lookup == CustomPropertyLookup::Normal
         && context.element_store.is_some_and(|store| std::ptr::eq(store, owner))
-        && owner.declared_names.contains(&owner.own_names[name])
+        && owner.declared_names.contains(&entry.name.raw_identity())
         && store.is_some_and(|store| std::ptr::eq(store, owner))
     {
         let computed_value = compute_element_custom_property(
             owner,
             registry.unwrap_or_else(|| CustomPropertyRegistry::shared_empty()),
-            name,
+            &entry.name,
             context,
             recursion_depth + 1,
         );
@@ -3555,14 +3539,12 @@ mod tests {
 
     #[test]
     fn custom_property_values_outlive_their_store() {
-        let name = utf16("--value");
         let store = CustomPropertyStore::child(
             None,
             vec![(
                 0,
                 CustomPropertyEntry {
-                    _name: Utf16FlyString::default(),
-                    name: name.into(),
+                    name: Utf16FlyString::default(),
                     value: RetainedStyleValueData::from_owned(StyleValueData::Number { value: 1.0 }),
                     important: false,
                 },
@@ -3921,8 +3903,8 @@ mod tests {
     ) -> Arc<CustomPropertyStore> {
         let entries = properties
             .iter()
-            .enumerate()
-            .map(|(name_raw, (name, source))| {
+            .map(|(name, source)| {
+                let name = Utf16FlyString::from_utf16(&utf16(name));
                 let source = utf16(source);
                 let values = consume_a_counted_list_of_component_values(tokenize_for_parser(&source)).unwrap();
                 let crate::css::parser::value_parser::ParseOutcome::Parsed(value) =
@@ -3936,10 +3918,9 @@ mod tests {
                     panic!("custom property value should parse");
                 };
                 (
-                    name_raw,
+                    name.raw_identity(),
                     CustomPropertyEntry {
-                        _name: Utf16FlyString::default(),
-                        name: utf16(name).into(),
+                        name,
                         value: RetainedStyleValueData::from_arc(value),
                         important: false,
                     },
@@ -4139,17 +4120,13 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
         unsafe { Arc::increment_strong_count(inheritance_parent) };
         Some(unsafe { Arc::from_raw(inheritance_parent) })
     };
-    let mut own_names = HashMap::with_capacity(entries.len());
     let own_values = entries
         .iter()
         .map(|entry| {
-            let name: Arc<[u16]> = entry.name.to_utf16().expect("invalid custom property name").into();
-            own_names.insert(name.clone(), entry.name_raw);
             (
                 entry.name_raw,
                 CustomPropertyEntry {
-                    _name: unsafe { Utf16FlyString::from_raw_owned(entry.name_raw) },
-                    name,
+                    name: unsafe { Utf16FlyString::from_raw_owned(entry.name_raw) },
                     value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
                     important: entry.important,
                 },
@@ -4159,7 +4136,6 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
     Arc::into_raw(Arc::new(CustomPropertyStore {
         own_values,
         declared_names: entries[..declared_count].iter().map(|entry| entry.name_raw).collect(),
-        own_names,
         ancestor_count: parent.as_ref().map_or(0, |parent| parent.ancestor_count + 1),
         parent,
         inheritance_parent,
@@ -4187,12 +4163,10 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
     };
     let base = unsafe { base.cast::<CustomPropertyStore>().as_ref() };
     let animated = entries.iter().map(|entry| {
-        let name: Arc<[u16]> = entry.name.to_utf16().expect("invalid custom property name").into();
         (
             entry.name_raw,
             CustomPropertyEntry {
-                _name: unsafe { Utf16FlyString::from_raw_owned(entry.name_raw) },
-                name,
+                name: unsafe { Utf16FlyString::from_raw_owned(entry.name_raw) },
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
                 important: entry.important,
             },

@@ -8464,11 +8464,13 @@ impl AnimatedCustomProperties {
         if !registry.name_has_syntax(self.units(name_id)) {
             return value;
         }
+        // SAFETY: The sample keeps the name alive while it is retained for the lookup.
+        let name = unsafe { ak::Utf16FlyString::from_raw_borrowed(self.name(name_id).raw()) };
         registry
             .finalize_custom_property_value(
                 unsafe { KeyframeStores::store(self.stores.inheritance) },
-                self.name(name_id).raw(),
-                self.units(name_id),
+                name.raw_identity(),
+                &name,
                 CustomPropertyValueToFinalize::StyleValue(value),
                 finalization,
             )

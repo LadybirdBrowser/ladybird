@@ -1766,12 +1766,7 @@ impl RetainedState {
             if parent.is_some_and(|parent| parent.value_is_identical(name.raw.raw(), value.pointer().cast())) {
                 continue;
             }
-            values.push((
-                name.raw.raw(),
-                name.text.clone(),
-                declared.important,
-                value.pointer().cast(),
-            ));
+            values.push((name.raw.raw(), declared.important, value.pointer().cast()));
         }
         if values.is_empty() {
             if let Some(effects) = container_effects {
@@ -2053,22 +2048,12 @@ impl RetainedState {
         // The readers resolve as declared, over the element's environment, beside the animated values.
         let values = readers
             .iter()
-            .map(|(name, declared, value)| {
-                (
-                    name.raw.raw(),
-                    name.text.clone(),
-                    declared.important,
-                    value.pointer().cast(),
-                )
-            })
-            .chain(animated.iter().map(|(name, value)| {
-                (
-                    name.raw(),
-                    Arc::from(name.to_utf16().as_ref()),
-                    false,
-                    value.pointer().cast(),
-                )
-            }))
+            .map(|(name, declared, value)| (name.raw.raw(), declared.important, value.pointer().cast()))
+            .chain(
+                animated
+                    .iter()
+                    .map(|(name, value)| (name.raw(), false, value.pointer().cast())),
+            )
             .collect();
         // SAFETY: The base store is live for the sample, and the values are live for the call.
         let base = unsafe { super::environment_move::retained_store(base) };

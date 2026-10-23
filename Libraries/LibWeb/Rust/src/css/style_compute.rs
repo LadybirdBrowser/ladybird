@@ -8260,6 +8260,12 @@ pub(crate) mod ffi_test_stubs {
         unreachable!("no unit test makes a string the host owns");
     }
     #[unsafe(no_mangle)]
+    unsafe extern "C" fn ladybird_utf16_fly_string_from_utf8(data: *const u8, length: usize) -> usize {
+        let bytes = unsafe { ak::slice_from_raw_parts(data, length) };
+        let units = std::str::from_utf8(bytes).unwrap().encode_utf16().collect::<Vec<_>>();
+        unsafe { ladybird_utf16_fly_string_from_utf16(units.as_ptr(), units.len()) }
+    }
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize {
         // Keep a process-wide test atom table with AK's header layout so worker-parsed
         // names remain alive after the worker exits.
