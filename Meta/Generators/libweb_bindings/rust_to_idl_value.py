@@ -57,7 +57,7 @@ from Utils.webidl_parser import OperationParameter
 # NB: CSSOMString is a string type that an implementation chooses, https://drafts.csswg.org/cssom/#cssomstring-type,
 #     and it is a DOMString here, as it is in the C++ bindings.
 DOM_STRING_TYPES = ("CSSOMString", "DOMString")
-STRING_TYPES = (*DOM_STRING_TYPES, "USVString")
+STRING_TYPES = ("ByteString", *DOM_STRING_TYPES, "USVString")
 
 
 def buffer_source_rules(idl_type: IDLType, parameter_attributes: dict[str, str]) -> str:
@@ -124,6 +124,8 @@ def rust_to_idl_value(
         return f"to_dom_string(vm, {value})"
     if name == "USVString":
         return f"to_usv_string(vm, {value})"
+    if name == "ByteString":
+        return f"to_byte_string(vm, {value})"
     if name == "boolean":
         return f"to_boolean({value})"
     if name == "any":
@@ -315,7 +317,9 @@ def rust_numeric_literal(literal: Optional[str], idl_type_name: str) -> Optional
 
 def rust_string_literal(default_value: Optional[str], idl_type_name: str, what: str) -> Optional[str]:
     """The Rust expression of a string of the IDL, if the default value is one, as a value of the string type."""
-    if idl_type_name not in STRING_TYPES or default_value is None or not default_value.startswith('"'):
+    if idl_type_name not in STRING_TYPES or idl_type_name == "ByteString":
+        return None
+    if default_value is None or not default_value.startswith('"'):
         return None
     string = default_value[1:-1]
     if not string.isascii() or "\\" in string:

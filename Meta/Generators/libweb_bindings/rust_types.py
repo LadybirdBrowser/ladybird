@@ -65,6 +65,7 @@ FLOATING_POINT_TYPES = {"float": "f32", "unrestricted float": "f32", "double": "
 # The types whose values are plain data, with the Rust type of their values. None of these Rust types is or holds a
 # cell, which holds_cells() relies on.
 PLAIN_DATA_TYPES = {
+    "ByteString": "ByteString",
     "CSSOMString": "Utf16String",
     "DOMString": "Utf16String",
     "USVString": "UsvString",
@@ -423,7 +424,7 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
             return "WebIdlPromise"
         if name == "record":
             key_type, value_type = idl_type.parameters
-            if key_type.name not in ("DOMString", "USVString"):
+            if key_type.name not in ("ByteString", "DOMString", "USVString"):
                 raise UnsupportedByRustBindings(f"{what} has a record with keys of the type {key_type}")
             return f"Vec<({rust_type(key_type, context, what)}, {rust_type(value_type, context, what)})>"
         raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert yet")

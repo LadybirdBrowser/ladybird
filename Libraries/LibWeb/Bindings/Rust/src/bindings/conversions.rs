@@ -141,6 +141,24 @@ impl From<UsvString> for Utf16String {
     }
 }
 
+/// https://webidl.spec.whatwg.org/#idl-ByteString
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) struct ByteString(Vec<u8>);
+
+impl ByteString {
+    pub(crate) fn from_bytes(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
+    pub(crate) fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub(crate) fn into_bytes(self) -> Vec<u8> {
+        self.0
+    }
+}
+
 /// A JS value converted to a DOMString, https://webidl.spec.whatwg.org/#es-DOMString
 pub(crate) fn to_dom_string(vm: &Vm, value: Value) -> ThrowCompletionOr<Utf16String> {
     value.to_utf16_string(vm)
@@ -163,6 +181,31 @@ pub(crate) fn to_usv_string(vm: &Vm, value: Value) -> ThrowCompletionOr<UsvStrin
 
     // 2. Return an IDL USVString value that is the result of converting string to a sequence of scalar values.
     Ok(UsvString(to_well_formed(&string)))
+}
+
+/// https://webidl.spec.whatwg.org/#es-ByteString
+pub(crate) fn to_byte_string(vm: &Vm, value: Value) -> ThrowCompletionOr<ByteString> {
+    // 1. Let x be ? ToString(V).
+    let x = value.to_utf16_string(vm)?;
+
+    let code_units = match x.as_units() {
+        Utf16StringUnits::Ascii(bytes) | Utf16StringUnits::Latin1(bytes) => return Ok(ByteString(bytes.to_vec())),
+        Utf16StringUnits::Utf16(code_units) => code_units,
+    };
+
+    // 2. If the value of any element of x is greater than 255, then throw a TypeError.
+    if let Some((index, code_unit)) = code_units.iter().enumerate().find(|(_, code_unit)| **code_unit > 0xFF) {
+        let message = format!(
+            "Invalid byte 0x{code_unit:X} at index {index}, must be an integer no less than 0 and no greater than 0xFF"
+        );
+        return vm.throw_completion_with_utf16_message(ErrorKind::TypeError, Utf16String::from_utf8(&message));
+    }
+
+    // 3. Return an IDL ByteString value whose length is the length of x, and where the value of each element is the
+    //    value of the corresponding element of x.
+    Ok(ByteString(
+        code_units.iter().map(|code_unit| *code_unit as u8).collect(),
+    ))
 }
 
 /// The value of an enumeration that a JS value names, https://webidl.spec.whatwg.org/#js-enumeration: the index of
@@ -1168,6 +1211,21 @@ impl ToJs for Utf16String {
 impl ToJs for UsvString {
     fn to_js(self, cx: &CallContext) -> ThrowCompletionOr<Value> {
         self.into_utf16_string().to_js(cx)
+    }
+}
+
+/// https://webidl.spec.whatwg.org/#js-ByteString
+impl ToJs for ByteString {
+    fn to_js(self, cx: &CallContext) -> ThrowCompletionOr<Value> {
+        // The result of converting an IDL ByteString value to a JavaScript value is a String value whose length is the
+        // length of the ByteString, and the value of each element of which is the value of the corresponding element
+        // of the ByteString.
+        let string = if self.0.is_ascii() {
+            Utf16String::from_ascii(&self.0)
+        } else {
+            Utf16String::from_utf16(&self.0.iter().map(|byte| u16::from(*byte)).collect::<Vec<_>>())
+        };
+        string.to_js(cx)
     }
 }
 
