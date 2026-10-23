@@ -181,6 +181,11 @@ void FetchController::stop_request()
 {
     end_rendering_pending_operation(this);
     VERIFY(m_state != State::Ongoing);
+    stop_body_transport();
+}
+
+void FetchController::stop_body_transport()
+{
     if (m_pending_request) {
         m_pending_request->stop();
         m_pending_request = nullptr;

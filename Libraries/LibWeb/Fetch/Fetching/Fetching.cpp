@@ -185,6 +185,13 @@ static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructur
     http_cache.create_entry(request.current_url(), request.method(), request.header_list(), request.request_time(), response.status(), response.status_message(), response.header_list(), response.javascript_bytecode_cache(), response.javascript_bytecode_cache_vary_key());
 }
 
+// Ends the delivery of a response's body that the fetch will not read.
+static void stop_discarded_response_body(Infrastructure::FetchController& controller, Infrastructure::Response const& response)
+{
+    response.release_request_transfer_lease();
+    controller.stop_body_transport();
+}
+
 // https://fetch.spec.whatwg.org/#concept-fetch
 GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue, CreateResponseBodyTransferLease create_response_body_transfer_lease)
 {
@@ -731,6 +738,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                     // - should internalResponse to request be blocked due to nosniff
                     || Infrastructure::should_response_to_request_be_blocked_due_to_nosniff(internal_response, request) == Infrastructure::RequestOrResponseBlocking::Blocked)) {
                 // then set response and internalResponse to a network error.
+                stop_discarded_response_body(*fetch_params.controller(), *internal_response);
                 response = internal_response = Infrastructure::Response::network_error("Response was blocked"_string);
             }
 
@@ -744,6 +752,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 && internal_response->status() == 206
                 && internal_response->range_requested()
                 && !request->header_list()->contains("Range"sv)) {
+                stop_discarded_response_body(*fetch_params.controller(), *internal_response);
                 response = internal_response = Infrastructure::Response::network_error("Response has status 206 and 'range-requested' flag set, but request has no 'Range' header"_string);
             }
 
@@ -1510,6 +1519,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
             //       a service worker for that matter, it is applied here.
             if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS
                 && !cors_check(request, *response)) {
+                stop_discarded_response_body(*fetch_params.controller(), *response);
                 returned_pending_response->resolve(Infrastructure::Response::network_error("Request with 'cors' response tainting failed CORS check"_string));
                 return;
             }
@@ -1530,6 +1540,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
         auto client_embedder_policy = request->client() ? request->client()->policy_container()->embedder_policy : HTML::EmbedderPolicy {};
         if ((request->response_tainting() == Infrastructure::Request::ResponseTainting::Opaque || response->type() == Infrastructure::Response::Type::Opaque)
             && cross_origin_resource_policy_check(request->origin().get<URL::Origin>(), client_embedder_policy, *internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked) {
+            stop_discarded_response_body(*fetch_params.controller(), *internal_response);
             returned_pending_response->resolve(Infrastructure::Response::network_error("Response was blocked by cross-origin resource policy check"_string));
             return;
         }
@@ -1618,9 +1629,7 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
     // AD-HOC: Navigation responses have a RequestServer transfer lease so they can move through the UI process.
     //         This response will be discarded in favor of either a network error or the redirect response, so
     //         release its lease and stop the request if it is still active.
-    internal_response->release_request_transfer_lease();
-    if (auto const& request_server_request = internal_response->request_server_request(); request_server_request.has_value() && request_server_request->request)
-        request_server_request->request->stop();
+    stop_discarded_response_body(*fetch_params.controller(), *internal_response);
 
     // 5. If locationURL is failure, then return a network error.
     if (location_url_or_error.is_error())
@@ -2155,6 +2164,9 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             && include_credentials == HTTP::Cookie::IncludeCredentials::Yes
             && request->traversable_for_user_prompts().has<GC::Ptr<HTML::Navigable>>()
             && www_authenticate_has_credential_based_scheme()) {
+            // NB: Every branch below drops this response, for a network error or a new fetch's response.
+            stop_discarded_response_body(*fetch_params.controller(), *response);
+
             // 1. Needs testing: multiple `WWW-Authenticate` headers, missing, parsing issues.
             // (Red box in the spec, no-op)
 
@@ -2503,6 +2515,11 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     fetched_data_receiver->set_network_request(network_request);
     if (network_request && fetch_params.has_response_body_transfer_lease())
         network_request->set_body_delivery_paused(true);
+    if (network_request) {
+        network_request->on_teardown = [fetched_data_receiver = GC::Root { fetched_data_receiver }] {
+            fetched_data_receiver->abandon_cache_entry();
+        };
+    }
     fetch_params.controller()->set_pending_request(network_request);
 
     // To transmit request’s body body, run these steps:
@@ -2618,8 +2635,11 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
 
     auto preflight_response = http_network_or_cache_fetch(realm, fetch_params);
 
-    preflight_response->when_loaded([&request, returned_pending_response](GC::Ref<Infrastructure::Response> response) {
+    preflight_response->when_loaded([&request, returned_pending_response, preflight_controller = fetch_params->controller()](GC::Ref<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' preflight_response load callback");
+
+        // NB: Only the preflight response's headers are read.
+        preflight_controller->stop_body_transport();
 
         // 7. If a CORS check for request and response returns success and response’s status is an ok status, then:
         // NOTE: The CORS check is done on request rather than preflight to ensure the correct credentials mode is used.
