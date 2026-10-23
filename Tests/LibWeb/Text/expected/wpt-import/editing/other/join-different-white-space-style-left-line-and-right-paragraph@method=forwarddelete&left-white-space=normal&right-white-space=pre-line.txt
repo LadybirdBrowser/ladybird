@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 40 tests
 
-8 Pass
-32 Fail
+11 Pass
+29 Fail
 Fail	forwarddelete at abc[]<div style="white-space:pre-line">def\nghi</div>
 Fail	forwarddelete at abc[]<div class="preLine">def\nghi</div>
 Pass	forwarddelete at abc[]<div style="white-space:pre-line">def<br>ghi</div>
@@ -24,13 +24,13 @@ Fail	forwarddelete at abc[]<div style="white-space:pre-line"><b>def\n</b>ghi</di
 Fail	forwarddelete at abc[]<div class="preLine"><b>def\n</b>ghi</div>
 Fail	forwarddelete at abc[]<div style="white-space:pre-line"><b>def<br></b>ghi</div>
 Fail	forwarddelete at abc[]<div class="preLine"><b>def<br></b>ghi</div>
-Fail	forwarddelete at abc[]<div style="white-space:pre-line"><div>def</div>ghi</div>
+Pass	forwarddelete at abc[]<div style="white-space:pre-line"><div>def</div>ghi</div>
 Fail	forwarddelete at abc[]<div class="preLine"><div>def</div>ghi</div>
 Pass	forwarddelete at abc[]<div style="white-space:pre-line">def<div>ghi</div></div>
 Fail	forwarddelete at abc[]<div class="preLine">def<div>ghi</div></div>
-Fail	forwarddelete at abc[]<div style="white-space:pre-line"><div>def</div>ghi\njkl</div>
+Pass	forwarddelete at abc[]<div style="white-space:pre-line"><div>def</div>ghi\njkl</div>
 Fail	forwarddelete at abc[]<div class="preLine"><div>def</div>ghi\njkl</div>
-Fail	forwarddelete at abc[]<div style="white-space:pre-line"><div>def</div>ghi<br>jkl</div>
+Pass	forwarddelete at abc[]<div style="white-space:pre-line"><div>def</div>ghi<br>jkl</div>
 Fail	forwarddelete at abc[]<div class="preLine"><div>def</div>ghi<br>jkl</div>
 Pass	forwarddelete at abc[]<div style="white-space:pre-line">def<div>ghi</div>\njkl</div>
 Fail	forwarddelete at abc[]<div class="preLine">def<div>ghi</div>\njkl</div>

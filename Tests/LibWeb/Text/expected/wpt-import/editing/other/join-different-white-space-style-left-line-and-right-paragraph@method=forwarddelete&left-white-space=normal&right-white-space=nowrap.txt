@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 22 tests
 
-6 Pass
-16 Fail
+8 Pass
+14 Fail
 Pass	forwarddelete at abc[]<div style="white-space:nowrap">def<br>ghi</div>
 Fail	forwarddelete at abc[]<div class="nowrap">def<br>ghi</div>
 Fail	forwarddelete at abc[]<div style="white-space:nowrap"><b>def<br>ghi</b></div>
@@ -14,11 +14,11 @@ Pass	forwarddelete at abc[]<div style="white-space:nowrap"><b>def</b><br>ghi</di
 Fail	forwarddelete at abc[]<div class="nowrap"><b>def</b><br>ghi</div>
 Fail	forwarddelete at abc[]<div style="white-space:nowrap"><b>def<br></b>ghi</div>
 Fail	forwarddelete at abc[]<div class="nowrap"><b>def<br></b>ghi</div>
-Fail	forwarddelete at abc[]<div style="white-space:nowrap"><div>def</div>ghi</div>
+Pass	forwarddelete at abc[]<div style="white-space:nowrap"><div>def</div>ghi</div>
 Fail	forwarddelete at abc[]<div class="nowrap"><div>def</div>ghi</div>
 Pass	forwarddelete at abc[]<div style="white-space:nowrap">def<div>ghi</div></div>
 Fail	forwarddelete at abc[]<div class="nowrap">def<div>ghi</div></div>
-Fail	forwarddelete at abc[]<div style="white-space:nowrap"><div>def</div>ghi<br>jkl</div>
+Pass	forwarddelete at abc[]<div style="white-space:nowrap"><div>def</div>ghi<br>jkl</div>
 Fail	forwarddelete at abc[]<div class="nowrap"><div>def</div>ghi<br>jkl</div>
 Pass	forwarddelete at abc[]<div style="white-space:nowrap">def<div>ghi</div><br>jkl</div>
 Fail	forwarddelete at abc[]<div class="nowrap">def<div>ghi</div><br>jkl</div>
