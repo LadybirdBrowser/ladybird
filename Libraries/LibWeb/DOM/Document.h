@@ -1406,7 +1406,7 @@ public:
 
     virtual Vector<Utf16FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }
-    Vector<GC::Ref<DOM::Element>> named_elements_with_name(Utf16FlyString const&) const;
+    GC::RootVector<GC::Ref<DOM::Element>> named_elements_with_name(Utf16FlyString const&) const;
     static bool is_named_element_with_name(Element const&, Utf16FlyString const&);
 
     void gather_active_observations_at_depth(size_t depth);
