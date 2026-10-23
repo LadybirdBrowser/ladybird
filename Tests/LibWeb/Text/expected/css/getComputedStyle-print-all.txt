@@ -290,7 +290,7 @@ padding-left: 0px
 padding-right: 0px
 padding-top: 0px
 perspective: none
-perspective-origin: 50% 50%
+perspective-origin: 392px 1898px
 position: static
 position-anchor: normal
 position-area: none
