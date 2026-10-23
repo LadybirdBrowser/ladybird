@@ -1463,13 +1463,20 @@ BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_context([[maybe
     return BackingStoreManager::GpuSharing::Allowed;
 }
 
-// A context scrolls elastically if the presentation of its root context does.
+// A context scrolls elastically, and takes presses on scrollbar tracks, as the presentation of its root context does.
 void CompositorState::update_scroll_capabilities()
 {
     for (auto& [context_id, context] : m_contexts) {
         auto* presentation = presentation_for_context(root_context_of(*context)->context_id());
         context->set_scrolls_elastically(presentation && m_presentations.get(presentation)->scrolls_elastically);
+        context->set_scrollbar_track_press_jumps(presentation && m_presentations.get(presentation)->scrollbar_track_press_jumps);
     }
+}
+
+void CompositorState::set_scrollbar_track_press_jumps(CompositorStateClient& presentation, bool jumps)
+{
+    m_presentations.get(&presentation)->scrollbar_track_press_jumps = jumps;
+    update_scroll_capabilities();
 }
 
 String CompositorState::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller) const

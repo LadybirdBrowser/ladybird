@@ -174,4 +174,9 @@ void ConnectionFromPresentation::set_client_gpu_presentation_capability(bool sup
     m_compositor_state->set_client_gpu_presentation_capability(*this, supported, adapter_luid);
 }
 
+void ConnectionFromPresentation::set_scrollbar_track_press_jumps(bool jumps)
+{
+    m_compositor_state->set_scrollbar_track_press_jumps(*this, jumps);
+}
+
 }

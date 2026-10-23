@@ -88,6 +88,8 @@ public:
     struct PresentationCapabilities {
         bool synthesizes_scroll_momentum { false };
         bool scrolls_elastically { false };
+        // Whether a press on a scrollbar track beside the thumb jumps there rather than paging toward it.
+        bool scrollbar_track_press_jumps { false };
         // LUID of the GPU adapter the presentation can present shared GPU textures on, if any.
         Optional<u64> gpu_presentation_adapter_luid;
     };
@@ -141,6 +143,7 @@ public:
     bool request_screenshot(Web::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id);
     void set_client_gpu_presentation_capability(CompositorStateClient&, bool supported, u64 adapter_luid);
+    void set_scrollbar_track_press_jumps(CompositorStateClient&, bool jumps);
     String scroll_state_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID stretched_scroller) const;
     Optional<Compositing::FirstWheelStepRouteForTesting> route_first_wheel_step_for_testing(Web::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels);
     void begin_input_trace_for_testing(Web::CompositorContextId);
