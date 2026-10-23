@@ -32,7 +32,6 @@ pub(crate) struct CustomProperty {
 pub struct DeclarationBlockData {
     pub(crate) properties: Vec<DeclaredProperty>,
     pub(crate) custom_properties: Vec<CustomProperty>,
-    custom_property_references: std::sync::OnceLock<(Vec<Vec<u16>>, bool)>,
 }
 
 const _: () = {
@@ -51,12 +50,6 @@ impl DeclarationBlockData {
             );
         for property in &self.custom_properties {
             size = size.saturating_add(size_of_val(property.name.units()));
-        }
-        if let Some((names, _)) = self.custom_property_references.get() {
-            size = size.saturating_add(names.capacity().saturating_mul(size_of::<Vec<u16>>()));
-            for name in names {
-                size = size.saturating_add(name.capacity().saturating_mul(size_of::<u16>()));
-            }
         }
         size
     }
@@ -305,7 +298,6 @@ impl DeclarationBlock {
         let owner = self.owner();
         let mut owner = owner.borrow_mut();
         let data = Arc::make_mut(&mut owner.data);
-        data.custom_property_references.take();
         if !mutation(data) {
             return false;
         }
