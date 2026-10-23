@@ -13,4 +13,5 @@ mod rust_demangle;
 #[path = "../../../RustPanic.rs"]
 mod rust_panic;
 
+pub mod fetch;
 pub mod mime_sniff;

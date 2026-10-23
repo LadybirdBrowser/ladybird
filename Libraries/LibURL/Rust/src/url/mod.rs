@@ -15,6 +15,7 @@ mod types;
 
 pub(crate) use self::host::parse_host_into;
 pub use self::input::UrlInput;
+pub use self::percent_encoding::percent_decode_bytes;
 pub use self::scheme::SchemeType;
 pub(crate) use self::scheme::default_port_for_scheme;
 pub(crate) use self::scheme::is_special_scheme;

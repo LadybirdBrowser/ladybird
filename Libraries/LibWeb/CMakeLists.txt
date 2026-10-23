@@ -397,7 +397,6 @@ set(SOURCES
     Fetch/Infrastructure/PortBlocking.cpp
     Fetch/Infrastructure/PreflightCache.cpp
     Fetch/Infrastructure/Task.cpp
-    Fetch/Infrastructure/URL.cpp
     Fetch/Request.cpp
     Fetch/Response.cpp
     FileAPI/Blob.cpp

@@ -8,7 +8,7 @@
 
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Fetch/Infrastructure/URL.h>
+#include <LibWebCommon/Fetch/Infrastructure/DataURL.h>
 
 TEST_CASE(data_url)
 {
