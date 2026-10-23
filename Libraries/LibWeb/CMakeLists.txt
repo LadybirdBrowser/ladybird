@@ -328,7 +328,6 @@ set(SOURCES
     DOM/XMLDocument.cpp
     DOMURL/DOMURL.cpp
     DOMURL/URLSearchParams.cpp
-    DOMURL/URLSearchParamsIterator.cpp
     Dump.cpp
     Editing/CommandNames.cpp
     Editing/Commands.cpp

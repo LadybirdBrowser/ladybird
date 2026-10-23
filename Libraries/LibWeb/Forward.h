@@ -1210,9 +1210,7 @@ class UIEvent;
 
 namespace Web::DOMURL {
 
-class DOMURL;
 class URLSearchParams;
-class URLSearchParamsIterator;
 
 }
 

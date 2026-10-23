@@ -203,6 +203,14 @@ impl<Serialization: AsRef<str>> Url<Serialization> {
         self.components.host_kind != HostKind::Null && self.components.host_start > self.components.scheme_end + 3
     }
 
+    // https://url.spec.whatwg.org/#cannot-have-a-username-password-port
+    pub fn cannot_have_a_username_or_password_or_port(&self) -> bool {
+        // A URL cannot have a username/password/port if its host is null or the empty string, or its scheme is "file".
+        self.components.host_kind == HostKind::Null
+            || self.components.host_start == self.components.host_end
+            || self.components.scheme_type == SchemeType::File
+    }
+
     pub fn host_kind(&self) -> HostKind {
         self.components.host_kind
     }

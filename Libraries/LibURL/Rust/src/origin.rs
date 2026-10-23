@@ -178,6 +178,34 @@ impl Origin {
             }
         }
     }
+
+    // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
+    pub fn serialize(&self) -> String {
+        match self {
+            // 1. If origin is an opaque origin, then return "null"
+            Self::Opaque { .. } => "null".to_owned(),
+            Self::Tuple { scheme, host, port, .. } => {
+                // 2. Otherwise, let result be origin's scheme.
+                let mut result = scheme.clone();
+
+                // 3. Append "://" to result.
+                result.push_str("://");
+
+                // 4. Append origin's host, serialized, to result.
+                result.push_str(&host.serialization);
+
+                // 5. If origin's port is non-null, append a U+003A COLON character (:), and origin's port, serialized,
+                //    to result.
+                if let Some(port) = port {
+                    result.push(':');
+                    result.push_str(&port.to_string());
+                }
+
+                // 6. Return result
+                result
+            }
+        }
+    }
 }
 
 impl<Serialization: AsRef<str>> Url<Serialization> {
