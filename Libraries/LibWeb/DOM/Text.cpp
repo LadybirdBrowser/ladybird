@@ -152,7 +152,7 @@ Utf16String Text::whole_text()
     // https://dom.spec.whatwg.org/#contiguous-text-nodes
     // The contiguous Text nodes of a node node are node, node’s previous sibling Text node, if any, and its contiguous
     // Text nodes, and node’s next sibling Text node, if any, and its contiguous Text nodes, avoiding any duplicates.
-    Vector<Text*> nodes;
+    GC::RootVector<Text*> nodes;
 
     nodes.append(this);
 
