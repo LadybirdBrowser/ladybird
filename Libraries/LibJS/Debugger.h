@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/Root.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibJS/Breakpoint.h>
@@ -79,7 +80,7 @@ public:
     // Continue after the host filters out a pause without cancelling an active step operation.
     void continue_execution_preserving_step_state();
     bool is_paused() const;
-    Vector<FrameBinding> bindings_for_frame(ExecutionContext const&) const;
+    GC::ConservativeVector<FrameBinding> bindings_for_frame(ExecutionContext const&) const;
     ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text, UpdateOriginalBindings = UpdateOriginalBindings::Yes);
 
     void request_pause_on_next_bytecode_execution();

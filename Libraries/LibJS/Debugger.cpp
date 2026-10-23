@@ -134,7 +134,7 @@ bool Debugger::is_paused() const
 static void append_frame_binding(void* context, JSDebuggerFrameBinding const* binding)
 {
     VERIFY(binding);
-    auto& bindings = *static_cast<Vector<Debugger::FrameBinding>*>(context);
+    auto& bindings = *static_cast<GC::ConservativeVector<Debugger::FrameBinding>*>(context);
     bindings.append({
         .name = Utf16FlyString::from_utf16(utf16_view_from_abi(binding->name)),
         .value = value_from_abi(binding->value),
@@ -142,10 +142,9 @@ static void append_frame_binding(void* context, JSDebuggerFrameBinding const* bi
     });
 }
 
-// The values are the frame's own, which the paused frame keeps alive.
-Vector<Debugger::FrameBinding> Debugger::bindings_for_frame(ExecutionContext const& execution_context) const
+GC::ConservativeVector<Debugger::FrameBinding> Debugger::bindings_for_frame(ExecutionContext const& execution_context) const
 {
-    Vector<FrameBinding> bindings;
+    GC::ConservativeVector<FrameBinding> bindings;
     JSDebuggerFrameBindingSink sink { .context = &bindings, .append = append_frame_binding };
     js_debugger_bindings_for_frame(vm_to_abi(vm()), execution_context_to_abi(execution_context), &sink);
     return bindings;
