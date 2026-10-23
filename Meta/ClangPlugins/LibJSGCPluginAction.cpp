@@ -1075,6 +1075,269 @@ bool LibJSGCVisitor::VisitClassTemplateDecl(clang::ClassTemplateDecl* class_temp
     return true;
 }
 
+struct TemplateInstance {
+    std::string name;
+    std::vector<clang::QualType> type_arguments;
+};
+
+static void append_type_arguments(llvm::ArrayRef<clang::TemplateArgument> arguments, std::vector<clang::QualType>& type_arguments)
+{
+    for (auto const& argument : arguments) {
+        if (argument.getKind() == clang::TemplateArgument::Type)
+            type_arguments.push_back(argument.getAsType());
+        else if (argument.getKind() == clang::TemplateArgument::Pack)
+            append_type_arguments(argument.pack_elements(), type_arguments);
+    }
+}
+
+// These hold their values outside the object they are stored in, or are visible to the GC already.
+static bool is_type_that_does_not_store_gc_pointers_by_value(std::string const& template_name)
+{
+    static std::unordered_set<std::string> const template_names {
+        "AK::NonnullOwnPtr",
+        "AK::NonnullRefPtr",
+        "AK::OwnPtr",
+        "AK::RefPtr",
+        "AK::Span",
+        "AK::WeakPtr",
+        "GC::ConservativeHashMap",
+        "GC::ConservativeHashTable",
+        "GC::ConservativeVector",
+        "GC::RawPtr",
+        "GC::RawRef",
+        "GC::Root",
+        "GC::RootHashMap",
+        "GC::RootHashTable",
+        "GC::RootVector",
+        "GC::Weak",
+        "GC::WeakHashMap",
+        "GC::WeakHashSet",
+    };
+    return template_names.contains(template_name);
+}
+
+// The template arguments as written keep alias templates such as GC::RawPtr, which the canonical arguments of a
+// specialization resolve to the template they alias. A dependent type such as Vector<GC::Ref<T>> only has those.
+static std::optional<TemplateInstance> template_instance_of_type(clang::QualType type)
+{
+    if (auto const* specialization_type = type->getAs<clang::TemplateSpecializationType>()) {
+        auto const* template_decl = specialization_type->getTemplateName().getAsTemplateDecl();
+        if (!template_decl)
+            return {};
+        auto template_name = template_decl->getQualifiedNameAsString();
+        if (specialization_type->isTypeAlias() && !is_type_that_does_not_store_gc_pointers_by_value(template_name))
+            return template_instance_of_type(specialization_type->getAliasedType());
+
+        TemplateInstance instance { std::move(template_name), {} };
+        append_type_arguments(specialization_type->template_arguments(), instance.type_arguments);
+        return instance;
+    }
+
+    if (auto const* specialization = llvm::dyn_cast_or_null<clang::ClassTemplateSpecializationDecl>(type->getAsCXXRecordDecl())) {
+        TemplateInstance instance { specialization->getSpecializedTemplate()->getQualifiedNameAsString(), {} };
+        append_type_arguments(specialization->getTemplateArgs().asArray(), instance.type_arguments);
+        return instance;
+    }
+    return {};
+}
+
+static bool record_is_nan_boxed_value(clang::CXXRecordDecl const& record)
+{
+    if (record.getQualifiedNameAsString() == "GC::NanBoxedValue")
+        return true;
+    return !record.forallBases([](clang::CXXRecordDecl const* base) {
+        return base->getQualifiedNameAsString() != "GC::NanBoxedValue";
+    });
+}
+
+static bool record_is_in_ak_or_gc(clang::CXXRecordDecl const& record)
+{
+    auto qualified_name = record.getQualifiedNameAsString();
+    return qualified_name.starts_with("AK::") || qualified_name.starts_with("GC::");
+}
+
+// Whether a value of this type holds a pointer that a GC root container could keep alive, or a struct that holds one.
+static bool type_holds_gc_pointer(clang::QualType type, std::set<clang::CXXRecordDecl const*>& visited)
+{
+    if (auto const* array = type->getAsArrayTypeUnsafe())
+        return type_holds_gc_pointer(array->getElementType(), visited);
+
+    if (type->isPointerType() || type->isReferenceType()) {
+        auto const* pointee = type->getPointeeCXXRecordDecl();
+        auto const* definition = pointee ? pointee->getDefinition() : nullptr;
+        return definition && record_inherits_from_cell(*definition);
+    }
+
+    if (auto instance = template_instance_of_type(type)) {
+        if (instance->name == "GC::Ptr" || instance->name == "GC::Ref")
+            return true;
+        if (is_type_that_does_not_store_gc_pointers_by_value(instance->name))
+            return false;
+        for (auto const& type_argument : instance->type_arguments) {
+            if (type_holds_gc_pointer(type_argument, visited))
+                return true;
+        }
+    }
+
+    auto const* record = type->getAsCXXRecordDecl();
+    if (!record || !record->isCompleteDefinition() || !visited.insert(record).second)
+        return false;
+    if (record_is_nan_boxed_value(*record))
+        return true;
+    if (record_is_in_ak_or_gc(*record) || record_inherits_from_cell(*record))
+        return false;
+    for (auto const& base : record->bases()) {
+        if (type_holds_gc_pointer(base.getType(), visited))
+            return true;
+    }
+    for (auto const* field : record->fields()) {
+        if (type_holds_gc_pointer(field->getType(), visited))
+            return true;
+    }
+    return false;
+}
+
+static bool is_container_with_heap_storage(std::string const& template_name)
+{
+    static std::unordered_set<std::string> const template_names {
+        "AK::DoublyLinkedList",
+        "AK::FixedArray",
+        "AK::HashMap",
+        "AK::HashTable",
+        "AK::Queue",
+        "AK::SinglyLinkedList",
+        "AK::Vector",
+    };
+    return template_names.contains(template_name);
+}
+
+// The GC sees the values these store, but not the heap storage of a container stored in one of them.
+static bool is_container_scanned_by_gc(std::string const& template_name)
+{
+    static std::unordered_set<std::string> const template_names {
+        "GC::ConservativeHashMap",
+        "GC::ConservativeHashTable",
+        "GC::ConservativeVector",
+        "GC::RootHashMap",
+        "GC::RootHashTable",
+        "GC::RootVector",
+    };
+    return template_names.contains(template_name);
+}
+
+static bool is_value_wrapper(std::string const& template_name)
+{
+    static std::unordered_set<std::string> const template_names {
+        "AK::Array",
+        "AK::ErrorOr",
+        "AK::Optional",
+        "AK::Tuple",
+        "AK::Variant",
+    };
+    return template_names.contains(template_name);
+}
+
+// Conservative stack scanning sees the values stored in a stack object, but not the heap storage of a container in it.
+static std::optional<clang::QualType> find_container_with_unscanned_gc_pointers(clang::QualType type, std::set<clang::CXXRecordDecl const*>& visited)
+{
+    if (auto const* array = type->getAsArrayTypeUnsafe())
+        return find_container_with_unscanned_gc_pointers(array->getElementType(), visited);
+
+    if (type->isPointerType() || type->isReferenceType())
+        return {};
+
+    if (auto instance = template_instance_of_type(type)) {
+        if (is_container_with_heap_storage(instance->name)) {
+            for (auto const& type_argument : instance->type_arguments) {
+                std::set<clang::CXXRecordDecl const*> visited_by_element;
+                if (type_holds_gc_pointer(type_argument, visited_by_element))
+                    return type;
+            }
+            return {};
+        }
+        if (is_value_wrapper(instance->name) || is_container_scanned_by_gc(instance->name)) {
+            for (auto const& type_argument : instance->type_arguments) {
+                if (auto container = find_container_with_unscanned_gc_pointers(type_argument, visited))
+                    return container;
+            }
+            return {};
+        }
+        if (is_type_that_does_not_store_gc_pointers_by_value(instance->name))
+            return {};
+    }
+
+    auto const* record = type->getAsCXXRecordDecl();
+    if (!record || !record->isCompleteDefinition() || !visited.insert(record).second)
+        return {};
+    if (record_is_in_ak_or_gc(*record) || record_inherits_from_cell(*record))
+        return {};
+    for (auto const& base : record->bases()) {
+        if (auto container = find_container_with_unscanned_gc_pointers(base.getType(), visited))
+            return container;
+    }
+    for (auto const* field : record->fields()) {
+        if (auto container = find_container_with_unscanned_gc_pointers(field->getType(), visited))
+            return container;
+    }
+    return {};
+}
+
+static clang::QualType type_of_object_on_stack(clang::VarDecl const& variable)
+{
+    if (!variable.getType()->isReferenceType())
+        return variable.getType();
+
+    // A reference that extends the lifetime of a temporary keeps that temporary on the stack.
+    auto const* initializer = variable.getInit();
+    if (auto const* expression_with_cleanups = llvm::dyn_cast_or_null<clang::ExprWithCleanups>(initializer))
+        initializer = expression_with_cleanups->getSubExpr();
+    auto const* temporary = llvm::dyn_cast_or_null<clang::MaterializeTemporaryExpr>(initializer);
+    if (!temporary || temporary->getExtendingDecl() != &variable)
+        return {};
+    return temporary->getType();
+}
+
+void LibJSGCVisitor::validate_object_on_stack(clang::VarDecl const& variable, clang::SourceLocation location)
+{
+    auto type = type_of_object_on_stack(variable);
+    if (type.isNull())
+        return;
+
+    // The collector's own locals hold cells while it collects, when nothing allocates.
+    if (file_path_of_declaration(m_context.getSourceManager(), variable).find("/Libraries/LibGC/") != std::string::npos)
+        return;
+
+    std::set<clang::CXXRecordDecl const*> visited;
+    auto container = find_container_with_unscanned_gc_pointers(type, visited);
+    if (!container)
+        return;
+
+    auto& diag_engine = m_context.getDiagnostics();
+    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 keeps GC pointers in heap memory that is not scanned for roots; use GC::RootVector, GC::RootHashMap, GC::RootHashTable or a GC::Conservative container instead");
+    diag_engine.Report(location, diag_id) << *container;
+}
+
+bool LibJSGCVisitor::VisitVarDecl(clang::VarDecl* variable)
+{
+    // A container passed by value is usually moved into a visited member before anything can allocate.
+    if (!variable->hasLocalStorage() || variable->isImplicit() || llvm::isa<clang::ParmVarDecl>(variable))
+        return true;
+
+    validate_object_on_stack(*variable, variable->getLocation());
+    return true;
+}
+
+// The hidden range variable of a range-based for loop keeps a temporary range alive for the whole loop.
+bool LibJSGCVisitor::VisitCXXForRangeStmt(clang::CXXForRangeStmt* for_range)
+{
+    auto const* range_statement = for_range->getRangeStmt();
+    if (!range_statement || !range_statement->isSingleDecl())
+        return true;
+    if (auto const* range_variable = llvm::dyn_cast<clang::VarDecl>(range_statement->getSingleDecl()))
+        validate_object_on_stack(*range_variable, for_range->getRangeInit()->getBeginLoc());
+    return true;
+}
+
 LibJSGCASTConsumer::LibJSGCASTConsumer(clang::CompilerInstance& compiler, bool detect_invalid_function_members)
     : m_compiler(compiler)
     , m_detect_invalid_function_members(detect_invalid_function_members)
