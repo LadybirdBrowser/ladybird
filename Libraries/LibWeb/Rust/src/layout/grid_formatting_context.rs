@@ -3302,6 +3302,15 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
+    /// An item that is not stretched by normal or stretch alignment is aligned to the start of its grid area, which
+    /// is at the physical end of a reversed axis.
+    fn alignment_for_unstretched_size(&self, axis: Axis, alignment: Alignment, stretches: bool) -> Alignment {
+        if !stretches && self.axis_is_reversed(axis) && matches!(alignment, Alignment::Normal | Alignment::Stretch) {
+            return Alignment::End;
+        }
+        alignment
+    }
+
     // https://drafts.csswg.org/css-align-3/#valdef-justify-self-left
     // left: Aligns the alignment subject to be flush with the alignment container’s line-left or physical left edge,
     // whichever is in the appropriate axis.
@@ -3506,7 +3515,7 @@ impl<'pass> GridFormattingContext<'pass> {
             base_margin_end + item.extra_margin_right,
             wrapper_style.margin_left().is_auto(),
             wrapper_style.margin_right().is_auto(),
-            alignment,
+            self.alignment_for_unstretched_size(Axis::Column, alignment, false),
         )
     }
 
@@ -3668,7 +3677,7 @@ impl<'pass> GridFormattingContext<'pass> {
                     used_margin_end,
                     start_auto,
                     end_auto,
-                    alignment,
+                    self.alignment_for_unstretched_size(axis, alignment, size_is_auto && !facts.is_replaced_box()),
                 )
             };
             let mut resolved = resolve_alignment(size, preferred.is_auto());
@@ -4514,6 +4523,12 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
+    /// The physical alignment of an absolutely positioned item in its grid area. Normal and stretch alignment do not
+    /// stretch such an item, so they align it to the start of its area, as for an unstretched in-flow item.
+    fn abspos_item_alignment(&self, node: Node, axis: Axis) -> Alignment {
+        self.alignment_for_unstretched_size(axis, self.item_physical_alignment_for_node(node, axis), false)
+    }
+
     // https://www.w3.org/TR/css-grid-2/#abspos-items
     pub(crate) fn abspos_containing_block_info(&self, node: Node) -> abspos_inputs::AbsposContainingBlockInfo {
         let grid_style = self.grid_style(node);
@@ -4538,10 +4553,8 @@ impl<'pass> GridFormattingContext<'pass> {
             },
             inline_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
             block_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
-            inline_alignment: Some(abspos_alignment(
-                self.item_physical_alignment_for_node(node, Axis::Column),
-            )),
-            block_alignment: Some(abspos_alignment(self.item_physical_alignment_for_node(node, Axis::Row))),
+            inline_alignment: Some(abspos_alignment(self.abspos_item_alignment(node, Axis::Column))),
+            block_alignment: Some(abspos_alignment(self.abspos_item_alignment(node, Axis::Row))),
             derives_from_own_computed_values: true,
         }
     }

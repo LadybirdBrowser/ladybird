@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .grid {
+        display: grid;
+        position: relative;
+        width: 200px;
+        height: 100px;
+        padding: 10px 20px 30px 40px;
+        grid-template-columns: 50px 50px;
+    }
+    .grid > div {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+    }
+</style>
+<!-- Normal and stretch alignment put an absolutely positioned item that does not stretch at the start of its area. -->
+<div class="grid" style="direction: rtl;">
+    <div id="rtl-normal" style="grid-column: 1 / 2;"></div>
+    <div id="rtl-stretch" style="grid-column: 2 / 3; justify-self: stretch;"></div>
+    <div id="rtl-auto-placement"></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+    <div id="vertical-lr-rtl-normal" style="grid-column: 1 / 2;"></div>
+    <div id="vertical-lr-rtl-stretch" style="grid-column: 2 / 3; justify-self: stretch;"></div>
+    <div id="vertical-lr-rtl-auto-placement"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll(".grid > div")) {
+            const rect = element.getBoundingClientRect();
+            const grid = element.parentElement.getBoundingClientRect();
+            println(`${element.id}: x=${rect.x - grid.x} y=${rect.y - grid.y}`);
+        }
+    });
+</script>

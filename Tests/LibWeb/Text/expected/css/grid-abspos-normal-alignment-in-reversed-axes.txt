@@ -1,0 +1,6 @@
+rtl-normal: x=230 y=0
+rtl-stretch: x=180 y=0
+rtl-auto-placement: x=250 y=0
+vertical-lr-rtl-normal: x=0 y=100
+vertical-lr-rtl-stretch: x=0 y=50
+vertical-lr-rtl-auto-placement: x=0 y=130
