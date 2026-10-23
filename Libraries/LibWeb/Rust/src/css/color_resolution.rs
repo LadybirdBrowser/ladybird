@@ -962,8 +962,9 @@ fn construct_color(color_type: u8, c1: f64, c2: f64, c3: f64, alpha: f64) -> Opt
         },
         ct::HSL => Rgba::from_hsla(c1, c2 / 100.0, c3 / 100.0, alpha),
         ct::HWB => {
-            let whiteness = (c2.clamp(0.0, 100.0) / 100.0) as f32;
-            let blackness = (c3.clamp(0.0, 100.0) / 100.0) as f32;
+            // NB: White and black are not clamped to 100%, see hwb_to_absolutized_rgb().
+            let whiteness = (c2.max(0.0) / 100.0) as f32;
+            let blackness = (c3.max(0.0) / 100.0) as f32;
             if whiteness + blackness >= 1.0 {
                 let gray = fraction_to_byte(f64::from(whiteness / (whiteness + blackness)));
                 return Some(Rgba {

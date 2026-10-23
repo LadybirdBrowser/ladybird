@@ -474,8 +474,13 @@ fn hwb_to_absolutized_rgb(
     blackness_0_100: f64,
     alpha_0_1: f64,
 ) -> StyleValueData {
-    let whiteness = (whiteness_0_100 / 100.0).clamp(0.0, 1.0) as f32;
-    let blackness = (blackness_0_100 / 100.0).clamp(0.0, 1.0) as f32;
+    // https://drafts.csswg.org/css-color-4/#the-hwb-notation
+    // Values outside of these ranges are not invalid; hue angles outside the range [0,360) will be normalized to
+    // that range and values of white and black which sum to 100% or greater will produce achromatic colors as
+    // described below.
+    // NB: The handling of negative white or black is unspecified, so they are clamped to 0%.
+    let whiteness = (whiteness_0_100 / 100.0).max(0.0) as f32;
+    let blackness = (blackness_0_100 / 100.0).max(0.0) as f32;
 
     if whiteness + blackness >= 1.0 {
         // The gray channel value is shared across the three slots, like the C++ code.
