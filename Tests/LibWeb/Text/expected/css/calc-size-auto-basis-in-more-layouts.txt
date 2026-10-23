@@ -1,0 +1,8 @@
+flex item with a clamped calc-size() height: 50px
+flex item with a calc-size() min-height: 100px
+percentage child of a flex item with a calc-size() height: 40px
+replaced flex item with a calc-size() flex-basis: 50px
+stretched flex item with a calc-size() height of an indefinite stretch: 60px
+block with a calc-size() min-width: 200px
+abspos with insets and a calc-size() height: 150px
+abspos with a calc-size() height around its content: 60px

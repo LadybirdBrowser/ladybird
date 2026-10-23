@@ -1782,6 +1782,30 @@ impl AbsposEngine<'_> {
             resolved_anchor_insets,
         );
 
+        // NB: As in the inline axis, a calc-size() with an auto basis resolves against the block size auto gives the
+        //     box.
+        if style.height().is_auto()
+            && style.height().calc_size().is_some()
+            && let Some(auto_block_size) = solution.block_size
+        {
+            let block_size = self.sizing().resolve_calc_size(
+                node,
+                SizingAxis::Block,
+                style.height(),
+                auto_block_size,
+                constraints.percentage_basis_block_size,
+            );
+            solution = self.solve_non_replaced_block_once(
+                node,
+                available_space,
+                constraints,
+                static_position_rect,
+                pass,
+                Some(block_size),
+                resolved_anchor_insets,
+            );
+        }
+
         if solution.block_size.is_some() && !style.max_height().is_none() {
             let max_block_size = self.calculate_inner_size(
                 node,

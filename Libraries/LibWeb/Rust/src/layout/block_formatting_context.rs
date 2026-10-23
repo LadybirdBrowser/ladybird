@@ -840,7 +840,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
         //    but this time using the value of 'min-width' as the computed value for 'width'.
         let min_width = style.min_width();
-        if !min_width.is_auto()
+        if !crate::layout::sizing_context::is_plain_auto(min_width)
             && let Some(value) = used_inline_size
         {
             let min_inline_size = calculate_inner_inline_size(min_width);
@@ -1827,8 +1827,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let style = self.style(node);
         let box_is_html_element_in_quirks_mode = facts.document_in_quirks_mode()
             && facts.is_html_html_element()
-            && style.height().is_auto()
-            && style.height().calc_size().is_none();
+            && crate::layout::sizing_context::is_plain_auto(style.height());
         let block_size_is_definite_from_aspect_ratio = self.used(node).has_definite_inline_size()
             && facts.has_preferred_aspect_ratio()
             && self.sizing().box_is_sized_as_replaced_element(
