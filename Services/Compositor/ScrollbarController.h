@@ -86,6 +86,10 @@ public:
     bool is_empty() const { return m_scrollbars.is_empty(); }
     Vector<Compositing::AsyncScrollbar> const& scrollbars() const { return m_scrollbars; }
     bool has_captured_scrollbar() const { return m_captured_scrollbar_index.has_value(); }
+    Optional<size_t> captured_scrollbar_index() const { return m_captured_scrollbar_index; }
+    // Which way a press beside the thumb pages: -1 or 1 toward the pointer from where the thumb is at the given scroll
+    // offset, or 0 when the thumb is under the pointer.
+    int paging_direction(size_t scrollbar_index, float primary_position, Gfx::FloatPoint scroll_offset) const;
     // The main thread still takes the mouse events of a drag that holds a scrollbar the display list paints.
     Optional<Web::ScrollbarDraggedByCompositor> captured_scrollbar_painted_by_display_list() const;
 

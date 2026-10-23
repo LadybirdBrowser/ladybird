@@ -310,6 +310,18 @@ Optional<ScrollbarController::ScrollOffset> ScrollbarController::scroll_offset_f
     return ScrollOffset { scrollbar.scroll_node_id, scroll_offset };
 }
 
+int ScrollbarController::paging_direction(size_t scrollbar_index, float primary_position, Gfx::FloatPoint scroll_offset) const
+{
+    auto const& scrollbar = m_scrollbars[scrollbar_index];
+    auto orientation = orientation_for_scrollbar(scrollbar);
+    auto thumb_rect = translated_thumb_rect(scrollbar, scroll_offset, is_expanded(scrollbar_index));
+    if (primary_position < static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation)))
+        return -1;
+    if (primary_position >= static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation) + thumb_rect.primary_size_for_orientation(orientation)))
+        return 1;
+    return 0;
+}
+
 Gfx::IntRect ScrollbarController::update_visibility(Compositing::AccumulatedVisualContextTree const* visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, MonotonicTime now)
 {
     Gfx::IntRect damage_rect;
