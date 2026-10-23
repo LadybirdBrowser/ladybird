@@ -17,6 +17,8 @@ pub(crate) enum Alignment {
     Baseline,
     SelfStart,
     SelfEnd,
+    Left,
+    Right,
     Safe,
     Unsafe,
     SpaceBetween,
@@ -29,8 +31,10 @@ pub(crate) fn inline_item_alignment(justify_self_value: u8, container_justify_it
         justify_self::AUTO => match container_justify_items {
             justify_items::BASELINE => Alignment::Baseline,
             justify_items::CENTER => Alignment::Center,
-            justify_items::END | justify_items::FLEX_END | justify_items::RIGHT => Alignment::End,
-            justify_items::FLEX_START | justify_items::START | justify_items::LEFT => Alignment::Start,
+            justify_items::END | justify_items::FLEX_END => Alignment::End,
+            justify_items::FLEX_START | justify_items::START => Alignment::Start,
+            justify_items::LEFT => Alignment::Left,
+            justify_items::RIGHT => Alignment::Right,
             justify_items::NORMAL | justify_items::LEGACY => Alignment::Normal,
             justify_items::SAFE => Alignment::Safe,
             justify_items::SELF_END => Alignment::SelfEnd,
@@ -41,8 +45,10 @@ pub(crate) fn inline_item_alignment(justify_self_value: u8, container_justify_it
         },
         justify_self::BASELINE => Alignment::Baseline,
         justify_self::CENTER => Alignment::Center,
-        justify_self::END | justify_self::FLEX_END | justify_self::RIGHT => Alignment::End,
-        justify_self::FLEX_START | justify_self::START | justify_self::LEFT => Alignment::Start,
+        justify_self::END | justify_self::FLEX_END => Alignment::End,
+        justify_self::FLEX_START | justify_self::START => Alignment::Start,
+        justify_self::LEFT => Alignment::Left,
+        justify_self::RIGHT => Alignment::Right,
         justify_self::NORMAL => Alignment::Normal,
         justify_self::SAFE => Alignment::Safe,
         justify_self::SELF_END => Alignment::SelfEnd,
@@ -85,8 +91,10 @@ pub(crate) fn block_item_alignment(align_self_value: u8, container_align_items: 
 pub(crate) fn inline_content_alignment(value: u8) -> Alignment {
     match value {
         justify_content::NORMAL => Alignment::Normal,
-        justify_content::START | justify_content::FLEX_START | justify_content::LEFT => Alignment::Start,
-        justify_content::END | justify_content::FLEX_END | justify_content::RIGHT => Alignment::End,
+        justify_content::START | justify_content::FLEX_START => Alignment::Start,
+        justify_content::END | justify_content::FLEX_END => Alignment::End,
+        justify_content::LEFT => Alignment::Left,
+        justify_content::RIGHT => Alignment::Right,
         justify_content::CENTER => Alignment::Center,
         justify_content::SPACE_BETWEEN => Alignment::SpaceBetween,
         justify_content::SPACE_AROUND => Alignment::SpaceAround,
@@ -1864,10 +1872,14 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn content_alignment(&self, axis: Axis) -> Alignment {
         let style = self.style(self.run.box_);
-        axis.select(
+        let alignment = axis.select(
             inline_content_alignment(style.justify_content()),
             block_content_alignment(style.align_content()),
-        )
+        );
+        match alignment {
+            Alignment::Left | Alignment::Right => self.resolve_left_or_right(axis, alignment),
+            _ => alignment,
+        }
     }
 
     fn container_padding_start(&self, axis: Axis) -> CssPixels {
@@ -2988,10 +3000,50 @@ impl<'pass> GridFormattingContext<'pass> {
     fn item_alignment_for_node(&self, node: Node, axis: Axis) -> Alignment {
         let item_style = self.style(node);
         let container_style = self.style(self.run.box_);
-        axis.select(
+        let alignment = axis.select(
             inline_item_alignment(item_style.justify_self(), container_style.justify_items()),
             block_item_alignment(item_style.align_self(), container_style.align_items()),
-        )
+        );
+        match alignment {
+            // https://drafts.csswg.org/css-align-3/#valdef-self-position-self-start
+            // self-start: Aligns the alignment subject to be flush with the edge of the alignment container
+            // corresponding to the alignment subject’s start side in the appropriate axis.
+            // self-end: Aligns the alignment subject to be flush with the edge of the alignment container
+            // corresponding to the alignment subject’s end side in the appropriate axis.
+            Alignment::SelfStart | Alignment::SelfEnd => {
+                let horizontal = axis.is_column();
+                let item_start_is_left_or_top =
+                    geometry::start_is_left_or_top(item_style.writing_mode(), item_style.direction(), horizontal);
+                let shares_start_side = item_start_is_left_or_top == self.axis_start_is_left_or_top(axis);
+                if shares_start_side == (alignment == Alignment::SelfStart) {
+                    Alignment::Start
+                } else {
+                    Alignment::End
+                }
+            }
+            Alignment::Left | Alignment::Right => self.resolve_left_or_right(axis, alignment),
+            _ => alignment,
+        }
+    }
+
+    // https://drafts.csswg.org/css-align-3/#valdef-justify-self-left
+    // left: Aligns the alignment subject to be flush with the alignment container’s line-left or physical left edge,
+    // whichever is in the appropriate axis.
+    // right: Aligns the alignment subject to be flush with the alignment container’s line-right or physical right
+    // edge, whichever is in the appropriate axis.
+    fn resolve_left_or_right(&self, axis: Axis, alignment: Alignment) -> Alignment {
+        if self.axis_start_is_left_or_top(axis) == (alignment == Alignment::Left) {
+            Alignment::Start
+        } else {
+            Alignment::End
+        }
+    }
+
+    /// Whether the grid container's start side in the given axis is its left (columns) or top (rows) side.
+    fn axis_start_is_left_or_top(&self, _axis: Axis) -> bool {
+        // FIXME: Lay out the tracks from the start side given by the grid container's writing mode and direction.
+        //        Until then, the columns run from left to right and the rows from top to bottom.
+        true
     }
 
     // https://drafts.csswg.org/css-grid-2/#grid-items
@@ -4063,7 +4115,7 @@ fn abspos_alignment(alignment: Alignment) -> AbsposAlignment {
     match alignment {
         Alignment::Baseline => AbsposAlignment::Baseline,
         Alignment::Center => AbsposAlignment::Center,
-        Alignment::End => AbsposAlignment::End,
+        Alignment::End | Alignment::Right => AbsposAlignment::End,
         Alignment::Normal => AbsposAlignment::Normal,
         Alignment::Safe => AbsposAlignment::Safe,
         Alignment::SelfEnd => AbsposAlignment::SelfEnd,
@@ -4071,7 +4123,7 @@ fn abspos_alignment(alignment: Alignment) -> AbsposAlignment {
         Alignment::SpaceAround => AbsposAlignment::SpaceAround,
         Alignment::SpaceBetween => AbsposAlignment::SpaceBetween,
         Alignment::SpaceEvenly => AbsposAlignment::SpaceEvenly,
-        Alignment::Start => AbsposAlignment::Start,
+        Alignment::Start | Alignment::Left => AbsposAlignment::Start,
         Alignment::Stretch => AbsposAlignment::Stretch,
         Alignment::Unsafe => AbsposAlignment::Unsafe,
     }

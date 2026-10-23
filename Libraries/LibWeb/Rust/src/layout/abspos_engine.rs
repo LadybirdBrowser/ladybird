@@ -1056,16 +1056,7 @@ impl PositionAreaWritingMode {
 
     /// Whether the start side of the given physical axis is its left or top side.
     fn start_is_left_or_top(self, horizontal: bool) -> bool {
-        let is_ltr = self.direction == direction::LTR;
-        match (self.writing_mode, horizontal) {
-            (writing_mode::HORIZONTAL_TB, true) => is_ltr,
-            (writing_mode::HORIZONTAL_TB, false) => true,
-            (writing_mode::VERTICAL_RL | writing_mode::SIDEWAYS_RL, true) => false,
-            (writing_mode::VERTICAL_LR | writing_mode::SIDEWAYS_LR, true) => true,
-            (writing_mode::SIDEWAYS_LR, false) => !is_ltr,
-            (_, false) => is_ltr,
-            _ => true,
-        }
+        geometry::start_is_left_or_top(self.writing_mode, self.direction, horizontal)
     }
 }
 
