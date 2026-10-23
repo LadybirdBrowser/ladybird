@@ -188,7 +188,7 @@ jobs:
         if: ${{ inputs.os_name == 'macOS' }}
         working-directory: ${{ github.workspace }}
         run: |
-          "${{ env.pythonLocation }}/bin/python" Meta/package-macos-app-bundle.py \
+          "${{ env.pythonLocation }}/bin/python" Meta/package-macos-test-bundle.py \
             --build-dir Build --install-dir Install --output ladybird-app-bundle.tar.gz
 
       - name: Upload the macOS app bundle
