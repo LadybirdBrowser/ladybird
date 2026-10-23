@@ -56,6 +56,11 @@ void FetchController::set_pending_request(RefPtr<Requests::Request> const& reque
     }
 }
 
+void FetchController::set_body_transport(Engine::FetchBodyDeliveryGate::Transport& body_transport)
+{
+    m_body_transport = body_transport;
+}
+
 void FetchController::set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps)
 {
     m_report_timing_steps = GC::create_function(GC::Heap::the(), move(report_timing_steps));
@@ -189,6 +194,10 @@ void FetchController::stop_body_transport()
     if (m_pending_request) {
         m_pending_request->stop();
         m_pending_request = nullptr;
+    }
+    if (auto body_transport = m_body_transport.strong_ref()) {
+        m_body_transport = nullptr;
+        body_transport->stop();
     }
 }
 

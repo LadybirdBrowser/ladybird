@@ -78,13 +78,6 @@ void FetchedDataReceiver::handle_network_data(JS::Realm& realm, Requests::Respon
         return;
     }
 
-    if (state == NetworkState::Error) {
-        // A response that died mid-body must not satisfy a sniff waiter with partial bytes.
-        if (m_body)
-            m_body->set_sniff_bytes_failed();
-        return;
-    }
-
     // 1. If one or more bytes have been transmitted from response’s message body, then:
     auto bytes = data.bytes();
     if (bytes.is_empty())
@@ -224,19 +217,6 @@ void FetchedDataReceiver::enqueue_into_stream(JS::Realm& realm, ReadonlyBytes by
         if (m_fetch_params)
             m_fetch_params->controller()->terminate();
     }
-}
-
-void FetchedDataReceiver::abandon_cache_entry()
-{
-    if (!m_http_cache || !m_fetch_params || !m_response)
-        return;
-
-    auto request = m_fetch_params->request();
-    m_http_cache->abandon_entry(request->current_url(), request->method(), request->header_list(), m_response->header_list());
-
-    m_http_cache.clear();
-    m_cache_buffer.clear();
-    m_cache_body.clear();
 }
 
 void FetchedDataReceiver::close_stream(JS::Realm& realm)

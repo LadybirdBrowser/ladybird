@@ -370,8 +370,10 @@ set(SOURCES
     Fetch/Engine/FetchExecutor.cpp
     Fetch/Engine/InlineFetchExecutor.cpp
     Fetch/Engine/WholeBodyTransport.cpp
+    Fetch/Fetching/BodyStreamPullSource.cpp
     Fetch/Fetching/Checks.cpp
     Fetch/Fetching/FetchedDataReceiver.cpp
+    Fetch/Fetching/NetworkBodyPump.cpp
     Fetch/Fetching/Fetching.cpp
     Fetch/Fetching/PendingResponse.cpp
     Fetch/Fetching/RefCountedFlag.cpp

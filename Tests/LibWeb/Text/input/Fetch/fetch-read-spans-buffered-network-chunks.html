@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Network chunks that are buffered together must reach the consumer as one logical byte
+    // sequence: the body arrives as three transport chunks (10+27+27), the pipe through fetch
+    // response handover's identity TransformStream reads at most the first as it arrives, and after
+    // the rest are buffered together a single read returns them as one chunk, never one read per
+    // transport chunk.
+    // FIXME: Also cover a BYOB view spanning a chunk boundary once response bodies are
+    //        JS-visible byte streams (the identity TransformStream's readable side is not one).
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const body = "abcdefghij" + "K".repeat(27) + "L".repeat(27);
+
+        const url = await httpServer.createEcho("GET", `/buffered-chunks-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/octet-stream",
+            },
+            body,
+        });
+
+        const readAfter = async waitMs => {
+            const response = await fetch(`${url}?chunks=10,27,27&chunk_delay_ms=100`);
+            await new Promise(resolve => setTimeout(resolve, waitMs));
+
+            const reader = response.body.getReader();
+            let reads = 0;
+            let received = new Uint8Array(0);
+            for (;;) {
+                const { value, done: streamDone } = await reader.read();
+                if (streamDone) break;
+                reads++;
+                const merged = new Uint8Array(received.length + value.length);
+                merged.set(received);
+                merged.set(value, received.length);
+                received = merged;
+            }
+            return { reads, received };
+        };
+
+        // The first read starts after the last chunk has arrived, and a run too slow for that is retried with a
+        // longer wait.
+        let result = await readAfter(1300);
+        if (result.reads > 2)
+            result = await readAfter(5000);
+        println(`reads coalesce chunks buffered together: ${result.reads <= 2}`);
+        println(`content matches: ${new TextDecoder().decode(result.received) === body}`);
+
+        done();
+    });
+</script>

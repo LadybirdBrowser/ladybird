@@ -1,0 +1,4 @@
+reads resolve in chunk order: true
+a read's microtask ran before the next read resolved: true
+a read's timer fired before the next read resolved: true
+close followed the last bytes: true

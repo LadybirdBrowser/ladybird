@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The cache entry for a fetched body is finalized by the producer when the network delivery
+    // completes, not by the consumer reading it. An unread success must still fill the cache,
+    // while a cancelled or failed delivery must leave no entry behind.
+    //
+    // The Accept marker rides each request (CORS-safelisted, and these responses have no Vary).
+    // The server records the last marker it saw, which tells a hit from a miss.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const cacheableHeaders = {
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "max-age=500",
+            "Content-Type": "application/octet-stream",
+        };
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const lastSeenMarker = async url => {
+            const response = await fetch(server.recordedRequestHeadersURL(url));
+            return (await response.json())["Accept"][0];
+        };
+
+        // An unread successful response still finalizes its cache entry. No fetch in this loop
+        // reads its body, and the first check that reports a hit shows the producer finalized it.
+        {
+            const body = "unread but cacheable";
+            const url = await server.createEcho("GET", `/cache-finalize/unread-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: cacheableHeaders,
+                body,
+            });
+
+            await fetch(url, { mode: "cors", headers: { Accept: "initial" } });
+
+            // A check served from the cache never reaches the server, and its unique marker stays
+            // unseen. A check that missed is itself an unread delivery, and finalizes too.
+            let hitBody = null;
+            for (let attempt = 1; attempt <= 20 && hitBody === null; ++attempt) {
+                await delay(250);
+                const check = await fetch(url, { mode: "cors", headers: { Accept: `check-${attempt}` } });
+                if ((await lastSeenMarker(url)) !== `check-${attempt}`)
+                    hitBody = await check.text();
+            }
+            println(`unread success served from cache: ${hitBody !== null}`);
+            println(`unread success content matches: ${hitBody === body}`);
+        }
+
+        // A consumer-cancelled delivery leaves no entry.
+        {
+            const body = "abcdefghij" + "K".repeat(54);
+            const url = await server.createEcho("GET", `/cache-finalize/cancelled-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: cacheableHeaders,
+                body,
+            });
+            const chunkedUrl = `${url}?chunks=10,54&chunk_delay_ms=400`;
+
+            const cancelled = await fetch(chunkedUrl, { mode: "cors", headers: { Accept: "probe-1" } });
+            await cancelled.body.cancel();
+            await delay(700);
+
+            const response = await fetch(chunkedUrl, { mode: "cors", headers: { Accept: "probe-2" } });
+            println(`post-cancel refetch content matches: ${(await response.text()) === body}`);
+            println(
+                `cancelled delivery left no entry: ${(await lastSeenMarker(url)) === "probe-2"}`
+            );
+        }
+
+        // A delivery that fails mid-body leaves no entry.
+        {
+            const url = await server.createEcho("GET", `/cache-finalize/network-error-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: { ...cacheableHeaders, "Content-Length": "100000" },
+                body: "far too short",
+            });
+
+            for (const marker of ["probe-1", "probe-2"]) {
+                try {
+                    const response = await fetch(url, { mode: "cors", headers: { Accept: marker } });
+                    await response.text();
+                    println(`${marker} unexpectedly succeeded`);
+                } catch {
+                    println(`${marker} failed mid-body`);
+                }
+            }
+            println(
+                `failed delivery left no entry: ${(await lastSeenMarker(url)) === "probe-2"}`
+            );
+        }
+
+        // A delivery that fails mid-body leaves nothing for a later delivery to finalize. The test server cuts a
+        // response short, advertising 10 KiB, when a request carries its incomplete-response header.
+        {
+            const incompleteResponseHeader = "X-Ladybird-Respond-With-Incomplete-Response";
+            const path = `/cache-finalize/failed-then-complete-${crypto.randomUUID()}`;
+            await server.createEcho("OPTIONS", path, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Headers": incompleteResponseHeader,
+                },
+            });
+            const body = "complete";
+            const url = await server.createEcho("GET", path, {
+                status: 200,
+                headers: cacheableHeaders,
+                body,
+            });
+
+            try {
+                const failed = await fetch(url, {
+                    mode: "cors",
+                    headers: { Accept: "failing", [incompleteResponseHeader]: "1" },
+                });
+                await failed.text();
+                println("failing delivery unexpectedly succeeded");
+            } catch {
+                println("failing delivery failed mid-body");
+            }
+
+            await (await fetch(url, { mode: "cors", headers: { Accept: "complete" } })).text();
+
+            let hit = null;
+            for (let attempt = 1; attempt <= 20 && hit === null; ++attempt) {
+                await delay(250);
+                const check = await fetch(url, { mode: "cors", headers: { Accept: `check-${attempt}` } });
+                if ((await lastSeenMarker(url)) !== `check-${attempt}`)
+                    hit = check;
+                else
+                    await check.text();
+            }
+            println(`later delivery served from cache: ${hit !== null}`);
+            println(`cached headers are the later delivery's: ${hit?.headers.get("Content-Length") !== String(10 * 1024)}`);
+            println(`cached content matches: ${(await hit?.text()) === body}`);
+        }
+
+        done();
+    });
+</script>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A synchronous request reads a body the disk cache serves as one mapped file straight from that file, and nothing
+    // is left delivering the rest of it into the stream no one reads.
+    asyncTest(async done => {
+        const TEST_CACHE_ENABLED_HEADER = "X-Ladybird-Enable-Disk-Cache";
+        const TEST_CACHE_STATUS_HEADER = "X-Ladybird-Disk-Cache-Status";
+
+        const httpServer = httpTestServer();
+        // Large enough that the response is handed over before most of its body has been delivered.
+        const size = 16 * 1024 * 1024;
+        const url = await httpServer.createEcho("GET", `/sync-xhr-cached-body-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": TEST_CACHE_ENABLED_HEADER,
+                "Access-Control-Expose-Headers": TEST_CACHE_STATUS_HEADER,
+                "Cache-Control": "max-age=3600",
+                "Content-Type": "application/octet-stream",
+            },
+            body: "x".repeat(size),
+        });
+        const headers = { [TEST_CACHE_ENABLED_HEADER]: "1" };
+
+        const countBodyPumps = () =>
+            Object.values(JSON.parse(internals.dumpGCGraph())).filter(cell => cell.class_name === "NetworkBodyPump")
+                .length;
+
+        const memoryCacheWasEnabled = internals.setHttpMemoryCacheEnabled(false);
+        try {
+            await (await fetch(url, { headers })).arrayBuffer();
+
+            // The first body ends only after RequestServer has written its cache entry.
+            const check = await fetch(url, { headers });
+            println(`body came from the cache: ${check.headers.get(TEST_CACHE_STATUS_HEADER) === "read-from-cache"}`);
+            await check.body.cancel();
+
+            await internals.gcAsync();
+            const initialPumps = countBodyPumps();
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", url, false);
+            xhr.setRequestHeader(TEST_CACHE_ENABLED_HEADER, "1");
+            xhr.send();
+            println(`read the whole body: ${xhr.responseText.length === size}`);
+
+            // A stale pointer on the stack can keep a cell alive through one conservative collection.
+            const deadline = performance.now() + 10000;
+            let released = false;
+            for (;;) {
+                await internals.gcAsync();
+                released = countBodyPumps() === initialPumps;
+                if (released || performance.now() > deadline)
+                    break;
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+            println(`body pump released: ${released}`);
+        } finally {
+            internals.setHttpMemoryCacheEnabled(memoryCacheWasEnabled);
+        }
+        done();
+    });
+</script>

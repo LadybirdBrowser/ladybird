@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A body the disk cache serves as one mapped file must reach the consumer in credit-sized
+    // pieces, like a body read from the network, never as one chunk of the whole file.
+    asyncTest(async done => {
+        const TEST_CACHE_ENABLED_HEADER = "X-Ladybird-Enable-Disk-Cache";
+        const TEST_CACHE_STATUS_HEADER = "X-Ladybird-Disk-Cache-Status";
+
+        const httpServer = httpTestServer();
+        const size = 4 * 1024 * 1024;
+        const url = await httpServer.createEcho("GET", `/cached-body-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": TEST_CACHE_ENABLED_HEADER,
+                "Access-Control-Expose-Headers": TEST_CACHE_STATUS_HEADER,
+                "Cache-Control": "max-age=3600",
+                "Content-Type": "application/octet-stream",
+            },
+            body: "x".repeat(size),
+        });
+        const headers = { [TEST_CACHE_ENABLED_HEADER]: "1" };
+
+        const memoryCacheWasEnabled = internals.setHttpMemoryCacheEnabled(false);
+        try {
+            const first = await fetch(url, { headers });
+            println(`first response complete: ${(await first.arrayBuffer()).byteLength === size}`);
+
+            // The first body ends only after RequestServer has written its cache entry.
+            const second = await fetch(url, { headers });
+            println(`second response came from the cache: ${second.headers.get(TEST_CACHE_STATUS_HEADER) === "read-from-cache"}`);
+
+            const reader = second.body.getReader();
+            let reads = 0;
+            let largestRead = 0;
+            let total = 0;
+            for (;;) {
+                const { value, done: streamDone } = await reader.read();
+                if (streamDone) break;
+                reads++;
+                largestRead = Math.max(largestRead, value.length);
+                total += value.length;
+            }
+            println(`cached body arrived in several reads: ${reads > 1}`);
+            println(`no read exceeded the credit: ${largestRead <= 1024 * 1024}`);
+            println(`content complete: ${total === size}`);
+        } finally {
+            internals.setHttpMemoryCacheEnabled(memoryCacheWasEnabled);
+        }
+
+        done();
+    });
+</script>
