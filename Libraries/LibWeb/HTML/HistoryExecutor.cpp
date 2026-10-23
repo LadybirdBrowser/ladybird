@@ -114,27 +114,32 @@ void HistoryExecutor::revoke_history_operation(CrossProcessId operation_id)
 
 void HistoryExecutor::complete_ui_history_operation(CrossProcessId operation_id, Optional<i32> target_entry_step)
 {
-    auto operation = m_history_operations.take(operation_id);
-    if (!operation.has_value())
+    auto operation = m_history_operations.find(operation_id);
+    if (operation == m_history_operations.end())
         return;
+    auto changing_navigable_ids = operation->value.changing_navigable_jobs.keys();
+    auto local_target_navigable_id = operation->value.local_target_navigable_id;
+    auto local_target_entry = move(operation->value.local_target_entry);
+    auto on_complete = operation->value.on_complete;
+    m_history_operations.remove(operation);
 
     // AD-HOC: A canceled or stale operation can leave a claimed navigable whose continuation was never applied.
-    for (auto navigable_id : operation->changing_navigable_jobs.keys()) {
+    for (auto navigable_id : changing_navigable_ids) {
         if (auto navigable = local_navigable_with_id(navigable_id))
             navigable->clear_ongoing_history_traversal();
     }
 
     if (target_entry_step.has_value()
-        && operation->local_target_navigable_id.has_value()
-        && operation->local_target_entry
-        && !operation->local_target_entry->step_value().has_value()) {
-        if (auto navigable = local_navigable_with_id(*operation->local_target_navigable_id);
+        && local_target_navigable_id.has_value()
+        && local_target_entry
+        && !local_target_entry->step_value().has_value()) {
+        if (auto navigable = local_navigable_with_id(*local_target_navigable_id);
             navigable && !navigable->is_top_level_traversable()) {
-            operation->local_target_entry->set_step(*target_entry_step);
+            local_target_entry->set_step(*target_entry_step);
         }
     }
-    if (operation->on_complete)
-        operation->on_complete->function()();
+    if (on_complete)
+        on_complete->function()();
 }
 
 void HistoryExecutor::did_apply_ui_history_step(CrossProcessId operation_id, HistoryStepResult result)
