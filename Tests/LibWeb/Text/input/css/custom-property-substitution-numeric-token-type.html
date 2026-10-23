@@ -1,0 +1,10 @@
+<!doctype html>
+<style>
+    @function --integer(--value <integer>: 7) { result: var(--value); }
+    #target { --raw: var(--missing, 1.0); z-index: --integer(var(--raw)); }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => println(getComputedStyle(target).zIndex));
+</script>
