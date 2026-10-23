@@ -2027,6 +2027,7 @@ impl StyleEngine {
                 batch_custom_property_matches: HashMap::default(),
                 batch_custom_property_answers: HashMap::default(),
                 batch_backing_pseudo_matches: HashMap::default(),
+                shadow_host_backing_pseudo_matches: HashMap::default(),
                 engine_cold_record_cache: Default::default(),
                 engine_cold_record_donors: Default::default(),
 
@@ -3405,6 +3406,8 @@ impl RetainedState {
             batch_custom_property_matches: _,
             batch_custom_property_answers: _,
             batch_backing_pseudo_matches: _,
+            // Forgotten for departed elements in `forget_departed_elements`.
+            shadow_host_backing_pseudo_matches: _,
             engine_cold_record_cache: _,
             engine_cold_record_donors: _,
             style_invalidation_cache: _,

@@ -963,6 +963,10 @@ pub struct RetainedState {
     /// Beside them, each published host's matches for the element-backed pseudo-elements, which
     /// the elements backing them cascade from while the host's answer is not installed.
     batch_backing_pseudo_matches: HashMap<StyleNodeID, Vec<RuleMatch>>,
+    /// The same matches of each shadow host, as its last published answer held them under the program version beside
+    /// them. A host's answer is never retained, and the elements backing its pseudo-elements are styled in the
+    /// transactions after the host's, which cascade from these rather than matching the host again.
+    shadow_host_backing_pseudo_matches: HashMap<StyleNodeID, (ProgramVersion, Vec<RuleMatch>)>,
     engine_cold_record_cache: crate::fork::ForkShared<HashMap<publication::ColdRecordKey, publication::ColdRecord>>,
     engine_cold_record_donors:
         crate::fork::ForkShared<HashMap<publication::ColdRecordDonorKey, Vec<publication::ColdRecordDonor>>>,
