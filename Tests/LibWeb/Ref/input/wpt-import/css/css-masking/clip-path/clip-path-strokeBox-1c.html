@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Masking: clip-path: clip path stroke-box with transform</title>
+    <link rel="help" href="https://www.w3.org/TR/css-masking-1/#the-clip-path">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/clip-path-geometryBox-1-ref.html">
+    <meta name="fuzzy" content="maxDifference=0-64; totalPixels=0-260">
+    <meta name="assert" content="Test checks whether clip-path stroke-box works correctly or not.">
+  </head>
+  <body>
+    <svg width="200" height="200" style="position: absolute; left: 0px; top: 0px;">
+      <g clip-path="circle(50%) stroke-box">
+        <rect x="0" y="60" width="80" height="80" fill="blue" stroke="blue" stroke-width="20" transform="translate(60,0)"/>
+      </g>
+    </svg>
+  </body>
+</html>

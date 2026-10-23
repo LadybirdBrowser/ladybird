@@ -5,11 +5,12 @@
  */
 
 use crate::css::computed_value_views::LengthPercentageRef;
+use crate::css::css_enums::keyword;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::css::style_value::{BasicShapeData, RetainedStyleValueData, StyleValueData};
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::border_radii::normalize_border_radii_data;
+use crate::painting::border_radii::{BorderRadii, normalize_border_radii_data};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::{paintable_geometry, style_queries};
@@ -311,6 +312,16 @@ fn inset_to_path(
         ],
     );
 
+    rounded_rect_path(top_edge, right_edge, bottom_edge, left_edge, radii)
+}
+
+fn rounded_rect_path(
+    top_edge: f32,
+    right_edge: f32,
+    bottom_edge: f32,
+    left_edge: f32,
+    radii: BorderRadii,
+) -> OwnedPath {
     if !radii.has_any_radius() {
         return path_from_resolved_rect(top_edge, right_edge, bottom_edge, left_edge);
     }
@@ -592,7 +603,15 @@ pub(crate) fn basic_shape_device_path(
         }
         _ => WindingRule::Nonzero,
     };
-    let translated_path = shape_path.copy_transformed([
+    (
+        device_path_from_local_path(shape_path, reference_box, pixel_ratio),
+        resolved_fill_rule,
+    )
+}
+
+/// The device-space path of a path whose coordinates are relative to the origin of `reference_box`.
+fn device_path_from_local_path(path: OwnedPath, reference_box: CssPixelRect, pixel_ratio: f64) -> OwnedPath {
+    let translated_path = path.copy_transformed([
         1.0,
         0.0,
         0.0,
@@ -601,9 +620,125 @@ pub(crate) fn basic_shape_device_path(
         reference_box.y.to_float(),
     ]);
     let scale = pixel_ratio as f32;
-    (
-        translated_path.copy_transformed([scale, 0.0, 0.0, scale, 0.0, 0.0]),
-        resolved_fill_rule,
+    translated_path.copy_transformed([scale, 0.0, 0.0, scale, 0.0, 0.0])
+}
+
+// https://drafts.fxtf.org/css-masking-1/#typedef-geometry-box
+// For elements with associated CSS layout box, the used value for fill-box is content-box and for stroke-box and
+// view-box is border-box.
+// FIXME: For SVG elements without associated CSS layout box, the used value for content-box and padding-box is
+//        fill-box and for border-box and margin-box is stroke-box.
+fn used_geometry_box(geometry_box: u16) -> u16 {
+    match geometry_box {
+        keyword::FILL_BOX => keyword::CONTENT_BOX,
+        keyword::STROKE_BOX | keyword::VIEW_BOX => keyword::BORDER_BOX,
+        other => other,
+    }
+}
+
+// https://drafts.csswg.org/css-shapes-1/#valdef-shape-box-margin-box
+// The corner radii of this shape are determined by the corresponding border-radius and margin values. If the ratio of
+// border-radius/margin is 1 or more, or margin is negative or zero, then the margin box corner radius is
+// max(border-radius + margin, 0). The margin box's corners are outset-adjusted given the element's border box,
+// border-radius, and the margin.
+fn margin_box_border_radii(
+    border_box: CssPixelRect,
+    radii: BorderRadii,
+    [top, right, bottom, left]: [CssPixels; 4],
+) -> BorderRadii {
+    // https://drafts.csswg.org/css-borders-4/#adjusted-radius-dimension
+    // To compute the adjusted radius dimension given numbers coverage, radius, and outset:
+    let adjusted_radius_dimension = |coverage: f32, radius: f32, outset: f32| {
+        // NB: This is the margin box rule for a margin that is negative or zero.
+        if outset <= 0.0 {
+            return (radius + outset).max(0.0);
+        }
+        // 1. If radius is greater than outset, or if coverage is greater than 1, then return radius + outset.
+        if radius > outset || coverage > 1.0 {
+            return radius + outset;
+        }
+        // 2. Let ratio be radius / outset.
+        let ratio = radius / outset;
+        // 3. Return radius + outset * (1 - (1 - ratio)^3 * (1 - coverage^3)).
+        radius + outset * (1.0 - (1.0 - ratio).powi(3) * (1.0 - coverage.powi(3)))
+    };
+    // https://drafts.csswg.org/css-borders-4/#outset-adjusted-border-radius
+    // To compute the outset-adjusted border radius given the 2-dimensional size's edge, radius, and outset:
+    let (edge_width, edge_height) = (border_box.width.to_float(), border_box.height.to_float());
+    let outset_adjusted_border_radius =
+        |radius_width: CssPixels, radius_height: CssPixels, outset_width: CssPixels, outset_height: CssPixels| {
+            let (radius_width, radius_height) = (radius_width.to_float(), radius_height.to_float());
+            // 1. Let coverage be 2 * min(radius's width / edge's width, radius's height / edge's height).
+            let coverage = 2.0 * (radius_width / edge_width).min(radius_height / edge_height);
+            // NB: An empty border box has no corner to cover.
+            let coverage = if coverage.is_nan() { 0.0 } else { coverage };
+            // 2. Let adjustedRadiusWidth be the adjusted radius dimension given coverage, radius's width, and outset's
+            //    width.
+            let adjusted_radius_width = adjusted_radius_dimension(coverage, radius_width, outset_width.to_float());
+            // 3. Let adjustedRadiusHeight be the adjusted radius dimension given coverage, radius's height, and outset's
+            //    height.
+            let adjusted_radius_height = adjusted_radius_dimension(coverage, radius_height, outset_height.to_float());
+            // 4. Return (adjustedRadiusWidth, adjustedRadiusHeight).
+            [
+                CssPixels::nearest_value_for_f32(adjusted_radius_width),
+                CssPixels::nearest_value_for_f32(adjusted_radius_height),
+            ]
+        };
+    let [tl_h, tl_v, tr_h, tr_v, br_h, br_v, bl_h, bl_v] = radii.values;
+    let [tl_h, tl_v] = outset_adjusted_border_radius(tl_h, tl_v, left, top);
+    let [tr_h, tr_v] = outset_adjusted_border_radius(tr_h, tr_v, right, top);
+    let [br_h, br_v] = outset_adjusted_border_radius(br_h, br_v, right, bottom);
+    let [bl_h, bl_v] = outset_adjusted_border_radius(bl_h, bl_v, left, bottom);
+    BorderRadii {
+        values: [tl_h, tl_v, tr_h, tr_v, br_h, br_v, bl_h, bl_v],
+    }
+}
+
+// https://drafts.fxtf.org/css-masking-1/#the-clip-path
+// If specified by itself, uses the edges of the specified box, including any corner shaping (e.g. defined by
+// border-radius), as clipping path.
+fn geometry_box_path(
+    layout_arena: &impl PaintRead,
+    slot: NodeSlotId,
+    style: crate::css::computed_value_views::ComputedValuesView<'_>,
+    geometry_box: u16,
+    reference_box: CssPixelRect,
+) -> OwnedPath {
+    let border = [
+        style.border_top_width(),
+        style.border_right_width(),
+        style.border_bottom_width(),
+        style.border_left_width(),
+    ];
+    let radii = super::node_values::border_radii_data(style, layout_arena, slot);
+    let radii = match geometry_box {
+        keyword::PADDING_BOX => radii.shrunken(border[0], border[1], border[2], border[3]),
+        keyword::CONTENT_BOX => {
+            let padding = paintable_geometry::committed_padding(layout_arena, slot);
+            radii.shrunken(
+                border[0] + padding.top,
+                border[1] + padding.right,
+                border[2] + padding.bottom,
+                border[3] + padding.left,
+            )
+        }
+        keyword::MARGIN_BOX => {
+            let margin = paintable_geometry::committed_margin(layout_arena, slot);
+            let border_box = paintable_geometry::absolute_border_box_rect(layout_arena, slot);
+            margin_box_border_radii(
+                border_box,
+                radii,
+                [margin.top, margin.right, margin.bottom, margin.left],
+            )
+        }
+        _ => radii,
+    };
+    rounded_rect_path(
+        0.0,
+        reference_box.width.to_float(),
+        reference_box.height.to_float(),
+        0.0,
+        radii,
     )
 }
 
@@ -615,10 +750,39 @@ pub(crate) fn compute_basic_shape_clip_path_data(
     let node = slot;
     let style = layout_arena.node_style_if_live(node)?;
     let clip_path = style_queries::handle_value(&style.mask().clip_path)?;
-    // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
-    let masking_area = paintable_geometry::absolute_border_box_rect(layout_arena, slot);
-    let (device_path, resolved_fill_rule) =
-        basic_shape_device_path(clip_path.basic_shape()?, masking_area, pixel_ratio);
+    // [ <basic-shape> || <geometry-box> ], as a lone shape, a lone box, or a shape followed by its box.
+    let (shape, geometry_box) = match clip_path {
+        StyleValueData::BasicShape { shape } => (Some(shape.as_ref()), None),
+        StyleValueData::Keyword { keyword } if *keyword != keyword::NONE => (None, Some(*keyword)),
+        StyleValueData::ValueList { values, .. } => match values.as_slice() {
+            [shape, geometry_box] => match geometry_box.data() {
+                StyleValueData::Keyword { keyword } => (Some(shape.data().basic_shape()?), Some(*keyword)),
+                _ => return None,
+            },
+            _ => return None,
+        },
+        _ => return None,
+    };
+    // If no reference box is specified, the border-box will be used as reference box.
+    let geometry_box = used_geometry_box(geometry_box.unwrap_or(keyword::BORDER_BOX));
+    let masking_area = crate::painting::border_shape::reference_box(
+        layout_arena,
+        slot,
+        style,
+        Some(geometry_box),
+        keyword::BORDER_BOX,
+    );
+    let (device_path, resolved_fill_rule) = match shape {
+        Some(shape) => basic_shape_device_path(shape, masking_area, pixel_ratio),
+        None => (
+            device_path_from_local_path(
+                geometry_box_path(layout_arena, slot, style, geometry_box, masking_area),
+                masking_area,
+                pixel_ratio,
+            ),
+            WindingRule::Nonzero,
+        ),
+    };
     let converter = DevicePixelConverter::new(pixel_ratio);
     let device_bounding_rect = converter.rounded_device_rect(masking_area);
     Some((device_path, device_bounding_rect, resolved_fill_rule))

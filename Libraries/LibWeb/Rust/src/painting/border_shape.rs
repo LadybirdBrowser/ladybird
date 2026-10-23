@@ -149,7 +149,7 @@ fn relevant_side_width(style: ComputedValuesView<'_>, edge: BorderEdge) -> CssPi
 /// FIXME: Inline boxes paint once per fragment, but this resolves against the whole element's border box, so a box
 ///        broken across lines paints the whole shape in each fragment. The spec does not say how a border shape
 ///        fragments yet.
-fn reference_box(
+pub(crate) fn reference_box(
     layout_arena: &impl PaintRead,
     slot: NodeSlotId,
     style: ComputedValuesView<'_>,

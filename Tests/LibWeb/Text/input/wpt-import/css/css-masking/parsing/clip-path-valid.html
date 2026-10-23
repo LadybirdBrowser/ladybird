@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: parsing clip-path with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<meta name="assert" content="clip-path supports the full grammar '<clip-source> | [ <basic-shape> || <geometry-box> ] | none'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("clip-path", "none");
+
+// <basic-shape>
+test_valid_value("clip-path", "inset(100%)");
+test_valid_value("clip-path", "inset(0 1px)", "inset(0px 1px)");
+test_valid_value("clip-path", "inset(0px 1px 2%)");
+test_valid_value("clip-path", "inset(0px 1px 2% 3em)");
+test_valid_value("clip-path", "inset(0px round 100%)");
+test_valid_value("clip-path", "inset(0px round 0 1px)", "inset(0px round 0px 1px)");
+test_valid_value("clip-path", "inset(0px round 0px 1px 2%)");
+test_valid_value("clip-path", "inset(0px round 0px 1px 2% 3em)");
+test_valid_value("clip-path", "inset(10px round 20% / 0px 1px 2% 3em)");
+
+test_valid_value("clip-path", "circle()");
+test_valid_value("clip-path", "circle(1px)", "circle(1px)");
+test_valid_value("clip-path", "circle(closest-side)", "circle()");
+test_valid_value("clip-path", "circle(at 10% 20%)");
+test_valid_value("clip-path", "circle(farthest-side at center top)");
+test_valid_value("clip-path", "circle(4% at top right)", "circle(4% at right top)");
+
+test_valid_value("clip-path", "ellipse()");
+test_valid_value("clip-path", "ellipse(1px closest-side)");
+test_valid_value("clip-path", "ellipse(at 10% 20%)");
+test_valid_value("clip-path", "ellipse(closest-side closest-side at 10% 20%)", "ellipse(at 10% 20%)");
+test_valid_value("clip-path", "ellipse(farthest-side 4% at bottom left)", "ellipse(farthest-side 4% at left bottom)");
+
+test_valid_value("clip-path", "polygon(1% 2%)");
+test_valid_value("clip-path", "polygon(nonzero, 1px 2px, 3em 4em)", "polygon(1px 2px, 3em 4em)");
+test_valid_value("clip-path", "polygon(evenodd, 1px 2px, 3em 4em, 5pt 6%)");
+test_valid_value("clip-path", "polygon(round 1px, 1% 2%)");
+test_valid_value(
+    "clip-path",
+    "polygon(round 0px, 1px 2px, 3px 4px)",
+    "polygon(1px 2px, 3px 4px)");
+test_valid_value(
+    "clip-path",
+    "polygon(nonzero round 1px, 1px 2px, 3em 4em)",
+    "polygon(round 1px, 1px 2px, 3em 4em)");
+test_valid_value(
+    "clip-path",
+    "polygon(evenodd round 1px, 1px 2px, 3em 4em, 5pt 6%)");
+test_valid_value(
+    "clip-path",
+    "polygon(round calc(1em + 2px), 1px 2px, 3px 4px)");
+
+// New supported shape in [css-shapes-2]
+// https://drafts.csswg.org/css-shapes-2/#supported-basic-shapes
+test_valid_value("clip-path", 'path("m 20 0 h -100")');
+test_valid_value("clip-path", 'path(evenodd, "M 20 20 h 60 v 60 h -60 Z M 30 30 h 40 v 40 h -40 Z")');
+test_valid_value("clip-path",
+  'path(nonzero, "M20,20h60 v60 h-60z M30,30 h40 v40 h-40z")',
+  'path("M 20 20 h 60 v 60 h -60 Z M 30 30 h 40 v 40 h -40 Z")');
+
+test_valid_value("clip-path", "xywh(0 1% 2px 3em)", "xywh(0px 1% 2px 3em)");
+test_valid_value("clip-path", "xywh(0px 1% 2px 3em round 0)", "xywh(0px 1% 2px 3em)");
+test_valid_value("clip-path", "xywh(0px 1% 2px 3em round 0 1px)", "xywh(0px 1% 2px 3em round 0px 1px)");
+test_valid_value("clip-path", "xywh(0px 1% 2px 3em round 0px 1px 2%)");
+test_valid_value("clip-path", "xywh(0px 1% 2px 3em round 0px 1px 2% 3em)");
+
+test_valid_value("clip-path", "rect(0 100% 200px 4em)", "rect(0px 100% 200px 4em)");
+test_valid_value("clip-path", "rect(auto auto auto auto)");
+test_valid_value("clip-path", "rect(0px 100% auto 4em round 0)", "rect(0px 100% auto 4em)");
+test_valid_value("clip-path", "rect(0px 100% auto 4em round 0 1px)", "rect(0px 100% auto 4em round 0px 1px)");
+test_valid_value("clip-path", "rect(0px 100% auto 4em round 0px 1px 2%)");
+test_valid_value("clip-path", "rect(0px 100% auto 4em round 0px 1px 2% 3em)");
+
+// <geometry-box>
+test_valid_value("clip-path", "border-box");
+test_valid_value("clip-path", "padding-box");
+test_valid_value("clip-path", "content-box");
+test_valid_value("clip-path", "margin-box");
+test_valid_value("clip-path", "fill-box");
+test_valid_value("clip-path", "stroke-box");
+test_valid_value("clip-path", "view-box");
+
+// <basic-shape> <geometry-box>
+test_valid_value("clip-path", "circle(7% at 8% 9%) border-box", "circle(7% at 8% 9%)");
+
+// <geometry-box> <basic-shape>
+test_valid_value("clip-path", "border-box circle(7% at 8% 9%)", "circle(7% at 8% 9%)");
+
+// <clip-source>
+test_valid_value("clip-path", "url(https://example.com/)", ["url(https://example.com/)", "url(\"https://example.com/\")"]);
+test_valid_value("clip-path", "url(\"https://example.com/\")", ["url(https://example.com/)", "url(\"https://example.com/\")"]);
+</script>
+</body>
+</html>

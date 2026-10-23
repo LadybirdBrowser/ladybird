@@ -1,0 +1,53 @@
+Harness status: OK
+
+Found 48 tests
+
+48 Pass
+Pass	e.style['clip-path'] = "auto" should not set the property value
+Pass	e.style['clip-path'] = "ray(0deg)" should not set the property value
+Pass	e.style['clip-path'] = "inset()" should not set the property value
+Pass	e.style['clip-path'] = "inset(123)" should not set the property value
+Pass	e.style['clip-path'] = "inset(1% 2% 3% 4% 5%)" should not set the property value
+Pass	e.style['clip-path'] = "inset(round 0)" should not set the property value
+Pass	e.style['clip-path'] = "inset(0px round)" should not set the property value
+Pass	e.style['clip-path'] = "inset(0px round 123)" should not set the property value
+Pass	e.style['clip-path'] = "inset(0px round 1% 2% 3% 4% 5%)" should not set the property value
+Pass	e.style['clip-path'] = "inset(0px round / 1px)" should not set the property value
+Pass	e.style['clip-path'] = "inset(10px round -20px)" should not set the property value
+Pass	e.style['clip-path'] = "inset(30% round -40%)" should not set the property value
+Pass	e.style['clip-path'] = "circle(123)" should not set the property value
+Pass	e.style['clip-path'] = "circle(at)" should not set the property value
+Pass	e.style['clip-path'] = "circle(10% 20%)" should not set the property value
+Pass	e.style['clip-path'] = "circle(-10px at 20px 30px)" should not set the property value
+Pass	e.style['clip-path'] = "circle(-10% at 20% 30%)" should not set the property value
+Pass	e.style['clip-path'] = "circle(1% 2% at 0% 100%)" should not set the property value
+Pass	e.style['clip-path'] = "ellipse(farthest-side at)" should not set the property value
+Pass	e.style['clip-path'] = "ellipse(1% 2% top right)" should not set the property value
+Pass	e.style['clip-path'] = "ellipse(3%)" should not set the property value
+Pass	e.style['clip-path'] = "ellipse(3% at 100% 0%)" should not set the property value
+Pass	e.style['clip-path'] = "ellipse(closest-side)" should not set the property value
+Pass	e.style['clip-path'] = "ellipse(farthest-side at 100% 0%)" should not set the property value
+Pass	e.style['clip-path'] = "ellipse(10% -20% at 30% 40%)" should not set the property value
+Pass	e.style['clip-path'] = "ellipse(-50px 60px at 70% 80%)" should not set the property value
+Pass	e.style['clip-path'] = "polygon(1%)" should not set the property value
+Pass	e.style['clip-path'] = "polygon(round, 1px 2px)" should not set the property value
+Pass	e.style['clip-path'] = "polygon(round -1px, 1px 2px)" should not set the property value
+Pass	e.style['clip-path'] = "polygon(round 1%, 1px 2px)" should not set the property value
+Pass	e.style['clip-path'] = "polygon(round 45deg, 1px 2px)" should not set the property value
+Pass	e.style['clip-path'] = "polygon(round 1px 1px 2px)" should not set the property value
+Pass	e.style['clip-path'] = "polygon(1px 2px, round 1px)" should not set the property value
+Pass	e.style['clip-path'] = "polygon(round 1px round 2px, 1px 2px)" should not set the property value
+Pass	e.style['clip-path'] = "polygon(round 1px nonzero, 1px 2px)" should not set the property value
+Pass	e.style['clip-path'] = "unknown-box" should not set the property value
+Pass	e.style['clip-path'] = "path(\" \")" should not set the property value
+Pass	e.style['clip-path'] = "path(evenodd, \"\")" should not set the property value
+Pass	e.style['clip-path'] = "path(abc, \"m 20 0 h -100 z\")" should not set the property value
+Pass	e.style['clip-path'] = "path(nonzero)" should not set the property value
+Pass	e.style['clip-path'] = "path(\"m 20 0 h -100\", nonzero)" should not set the property value
+Pass	e.style['clip-path'] = "path(nonzero, 'M0 0, L100 0, L0 100, L 0 0');" should not set the property value
+Pass	e.style['clip-path'] = "xywh(0px)" should not set the property value
+Pass	e.style['clip-path'] = "xywh(0px 1%)" should not set the property value
+Pass	e.style['clip-path'] = "xywh(0px 1% 2em)" should not set the property value
+Pass	e.style['clip-path'] = "rect(0px)" should not set the property value
+Pass	e.style['clip-path'] = "rect(0px 1%)" should not set the property value
+Pass	e.style['clip-path'] = "rect(0px 1% auto)" should not set the property value

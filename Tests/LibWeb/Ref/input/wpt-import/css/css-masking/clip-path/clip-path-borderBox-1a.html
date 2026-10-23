@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Masking: clip-path: clip path border-box</title>
+    <link rel="author" title="CJ Ku" href="mailto:cku@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="https://www.w3.org/TR/css-masking-1/#the-clip-path">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/clip-path-geometryBox-1-ref.html">
+    <meta name="fuzzy" content="maxDifference=0-100; totalPixels=0-400">
+    <meta name="assert" content="Test checks whether clip-path border-box works correctly or not. This test is for clip-path applied to an HTML element.">
+    <style>
+      div {
+        position: absolute;
+        left: 50px;
+        top: 50px;
+        background-color: blue;
+        width: 30px;
+        height: 30px;
+        padding: 10px;
+        border: solid blue 25px;
+        clip-path: circle(farthest-side) border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <div></div>
+  </body>
+</html>

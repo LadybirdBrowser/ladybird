@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>CSS Masking: clip path reference box with box-shadow</title>
+<link rel="author" title="Fredrik Söderquist" href="mailto:fs@opera.com">
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#propdef-box-shadow">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=418484">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/reference/clip-path-reference-box-001-ref.html">
+<meta name="assert" content="Check that the 'clip-path' property uses the border box as the reference box.">
+
+<style>
+.clipped {
+  width: 100px;
+  height: 200px;
+  background-color: green;
+  clip-path: polygon(0% 0%,100% 0%,100% 50%,0% 50%);
+  box-shadow: 100px 0px red;
+}
+</style>
+<div class="clipped"></div>

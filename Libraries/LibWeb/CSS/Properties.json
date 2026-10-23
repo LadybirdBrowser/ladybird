@@ -1579,7 +1579,6 @@
     "valid-identifiers": [
       "none"
     ],
-    "__comment": "FIXME: This should be a <clip-source> | [ <basic-shape> || <geometry-box> ]",
     "valid-types": [
       "basic-shape",
       "url"

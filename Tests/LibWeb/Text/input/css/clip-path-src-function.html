@@ -1,0 +1,13 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`supports src(): ${CSS.supports("clip-path", 'src("#clip")')}`);
+        println(`supports url(): ${CSS.supports("clip-path", 'url("#clip")')}`);
+        const target = document.getElementById("target");
+        target.style.clipPath = 'src("#clip")';
+        println(`specified: ${target.style.clipPath}`);
+        println(`computed: ${getComputedStyle(target).clipPath}`);
+    });
+</script>

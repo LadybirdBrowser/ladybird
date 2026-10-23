@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Shapes Module Level 1: getComputedStyle().clipPath</title>
+<link rel="help" href="https://drafts.csswg.org/css-shapes/#clip-path-property">
+<meta name="assert" content="clip-path computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+<div id="target"></div>
+<script>
+test_computed_value("clip-path", "circle(calc(10px + 0.5em) at -50% 50%)", "circle(30px at -50% 50%)");
+test_computed_value("clip-path", "circle(calc(10px - 0.5em) at 50% -50%)", "circle(0px at 50% -50%)");
+test_computed_value("clip-path", "ellipse(at 50% 50%)");
+test_computed_value("clip-path", "ellipse(60% closest-side at 50% 50%)");
+
+test_computed_value(
+    "clip-path",
+    "polygon(round 1em, 1px 2px, 3em 4em)",
+    "polygon(round 40px, 1px 2px, 120px 160px)");
+test_computed_value(
+    "clip-path",
+    "polygon(evenodd round 6pt, 1px 2px, 3em 4em, 6pt 6%)",
+    "polygon(evenodd round 8px, 1px 2px, 120px 160px, 8px 6%)");
+test_computed_value(
+    "clip-path",
+    "polygon(round 0px, 1px 2px, 3px 4px)",
+    "polygon(1px 2px, 3px 4px)");
+test_computed_value(
+    "clip-path",
+    "polygon(round calc(1em + 2px), 1px 2px, 3px 4px)",
+    "polygon(round 42px, 1px 2px, 3px 4px)");
+
+// All <basic-shape-rect> functions compute to the equivalent inset() function.
+// Given "xywh(x y w h)", the equivalent function is
+// "inset(y calc(100% - x - w) calc(100% - y - h) x)".
+// https://drafts.csswg.org/css-shapes-1/#basic-shape-computed-values
+// https://github.com/w3c/csswg-drafts/issues/9053
+test_computed_value("clip-path", "xywh(0 1% 2px 0.5em)", "inset(1% calc(100% - 2px) calc(99% - 20px) 0px)");
+test_computed_value("clip-path", "xywh(0px 1% 2px 0.5em round 0)", "inset(1% calc(100% - 2px) calc(99% - 20px) 0px)");
+test_computed_value("clip-path", "xywh(0px 1% 2px 3% round 0 1px)", "inset(1% calc(100% - 2px) 96% 0px round 0px 1px)");
+test_computed_value("clip-path", "xywh(0px 1% 2px 3% round 0px 1px 2em)", "inset(1% calc(100% - 2px) 96% 0px round 0px 1px 80px)");
+test_computed_value("clip-path", "xywh(0px 1% 2px 3% round 0px 1px 2% 3px)", "inset(1% calc(100% - 2px) 96% 0px round 0px 1px 2% 3px)");
+test_computed_value("clip-path", "xywh(calc(0px) calc(1px + 1%) calc(2px + 2%) calc(3px + 3%))", "inset(calc(1% + 1px) calc(98% - 2px) calc(96% - 4px) 0px)");
+// Given "rect(t r b l)", the equivalent function is
+// "inset(t calc(100% - r) calc(100% - b) l)".
+test_computed_value("clip-path", "rect(auto auto auto auto)", "inset(0%)");
+test_computed_value("clip-path", "rect(0 1% 2px 0.5em)", "inset(0px 99% calc(100% - 2px) 20px)");
+test_computed_value("clip-path", "rect(0px 1% auto 0.5em round 0)", "inset(0px 99% 0% 20px)");
+test_computed_value("clip-path", "rect(0px 1% auto 3% round 0 1px)", "inset(0px 99% 0% 3% round 0px 1px)");
+test_computed_value("clip-path", "rect(0px 1% auto 3% round 0px 1px 2em)", "inset(0px 99% 0% 3% round 0px 1px 80px)");
+test_computed_value("clip-path", "rect(0px 1% auto 3% round 0px 1px 2% 3px)", "inset(0px 99% 0% 3% round 0px 1px 2% 3px)");
+test_computed_value("clip-path", "rect(calc(0px) calc(1px + 1%) calc(2px + 2%) calc(3px + 3%))", "inset(0px calc(99% - 1px) calc(98% - 2px) calc(3% + 3px))");
+</script>
+</body>
+</html>

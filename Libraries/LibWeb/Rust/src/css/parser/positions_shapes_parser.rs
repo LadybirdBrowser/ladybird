@@ -1340,6 +1340,54 @@ fn shape_box(value: &ComponentValue) -> Option<StyleValueData> {
         })
 }
 
+// https://drafts.fxtf.org/css-masking-1/#typedef-geometry-box
+// <geometry-box> = <shape-box> | fill-box | stroke-box | view-box
+fn geometry_box(value: &ComponentValue) -> Option<StyleValueData> {
+    keyword_value(
+        value,
+        &[
+            keyword::CONTENT_BOX,
+            keyword::PADDING_BOX,
+            keyword::BORDER_BOX,
+            keyword::MARGIN_BOX,
+            keyword::FILL_BOX,
+            keyword::STROKE_BOX,
+            keyword::VIEW_BOX,
+        ],
+    )
+}
+
+// https://drafts.fxtf.org/css-masking-1/#the-clip-path
+// [ <basic-shape> || <geometry-box> ]
+fn parse_clip_path_shape(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
+    let mut shape = None;
+    let mut box_value = None;
+    for value in values.iter().filter(|value| !value.is_whitespace()) {
+        if value.function().is_some() {
+            if shape.is_some() {
+                return None;
+            }
+            shape = Some(parse_basic_shape(context, property, std::slice::from_ref(value))?);
+        } else {
+            if box_value.is_some() {
+                return None;
+            }
+            box_value = Some(geometry_box(value)?);
+        }
+    }
+    match (shape, box_value) {
+        // NB: The border box is the reference box of a basic shape without one, so it is left out of the value.
+        (Some(shape), Some(StyleValueData::Keyword { keyword })) if keyword == keyword::BORDER_BOX => Some(shape),
+        (Some(shape), Some(box_value)) => Some(StyleValueData::ValueList {
+            values: RetainedStyleValueDataList::from_retained_values(vec![retained(shape), retained(box_value)]),
+            separator: 0,
+            collapsible: false,
+        }),
+        (Some(value), None) | (None, Some(value)) => Some(value),
+        (None, None) => None,
+    }
+}
+
 // https://drafts.csswg.org/css-borders-4/#propdef-border-shape
 // none | [ <basic-shape> <geometry-box>? ]{1,2}
 fn parse_border_shape(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
@@ -1349,25 +1397,8 @@ fn parse_border_shape(context: &ParseContext, property: u16, values: &[Component
     {
         return Some(none);
     }
-    // https://drafts.fxtf.org/css-masking-1/#typedef-geometry-box
-    let geometry_box = |value: &ComponentValue| {
-        let ident = value.ident()?;
-        [
-            "content-box",
-            "padding-box",
-            "border-box",
-            "margin-box",
-            "fill-box",
-            "stroke-box",
-            "view-box",
-            "half-border-box",
-        ]
-        .iter()
-        .any(|accepted| equals_ascii_case_insensitive(ident, accepted.as_bytes()))
-        .then(|| keyword_from_ascii_case_insensitive(ident))
-        .flatten()
-        .map(|keyword| StyleValueData::Keyword { keyword })
-    };
+    let geometry_box =
+        |value: &ComponentValue| geometry_box(value).or_else(|| keyword_value(value, &[keyword::HALF_BORDER_BOX]));
     let mut items = Vec::new();
     let mut shape_count = 0;
     let mut index = 0;
@@ -2253,6 +2284,16 @@ pub(crate) fn parse_geometry_property(
         parse_offset_path(context, property, values)
     } else if property == property_id::OFFSET_ROTATE {
         parse_offset_rotate(context, property, values)
+    } else if property == property_id::CLIP_PATH {
+        let starts_shape_or_box = values.iter().find(|value| !value.is_whitespace()).is_some_and(|value| {
+            value.function().is_some_and(|(name, _)| {
+                !equals_ascii_case_insensitive(name, b"url") && !equals_ascii_case_insensitive(name, b"src")
+            }) || geometry_box(value).is_some()
+        });
+        if !starts_shape_or_box {
+            return ParseOutcome::NotHandled;
+        }
+        parse_clip_path_shape(context, property, values)
     } else if property == property_id::SHAPE_OUTSIDE {
         let is_shape_outside_value = values.iter().find(|value| !value.is_whitespace()).is_some_and(|value| {
             value.ident().is_some_and(|ident| {
