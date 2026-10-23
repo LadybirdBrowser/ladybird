@@ -1309,7 +1309,13 @@ impl<'pass> SizingContext<'pass> {
                 formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
             ) {
                 formatting_context::CyclicPercentageIntrinsicContribution::ResolveAsZero => {
-                    return false;
+                    // AD-HOC: The spec resolves a replaced box's cyclic percentage against zero for its min-content
+                    //         contribution in either axis. But a percentage height with nothing to resolve against is
+                    //         auto here, as it is everywhere else, for web compatibility — so the box takes its block
+                    //         size from its aspect ratio or natural size, as with height: auto.
+                    if !self.preferred_block_size(node, constraints).is_auto() {
+                        return false;
+                    }
                 }
                 formatting_context::CyclicPercentageIntrinsicContribution::TreatAsInitialValue => {
                     return !self.block_size_transfers_through_aspect_ratio(node, constraints);
