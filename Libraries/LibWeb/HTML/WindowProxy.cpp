@@ -420,7 +420,7 @@ Vector<GC::Root<Navigable>> WindowProxy::document_tree_child_navigables() const
     return m_window->associated_document().document_tree_child_navigables();
 }
 
-OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> WindowProxy::document_tree_child_navigable_target_name_property_set() const
+GC::OrderedRootHashMap<Utf16FlyString, GC::Ref<Navigable>> WindowProxy::document_tree_child_navigable_target_name_property_set() const
 {
     if (m_remote_window)
         return m_remote_window->document_tree_child_navigable_target_name_property_set();

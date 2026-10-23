@@ -263,7 +263,7 @@ Vector<GC::Root<Navigable>> RemoteWindow::document_tree_child_navigables()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#document-tree-child-navigable-target-name-property-set
-OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> RemoteWindow::document_tree_child_navigable_target_name_property_set()
+GC::OrderedRootHashMap<Utf16FlyString, GC::Ref<Navigable>> RemoteWindow::document_tree_child_navigable_target_name_property_set()
 {
     // The document-tree child navigable target name property set of a Window object window is the return value of running these steps:
 
@@ -271,7 +271,7 @@ OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> RemoteWindow::document_tree_c
     auto children = document_tree_child_navigables();
 
     // 2. Let firstNamedChildren be an empty ordered set.
-    OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> first_named_children;
+    GC::OrderedRootHashMap<Utf16FlyString, GC::Ref<Navigable>> first_named_children;
 
     // 3. For each navigable of children:
     for (auto const& navigable : children) {
@@ -292,7 +292,7 @@ OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> RemoteWindow::document_tree_c
     }
 
     // 4. Let names be an empty ordered set.
-    OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> names;
+    GC::OrderedRootHashMap<Utf16FlyString, GC::Ref<Navigable>> names;
 
     // 5. For each navigable of firstNamedChildren:
     for (auto const& [name, navigable] : first_named_children) {
