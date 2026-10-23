@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Masking: clip-path: clip path fill-box</title>
+    <link rel="help" href="https://www.w3.org/TR/css-masking-1/#the-clip-path">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/clip-path-geometryBox-1-ref.html">
+    <meta name="fuzzy" content="maxDifference=0-52; totalPixels=0-376">
+    <meta name="assert" content="Test checks whether clip-path fill-box works correctly or not. This test is for clip-path applied to an SVG foreign object element.">
+  </head>
+  <body>
+    <svg width="200" height="200" style="position: absolute; left: 50px; top: 50px;">
+      <foreignObject x="0" y="0" width="100" height="100" fill="blue" clip-path="circle(50%) fill-box">
+        <div style="width: 100px; height: 100px; background: blue"></div>
+      </foreignObject>
+    </svg>
+  </body>
+</html>

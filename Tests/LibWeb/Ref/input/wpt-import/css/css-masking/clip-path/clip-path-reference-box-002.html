@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>CSS Masking: clip path with floated element</title>
+<link rel="author" title="Fredrik Söderquist" href="mailto:fs@opera.com">
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=418484">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/reference/clip-path-reference-box-002-ref.html">
+<meta name="assert" content="Check that the 'clip-path' property uses the border box as the reference box.">
+
+<style>
+.clipped {
+  width: 100px;
+  height: 200px;
+  background-color: green;
+  clip-path: polygon(0% 0%,100% 0%,100% 50%,0% 50%);
+}
+</style>
+<div class="clipped">
+  <div style="float:left; margin-left:-100px; margin-top:-100px;">&nbsp;</div>
+</div>

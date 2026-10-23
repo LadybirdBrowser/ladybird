@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>CSS Masking: clip path with padding-box</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/reference/green-100x100.html">
+<meta name="assert" content="Check that the 'clip-path' property supports padding-box.">
+
+<style>
+  body { margin: 0; }
+  .clipped {
+    width: 100px;
+    height: 100px;
+    background-color: green;
+    clip-path: padding-box;
+    /* This border draws outside the padding box and should be clipped. */
+    border: 8px solid red;
+  }
+</style>
+<div class="clipped"></div>

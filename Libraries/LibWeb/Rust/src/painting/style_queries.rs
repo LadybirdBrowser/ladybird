@@ -163,8 +163,12 @@ pub(crate) fn mask_layers_have_image(mask: &MaskValues) -> bool {
 }
 
 pub(crate) fn clip_path_has_value(mask: &MaskValues) -> bool {
-    handle_value(&mask.clip_path)
-        .is_some_and(|value| matches!(value, StyleValueData::Url { .. } | StyleValueData::BasicShape { .. }))
+    // NB: Besides none, clip-path is a <clip-source>, or a <basic-shape>, a <geometry-box>, or both.
+    handle_value(&mask.clip_path).is_some_and(|value| match value {
+        StyleValueData::Url { .. } | StyleValueData::BasicShape { .. } | StyleValueData::ValueList { .. } => true,
+        StyleValueData::Keyword { keyword } => *keyword != crate::css::css_enums::keyword::NONE,
+        _ => false,
+    })
 }
 
 fn view_transition_name_has_value(style: ComputedValuesView<'_>) -> bool {

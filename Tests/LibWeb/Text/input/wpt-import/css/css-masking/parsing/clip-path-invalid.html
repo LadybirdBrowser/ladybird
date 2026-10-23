@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: parsing clip-path with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<meta name="assert" content="clip-path supports only the grammar '<clip-source> | [ <basic-shape> || <geometry-box> ] | none'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("clip-path", "auto");
+test_invalid_value("clip-path", "ray(0deg)");
+
+test_invalid_value("clip-path", "inset()");
+test_invalid_value("clip-path", "inset(123)");
+test_invalid_value("clip-path", "inset(1% 2% 3% 4% 5%)");
+test_invalid_value("clip-path", "inset(round 0)");
+test_invalid_value("clip-path", "inset(0px round)");
+test_invalid_value("clip-path", "inset(0px round 123)");
+test_invalid_value("clip-path", "inset(0px round 1% 2% 3% 4% 5%)");
+test_invalid_value("clip-path", "inset(0px round / 1px)");
+test_invalid_value("clip-path", "inset(10px round -20px)");
+test_invalid_value("clip-path", "inset(30% round -40%)");
+
+test_invalid_value("clip-path", "circle(123)");
+test_invalid_value("clip-path", "circle(at)");
+test_invalid_value("clip-path", "circle(10% 20%)");
+test_invalid_value("clip-path", "circle(-10px at 20px 30px)");
+test_invalid_value("clip-path", "circle(-10% at 20% 30%)");
+test_invalid_value("clip-path", "circle(1% 2% at 0% 100%)");
+
+test_invalid_value("clip-path", "ellipse(farthest-side at)");
+test_invalid_value("clip-path", "ellipse(1% 2% top right)");
+test_invalid_value("clip-path", "ellipse(3%)");
+test_invalid_value("clip-path", "ellipse(3% at 100% 0%)");
+test_invalid_value("clip-path", "ellipse(closest-side)");
+test_invalid_value("clip-path", "ellipse(farthest-side at 100% 0%)");
+test_invalid_value("clip-path", "ellipse(10% -20% at 30% 40%)");
+test_invalid_value("clip-path", "ellipse(-50px 60px at 70% 80%)");
+
+test_invalid_value("clip-path", "polygon(1%)");
+test_invalid_value("clip-path", "polygon(round, 1px 2px)");
+test_invalid_value("clip-path", "polygon(round -1px, 1px 2px)");
+test_invalid_value("clip-path", "polygon(round 1%, 1px 2px)");
+test_invalid_value("clip-path", "polygon(round 45deg, 1px 2px)");
+test_invalid_value("clip-path", "polygon(round 1px 1px 2px)");
+test_invalid_value("clip-path", "polygon(1px 2px, round 1px)");
+test_invalid_value("clip-path", "polygon(round 1px round 2px, 1px 2px)");
+test_invalid_value("clip-path", "polygon(round 1px nonzero, 1px 2px)");
+
+test_invalid_value("clip-path", "unknown-box");
+
+test_invalid_value("clip-path", 'path(" ")');
+test_invalid_value("clip-path", 'path(evenodd, "")');
+test_invalid_value("clip-path", 'path(abc, "m 20 0 h -100 z")');
+test_invalid_value("clip-path", 'path(nonzero)');
+test_invalid_value("clip-path", 'path("m 20 0 h -100", nonzero)');
+test_invalid_value("clip-path", "path(nonzero, 'M0 0, L100 0, L0 100, L 0 0');");
+
+test_invalid_value("clip-path", "xywh(0px)");
+test_invalid_value("clip-path", "xywh(0px 1%)");
+test_invalid_value("clip-path", "xywh(0px 1% 2em)");
+
+test_invalid_value("clip-path", "rect(0px)");
+test_invalid_value("clip-path", "rect(0px 1%)");
+test_invalid_value("clip-path", "rect(0px 1% auto)");
+
+</script>
+</body>
+</html>

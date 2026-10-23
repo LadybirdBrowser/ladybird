@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Masking: clip-path: clip path margin-box</title>
+    <link rel="author" title="CJ Ku" href="mailto:cku@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="https://www.w3.org/TR/css-masking-1/#the-clip-path">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/clip-path-geometryBox-2-ref.html">
+    <meta name="assert" content="Test checks whether clip-path margin-box works correctly or not.">
+    <meta name="fuzzy" content="maxDifference=0-60; totalPixels=0-394">
+    <style>
+      div {
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        background-color: blue;
+        width: 100px;
+        height: 100px;
+        margin: 50px;
+        clip-path: polygon(0% 75%, 50% 25%, 100% 75%) margin-box;
+      }
+    </style>
+  </head>
+  <body>
+    <div></div>
+  </body>
+</html>

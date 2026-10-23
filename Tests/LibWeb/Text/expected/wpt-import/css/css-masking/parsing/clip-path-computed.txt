@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 21 tests
+
+17 Pass
+4 Fail
+Pass	Property clip-path value 'circle(calc(10px + 0.5em) at -50% 50%)'
+Pass	Property clip-path value 'circle(calc(10px - 0.5em) at 50% -50%)'
+Pass	Property clip-path value 'ellipse(at 50% 50%)'
+Pass	Property clip-path value 'ellipse(60% closest-side at 50% 50%)'
+Fail	Property clip-path value 'polygon(round 1em, 1px 2px, 3em 4em)'
+Fail	Property clip-path value 'polygon(evenodd round 6pt, 1px 2px, 3em 4em, 6pt 6%)'
+Fail	Property clip-path value 'polygon(round 0px, 1px 2px, 3px 4px)'
+Fail	Property clip-path value 'polygon(round calc(1em + 2px), 1px 2px, 3px 4px)'
+Pass	Property clip-path value 'xywh(0 1% 2px 0.5em)'
+Pass	Property clip-path value 'xywh(0px 1% 2px 0.5em round 0)'
+Pass	Property clip-path value 'xywh(0px 1% 2px 3% round 0 1px)'
+Pass	Property clip-path value 'xywh(0px 1% 2px 3% round 0px 1px 2em)'
+Pass	Property clip-path value 'xywh(0px 1% 2px 3% round 0px 1px 2% 3px)'
+Pass	Property clip-path value 'xywh(calc(0px) calc(1px + 1%) calc(2px + 2%) calc(3px + 3%))'
+Pass	Property clip-path value 'rect(auto auto auto auto)'
+Pass	Property clip-path value 'rect(0 1% 2px 0.5em)'
+Pass	Property clip-path value 'rect(0px 1% auto 0.5em round 0)'
+Pass	Property clip-path value 'rect(0px 1% auto 3% round 0 1px)'
+Pass	Property clip-path value 'rect(0px 1% auto 3% round 0px 1px 2em)'
+Pass	Property clip-path value 'rect(0px 1% auto 3% round 0px 1px 2% 3px)'
+Pass	Property clip-path value 'rect(calc(0px) calc(1px + 1%) calc(2px + 2%) calc(3px + 3%))'

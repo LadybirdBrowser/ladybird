@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS Masking: clip path with content-box</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/reference/green-100x100.html">
+<meta name="assert" content="Check that the 'clip-path' property supports content-box.">
+
+<style>
+  body { margin: 0; }
+  .clipped {
+    display: inline-block;
+    clip-path: content-box;
+    /* This background draws in the padding and should be clipped. */
+    background-color: red;
+    padding: 4px;
+    /* This border draws outside the content box and should be clipped. */
+    border: 4px solid darkred;
+    /* This outline draws outside the content box and should be clipped. */
+    outline: 100px solid maroon;
+  }
+  .content {
+    width: 100px;
+    height: 100px;
+    background: green;
+  }
+</style>
+<div class="clipped">
+  <div class="content"></div>
+</div>

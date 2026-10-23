@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-path-geometry-box-creates-stacking-context-ref.html" />
+<style>
+    .clipped {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 10px;
+        background: red;
+    }
+    .child {
+        position: relative;
+        z-index: -1;
+        width: 100px;
+        height: 100px;
+        background: green;
+    }
+</style>
+<div class="clipped" style="clip-path: border-box"><div class="child"></div></div>
+<div class="clipped" style="clip-path: inset(0) padding-box"><div class="child"></div></div>

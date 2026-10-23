@@ -429,7 +429,12 @@ fn accumulated_visual_context_property_always_requires_repaint(property: u16) ->
 }
 
 fn clip_path_value_is_a_visual_context_frame(values: ComputedValuesView<'_>) -> bool {
-    matches!(values.mask().clip_path.data(), Some(StyleValueData::BasicShape { .. }))
+    // NB: A basic shape, a geometry box, or both clip with a path, which a visual context frame holds.
+    match values.mask().clip_path.data() {
+        Some(StyleValueData::BasicShape { .. } | StyleValueData::ValueList { .. }) => true,
+        Some(StyleValueData::Keyword { keyword }) => *keyword != crate::css::css_enums::keyword::NONE,
+        _ => false,
+    }
 }
 
 fn accumulated_visual_context_change_alters_hit_test_items(

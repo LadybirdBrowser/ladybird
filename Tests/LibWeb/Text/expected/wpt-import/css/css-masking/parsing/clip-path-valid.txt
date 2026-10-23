@@ -1,0 +1,60 @@
+Harness status: OK
+
+Found 54 tests
+
+49 Pass
+5 Fail
+Pass	e.style['clip-path'] = "none" should set the property value
+Pass	e.style['clip-path'] = "inset(100%)" should set the property value
+Pass	e.style['clip-path'] = "inset(0 1px)" should set the property value
+Pass	e.style['clip-path'] = "inset(0px 1px 2%)" should set the property value
+Pass	e.style['clip-path'] = "inset(0px 1px 2% 3em)" should set the property value
+Pass	e.style['clip-path'] = "inset(0px round 100%)" should set the property value
+Pass	e.style['clip-path'] = "inset(0px round 0 1px)" should set the property value
+Pass	e.style['clip-path'] = "inset(0px round 0px 1px 2%)" should set the property value
+Pass	e.style['clip-path'] = "inset(0px round 0px 1px 2% 3em)" should set the property value
+Pass	e.style['clip-path'] = "inset(10px round 20% / 0px 1px 2% 3em)" should set the property value
+Pass	e.style['clip-path'] = "circle()" should set the property value
+Pass	e.style['clip-path'] = "circle(1px)" should set the property value
+Pass	e.style['clip-path'] = "circle(closest-side)" should set the property value
+Pass	e.style['clip-path'] = "circle(at 10% 20%)" should set the property value
+Pass	e.style['clip-path'] = "circle(farthest-side at center top)" should set the property value
+Pass	e.style['clip-path'] = "circle(4% at top right)" should set the property value
+Pass	e.style['clip-path'] = "ellipse()" should set the property value
+Pass	e.style['clip-path'] = "ellipse(1px closest-side)" should set the property value
+Pass	e.style['clip-path'] = "ellipse(at 10% 20%)" should set the property value
+Pass	e.style['clip-path'] = "ellipse(closest-side closest-side at 10% 20%)" should set the property value
+Pass	e.style['clip-path'] = "ellipse(farthest-side 4% at bottom left)" should set the property value
+Pass	e.style['clip-path'] = "polygon(1% 2%)" should set the property value
+Pass	e.style['clip-path'] = "polygon(nonzero, 1px 2px, 3em 4em)" should set the property value
+Pass	e.style['clip-path'] = "polygon(evenodd, 1px 2px, 3em 4em, 5pt 6%)" should set the property value
+Fail	e.style['clip-path'] = "polygon(round 1px, 1% 2%)" should set the property value
+Fail	e.style['clip-path'] = "polygon(round 0px, 1px 2px, 3px 4px)" should set the property value
+Fail	e.style['clip-path'] = "polygon(nonzero round 1px, 1px 2px, 3em 4em)" should set the property value
+Fail	e.style['clip-path'] = "polygon(evenodd round 1px, 1px 2px, 3em 4em, 5pt 6%)" should set the property value
+Fail	e.style['clip-path'] = "polygon(round calc(1em + 2px), 1px 2px, 3px 4px)" should set the property value
+Pass	e.style['clip-path'] = "path(\"m 20 0 h -100\")" should set the property value
+Pass	e.style['clip-path'] = "path(evenodd, \"M 20 20 h 60 v 60 h -60 Z M 30 30 h 40 v 40 h -40 Z\")" should set the property value
+Pass	e.style['clip-path'] = "path(nonzero, \"M20,20h60 v60 h-60z M30,30 h40 v40 h-40z\")" should set the property value
+Pass	e.style['clip-path'] = "xywh(0 1% 2px 3em)" should set the property value
+Pass	e.style['clip-path'] = "xywh(0px 1% 2px 3em round 0)" should set the property value
+Pass	e.style['clip-path'] = "xywh(0px 1% 2px 3em round 0 1px)" should set the property value
+Pass	e.style['clip-path'] = "xywh(0px 1% 2px 3em round 0px 1px 2%)" should set the property value
+Pass	e.style['clip-path'] = "xywh(0px 1% 2px 3em round 0px 1px 2% 3em)" should set the property value
+Pass	e.style['clip-path'] = "rect(0 100% 200px 4em)" should set the property value
+Pass	e.style['clip-path'] = "rect(auto auto auto auto)" should set the property value
+Pass	e.style['clip-path'] = "rect(0px 100% auto 4em round 0)" should set the property value
+Pass	e.style['clip-path'] = "rect(0px 100% auto 4em round 0 1px)" should set the property value
+Pass	e.style['clip-path'] = "rect(0px 100% auto 4em round 0px 1px 2%)" should set the property value
+Pass	e.style['clip-path'] = "rect(0px 100% auto 4em round 0px 1px 2% 3em)" should set the property value
+Pass	e.style['clip-path'] = "border-box" should set the property value
+Pass	e.style['clip-path'] = "padding-box" should set the property value
+Pass	e.style['clip-path'] = "content-box" should set the property value
+Pass	e.style['clip-path'] = "margin-box" should set the property value
+Pass	e.style['clip-path'] = "fill-box" should set the property value
+Pass	e.style['clip-path'] = "stroke-box" should set the property value
+Pass	e.style['clip-path'] = "view-box" should set the property value
+Pass	e.style['clip-path'] = "circle(7% at 8% 9%) border-box" should set the property value
+Pass	e.style['clip-path'] = "border-box circle(7% at 8% 9%)" should set the property value
+Pass	e.style['clip-path'] = "url(https://example.com/)" should set the property value
+Pass	e.style['clip-path'] = "url(\"https://example.com/\")" should set the property value
