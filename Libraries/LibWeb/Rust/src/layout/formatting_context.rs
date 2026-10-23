@@ -868,6 +868,7 @@ pub enum FormattingContextType {
     Grid,
     Table,
     Svg,
+    Math,
     ReplacedWithChildren,
     InternalReplaced,
     InternalDummy,
@@ -1139,6 +1140,7 @@ enum FormattingContextImplementation<'pass> {
     Grid(Box<grid_formatting_context::GridFormattingContext<'pass>>),
     Table(Box<table_formatting_context::TableFormattingContext<'pass>>),
     Svg(Box<svg_formatting_context::SvgFormattingContext<'pass>>),
+    Math(Box<math_formatting_context::MathFormattingContext<'pass>>),
     ReplacedWithChildren,
     InternalReplaced,
     InternalDummy,
@@ -1192,9 +1194,18 @@ pub(crate) fn formatting_context_type_created_by_node_data(
     if display.is_some_and(|display| display.is_grid_inside()) {
         return Some(FormattingContextType::Grid);
     }
-    if display.is_some_and(|display| display.is_math_inside())
-        || node_facts::node_creates_block_formatting_context(data, style, parent_is_flex_or_grid_container)
-    {
+    // https://w3c.github.io/mathml-core/#new-display-math-value
+    // MathML elements with a computed display value equal to block math or inline math control box generation and
+    // layout according to their tag name.
+    // NB: A box with inline children is a token element, or holds no MathML children, and lays them out in a block
+    //     formatting context.
+    if display.is_some_and(|display| display.is_math_inside()) {
+        if node_facts::has_flag(data, NodeFlag::ChildrenAreInline) {
+            return Some(FormattingContextType::Block);
+        }
+        return Some(FormattingContextType::Math);
+    }
+    if node_facts::node_creates_block_formatting_context(data, style, parent_is_flex_or_grid_container) {
         return Some(FormattingContextType::Block);
     }
     if node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
@@ -1216,11 +1227,15 @@ pub(crate) fn formatting_context_type_created_by_node_data(
 }
 
 pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Option<FormattingContextType> {
-    formatting_context_type_created_by_node_data(
+    let fc_type = formatting_context_type_created_by_node_data(
         facts.data(),
         facts.computed_values_view_if_styled(),
         facts.parent_is_flex_or_grid_container(),
-    )
+    );
+    if fc_type == Some(FormattingContextType::Math) && !facts.uses_math_layout() {
+        return Some(FormattingContextType::Block);
+    }
+    fc_type
 }
 
 fn create_formatting_context_implementation<'pass>(
@@ -1243,6 +1258,9 @@ fn create_formatting_context_implementation<'pass>(
         }
         FormattingContextType::Svg => {
             FormattingContextImplementation::Svg(Box::new(svg_formatting_context::SvgFormattingContext::new(run)))
+        }
+        FormattingContextType::Math => {
+            FormattingContextImplementation::Math(Box::new(math_formatting_context::MathFormattingContext::new(run)))
         }
         FormattingContextType::ReplacedWithChildren => FormattingContextImplementation::ReplacedWithChildren,
         FormattingContextType::InternalReplaced => FormattingContextImplementation::InternalReplaced,
@@ -1293,6 +1311,11 @@ pub(crate) fn independent_root_automatic_block_size(
         return automatic_content_block_size_of_completed_run.unwrap_or_default();
     }
     let style = StyleValues::for_node(callbacks, node);
+    // https://w3c.github.io/mathml-core/#layout-algorithms
+    // After calculating the line-ascent and line-descent of a math content box, its block size is set to their sum.
+    if style.display().is_math_inside() {
+        return automatic_content_block_size_of_completed_run.unwrap_or_default();
+    }
     if style.display().is_flex_inside()
         && let Some(automatic_content_block_size_reported_by_completed_run) =
             automatic_content_block_size_of_completed_run
@@ -1971,6 +1994,17 @@ fn execute_formatting_context_run(
                         context.run(run, body_input);
                         ChildLayoutResult::default()
                     }
+                    FormattingContextImplementation::Math(context) => {
+                        context.run(run, body_input);
+                        let baselines = context.derived_baselines_of_root_box();
+                        store_derived_baselines(run.records.used_values(run.box_), baselines);
+                        ChildLayoutResult {
+                            automatic_content_inline_size: context.automatic_content_inline_size(),
+                            automatic_content_block_size: context.automatic_content_block_size(),
+                            baselines,
+                            ..ChildLayoutResult::default()
+                        }
+                    }
                     FormattingContextImplementation::ReplacedWithChildren => {
                         replaced_with_children_formatting_context::layout_replaced_with_children(run, body_input)
                     }
@@ -2111,6 +2145,9 @@ fn execute_formatting_context_run(
                         context.parent_did_dimension();
                     }
                     FormattingContextImplementation::Grid(context) => {
+                        context.parent_did_dimension();
+                    }
+                    FormattingContextImplementation::Math(context) => {
                         context.parent_did_dimension();
                     }
                     FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {

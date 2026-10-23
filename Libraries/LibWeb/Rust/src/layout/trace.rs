@@ -204,6 +204,7 @@ impl LayoutTrace {
                 FormattingContextType::Grid => "grid",
                 FormattingContextType::Table => "table",
                 FormattingContextType::Svg => "svg",
+                FormattingContextType::Math => "math",
                 FormattingContextType::ReplacedWithChildren => "replaced-with-children",
                 FormattingContextType::InternalReplaced => "internal-replaced",
                 FormattingContextType::InternalDummy => "internal-dummy",

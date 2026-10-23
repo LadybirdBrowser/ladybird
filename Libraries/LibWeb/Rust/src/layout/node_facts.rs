@@ -478,6 +478,11 @@ pub(crate) fn node_creates_block_formatting_context(
         {
             return true;
         }
+        // NB: MathML layout lays out each of its in-flow children as an atomic box, so a block container among them,
+        //     like an anonymous wrapper around text, establishes an independent formatting context.
+        if has_ancestor_fact(data, AncestorFact::ParentUsesMathLayout) && display.is_block_outside() {
+            return true;
+        }
     }
     if has_flag(data, NodeFlag::IsHtmlHtmlElement)
         || data.kind.get() == NodeKind::FieldSetBox
@@ -1110,6 +1115,11 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn uses_button_layout(&self) -> bool {
         has_flag(self.data(), NodeFlag::UsesButtonLayout)
+    }
+
+    /// Whether the box is generated for a MathML element whose tag name selects a MathML layout algorithm.
+    pub(crate) fn uses_math_layout(&self) -> bool {
+        self.callbacks.arena().math_layout_kind(self.node).uses_math_layout()
     }
 
     // https://drafts.csswg.org/css2/#propdef-vertical-align

@@ -2,30 +2,31 @@ Harness status: OK
 
 Found 26 tests
 
-26 Fail
-Fail	Appending and removing children to a
-Fail	Appending and removing children to maction
-Fail	Appending and removing children to menclose
-Fail	Appending and removing children to merror
-Fail	Appending and removing children to mfrac
-Fail	Appending and removing children to mi
-Fail	Appending and removing children to mmultiscripts
-Fail	Appending and removing children to mn
-Fail	Appending and removing children to mo
-Fail	Appending and removing children to mover
-Fail	Appending and removing children to mpadded
-Fail	Appending and removing children to mphantom
+24 Pass
+2 Fail
+Pass	Appending and removing children to a
+Pass	Appending and removing children to maction
+Pass	Appending and removing children to menclose
+Pass	Appending and removing children to merror
+Pass	Appending and removing children to mfrac
+Pass	Appending and removing children to mi
+Pass	Appending and removing children to mmultiscripts
+Pass	Appending and removing children to mn
+Pass	Appending and removing children to mo
+Pass	Appending and removing children to mover
+Pass	Appending and removing children to mpadded
+Pass	Appending and removing children to mphantom
 Fail	Appending and removing children to mroot
-Fail	Appending and removing children to mrow
-Fail	Appending and removing children to ms
-Fail	Appending and removing children to mspace
+Pass	Appending and removing children to mrow
+Pass	Appending and removing children to ms
+Pass	Appending and removing children to mspace
 Fail	Appending and removing children to msqrt
-Fail	Appending and removing children to mstyle
-Fail	Appending and removing children to msub
-Fail	Appending and removing children to msubsup
-Fail	Appending and removing children to msup
-Fail	Appending and removing children to mtable
-Fail	Appending and removing children to mtext
-Fail	Appending and removing children to munder
-Fail	Appending and removing children to munderover
-Fail	Appending and removing children to semantics
+Pass	Appending and removing children to mstyle
+Pass	Appending and removing children to msub
+Pass	Appending and removing children to msubsup
+Pass	Appending and removing children to msup
+Pass	Appending and removing children to mtable
+Pass	Appending and removing children to mtext
+Pass	Appending and removing children to munder
+Pass	Appending and removing children to munderover
+Pass	Appending and removing children to semantics

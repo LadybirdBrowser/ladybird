@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	mspace layout in multicol
-Fail	mfrac layout in multicol
+2 Pass
+Pass	mspace layout in multicol
+Pass	mfrac layout in multicol

@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	Padding properties on mrow
-Fail	Padding properties on mrow (rtl)
-Fail	Padding properties on mrow (shorthand)
-Fail	Padding properties on mrow (logical)
-Fail	Padding properties on mrow (logical, rtl)
-Fail	Padding properties on mrow (logical, shorthand)
+6 Pass
+Pass	Padding properties on mrow
+Pass	Padding properties on mrow (rtl)
+Pass	Padding properties on mrow (shorthand)
+Pass	Padding properties on mrow (logical)
+Pass	Padding properties on mrow (logical, rtl)
+Pass	Padding properties on mrow (logical, shorthand)

@@ -2,108 +2,108 @@ Harness status: OK
 
 Found 103 tests
 
-4 Pass
-99 Fail
-Fail	width and height properties on a
-Fail	inline-size and block-size properties on a
-Fail	width and height properties on a (content overflowing)
-Fail	width property on a (preferred width)
-Fail	width and height properties on maction
-Fail	inline-size and block-size properties on maction
-Fail	width and height properties on maction (content overflowing)
-Fail	width property on maction (preferred width)
-Fail	width and height properties on menclose
-Fail	inline-size and block-size properties on menclose
-Fail	width and height properties on menclose (content overflowing)
-Fail	width property on menclose (preferred width)
-Fail	width and height properties on merror
-Fail	inline-size and block-size properties on merror
-Fail	width and height properties on merror (content overflowing)
-Fail	width property on merror (preferred width)
+94 Pass
+9 Fail
+Pass	width and height properties on a
+Pass	inline-size and block-size properties on a
+Pass	width and height properties on a (content overflowing)
+Pass	width property on a (preferred width)
+Pass	width and height properties on maction
+Pass	inline-size and block-size properties on maction
+Pass	width and height properties on maction (content overflowing)
+Pass	width property on maction (preferred width)
+Pass	width and height properties on menclose
+Pass	inline-size and block-size properties on menclose
+Pass	width and height properties on menclose (content overflowing)
+Pass	width property on menclose (preferred width)
+Pass	width and height properties on merror
+Pass	inline-size and block-size properties on merror
+Pass	width and height properties on merror (content overflowing)
+Pass	width property on merror (preferred width)
 Pass	width and height properties on mfrac
 Pass	inline-size and block-size properties on mfrac
 Pass	width and height properties on mfrac (content overflowing)
 Pass	width property on mfrac (preferred width)
-Fail	width and height properties on mi
-Fail	inline-size and block-size properties on mi
-Fail	width and height properties on mi (content overflowing)
-Fail	width property on mi (preferred width)
-Fail	width and height properties on mmultiscripts
-Fail	inline-size and block-size properties on mmultiscripts
-Fail	width and height properties on mmultiscripts (content overflowing)
-Fail	width property on mmultiscripts (preferred width)
-Fail	width and height properties on mn
-Fail	inline-size and block-size properties on mn
-Fail	width and height properties on mn (content overflowing)
-Fail	width property on mn (preferred width)
-Fail	width and height properties on mo
-Fail	inline-size and block-size properties on mo
-Fail	width and height properties on mo (content overflowing)
+Pass	width and height properties on mi
+Pass	inline-size and block-size properties on mi
+Pass	width and height properties on mi (content overflowing)
+Pass	width property on mi (preferred width)
+Pass	width and height properties on mmultiscripts
+Pass	inline-size and block-size properties on mmultiscripts
+Pass	width and height properties on mmultiscripts (content overflowing)
+Pass	width property on mmultiscripts (preferred width)
+Pass	width and height properties on mn
+Pass	inline-size and block-size properties on mn
+Pass	width and height properties on mn (content overflowing)
+Pass	width property on mn (preferred width)
+Pass	width and height properties on mo
+Pass	inline-size and block-size properties on mo
+Pass	width and height properties on mo (content overflowing)
 Fail	width property on mo (preferred width)
-Fail	width and height properties on mover
-Fail	inline-size and block-size properties on mover
-Fail	width and height properties on mover (content overflowing)
-Fail	width property on mover (preferred width)
-Fail	width and height properties on mpadded
-Fail	inline-size and block-size properties on mpadded
-Fail	width and height properties on mpadded (content overflowing)
-Fail	width property on mpadded (preferred width)
-Fail	width and height properties on mphantom
-Fail	inline-size and block-size properties on mphantom
-Fail	width and height properties on mphantom (content overflowing)
-Fail	width property on mphantom (preferred width)
+Pass	width and height properties on mover
+Pass	inline-size and block-size properties on mover
+Pass	width and height properties on mover (content overflowing)
+Pass	width property on mover (preferred width)
+Pass	width and height properties on mpadded
+Pass	inline-size and block-size properties on mpadded
+Pass	width and height properties on mpadded (content overflowing)
+Pass	width property on mpadded (preferred width)
+Pass	width and height properties on mphantom
+Pass	inline-size and block-size properties on mphantom
+Pass	width and height properties on mphantom (content overflowing)
+Pass	width property on mphantom (preferred width)
 Fail	width and height properties on mroot
 Fail	inline-size and block-size properties on mroot
 Fail	width and height properties on mroot (content overflowing)
 Fail	width property on mroot (preferred width)
-Fail	width and height properties on mrow
-Fail	inline-size and block-size properties on mrow
-Fail	width and height properties on mrow (content overflowing)
-Fail	width property on mrow (preferred width)
-Fail	width and height properties on ms
-Fail	inline-size and block-size properties on ms
-Fail	width and height properties on ms (content overflowing)
-Fail	width property on ms (preferred width)
-Fail	width and height properties on mspace
-Fail	inline-size and block-size properties on mspace
-Fail	width and height properties on mspace (content overflowing)
-Fail	width property on mspace (preferred width)
+Pass	width and height properties on mrow
+Pass	inline-size and block-size properties on mrow
+Pass	width and height properties on mrow (content overflowing)
+Pass	width property on mrow (preferred width)
+Pass	width and height properties on ms
+Pass	inline-size and block-size properties on ms
+Pass	width and height properties on ms (content overflowing)
+Pass	width property on ms (preferred width)
+Pass	width and height properties on mspace
+Pass	inline-size and block-size properties on mspace
+Pass	width and height properties on mspace (content overflowing)
+Pass	width property on mspace (preferred width)
 Fail	width and height properties on msqrt
 Fail	inline-size and block-size properties on msqrt
 Fail	width and height properties on msqrt (content overflowing)
 Fail	width property on msqrt (preferred width)
-Fail	width and height properties on mstyle
-Fail	inline-size and block-size properties on mstyle
-Fail	width and height properties on mstyle (content overflowing)
-Fail	width property on mstyle (preferred width)
-Fail	width and height properties on msub
-Fail	inline-size and block-size properties on msub
-Fail	width and height properties on msub (content overflowing)
-Fail	width property on msub (preferred width)
-Fail	width and height properties on msubsup
-Fail	inline-size and block-size properties on msubsup
-Fail	width and height properties on msubsup (content overflowing)
-Fail	width property on msubsup (preferred width)
-Fail	width and height properties on msup
-Fail	inline-size and block-size properties on msup
-Fail	width and height properties on msup (content overflowing)
-Fail	width property on msup (preferred width)
-Fail	width and height properties on mtable
-Fail	inline-size and block-size properties on mtable
-Fail	width property on mtable (preferred width)
-Fail	width and height properties on mtext
-Fail	inline-size and block-size properties on mtext
-Fail	width and height properties on mtext (content overflowing)
-Fail	width property on mtext (preferred width)
-Fail	width and height properties on munder
-Fail	inline-size and block-size properties on munder
-Fail	width and height properties on munder (content overflowing)
-Fail	width property on munder (preferred width)
-Fail	width and height properties on munderover
-Fail	inline-size and block-size properties on munderover
-Fail	width and height properties on munderover (content overflowing)
-Fail	width property on munderover (preferred width)
-Fail	width and height properties on semantics
-Fail	inline-size and block-size properties on semantics
-Fail	width and height properties on semantics (content overflowing)
-Fail	width property on semantics (preferred width)
+Pass	width and height properties on mstyle
+Pass	inline-size and block-size properties on mstyle
+Pass	width and height properties on mstyle (content overflowing)
+Pass	width property on mstyle (preferred width)
+Pass	width and height properties on msub
+Pass	inline-size and block-size properties on msub
+Pass	width and height properties on msub (content overflowing)
+Pass	width property on msub (preferred width)
+Pass	width and height properties on msubsup
+Pass	inline-size and block-size properties on msubsup
+Pass	width and height properties on msubsup (content overflowing)
+Pass	width property on msubsup (preferred width)
+Pass	width and height properties on msup
+Pass	inline-size and block-size properties on msup
+Pass	width and height properties on msup (content overflowing)
+Pass	width property on msup (preferred width)
+Pass	width and height properties on mtable
+Pass	inline-size and block-size properties on mtable
+Pass	width property on mtable (preferred width)
+Pass	width and height properties on mtext
+Pass	inline-size and block-size properties on mtext
+Pass	width and height properties on mtext (content overflowing)
+Pass	width property on mtext (preferred width)
+Pass	width and height properties on munder
+Pass	inline-size and block-size properties on munder
+Pass	width and height properties on munder (content overflowing)
+Pass	width property on munder (preferred width)
+Pass	width and height properties on munderover
+Pass	inline-size and block-size properties on munderover
+Pass	width and height properties on munderover (content overflowing)
+Pass	width property on munderover (preferred width)
+Pass	width and height properties on semantics
+Pass	inline-size and block-size properties on semantics
+Pass	width and height properties on semantics (content overflowing)
+Pass	width property on semantics (preferred width)

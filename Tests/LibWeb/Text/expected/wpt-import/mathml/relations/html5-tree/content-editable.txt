@@ -2,6 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	mspace layout in content-editable div
-Fail	mfrac layout in content-editable div
+2 Pass
+Pass	mspace layout in content-editable div
+Pass	mfrac layout in content-editable div

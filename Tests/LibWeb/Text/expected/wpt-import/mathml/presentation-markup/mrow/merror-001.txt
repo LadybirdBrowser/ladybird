@@ -2,7 +2,6 @@ Harness status: OK
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Pass	Default CSS properties on merror
-Fail	Bounding box is the same as mrow + 1px border
+Pass	Bounding box is the same as mrow + 1px border

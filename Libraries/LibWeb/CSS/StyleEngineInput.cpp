@@ -49,6 +49,7 @@
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/RenderDocument.h>
+#include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -1135,7 +1136,79 @@ enum ElementConstructionFact : u32 {
     ConstructedAsDocumentElement = 1 << 6,
     IsSvgResourceElement = 1 << 7,
     IsSvgGeometryElement = 1 << 8,
+    // The layout algorithm a MathML element's tag name selects, as a MathMLLayoutKind in these bits.
+    MathMLLayoutKindShift = 16,
+    MathMLLayoutKindMask = 0x1f << MathMLLayoutKindShift,
 };
+
+// The layout algorithm a MathML element's tag name selects when its display is block math or inline math.
+// Mirrors Rust `MathLayoutKind`.
+enum class MathMLLayoutKind : u32 {
+    NotMathML,
+    Mrow,
+    Math,
+    Token,
+    Mo,
+    Mspace,
+    Mfrac,
+    Msqrt,
+    Mroot,
+    Msub,
+    Msup,
+    Msubsup,
+    Munder,
+    Mover,
+    Munderover,
+    Mmultiscripts,
+    Mprescripts,
+    None,
+    Mpadded,
+};
+
+static MathMLLayoutKind mathml_layout_kind(DOM::Element const& element)
+{
+    if (element.namespace_uri() != Namespace::MathML)
+        return MathMLLayoutKind::NotMathML;
+    namespace TagNames = MathML::TagNames;
+    auto const& name = element.local_name();
+    if (name == TagNames::math)
+        return MathMLLayoutKind::Math;
+    if (first_is_one_of(name, TagNames::mi, TagNames::mn, TagNames::ms, TagNames::mtext, TagNames::annotation, TagNames::annotation_xml))
+        return MathMLLayoutKind::Token;
+    if (name == TagNames::mo)
+        return MathMLLayoutKind::Mo;
+    if (name == TagNames::mspace)
+        return MathMLLayoutKind::Mspace;
+    if (name == TagNames::mfrac)
+        return MathMLLayoutKind::Mfrac;
+    if (name == TagNames::msqrt)
+        return MathMLLayoutKind::Msqrt;
+    if (name == TagNames::mroot)
+        return MathMLLayoutKind::Mroot;
+    if (name == TagNames::msub)
+        return MathMLLayoutKind::Msub;
+    if (name == TagNames::msup)
+        return MathMLLayoutKind::Msup;
+    if (name == TagNames::msubsup)
+        return MathMLLayoutKind::Msubsup;
+    if (name == TagNames::munder)
+        return MathMLLayoutKind::Munder;
+    if (name == TagNames::mover)
+        return MathMLLayoutKind::Mover;
+    if (name == TagNames::munderover)
+        return MathMLLayoutKind::Munderover;
+    if (name == TagNames::mmultiscripts)
+        return MathMLLayoutKind::Mmultiscripts;
+    if (name == TagNames::mprescripts)
+        return MathMLLayoutKind::Mprescripts;
+    if (name == "none"sv)
+        return MathMLLayoutKind::None;
+    if (name == TagNames::mpadded)
+        return MathMLLayoutKind::Mpadded;
+    // https://w3c.github.io/mathml-core/#new-display-math-value
+    // Unknown MathML elements behave the same as the <mrow> element.
+    return MathMLLayoutKind::Mrow;
+}
 u32 element_box_type_adjustment_facts(DOM::Element const& element)
 {
     bool is_html_element = element.namespace_uri() == Namespace::HTML;
@@ -1251,6 +1324,7 @@ static u32 element_construction_facts(DOM::Element const& element)
     set(element.is_document_element(), ElementConstructionFact::ConstructedAsDocumentElement);
     set(svg_element && svg_element->is_resource_element(), ElementConstructionFact::IsSvgResourceElement);
     set(element.is_svg_geometry_element(), ElementConstructionFact::IsSvgGeometryElement);
+    facts |= to_underlying(mathml_layout_kind(element)) << ElementConstructionFact::MathMLLayoutKindShift;
     return facts;
 }
 

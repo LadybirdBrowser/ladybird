@@ -655,6 +655,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     formatting_context::FormattingContextType::Block
                         | formatting_context::FormattingContextType::Flex
                         | formatting_context::FormattingContextType::Grid
+                        | formatting_context::FormattingContextType::Math
                 )
             )
     }

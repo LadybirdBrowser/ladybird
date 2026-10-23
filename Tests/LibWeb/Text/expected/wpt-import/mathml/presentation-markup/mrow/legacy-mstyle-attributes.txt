@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 9 tests
 
-1 Pass
-8 Fail
-Fail	Legacy mstyle attributes do not apply to mspace
+9 Pass
+Pass	Legacy mstyle attributes do not apply to mspace
 Pass	Legacy mstyle attributes do not apply to mfrac
-Fail	Legacy mstyle attributes do not apply to mo
-Fail	Legacy mstyle attributes do not apply to menclose
-Fail	Legacy mstyle attributes do not apply to ms
-Fail	Legacy mstyle attributes do not apply to mpadded
-Fail	Legacy mstyle attributes do not apply to mover
-Fail	Legacy mstyle attributes do not apply to munder
-Fail	Legacy mstyle attributes do not apply to munderover
+Pass	Legacy mstyle attributes do not apply to mo
+Pass	Legacy mstyle attributes do not apply to menclose
+Pass	Legacy mstyle attributes do not apply to ms
+Pass	Legacy mstyle attributes do not apply to mpadded
+Pass	Legacy mstyle attributes do not apply to mover
+Pass	Legacy mstyle attributes do not apply to munder
+Pass	Legacy mstyle attributes do not apply to munderover

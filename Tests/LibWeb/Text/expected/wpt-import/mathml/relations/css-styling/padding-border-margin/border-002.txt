@@ -2,56 +2,56 @@ Harness status: OK
 
 Found 51 tests
 
-2 Pass
-49 Fail
-Fail	Border properties on a
-Fail	Border properties on a (rtl)
-Fail	Border properties on maction
-Fail	Border properties on maction (rtl)
-Fail	Border properties on menclose
-Fail	Border properties on menclose (rtl)
-Fail	Border properties on merror
-Fail	Border properties on merror (rtl)
+47 Pass
+4 Fail
+Pass	Border properties on a
+Pass	Border properties on a (rtl)
+Pass	Border properties on maction
+Pass	Border properties on maction (rtl)
+Pass	Border properties on menclose
+Pass	Border properties on menclose (rtl)
+Pass	Border properties on merror
+Pass	Border properties on merror (rtl)
 Pass	Border properties on mfrac
 Pass	Border properties on mfrac (rtl)
-Fail	Border properties on mi
-Fail	Border properties on mi (rtl)
-Fail	Border properties on mmultiscripts
-Fail	Border properties on mmultiscripts (rtl)
-Fail	Border properties on mn
-Fail	Border properties on mn (rtl)
-Fail	Border properties on mo
-Fail	Border properties on mo (rtl)
-Fail	Border properties on mover
-Fail	Border properties on mover (rtl)
-Fail	Border properties on mpadded
-Fail	Border properties on mpadded (rtl)
-Fail	Border properties on mphantom
-Fail	Border properties on mphantom (rtl)
+Pass	Border properties on mi
+Pass	Border properties on mi (rtl)
+Pass	Border properties on mmultiscripts
+Pass	Border properties on mmultiscripts (rtl)
+Pass	Border properties on mn
+Pass	Border properties on mn (rtl)
+Pass	Border properties on mo
+Pass	Border properties on mo (rtl)
+Pass	Border properties on mover
+Pass	Border properties on mover (rtl)
+Pass	Border properties on mpadded
+Pass	Border properties on mpadded (rtl)
+Pass	Border properties on mphantom
+Pass	Border properties on mphantom (rtl)
 Fail	Border properties on mroot
 Fail	Border properties on mroot (rtl)
-Fail	Border properties on mrow
-Fail	Border properties on mrow (rtl)
-Fail	Border properties on ms
-Fail	Border properties on ms (rtl)
-Fail	Border properties on mspace
+Pass	Border properties on mrow
+Pass	Border properties on mrow (rtl)
+Pass	Border properties on ms
+Pass	Border properties on ms (rtl)
+Pass	Border properties on mspace
 Fail	Border properties on msqrt
 Fail	Border properties on msqrt (rtl)
-Fail	Border properties on mstyle
-Fail	Border properties on mstyle (rtl)
-Fail	Border properties on msub
-Fail	Border properties on msub (rtl)
-Fail	Border properties on msubsup
-Fail	Border properties on msubsup (rtl)
-Fail	Border properties on msup
-Fail	Border properties on msup (rtl)
-Fail	Border properties on mtable
-Fail	Border properties on mtable (rtl)
-Fail	Border properties on mtext
-Fail	Border properties on mtext (rtl)
-Fail	Border properties on munder
-Fail	Border properties on munder (rtl)
-Fail	Border properties on munderover
-Fail	Border properties on munderover (rtl)
-Fail	Border properties on semantics
-Fail	Border properties on semantics (rtl)
+Pass	Border properties on mstyle
+Pass	Border properties on mstyle (rtl)
+Pass	Border properties on msub
+Pass	Border properties on msub (rtl)
+Pass	Border properties on msubsup
+Pass	Border properties on msubsup (rtl)
+Pass	Border properties on msup
+Pass	Border properties on msup (rtl)
+Pass	Border properties on mtable
+Pass	Border properties on mtable (rtl)
+Pass	Border properties on mtext
+Pass	Border properties on mtext (rtl)
+Pass	Border properties on munder
+Pass	Border properties on munder (rtl)
+Pass	Border properties on munderover
+Pass	Border properties on munderover (rtl)
+Pass	Border properties on semantics
+Pass	Border properties on semantics (rtl)

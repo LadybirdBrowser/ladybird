@@ -2043,7 +2043,11 @@ fn update_principal_node_descendants(
     let content_visibility_hidden = host.content_visibility_is_hidden(update.style_node);
     let (layout_node_can_have_children, layout_node_is_replaced_box_with_children) = {
         let layout_node_data = host.data(layout_node);
-        let can_have_children = node_facts::node_can_have_children(layout_node_data);
+        // https://w3c.github.io/mathml-core/#space-mspace
+        // The mspace empty element represents a blank space of any desired size, as set by its attributes.
+        // NB: Its children therefore generate no boxes.
+        let can_have_children = node_facts::node_can_have_children(layout_node_data)
+            && host.arena().math_layout_kind(layout_node) != super::math_formatting_context::MathLayoutKind::Mspace;
         (
             can_have_children,
             node_facts::kind_is_replaced_box(layout_node_data.kind.get()) && can_have_children,
@@ -3566,6 +3570,17 @@ fn node_is_out_of_flow(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     node_facts::node_is_out_of_flow(host.data(node), host.style(node))
 }
 
+fn node_is_out_of_flow_child_of(host: &TreeBuilderHost<'_>, parent: LayoutNode, node: LayoutNode) -> bool {
+    if !node_is_out_of_flow(host, node) {
+        return false;
+    }
+    // https://w3c.github.io/mathml-core/#css-styling
+    // The float property does not create floating of elements whose parent's computed display value is block math or
+    // inline math, and does not take them out-of-flow.
+    let parent_lays_out_math = host.style(parent).is_some_and(|style| style.display().is_math_inside());
+    !parent_lays_out_math || host.style(node).is_some_and(|style| style.is_absolutely_positioned())
+}
+
 fn node_has_replaced_element_table_display_adjustment(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     node_facts::has_flag(host.data(node), NodeFlag::IsReplacedElement)
         && host.style(node).is_some_and(|style| {
@@ -4194,7 +4209,7 @@ fn insertion_parent_for_block_node(
     let new_parent_data = host.data(new_parent);
 
     // If the block is out-of-flow,
-    if node_is_out_of_flow(host, node) {
+    if node_is_out_of_flow_child_of(host, new_parent, node) {
         let last_child = host.last_child(new_parent);
         assert!(!last_child.is_invalid());
         let last_child_data = host.data(last_child);
@@ -4215,8 +4230,10 @@ fn insertion_parent_for_block_node(
                     true
                 }));
         let new_parent_display = host.style(new_parent).map(|style| style.display());
+        // NB: Flex, grid and MathML layout lay out each of their children as its own box.
         if appends_after_existing_children
-            && !new_parent_display.is_some_and(|display| display.is_flex_inside() || display.is_grid_inside())
+            && !new_parent_display
+                .is_some_and(|display| display.is_flex_inside() || display.is_grid_inside() || display.is_math_inside())
             && !node_is_generated_for_pseudo_element(last_child_data)
             && node_facts::has_flag(last_child_data, NodeFlag::Anonymous)
             && node_facts::has_flag(last_child_data, NodeFlag::ChildrenAreInline)
@@ -4367,7 +4384,7 @@ fn insert_node_into_inline_or_block_ancestor(
     if is_inline_outside {
         // After inserting an inline-level box into a parent, mark the parent as having inline children.
         host.set_children_are_inline(insertion_point, true);
-    } else if !node_is_out_of_flow(host, node_slot) {
+    } else if !node_is_out_of_flow_child_of(host, insertion_point, node_slot) {
         // Inline-flow parents keep their inline children flag; their IFC may contain interrupting blocks.
         if !node_is_inline_outside(host, insertion_point)
             || !host

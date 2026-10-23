@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Vertical alignment of basic binary operators is not adjusted.
+1 Pass
+Pass	Vertical alignment of basic binary operators is not adjusted.
