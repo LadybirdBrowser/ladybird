@@ -83,6 +83,8 @@ void MathMLElement::visit_edges(JS::Cell::Visitor& visitor)
 
 bool MathMLElement::is_presentational_hint(Utf16FlyString const& name) const
 {
+    if (local_name() == TagNames::mpadded && name == AttributeNames::width)
+        return true;
     return first_is_one_of(name, AttributeNames::dir, AttributeNames::mathcolor, AttributeNames::mathbackground,
         AttributeNames::mathsize, AttributeNames::displaystyle, AttributeNames::scriptlevel);
 }
@@ -90,6 +92,15 @@ bool MathMLElement::is_presentational_hint(Utf16FlyString const& name) const
 void MathMLElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
+    // https://w3c.github.io/mathml-core/#inner-box-and-requested-parameters
+    // If the width attribute is present, valid and not a percentage then that attribute is used as a presentational
+    // hint setting the element's width property to the corresponding value.
+    if (local_name() == TagNames::mpadded) {
+        if (auto width = attribute(AttributeNames::width); width.has_value()) {
+            if (auto value = parse_css_type(CSS::Parser::ParsingParams { document() }, width->utf16_view(), CSS::ValueType::Length))
+                properties.append({ .property_id = CSS::PropertyID::Width, .value = value.release_nonnull() });
+        }
+    }
     for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == AttributeNames::dir) {
             // https://w3c.github.io/mathml-core/#attributes-common-to-html-and-mathml-elements

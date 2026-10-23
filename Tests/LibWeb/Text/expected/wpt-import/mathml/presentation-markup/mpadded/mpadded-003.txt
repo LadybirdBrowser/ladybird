@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-2 Pass
-3 Fail
+5 Pass
 Pass	lspace/voffset shifts don't affect mpadded preferred width
 Pass	lspace/voffset shifts don't affect mpadded size
-Fail	content is shifted by the specified lspace/voffset
-Fail	content is shifted by the specified lspace/voffset (RTL)
-Fail	dynamic changes of lspace/voffset
+Pass	content is shifted by the specified lspace/voffset
+Pass	content is shifted by the specified lspace/voffset (RTL)
+Pass	dynamic changes of lspace/voffset

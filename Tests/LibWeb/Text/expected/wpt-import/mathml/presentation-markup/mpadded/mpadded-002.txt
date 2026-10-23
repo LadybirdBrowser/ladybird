@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 10 tests
 
-2 Pass
-8 Fail
-Fail	mpadded with no attributes
-Fail	Different widths
-Fail	Different heights
-Fail	Percentage calculation for width, height and depth
-Fail	Different depths
-Fail	Various combinations of height, depth and width.
+10 Pass
+Pass	mpadded with no attributes
+Pass	Different widths
+Pass	Different heights
+Pass	Percentage calculation for width, height and depth
+Pass	Different depths
+Pass	Various combinations of height, depth and width.
 Pass	Preferred width
 Pass	dynamic attributes (remove)
-Fail	dynamic attributes (attach)
-Fail	dynamic attributes (modify)
+Pass	dynamic attributes (attach)
+Pass	dynamic attributes (modify)
