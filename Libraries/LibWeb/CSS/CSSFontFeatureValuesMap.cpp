@@ -114,7 +114,7 @@ static WrapperWorldWeakValueCache<JS::Map>& entries_cache_for(CSS::CSSFontFeatur
 
 static GC::Ref<JS::Array> create_map_value(JS::Realm& realm, Vector<u32> const& values)
 {
-    Vector<JS::Value> wrapped_values;
+    GC::RootVector<JS::Value> wrapped_values;
     wrapped_values.ensure_capacity(values.size());
 
     for (auto const& value : values)
