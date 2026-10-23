@@ -56,8 +56,8 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "FileAPI": (2, 9, "Blob glue still creates streams and buffers in selected realms"),
     "HTML": (
-        63,
-        185,
+        61,
+        179,
         "HTML algorithms still contain structured serialization, including posted-message preparation, canvas, navigation transfer/reconstruction, worker/worklet, and event realm use, and cross-origin Window/Location property functions are created in the current realm; RemoteWindow mirrors Window's postMessage; "
         "the C++ glue of the Rust structured serialization creates platform objects and SharedArrayBuffers in a given realm",
     ),
@@ -97,7 +97,7 @@ ALLOWED_REALM_MENTIONS = {
         "peer connections, data channels and senders resolve promises and fire events in their relevant realm, encoded "
         "frames are constructed and deserialized in the worker's realm, and the stats report's maplike glue",
     ),
-    "XHR": (4, 7, "XHR/FormData/FileReader-style paths still materialize JS values and events"),
+    "XHR": (3, 3, "XHR/FormData/FileReader-style paths still materialize JS values and events"),
 }
 
 

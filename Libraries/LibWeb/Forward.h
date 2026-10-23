@@ -1331,7 +1331,6 @@ class XRWebGLLayer;
 namespace Web::XHR {
 
 class FormData;
-class FormDataIterator;
 class ProgressEvent;
 class XMLHttpRequest;
 class XMLHttpRequestEventTarget;

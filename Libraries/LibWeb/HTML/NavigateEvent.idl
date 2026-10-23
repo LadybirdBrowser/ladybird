@@ -9,7 +9,7 @@ interface NavigateEvent : Event {
     readonly attribute boolean userInitiated;
     readonly attribute boolean hashChange;
     [DirectGetter] readonly attribute AbortSignal signal;
-    [DirectGetter] readonly attribute FormData? formData;
+    readonly attribute FormData? formData;
     readonly attribute DOMString? downloadRequest;
     readonly attribute any info;
     readonly attribute boolean hasUAVisualTransition;

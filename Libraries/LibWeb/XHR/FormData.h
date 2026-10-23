@@ -6,56 +6,34 @@
 
 #pragma once
 
-#include <AK/IterationDecision.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibGC/ConservativeVector.h>
+#include <LibWeb/Bindings/FormData.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/XHR/FormDataEntry.h>
 
 namespace Web::XHR {
 
 // https://xhr.spec.whatwg.org/#interface-formdata
-class FormData : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(FormData, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(FormData);
+// The C++ side of a FormData, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/xhr): what C++ creates
+// and reads.
+class WEB_API FormData final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(FormData, form_data)
 
 public:
-    virtual ~FormData() override;
+    static GC::Ref<FormData> create(GC::ConservativeVector<FormDataEntry> const& entry_list);
+    static GC::Ref<FormData> create(Vector<DOMURL::QueryParam> const& entry_list);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> create_from_form(GC::Ref<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
 
-    static GC::Ref<FormData> create(GC::ConservativeVector<FormDataEntry> entry_list);
-    static GC::Ref<FormData> create(Vector<DOMURL::QueryParam> entry_list);
-
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> create_from_form(GC::Ptr<HTML::HTMLFormElement> form, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
-
-    WebIDL::ExceptionOr<void> append(Utf16String const& name, Utf16String const& value);
-    WebIDL::ExceptionOr<void> append(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<Utf16String> const& filename = {});
-    void delete_(Utf16String const& name);
-    Variant<GC::Ref<FileAPI::File>, Utf16String, Empty> get(Utf16String const& name);
-    WebIDL::ExceptionOr<GC::ConservativeVector<FormDataEntryValue>> get_all(Utf16String const& name);
-    bool has(Utf16String const& name);
-    WebIDL::ExceptionOr<void> set(Utf16String const& name, Utf16String const& value);
-    WebIDL::ExceptionOr<void> set(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<Utf16String> const& filename = {});
+    // https://xhr.spec.whatwg.org/#dom-formdata-get
+    Variant<GC::Ref<FileAPI::File>, Utf16String, Empty> get(Utf16String const& name) const;
+    // https://xhr.spec.whatwg.org/#dom-formdata-has
+    bool has(Utf16String const& name) const;
 
     GC::ConservativeVector<FormDataEntry> entry_list() const;
-
-    using ForEachCallback = Function<IterationDecision(Utf16String const&, FormDataEntryValue const&)>;
-    void for_each(ForEachCallback);
-
-private:
-    friend class FormDataIterator;
-
-    explicit FormData(GC::ConservativeVector<FormDataEntry> entry_list);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    WebIDL::ExceptionOr<void> append_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<Utf16String> const& filename = {});
-    WebIDL::ExceptionOr<void> set_impl(Utf16String const& name, Variant<GC::Ref<FileAPI::Blob>, Utf16String> const& value, Optional<Utf16String> const& filename = {});
-
-    Vector<FormDataEntry> m_entry_list;
 };
 
 }

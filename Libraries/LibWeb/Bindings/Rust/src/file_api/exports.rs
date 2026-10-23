@@ -13,7 +13,7 @@ use core::ffi::c_void;
 use ak::Utf16String;
 use libjs_rust::api::Vm;
 
-use super::blob::{Blob, BlobPropertyBag, EndingType, ForeignBytesAbi};
+use super::blob::{AnyBlob, Blob, BlobPropertyBag, EndingType, ForeignBytesAbi};
 use super::file::{File, FilePropertyBag};
 use super::file_list::FileList;
 use crate::bindings::interface::{Inherits, Interface, Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi};
@@ -52,6 +52,20 @@ unsafe fn blob_from_abi<'a>(cell: *mut c_void) -> &'a Blob {
     }
     // SAFETY: The caller passes the cell of a File, which it keeps alive for 'a.
     unsafe { object_from_abi::<File>(cell) }.parent()
+}
+
+/// The Blob or File whose cell C++ lends.
+///
+/// # Safety
+///
+/// `cell` must be the live cell of a Blob or a File.
+pub(crate) unsafe fn any_blob_from_abi(cell: *mut c_void) -> AnyBlob {
+    // SAFETY: The caller passes a live cell.
+    if let Some(blob) = unsafe { cell_if_abi::<Blob>(cell) } {
+        return AnyBlob::Blob(blob);
+    }
+    // SAFETY: The caller passes the cell of a File.
+    AnyBlob::File(unsafe { cell_from_abi(cell) })
 }
 
 /// A new Blob that refers to the bytes that C++ hands over, with the type, a raw AK::Utf16String that C++ hands over.

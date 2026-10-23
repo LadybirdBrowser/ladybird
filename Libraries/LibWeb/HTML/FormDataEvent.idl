@@ -3,7 +3,7 @@
 interface FormDataEvent : Event {
     constructor(DOMString type, FormDataEventInit eventInitDict);
 
-    [DirectGetter] readonly attribute FormData formData;
+    readonly attribute FormData formData;
 };
 
 dictionary FormDataEventInit : EventInit {
