@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .mix {
+        background-color: color-mix(in srgb, currentcolor 50%, white);
+        border: 1px solid color-mix(in srgb, currentcolor, transparent);
+        outline: 1px solid color-mix(in srgb, color-mix(in srgb, currentcolor, black) 50%, white);
+    }
+    .mix-color {
+        color: color-mix(in srgb, currentcolor, white);
+    }
+</style>
+<div id="red" style="color: rgb(255, 0, 0)"><span class="mix"></span></div>
+<div id="blue" style="color: rgb(0, 0, 255)"><span class="mix"></span></div>
+<div id="own" class="mix" style="color: rgb(0, 128, 0)"></div>
+<div style="color: rgb(255, 0, 0)"><div id="mixColor" class="mix-color"><div class="mix"></div></div></div>
+<script>
+    test(() => {
+        for (const element of [red.firstChild, blue.firstChild, own, mixColor, mixColor.firstChild]) {
+            const style = getComputedStyle(element);
+            println(`color ${style.color}`);
+            println(`background-color ${style.backgroundColor}`);
+            println(`border-top-color ${style.borderTopColor}`);
+            println(`outline-color ${style.outlineColor}`);
+        }
+    });
+</script>
