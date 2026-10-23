@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11044">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="margins of the stretched element are accounted for correctly in a variety of scenarios, mostly around siblings">
+
+<style>
+  .outer {
+    width: 100px;
+    height: 100px;
+    outline: solid;
+    position: relative;
+  }
+
+  .inner {
+    height: stretch;
+    margin: 10px;
+  }
+</style>
+
+<h2>These tests assert the behavior described at
+  https://github.com/w3c/csswg-drafts/issues/11044#issuecomment-2599101601
+</h2>
+
+<p>Basic case: treat margins as 0.</p>
+<div class="outer">
+  <div class="inner" style="border: solid magenta;" data-expected-height="100"
+    data-offset-y="0">
+  </div>
+</div>
+
+<p>
+  When resolving stretch treat both block margins as 0 because the parent is
+  not a BFC and has no top or bottom content edge (i.e. border + padding = 0).
+  <br>But cyan's margins will not actually collapse through its IFC-siblings so
+  there is overflow:
+</p>
+<div class="outer">
+  <div style="overflow: hidden"></div>
+  <div class="inner" style="border: solid cyan;" data-expected-height="100"
+    data-offset-y="10">
+  </div>
+  <div style="overflow: hidden"></div>
+</div>
+
+<div class="outer">
+  <div></div>
+  <div class="inner" style="border: solid blue;" data-expected-height="100"
+    data-offset-y="0">
+  </div>
+  <div></div>
+</div>
+
+<div class="outer">
+  <div></div>
+  <div class="inner" style="border: solid purple;" data-expected-height="100"
+    data-offset-y="0">
+  </div>
+</div>
+
+<div class="outer">
+  <div class="inner" style="border: solid lime;" data-expected-height="100"
+    data-offset-y="0">
+  </div>
+  <div></div>
+</div>
+
+<p>Parent has non-zero bottom border, so only top margin is treated as 0:</p>
+<div class="outer" style="border-bottom: 5px dashed blue;">
+  <div class="inner" style="border: solid brown;" data-expected-height="90"
+    data-offset-y="0">
+  </div>
+</div>
+
+<p>Parent has non-zero top padding so only bottom margin is treated as 0:</p>
+<div class="outer" style="padding-top: 5px;">
+  <div class="inner" style="border: solid darkgreen;" data-expected-height="90"
+    data-offset-y="15"> <!-- 15 = 10px top margin + parent's padding-->
+  </div>
+</div>
+
+<p>Account for the margins when parent establishes a BFC.</p>
+<div class="outer" style="display: flow-root;">
+  <div class="inner" style="border: solid orange;" data-expected-height="80"
+    data-offset-y="10">
+  </div>
+  <div></div>
+</div>
+
+<script>checkLayout(".inner");</script>

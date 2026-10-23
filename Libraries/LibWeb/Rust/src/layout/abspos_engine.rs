@@ -1147,6 +1147,70 @@ impl AbsposEngine<'_> {
         )
     }
 
+    /// The inner size that a size property gives the box in `axis`. A stretch size fills the inset-modified
+    /// containing block, where an auto inset is the static position at the start, or the containing block edge.
+    /// https://drafts.csswg.org/css-sizing-3/#stretch-fit-sizing
+    #[expect(clippy::too_many_arguments)]
+    fn calculate_inner_size(
+        &self,
+        node: Node,
+        axis: SizingAxis,
+        size: &ComputedSize,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        static_position_rect: abspos_inputs::StaticPositionRect,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+    ) -> CssPixels {
+        let sizing = self.sizing();
+        if !size.is_stretch() {
+            return match axis {
+                SizingAxis::Inline => {
+                    sizing.calculate_inner_inline_size(node, available_space.inline_size, size, constraints)
+                }
+                SizingAxis::Block => sizing.calculate_inner_block_size(node, available_space, size, constraints),
+            };
+        }
+        let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
+        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
+        let (start, end, containing_block_size, percentage_basis) = match axis {
+            SizingAxis::Inline => (
+                style.inset_left(),
+                style.inset_right(),
+                containing_block_inline_size,
+                constraints.percentage_basis_inline_size,
+            ),
+            SizingAxis::Block => (
+                style.inset_top(),
+                style.inset_bottom(),
+                available_space.block_size.to_px_or_zero(),
+                constraints.percentage_basis_block_size,
+            ),
+        };
+        let start_offset = if !start.is_auto() {
+            start.to_px(containing_block_size)
+        } else if end.is_auto() {
+            let static_offset = self.static_offset(node, static_position_rect);
+            match axis {
+                SizingAxis::Inline => static_offset.inline_offset,
+                SizingAxis::Block => static_offset.block_offset,
+            }
+        } else {
+            CssPixels::default()
+        };
+        let end_offset = if end.is_auto() {
+            CssPixels::default()
+        } else {
+            end.to_px(containing_block_size)
+        };
+        let stretch_fit_size = sizing.stretch_fit_inner_size(
+            node,
+            axis,
+            containing_block_size - start_offset - end_offset,
+            constraints,
+        );
+        sizing.resolve_calc_size(node, axis, size, stretch_fit_size, percentage_basis)
+    }
+
     #[expect(clippy::too_many_arguments)]
     fn solve_non_replaced_inline_once(
         &self,
@@ -1307,7 +1371,15 @@ impl AbsposEngine<'_> {
         } else if style.width().is_auto() {
             None
         } else {
-            Some(sizing.calculate_inner_inline_size(node, available_space.inline_size, style.width(), constraints))
+            Some(self.calculate_inner_size(
+                node,
+                SizingAxis::Inline,
+                style.width(),
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+            ))
         };
         let (mut used_inline_size, mut left, mut right, mut margin_left, mut margin_right) = self
             .solve_non_replaced_inline_once(
@@ -1341,8 +1413,15 @@ impl AbsposEngine<'_> {
         }
 
         if !sizing.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
-            let max_inline_size =
-                sizing.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints);
+            let max_inline_size = self.calculate_inner_size(
+                node,
+                SizingAxis::Inline,
+                style.max_width(),
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+            );
             if auto_px_value(used_inline_size) > max_inline_size {
                 (used_inline_size, left, right, margin_left, margin_right) = self.solve_non_replaced_inline_once(
                     node,
@@ -1371,8 +1450,15 @@ impl AbsposEngine<'_> {
             }
         }
         if !crate::layout::sizing_context::is_plain_auto(style.min_width()) {
-            let min_inline_size =
-                sizing.calculate_inner_inline_size(node, available_space.inline_size, style.min_width(), constraints);
+            let min_inline_size = self.calculate_inner_size(
+                node,
+                SizingAxis::Inline,
+                style.min_width(),
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+            );
             if auto_px_value(used_inline_size) < min_inline_size {
                 (used_inline_size, left, right, margin_left, margin_right) = self.solve_non_replaced_inline_once(
                     node,
@@ -1403,7 +1489,21 @@ impl AbsposEngine<'_> {
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
         let sizing = self.sizing();
-        let inline_size = sizing.compute_inline_size_for_replaced_element(node, available_space, constraints);
+        // NB: A stretch inline size fills the inset-modified containing block, which replaced element sizing does not
+        //     know about.
+        let inline_size = if self.style(node).width().is_stretch() {
+            self.calculate_inner_size(
+                node,
+                SizingAxis::Inline,
+                self.style(node).width(),
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+            )
+        } else {
+            sizing.compute_inline_size_for_replaced_element(node, available_space, constraints)
+        };
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let used = self.used(node);
@@ -1479,19 +1579,31 @@ impl AbsposEngine<'_> {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
+        static_position_rect: abspos_inputs::StaticPositionRect,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
         unconstrained: AutoPx,
     ) -> AutoPx {
         let style = self.style(node);
-        let sizing = self.sizing();
         let mut constrained = unconstrained;
+        let calculate_inner_size = |size: &ComputedSize| {
+            self.calculate_inner_size(
+                node,
+                SizingAxis::Block,
+                size,
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+            )
+        };
         if !style.max_height().is_none() {
-            let maximum = sizing.calculate_inner_block_size(node, available_space, style.max_height(), constraints);
+            let maximum = calculate_inner_size(style.max_height());
             if maximum < auto_px_value(constrained) {
                 constrained = Some(maximum);
             }
         }
         if !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
-            let minimum = sizing.calculate_inner_block_size(node, available_space, style.min_height(), constraints);
+            let minimum = calculate_inner_size(style.min_height());
             if minimum > auto_px_value(constrained) {
                 constrained = Some(minimum);
             }
@@ -1574,8 +1686,14 @@ impl AbsposEngine<'_> {
                 return solution;
             };
             solution.block_size = Some(automatic);
-            let constrained =
-                self.apply_min_max_block_size_constraints(node, available_space, constraints, solution.block_size);
+            let constrained = self.apply_min_max_block_size_constraints(
+                node,
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+                solution.block_size,
+            );
             self.used(node).set_content_block_size(auto_px_value(constrained));
             solution.top = Some(self.static_offset(node, static_position_rect).block_offset);
             solution.bottom = Some(solve_for(solution.bottom, false, solution));
@@ -1644,10 +1762,15 @@ impl AbsposEngine<'_> {
         {
             None
         } else {
-            Some(
-                self.sizing()
-                    .calculate_inner_block_size(node, intrinsic_available_space, style.height(), constraints),
-            )
+            Some(self.calculate_inner_size(
+                node,
+                SizingAxis::Block,
+                style.height(),
+                intrinsic_available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+            ))
         };
         let mut solution = self.solve_non_replaced_block_once(
             node,
@@ -1660,11 +1783,14 @@ impl AbsposEngine<'_> {
         );
 
         if solution.block_size.is_some() && !style.max_height().is_none() {
-            let max_block_size = self.sizing().calculate_inner_block_size(
+            let max_block_size = self.calculate_inner_size(
                 node,
-                intrinsic_available_space,
+                SizingAxis::Block,
                 style.max_height(),
+                intrinsic_available_space,
                 constraints,
+                static_position_rect,
+                resolved_anchor_insets,
             );
             if auto_px_value(solution.block_size) > max_block_size {
                 solution = self.solve_non_replaced_block_once(
@@ -1679,11 +1805,14 @@ impl AbsposEngine<'_> {
             }
         }
         if solution.block_size.is_some() && !crate::layout::sizing_context::is_plain_auto(style.min_height()) {
-            let min_block_size = self.sizing().calculate_inner_block_size(
+            let min_block_size = self.calculate_inner_size(
                 node,
-                intrinsic_available_space,
+                SizingAxis::Block,
                 style.min_height(),
+                intrinsic_available_space,
                 constraints,
+                static_position_rect,
+                resolved_anchor_insets,
             );
             if auto_px_value(solution.block_size) < min_block_size {
                 solution = self.solve_non_replaced_block_once(
@@ -1698,8 +1827,14 @@ impl AbsposEngine<'_> {
             }
         }
         if solution.block_size.is_none() {
-            solution.block_size =
-                self.apply_min_max_block_size_constraints(node, available_space, constraints, solution.block_size);
+            solution.block_size = self.apply_min_max_block_size_constraints(
+                node,
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+                solution.block_size,
+            );
         }
 
         let used = self.used(node);
@@ -1727,9 +1862,21 @@ impl AbsposEngine<'_> {
         pass: BlockSizePass,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
-        let mut block_size = self
-            .sizing()
-            .compute_block_size_for_replaced_element(node, available_space, constraints);
+        // NB: As for the inline axis, a stretch block size fills the inset-modified containing block.
+        let mut block_size = if self.style(node).height().is_stretch() {
+            self.calculate_inner_size(
+                node,
+                SizingAxis::Block,
+                self.style(node).height(),
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+            )
+        } else {
+            self.sizing()
+                .compute_block_size_for_replaced_element(node, available_space, constraints)
+        };
         if let BlockSizePass::AfterInsideLayout {
             automatic_content_block_size_of_inside_layout,
         } = pass

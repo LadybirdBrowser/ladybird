@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11006">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="with indefinite available space, a preferred size property value of stretch behaves as auto">
+
+<body
+  onload="checkLayout('[data-expected-client-height]')">
+
+  <div style="block-size: stretch; inline-size: 100px; border: solid"
+    data-expected-client-height="0"></div>
+
+  <div style="block-size: stretch; inline-size: 100px; border: solid"
+    data-expected-client-height="20">
+    <div style="height: 20px;"></div>
+  </div>

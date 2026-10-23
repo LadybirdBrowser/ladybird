@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert" content="height:stretch resolves against the flex container definite cross size for children of stretched flex items">
+
+<body onload="checkLayout('[data-expected-client-height]')">
+
+  <div style="display: flex; height: 200px;">
+    <div>
+      <div style="height: stretch;" data-expected-client-height="200"></div>
+    </div>
+  </div>
+
+  <div style="display: flex; height: 200px;">
+    <div>
+      <div style="height: stretch;">
+        <div style="height: 50%;" data-expected-client-height="100"></div>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	.inner 1
+Pass	.inner 2
+Pass	.inner 3
+Pass	.inner 4
+Pass	.inner 5
+Pass	.inner 6
+Pass	.inner 7
+Pass	.inner 8

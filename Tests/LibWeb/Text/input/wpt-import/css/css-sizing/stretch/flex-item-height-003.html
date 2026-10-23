@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert" content="a replaced element with height:stretch resolves to the flex container definite cross size, not its intrinsic height">
+
+<body onload="checkLayout('[data-expected-client-height]')">
+
+  <div style="display: flex; height: 200px;">
+    <div>
+      <canvas style="height: stretch; width: 100px;" data-expected-client-height="200"></canvas>
+    </div>
+  </div>

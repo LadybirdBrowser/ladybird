@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<meta name="assert"
+  content="margins of the stretched element are accounted for correctly in various writing mode combinations and presence of borders">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<style>
+  .container {
+    width: 50px;
+    height: 50px;
+    margin: 3px;
+    background: magenta;
+    position: relative;
+  }
+
+  .child {
+    margin: 1px 3px 5px 7px;
+    background: cyan;
+    font-size: 10px;
+  }
+</style>
+
+<div id="log"></div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="49"
+    data-offset-y="1" style="width: 20px; height: stretch;">1</div>
+</div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="1" style="width: stretch; height: 20px;">2</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="50"
+    data-offset-y="0" style="width: 20px; height: stretch;">3</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="0" style="width: stretch; height: 20px;">4</div>
+</div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="49"
+    data-offset-y="1"
+    style="writing-mode: vertical-rl; width: 20px; height: stretch;">5</div>
+</div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="1"
+    style="writing-mode: vertical-rl; width: stretch; height: 20px;">6</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="50"
+    data-offset-y="0"
+    style="writing-mode: vertical-rl; width: 20px; height: stretch;">7</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="0"
+    style="writing-mode: vertical-rl; width: stretch; height: 20px;">8</div>
+</div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="49"
+    data-offset-y="1"
+    style="writing-mode: vertical-lr; width: 20px; height: stretch;">9</div>
+</div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="1"
+    style="writing-mode: vertical-lr; width: stretch; height: 20px;">10</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="50"
+    data-offset-y="0"
+    style="writing-mode: vertical-lr; width: 20px; height: stretch;">11</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="0"
+    style="writing-mode: vertical-lr; width: stretch; height: 20px;">12</div>
+</div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="49"
+    data-offset-y="1"
+    style="writing-mode: sideways-rl; width: 20px; height: stretch;">13</div>
+</div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="1"
+    style="writing-mode: sideways-rl; width: stretch; height: 20px;">14</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="50"
+    data-offset-y="0"
+    style="writing-mode: sideways-rl; width: 20px; height: stretch;">15</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="0"
+    style="writing-mode: sideways-rl; width: stretch; height: 20px;">16</div>
+</div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="49"
+    data-offset-y="1"
+    style="writing-mode: sideways-lr; width: 20px; height: stretch;">17</div>
+</div>
+<div class="container" style="border-top: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="1"
+    style="writing-mode: sideways-lr; width: stretch; height: 20px;">18</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="20" data-expected-height="50"
+    data-offset-y="0"
+    style="writing-mode: sideways-lr; width: 20px; height: stretch;">19</div>
+</div>
+<div class="container" style="border-right: 5px solid;">
+  <div class="child" data-expected-width="40" data-expected-height="20"
+    data-offset-y="0"
+    style="writing-mode: sideways-lr; width: stretch; height: 20px;">20</div>
+</div>
+
+<script>
+  checkLayout('.child');
+</script>

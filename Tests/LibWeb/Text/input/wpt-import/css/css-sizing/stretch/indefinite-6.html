@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert" content="height:stretch inside a flex item behaves as auto when the column flex container has indefinite main size">
+
+<body onload="checkLayout('[data-expected-client-height]')">
+
+  <div style="display: flex; flex-direction: column;">
+    <div>
+      <div style="height: stretch; width: 50px;" data-expected-client-height="0"></div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column;">
+    <div>
+      <div style="height: stretch; width: 50px;" data-expected-client-height="20">
+        <div style="height: 20px;"></div>
+      </div>
+    </div>
+  </div>

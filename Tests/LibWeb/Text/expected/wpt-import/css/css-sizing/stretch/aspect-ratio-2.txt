@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	canvas 1
+Pass	canvas 2
+Pass	canvas 3
+Pass	canvas 4
+Pass	canvas 5
+Pass	canvas 6
+Pass	canvas 7
+Pass	canvas 8
+Pass	canvas 9
+Pass	canvas 10
+Pass	canvas 11
+Pass	canvas 12
+Pass	canvas 13
+Pass	canvas 14
+Pass	canvas 15
+Pass	canvas 16
+Pass	canvas 17
+Pass	canvas 18

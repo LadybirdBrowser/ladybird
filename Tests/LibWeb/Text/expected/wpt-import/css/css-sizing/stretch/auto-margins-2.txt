@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	.outer>div 1
+Pass	.outer>div 2
+Pass	.outer>div 3
+Pass	.outer>div 4
+Pass	.outer>div 5
+Pass	.outer>div 6

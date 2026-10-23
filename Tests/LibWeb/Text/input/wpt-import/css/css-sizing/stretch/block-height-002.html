@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#example-174ae518">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<meta name="assert"
+  content="the stretch examples in the spec are rendered correctly">
+
+<style>
+  main {
+    font: 20px/1 Ahem;
+  }
+</style>
+<p>These tests assert the behavior described at
+  https://github.com/w3c/csswg-drafts/issues/11044#issuecomment-2599101601
+</p>
+
+<main>
+  <!-- Example 9
+[T]he outer height of the inner box will exactly match the height of the outer box (200px), but its inner height will be 20px less, to account for its margins.
+-->
+<div style="height: 200px; border: solid;">
+  <div style="height: stretch; margin: 10px;" data-expected-height="180"></div>
+</div>
+
+<!-- Example 9, second case
+In the following case, the height of the inner box will exactly match the height of the outer box (200px).
+-->
+<div style="height: 200px; margin: 0;">
+  <div style="height: stretch; margin: 10px;" data-expected-height="200"></div>
+</div>
+
+<!-- Example 10
+Similarly, width: stretch causes the box to fill its container, being 20px narrower than the width of "some more text" (due to the 10px margin)
+-->
+<div style="float: left; margin: 0; outline: solid;">
+  <div style="width: stretch; margin: 10px; background: skyblue;"
+    data-expected-width="260">
+    text
+  </div>
+  <span>some more text</span>
+</div>
+
+<div style="clear: both;"></div>
+
+<!-- Example 11
+On the other hand, in this example the container’s height is indefinite, which would cause a percentage height on the child to behave as auto, so height: stretch behaves as auto as well.
+-->
+<div style="height: auto; margin: 0; background: orange;">
+  lorem ipsum<br>
+  cats
+  <div style="height: stretch; margin: 10px; background: lime;"
+    data-expected-height="20">dogs</div>
+</div>
+
+</main>
+
+<script>
+  document.fonts.ready.then(() => checkLayout("main > div > div"));
+</script>

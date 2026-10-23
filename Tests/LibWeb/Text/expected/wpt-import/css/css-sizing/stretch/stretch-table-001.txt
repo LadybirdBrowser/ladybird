@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+6 Pass
+1 Fail
+Pass	.stretch 1
+Fail	.stretch 2
+Pass	.stretch 3
+Pass	.stretch 4
+Pass	.stretch 5
+Pass	.stretch 6
+Pass	.stretch 7

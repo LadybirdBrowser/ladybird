@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	.test 1
+Pass	.test 2
+Pass	.test 3
+Pass	.test 4
+Pass	.test 5

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/../../reference/ref-filled-green-100px-square-only.html">
+<link rel="help" href="https://github.com/webcompat/web-bugs/issues/103641#issuecomment-1122414992">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1324259">
+<p>Test passes if there is a filled green square.</p>
+<style>
+canvas {
+  position: absolute;
+  background: green;
+  width: stretch;
+  height: stretch;
+}
+</style>
+<div style="display: flow-root; position: relative; width: 150px; height: 150px; margin-top: -50px; margin-left: -50px;">
+  <div style="margin-left: 50px; margin-top: 50px;">
+    <canvas width="50" height="25"></canvas>
+  </div>
+</div>

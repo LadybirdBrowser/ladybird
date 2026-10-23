@@ -1187,7 +1187,12 @@ fn interpolate_calc_size(
     let kind = |value: &StyleValueData| match value {
         StyleValueData::Keyword {
             keyword:
-                keyword::AUTO | keyword::MIN_CONTENT | keyword::MAX_CONTENT | keyword::FIT_CONTENT | keyword::CONTENT,
+                keyword::AUTO
+                | keyword::MIN_CONTENT
+                | keyword::MAX_CONTENT
+                | keyword::FIT_CONTENT
+                | keyword::STRETCH
+                | keyword::CONTENT,
         } => Some(Kind::Keyword),
         value if crate::css::calc_size::calc_size_arguments(value).is_some() => Some(Kind::CalcSize),
         StyleValueData::Length { .. } | StyleValueData::Percentage { .. } | StyleValueData::Calculated { .. } => {

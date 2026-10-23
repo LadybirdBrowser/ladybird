@@ -1,0 +1,27 @@
+<!-- no doctype, to trigger quirks mode -->
+<meta charset="utf-8">
+<title>CSS Test: 'stretch' heights resolve through an anonymous block wrapper</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#sizing-values">
+<link rel="help" href="https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/stretch-quirk-002-ref.html">
+<meta name="assert"
+      content="When body has mixed block-level and inline-level children, the inline children are wrapped in an anonymous block box. height:stretch on those inline children should still resolve against the body, not be treated as indefinite due to the anonymous block wrapper sitting between.">
+<style>
+  body {
+    margin: 0;
+  }
+  iframe {
+    box-sizing: border-box;
+    height: stretch;
+    width: 40px;
+    border: 5px solid blue;
+    margin: 0;
+    background: cyan;
+  }
+</style>
+<body>
+  <!-- The block-level <div> forces body's children to be non-inline,
+       wrapping the following inline iframe in an anonymous block box. -->
+  <div style="height: 0"></div>
+  <iframe></iframe>
+</body>

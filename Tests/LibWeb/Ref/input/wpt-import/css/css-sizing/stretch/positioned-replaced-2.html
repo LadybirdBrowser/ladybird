@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/../../reference/ref-filled-green-100px-square-only.html">
+<link rel="help" href="https://github.com/servo/servo/pull/34430">
+<p>Test passes if there is a filled green square.</p>
+<style>
+canvas {
+  position: absolute;
+  background: green;
+  width: stretch;
+  height: stretch;
+  top: 50px;
+  left: 50px;
+}
+</style>
+<div style="display: flow-root; position: relative; width: 150px; height: 150px; margin-top: -50px; margin-left: -50px;">
+  <canvas width="50" height="25"></canvas>
+</div>

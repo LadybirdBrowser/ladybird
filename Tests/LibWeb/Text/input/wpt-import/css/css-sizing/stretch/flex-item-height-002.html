@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert" content="a floated element with height:stretch and aspect-ratio computes width from aspect-ratio when the flex container cross size is definite">
+
+<body onload="checkLayout('[data-expected-client-width]')">
+
+  <div style="display: flex; height: 200px;">
+    <div>
+      <div style="float: left; height: stretch; aspect-ratio: 2/1;" data-expected-client-width="400"></div>
+    </div>
+  </div>

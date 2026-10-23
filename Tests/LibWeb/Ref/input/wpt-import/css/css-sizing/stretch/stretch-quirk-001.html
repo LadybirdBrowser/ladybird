@@ -1,0 +1,38 @@
+<!-- no doctype, to trigger quirks mode -->
+<meta charset="utf-8">
+<title>
+  CSS Test: 'stretch' heights can resolve against body height, with
+  quirks-mode body-fills-html-which-fills-viewport behavior
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#sizing-values">
+<link rel="help" href="https://quirks.spec.whatwg.org/#the-html-element-fills-the-viewport-quirk">
+<link rel="help" href="https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk">
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/stretch-quirk-001-ref.html">
+<meta name="assert"
+      content="In quirks mode, the body's automatic height should be considered definite for the purposes of 'stretch' resolution on its children">
+<style>
+  body {
+    margin: 0;
+  }
+  body > * {
+    box-sizing: border-box;
+    height: -webkit-fill-available;
+    height: stretch;
+
+    /* The rest of these styles are just for cosmetics & consistency: */
+    width: 40px;
+    border: 5px solid blue;
+    vertical-align: top;
+    margin: 0 10px 0 0;
+    background: cyan;
+  }
+</style>
+<body>
+  <div style="display: inline-block">IB</div>
+  <canvas></canvas>
+  <iframe></iframe>
+  <button>B</button>
+  <input value="i">
+  <textarea></textarea>
+</body>

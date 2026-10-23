@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	[data-expected-height] 1
+Pass	[data-expected-height] 2

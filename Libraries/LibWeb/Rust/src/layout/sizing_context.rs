@@ -73,6 +73,47 @@ pub(crate) fn is_plain_auto(size: &ComputedSize) -> bool {
     size.is_auto() && size.calc_size().is_none()
 }
 
+/// The block axis margins that stretch-fit sizing subtracts from the containing block size, with percentages of
+/// `margin_basis`.
+/// https://drafts.csswg.org/css-sizing-3/#stretch-fit-sizing
+pub(crate) fn stretch_fit_block_margins(
+    callbacks: &LayoutPass<'_>,
+    node: Node,
+    margin_basis: CssPixels,
+) -> (CssPixels, CssPixels) {
+    let style = StyleValues::for_node(callbacks, node);
+    let mut margin_top = style.margin_top().to_px(margin_basis);
+    let mut margin_bottom = style.margin_bottom().to_px(margin_basis);
+    // For in-flow block-level boxes when resolving the block axis size: if the ancestor element percentages resolve
+    // against does not have a block-start border or padding and is not an independent formatting context, treat the
+    // element's block-start margin as zero for the purpose of calculating this size. Do the same for the block-end
+    // margin, analogously.
+    let facts = NodeFacts::new(callbacks, node);
+    if !(facts.is_in_flow() && !facts.is_inline() && facts.parent_is_unfloated_flow_container()) {
+        return (margin_top, margin_bottom);
+    }
+    let containing_block = callbacks.in_flow_containing_block(node);
+    if containing_block.is_invalid()
+        || formatting_context::formatting_context_type_created_by_box(NodeFacts::new(callbacks, containing_block))
+            .is_some()
+    {
+        return (margin_top, margin_bottom);
+    }
+    // NB: The containing block's used values belong to another run, so its padding is resolved from its style.
+    let containing_block_style = StyleValues::for_node(callbacks, containing_block);
+    if containing_block_style.border_top_width() == CssPixels::default()
+        && containing_block_style.padding_top().to_px(margin_basis) == CssPixels::default()
+    {
+        margin_top = CssPixels::default();
+    }
+    if containing_block_style.border_bottom_width() == CssPixels::default()
+        && containing_block_style.padding_bottom().to_px(margin_basis) == CssPixels::default()
+    {
+        margin_bottom = CssPixels::default();
+    }
+    (margin_top, margin_bottom)
+}
+
 impl<'pass> SizingContext<'pass> {
     pub(crate) fn new(
         purpose: formatting_context::LayoutPurpose,
@@ -3344,6 +3385,42 @@ impl<'pass> SizingContext<'pass> {
         (CssPixels::nearest_value_for(resolved) - edges).max(CssPixels::default())
     }
 
+    /// The inner size that stretch-fit sizing gives a box whose containing block has the size `basis` in `axis`.
+    /// https://drafts.csswg.org/css-sizing-3/#stretch-fit-sizing
+    pub(crate) fn stretch_fit_inner_size(
+        &self,
+        node: Node,
+        axis: SizingAxis,
+        basis: CssPixels,
+        constraints: ContainingBlockConstraints,
+    ) -> CssPixels {
+        let style = self.style(node);
+        let used = self.used(node);
+        let margin_basis = constraints.inline_basis();
+        // Sizes the margin box to fill the containing block exactly, treating auto margins as zero.
+        // (If this would make the inner size negative, it instead sizes the margin box so that the inner size is zero.)
+        let (margins, edges) = match axis {
+            SizingAxis::Inline => (
+                style.margin_left().to_px(margin_basis) + style.margin_right().to_px(margin_basis),
+                style.border_left_width()
+                    + used.padding_left.get()
+                    + used.padding_right.get()
+                    + style.border_right_width(),
+            ),
+            SizingAxis::Block => {
+                let (margin_top, margin_bottom) = stretch_fit_block_margins(&self.callbacks, node, margin_basis);
+                (
+                    margin_top + margin_bottom,
+                    style.border_top_width()
+                        + used.padding_top.get()
+                        + used.padding_bottom.get()
+                        + style.border_bottom_width(),
+                )
+            }
+        };
+        (basis - margins - edges).max(CssPixels::default())
+    }
+
     pub(crate) fn calculate_inner_inline_size(
         &self,
         node: Node,
@@ -3372,6 +3449,16 @@ impl<'pass> SizingContext<'pass> {
         } else {
             available.to_px_or_zero()
         };
+        if preferred_size.is_stretch() {
+            let stretch_fit_size = self.stretch_fit_inner_size(node, SizingAxis::Inline, basis, constraints);
+            return self.resolve_calc_size(
+                node,
+                SizingAxis::Inline,
+                preferred_size,
+                stretch_fit_size,
+                constraints.percentage_basis_inline_size,
+            );
+        }
         let keyword_size = if preferred_size.is_fit_content() {
             Some(self.calculate_fit_content_size(
                 node,
@@ -3502,6 +3589,16 @@ impl<'pass> SizingContext<'pass> {
             } else {
                 basis = constraints.block_basis();
             }
+        }
+        if preferred_size.is_stretch() {
+            let stretch_fit_size = self.stretch_fit_inner_size(node, SizingAxis::Block, basis, constraints);
+            return self.resolve_calc_size(
+                node,
+                SizingAxis::Block,
+                preferred_size,
+                stretch_fit_size,
+                constraints.percentage_basis_block_size,
+            );
         }
         let value = preferred_size.to_px(basis);
         let style = self.style(node);

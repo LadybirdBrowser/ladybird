@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 33 tests
 
-32 Pass
-1 Fail
+33 Pass
 Pass	resolved value for height resulting from flex-basis: 274px
 Pass	resolved value for height resulting from flex-basis: min-content
 Pass	resolved value for height resulting from flex-basis: fit-content
@@ -19,7 +18,7 @@ Pass	resolved value for height resulting from flex-basis: calc-size(83px, size *
 Pass	resolved value for height resulting from flex-basis: calc-size(min-content, size / 0.25)
 Pass	resolved value for height resulting from flex-basis: calc-size(max-content, size * 5.2)
 Pass	resolved value for height resulting from flex-basis: calc-size(fit-content, size / 4 + 60px)
-Fail	resolved value for height resulting from flex-basis: calc-size(stretch, size * 2 - 10%)
+Pass	resolved value for height resulting from flex-basis: calc-size(stretch, size * 2 - 10%)
 Pass	resolved value for height resulting from flex-basis: calc-size(30px, 15em)
 Pass	resolved value for height resulting from flex-basis: calc-size(calc-size(any, 30px), 15em)
 Pass	resolved value for height resulting from flex-basis: calc-size(calc-size(2in, 30px), 15em)

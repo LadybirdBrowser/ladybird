@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	.child 1
+Pass	.child 2
+Pass	.child 3
+Pass	.child 4
+Pass	.child 5
+Pass	.child 6
+Pass	.child 7
+Pass	.child 8
+Pass	.child 9
+Pass	.child 10
+Pass	.child 11
+Pass	.child 12
+Pass	.child 13
+Pass	.child 14
+Pass	.child 15
+Pass	.child 16
+Pass	.child 17
+Pass	.child 18
+Pass	.child 19
+Pass	.child 20

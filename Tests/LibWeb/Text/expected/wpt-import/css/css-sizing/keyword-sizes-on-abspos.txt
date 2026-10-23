@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 60 tests
 
-43 Pass
-17 Fail
+51 Pass
+9 Fail
 Pass	.test 1
 Pass	.test 2
 Fail	.test 3
@@ -13,12 +13,12 @@ Pass	.test 6
 Pass	.test 7
 Fail	.test 8
 Pass	.test 9
-Fail	.test 10
+Pass	.test 10
 Pass	.test 11
 Pass	.test 12
 Fail	.test 13
 Pass	.test 14
-Fail	.test 15
+Pass	.test 15
 Pass	.test 16
 Pass	.test 17
 Pass	.test 18
@@ -28,12 +28,12 @@ Pass	.test 21
 Pass	.test 22
 Pass	.test 23
 Pass	.test 24
-Fail	.test 25
+Pass	.test 25
 Pass	.test 26
 Pass	.test 27
 Pass	.test 28
 Pass	.test 29
-Fail	.test 30
+Pass	.test 30
 Pass	.test 31
 Pass	.test 32
 Pass	.test 33
@@ -43,12 +43,12 @@ Pass	.test 36
 Pass	.test 37
 Pass	.test 38
 Pass	.test 39
-Fail	.test 40
+Pass	.test 40
 Pass	.test 41
 Pass	.test 42
 Pass	.test 43
 Pass	.test 44
-Fail	.test 45
+Pass	.test 45
 Pass	.test 46
 Pass	.test 47
 Pass	.test 48
@@ -58,9 +58,9 @@ Pass	.test 51
 Fail	.test 52
 Fail	.test 53
 Fail	.test 54
-Fail	.test 55
+Pass	.test 55
 Pass	.test 56
 Fail	.test 57
 Fail	.test 58
 Fail	.test 59
-Fail	.test 60
+Pass	.test 60

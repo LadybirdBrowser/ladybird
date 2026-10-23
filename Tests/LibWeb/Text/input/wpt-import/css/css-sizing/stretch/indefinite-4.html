@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11006">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="with indefinite available space, flex-item's min-height:stretch in the main axis resolves as 0, and does not invoke automatic minimum sizing">
+
+<body
+  onload="checkLayout('[data-expected-client-height]')">
+
+  <p>If indefinite <code>min-height: stretch</code> behaves as automatic size
+    then black border will encompass lorem ipsum due to flex automatic minimum
+    sizing.</p>
+
+  <p>If indefinite <code>min-height: stretch</code> behaves as 0px
+    then black border will not encompass lorem ipsum.</p>
+
+  <div
+    style="display: flex; flex-direction: column; border: solid cyan; min-height: 100px; width: 200px;">
+    <div style="min-height: stretch; flex-basis: 0; border: solid"
+      data-expected-client-height="0">lorem ipsum
+    </div>
+  </div>

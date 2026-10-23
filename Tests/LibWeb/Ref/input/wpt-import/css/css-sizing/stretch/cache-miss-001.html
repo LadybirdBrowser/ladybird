@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://crbug.com/386052671">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/../../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="Dynamic height change affects stretched grandchild.">
+
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+  #target {
+    /* Use a sans-serif font to reduce likelihood that the 'hi' text draws any
+       flourishes that happen to generate antialiasing fringe outside the
+       container: */
+    font-family: sans-serif;
+  }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+</p>
+<div id="reference-overlapped-red"></div>
+
+<div id="target" style="width: 100px;">
+  <div style="height: 100%;">
+    <div style="height: -webkit-fill-available; background: green; color: green">hi</div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  target.style.height = '100px';
+</script>

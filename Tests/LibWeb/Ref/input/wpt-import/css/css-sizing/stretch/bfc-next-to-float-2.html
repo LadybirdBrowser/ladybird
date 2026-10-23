@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/4028">
+<link rel="help" href="https://drafts.csswg.org/css2/#floats">
+<meta name="assert" content="The border box of a block-level element that
+  establishes an independent formatting context can't overlap the margin box
+  of any float in the same block formatting context.
+  The stretch size needs to respect that.
+">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/../../reference/ref-filled-green-100px-square.xht">
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+  .stretch {
+    display: flow-root;
+    height: 25px;
+    background: green;
+  }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="reference-overlapped-red"></div>
+
+<div style="width:200px; margin-left: -100px;">
+  <div style="float: left; width: 100px; height: 75px;"></div>
+  <div class="stretch" style="width: 0; min-width: stretch"></div>
+  <div class="stretch" style="width: 1000px; max-width: stretch"></div>
+  <div class="stretch" style="width: stretch; padding: 0 10px; border: solid green; border-width: 0 10px; margin-left: 10px"></div>
+</div>
+<div style="width:250px; margin-left: -150px;">
+  <div style="float: left; clear: left; width: 100px; height: 1px;"></div>
+  <div style="float: left; clear: left; width: 150px; height: 1px;"></div>
+  <div style="float: left; clear: left; width: 125px; height: 1px;"></div>
+  <div class="stretch" style="width: stretch"></div>
+</div>

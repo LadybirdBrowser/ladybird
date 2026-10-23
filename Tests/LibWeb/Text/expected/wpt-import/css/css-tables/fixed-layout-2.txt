@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 17 tests
+Found 20 tests
 
-17 Pass
+20 Pass
 Pass	10px
 Pass	calc-size(10px, size)
 Pass	100%
@@ -20,3 +20,6 @@ Pass	calc-size(fit-content, size)
 Pass	calc-size(any, 10px + 100%)
 Pass	calc-size(calc-size(any, 10px + 100%), size)
 Pass	fit-content(0)
+Pass	stretch
+Pass	calc-size(stretch, size)
+Pass	-webkit-fill-available

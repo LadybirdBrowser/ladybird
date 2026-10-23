@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Pass
+Pass	e.style['width'] = "stretch" should set the property value
+Pass	e.style['height'] = "stretch" should set the property value
+Pass	e.style['max-width'] = "stretch" should set the property value
+Pass	e.style['min-width'] = "stretch" should set the property value
+Pass	e.style['max-height'] = "stretch" should set the property value
+Pass	e.style['min-height'] = "stretch" should set the property value
+Pass	e.style['inline-size'] = "stretch" should set the property value
+Pass	e.style['block-size'] = "stretch" should set the property value
+Pass	e.style['max-inline-size'] = "stretch" should set the property value
+Pass	e.style['min-inline-size'] = "stretch" should set the property value
+Pass	e.style['max-block-size'] = "stretch" should set the property value
+Pass	e.style['min-block-size'] = "stretch" should set the property value
+Pass	e.style['flex-basis'] = "stretch" should set the property value
+Pass	e.style['flex'] = "1 0 stretch" should set flex-basis
+Pass	e.style['flex'] = "1 0 stretch" should set flex-grow
+Pass	e.style['flex'] = "1 0 stretch" should set flex-shrink
+Pass	e.style['flex'] = "1 0 stretch" should not set unrelated longhands

@@ -971,6 +971,39 @@ pub(crate) fn create_used_values(
             return None;
         }
 
+        // https://drafts.csswg.org/css-sizing-3/#stretch-fit-sizing
+        // NB: A stretch size is definite where percentages resolve to a definite value, and sizes the margin box to
+        //     fill the containing block exactly, treating auto margins as zero.
+        if size.is_stretch() && size.calc_size().is_none() {
+            if !containing_block_has_definite_size(axis) {
+                return None;
+            }
+            let inline_basis = percentage_basis_inline_size.unwrap_or_default();
+            let margins_borders_and_padding = match axis {
+                Axis::Inline => {
+                    style.margin_left().to_px(inline_basis)
+                        + style.border_left_width()
+                        + style.padding_left().to_px(inline_basis)
+                        + style.padding_right().to_px(inline_basis)
+                        + style.border_right_width()
+                        + style.margin_right().to_px(inline_basis)
+                }
+                Axis::Block => {
+                    let (margin_top, margin_bottom) =
+                        crate::layout::sizing_context::stretch_fit_block_margins(callbacks, node, inline_basis);
+                    margin_top
+                        + style.border_top_width()
+                        + style.padding_top().to_px(inline_basis)
+                        + style.padding_bottom().to_px(inline_basis)
+                        + style.border_bottom_width()
+                        + margin_bottom
+                }
+            };
+            return Some(clamp_to_max_dimension_value(
+                (containing_block_size_for_axis(axis) - margins_borders_and_padding)
+                    .max(crate::layout::CssPixels::default()),
+            ));
+        }
         if !size.is_length_percentage() {
             return None;
         }

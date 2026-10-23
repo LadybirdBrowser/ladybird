@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	.float + div 1
+Pass	.float + div 2
+Pass	.float + div 3
+Pass	.float + div 4

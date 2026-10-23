@@ -8,6 +8,7 @@
   "-libweb-left",
   "-libweb-right",
   "-webkit-box",
+  "-webkit-fill-available",
   "-webkit-flex",
   "-webkit-inline-box",
   "-webkit-inline-flex",

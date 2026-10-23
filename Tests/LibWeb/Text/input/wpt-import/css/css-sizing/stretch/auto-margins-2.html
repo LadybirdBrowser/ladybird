@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="auto margins are treated as 0 in stretched abspos boxes">
+
+<style>
+  .outer {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    border: solid;
+  }
+
+  .outer>div {
+    position: absolute;
+    margin: auto;
+    background: lime;
+  }
+</style>
+
+<body onload="checkLayout('.outer>div')">
+
+  <div class="outer">
+    <div style="inset: 0; width: stretch; height: 100px;"
+      data-expected-width="200" data-offset-x="0"></div>
+  </div>
+
+  <div class="outer">
+    <div style="inset: 0; max-width: stretch; height: 100px;"
+      data-expected-width="200" data-offset-x="0"></div>
+  </div>
+
+  <div class="outer">
+    <div style="inset: 0; height: stretch; width: 100px;"
+      data-expected-height="200" data-offset-y="0"></div>
+  </div>
+
+  <div class="outer">
+    <div style="inset: 0; max-height: stretch; width: 100px;"
+      data-expected-height="200" data-offset-y="0"></div>
+  </div>
+
+  <div class="outer">
+    <div style="top: 0; bottom: 0; left: 25px; right: 25px; width: stretch;"
+      data-expected-width="150" data-offset-x="25"></div>
+  </div>
+
+  <div class="outer">
+    <div
+      style="top: 25px; bottom: 25px; left: 0px; right: 0px; height: stretch;"
+      data-expected-height="150" data-offset-y="25"></div>
+  </div>

@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 36 tests
+
+36 Pass
+Pass	.test 1
+Pass	.test 2
+Pass	.test 3
+Pass	.test 4
+Pass	.test 5
+Pass	.test 6
+Pass	.test 7
+Pass	.test 8
+Pass	.test 9
+Pass	.test 10
+Pass	.test 11
+Pass	.test 12
+Pass	.test 13
+Pass	.test 14
+Pass	.test 15
+Pass	.test 16
+Pass	.test 17
+Pass	.test 18
+Pass	.test 19
+Pass	.test 20
+Pass	.test 21
+Pass	.test 22
+Pass	.test 23
+Pass	.test 24
+Pass	.test 25
+Pass	.test 26
+Pass	.test 27
+Pass	.test 28
+Pass	.test 29
+Pass	.test 30
+Pass	.test 31
+Pass	.test 32
+Pass	.test 33
+Pass	.test 34
+Pass	.test 35
+Pass	.test 36

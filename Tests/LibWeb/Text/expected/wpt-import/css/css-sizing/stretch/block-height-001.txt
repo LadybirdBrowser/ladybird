@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	[data-expected-height] 1
+Pass	[data-expected-height] 2
+Pass	[data-expected-height] 3
+Pass	[data-expected-height] 4
+Pass	[data-expected-height] 5
+Pass	[data-expected-height] 6
+Pass	[data-expected-height] 7
+Pass	[data-expected-height] 8
+Pass	[data-expected-height] 9
+Pass	[data-expected-height] 10
+Pass	[data-expected-height] 11
+Pass	[data-expected-height] 12
+Pass	[data-expected-height] 13
+Pass	[data-expected-height] 14
+Pass	[data-expected-height] 15
+Pass	[data-expected-height] 16
+Pass	[data-expected-height] 17
+Pass	[data-expected-height] 18

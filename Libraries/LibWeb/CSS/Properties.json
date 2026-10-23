@@ -2293,10 +2293,12 @@
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
+      "-webkit-fill-available",
       "auto",
       "content",
       "max-content",
-      "min-content"
+      "min-content",
+      "stretch"
     ],
     "percentages-resolve-to": "length"
   },
@@ -2875,9 +2877,11 @@
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
+      "-webkit-fill-available",
       "auto",
       "max-content",
-      "min-content"
+      "min-content",
+      "stretch"
     ],
     "percentages-resolve-to": "length",
     "quirks": [
@@ -3512,9 +3516,11 @@
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
+      "-webkit-fill-available",
       "max-content",
       "min-content",
-      "none"
+      "none",
+      "stretch"
     ],
     "percentages-resolve-to": "length",
     "quirks": [
@@ -3554,9 +3560,11 @@
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
+      "-webkit-fill-available",
       "max-content",
       "min-content",
-      "none"
+      "none",
+      "stretch"
     ],
     "percentages-resolve-to": "length",
     "quirks": [
@@ -3582,9 +3590,11 @@
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
+      "-webkit-fill-available",
       "auto",
       "max-content",
-      "min-content"
+      "min-content",
+      "stretch"
     ],
     "percentages-resolve-to": "length",
     "quirks": [
@@ -3610,9 +3620,11 @@
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
+      "-webkit-fill-available",
       "auto",
       "max-content",
-      "min-content"
+      "min-content",
+      "stretch"
     ],
     "percentages-resolve-to": "length",
     "quirks": [
@@ -5528,9 +5540,11 @@
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
+      "-webkit-fill-available",
       "auto",
       "max-content",
-      "min-content"
+      "min-content",
+      "stretch"
     ],
     "percentages-resolve-to": "length",
     "quirks": [

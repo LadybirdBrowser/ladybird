@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Flex base size of flex item with stretch cross size</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#flex-base-size">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/../../reference/ref-filled-green-200px-square.html">
+<meta assert="A definite `stretch` cross size can be transferred through the
+  aspect ratio when computing the flex base size of a flex item.">
+
+<style>
+div {
+  display: flex;
+  flex-direction: row;
+  height: 200px;
+  width: 200px;
+  background: red;
+}
+canvas {
+  height: stretch;
+  align-self: start;
+  min-width: 0;
+  background: green;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="flex">
+  <canvas width="100" height="100"></canvas>
+</div>

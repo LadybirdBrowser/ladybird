@@ -233,6 +233,15 @@ pub(crate) fn serialize_computed_size(size: &crate::css::computed_value_types::C
         }
         ComputedSizeKind::MinContent => sink.push_ascii("min-content"),
         ComputedSizeKind::MaxContent => sink.push_ascii("max-content"),
+        ComputedSizeKind::Stretch => {
+            if size.value.pointer.is_null() {
+                sink.push_ascii("stretch");
+            } else {
+                // SAFETY: A stretch size that retains a value retains its live -webkit-fill-available keyword.
+                let value = unsafe { &*size.value.pointer.cast::<StyleValueData>() };
+                serialize_style_value(&mut sink, value, SerializationMode::Normal);
+            }
+        }
         ComputedSizeKind::FitContent => {
             if size.value.pointer.is_null() {
                 sink.push_ascii("fit-content");
