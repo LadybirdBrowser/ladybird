@@ -156,7 +156,8 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually
     //    causes a load event to be fired.
     else {
-        auto parser = HTML::IncrementalDocumentParser::create(document, *navigation_params.response);
+        auto container_document = navigation_params.navigable ? navigation_params.navigable->container_document() : nullptr;
+        auto parser = HTML::IncrementalDocumentParser::create(document, *navigation_params.response, container_document);
         parser->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
         parser->start();
     }
@@ -280,8 +281,9 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually causes a
     //    load event to be fired.
     // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-    auto process_body = GC::create_function(GC::Heap::the(), [document, url = navigation_params.response->url().value(), response_header_list = navigation_params.response->header_list(), mime = type](ByteBuffer data) {
-        auto [encoding, confidence] = HTML::run_encoding_sniffing_algorithm(document, data, mime);
+    auto container_document = navigation_params.navigable ? navigation_params.navigable->container_document() : nullptr;
+    auto process_body = GC::create_function(GC::Heap::the(), [document, container_document, url = navigation_params.response->url().value(), response_header_list = navigation_params.response->header_list(), mime = type](ByteBuffer data) {
+        auto [encoding, confidence] = HTML::run_encoding_sniffing_algorithm(document, data, mime, container_document);
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
         auto run_text_parser = [document, data = move(data), url, response_header_list, encoding = move(encoding)] {

@@ -28,13 +28,13 @@ class WEB_API IncrementalDocumentParser final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(IncrementalDocumentParser);
 
 public:
-    static GC::Ref<IncrementalDocumentParser> create(GC::Ref<DOM::Document>, Fetch::Infrastructure::Response const&);
+    static GC::Ref<IncrementalDocumentParser> create(GC::Ref<DOM::Document>, Fetch::Infrastructure::Response const&, GC::Ptr<DOM::Document> container_document);
 
     void start();
     void set_allow_declarative_shadow_roots(HTMLParser::AllowDeclarativeShadowRoots);
 
 private:
-    IncrementalDocumentParser(GC::Ref<DOM::Document>, Fetch::Infrastructure::Response const&);
+    IncrementalDocumentParser(GC::Ref<DOM::Document>, Fetch::Infrastructure::Response const&, GC::Ptr<DOM::Document> container_document);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -60,6 +60,7 @@ private:
     ReadonlyBytes undecoded_input_bytes() const;
 
     GC::Ref<DOM::Document> m_document;
+    GC::Ptr<DOM::Document> m_container_document;
     GC::Ptr<Fetch::Infrastructure::Body> m_body;
     URL::URL m_url;
     Optional<MimeSniff::MimeType> m_mime_type;

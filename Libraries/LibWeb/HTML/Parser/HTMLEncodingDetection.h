@@ -37,7 +37,10 @@ Optional<ByteString> run_bom_sniff(ReadonlyBytes input);
 // an absent/empty TLD as equivalent to ".com".
 ByteString extract_tld_hint(URL::URL const&);
 
+// NB: A document that is being loaded by a navigation has no node navigable until it is activated, which can happen
+//     after its parser starts. Pass the container document of the navigable that the document is being loaded into as
+//     loading_container_document in that case.
 EncodingSniffingResult run_encoding_sniffing_algorithm(DOM::Document&, ReadonlyBytes input,
-    Optional<MimeSniff::MimeType> maybe_mime_type = {});
+    Optional<MimeSniff::MimeType> maybe_mime_type = {}, GC::Ptr<DOM::Document> loading_container_document = {});
 
 }

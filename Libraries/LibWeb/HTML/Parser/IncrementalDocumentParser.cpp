@@ -28,13 +28,14 @@ static Utf16String utf16_string_from_standardized_encoding_label(StringView labe
     return Utf16String::from_ascii_without_validation(label.bytes());
 }
 
-GC::Ref<IncrementalDocumentParser> IncrementalDocumentParser::create(GC::Ref<DOM::Document> document, Fetch::Infrastructure::Response const& response)
+GC::Ref<IncrementalDocumentParser> IncrementalDocumentParser::create(GC::Ref<DOM::Document> document, Fetch::Infrastructure::Response const& response, GC::Ptr<DOM::Document> container_document)
 {
-    return GC::Heap::the().allocate<IncrementalDocumentParser>(document, response);
+    return GC::Heap::the().allocate<IncrementalDocumentParser>(document, response, container_document);
 }
 
-IncrementalDocumentParser::IncrementalDocumentParser(GC::Ref<DOM::Document> document, Fetch::Infrastructure::Response const& response)
+IncrementalDocumentParser::IncrementalDocumentParser(GC::Ref<DOM::Document> document, Fetch::Infrastructure::Response const& response, GC::Ptr<DOM::Document> container_document)
     : m_document(document)
+    , m_container_document(container_document)
     , m_body(response.body())
     , m_url(response.url().value())
     , m_mime_type(Fetch::Infrastructure::extract_mime_type(response.header_list()))
@@ -46,6 +47,7 @@ void IncrementalDocumentParser::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);
+    visitor.visit(m_container_document);
     visitor.visit(m_body);
     visitor.visit(m_parser);
 }
@@ -84,7 +86,7 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
     if (m_document->has_encoding()) {
         standardized_encoding = TextCodec::get_standardized_encoding(m_document->encoding().value());
     } else {
-        auto [encoding, confidence] = run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type);
+        auto [encoding, confidence] = run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type, m_container_document);
         standardized_encoding = TextCodec::get_standardized_encoding(encoding);
         encoding_confidence = confidence;
     }

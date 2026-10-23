@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="shift_jis">
+<script src="../include.js"></script>
+<script>
+    async function loadFrame(src) {
+        const iframe = document.createElement("iframe");
+        iframe.src = src;
+        document.body.append(iframe);
+        await new Promise(resolve => (iframe.onload = resolve));
+        return iframe.contentDocument.characterSet;
+    }
+
+    asyncTest(async done => {
+        println(`parent: ${document.characterSet}`);
+        for (const name of ["no-declaration.html", "plain.txt"])
+            println(`${name}: ${await loadFrame(`../../../Assets/encoding-sniffing/${name}`)}`);
+        const blob = new Blob(["Plain text with no encoding declaration.\n"], { type: "text/plain" });
+        println(`text/plain blob: ${await loadFrame(URL.createObjectURL(blob))}`);
+        done();
+    });
+</script>
