@@ -7,12 +7,12 @@
 #include <AK/ScopeGuard.h>
 #include <Compositor/Canvas2DCommandPlayer.h>
 #include <Compositor/CanvasHost.h>
+#include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/HostWebGLContext.h>
 #include <Compositor/VideoFrameHolds.h>
 #include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/CanvasSize.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
-#include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
@@ -32,7 +32,7 @@ struct CanvasHost::VideoFrameImage {
     sk_sp<SkImage> image;
 };
 
-CanvasHost::CanvasHost(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Compositing::CanvasSurfaceRegistry& canvas_surface_registry, VideoFrameHolds const& video_frame_holds)
+CanvasHost::CanvasHost(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, CanvasSurfaceRegistry& canvas_surface_registry, VideoFrameHolds const& video_frame_holds)
     : m_skia_backend_context(move(skia_backend_context))
     , m_canvas_surface_registry(canvas_surface_registry)
     , m_canvas_surface_owner_id(canvas_surface_registry.allocate_owner_id())

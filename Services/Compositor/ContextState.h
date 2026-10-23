@@ -16,6 +16,7 @@
 #include <AK/Vector.h>
 #include <Compositor/AsyncScrollUpdateOutbox.h>
 #include <Compositor/CaretBlinkTimer.h>
+#include <Compositor/CompositedContext.h>
 #include <Compositor/ContextPresenter.h>
 #include <Compositor/ContextScene.h>
 #include <Compositor/ElasticOverscrollController.h>
@@ -27,7 +28,6 @@
 #include <Compositor/ScrollbarController.h>
 #include <Compositor/WheelGestureRouting.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
-#include <LibCompositing/DisplayList/CompositedContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
@@ -55,7 +55,6 @@ class SkiaBackendContext;
 namespace Compositor {
 
 class CompositorStateWebContentClient;
-using Compositing::CompositedContextResolver;
 
 class ContextState {
     AK_MAKE_NONCOPYABLE(ContextState);
@@ -124,7 +123,7 @@ public:
         Optional<Compositing::NestedContextWheelHit> nested_context_hit {};
     };
 
-    ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::OwnedCanvasSurfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint = {}, Function<void()> request_animation_frames = {});
+    ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, OwnedCanvasSurfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint = {}, Function<void()> request_animation_frames = {});
     ~ContextState();
 
     bool is_owned_by(CompositorStateWebContentClient const&) const;

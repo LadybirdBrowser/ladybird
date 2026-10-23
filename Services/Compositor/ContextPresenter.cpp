@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/ContextPresenter.h>
 #include <Compositor/ContextScene.h>
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/PausedDebuggerOverlay.h>
 #include <Compositor/PictureInPictureControls.h>
 #include <Compositor/ScrollbarController.h>
-#include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
@@ -42,7 +42,7 @@ static Gfx::FloatSize bounded_composited_raster_scale(Gfx::FloatSize scale, Gfx:
     return scale;
 }
 
-ContextPresenter::ContextPresenter(ContextScene& scene, Compositing::OwnedCanvasSurfaces canvas_surfaces, bool presents_to_client)
+ContextPresenter::ContextPresenter(ContextScene& scene, OwnedCanvasSurfaces canvas_surfaces, bool presents_to_client)
     : m_scene(scene)
     , m_canvas_surfaces(canvas_surfaces)
     , m_presents_to_client(presents_to_client)
@@ -212,7 +212,7 @@ bool ContextPresenter::update_composited_raster_transform(Gfx::FloatRect destina
     return true;
 }
 
-Compositing::CompositedContextSurface ContextPresenter::composited_surface() const
+CompositedContextSurface ContextPresenter::composited_surface() const
 {
     if (!m_latest_rendered_surface || !m_last_rasterized_frame.has_value())
         return {};

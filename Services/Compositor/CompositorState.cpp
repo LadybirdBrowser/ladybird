@@ -199,7 +199,7 @@ void CompositorState::create_context(Web::CompositorContextId context_id, Option
             if (auto* context = context_if_present(context_id))
                 schedule_animation_frames_if_needed(*context);
         };
-        return make<ContextState>(context_id, page_id, web_content_client, Compositing::OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() }, move(schedule_caret_repaint), move(request_animation_frames));
+        return make<ContextState>(context_id, page_id, web_content_client, OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() }, move(schedule_caret_repaint), move(request_animation_frames));
     });
     resize_backing_stores_if_needed(context_id, context);
 }
@@ -1420,7 +1420,7 @@ CompositedContextResolver CompositorState::resolver_for(Web::CompositorContextId
     };
 }
 
-Compositing::CompositedContextSurface CompositorState::resolve_composited_context(Web::CompositorContextId parent_context_id, Web::CompositorContextId child_context_id, Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform)
+CompositedContextSurface CompositorState::resolve_composited_context(Web::CompositorContextId parent_context_id, Web::CompositorContextId child_context_id, Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform)
 {
     auto* child_context = context_if_present(child_context_id);
     if (!child_context)

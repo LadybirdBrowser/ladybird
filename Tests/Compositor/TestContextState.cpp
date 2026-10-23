@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/CompositorState.h>
 #include <Compositor/ContextState.h>
-#include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
@@ -49,8 +49,8 @@ static Web::PinchEvent pinch_event(double scale_delta)
 TEST_CASE(pinch_zooms_a_page_without_scroll_nodes)
 {
     NullWebContentClient client;
-    Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Web::CompositorContextId { 1 }, 1, client, Compositing::OwnedCanvasSurfaces { canvas_surface_registry, client.canvas_surface_owner_id() } };
+    Compositor::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Web::CompositorContextId { 1 }, 1, client, Compositor::OwnedCanvasSurfaces { canvas_surface_registry, client.canvas_surface_owner_id() } };
     install_display_list_without_scroll_nodes(context);
 
     auto result = context.handle_pinch_event(pinch_event(1.0));
@@ -61,8 +61,8 @@ TEST_CASE(pinch_zooms_a_page_without_scroll_nodes)
 TEST_CASE(pinch_zoom_of_a_page_without_scroll_nodes_survives_a_display_list_update)
 {
     NullWebContentClient client;
-    Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Web::CompositorContextId { 1 }, 1, client, Compositing::OwnedCanvasSurfaces { canvas_surface_registry, client.canvas_surface_owner_id() } };
+    Compositor::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Web::CompositorContextId { 1 }, 1, client, Compositor::OwnedCanvasSurfaces { canvas_surface_registry, client.canvas_surface_owner_id() } };
     install_display_list_without_scroll_nodes(context);
 
     // Zoom all the way in, then take a display list the main thread recorded before it saw the pinch.
@@ -76,8 +76,8 @@ TEST_CASE(pinch_zoom_of_a_page_without_scroll_nodes_survives_a_display_list_upda
 TEST_CASE(wheel_pans_the_zoomed_visual_viewport_of_a_page_without_scroll_nodes)
 {
     NullWebContentClient client;
-    Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Web::CompositorContextId { 1 }, 1, client, Compositing::OwnedCanvasSurfaces { canvas_surface_registry, client.canvas_surface_owner_id() } };
+    Compositor::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Web::CompositorContextId { 1 }, 1, client, Compositor::OwnedCanvasSurfaces { canvas_surface_registry, client.canvas_surface_owner_id() } };
     install_display_list_without_scroll_nodes(context);
 
     Web::MouseEvent wheel_event;

@@ -59,7 +59,7 @@ static void clamp_visual_viewport_transform_to_viewport(Compositing::TransformWi
     transform.matrix[1, 3] = clamp(transform.matrix[1, 3], min_y, 0.0f);
 }
 
-ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Compositing::OwnedCanvasSurfaces canvas_surfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint, Function<void()> request_animation_frames)
+ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, OwnedCanvasSurfaces canvas_surfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint, Function<void()> request_animation_frames)
     : m_web_content_client(web_content_client)
     , m_context_id(context_id)
     , m_page_id(page_id)

@@ -19,6 +19,7 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <Compositor/Forward.h>
 #include <Compositor/HostWebGLContext.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Forward.h>
@@ -56,7 +57,7 @@ public:
         Vector<String> supported_extensions;
     };
 
-    CanvasHost(RefPtr<Gfx::SkiaBackendContext>, Compositing::CanvasSurfaceRegistry&, VideoFrameHolds const&);
+    CanvasHost(RefPtr<Gfx::SkiaBackendContext>, CanvasSurfaceRegistry&, VideoFrameHolds const&);
     ~CanvasHost();
 
     bool create_2d_context(Compositing::CanvasId, Gfx::IntSize, bool alpha);
@@ -99,7 +100,7 @@ private:
     Vector<HostWebGLContext::UploadSource> resolve_webgl_upload_sources(Vector<Compositing::WebGL::ImageSourceFrame> const&) const;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-    Compositing::CanvasSurfaceRegistry& m_canvas_surface_registry;
+    CanvasSurfaceRegistry& m_canvas_surface_registry;
     Compositing::CanvasSurfaceOwnerId m_canvas_surface_owner_id;
     HashMap<Compositing::CanvasId, Context> m_contexts;
     Compositing::DisplayListResourceStorage m_text_resources;

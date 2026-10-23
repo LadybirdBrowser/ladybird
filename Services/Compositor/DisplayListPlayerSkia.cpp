@@ -33,10 +33,10 @@
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
 
+#include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/ScrollbarController.h>
-#include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
