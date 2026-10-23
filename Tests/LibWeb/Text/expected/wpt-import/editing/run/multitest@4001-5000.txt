@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-988 Pass
-12 Fail
+994 Pass
+6 Fail
 Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") before
 Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") before
 Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") before
@@ -142,7 +142,7 @@ Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandSta
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("backcolor") before
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("backcolor") after
-Fail	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("backcolor") after
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -153,13 +153,13 @@ Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]b
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
-Fail	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
-Fail	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -220,7 +220,7 @@ Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandSta
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("backcolor") before
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandState("backcolor") after
-Fail	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("backcolor") after
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") before
@@ -237,7 +237,7 @@ Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]b
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
-Fail	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") before
@@ -793,7 +793,7 @@ Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttex
 Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
 Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
 Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
-Fail	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
 Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
 Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
 Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before

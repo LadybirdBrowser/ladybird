@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-971 Pass
-29 Fail
+975 Pass
+25 Fail
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
@@ -422,7 +422,7 @@ Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandS
 Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("fontname") before
 Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("fontname") after
 Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandState("fontname") after
-Fail	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("fontname") after
 Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -439,7 +439,7 @@ Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[
 Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
 Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
 Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
-Fail	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
 Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -500,7 +500,7 @@ Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandS
 Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandValue("fontname") before
 Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("fontname") after
 Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandState("fontname") after
-Fail	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandValue("fontname") after
 Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") before
@@ -517,7 +517,7 @@ Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[
 Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
 Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
 Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
-Fail	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
 Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") before

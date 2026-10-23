@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-978 Pass
-22 Fail
+982 Pass
+18 Fail
 Pass	[["superscript",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
 Pass	[["superscript",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
 Pass	[["superscript",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
@@ -501,7 +501,7 @@ Pass	[["underline",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("
 Pass	[["underline",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("underline") before
 Pass	[["underline",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("underline") before
 Pass	[["underline",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("underline") after
-Fail	[["underline",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("underline") after
+Pass	[["underline",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("underline") after
 Pass	[["underline",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("underline") after
 Pass	[["underline",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["underline",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -518,7 +518,7 @@ Pass	[["underline",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" que
 Pass	[["underline",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("underline") before
 Pass	[["underline",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("underline") before
 Pass	[["underline",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("underline") after
-Fail	[["underline",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("underline") after
+Pass	[["underline",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("underline") after
 Pass	[["underline",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("underline") after
 Pass	[["underline",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["underline",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -579,7 +579,7 @@ Pass	[["underline",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("
 Pass	[["underline",""],["insertparagraph",""]] "foo[]bar" queryCommandState("underline") before
 Pass	[["underline",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("underline") before
 Pass	[["underline",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("underline") after
-Fail	[["underline",""],["insertparagraph",""]] "foo[]bar" queryCommandState("underline") after
+Pass	[["underline",""],["insertparagraph",""]] "foo[]bar" queryCommandState("underline") after
 Pass	[["underline",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("underline") after
 Pass	[["underline",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["underline",""],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
@@ -596,7 +596,7 @@ Pass	[["underline",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" que
 Pass	[["underline",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("underline") before
 Pass	[["underline",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("underline") before
 Pass	[["underline",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("underline") after
-Fail	[["underline",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("underline") after
+Pass	[["underline",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("underline") after
 Pass	[["underline",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("underline") after
 Pass	[["underline",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["underline",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before

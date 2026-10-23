@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-988 Pass
-12 Fail
+993 Pass
+7 Fail
 Pass	[["forecolor","#0000FF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
 Pass	[["forecolor","#0000FF"],["outdent",""]] "foo[]bar": execCommand("forecolor", false, "#0000FF") return value
 Pass	[["forecolor","#0000FF"],["outdent",""]] "foo[]bar": execCommand("outdent", false, "") return value
@@ -342,7 +342,7 @@ Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandS
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("hilitecolor") before
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("hilitecolor") after
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("hilitecolor") after
-Fail	[["hilitecolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("hilitecolor") after
+Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("hilitecolor") after
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -353,13 +353,13 @@ Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
-Fail	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("hilitecolor") before
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("hilitecolor") before
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("hilitecolor") before
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("hilitecolor") after
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("hilitecolor") after
-Fail	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("hilitecolor") after
+Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("hilitecolor") after
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["hilitecolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -420,7 +420,7 @@ Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandS
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("hilitecolor") before
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("hilitecolor") after
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandState("hilitecolor") after
-Fail	[["hilitecolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("hilitecolor") after
+Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("hilitecolor") after
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") before
@@ -437,7 +437,7 @@ Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("hilitecolor") before
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("hilitecolor") after
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("hilitecolor") after
-Fail	[["hilitecolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("hilitecolor") after
+Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("hilitecolor") after
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["hilitecolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") before

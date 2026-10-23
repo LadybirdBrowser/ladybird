@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-966 Pass
-34 Fail
+972 Pass
+28 Fail
 Pass	[["bold",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
 Pass	[["bold",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
 Pass	[["bold",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
@@ -301,7 +301,7 @@ Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("bold"
 Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("bold") before
 Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("bold") before
 Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("bold") after
-Fail	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("bold") after
 Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("bold") after
 Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -318,7 +318,7 @@ Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCom
 Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
 Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
 Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
-Fail	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
 Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
 Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -379,7 +379,7 @@ Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("bold"
 Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandState("bold") before
 Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("bold") before
 Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("bold") after
-Fail	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandState("bold") after
 Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("bold") after
 Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
@@ -396,7 +396,7 @@ Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCom
 Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
 Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
 Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
-Fail	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
 Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
 Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
@@ -941,7 +941,7 @@ Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("ita
 Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("italic") before
 Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("italic") before
 Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("italic") after
-Fail	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("italic") after
 Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("italic") after
 Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -958,7 +958,7 @@ Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryC
 Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
 Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
 Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
-Fail	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
 Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
 Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
