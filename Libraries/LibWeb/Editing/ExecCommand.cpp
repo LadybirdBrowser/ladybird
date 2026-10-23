@@ -226,9 +226,20 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         }
     }
 
+    // NB: Canonicalize the caret the command produced before the ending selection is recorded, but only if the
+    //     command actually performed an edit; Chromium leaves the caret alone otherwise.
+    // INTEROP: A user cut or paste counts as an edit whenever its command ran: Chromium fires the input event and
+    //          settles the caret even when the pasted fragment reduces to nothing but transport markers.
+    bool tree_was_modified = dom_tree_version() != old_dom_tree_version
+        || character_data_version() != old_character_data_version
+        || (is_cut_or_paste && command_result);
+    if (affected_editing_host && m_selection && tree_was_modified)
+        Editing::canonicalize_collapsed_selection_for_editing(*m_selection);
+
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
     // After taking the action, if the active range is collapsed, it must restore states and values from the recorded
     // list.
+    // NB: Do this after canonicalizing the caret above, since moving the caret unsets the overrides.
     if (!overrides.is_empty() && m_selection && m_selection->is_collapsed()) {
         auto* focus = m_selection->focus_node().ptr();
         // INTEROP: A deleted link's inherited style must not recreate the link on the next keystroke.
@@ -241,16 +252,6 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         }
         Editing::restore_states_and_values(*this, overrides);
     }
-
-    // NB: Canonicalize the caret the command produced before the ending selection is recorded, but only if the
-    //     command actually performed an edit; Chromium leaves the caret alone otherwise.
-    // INTEROP: A user cut or paste counts as an edit whenever its command ran: Chromium fires the input event and
-    //          settles the caret even when the pasted fragment reduces to nothing but transport markers.
-    bool tree_was_modified = dom_tree_version() != old_dom_tree_version
-        || character_data_version() != old_character_data_version
-        || (is_cut_or_paste && command_result);
-    if (affected_editing_host && m_selection && tree_was_modified)
-        Editing::canonicalize_collapsed_selection_for_editing(*m_selection);
 
     // NB: End the recording before dispatching the input event below, so that the undo step's ending selection is the
     //     selection produced by the command itself, not whatever an input event handler changed it to.

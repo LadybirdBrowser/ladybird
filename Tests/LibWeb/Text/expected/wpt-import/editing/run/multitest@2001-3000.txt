@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-981 Pass
-19 Fail
+991 Pass
+9 Fail
 Fail	[["subscript",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("subscript") after
 Pass	[["subscript",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("subscript") after
 Pass	[["subscript",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") before
@@ -221,7 +221,7 @@ Pass	[["subscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("
 Pass	[["subscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("subscript") before
 Pass	[["subscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("subscript") before
 Pass	[["subscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("subscript") after
-Fail	[["subscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("subscript") after
+Pass	[["subscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("subscript") after
 Pass	[["subscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("subscript") after
 Pass	[["subscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["subscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -233,12 +233,12 @@ Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": ex
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
-Fail	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("subscript") before
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("subscript") before
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("subscript") before
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("subscript") after
-Fail	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("subscript") after
+Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("subscript") after
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("subscript") after
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["subscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -299,7 +299,7 @@ Pass	[["subscript",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("
 Pass	[["subscript",""],["insertparagraph",""]] "foo[]bar" queryCommandState("subscript") before
 Pass	[["subscript",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("subscript") before
 Pass	[["subscript",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("subscript") after
-Fail	[["subscript",""],["insertparagraph",""]] "foo[]bar" queryCommandState("subscript") after
+Pass	[["subscript",""],["insertparagraph",""]] "foo[]bar" queryCommandState("subscript") after
 Pass	[["subscript",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("subscript") after
 Pass	[["subscript",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["subscript",""],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
@@ -316,7 +316,7 @@ Pass	[["subscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" que
 Pass	[["subscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("subscript") before
 Pass	[["subscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("subscript") before
 Pass	[["subscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("subscript") after
-Fail	[["subscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("subscript") after
+Pass	[["subscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("subscript") after
 Pass	[["subscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("subscript") after
 Pass	[["subscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["subscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
@@ -861,7 +861,7 @@ Pass	[["superscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm
 Pass	[["superscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("superscript") before
 Pass	[["superscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("superscript") before
 Pass	[["superscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("superscript") after
-Fail	[["superscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("superscript") after
+Pass	[["superscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("superscript") after
 Pass	[["superscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("superscript") after
 Pass	[["superscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["superscript",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -873,12 +873,12 @@ Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": 
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
-Fail	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("superscript") before
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("superscript") before
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("superscript") before
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("superscript") after
-Fail	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("superscript") after
+Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("superscript") after
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("superscript") after
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["superscript",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -939,7 +939,7 @@ Pass	[["superscript",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm
 Pass	[["superscript",""],["insertparagraph",""]] "foo[]bar" queryCommandState("superscript") before
 Pass	[["superscript",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("superscript") before
 Pass	[["superscript",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("superscript") after
-Fail	[["superscript",""],["insertparagraph",""]] "foo[]bar" queryCommandState("superscript") after
+Pass	[["superscript",""],["insertparagraph",""]] "foo[]bar" queryCommandState("superscript") after
 Pass	[["superscript",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("superscript") after
 Pass	[["superscript",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["superscript",""],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
@@ -956,7 +956,7 @@ Pass	[["superscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" q
 Pass	[["superscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("superscript") before
 Pass	[["superscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("superscript") before
 Pass	[["superscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("superscript") after
-Fail	[["superscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("superscript") after
+Pass	[["superscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("superscript") after
 Pass	[["superscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("superscript") after
 Pass	[["superscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["superscript",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before

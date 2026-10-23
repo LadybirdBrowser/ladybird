@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-967 Pass
-33 Fail
+973 Pass
+27 Fail
 Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") after
 Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
 Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
@@ -19,7 +19,7 @@ Pass	[["italic",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("ita
 Pass	[["italic",""],["insertparagraph",""]] "foo[]bar" queryCommandState("italic") before
 Pass	[["italic",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("italic") before
 Pass	[["italic",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("italic") after
-Fail	[["italic",""],["insertparagraph",""]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertparagraph",""]] "foo[]bar" queryCommandState("italic") after
 Pass	[["italic",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("italic") after
 Pass	[["italic",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["italic",""],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
@@ -36,7 +36,7 @@ Pass	[["italic",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryC
 Pass	[["italic",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
 Pass	[["italic",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
 Pass	[["italic",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
-Fail	[["italic",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
 Pass	[["italic",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
 Pass	[["italic",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["italic",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
@@ -581,7 +581,7 @@ Pass	[["strikethrough",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndete
 Pass	[["strikethrough",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("strikethrough") before
 Pass	[["strikethrough",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("strikethrough") before
 Pass	[["strikethrough",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("strikethrough") after
-Fail	[["strikethrough",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("strikethrough") after
+Pass	[["strikethrough",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("strikethrough") after
 Pass	[["strikethrough",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("strikethrough") after
 Pass	[["strikethrough",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["strikethrough",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -598,7 +598,7 @@ Pass	[["strikethrough",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar"
 Pass	[["strikethrough",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("strikethrough") before
 Pass	[["strikethrough",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("strikethrough") before
 Pass	[["strikethrough",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("strikethrough") after
-Fail	[["strikethrough",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("strikethrough") after
+Pass	[["strikethrough",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("strikethrough") after
 Pass	[["strikethrough",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("strikethrough") after
 Pass	[["strikethrough",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["strikethrough",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
@@ -659,7 +659,7 @@ Pass	[["strikethrough",""],["insertparagraph",""]] "foo[]bar" queryCommandIndete
 Pass	[["strikethrough",""],["insertparagraph",""]] "foo[]bar" queryCommandState("strikethrough") before
 Pass	[["strikethrough",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("strikethrough") before
 Pass	[["strikethrough",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("strikethrough") after
-Fail	[["strikethrough",""],["insertparagraph",""]] "foo[]bar" queryCommandState("strikethrough") after
+Pass	[["strikethrough",""],["insertparagraph",""]] "foo[]bar" queryCommandState("strikethrough") after
 Pass	[["strikethrough",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("strikethrough") after
 Pass	[["strikethrough",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["strikethrough",""],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
@@ -676,7 +676,7 @@ Pass	[["strikethrough",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar"
 Pass	[["strikethrough",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("strikethrough") before
 Pass	[["strikethrough",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("strikethrough") before
 Pass	[["strikethrough",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("strikethrough") after
-Fail	[["strikethrough",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("strikethrough") after
+Pass	[["strikethrough",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("strikethrough") after
 Pass	[["strikethrough",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("strikethrough") after
 Pass	[["strikethrough",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["strikethrough",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before

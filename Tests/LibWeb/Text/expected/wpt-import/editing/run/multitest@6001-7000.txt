@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-964 Pass
-36 Fail
+972 Pass
+28 Fail
 Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") before
 Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
 Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") after
@@ -62,7 +62,7 @@ Pass	[["fontsize","4"],["insertlinebreak",""]] "foo[]bar" queryCommandState("fon
 Pass	[["fontsize","4"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("fontsize") before
 Pass	[["fontsize","4"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("fontsize") after
 Pass	[["fontsize","4"],["insertlinebreak",""]] "foo[]bar" queryCommandState("fontsize") after
-Fail	[["fontsize","4"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("fontsize") after
 Pass	[["fontsize","4"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["fontsize","4"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["fontsize","4"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -79,7 +79,7 @@ Pass	[["fontsize","4"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" que
 Pass	[["fontsize","4"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") before
 Pass	[["fontsize","4"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") after
 Pass	[["fontsize","4"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") after
-Fail	[["fontsize","4"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
 Pass	[["fontsize","4"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["fontsize","4"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["fontsize","4"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -140,7 +140,7 @@ Pass	[["fontsize","4"],["insertparagraph",""]] "foo[]bar" queryCommandState("fon
 Pass	[["fontsize","4"],["insertparagraph",""]] "foo[]bar" queryCommandValue("fontsize") before
 Pass	[["fontsize","4"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("fontsize") after
 Pass	[["fontsize","4"],["insertparagraph",""]] "foo[]bar" queryCommandState("fontsize") after
-Fail	[["fontsize","4"],["insertparagraph",""]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["insertparagraph",""]] "foo[]bar" queryCommandValue("fontsize") after
 Pass	[["fontsize","4"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["fontsize","4"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["fontsize","4"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") before
@@ -157,7 +157,7 @@ Pass	[["fontsize","4"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" que
 Pass	[["fontsize","4"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") before
 Pass	[["fontsize","4"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") after
 Pass	[["fontsize","4"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") after
-Fail	[["fontsize","4"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
 Pass	[["fontsize","4"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["fontsize","4"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["fontsize","4"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") before
@@ -702,7 +702,7 @@ Pass	[["forecolor","#0000FF"],["insertlinebreak",""]] "foo[]bar" queryCommandSta
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("forecolor") before
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("forecolor") after
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("forecolor") after
-Fail	[["forecolor","#0000FF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("forecolor") after
+Pass	[["forecolor","#0000FF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("forecolor") after
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -719,7 +719,7 @@ Pass	[["forecolor","#0000FF"],["insertlinebreak",""],["inserttext","a"]] "foo[]b
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forecolor") before
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forecolor") after
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("forecolor") after
-Fail	[["forecolor","#0000FF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forecolor") after
+Pass	[["forecolor","#0000FF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forecolor") after
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
 Pass	[["forecolor","#0000FF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
@@ -780,7 +780,7 @@ Pass	[["forecolor","#0000FF"],["insertparagraph",""]] "foo[]bar" queryCommandSta
 Pass	[["forecolor","#0000FF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("forecolor") before
 Pass	[["forecolor","#0000FF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("forecolor") after
 Pass	[["forecolor","#0000FF"],["insertparagraph",""]] "foo[]bar" queryCommandState("forecolor") after
-Fail	[["forecolor","#0000FF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("forecolor") after
+Pass	[["forecolor","#0000FF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("forecolor") after
 Pass	[["forecolor","#0000FF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["forecolor","#0000FF"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["forecolor","#0000FF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") before
@@ -797,7 +797,7 @@ Pass	[["forecolor","#0000FF"],["insertparagraph",""],["inserttext","a"]] "foo[]b
 Pass	[["forecolor","#0000FF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forecolor") before
 Pass	[["forecolor","#0000FF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forecolor") after
 Pass	[["forecolor","#0000FF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("forecolor") after
-Fail	[["forecolor","#0000FF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forecolor") after
+Pass	[["forecolor","#0000FF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forecolor") after
 Pass	[["forecolor","#0000FF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
 Pass	[["forecolor","#0000FF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
 Pass	[["forecolor","#0000FF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") before
