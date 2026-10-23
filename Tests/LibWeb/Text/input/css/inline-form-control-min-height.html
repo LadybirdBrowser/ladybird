@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    input, textarea {
+        min-height: 40px;
+        font: 12px SerenitySans;
+    }
+</style>
+<input id="inline-input" value="abc">
+<textarea id="inline-textarea" rows="1"></textarea>
+<input id="block-input" style="display: block" value="abc">
+<input id="floating-input" style="float: left" value="abc">
+<input id="min-content-min-height" style="min-height: min-content" value="abc">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll("input, textarea"))
+            println(`${element.id}: ${getComputedStyle(element).height}`);
+    });
+</script>
