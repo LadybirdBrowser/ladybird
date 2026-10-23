@@ -19,12 +19,6 @@
         video.volume = 0.5;
         println(`nonzero-volume playback reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
 
-        internals.setPageMuted(true);
-        println(`playback in a muted page reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
-
-        internals.setPageMuted(false);
-        println(`playback in an unmuted page reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
-
         video.audioTracks[0].enabled = false;
         println(`playback without an enabled audio track reported as playing audio: ${internals.mediaElementIsPlayingAudio(video)}`);
 

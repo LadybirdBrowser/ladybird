@@ -71,10 +71,22 @@ static NonnullRefPtr<Audio::PlaybackStream::CreatePromise> create_device_stream(
 
 Tabs::Tab& Tabs::tab_for(u64 tab_id)
 {
-    return m_tabs.ensure(tab_id, [audio_output = m_audio_output] {
-        auto mixer = Audio::PlaybackStreamMixer::create(Core::EventLoop::current(), DEVICE_TARGET_LATENCY_MS, [audio_output](Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback) {
+    return m_tabs.ensure(tab_id, [this, tab_id] {
+        auto mixer = Audio::PlaybackStreamMixer::create(Core::EventLoop::current(), DEVICE_TARGET_LATENCY_MS, [audio_output = m_audio_output](Audio::OutputState state, u32 target_latency_ms, Audio::PlaybackStream::AudioDataRequestCallback callback) {
             return create_device_stream(audio_output, state, target_latency_ms, move(callback));
         });
+        if (auto authorized_groups = m_authorized_playback_groups.get(tab_id); authorized_groups.has_value()) {
+            for (auto group : *authorized_groups)
+                mixer->set_group_authorization(group, Audio::PlaybackGroupAuthorization::Authorized);
+        }
+        if (auto muted_groups = m_muted_playback_groups.get(tab_id); muted_groups.has_value()) {
+            for (auto group : *muted_groups)
+                mixer->set_group_mute_state(group, Audio::PlaybackGroupMuteState::Muted);
+        }
+        mixer->on_group_audibility_changed = [this, tab_id](Audio::PlaybackGroupId group, Audio::Audibility audibility) {
+            if (auto control_connection = m_control_connection.strong_ref())
+                control_connection->async_playback_group_audibility_changed(tab_id, group, audibility);
+        };
         return Tab { .mixer = move(mixer), .connections = {} };
     });
 }
@@ -125,6 +137,44 @@ void Tabs::set_capture_permission(u64 tab_id, bool granted)
         connection->set_capture_permitted(granted);
 }
 
+static void remove_group(HashMap<u64, HashTable<Audio::PlaybackGroupId>>& groups_by_tab, u64 tab_id, Audio::PlaybackGroupId group)
+{
+    auto groups = groups_by_tab.get(tab_id);
+    if (!groups.has_value())
+        return;
+    groups->remove(group);
+    if (groups->is_empty())
+        groups_by_tab.remove(tab_id);
+}
+
+void Tabs::set_playback_group_authorization(u64 tab_id, Audio::PlaybackGroupId group, Audio::PlaybackGroupAuthorization authorization)
+{
+    switch (authorization) {
+    case Audio::PlaybackGroupAuthorization::Authorized:
+        m_authorized_playback_groups.ensure(tab_id).set(group);
+        break;
+    case Audio::PlaybackGroupAuthorization::Unauthorized:
+        remove_group(m_authorized_playback_groups, tab_id, group);
+        break;
+    }
+    if (auto tab = m_tabs.get(tab_id); tab.has_value())
+        tab->mixer->set_group_authorization(group, authorization);
+}
+
+void Tabs::set_playback_group_mute_state(u64 tab_id, Audio::PlaybackGroupId group, Audio::PlaybackGroupMuteState mute_state)
+{
+    switch (mute_state) {
+    case Audio::PlaybackGroupMuteState::Muted:
+        m_muted_playback_groups.ensure(tab_id).set(group);
+        break;
+    case Audio::PlaybackGroupMuteState::Unmuted:
+        remove_group(m_muted_playback_groups, tab_id, group);
+        break;
+    }
+    if (auto tab = m_tabs.get(tab_id); tab.has_value())
+        tab->mixer->set_group_mute_state(group, mute_state);
+}
+
 void Tabs::request_capture_permission(u64 tab_id, ByteString const& device_id, Function<void(bool)> on_decided)
 {
     auto control_connection = m_control_connection.strong_ref();
@@ -149,8 +199,10 @@ void Tabs::connection_died(u64 tab_id, int client_id)
     if (!tab.has_value())
         return;
     tab->connections.remove(client_id);
-    if (tab->connections.is_empty())
-        m_tabs.remove(tab_id);
+    if (!tab->connections.is_empty())
+        return;
+    tab->mixer->report_every_group_inaudible();
+    m_tabs.remove(tab_id);
 }
 
 }

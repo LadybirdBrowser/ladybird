@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/MessageChannel.h>
@@ -92,7 +93,8 @@ WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::create_for_constructor(
 
         // 2. Attempt to acquire system resources to use a following audio output device based on [[sink ID]] for
         //    rendering.
-        context->m_renderer = Rendering::RealtimeAudioRenderer::create(context->control_message_queue(), context->destination()->node_id(), context->sample_rate(), render_quantum_size());
+        auto audio_output_factory = context->relevant_window().page().client().create_audio_output_factory();
+        context->m_renderer = Rendering::RealtimeAudioRenderer::create(context->control_message_queue(), context->destination()->node_id(), context->sample_rate(), render_quantum_size(), move(audio_output_factory));
         context->set_renderer_callbacks();
         context->m_renderer->start_rendering();
 

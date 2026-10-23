@@ -1,3 +1,4 @@
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibIPC/TransportHandle.h>
 
 endpoint AudioServerControl
@@ -13,4 +14,13 @@ endpoint AudioServerControl
 
     // The answer to capture_requested.
     capture_decided(u64 request_id, bool allowed) =|
+
+    // The playback groups whose streams the tab's clients may play: a stream of any other plays into nothing.
+    // Authorizing is synchronous, so a group may play before a document of its page runs.
+    authorize_playback_group(u64 tab_id, Audio::PlaybackGroupId group) => ()
+    revoke_playback_group(u64 tab_id, Audio::PlaybackGroupId group) =|
+
+    // The playback groups the user has muted: their streams play into nothing, whether or not they are authorized.
+    mute_playback_group(u64 tab_id, Audio::PlaybackGroupId group) =|
+    unmute_playback_group(u64 tab_id, Audio::PlaybackGroupId group) =|
 }

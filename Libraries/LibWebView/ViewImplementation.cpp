@@ -89,6 +89,16 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
         // happen to be visiting crashy websites a lot.
         this->m_crash_count = 0;
     });
+
+    m_audibility_hold_timer = Core::Timer::create_single_shot(AK::Duration::zero(), [this] {
+        // The hold, not the timer's resolution, decides when it has ended.
+        auto now = MonotonicTime::now();
+        if (m_audibility_hold.is_held(now)) {
+            m_audibility_hold_timer->restart(*m_audibility_hold.held_until() - now);
+            return;
+        }
+        update_audibility();
+    });
 }
 
 ViewImplementation::~ViewImplementation()
@@ -2560,43 +2570,40 @@ void ViewImplementation::insert_clipboard_item(Web::Clipboard::SystemClipboardIt
 void ViewImplementation::toggle_page_mute_state()
 {
     m_mute_state = Web::HTML::invert_mute_state(m_mute_state);
-    page().async_set_page_mute_state(m_mute_state);
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        page.client().set_audio_playback_mute_state(page.id(), m_mute_state);
+    });
 }
 
-void ViewImplementation::did_change_audio_play_state(Badge<WebContentPage>, Web::HTML::AudioPlayState play_state)
+void ViewImplementation::update_audibility()
 {
-    bool state_changed = false;
+    auto audibility = Audio::Audibility::Inaudible;
+    if (m_audibility_hold.is_held(MonotonicTime::now()))
+        audibility = Audio::Audibility::Audible;
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
+        if (page.audibility() == Audio::Audibility::Audible)
+            audibility = Audio::Audibility::Audible;
+    });
+    if (m_audibility == audibility)
+        return;
+    m_audibility = audibility;
+    ++m_audibility_change_count;
+    if (on_audibility_changed)
+        on_audibility_changed(m_audibility);
+}
 
-    switch (play_state) {
-    case Web::HTML::AudioPlayState::Paused:
-        if (--m_number_of_elements_playing_audio == 0) {
-            m_audio_play_state = play_state;
-            state_changed = true;
-        }
-        break;
-
-    case Web::HTML::AudioPlayState::Playing:
-        if (m_number_of_elements_playing_audio++ == 0) {
-            m_audio_play_state = play_state;
-            state_changed = true;
-        }
-        break;
-    }
-
-    if (state_changed && on_audio_play_state_changed)
-        on_audio_play_state_changed(m_audio_play_state);
+void ViewImplementation::page_left(WebContentPage const& page)
+{
+    if (page.audibility() != Audio::Audibility::Audible)
+        return;
+    auto now = MonotonicTime::now();
+    if (m_audibility_hold.page_left(page.id(), now))
+        m_audibility_hold_timer->restart(*m_audibility_hold.held_until() - now);
 }
 
 void ViewImplementation::reset_page_media_state()
 {
-    auto const should_notify_audio_play_state_changed = m_audio_play_state != Web::HTML::AudioPlayState::Paused
-        || m_number_of_elements_playing_audio != 0;
-
-    m_audio_play_state = Web::HTML::AudioPlayState::Paused;
-    m_number_of_elements_playing_audio = 0;
-
-    if (should_notify_audio_play_state_changed && on_audio_play_state_changed)
-        on_audio_play_state_changed(m_audio_play_state);
+    update_audibility();
 
     if (m_screen_wake_lock_state != Web::ScreenWakeLockState::Released) {
         m_screen_wake_lock_state = Web::ScreenWakeLockState::Released;
@@ -3050,7 +3057,10 @@ void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
     page.async_set_document_cookie_version_buffer(m_document_cookie_version_buffer);
     if (m_debugger_is_attached)
         page.async_attach_debugger();
-    page.async_set_page_mute_state(m_mute_state);
+    // The page's sound plays while it hosts the tab's documents, unless the tab is muted.
+    page.client().set_audio_playback_mute_state(page.id(), m_mute_state);
+    page.client().authorize_audio_playback(page.id());
+    m_audibility_hold.page_began_hosting(page.id());
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
     Application::the().apply_view_options({}, *this, page);
@@ -3108,6 +3118,15 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         m_debugger_overlay_pointer_state.reset();
         fail_pending_debugger_requests();
         reject_pending_selection_requests();
+
+        // The previous page leaves the tab now, before it is let go of, unless it goes on hosting some of it.
+        auto previous_page_goes_on_hosting = false;
+        traversable().for_each_hosting_page([&](WebContentPage& page) {
+            if (&page == previous_page.ptr())
+                previous_page_goes_on_hosting = true;
+        });
+        if (!previous_page_goes_on_hosting)
+            page_left(*previous_page);
         reset_page_media_state();
 
         // Keep showing the outgoing page until the page paints its first frame.

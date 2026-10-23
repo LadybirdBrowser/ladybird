@@ -303,12 +303,15 @@ public:
     WebIDL::ExceptionOr<GC::Ref<JS::Object>> image_animation_state_for_url(Utf16String const& url);
     bool media_element_is_fetching(HTML::HTMLMediaElement&);
     bool media_element_is_playing_audio(HTML::HTMLMediaElement&);
+    bool document_is_playing_audio(DOM::Document&);
+    bool tab_is_playing_audio();
+    WebIDL::UnsignedLongLong tab_audibility_change_count();
     bool media_element_video_sink_is_ticking(HTML::HTMLMediaElement&);
     void set_media_element_ready_state(HTML::HTMLMediaElement&, u16 ready_state);
     void set_media_element_paused(HTML::HTMLMediaElement&, bool paused);
     void set_media_element_seeking(HTML::HTMLMediaElement&, bool seeking);
     void disconnect_media_server();
-    void set_page_muted(bool muted);
+    void disconnect_audio_server();
     String viewport_overflow_x();
 
 private:

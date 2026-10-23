@@ -778,7 +778,12 @@ Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentCli
 
 Messages::WebContentClient::RequestMediaServerConnectionResponse WebContentClient::request_media_server_connection()
 {
-    auto connection = connect_new_media_server_client(m_media_server_client, [this] { return connect_audio_server_client(); });
+    auto connection = connect_new_media_server_client(m_media_server_client, [weak_self = make_weak_ptr<WebContentClient>()]() -> ErrorOr<IPC::TransportHandle> {
+        auto self = weak_self.strong_ref();
+        if (!self)
+            return Error::from_string_literal("The WebContent process is gone");
+        return self->connect_audio_server_client();
+    });
     if (connection.is_error()) {
         warnln("Unable to connect a MediaServer client: {}", connection.error());
         return OptionalNone {};
@@ -806,9 +811,17 @@ void WebContentClient::request_video_presentation_channel()
 
 ErrorOr<IPC::TransportHandle> WebContentClient::connect_audio_server_client()
 {
-    // The server must know of the permission before any client gets its connection.
-    TRY(ensure_audio_server_controller());
-    return connect_new_audio_server_client(m_audio_server_client, m_audio_tab_id);
+    // The server must know of the permission and the authorizations before any client gets its connection. A failed
+    // request can reveal that the existing server has died, so the connection is tried once more, letting a closed
+    // controller be replaced and initialized first.
+    auto connect = [this]() -> ErrorOr<IPC::TransportHandle> {
+        TRY(ensure_audio_server_controller());
+        return connect_new_audio_server_client(*m_audio_server_client, m_audio_tab_id);
+    };
+    auto handle = connect();
+    if (handle.is_error())
+        handle = connect();
+    return handle;
 }
 
 ErrorOr<void> WebContentClient::ensure_audio_server_controller()
@@ -817,12 +830,35 @@ ErrorOr<void> WebContentClient::ensure_audio_server_controller()
     TRY(ensure_audio_server_is_running(m_audio_server_client));
     if (m_audio_server_client.ptr() == previous_controller)
         return {};
-    m_audio_server_client->on_capture_requested = [this](u64 tab_id, u64 request_id, ByteString const&) {
-        if (tab_id == m_audio_tab_id)
-            decide_audio_capture_request(request_id);
+    // A server that isn't told everything gets no clients; the next attempt starts over with another.
+    if (auto result = initialize_audio_server_controller(); result.is_error()) {
+        m_audio_server_client->shutdown();
+        return result.release_error();
+    }
+    return {};
+}
+
+ErrorOr<void> WebContentClient::initialize_audio_server_controller()
+{
+    m_audio_server_client->on_capture_requested = [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, u64 request_id, ByteString const&) {
+        auto self = weak_self.strong_ref();
+        if (self && tab_id == self->m_audio_tab_id)
+            self->decide_audio_capture_request(request_id);
     };
+    m_audio_server_audibility.watch(*m_audio_server_client, [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, Audio::PlaybackGroupId group, Audio::Audibility audibility) {
+        auto self = weak_self.strong_ref();
+        if (!self || tab_id != self->m_audio_tab_id)
+            return false;
+        // A report of sound can trail the revocation of the page's authorization.
+        return audibility == Audio::Audibility::Inaudible || self->m_authorized_audio_playback_groups.contains(group);
+    });
     if (m_audio_capture_permitted)
         TRY(tell_audio_server_of_capture_permission());
+    // A muted group is never heard: the mutes land before the authorizations.
+    for (auto group : m_muted_audio_playback_groups)
+        m_audio_server_client->async_mute_playback_group(m_audio_tab_id, group);
+    for (auto group : m_authorized_audio_playback_groups)
+        TRY(tell_audio_server_of_playback_authorization(group));
     return {};
 }
 
@@ -876,6 +912,78 @@ ErrorOr<void> WebContentClient::tell_audio_server_of_capture_permission()
     auto response = m_audio_server_client->send_sync_but_allow_failure<Messages::AudioServerControl::SetCapturePermission>(m_audio_tab_id, m_audio_capture_permitted);
     if (!response)
         return Error::from_string_literal("Failed to tell the AudioServer of the capture permission");
+    return {};
+}
+
+// WebContent derives the group of a page's sound from the page's ID too.
+static Audio::PlaybackGroupId audio_playback_group(Web::PageId page_id)
+{
+    return Audio::PlaybackGroupId { page_id.value() };
+}
+
+static Web::PageId page_id_of_audio_playback_group(Audio::PlaybackGroupId group)
+{
+    return Web::PageId { group.value() };
+}
+
+void WebContentClient::did_change_audio_playback_audibility(Audio::PlaybackGroupId group, Audio::Audibility audibility)
+{
+    if (auto page = m_pages.get(page_id_of_audio_playback_group(group)); page.has_value())
+        page.value()->set_audibility(audibility);
+}
+
+void WebContentClient::authorize_audio_playback(Web::PageId page_id)
+{
+    auto group = audio_playback_group(page_id);
+    if (m_authorized_audio_playback_groups.set(group) != HashSetResult::InsertedNewEntry)
+        return;
+    // An AudioServer launched later hears of the group before it connects a client.
+    if (!m_audio_server_client || !m_audio_server_client->is_open())
+        return;
+    if (auto result = tell_audio_server_of_playback_authorization(group); result.is_error())
+        warnln("Unable to authorize audio playback: {}", result.error());
+}
+
+void WebContentClient::revoke_audio_playback(Web::PageId page_id)
+{
+    auto group = audio_playback_group(page_id);
+    if (!m_authorized_audio_playback_groups.remove(group))
+        return;
+    if (m_audio_server_client && m_audio_server_client->is_open())
+        m_audio_server_client->async_revoke_playback_group(m_audio_tab_id, group);
+    m_audio_server_audibility.forget(group);
+}
+
+void WebContentClient::set_audio_playback_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state)
+{
+    auto group = audio_playback_group(page_id);
+    switch (mute_state) {
+    case Web::HTML::MuteState::Muted:
+        if (m_muted_audio_playback_groups.set(group) != HashSetResult::InsertedNewEntry)
+            return;
+        if (m_audio_server_client && m_audio_server_client->is_open())
+            m_audio_server_client->async_mute_playback_group(m_audio_tab_id, group);
+        break;
+    case Web::HTML::MuteState::Unmuted:
+        if (!m_muted_audio_playback_groups.remove(group))
+            return;
+        if (m_audio_server_client && m_audio_server_client->is_open())
+            m_audio_server_client->async_unmute_playback_group(m_audio_tab_id, group);
+        break;
+    }
+}
+
+void WebContentClient::forget_audio_playback(Web::PageId page_id)
+{
+    revoke_audio_playback(page_id);
+    set_audio_playback_mute_state(page_id, Web::HTML::MuteState::Unmuted);
+}
+
+ErrorOr<void> WebContentClient::tell_audio_server_of_playback_authorization(Audio::PlaybackGroupId group)
+{
+    auto response = m_audio_server_client->send_sync_but_allow_failure<Messages::AudioServerControl::AuthorizePlaybackGroup>(m_audio_tab_id, group);
+    if (!response)
+        return Error::from_string_literal("Failed to tell the AudioServer of a playback authorization");
     return {};
 }
 

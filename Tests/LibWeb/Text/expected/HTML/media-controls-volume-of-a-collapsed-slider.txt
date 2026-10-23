@@ -1,0 +1,2 @@
+slider width: 0
+volume: 1

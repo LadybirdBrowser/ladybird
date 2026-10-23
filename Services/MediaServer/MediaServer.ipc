@@ -1,4 +1,5 @@
 #include <AK/Time.h>
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMediaCodecs/DecoderCapabilities.h>
@@ -27,7 +28,7 @@ endpoint MediaServer
     close_media_stream(u64 stream_id) =|
     set_media_stream_may_idle(u64 stream_id, bool may_idle) =|
 
-    create_playback_session(u64 session_id) =|
+    create_playback_session(u64 session_id, Audio::PlaybackGroupId audio_group) =|
     destroy_playback_session(u64 session_id) =|
     add_media_stream_source(u64 session_id, u64 stream_id) =|
     start_playback(u64 session_id) =|
@@ -36,6 +37,7 @@ endpoint MediaServer
     seek(u64 session_id, u64 seek_request_id, AK::Duration timestamp, Media::SeekMode mode) =|
     set_volume(u64 session_id, double volume) =|
     set_playback_rate(u64 session_id, float rate) =|
+    set_audio_group(u64 session_id, Audio::PlaybackGroupId audio_group) =|
     set_duration(u64 session_id, AK::Duration duration) =|
     set_audio_track_enabled(u64 session_id, u64 seek_request_id, Media::Track track, bool enabled, bool resume_ended_playback) =|
     reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback) =|

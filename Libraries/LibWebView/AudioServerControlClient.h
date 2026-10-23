@@ -25,10 +25,14 @@ public:
 
     // A client of the tab asks to capture from the device; the holder answers with capture_decided.
     Function<void(u64 tab_id, u64 request_id, ByteString const& device_id)> on_capture_requested;
+    Function<void(u64 tab_id, Audio::PlaybackGroupId, Audio::Audibility)> on_playback_group_audibility_changed;
+    // Whatever the AudioServer heard goes with it.
+    Function<void()> on_death;
 
 private:
     virtual void die() override;
     virtual void capture_requested(u64 tab_id, u64 request_id, ByteString device_id) override;
+    virtual void playback_group_audibility_changed(u64 tab_id, Audio::PlaybackGroupId group, Audio::Audibility audibility) override;
 };
 
 }

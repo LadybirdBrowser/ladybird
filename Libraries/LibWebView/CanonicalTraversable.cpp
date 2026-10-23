@@ -390,6 +390,9 @@ void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> 
         return;
     if (page_hosts_any(page))
         return;
+    if (auto view = this->view(); view.has_value())
+        view->did_release_page({}, page);
+    page->client().revoke_audio_playback(page->id());
     // A page left hosting none of the tab's documents goes on representing the tab to a process holding part of
     // another tab of its group, whose documents can hold the tab's WindowProxies.
     if (page->client().holds_part_of_a_tab_in_the_group_of(*this)) {

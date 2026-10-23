@@ -68,7 +68,6 @@
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
-#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::HTML {
@@ -419,12 +418,22 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
     //     second fetch on top of it.
     m_document_observer->retarget_for_adoption(document());
 
+    // The element's page keeps track of it, and is asked below whether the element's document is playing audio.
+    if (&old_document.page() != &document().page()) {
+        old_document.page().unregister_media_element({}, unique_id());
+        document().page().register_media_element({}, unique_id());
+    }
+
     // An element playing audio takes the timer exemption it earns its document along with it (see
     // Document::is_playing_audio()).
     if (m_is_playing_audio) {
         old_document.media_element_audio_play_state_changed({});
         document().media_element_audio_play_state_changed({});
     }
+
+    // The element's sound plays for the page of the document it is in, without restarting its playback.
+    if (m_playback_manager && &old_document.page() != &document().page())
+        document().page().client().rebind_media_playback_manager(*m_playback_manager);
 
     // https://html.spec.whatwg.org/multipage/media.html#delaying-the-load-event-flag
     // While the delaying-the-load-event flag is true, the element must delay the load event of its document.
@@ -805,19 +814,12 @@ void HTMLMediaElement::volume_or_muted_attribute_changed()
     update_audio_play_state();
 }
 
-void HTMLMediaElement::page_mute_state_changed(Badge<Page>)
-{
-    update_volume();
-    update_audio_play_state();
-}
-
 // https://html.spec.whatwg.org/multipage/media.html#effective-media-volume
 double HTMLMediaElement::effective_media_volume() const
 {
     // 1. If the user has indicated that the user agent is to override the volume of the element, then return the
     //    volume desired by the user.
-    if (document().page().page_mute_state() == MuteState::Muted)
-        return 0.0;
+    // NB: The user mutes a tab in the AudioServer, which a compromised renderer can't bypass.
 
     // 2. If the element's audio output is muted, then return zero.
     if (m_muted)
@@ -2344,7 +2346,7 @@ void HTMLMediaElement::on_metadata_parsed(SourceType source_type)
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_for_remote()
 {
-    m_playback_manager = MediaClient::RemotePlaybackManager::create();
+    m_playback_manager = document().page().client().create_media_playback_manager();
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 
@@ -2443,7 +2445,7 @@ void HTMLMediaElement::handle_playback_manager_error(Media::DecoderError&& error
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_for_local(Function<void(Utf16String)> failure_callback)
 {
-    m_playback_manager = MediaClient::RemotePlaybackManager::create();
+    m_playback_manager = document().page().client().create_media_playback_manager();
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 
@@ -3272,8 +3274,8 @@ void HTMLMediaElement::notify_about_playing()
 
 void HTMLMediaElement::update_audio_play_state()
 {
-    // AD-HOC: Browser chrome should indicate that this element is playing audio only while it can produce audible
-    //         output. Remember the state reported for each element so that changes to any input remain balanced.
+    // AD-HOC: The element counts as playing audio for its document's timer exemption only while it can produce audible
+    //         output.
     auto const is_playing_audio = m_has_started_playback
         && m_audio_tracks->has_enabled_track()
         && effective_media_volume() > 0;
@@ -3281,8 +3283,6 @@ void HTMLMediaElement::update_audio_play_state()
         return;
 
     m_is_playing_audio = is_playing_audio;
-    document().page().client().page_did_change_audio_play_state(
-        m_is_playing_audio ? AudioPlayState::Playing : AudioPlayState::Paused);
     document().media_element_audio_play_state_changed({});
 }
 

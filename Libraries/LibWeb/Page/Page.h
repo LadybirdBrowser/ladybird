@@ -31,6 +31,8 @@
 #include <LibHTTP/Header.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibMedia/Forward.h>
+#include <LibMediaClient/Forward.h>
 #include <LibRequests/CacheState.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -65,7 +67,6 @@
 #include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
-#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
@@ -404,9 +405,6 @@ public:
     void toggle_media_controls_state();
     void set_picture_in_picture_window_controls_in_use(bool);
 
-    HTML::MuteState page_mute_state() const { return m_mute_state; }
-    void set_page_mute_state(HTML::MuteState);
-
     Optional<Utf16String> const& user_style() const { return m_user_style_sheet_source; }
     void set_user_style(Utf16String source);
     void invalidate_user_style();
@@ -574,8 +572,6 @@ private:
     Vector<UniqueNodeID> m_canvas_elements;
     Vector<GC::Ref<HTML::OffscreenCanvas>> m_offscreen_canvases_pending_placeholder_commit;
     Optional<UniqueNodeID> m_media_context_menu_element_id;
-
-    Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
     Optional<ContextMenuRequest> m_context_menu_request;
     InputTraceRecorder m_input_trace;
@@ -832,6 +828,8 @@ public:
     virtual void page_did_request_set_system_visibility_state([[maybe_unused]] HTML::VisibilityState visibility_state) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
     virtual bool page_did_request_has_populated_document_for_testing([[maybe_unused]] HTML::CrossProcessId navigable_id) { return false; }
+    virtual bool page_did_request_tab_is_playing_audio_for_testing() { return false; }
+    virtual u64 page_did_request_tab_audibility_change_count_for_testing() { return 0; }
     virtual bool page_did_request_capture_session_history_snapshot_for_testing() { return false; }
     virtual bool page_did_request_restore_session_history_snapshot_for_testing() { return false; }
     virtual bool page_did_request_register_session_store_tab_for_testing() { return false; }
@@ -878,7 +876,11 @@ public:
     virtual void page_did_complete_paste_action() { }
     virtual void page_did_update_primary_selection(Utf16String const&) { }
 
-    virtual void page_did_change_audio_play_state(HTML::AudioPlayState) { }
+    // Every audio context and media element gets its own, which plays its sound for this page.
+    virtual NonnullRefPtr<Media::AudioOutputFactory> create_audio_output_factory();
+    virtual NonnullOwnPtr<MediaClient::RemotePlaybackManager> create_media_playback_manager();
+    // A media element adopted from another page's document plays its sound for this page from then on.
+    virtual void rebind_media_playback_manager(MediaClient::RemotePlaybackManager&);
     virtual void page_did_change_screen_wake_lock_state(ScreenWakeLockState) { }
 
     virtual void page_did_start_using_gamepads() { }

@@ -1,0 +1,4 @@
+while only silence plays: false
+once sound plays: true
+stops once the sound has stopped: true
+about three seconds later: true

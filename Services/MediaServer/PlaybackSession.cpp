@@ -5,9 +5,11 @@
  */
 
 #include <AK/Debug.h>
+#include <LibAudio/OutputSession.h>
 #include <LibMedia/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferDemuxer.h>
 #include <LibMedia/MediaSourceExtensions/WebMByteStreamParser.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/PlaybackSession.h>
 
@@ -15,10 +17,11 @@ namespace MediaServer {
 
 namespace Commands = Media::MediaSourceExtensions::Commands;
 
-PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id)
+PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id, Audio::PlaybackGroupId audio_group)
     : m_connection(connection)
     , m_id(id)
-    , m_manager(Media::PlaybackManager::create())
+    , m_audio_output_session(Audio::OutputSession::create(audio_group))
+    , m_manager(Media::PlaybackManager::create(Media::AudioOutputFactory::create(m_audio_output_session)))
 {
     m_manager->on_playback_state_change = [this] {
         report_playback_state();

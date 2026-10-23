@@ -13,6 +13,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibAudio/OutputSession.h>
 #include <LibCore/Process.h>
 #include <LibCore/Timer.h>
 #include <LibDevTools/IndexedDBSerialization.h>
@@ -23,6 +24,8 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
+#include <LibMedia/Sinks/AudioOutputFactory.h>
+#include <LibMediaClient/RemotePlaybackManager.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/StyleSheetImport.h>
@@ -1812,6 +1815,20 @@ bool PageClient::page_did_request_has_populated_document_for_testing(Web::HTML::
     return false;
 }
 
+bool PageClient::page_did_request_tab_is_playing_audio_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_tab_is_playing_audio_for_testing(m_id);
+    return false;
+}
+
+u64 PageClient::page_did_request_tab_audibility_change_count_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_tab_audibility_change_count_for_testing(m_id);
+    return 0;
+}
+
 String PageClient::dump_site_isolation_process_tree_for_testing()
 {
     if (auto* test_connection = client().test_connection())
@@ -1985,9 +2002,26 @@ void PageClient::page_did_update_primary_selection(Utf16String const& text)
     client().async_did_update_primary_selection(m_id, text.to_utf8());
 }
 
-void PageClient::page_did_change_audio_play_state(Web::HTML::AudioPlayState play_state)
+// The UI process derives the group from the page's ID too, and has the AudioServer play it while the page hosts
+// documents.
+static Audio::PlaybackGroupId audio_playback_group(Web::PageId page_id)
 {
-    client().async_did_change_audio_play_state(m_id, play_state);
+    return Audio::PlaybackGroupId { page_id.value() };
+}
+
+NonnullRefPtr<Media::AudioOutputFactory> PageClient::create_audio_output_factory()
+{
+    return Media::AudioOutputFactory::create(Audio::OutputSession::create(audio_playback_group(m_id)));
+}
+
+NonnullOwnPtr<MediaClient::RemotePlaybackManager> PageClient::create_media_playback_manager()
+{
+    return MediaClient::RemotePlaybackManager::create(audio_playback_group(m_id));
+}
+
+void PageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManager& playback_manager)
+{
+    playback_manager.set_audio_group(audio_playback_group(m_id));
 }
 
 void PageClient::page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)

@@ -19,23 +19,28 @@ static Media::DecoderError media_server_gone_error()
     return Media::DecoderError::with_description(Media::DecoderErrorCategory::Unknown, "The media server is gone"sv);
 }
 
-NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create()
+NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create(Audio::PlaybackGroupId audio_group)
 {
     auto client_or_error = Client::acquire();
     if (client_or_error.is_error()) {
         dbgln("MediaClient: Could not reach the media server for playback: {}", client_or_error.error());
-        auto playback_manager = adopt_own(*new RemotePlaybackManager(nullptr, 0));
-        // The owner installs its error handler after creation, so the failure reaches it from the event loop.
-        Core::deferred_invoke([playback_manager = playback_manager->make_weak_ptr()] {
-            if (playback_manager)
-                playback_manager->handle_connection_lost();
-        });
-        return playback_manager;
+        return create_without_media_server();
     }
     auto client = client_or_error.release_value();
     auto playback_manager = adopt_own(*new RemotePlaybackManager(client, client->allocate_id()));
     client->register_playback_manager({}, *playback_manager);
-    client->async_create_playback_session(playback_manager->session_id());
+    client->async_create_playback_session(playback_manager->session_id(), audio_group);
+    return playback_manager;
+}
+
+NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create_without_media_server()
+{
+    auto playback_manager = adopt_own(*new RemotePlaybackManager(nullptr, 0));
+    // The owner installs its error handler after creation, so the failure reaches it from the event loop.
+    Core::deferred_invoke([playback_manager = playback_manager->make_weak_ptr()] {
+        if (playback_manager)
+            playback_manager->handle_connection_lost();
+    });
     return playback_manager;
 }
 
@@ -197,6 +202,12 @@ void RemotePlaybackManager::set_playback_rate(float rate)
 {
     if (can_send())
         m_client->async_set_playback_rate(m_session_id, rate);
+}
+
+void RemotePlaybackManager::set_audio_group(Audio::PlaybackGroupId audio_group)
+{
+    if (can_send())
+        m_client->async_set_audio_group(m_session_id, audio_group);
 }
 
 void RemotePlaybackManager::dispatch_state_change() const

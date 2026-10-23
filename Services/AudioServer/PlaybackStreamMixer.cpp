@@ -13,10 +13,10 @@
 
 namespace Audio {
 
-NonnullRefPtr<PlaybackStreamMixer> PlaybackStreamMixer::create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory factory)
+NonnullRefPtr<PlaybackStreamMixer> PlaybackStreamMixer::create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory factory, AK::Duration audibility_linger)
 {
     auto state = make_ref_counted<MixState>(control_loop);
-    auto mixer = adopt_ref(*new PlaybackStreamMixer(state, target_latency_ms));
+    auto mixer = adopt_ref(*new PlaybackStreamMixer(state, target_latency_ms, audibility_linger));
     state->m_mixer = mixer.ptr();
 
     auto promise = factory(OutputState::Suspended, target_latency_ms, [state](Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
@@ -33,9 +33,11 @@ NonnullRefPtr<PlaybackStreamMixer> PlaybackStreamMixer::create(Core::EventLoop& 
     return mixer;
 }
 
-PlaybackStreamMixer::PlaybackStreamMixer(NonnullRefPtr<MixState> state, u32 device_target_latency_ms)
+PlaybackStreamMixer::PlaybackStreamMixer(NonnullRefPtr<MixState> state, u32 device_target_latency_ms, AK::Duration audibility_linger)
     : m_state(move(state))
     , m_device_target_latency_ms(device_target_latency_ms)
+    , m_audibility_linger(audibility_linger)
+    , m_audibility_timer(Core::Timer::create_single_shot(AK::Duration::zero(), [this] { expire_audibility(); }))
 {
 }
 
@@ -76,15 +78,111 @@ void PlaybackStreamMixer::run_device_ready_callbacks()
     }
 }
 
-void PlaybackStreamMixer::add_client(MixerClientId id, SharedAudioFrameRing ring, float gain)
+void PlaybackStreamMixer::add_client(MixerClientId id, SharedAudioFrameRing ring, float gain, Optional<PlaybackGroupId> group)
 {
     VERIFY(m_device_sample_specification.has_value());
     VERIFY(ring.sample_rate() == m_device_sample_specification->sample_rate());
     VERIFY(ring.channel_count() == m_device_sample_specification->channel_count());
 
     MutexLocker locker(m_state->m_mutex);
-    auto result = m_state->m_clients.set(id, Client { .ring = move(ring), .gain = gain, .state = ClientState::Suspended, .on_drained = nullptr });
+    auto result = m_state->m_clients.set(id, Client { .ring = move(ring), .gain = gain, .group = group, .state = ClientState::Suspended, .on_drained = nullptr });
     VERIFY(result == HashSetResult::InsertedNewEntry);
+}
+
+void PlaybackStreamMixer::set_client_group(MixerClientId id, Optional<PlaybackGroupId> group)
+{
+    MutexLocker locker(m_state->m_mutex);
+    if (auto client = m_state->m_clients.get(id); client.has_value())
+        client->group = group;
+}
+
+void PlaybackStreamMixer::set_group_authorization(PlaybackGroupId group, PlaybackGroupAuthorization authorization)
+{
+    {
+        MutexLocker locker(m_state->m_mutex);
+        switch (authorization) {
+        case PlaybackGroupAuthorization::Authorized:
+            m_state->m_authorized_groups.set(group);
+            return;
+        case PlaybackGroupAuthorization::Unauthorized:
+            m_state->m_authorized_groups.remove(group);
+            m_state->m_group_mixes.remove(group);
+            m_state->m_audible_until_ns.remove(group);
+            break;
+        }
+    }
+    report_group_inaudible(group);
+}
+
+void PlaybackStreamMixer::set_group_mute_state(PlaybackGroupId group, PlaybackGroupMuteState mute_state)
+{
+    MutexLocker locker(m_state->m_mutex);
+    switch (mute_state) {
+    case PlaybackGroupMuteState::Muted:
+        m_state->m_muted_groups.set(group);
+        break;
+    case PlaybackGroupMuteState::Unmuted:
+        m_state->m_muted_groups.remove(group);
+        break;
+    }
+}
+
+void PlaybackStreamMixer::group_became_audible(PlaybackGroupId group)
+{
+    {
+        // The group may have been revoked since it was heard.
+        MutexLocker locker(m_state->m_mutex);
+        if (!m_state->m_audible_until_ns.contains(group))
+            return;
+    }
+    if (m_audible_groups.set(group) != HashSetResult::InsertedNewEntry)
+        return;
+    if (on_group_audibility_changed)
+        on_group_audibility_changed(group, Audibility::Audible);
+    expire_audibility();
+}
+
+void PlaybackStreamMixer::expire_audibility()
+{
+    auto now_ns = MonotonicTime::now().nanoseconds();
+    auto linger_ns = m_audibility_linger.to_nanoseconds();
+    Vector<PlaybackGroupId> expired_groups;
+    Optional<i64> next_expiry_ns;
+    {
+        MutexLocker locker(m_state->m_mutex);
+        m_state->m_audible_until_ns.remove_all_matching([&](PlaybackGroupId group, i64 audible_until_ns) {
+            auto expiry_ns = audible_until_ns + linger_ns;
+            if (expiry_ns <= now_ns) {
+                expired_groups.append(group);
+                return true;
+            }
+            next_expiry_ns = min(next_expiry_ns.value_or(expiry_ns), expiry_ns);
+            return false;
+        });
+    }
+    for (auto group : expired_groups)
+        report_group_inaudible(group);
+    if (next_expiry_ns.has_value())
+        m_audibility_timer->restart(AK::Duration::from_nanoseconds(*next_expiry_ns - now_ns));
+}
+
+void PlaybackStreamMixer::report_group_inaudible(PlaybackGroupId group)
+{
+    if (m_audible_groups.remove(group) && on_group_audibility_changed)
+        on_group_audibility_changed(group, Audibility::Inaudible);
+}
+
+void PlaybackStreamMixer::report_every_group_inaudible()
+{
+    {
+        MutexLocker locker(m_state->m_mutex);
+        m_state->m_audible_until_ns.clear();
+    }
+    m_audibility_timer->stop();
+    for (auto group : exchange(m_audible_groups, {})) {
+        if (on_group_audibility_changed)
+            on_group_audibility_changed(group, Audibility::Inaudible);
+    }
 }
 
 void PlaybackStreamMixer::remove_client(MixerClientId id)
@@ -246,12 +344,27 @@ ReadonlySpan<float> PlaybackStreamMixer::MixState::mix_into(Span<float> buffer, 
         i64 played_at_ns;
     };
     Vector<DrainedClient, 4> drained_clients;
+    Vector<PlaybackGroupId, 4> newly_audible_groups;
     {
         MutexLocker locker(m_mutex);
+        for (auto& [group, group_mix] : m_group_mixes)
+            group_mix.has_samples = false;
+
         for (auto& [id, client] : m_clients) {
             if (client.state == ClientState::Suspended || client.state == ClientState::Drained)
                 continue;
-            auto consumed_frames = client.ring.pop_mixing_into(buffer, client.gain);
+            size_t consumed_frames = 0;
+            if (client.group.has_value() && m_authorized_groups.contains(*client.group)) {
+                auto& group_mix = m_group_mixes.ensure(*client.group);
+                if (!group_mix.has_samples) {
+                    group_mix.samples.resize(buffer.size());
+                    group_mix.samples.span().fill(0);
+                    group_mix.has_samples = true;
+                }
+                consumed_frames = client.ring.pop_mixing_into(group_mix.samples, client.gain);
+            } else {
+                consumed_frames = client.ring.discard(buffer.size() / client.ring.channel_count());
+            }
             if (consumed_frames > 0)
                 client.played_at_ns = (buffer_starts_playing_at + AK::Duration::from_time_units(static_cast<i64>(consumed_frames), 1, client.ring.sample_rate())).nanoseconds();
             if (client.state == ClientState::Draining && client.ring.frames_available() == 0) {
@@ -260,11 +373,56 @@ ReadonlySpan<float> PlaybackStreamMixer::MixState::mix_into(Span<float> buffer, 
             }
             client.ring.publish_consumption(client.played_at_ns, client.state == ClientState::Playing && consumed_frames > 0);
         }
+
+        // A group is heard unless it is muted, and measured either way.
+        bool an_unmuted_group_is_audible = false;
+        for (auto& [group, group_mix] : m_group_mixes) {
+            if (!group_mix.has_samples)
+                continue;
+            auto samples = group_mix.samples.span();
+            group_mix.peak = 0;
+            for (auto sample : samples)
+                group_mix.peak = max(group_mix.peak, fabsf(sample));
+            if (m_muted_groups.contains(group))
+                continue;
+            for (size_t i = 0; i < buffer.size(); ++i)
+                buffer[i] += samples[i];
+            if (group_mix.peak >= AUDIBLE_PEAK)
+                an_unmuted_group_is_audible = true;
+        }
+
+        // Unmuted groups too quiet to be audible on their own are all audible while what they play together is, so
+        // that sound split between groups is still noticed.
+        bool quiet_groups_are_audible_together = false;
+        if (!an_unmuted_group_is_audible) {
+            float output_peak = 0;
+            for (auto sample : buffer)
+                output_peak = max(output_peak, fabsf(sample));
+            quiet_groups_are_audible_together = output_peak >= AUDIBLE_PEAK;
+        }
+
+        for (auto& [group, group_mix] : m_group_mixes) {
+            if (!group_mix.has_samples)
+                continue;
+            auto is_audible = group_mix.peak >= AUDIBLE_PEAK
+                || (quiet_groups_are_audible_together && group_mix.peak > 0 && !m_muted_groups.contains(group));
+            if (is_audible && m_audible_until_ns.set(group, buffer_starts_playing_at.nanoseconds()) == HashSetResult::InsertedNewEntry)
+                newly_audible_groups.append(group);
+        }
     }
+    // The mix is clipped to the [-1, 1] that devices play, rather than leaving sound beyond it to each platform.
+    for (auto& sample : buffer)
+        sample = clamp(sample, -1.0f, 1.0f);
     for (auto drained : drained_clients) {
         m_control_loop.deferred_invoke([self = NonnullRefPtr(*this), drained] {
             if (self->m_mixer)
                 self->m_mixer->finish_drain_once_played(drained.id, drained.played_at_ns);
+        });
+    }
+    for (auto group : newly_audible_groups) {
+        m_control_loop.deferred_invoke([self = NonnullRefPtr(*this), group] {
+            if (self->m_mixer)
+                self->m_mixer->group_became_audible(group);
         });
     }
     return buffer;

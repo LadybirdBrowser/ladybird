@@ -637,8 +637,15 @@ void WebContentPage::close()
     }
     m_needs_beforeunload_check = true;
     m_history_recorded_url_for_current_load.clear();
-    if (m_client)
+    if (m_client) {
         m_client->update_audio_capture_permission();
+        m_client->forget_audio_playback(m_id);
+    }
+    if (m_traversable) {
+        if (auto view = m_traversable->view(); view.has_value())
+            view->did_close_page({}, m_id);
+    }
+    set_audibility(Audio::Audibility::Inaudible);
     auto owed_replies = move(m_owed_replies);
     for (auto owed : owed_replies)
         owe_reply(owed);
@@ -1599,10 +1606,13 @@ void WebContentPage::did_insert_clipboard_item(Web::Clipboard::SystemClipboardIt
     view().insert_clipboard_item(move(item));
 }
 
-void WebContentPage::did_change_audio_play_state(Web::HTML::AudioPlayState play_state)
+void WebContentPage::set_audibility(Audio::Audibility audibility)
 {
-    if (displays_tab())
-        view().did_change_audio_play_state({}, play_state);
+    if (m_audibility == audibility)
+        return;
+    m_audibility = audibility;
+    if (auto view = traversable().view(); view.has_value())
+        view->update_audibility({});
 }
 
 void WebContentPage::did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)
@@ -2785,6 +2795,18 @@ Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingRespo
 Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse WebContentPage::did_request_site_isolation_process_tree_for_testing()
 {
     return { dump_process_tree() };
+}
+
+Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse WebContentPage::did_request_tab_is_playing_audio_for_testing()
+{
+    auto view = traversable().view();
+    return view.has_value() && view->audibility() == Audio::Audibility::Audible;
+}
+
+Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse WebContentPage::did_request_tab_audibility_change_count_for_testing()
+{
+    auto view = traversable().view();
+    return view.has_value() ? view->audibility_change_count() : 0;
 }
 
 void WebContentPage::did_request_crash_of_remote_frame_processes_for_testing()

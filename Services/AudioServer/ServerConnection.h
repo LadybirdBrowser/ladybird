@@ -50,7 +50,10 @@ private:
     void remove_record_streams();
     void stop_listening_for_device_changes();
 
-    virtual void create_stream(u64 stream_id) override;
+    virtual void declare_session(u64 session_id, PlaybackGroupId group) override;
+    virtual void rebind_session(u64 session_id, PlaybackGroupId group) override;
+    virtual void destroy_session(u64 session_id) override;
+    virtual void create_stream(u64 stream_id, u64 session_id) override;
     virtual void destroy_stream(u64 stream_id) override;
     virtual void attach_stream_ring(u64 stream_id, SharedAudioFrameRing ring) override;
     virtual void resume_stream(u64 stream_id, u64 request_id) override;
@@ -68,10 +71,13 @@ private:
 
     struct StreamState {
         MixerClientId mixer_client_id { 0 };
+        u64 session_id { 0 };
         bool has_ring { false };
         float volume { 1 };
     };
     StreamState* find_stream(u64 stream_id, StringView operation);
+    // The streams of a destroyed session belong to no group, and play into nothing.
+    void move_streams_of_session_to(u64 session_id, Optional<PlaybackGroupId>);
 
     // No subscriber while the Browser is being asked.
     struct RecordStreamState {
@@ -79,6 +85,7 @@ private:
     };
 
     NonnullRefPtr<PlaybackStreamMixer> m_mixer;
+    HashMap<u64, PlaybackGroupId> m_session_groups;
     HashMap<u64, StreamState> m_streams;
 
     NonnullRefPtr<CaptureDevices> m_capture_devices;

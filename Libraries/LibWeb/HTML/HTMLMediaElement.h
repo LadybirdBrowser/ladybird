@@ -152,8 +152,6 @@ public:
 
     void toggle_fullscreen();
 
-    void page_mute_state_changed(Badge<Page>);
-
     double effective_media_volume() const;
     bool is_playing_audio() const { return m_is_playing_audio; }
 

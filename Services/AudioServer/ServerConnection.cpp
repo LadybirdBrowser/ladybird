@@ -6,6 +6,7 @@
 
 #include <AK/Atomic.h>
 #include <AudioServer/ServerConnection.h>
+#include <math.h>
 
 namespace Audio {
 
@@ -86,13 +87,54 @@ ServerConnection::StreamState* ServerConnection::find_stream(u64 stream_id, Stri
     return &stream.value();
 }
 
-void ServerConnection::create_stream(u64 stream_id)
+void ServerConnection::declare_session(u64 session_id, PlaybackGroupId group)
+{
+    if (m_session_groups.contains(session_id)) {
+        did_misbehave("declare_session: session ID already exists");
+        return;
+    }
+    m_session_groups.set(session_id, group);
+}
+
+void ServerConnection::rebind_session(u64 session_id, PlaybackGroupId group)
+{
+    auto session_group = m_session_groups.get(session_id);
+    if (!session_group.has_value()) {
+        did_misbehave("rebind_session: unknown session");
+        return;
+    }
+    session_group.value() = group;
+    move_streams_of_session_to(session_id, group);
+}
+
+void ServerConnection::destroy_session(u64 session_id)
+{
+    if (!m_session_groups.remove(session_id)) {
+        did_misbehave("destroy_session: unknown session");
+        return;
+    }
+    move_streams_of_session_to(session_id, {});
+}
+
+void ServerConnection::move_streams_of_session_to(u64 session_id, Optional<PlaybackGroupId> group)
+{
+    for (auto& [stream_id, stream] : m_streams) {
+        if (stream.session_id == session_id && stream.has_ring)
+            m_mixer->set_client_group(stream.mixer_client_id, group);
+    }
+}
+
+void ServerConnection::create_stream(u64 stream_id, u64 session_id)
 {
     if (m_streams.contains(stream_id)) {
         did_misbehave("create_stream: stream ID already exists");
         return;
     }
-    m_streams.set(stream_id, StreamState { .mixer_client_id = s_next_mixer_client_id++ });
+    if (!m_session_groups.contains(session_id)) {
+        did_misbehave("create_stream: unknown session");
+        return;
+    }
+    m_streams.set(stream_id, StreamState { .mixer_client_id = s_next_mixer_client_id++, .session_id = session_id });
 
     m_mixer->when_device_ready([weak_self = make_weak_ptr<ServerConnection>(), stream_id](ErrorOr<SampleSpecification> const& specification) {
         // The client may have given up on the stream while the device was opening.
@@ -132,7 +174,7 @@ void ServerConnection::attach_stream_ring(u64 stream_id, SharedAudioFrameRing ri
         return;
     }
     stream->has_ring = true;
-    m_mixer->add_client(stream->mixer_client_id, move(ring), stream->volume);
+    m_mixer->add_client(stream->mixer_client_id, move(ring), stream->volume, m_session_groups.get(stream->session_id));
 }
 
 void ServerConnection::resume_stream(u64 stream_id, u64 request_id)
@@ -179,6 +221,10 @@ void ServerConnection::set_stream_volume(u64 stream_id, float volume)
     auto* stream = find_stream(stream_id, "set_stream_volume"sv);
     if (!stream)
         return;
+    if (isnan(volume) || volume < 0.0f || volume > 1.0f) {
+        did_misbehave("set_stream_volume: volume is outside [0, 1]");
+        return;
+    }
     stream->volume = volume;
     if (stream->has_ring)
         m_mixer->set_client_gain(stream->mixer_client_id, volume);

@@ -17,6 +17,8 @@
 #include <LibAudio/AudioDevices.h>
 #include <LibAudio/AudioServerEndpoint.h>
 #include <LibAudio/Export.h>
+#include <LibAudio/OutputSession.h>
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibAudio/PlaybackStream.h>
 #include <LibAudio/RecordStream.h>
 #include <LibAudio/SharedAudioFrameRing.h>
@@ -49,8 +51,11 @@ public:
 
     Core::EventLoop& event_loop() { return m_event_loop; }
 
-    // Resolves once the server reports the device format; rejects if it cannot open a device or dies first.
-    NonnullRefPtr<PlaybackStream::CreatePromise> create_stream(OutputState, u32 target_latency_ms, PlaybackStream::AudioDataRequestCallback);
+    // Resolves once the server reports the device format; rejects if it cannot open a device or dies first. The stream
+    // keeps its session, as does its creation until then.
+    NonnullRefPtr<PlaybackStream::CreatePromise> create_stream(OutputState, u32 target_latency_ms, NonnullRefPtr<OutputSession>, PlaybackStream::AudioDataRequestCallback);
+    void session_rebound(Badge<OutputSession>, u64 session_id, PlaybackGroupId);
+    void session_destroyed(Badge<OutputSession>, u64 session_id);
 
     enum class StreamRequest : u8 {
         Resume,
@@ -102,6 +107,7 @@ private:
 
     struct PendingStream {
         NonnullRefPtr<PlaybackStream::CreatePromise> promise;
+        NonnullRefPtr<OutputSession> session;
         PlaybackStream::AudioDataRequestCallback callback;
         OutputState initial_state { OutputState::Suspended };
         u32 target_latency_ms { 0 };

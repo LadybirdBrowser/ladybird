@@ -1,0 +1,3 @@
+before adoption: opener playing audio: true, popup playing audio: false
+adopted into the popup: opener playing audio: false, popup playing audio: true
+adopted back: opener playing audio: true, popup playing audio: false

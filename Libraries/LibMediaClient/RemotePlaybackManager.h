@@ -17,6 +17,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/DemuxerScanState.h>
@@ -43,7 +44,9 @@ class RemotePlaybackManager : public Weakable<RemotePlaybackManager> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static NonnullOwnPtr<RemotePlaybackManager> create();
+    // The audio plays as part of the group.
+    static NonnullOwnPtr<RemotePlaybackManager> create(Audio::PlaybackGroupId audio_group);
+    static NonnullOwnPtr<RemotePlaybackManager> create_without_media_server();
     ~RemotePlaybackManager();
 
     u64 session_id() const { return m_session_id; }
@@ -87,6 +90,7 @@ public:
 
     void set_volume(double);
     void set_playback_rate(float);
+    void set_audio_group(Audio::PlaybackGroupId);
 
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;

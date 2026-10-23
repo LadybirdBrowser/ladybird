@@ -13,6 +13,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibAudio/OutputSession.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Track.h>
@@ -30,11 +31,12 @@ class PlaybackSession {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    PlaybackSession(ConnectionFromClient&, u64 id);
+    PlaybackSession(ConnectionFromClient&, u64 id, Audio::PlaybackGroupId audio_group);
     ~PlaybackSession();
 
     u64 id() const { return m_id; }
     Media::PlaybackManager& manager() { return *m_manager; }
+    void set_audio_group(Audio::PlaybackGroupId audio_group) { m_audio_output_session->set_group(audio_group); }
 
     void add_media_stream_source(u64 stream_id, NonnullRefPtr<Media::MediaStream> const&);
 
@@ -102,6 +104,7 @@ private:
 
     ConnectionFromClient& m_connection;
     u64 m_id { 0 };
+    NonnullRefPtr<Audio::OutputSession> m_audio_output_session;
     NonnullOwnPtr<Media::PlaybackManager> m_manager;
     u64 m_applied_seek_request_id { 0 };
 

@@ -267,17 +267,33 @@ RefPtr<RemotePlaybackStream> ClientConnection::find_live_stream(u64 stream_id)
     return nullptr;
 }
 
-NonnullRefPtr<PlaybackStream::CreatePromise> ClientConnection::create_stream(OutputState initial_state, u32 target_latency_ms, PlaybackStream::AudioDataRequestCallback callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> ClientConnection::create_stream(OutputState initial_state, u32 target_latency_ms, NonnullRefPtr<OutputSession> session, PlaybackStream::AudioDataRequestCallback callback)
 {
     auto promise = PlaybackStream::CreatePromise::construct();
     if (m_is_dead) {
         promise->reject(Error::from_string_literal("Audio server connection has died"));
         return promise;
     }
+    session->declare_on({}, *this);
     auto stream_id = m_next_stream_id++;
-    m_pending_streams.set(stream_id, PendingStream { .promise = promise, .callback = move(callback), .initial_state = initial_state, .target_latency_ms = target_latency_ms });
-    async_create_stream(stream_id);
+    auto session_id = session->id();
+    m_pending_streams.set(stream_id, PendingStream { .promise = promise, .session = move(session), .callback = move(callback), .initial_state = initial_state, .target_latency_ms = target_latency_ms });
+    async_create_stream(stream_id, session_id);
     return promise;
+}
+
+void ClientConnection::session_rebound(Badge<OutputSession>, u64 session_id, PlaybackGroupId group)
+{
+    if (m_is_dead)
+        return;
+    async_rebind_session(session_id, group);
+}
+
+void ClientConnection::session_destroyed(Badge<OutputSession>, u64 session_id)
+{
+    if (m_is_dead)
+        return;
+    async_destroy_session(session_id);
 }
 
 void ClientConnection::stream_created(u64 stream_id, SampleSpecification sample_specification, u32 device_latency_ms)
@@ -299,7 +315,7 @@ void ClientConnection::stream_created(u64 stream_id, SampleSpecification sample_
         MutexLocker locker(m_pump_mutex);
         m_pump_period = min(m_pump_period, AK::Duration::from_milliseconds(max<u32>(1, ring_latency_ms / 4)));
     }
-    auto stream = adopt_ref(*new RemotePlaybackStream(*this, stream_id, sample_specification, ring_latency_ms, pending->initial_state, move(pending->callback)));
+    auto stream = adopt_ref(*new RemotePlaybackStream(*this, stream_id, move(pending->session), sample_specification, ring_latency_ms, pending->initial_state, move(pending->callback)));
     pending->promise->resolve(stream);
 }
 

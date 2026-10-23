@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibAudio/Export.h>
+#include <LibAudio/OutputSession.h>
 #include <LibAudio/PlaybackStream.h>
 #include <LibAudio/SharedAudioFrameRing.h>
 #include <LibCore/Forward.h>
@@ -23,7 +24,7 @@ class ClientConnection;
 class AUDIO_API RemotePlaybackStream final : public PlaybackStream {
 public:
     // Control thread, once the server has reported the device format for this stream.
-    RemotePlaybackStream(ClientConnection&, u64 stream_id, SampleSpecification, u32 ring_latency_ms, OutputState, AudioDataRequestCallback);
+    RemotePlaybackStream(ClientConnection&, u64 stream_id, NonnullRefPtr<OutputSession>, SampleSpecification, u32 ring_latency_ms, OutputState, AudioDataRequestCallback);
     virtual ~RemotePlaybackStream() override;
 
     virtual SampleSpecification sample_specification() const override { return m_sample_specification; }
@@ -58,6 +59,7 @@ private:
 
     // Only ever referenced and released on the control thread; see the destructor.
     NonnullRefPtr<ClientConnection> m_connection;
+    NonnullRefPtr<OutputSession> m_session;
     Core::EventLoop& m_control_loop;
     u64 const m_stream_id { 0 };
     SampleSpecification const m_sample_specification;

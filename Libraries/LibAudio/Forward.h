@@ -9,6 +9,7 @@
 namespace Audio {
 
 class ClientConnection;
+class OutputSession;
 class PlaybackStream;
 class RecordStream;
 

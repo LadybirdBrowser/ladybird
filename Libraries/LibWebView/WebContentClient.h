@@ -16,6 +16,8 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/WeakPtr.h>
+#include <LibAudio/Audibility.h>
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
@@ -39,6 +41,7 @@
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
+#include <LibWebCommon/HTML/MuteState.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
 #include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
@@ -54,6 +57,7 @@
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebView/Debugger.h>
+#include <LibWebView/AudioServerAudibility.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ChildIdentity.h>
@@ -156,6 +160,13 @@ public:
     ErrorOr<void> grant_audio_capture(URL::URL const&);
     // The permission follows the origins the process's open pages show, so it goes with a navigation away.
     void update_audio_capture_permission();
+    // The process's AudioServer plays the page's sound while the page is authorized. It hears of an authorization
+    // before this returns, so a document the page goes on to run is heard from its start.
+    void authorize_audio_playback(Web::PageId);
+    void revoke_audio_playback(Web::PageId);
+    // Muting the page leaves its sound out whether or not it is authorized, and authorizes nothing.
+    void set_audio_playback_mute_state(Web::PageId, Web::HTML::MuteState);
+    void forget_audio_playback(Web::PageId);
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
     void notify_compositor_process_reconnected(Badge<Application>);
     Web::CompositorContextId compositor_context_id_for_page(WebContentPage const&);
@@ -233,7 +244,10 @@ private:
 
     ErrorOr<IPC::TransportHandle> connect_audio_server_client();
     ErrorOr<void> ensure_audio_server_controller();
+    ErrorOr<void> initialize_audio_server_controller();
     ErrorOr<void> tell_audio_server_of_capture_permission();
+    ErrorOr<void> tell_audio_server_of_playback_authorization(Audio::PlaybackGroupId);
+    void did_change_audio_playback_audibility(Audio::PlaybackGroupId, Audio::Audibility);
     static String audio_capture_permission_key(URL::URL const&);
     bool audio_capture_permitted() const;
     void decide_audio_capture_request(u64 request_id);
@@ -248,6 +262,10 @@ private:
     // again whenever it relaunches, and rules on nothing itself.
     HashTable<String> m_audio_capture_grants;
     bool m_audio_capture_permitted { false };
+    // Likewise, the AudioServer is told again of the groups it may play, and of those the user has muted.
+    HashTable<Audio::PlaybackGroupId> m_authorized_audio_playback_groups;
+    HashTable<Audio::PlaybackGroupId> m_muted_audio_playback_groups;
+    AudioServerAudibility m_audio_server_audibility { [this](Audio::PlaybackGroupId group, Audio::Audibility audibility) { did_change_audio_playback_audibility(group, audibility); } };
     RefPtr<Core::Timer> m_detached_page_close_timer;
 
     RefPtr<WebUI> m_web_ui;

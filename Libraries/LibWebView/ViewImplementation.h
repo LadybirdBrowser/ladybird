@@ -23,6 +23,7 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Weakable.h>
+#include <LibAudio/Audibility.h>
 #include <LibCompositing/UIOverlays.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Forward.h>
@@ -44,10 +45,10 @@
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
-#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
+#include <LibWebCommon/HTML/MuteState.h>
 #include <LibWebCommon/HTML/PreparedNavigationDescriptor.h>
 #include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 #include <LibWebCommon/HTML/SelectItem.h>
@@ -66,6 +67,7 @@
 #include <LibWebCommon/WebView/PageInfo.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
 #include <LibWebCommon/WebView/ZoomLevel.h>
+#include <LibWebView/AudibilityHold.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -420,8 +422,13 @@ public:
     Web::HTML::MuteState page_mute_state() const { return m_mute_state; }
     void toggle_page_mute_state();
 
-    void did_change_audio_play_state(Badge<WebContentPage>, Web::HTML::AudioPlayState);
-    Web::HTML::AudioPlayState audio_play_state() const { return m_audio_play_state; }
+    // The tab is audible while the AudioServer has recently heard any page of it, and for a while after a page leaves it
+    // while heard. A page lost along with its process doesn't leave.
+    void update_audibility(Badge<WebContentPage>) { update_audibility(); }
+    void did_release_page(Badge<CanonicalTraversable>, WebContentPage const& page) { page_left(page); }
+    void did_close_page(Badge<WebContentPage>, Web::PageId page_id) { m_audibility_hold.page_closed(page_id); }
+    Audio::Audibility audibility() const { return m_audibility; }
+    u64 audibility_change_count() const { return m_audibility_change_count; }
     void did_change_screen_wake_lock_state(Badge<WebContentPage>, Web::ScreenWakeLockState);
 
     void did_reset_session_history_for_testing(Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor);
@@ -570,7 +577,7 @@ public:
     Function<void(size_t current_match_index, Optional<size_t> const& total_match_count)> on_find_in_page;
     Function<void(Gfx::Color)> on_theme_color_change;
     Function<void(Gfx::Color)> on_page_background_color_change;
-    Function<void(Web::HTML::AudioPlayState)> on_audio_play_state_changed;
+    Function<void(Audio::Audibility)> on_audibility_changed;
     Function<void(Web::ScreenWakeLockState)> on_screen_wake_lock_state_changed;
     enum class WebContentCrashReason {
         ProcessCrash,
@@ -711,6 +718,8 @@ protected:
     void send_geolocation_emulated_position(WebContentPage&);
     WebContentPage& focused_navigable_host() const;
     void reset_page_media_state();
+    void update_audibility();
+    void page_left(WebContentPage const&);
 
     // A navigation to make again on reload: one the user stopped before its document was activated, or one a crash cut
     // short. It's made again from the source it was first made from, when it has one (a javascript: URL has none).
@@ -1000,8 +1009,10 @@ protected:
     // https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
     Optional<Web::HTML::CrossProcessId> m_webdriver_current_parent_navigable_id;
 
-    Web::HTML::AudioPlayState m_audio_play_state { Web::HTML::AudioPlayState::Paused };
-    size_t m_number_of_elements_playing_audio { 0 };
+    Audio::Audibility m_audibility { Audio::Audibility::Inaudible };
+    u64 m_audibility_change_count { 0 };
+    AudibilityHold m_audibility_hold;
+    RefPtr<Core::Timer> m_audibility_hold_timer;
     Web::ScreenWakeLockState m_screen_wake_lock_state { Web::ScreenWakeLockState::Released };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };

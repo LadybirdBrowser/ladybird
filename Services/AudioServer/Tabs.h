@@ -17,6 +17,7 @@
 #include <AudioServer/PlaybackStreamMixer.h>
 #include <AudioServer/ServerConnection.h>
 #include <LibAudio/AudioOutput.h>
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibIPC/TransportHandle.h>
 
 namespace AudioServer {
@@ -24,7 +25,7 @@ namespace AudioServer {
 class ControlConnection;
 
 // The tabs with connected client processes: each has a mixer, and the Browser's word on whether its pages hold the
-// microphone permission.
+// microphone permission, on which playback groups may play, and on which the user has muted.
 class Tabs {
 public:
     static Tabs& the();
@@ -40,6 +41,10 @@ public:
     // it, and the capture streams they have are closed without it.
     void set_capture_permission(u64 tab_id, bool granted);
     void capture_decided(u64 request_id, bool allowed);
+    // Whether the tab's streams of the group may play, and whether the user has muted them. Both hold for the tab's
+    // clients, present and future, since a client can reconnect while the Browser's word stands.
+    void set_playback_group_authorization(u64 tab_id, Audio::PlaybackGroupId, Audio::PlaybackGroupAuthorization);
+    void set_playback_group_mute_state(u64 tab_id, Audio::PlaybackGroupId, Audio::PlaybackGroupMuteState);
 
 private:
     struct Tab {
@@ -54,6 +59,8 @@ private:
 
     HashMap<u64, Tab> m_tabs;
     HashTable<u64> m_tabs_with_capture_permission;
+    HashMap<u64, HashTable<Audio::PlaybackGroupId>> m_authorized_playback_groups;
+    HashMap<u64, HashTable<Audio::PlaybackGroupId>> m_muted_playback_groups;
     RefPtr<Audio::CaptureDevices> m_capture_devices;
     int m_next_client_id { 1 };
     Audio::AudioOutput m_audio_output { Audio::AudioOutput::Platform };

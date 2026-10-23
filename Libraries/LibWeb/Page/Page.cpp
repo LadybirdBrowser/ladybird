@@ -1775,18 +1775,6 @@ void Page::set_picture_in_picture_window_controls_in_use(bool in_use)
     });
 }
 
-void Page::set_page_mute_state(HTML::MuteState mute_state)
-{
-    if (m_mute_state == mute_state)
-        return;
-
-    m_mute_state = mute_state;
-
-    for_each_media_element([&](auto& media_element) {
-        media_element.page_mute_state_changed({});
-    });
-}
-
 GC::Ptr<HTML::HTMLMediaElement> Page::media_context_menu_element()
 {
     if (!m_media_context_menu_element_id.has_value())
@@ -2362,6 +2350,21 @@ void PageClient::navigation_params_creation_finished(HTML::LocalNavigable&, HTML
 }
 
 void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessId, HTML::HistoryNavigationPopulation)
+{
+    VERIFY_NOT_REACHED();
+}
+
+NonnullRefPtr<Media::AudioOutputFactory> PageClient::create_audio_output_factory()
+{
+    VERIFY_NOT_REACHED();
+}
+
+NonnullOwnPtr<MediaClient::RemotePlaybackManager> PageClient::create_media_playback_manager()
+{
+    VERIFY_NOT_REACHED();
+}
+
+void PageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManager&)
 {
     VERIFY_NOT_REACHED();
 }

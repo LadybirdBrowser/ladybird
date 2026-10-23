@@ -17,6 +17,7 @@
 #include <AK/Vector.h>
 #include <LibAudio/PlaybackStream.h>
 #include <LibCore/Forward.h>
+#include <LibMedia/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebAudio/ControlMessageQueue.h>
 #include <LibWeb/WebAudio/Rendering/RenderGraph.h>
@@ -34,7 +35,7 @@ public:
     // renderer's burst size, which this constant determines.
     static constexpr u32 TARGET_LATENCY_MS = 100;
 
-    static NonnullRefPtr<RealtimeAudioRenderer> create(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, float sample_rate, size_t quantum_size);
+    static NonnullRefPtr<RealtimeAudioRenderer> create(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory>);
     ~RealtimeAudioRenderer();
 
     // The callback below is set on the control thread before rendering starts and is always invoked on the control
@@ -53,7 +54,7 @@ public:
     double output_time_played() const;
 
 private:
-    RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, float sample_rate, size_t quantum_size);
+    RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, float sample_rate, size_t quantum_size, NonnullRefPtr<Media::AudioOutputFactory>);
 
     void prepare_to_start_rendering();
     void set_playback_stream(NonnullRefPtr<Audio::PlaybackStream>);
@@ -73,6 +74,7 @@ private:
     size_t m_quantum_size { 0 };
 
     Core::EventLoop& m_main_thread_event_loop;
+    NonnullRefPtr<Media::AudioOutputFactory> m_audio_output_factory;
     RefPtr<Audio::PlaybackStream> m_playback_stream;
 
     Function<void(Vector<NodeID> const&)> m_on_sources_ended;

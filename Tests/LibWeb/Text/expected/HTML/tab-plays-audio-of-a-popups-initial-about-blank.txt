@@ -1,0 +1,2 @@
+popup's tab plays audio: true
+opener's tab plays audio: false

@@ -22,7 +22,6 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWebCommon/Forward.h>
-#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
@@ -333,6 +332,8 @@ private:
     virtual void page_did_request_unload_check(Web::HTML::CrossProcessId navigable_id, GC::Ref<GC::Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)>>) override;
     virtual String page_did_request_ui_process_session_history_for_testing() override;
     virtual bool page_did_request_has_populated_document_for_testing(Web::HTML::CrossProcessId navigable_id) override;
+    virtual bool page_did_request_tab_is_playing_audio_for_testing() override;
+    virtual u64 page_did_request_tab_audibility_change_count_for_testing() override;
     virtual bool page_did_request_capture_session_history_snapshot_for_testing() override;
     virtual bool page_did_request_restore_session_history_snapshot_for_testing() override;
     virtual bool page_did_request_register_session_store_tab_for_testing() override;
@@ -363,7 +364,9 @@ private:
     virtual void page_did_request_primary_paste() override;
     virtual void page_did_complete_paste_action() override;
     virtual void page_did_update_primary_selection(Utf16String const&) override;
-    virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
+    virtual NonnullRefPtr<Media::AudioOutputFactory> create_audio_output_factory() override;
+    virtual NonnullOwnPtr<MediaClient::RemotePlaybackManager> create_media_playback_manager() override;
+    virtual void rebind_media_playback_manager(MediaClient::RemotePlaybackManager&) override;
     virtual void page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState) override;
     virtual void page_did_start_using_gamepads() override;
     virtual void page_did_play_gamepad_effect(Web::Gamepad::GamepadHandle, Web::Gamepad::GamepadEffect const&) override;
