@@ -28,6 +28,7 @@ use crate::css::custom_properties::{
     VarResolutionInputs, prepare_var_resolution_environment,
 };
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
+use crate::css::parser::value_parser::component_values_from_source;
 use crate::css::rule::CompiledFunction;
 use crate::css::style_value::{
     RetainedStyleValueData, StyleValueData, custom_property_references, utf16_equals_ascii_case_insensitive,
@@ -2310,7 +2311,14 @@ fn substitute_against_stores(
         NativeVarResolution::Resolved {
             source,
             contains_attr_tainted_values,
-        } => parse_substituted_value(&parse_context, property, &source, contains_attr_tainted_values),
+        } => {
+            // FIXME: Preserve the resolved components rather than retokenizing their normalized serialization.
+            let Ok(values) = component_values_from_source(source.as_slice()) else {
+                crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionParse);
+                return invalid();
+            };
+            parse_substituted_value(&parse_context, property, &source, &values, contains_attr_tainted_values)
+        }
         NativeVarResolution::Invalid | NativeVarResolution::NotHandled => invalid(),
     }
 }

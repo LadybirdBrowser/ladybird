@@ -6257,18 +6257,10 @@ pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: 
     parse_css_value_with_source(context, property_id, values, &source)
 }
 
-fn component_values_from_source<'a>(
+pub(crate) fn component_values_from_source<'a>(
     source: impl Into<TokenizerInput<'a>>,
 ) -> Result<smallvec::SmallVec<[ComponentValue; 8]>, ()> {
     consume_a_small_list_of_component_values(tokenize_for_parser_without_source(source))
-}
-
-/// Parses a UTF-16 property value whose component-value source is already serialized.
-pub(crate) fn parse_css_value_from_source(context: &ParseContext, property_id: u16, source: &[u16]) -> ParseOutcome {
-    match component_values_from_source(source) {
-        Ok(values) => parse_css_value_with_source(context, property_id, &values, source),
-        Err(()) => ParseOutcome::NotHandled,
-    }
 }
 
 /// The result category returned through the value-parser FFI.
@@ -6574,14 +6566,12 @@ mod tests {
     fn parses_a_serialized_substituted_value() {
         let mut parse_context = context();
         parse_context.is_substituted_value = true;
-        let valid = utf16("rgb(1 2 3)");
-        let trailing = utf16("rgb(1 2 3) trailing");
         assert!(matches!(
-            parse_css_value_from_source(&parse_context, property_id::COLOR, &valid),
+            parse_with_context(&parse_context, property_id::COLOR, "rgb(1 2 3)"),
             ParseOutcome::Parsed(_)
         ));
         assert!(matches!(
-            parse_css_value_from_source(&parse_context, property_id::COLOR, &trailing),
+            parse_with_context(&parse_context, property_id::COLOR, "rgb(1 2 3) trailing"),
             ParseOutcome::Invalid
         ));
     }

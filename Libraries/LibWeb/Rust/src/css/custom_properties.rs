@@ -1292,6 +1292,7 @@ fn compute_element_custom_property(
                 property_context.parse_context.ok_or(())?,
                 crate::css::property_metadata::property_id::CUSTOM,
                 &serialize_tokens(&tokens),
+                &tokens,
                 property_context.contains_attr_tainted_values,
             ),
             TokenResolution::Invalid | TokenResolution::Cyclic => {

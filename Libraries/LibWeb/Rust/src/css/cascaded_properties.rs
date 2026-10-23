@@ -20,8 +20,9 @@ use std::hash::Hasher;
 use std::sync::Arc;
 
 use crate::css::custom_properties::CustomPropertyStore;
+use crate::css::parser::component_value::ComponentValue;
 use crate::css::parser::value_parser::{
-    FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, parse_css_value_from_source,
+    FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, parse_css_value_with_source,
 };
 use crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
@@ -345,6 +346,7 @@ pub(crate) fn parse_substituted_value(
     base_context: &ParseContext,
     property_id: u16,
     source: &[u16],
+    values: &[ComponentValue],
     contains_attr_tainted_values: bool,
 ) -> RetainedStyleValueData {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionParse);
@@ -360,7 +362,7 @@ pub(crate) fn parse_substituted_value(
     context.contains_attr_tainted_values = contains_attr_tainted_values;
     context.value_contexts = ak::Span::new(std::slice::from_ref(&value_context));
     context.random_function_index = Some(&random_function_index);
-    match parse_css_value_from_source(&context, property_id, source) {
+    match parse_css_value_with_source(&context, property_id, values, source) {
         ParseOutcome::Parsed(value) => RetainedStyleValueData::from_arc(value),
         ParseOutcome::Invalid | ParseOutcome::NotHandled => {
             RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid)
