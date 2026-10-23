@@ -155,6 +155,27 @@
     },
     {
       "name": "qtbase",
+      "platform": "osx",
+      "default-features": false,
+      "features": [
+        "dnslookup",
+        "doubleconversion",
+        "freetype",
+        "gui",
+        "harfbuzz",
+        "icu",
+        "jpeg",
+        "network",
+        "opengl",
+        "pcre2",
+        "png",
+        "thread",
+        "widgets",
+        "zstd"
+      ]
+    },
+    {
+      "name": "qtbase",
       "platform": "windows",
       "default-features": false,
       "features": [
@@ -375,15 +396,15 @@
     },
     {
       "name": "qtbase",
-      "version": "6.10.2#0"
+      "version": "6.11.2#0"
     },
     {
       "name": "qtpositioning",
-      "version": "6.10.2#0"
+      "version": "6.11.2#0"
     },
     {
       "name": "qtserialport",
-      "version": "6.10.2#0"
+      "version": "6.11.2#0"
     },
     {
       "name": "sdl3",
