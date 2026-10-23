@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSPageRule.h>
+#include <LibWeb/CSS/CSSPositionTryRule.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
@@ -88,6 +89,8 @@ GC::Ref<CSSRule> CSSRule::create(RustRule rule, GC::Ptr<DOM::Document> document)
         return CSSKeyframeRule::create(move(rule));
     case Type::Margin:
         return CSSMarginRule::create(move(rule));
+    case Type::PositionTry:
+        return CSSPositionTryRule::create(move(rule));
     case Type::Namespace:
         return CSSNamespaceRule::create(move(rule));
     case Type::CounterStyle:
@@ -209,6 +212,7 @@ Utf16FlyString CSSRule::parent_layer_internal_qualified_name_slow_case() const
         case Type::Property:
         case Type::Page:
         case Type::Margin:
+        case Type::PositionTry:
         case Type::Scope:
             break;
         }

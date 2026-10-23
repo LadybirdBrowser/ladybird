@@ -287,6 +287,8 @@ class CSSNumericValue;
 class CSSPageRule;
 class CSSPageDescriptors;
 class CSSPerspective;
+class CSSPositionTryDescriptors;
+class CSSPositionTryRule;
 class CSSPropertyRule;
 class CSSRotate;
 class CSSRule;

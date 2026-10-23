@@ -76,6 +76,8 @@ CSSNumericValue
 CSSPageDescriptors
 CSSPageRule
 CSSPerspective
+CSSPositionTryDescriptors
+CSSPositionTryRule
 CSSPropertyRule
 CSSRotate
 CSSRule

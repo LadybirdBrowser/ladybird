@@ -1837,7 +1837,11 @@ void CSSStyleProperties::set_declarations_from_text(Utf16View css_text)
     auto parsing_params = owner_node().has_value()
         ? Parser::ParsingParams(owner_node()->element().document())
         : Parser::ParsingParams();
-    parsing_params.rule_context.append(Parser::RuleContext::Style);
+    // NB: The declarations of an @position-try rule only accept some properties, which its rule context filters for.
+    if (auto rule = parent_rule(); rule && rule->type() == CSSRule::Type::PositionTry)
+        parsing_params.rule_context.append(Parser::RuleContext::AtPositionTry);
+    else
+        parsing_params.rule_context.append(Parser::RuleContext::Style);
 
     m_declarations.replace(parse_css_property_declaration_block(parsing_params, css_text));
 }

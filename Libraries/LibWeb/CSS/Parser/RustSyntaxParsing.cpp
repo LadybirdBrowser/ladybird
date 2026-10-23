@@ -87,6 +87,9 @@ static void report_diagnostics(RustStyleSheetParse const& parse)
         case FfiSyntaxDiagnosticCode::KeyframesInvalidName:
             report_invalid_rule("Invalid keyframes name."_string);
             break;
+        case FfiSyntaxDiagnosticCode::PositionTryInvalidName:
+            report_invalid_rule("Invalid position-try name."_string);
+            break;
         case FfiSyntaxDiagnosticCode::NamespaceMustBeStatement:
             report_invalid_rule("Must be a statement, not a block."_string);
             break;
@@ -104,6 +107,7 @@ static void report_diagnostics(RustStyleSheetParse const& parse)
         case FfiSyntaxDiagnosticCode::FunctionMustBeBlock:
         case FfiSyntaxDiagnosticCode::PageMustBeBlock:
         case FfiSyntaxDiagnosticCode::MarginMustBeBlock:
+        case FfiSyntaxDiagnosticCode::PositionTryMustBeBlock:
             report_invalid_rule("Must be a block, not a statement."_string);
             break;
         case FfiSyntaxDiagnosticCode::SupportsClauseInvalid:
