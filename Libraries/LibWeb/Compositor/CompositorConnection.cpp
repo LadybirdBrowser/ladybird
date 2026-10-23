@@ -849,6 +849,17 @@ void CompositorConnection::rendering_opportunity(Web::CompositorContextId contex
     }
 }
 
+void CompositorConnection::overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> visibilities)
+{
+    // Each scroller belongs to the active document of one of our navigables, which takes its scrollbar's visibility.
+    for (auto const& visibility : visibilities) {
+        for (auto& navigable : Web::HTML::all_local_navigables()) {
+            if (navigable->set_overlay_scrollbar_hidden(visibility.scroller_stable_node_id, visibility.vertical, visibility.hidden))
+                break;
+        }
+    }
+}
+
 void CompositorConnection::placeholder_canvas_committed(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool origin_clean)
 {
     Web::HTML::HTMLCanvasElement::placeholder_frame_committed(canvas_id, size, origin_clean);

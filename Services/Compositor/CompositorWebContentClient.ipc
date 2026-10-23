@@ -10,6 +10,7 @@ endpoint CompositorWebContentClient
     request_rendering_update() =|
     rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds) =|
     async_scroll_updates(Web::CompositorContextId context_id, Compositing::PendingAsyncScrollUpdates updates) =|
+    overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> visibilities) =|
     did_complete_screenshot(Compositing::ScreenshotRequestId request_id) =|
     did_fail_screenshot(Compositing::ScreenshotRequestId request_id) =|
     did_lose_compositor() =|

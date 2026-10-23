@@ -63,4 +63,23 @@ ErrorOr<Web::ScrollbarDraggedByCompositor> decode(Decoder& decoder)
     };
 }
 
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::OverlayScrollbarVisibility const& visibility)
+{
+    TRY(encoder.encode(visibility.scroller_stable_node_id));
+    TRY(encoder.encode(visibility.vertical));
+    TRY(encoder.encode(visibility.hidden));
+    return {};
+}
+
+template<>
+ErrorOr<Web::OverlayScrollbarVisibility> decode(Decoder& decoder)
+{
+    return Web::OverlayScrollbarVisibility {
+        .scroller_stable_node_id = TRY(decoder.decode<Web::AsyncScrollNodeStableID>()),
+        .vertical = TRY(decoder.decode<bool>()),
+        .hidden = TRY(decoder.decode<bool>()),
+    };
+}
+
 }

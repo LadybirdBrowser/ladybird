@@ -1612,6 +1612,7 @@ Gfx::IntRect ContextState::update_scrollbar_visibility()
     auto const* visual_context_tree = m_scene.visual_context_tree().has_value() ? &m_scene.visual_context_tree_for_compositing() : nullptr;
     auto now = MonotonicTime::now();
     auto damage_rect = m_scrollbar_controller.update_visibility(visual_context_tree, presented_scroll_state_snapshot, now);
+    report_scrollbar_visibility_changes();
 
     // A hovered scrollbar starts to grow here, which needs display ticks before anything else asks for a frame.
     if (m_request_animation_frames && m_scrollbar_controller.fades_need_frame(now))
@@ -1634,6 +1635,15 @@ Gfx::IntRect ContextState::update_scrollbar_visibility()
     return damage_rect;
 }
 
+// NB: This goes on the connection the compositor forwards input on, so the main thread knows which scrollbars have
+//     faded out before it hit tests any later press.
+void ContextState::report_scrollbar_visibility_changes()
+{
+    auto changes = m_scrollbar_controller.take_visibility_changes();
+    if (!changes.is_empty())
+        m_web_content_client.overlay_scrollbar_visibilities_changed(changes);
+}
+
 Optional<PendingFrame> ContextState::advance_scrollbar_fades(MonotonicTime frame_time)
 {
     if (!m_scene.visual_context_tree().has_value())
@@ -1641,6 +1651,7 @@ Optional<PendingFrame> ContextState::advance_scrollbar_fades(MonotonicTime frame
     auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
     auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
     auto damage_rect = m_scrollbar_controller.advance_fades(m_scene.visual_context_tree_for_compositing(), presented_scroll_state_snapshot, frame_time);
+    report_scrollbar_visibility_changes();
     auto viewport_rect = m_presenter.viewport_rect_for_ui_overlay();
     if (damage_rect.is_empty() || !viewport_rect.has_value())
         return {};

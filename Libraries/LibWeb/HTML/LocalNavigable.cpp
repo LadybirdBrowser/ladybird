@@ -4990,6 +4990,30 @@ static Layout::Node* committed_scrolling_box_for_async_scroll_node(DOM::Document
     return scrolling_box;
 }
 
+// The compositor fades overlay scrollbars, and says which have faded out, so that hit testing passes them by.
+bool LocalNavigable::set_overlay_scrollbar_hidden(Web::AsyncScrollNodeStableID stable_node_id, bool vertical, bool hidden)
+{
+    auto document = active_document();
+    if (!document)
+        return false;
+    // NB: The compositor can report this while layout is out of date, so this reads the committed layout.
+    Layout::Node* scrolling_box = nullptr;
+    if (auto pseudo_element = pseudo_element_from_async_scroll_node_stable_id(stable_node_id); pseudo_element.has_value()) {
+        Layout::ForcedReadScope read { *document };
+        if (auto* element = element_for_async_scroll_node_stable_id(*document, stable_node_id))
+            scrolling_box = element->pseudo_element_unsafe_layout_node(read, *pseudo_element);
+        if (scrolling_box && !Painting::has_committed_box(*scrolling_box))
+            scrolling_box = nullptr;
+    } else {
+        scrolling_box = committed_scrolling_box_for_async_scroll_node(*document, stable_node_id);
+    }
+    if (!scrolling_box)
+        return false;
+    auto direction = vertical ? Layout::RustFFI::ScrollDirection::Vertical : Layout::RustFFI::ScrollDirection::Horizontal;
+    Layout::RustFFI::render_state_set_scrollbar_hidden(scrolling_box->document_host(), Painting::committed_row_slot(*scrolling_box), direction, hidden);
+    return true;
+}
+
 // https://drafts.csswg.org/css-conditional-5/#scrolled
 // A relative scroll, made by the user or by a relative scrolling API, sets the direction scroll-state(scrolled) reads.
 // An absolute one leaves it as it is.
