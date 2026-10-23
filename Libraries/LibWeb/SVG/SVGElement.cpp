@@ -47,6 +47,50 @@ CSS::ElementBoxKind SVGElement::box_kind() const
     return CSS::ElementBoxKind::NoBox;
 }
 
+// https://svgwg.org/svg2-draft/render.html#TermNeverRenderedElement
+static bool is_never_rendered_element(SVGElement const& element)
+{
+    // Any element type that is never directly rendered, regardless of context or display style value. It includes the
+    // following elements: ‘clipPath’, ‘defs’, ‘desc’, ‘linearGradient’, ‘marker’, ‘mask’, ‘metadata’, ‘pattern’,
+    // ‘radialGradient’, ‘script’, ‘style’ and ‘title’; it also includes a ‘symbol’ element that is not the instance root
+    // of a use-element shadow tree.
+    if (is<SVGSymbolElement>(element))
+        return element.box_kind() == CSS::ElementBoxKind::NoBox;
+
+    // https://drafts.csswg.org/filter-effects-1/#FilterElement
+    // filter elements are never rendered directly; their only usage is as something that can be referenced using the
+    // filter property.
+    return element.local_name().is_one_of(
+        TagNames::clipPath, TagNames::defs, TagNames::desc, TagNames::filter, TagNames::linearGradient,
+        TagNames::marker, TagNames::mask, TagNames::metadata, TagNames::pattern, TagNames::radialGradient,
+        TagNames::script, TagNames::style, TagNames::title);
+}
+
+// https://svgwg.org/svg2-draft/interact.html#Focus
+bool SVGElement::is_focusable() const
+{
+    // The following SVG elements are focusable in an interactive document. [...] For the purpose of the HTML focus
+    // model, interactive user agents must treat them as focusable areas whose tabindex focus flag should be set:
+    // - the document root element
+    if (document().document_element() == this)
+        return meets_focusable_area_rendering_requirements();
+
+    // - any directly rendered element with a valid integer ‘tabindex’ attribute
+    // NB: A never-rendered element and its descendants are never directly rendered.
+    if (is_in_never_rendered_subtree())
+        return false;
+    return Base::is_focusable();
+}
+
+bool SVGElement::is_in_never_rendered_subtree() const
+{
+    for (auto element = this; element; element = as_if<SVGElement>(element->parent_element().ptr())) {
+        if (is_never_rendered_element(*element))
+            return true;
+    }
+    return false;
+}
+
 struct NamedPropertyID {
     NamedPropertyID(CSS::PropertyID property_id, Utf16FlyString name, std::initializer_list<Utf16FlyString> supported_elements = {})
         : id(property_id)

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <a id="outer" href="#outer">
+        <a id="inner" href="#inner"><rect width="10" height="10" /></a>
+    </a>
+</svg>
+<a href="#html">
+    <svg><a id="inner-html" href="#inner-html"><rect width="10" height="10" /></a></svg>
+</a>
+<svg><a id="alone" href="#alone"><rect width="10" height="10" /></a></svg>
+<svg>
+    <defs><a id="in-defs" href="#in-defs"><rect width="10" height="10" /></a></defs>
+    <defs><rect id="rect-in-defs" tabindex="0" width="10" height="10" /></defs>
+    <filter id="filter" tabindex="0"></filter>
+</svg>
+<script>
+    test(() => {
+        for (const id of ["outer", "inner", "inner-html", "alone", "in-defs", "rect-in-defs", "filter"]) {
+            const element = document.getElementById(id);
+            element.focus();
+            println(`${id}: ${document.activeElement === element}`);
+        }
+    });
+</script>

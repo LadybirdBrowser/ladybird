@@ -36,6 +36,7 @@ private:
     // ^DOM::Element
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;
+    virtual bool is_focusable() const override;
 
     virtual bool has_activation_behavior() const override { return true; }
     virtual void activation_behavior(DOM::Event const&) override;

@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	Non-rendered <defs> is not focusable
-Fail	Non-rendered <symbol> is not focusable
-Fail	Non-rendered <clipPath> is not focusable
-Fail	Non-rendered <mask> is not focusable
-Fail	Non-rendered <marker> is not focusable
-Fail	Non-rendered <pattern> is not focusable
-Fail	Non-rendered <linearGradient> is not focusable
-Fail	Non-rendered <radialGradient> is not focusable
+8 Pass
+Pass	Non-rendered <defs> is not focusable
+Pass	Non-rendered <symbol> is not focusable
+Pass	Non-rendered <clipPath> is not focusable
+Pass	Non-rendered <mask> is not focusable
+Pass	Non-rendered <marker> is not focusable
+Pass	Non-rendered <pattern> is not focusable
+Pass	Non-rendered <linearGradient> is not focusable
+Pass	Non-rendered <radialGradient> is not focusable
