@@ -298,6 +298,25 @@ pub(crate) fn serialize_component_values_to_utf16(
     sink.into_utf16()
 }
 
+pub(crate) fn normalized_component_values_equal(
+    first: &[crate::css::parser::component_value::ComponentValue],
+    second: &[crate::css::parser::component_value::ComponentValue],
+) -> bool {
+    let mut first_sink = TextSink::new();
+    let mut second_sink = TextSink::new();
+    assert!(serialize_component_values_into(
+        &mut first_sink,
+        first,
+        ComponentSerializationMode::Normalized,
+    ));
+    assert!(serialize_component_values_into(
+        &mut second_sink,
+        second,
+        ComponentSerializationMode::Normalized,
+    ));
+    first_sink.content_equals(&second_sink)
+}
+
 pub(crate) fn original_component_values_source(
     values: &[crate::css::parser::component_value::ComponentValue],
 ) -> Option<Vec<u16>> {
