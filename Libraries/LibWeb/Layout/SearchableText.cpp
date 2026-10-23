@@ -69,7 +69,7 @@ SearchableText SearchableText::collect(Viewport& viewport)
     //
     // Collect the rendered pieces first so that the specification-ordered DOM walk below can use
     // rendered text while retaining the corresponding DOM offsets.
-    HashMap<DOM::Text const*, Vector<Layout::TextNode const*>> rendered_text_nodes;
+    GC::RootHashMap<DOM::Text const*, Vector<Layout::TextNode const*>> rendered_text_nodes;
     viewport.for_each_in_inclusive_subtree([&](auto const& layout_node) {
         auto const* text_node = as_if<Layout::TextNode>(layout_node);
         if (!text_node)
@@ -172,7 +172,7 @@ SearchableText SearchableText::collect(Viewport& viewport)
     };
 
     auto& document = const_cast<DOM::Document&>(viewport.dom_node());
-    Vector<DOM::Node*> nodes_in_shadow_including_tree_order;
+    GC::RootVector<DOM::Node*> nodes_in_shadow_including_tree_order;
     document.for_each_shadow_including_descendant([&](DOM::Node& node) {
         nodes_in_shadow_including_tree_order.append(&node);
         return TraversalDecision::Continue;
