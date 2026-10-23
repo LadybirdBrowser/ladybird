@@ -126,6 +126,25 @@ pub(crate) fn hit_test_facts(arena: &impl PaintRead, paintable: NodeSlotId) -> H
             } else {
                 areas
             }
+        } else if row.kind() == NodeKind::SVGImageBox {
+            // For raster images, hit-testing is performed on a whole-image basis (i.e., the rectangular area for the
+            // image is the determinant for whether the image receives the event).
+            // NB: The rectangular area for the image is also its bounding box.
+            if svg_hit_areas(
+                style.inherited_ui().pointer_events,
+                style.visibility() == css_enums::visibility::VISIBLE,
+                false,
+                false,
+            ) != 0
+            {
+                svg_hit_area::BOUNDING_BOX
+            } else {
+                0
+            }
+        } else if row.kind() == NodeKind::SVGGraphicsBox
+            && style.inherited_ui().pointer_events == css_enums::pointer_events::BOUNDING_BOX
+        {
+            svg_hit_area::BOUNDING_BOX
         } else {
             0
         },
@@ -176,6 +195,12 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             .is_some_and(node_painting::is_svg_path)
         {
             self.record_svg_path_hit_test_items(paintable, phase);
+        } else if self
+            .source
+            .node_kind_if_live(paintable)
+            .is_some_and(|kind| matches!(kind, NodeKind::SVGImageBox | NodeKind::SVGGraphicsBox))
+        {
+            self.record_svg_box_hit_test_items(paintable, phase);
         } else {
             self.record_base_hit_test_items(paintable, phase);
         }
@@ -392,6 +417,10 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         if facts.svg_hit_areas == 0 {
             return;
         }
+        if facts.svg_hit_areas & svg_hit_area::BOUNDING_BOX != 0 {
+            self.append_svg_bounding_box(paintable);
+            return;
+        }
         let stroke = if facts.svg_hit_areas & svg_hit_area::STROKE != 0 {
             self.svg_stroke_hit_region(paintable)
         } else {
@@ -431,6 +460,34 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             svg_hit_areas: facts.svg_hit_areas,
             svg_stroke: stroke,
             ..self.base_hit_test_item(HitTestItemKind::SvgPath, paintable, context)
+        };
+        self.list.append(item);
+    }
+
+    fn record_svg_box_hit_test_items(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
+        if phase != PaintPhase::Foreground || !self.visible_for_hit_testing(paintable) {
+            return;
+        }
+        if self.paintable_facts(paintable).svg_hit_areas & svg_hit_area::BOUNDING_BOX != 0 {
+            self.append_svg_bounding_box(paintable);
+        }
+    }
+
+    // NB: The rect of an SVG box is its bounding box, which takes in the boxes of its descendants, like the tspans of a
+    //     text element. A point on the far edges of the bounding box is over it too, so the item rect reaches one
+    //     fixed-point unit past them.
+    fn append_svg_bounding_box(&mut self, paintable: NodeSlotId) {
+        let one_unit = CssPixels::from_raw(1);
+        let rect = paintable_geometry::absolute_rect(self.source, paintable).inflated(
+            CssPixels::default(),
+            one_unit,
+            one_unit,
+            CssPixels::default(),
+        );
+        let context = self.data(paintable).accumulated_visual_context;
+        let item = HitTestItem {
+            rect,
+            ..self.base_hit_test_item(HitTestItemKind::Box, paintable, context)
         };
         self.list.append(item);
     }
