@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
@@ -22,6 +23,7 @@ Optional<Host> parse_host(StringView input, bool is_opaque = false);
 Optional<Host> parse_host(Utf16View input, bool is_opaque = false);
 Optional<Host> host_from_ffi(FFI::FfiUrlHost const&);
 Origin origin_from_ffi(FFI::FfiOrigin const&);
+void lend_origin_to_ffi(Origin const&, Function<void(FFI::FfiOrigin const&)> const&);
 FFI::RustUrlInput rust_url_input(Utf16View);
 
 class URLPattern {

@@ -7,7 +7,7 @@
 use std::ffi::c_void;
 
 use crate::ffi::url::{FfiUrlHost, RustUrl, RustUrlByteSlice};
-use crate::origin::{Nonce, OpaqueOriginKind, Origin};
+use crate::origin::{Host, Nonce, OpaqueOriginKind, Origin};
 use crate::rust_panic::abort_on_panic;
 use crate::url::HostKind;
 
@@ -62,6 +62,36 @@ impl FfiOrigin {
     /// Lends the origin to `f` across the FFI boundary.
     pub fn with_origin<R>(origin: &Origin, f: impl FnOnce(&FfiOrigin) -> R) -> R {
         f(&Self::from_origin(origin))
+    }
+
+    /// # Safety
+    /// The strings of the origin must be valid UTF-8 for the duration of this call. The string of a host is its
+    /// serialization, whatever its kind.
+    pub unsafe fn to_origin(&self) -> Origin {
+        if self.is_opaque {
+            return Origin::Opaque {
+                nonce: self.nonce,
+                kind: self.opaque_kind,
+            };
+        }
+        let host_from_ffi = |host: &FfiUrlHost| Host {
+            kind: host.kind,
+            serialization: unsafe {
+                RustUrlByteSlice {
+                    data: host.string_data,
+                    length: host.string_length,
+                }
+                .borrow()
+            }
+            .unwrap_or("")
+            .to_owned(),
+        };
+        Origin::Tuple {
+            scheme: unsafe { self.scheme.borrow() }.unwrap_or("").to_owned(),
+            host: host_from_ffi(&self.host),
+            port: self.has_port.then_some(self.port),
+            domain: (self.domain.kind != HostKind::Null).then(|| host_from_ffi(&self.domain)),
+        }
     }
 }
 

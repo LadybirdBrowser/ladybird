@@ -251,4 +251,14 @@ Optional<String> Host::registrable_domain() const
     return registrable_domain;
 }
 
+extern "C" void url_rust_registrable_domain(u8 const* domain, size_t domain_length, void* ctx, void (*on_success)(void*, u8 const*, size_t));
+
+extern "C" void url_rust_registrable_domain(u8 const* domain, size_t domain_length, void* ctx, void (*on_success)(void*, u8 const*, size_t))
+{
+    auto registrable_domain = Host { String::from_ascii_without_validation({ domain, domain_length }) }.registrable_domain();
+    if (!registrable_domain.has_value())
+        return;
+    on_success(ctx, registrable_domain->bytes().data(), registrable_domain->bytes_as_string_view().length());
+}
+
 }
