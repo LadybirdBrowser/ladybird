@@ -23,6 +23,10 @@ if (APPLE)
     list(APPEND SOURCES CoreAudioChannelLayout.cpp)
 endif()
 
+if (WIN32)
+    list(APPEND SOURCES WindowsChannelMask.cpp)
+endif()
+
 compile_ipc(AudioClient.ipc AudioClientEndpoint.h)
 compile_ipc(AudioServer.ipc AudioServerEndpoint.h)
 compile_ipc(../../Services/AudioServer/AudioServerControl.ipc ../../Services/AudioServer/AudioServerControlEndpoint.h)
