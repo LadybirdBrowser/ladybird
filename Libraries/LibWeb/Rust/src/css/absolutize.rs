@@ -1783,6 +1783,25 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
         StyleValueData::BasicShape { .. } => {
             absolutize_basic_shape(value, &mut |child, changed| absolutize_child(child, context, changed))
         }
+        StyleValueData::Ray {
+            size,
+            contain,
+            angle,
+            position,
+        } => {
+            let mut changed = false;
+            let angle = absolutize_child(angle, context, &mut changed)?;
+            let position = absolutize_child(position, context, &mut changed)?;
+            rebuild!(
+                changed,
+                StyleValueData::Ray {
+                    size: *size,
+                    contain: *contain,
+                    angle,
+                    position,
+                }
+            )
+        }
 
         StyleValueData::Cursor { image, x, y } => {
             let mut changed = false;

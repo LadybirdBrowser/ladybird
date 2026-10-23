@@ -2,11 +2,11 @@ Harness status: Error
 
 Found 7 tests
 
-7 Fail
-Fail	Can set 'offset-position' to CSS-wide keywords: initial
-Fail	Can set 'offset-position' to CSS-wide keywords: inherit
-Fail	Can set 'offset-position' to CSS-wide keywords: unset
-Fail	Can set 'offset-position' to CSS-wide keywords: revert
-Fail	Can set 'offset-position' to var() references:  var(--A)
-Fail	Can set 'offset-position' to the 'normal' keyword: normal
-Fail	Can set 'offset-position' to the 'auto' keyword: auto
+7 Pass
+Pass	Can set 'offset-position' to CSS-wide keywords: initial
+Pass	Can set 'offset-position' to CSS-wide keywords: inherit
+Pass	Can set 'offset-position' to CSS-wide keywords: unset
+Pass	Can set 'offset-position' to CSS-wide keywords: revert
+Pass	Can set 'offset-position' to var() references:  var(--A)
+Pass	Can set 'offset-position' to the 'normal' keyword: normal
+Pass	Can set 'offset-position' to the 'auto' keyword: auto

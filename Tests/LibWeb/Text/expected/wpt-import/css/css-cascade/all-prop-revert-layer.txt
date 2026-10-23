@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 331 tests
+Found 336 tests
 
-327 Pass
+332 Pass
 4 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -236,6 +236,11 @@ Pass	min-width
 Pass	mix-blend-mode
 Pass	object-fit
 Pass	object-position
+Pass	offset-anchor
+Pass	offset-distance
+Pass	offset-path
+Pass	offset-position
+Pass	offset-rotate
 Pass	opacity
 Pass	order
 Pass	outline-color

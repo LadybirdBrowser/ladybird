@@ -1415,6 +1415,29 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             serialize_style_value(sink, value.data(), mode);
             sink.push_ascii(")");
         }
+        StyleValueData::Ray {
+            size,
+            contain,
+            angle,
+            position,
+        } => {
+            // https://drafts.csswg.org/motion-1/#ray-function
+            // NB: The default <ray-size>, closest-side, is omitted.
+            sink.push_ascii("ray(");
+            serialize_style_value(sink, angle.data(), mode);
+            if *size != keyword::CLOSEST_SIDE {
+                sink.push_ascii(" ");
+                sink.push_ascii(keyword::NAMES[*size as usize]);
+            }
+            if *contain {
+                sink.push_ascii(" contain");
+            }
+            if let Some(position) = position.optional_data() {
+                sink.push_ascii(" at ");
+                serialize_style_value(sink, position, mode);
+            }
+            sink.push_ascii(")");
+        }
         StyleValueData::RadialSize {
             component_count,
             is_extent_0,
@@ -1746,8 +1769,9 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 7 => serialize_shape_function(sink, *fill_rule, points.as_slice(), commands.as_slice(), mode),
                 _ => {
                     sink.push_ascii("path(");
-                    if !(mode.is_resolved() && *fill_rule == 0) {
-                        sink.push_ascii(if *fill_rule == 0 { "nonzero, " } else { "evenodd, " });
+                    // NB: The default fill rule, nonzero, is omitted.
+                    if *fill_rule != 0 {
+                        sink.push_ascii("evenodd, ");
                     }
                     serialize_a_string(sink, &StringUnits::Utf16(path.units()));
                     sink.push_ascii(")");
@@ -2956,6 +2980,50 @@ fn serialize_shorthand(
                 sink.push_ascii(" ");
             }
             sink.push_ascii("-webkit-legacy");
+        }
+        return;
+    }
+    if shorthand_property == property_id::OFFSET {
+        // https://drafts.csswg.org/motion-1/#offset-shorthand
+        // [ <'offset-position'>? [ <'offset-path'> [ <'offset-distance'> || <'offset-rotate'> ]? ]? ]! [ / <'offset-anchor'> ]?
+        let (Some(position), Some(path), Some(distance), Some(rotate), Some(anchor)) = (
+            longhand(property_id::OFFSET_POSITION),
+            longhand(property_id::OFFSET_PATH),
+            longhand(property_id::OFFSET_DISTANCE),
+            longhand(property_id::OFFSET_ROTATE),
+            longhand(property_id::OFFSET_ANCHOR),
+        ) else {
+            unreachable!("Shorthand style values must have valid value graphs");
+        };
+        let is_keyword = |value: &StyleValueData, expected| matches!(value, StyleValueData::Keyword { keyword: code } if *code == expected);
+        let is_zero_angle =
+            |value: &StyleValueData| matches!(value, StyleValueData::Angle { value, .. } if *value == 0.0);
+        let distance_is_default = matches!(distance, StyleValueData::Length { value, .. } if *value == 0.0);
+        let rotate_is_default = is_keyword(rotate, keyword::AUTO)
+            || matches!(rotate, StyleValueData::ValueList { values, .. }
+                if matches!(values.as_slice(), [first, angle] if is_keyword(first.data(), keyword::AUTO) && is_zero_angle(angle.data())));
+        let mut parts = Vec::new();
+        if !is_keyword(position, keyword::NORMAL) {
+            parts.push(position);
+        }
+        if !is_keyword(path, keyword::NONE) || !distance_is_default || !rotate_is_default || parts.is_empty() {
+            parts.push(path);
+        }
+        if !distance_is_default {
+            parts.push(distance);
+        }
+        if !rotate_is_default {
+            parts.push(rotate);
+        }
+        for (index, part) in parts.into_iter().enumerate() {
+            if index > 0 {
+                sink.push_ascii(" ");
+            }
+            serialize_style_value(sink, part, mode);
+        }
+        if !is_keyword(anchor, keyword::AUTO) {
+            sink.push_ascii(" / ");
+            serialize_style_value(sink, anchor, mode);
         }
         return;
     }

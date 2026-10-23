@@ -3668,6 +3668,98 @@
     ],
     "percentages-resolve-to": "length"
   },
+  "offset": {
+    "affects-layout": false,
+    "initial": "normal none 0 auto / auto",
+    "longhands": [
+      "offset-position",
+      "offset-path",
+      "offset-distance",
+      "offset-rotate",
+      "offset-anchor"
+    ]
+  },
+  "offset-anchor": {
+    "style-group": "TransformValues",
+    "affects-accumulated-visual-contexts": true,
+    "affects-layout": false,
+    "affects-scrollable-overflow": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "position"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "offset-distance": {
+    "style-group": "TransformValues",
+    "affects-accumulated-visual-contexts": true,
+    "affects-layout": false,
+    "affects-scrollable-overflow": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [-∞,∞]",
+      "percentage [-∞,∞]"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "offset-path": {
+    "style-group": "TransformValues",
+    "affects-accumulated-visual-contexts": true,
+    "affects-layout": false,
+    "affects-scrollable-overflow": true,
+    "affects-stacking-context": true,
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "cascaded-value",
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "offset-position": {
+    "style-group": "TransformValues",
+    "affects-accumulated-visual-contexts": true,
+    "affects-layout": false,
+    "affects-scrollable-overflow": true,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "normal",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "position"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "normal"
+    ],
+    "percentages-resolve-to": "length"
+  },
+  "offset-rotate": {
+    "style-group": "TransformValues",
+    "affects-accumulated-visual-contexts": true,
+    "affects-layout": false,
+    "affects-scrollable-overflow": true,
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "auto",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "angle [-∞,∞]"
+    ],
+    "valid-identifiers": [
+      "auto",
+      "reverse"
+    ]
+  },
   "opacity": {
     "style-group": "EffectsValues",
     "affects-accumulated-visual-contexts": true,

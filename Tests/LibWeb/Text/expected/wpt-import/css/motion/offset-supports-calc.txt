@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	offset-position supports calc
-Fail	offset-path supports calc
-Fail	offset-distance supports calc
-Fail	offset-rotate supports calc
-Fail	offset-anchor supports calc
+5 Pass
+Pass	offset-position supports calc
+Pass	offset-path supports calc
+Pass	offset-distance supports calc
+Pass	offset-rotate supports calc
+Pass	offset-anchor supports calc

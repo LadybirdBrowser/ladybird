@@ -2,10 +2,10 @@ Harness status: Error
 
 Found 6 tests
 
-6 Fail
-Fail	Can set 'offset-anchor' to CSS-wide keywords: initial
-Fail	Can set 'offset-anchor' to CSS-wide keywords: inherit
-Fail	Can set 'offset-anchor' to CSS-wide keywords: unset
-Fail	Can set 'offset-anchor' to CSS-wide keywords: revert
-Fail	Can set 'offset-anchor' to var() references:  var(--A)
-Fail	Can set 'offset-anchor' to the 'auto' keyword: auto
+6 Pass
+Pass	Can set 'offset-anchor' to CSS-wide keywords: initial
+Pass	Can set 'offset-anchor' to CSS-wide keywords: inherit
+Pass	Can set 'offset-anchor' to CSS-wide keywords: unset
+Pass	Can set 'offset-anchor' to CSS-wide keywords: revert
+Pass	Can set 'offset-anchor' to var() references:  var(--A)
+Pass	Can set 'offset-anchor' to the 'auto' keyword: auto

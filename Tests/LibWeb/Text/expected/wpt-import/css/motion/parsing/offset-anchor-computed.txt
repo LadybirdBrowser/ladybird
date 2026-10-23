@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-14 Fail
-Fail	Property offset-anchor value 'auto'
-Fail	Property offset-anchor value 'left bottom'
-Fail	Property offset-anchor value 'center center'
-Fail	Property offset-anchor value 'right center'
-Fail	Property offset-anchor value 'center top'
-Fail	Property offset-anchor value 'center bottom'
-Fail	Property offset-anchor value 'calc(20% - 5em) center'
-Fail	Property offset-anchor value 'right 4em'
-Fail	Property offset-anchor value '10px 20%'
-Fail	Property offset-anchor value 'left -10px top -20%'
-Fail	Property offset-anchor value 'right 10% bottom 20em'
-Fail	Property offset-anchor value 'top 10px right -20%'
-Fail	Property offset-anchor value 'left 10% bottom 20em'
-Fail	Property offset-anchor value 'calc(10px - 0.5em) calc(10px + 0.5em)'
+14 Pass
+Pass	Property offset-anchor value 'auto'
+Pass	Property offset-anchor value 'left bottom'
+Pass	Property offset-anchor value 'center center'
+Pass	Property offset-anchor value 'right center'
+Pass	Property offset-anchor value 'center top'
+Pass	Property offset-anchor value 'center bottom'
+Pass	Property offset-anchor value 'calc(20% - 5em) center'
+Pass	Property offset-anchor value 'right 4em'
+Pass	Property offset-anchor value '10px 20%'
+Pass	Property offset-anchor value 'left -10px top -20%'
+Pass	Property offset-anchor value 'right 10% bottom 20em'
+Pass	Property offset-anchor value 'top 10px right -20%'
+Pass	Property offset-anchor value 'left 10% bottom 20em'
+Pass	Property offset-anchor value 'calc(10px - 0.5em) calc(10px + 0.5em)'

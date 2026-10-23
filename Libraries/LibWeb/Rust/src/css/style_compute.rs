@@ -1212,6 +1212,13 @@ pub(crate) fn value_is_computationally_independent(value: &StyleValueData) -> Op
         }
         // Every filter kind's rule recurses into its single value.
         StyleValueData::Filter { value, .. } => all_data(&[value]),
+        StyleValueData::Ray { angle, position, .. } => {
+            let mut independent = value_is_computationally_independent(angle.data())?;
+            if let Some(position) = position.optional_data() {
+                independent = independent && value_is_computationally_independent(position)?;
+            }
+            Some(independent)
+        }
         StyleValueData::Counter { counter_style, .. } => all_data(&[counter_style]),
         StyleValueData::OpenTypeTagged { value, .. } => all_data(&[value]),
         StyleValueData::RandomValueSharing { fixed_value, .. } => match fixed_value.optional_data() {
@@ -1529,6 +1536,10 @@ pub(crate) fn collect_external_value_dependencies(value: &StyleValueData) -> Ext
                 collect_values(&[numerator, denominator], dependencies);
             }
             StyleValueData::Edge { offset, .. } => collect_optional(offset, dependencies),
+            StyleValueData::Ray { angle, position, .. } => {
+                collect_optional(angle, dependencies);
+                collect_optional(position, dependencies);
+            }
             StyleValueData::Function { value, .. }
             | StyleValueData::OpacityValue { value }
             | StyleValueData::Filter { value, .. }
@@ -1809,6 +1820,7 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
         },
         StyleValueData::Ratio { numerator, denominator } => collect_values(&[numerator, denominator], sharings),
         StyleValueData::Edge { offset, .. } => collect_values(&[offset], sharings),
+        StyleValueData::Ray { angle, position, .. } => collect_values(&[angle, position], sharings),
         StyleValueData::Function { value, .. }
         | StyleValueData::OpacityValue { value }
         | StyleValueData::Filter { value, .. }
@@ -2559,6 +2571,49 @@ fn canonicalize_animation_range(value: &StyleValueData, default_offset: f64) -> 
             collapsible: *collapsible,
         })
     })
+}
+
+/// https://drafts.csswg.org/motion-1/#offset-rotate-property
+/// Computed value: computed <angle> value, optionally preceded by auto
+/// Returns `None` when the value is already canonical.
+#[allow(clippy::arc_with_non_send_sync)]
+fn canonicalize_offset_rotate(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
+    // NB: The C++ AngleUnit for degrees.
+    const DEGREES: u8 = 0;
+    let degrees = match value {
+        StyleValueData::Keyword {
+            keyword: keyword::REVERSE,
+        } => 0.0,
+        StyleValueData::ValueList { values, .. } => match values.as_slice() {
+            [first, angle]
+                if matches!(
+                    first.data(),
+                    StyleValueData::Keyword {
+                        keyword: keyword::REVERSE
+                    }
+                ) =>
+            {
+                let StyleValueData::Angle { value, unit: DEGREES } = angle.data() else {
+                    return None;
+                };
+                *value
+            }
+            _ => return None,
+        },
+        _ => return None,
+    };
+    // reverse <angle>?: Identical to auto, but adds an additional 180deg to the rotation.
+    Some(Arc::new(StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(vec![
+            retained_new(StyleValueData::Keyword { keyword: keyword::AUTO }),
+            retained_new(StyleValueData::Angle {
+                value: degrees + 180.0,
+                unit: DEGREES,
+            }),
+        ]),
+        separator: 0,
+        collapsible: false,
+    }))
 }
 
 // https://drafts.csswg.org/css-contain-2/#contain-property
@@ -4319,6 +4374,21 @@ pub(crate) unsafe fn drive_property_computation(
                             .map_or(NativeValue::Unchanged, NativeValue::StyleValue),
                         Some(crate::css::absolutize::Absolutized::Changed(new_value)) => {
                             match canonicalize_border_shape(new_value.data()) {
+                                Some(canonical) => NativeValue::StyleValue(canonical),
+                                None => NativeValue::StyleValue(new_value.into_arc()),
+                            }
+                        }
+                        None => NativeValue::Unsupported,
+                    }
+                }
+                (_, prop::OFFSET_ROTATE) => {
+                    let resolution_context =
+                        length_resolution_context.expect("offset-rotate must compute with a resolution context");
+                    match absolutize_value(value_data, resolution_context, current_effective_color_scheme, results) {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => canonicalize_offset_rotate(value_data)
+                            .map_or(NativeValue::Unchanged, NativeValue::StyleValue),
+                        Some(crate::css::absolutize::Absolutized::Changed(new_value)) => {
+                            match canonicalize_offset_rotate(new_value.data()) {
                                 Some(canonical) => NativeValue::StyleValue(canonical),
                                 None => NativeValue::StyleValue(new_value.into_arc()),
                             }

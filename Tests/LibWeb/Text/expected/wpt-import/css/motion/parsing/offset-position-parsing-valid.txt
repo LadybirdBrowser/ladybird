@@ -2,16 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-12 Fail
-Fail	e.style['offset-position'] = "auto" should set the property value
-Fail	e.style['offset-position'] = "normal" should set the property value
-Fail	e.style['offset-position'] = "left bottom" should set the property value
-Fail	e.style['offset-position'] = "center center" should set the property value
-Fail	e.style['offset-position'] = "right center" should set the property value
-Fail	e.style['offset-position'] = "center top" should set the property value
-Fail	e.style['offset-position'] = "center bottom" should set the property value
-Fail	e.style['offset-position'] = "calc(20% + 10px) center" should set the property value
-Fail	e.style['offset-position'] = "right 30em" should set the property value
-Fail	e.style['offset-position'] = "10px 20%" should set the property value
-Fail	e.style['offset-position'] = "left -10px top -20%" should set the property value
-Fail	e.style['offset-position'] = "right 10% bottom 20em" should set the property value
+12 Pass
+Pass	e.style['offset-position'] = "auto" should set the property value
+Pass	e.style['offset-position'] = "normal" should set the property value
+Pass	e.style['offset-position'] = "left bottom" should set the property value
+Pass	e.style['offset-position'] = "center center" should set the property value
+Pass	e.style['offset-position'] = "right center" should set the property value
+Pass	e.style['offset-position'] = "center top" should set the property value
+Pass	e.style['offset-position'] = "center bottom" should set the property value
+Pass	e.style['offset-position'] = "calc(20% + 10px) center" should set the property value
+Pass	e.style['offset-position'] = "right 30em" should set the property value
+Pass	e.style['offset-position'] = "10px 20%" should set the property value
+Pass	e.style['offset-position'] = "left -10px top -20%" should set the property value
+Pass	e.style['offset-position'] = "right 10% bottom 20em" should set the property value

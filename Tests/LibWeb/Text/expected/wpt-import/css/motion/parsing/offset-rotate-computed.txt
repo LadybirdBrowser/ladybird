@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	Property offset-rotate value 'auto'
-Fail	Property offset-rotate value 'reverse'
-Fail	Property offset-rotate value 'calc(90deg - 0.5turn - 300grad + 0rad)'
-Fail	Property offset-rotate value 'auto 5turn'
-Fail	Property offset-rotate value 'reverse -50grad'
+5 Pass
+Pass	Property offset-rotate value 'auto'
+Pass	Property offset-rotate value 'reverse'
+Pass	Property offset-rotate value 'calc(90deg - 0.5turn - 300grad + 0rad)'
+Pass	Property offset-rotate value 'auto 5turn'
+Pass	Property offset-rotate value 'reverse -50grad'

@@ -15,6 +15,7 @@ use super::value_parser::{
 };
 use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
 use crate::css::css_path::CssPath;
+use crate::css::css_tokenizer::ParserTokenKind;
 use crate::css::property_metadata::{
     longhands_for_shorthand, property_accepted_value_types, property_has_coordinating_list_multiplicity, property_id,
 };
@@ -980,9 +981,12 @@ fn parse_polygon(context: &ParseContext, property: u16, arguments: &[ComponentVa
     Some(basic_shape(5, vec![], fill_rule, points, CssPath::none()))
 }
 
-fn parse_path(context: &ParseContext, arguments: &[ComponentValue]) -> Option<StyleValueData> {
+fn parse_path(context: &ParseContext, property: u16, arguments: &[ComponentValue]) -> Option<StyleValueData> {
     let arguments = arguments.split(ComponentValue::is_comma).collect::<Vec<_>>();
-    if arguments.is_empty() || arguments.len() > 2 {
+    // NB: Like other engines, offset-path does not accept a <fill-rule> in path(), which does not affect a path the
+    //     box moves along.
+    let maximum_arguments = if property == property_id::OFFSET_PATH { 1 } else { 2 };
+    if arguments.is_empty() || arguments.len() > maximum_arguments {
         return None;
     }
     let fill_rule = if arguments.len() == 2 {
@@ -1023,7 +1027,7 @@ fn parse_basic_shape(context: &ParseContext, property: u16, values: &[ComponentV
     } else if equals_ascii_case_insensitive(name, b"polygon") {
         parse_polygon(context, property, arguments)
     } else if equals_ascii_case_insensitive(name, b"path") {
-        parse_path(context, arguments)
+        parse_path(context, property, arguments)
     } else if equals_ascii_case_insensitive(name, b"shape") {
         parse_shape(context, property, arguments)
     } else {
@@ -1435,6 +1439,349 @@ fn parse_shape_outside(context: &ParseContext, property: u16, values: &[Componen
         (Some(shape), None) | (None, Some(shape)) => Some(shape),
         (None, None) => None,
     }
+}
+
+fn space_separated_list(values: Vec<StyleValueData>) -> StyleValueData {
+    StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(values.into_iter().map(retained).collect()),
+        separator: 0,
+        collapsible: false,
+    }
+}
+
+// https://drafts.csswg.org/css-box-4/#typedef-coord-box
+// <coord-box> = <paint-box> | view-box
+// <paint-box> = <visual-box> | fill-box | stroke-box
+fn coord_box(value: &ComponentValue) -> Option<StyleValueData> {
+    let ident = value.ident()?;
+    [
+        "content-box",
+        "padding-box",
+        "border-box",
+        "fill-box",
+        "stroke-box",
+        "view-box",
+    ]
+    .iter()
+    .any(|accepted| equals_ascii_case_insensitive(ident, accepted.as_bytes()))
+    .then(|| keyword_from_ascii_case_insensitive(ident))
+    .flatten()
+    .map(|keyword| StyleValueData::Keyword { keyword })
+}
+
+// https://drafts.csswg.org/motion-1/#ray-function
+// ray() = ray( <angle> && <ray-size>? && contain? && [at <position>]? )
+// <ray-size> = <radial-extent> | sides
+fn parse_ray(context: &ParseContext, property: u16, arguments: &[ComponentValue]) -> Option<StyleValueData> {
+    let mut tokens = TokenStream::new(arguments);
+    let mut angle = None;
+    let mut size = None;
+    let mut contain = false;
+    let mut position = None;
+    loop {
+        tokens.discard_whitespace();
+        if !tokens.has_next_token() {
+            break;
+        }
+        if let Some(ident) = tokens.next_token().ident() {
+            if equals_ascii_case_insensitive(ident, b"contain") {
+                if contain {
+                    return None;
+                }
+                contain = true;
+                tokens.discard_a_token();
+                continue;
+            }
+            if equals_ascii_case_insensitive(ident, b"at") {
+                if position.is_some() {
+                    return None;
+                }
+                tokens.discard_a_token();
+                position = Some(parse_position_from_stream(context, property, &mut tokens, false)?);
+                continue;
+            }
+            let is_size = [
+                "closest-side",
+                "closest-corner",
+                "farthest-side",
+                "farthest-corner",
+                "sides",
+            ]
+            .iter()
+            .any(|accepted| equals_ascii_case_insensitive(ident, accepted.as_bytes()));
+            if !is_size || size.is_some() {
+                return None;
+            }
+            size = Some(keyword_from_ascii_case_insensitive(ident)?);
+            tokens.discard_a_token();
+            continue;
+        }
+        if angle.is_some() {
+            return None;
+        }
+        angle = Some(super::value_parser::parse_angle_from_stream(
+            context,
+            property,
+            &mut tokens,
+            NumericRange::INFINITE,
+        )?);
+    }
+    Some(StyleValueData::Ray {
+        size: size.unwrap_or(keyword::CLOSEST_SIDE),
+        contain,
+        angle: retained(angle?),
+        position: position.map_or_else(RetainedStyleValueData::none, retained),
+    })
+}
+
+/// Whether this component value starts an <'offset-path'> value.
+fn starts_offset_path(value: &ComponentValue) -> bool {
+    if value
+        .ident()
+        .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"none"))
+        || coord_box(value).is_some()
+        || matches!(value.kind, ComponentKind::Token(ParserTokenKind::Url(_)))
+    {
+        return true;
+    }
+    value.function().is_some_and(|(name, _)| {
+        [
+            "ray", "url", "src", "inset", "xywh", "rect", "circle", "ellipse", "polygon", "path", "shape",
+        ]
+        .iter()
+        .any(|expected| equals_ascii_case_insensitive(name, expected.as_bytes()))
+    })
+}
+
+// https://drafts.csswg.org/motion-1/#offset-path-property
+// none | <offset-path> || <coord-box>
+// <offset-path> = <ray()> | <url> | <basic-shape>
+fn parse_offset_path(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
+    let significant = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if let [only] = significant[..]
+        && let Some(none) = keyword_value(only, &[keyword::NONE])
+    {
+        return Some(none);
+    }
+    if significant.is_empty() || significant.len() > 2 {
+        return None;
+    }
+    let mut path = None;
+    let mut box_value = None;
+    for value in significant {
+        if let Some(parsed_box) = coord_box(value) {
+            if box_value.is_some() {
+                return None;
+            }
+            box_value = Some(parsed_box);
+            continue;
+        }
+        if path.is_some() {
+            return None;
+        }
+        let is_ray = value
+            .function()
+            .is_some_and(|(name, _)| equals_ascii_case_insensitive(name, b"ray"));
+        path = Some(if is_ray {
+            parse_ray(context, property, value.function()?.1)?
+        } else if let Some(url) = super::value_parser::parse_url_value(context, value) {
+            url
+        } else {
+            parse_basic_shape(context, property, std::slice::from_ref(value))?
+        });
+    }
+    match (path, box_value) {
+        (
+            Some(path),
+            Some(StyleValueData::Keyword {
+                keyword: keyword::BORDER_BOX,
+            })
+            | None,
+        ) => Some(path),
+        (Some(path), Some(box_value)) => Some(space_separated_list(vec![path, box_value])),
+        (None, Some(box_value)) => Some(box_value),
+        (None, None) => None,
+    }
+}
+
+// https://drafts.csswg.org/motion-1/#offset-rotate-property
+// [ auto | reverse ] || <angle>
+fn parse_offset_rotate(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
+    let mut keyword_part = None;
+    let mut angle = None;
+    let mut tokens = TokenStream::new(values);
+    loop {
+        tokens.discard_whitespace();
+        if !tokens.has_next_token() {
+            break;
+        }
+        if let Some(parsed) = keyword_value(tokens.next_token(), &[keyword::AUTO, keyword::REVERSE]) {
+            if keyword_part.is_some() {
+                return None;
+            }
+            keyword_part = Some(parsed);
+            tokens.discard_a_token();
+            continue;
+        }
+        if angle.is_some() {
+            return None;
+        }
+        angle = Some(super::value_parser::parse_angle_from_stream(
+            context,
+            property,
+            &mut tokens,
+            NumericRange::INFINITE,
+        )?);
+    }
+    match (keyword_part, angle) {
+        (Some(keyword_part), Some(angle)) => Some(space_separated_list(vec![keyword_part, angle])),
+        (Some(single), None) | (None, Some(single)) => Some(single),
+        (None, None) => None,
+    }
+}
+
+// https://drafts.csswg.org/motion-1/#offset-position-property
+// normal | auto | <position>
+// https://drafts.csswg.org/motion-1/#offset-anchor-property
+// auto | <position>
+fn parse_offset_position_or_anchor(
+    context: &ParseContext,
+    property: u16,
+    values: &[ComponentValue],
+) -> Option<StyleValueData> {
+    let significant = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    if let [only] = significant[..] {
+        let accepted: &[u16] = if property == property_id::OFFSET_POSITION {
+            &[keyword::AUTO, keyword::NORMAL]
+        } else {
+            &[keyword::AUTO]
+        };
+        if let Some(parsed) = keyword_value(only, accepted) {
+            return Some(parsed);
+        }
+    }
+    parse_position_value(context, property, values, false)
+}
+
+// https://drafts.csswg.org/motion-1/#offset-shorthand
+// [ <'offset-position'>? [ <'offset-path'> [ <'offset-distance'> || <'offset-rotate'> ]? ]? ]! [ / <'offset-anchor'> ]?
+fn parse_offset_shorthand(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
+    let mut parts = values.split(|value| value.is_delim(b'/'));
+    let main = parts.next()?;
+    let anchor_part = parts.next();
+    if parts.next().is_some() {
+        return None;
+    }
+    let anchor = match anchor_part {
+        Some(anchor_values) => {
+            let parsed = parse_offset_position_or_anchor(context, property_id::OFFSET_ANCHOR, anchor_values)?;
+            Some(parsed)
+        }
+        None => None,
+    };
+
+    let significant = main
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .cloned()
+        .collect::<Vec<_>>();
+    if significant.is_empty() {
+        return None;
+    }
+    let path_start = significant.iter().position(starts_offset_path);
+    let position_end = path_start.unwrap_or(significant.len());
+    let position = if position_end > 0 {
+        Some(parse_offset_position_or_anchor(
+            context,
+            property_id::OFFSET_POSITION,
+            &significant[..position_end],
+        )?)
+    } else {
+        None
+    };
+
+    let mut path = None;
+    let mut distance = None;
+    let mut rotate = None;
+    if let Some(path_start) = path_start {
+        let mut path_end = path_start + 1;
+        if significant.get(path_end).is_some_and(|value| {
+            starts_offset_path(value) && coord_box(value).is_some() != coord_box(&significant[path_start]).is_some()
+        }) {
+            path_end += 1;
+        }
+        path = Some(parse_offset_path(
+            context,
+            property_id::OFFSET_PATH,
+            &significant[path_start..path_end],
+        )?);
+
+        // <'offset-distance'> || <'offset-rotate'>
+        let rest = &significant[path_end..];
+        let is_rotate_component = |value: &ComponentValue| {
+            keyword_value(value, &[keyword::AUTO, keyword::REVERSE]).is_some()
+                || super::value_parser::parse_angle_from_stream(
+                    context,
+                    property_id::OFFSET_ROTATE,
+                    &mut TokenStream::new(std::slice::from_ref(value)),
+                    NumericRange::INFINITE,
+                )
+                .is_some()
+        };
+        let mut index = 0;
+        while index < rest.len() {
+            if is_rotate_component(&rest[index]) {
+                if rotate.is_some() {
+                    return None;
+                }
+                let start = index;
+                while index < rest.len() && is_rotate_component(&rest[index]) {
+                    index += 1;
+                }
+                rotate = Some(parse_offset_rotate(
+                    context,
+                    property_id::OFFSET_ROTATE,
+                    &rest[start..index],
+                )?);
+            } else {
+                if distance.is_some() {
+                    return None;
+                }
+                let mut tokens = TokenStream::new(std::slice::from_ref(&rest[index]));
+                distance = Some(parse_length_percentage_from_stream(
+                    context,
+                    property_id::OFFSET_DISTANCE,
+                    &mut tokens,
+                    NumericRange::INFINITE,
+                    NumericRange::INFINITE,
+                )?);
+                index += 1;
+            }
+        }
+    }
+
+    let initial = |longhand: u16| crate::css::parser::value_parser::parse_initial_longhand(context, longhand);
+    let sub_properties = longhands_for_shorthand(property).to_vec();
+    let mut output = Vec::with_capacity(sub_properties.len());
+    for &longhand in &sub_properties {
+        let value = match longhand {
+            property_id::OFFSET_POSITION => position.clone(),
+            property_id::OFFSET_PATH => path.clone(),
+            property_id::OFFSET_DISTANCE => distance.clone(),
+            property_id::OFFSET_ROTATE => rotate.clone(),
+            property_id::OFFSET_ANCHOR => anchor.clone(),
+            _ => None,
+        };
+        output.push(match value {
+            Some(value) => value,
+            None => initial(longhand)?,
+        });
+    }
+    Some(crate::css::parser::value_parser::shorthand_value(
+        property,
+        sub_properties,
+        output,
+    ))
 }
 
 fn is_border_radius_longhand(property: u16) -> bool {
@@ -1900,6 +2247,12 @@ pub(crate) fn parse_geometry_property(
         parse_legacy_rect(context, property, values)
     } else if property == property_id::BORDER_SHAPE {
         parse_border_shape(context, property, values)
+    } else if property == property_id::OFFSET {
+        parse_offset_shorthand(context, property, values)
+    } else if property == property_id::OFFSET_PATH {
+        parse_offset_path(context, property, values)
+    } else if property == property_id::OFFSET_ROTATE {
+        parse_offset_rotate(context, property, values)
     } else if property == property_id::SHAPE_OUTSIDE {
         let is_shape_outside_value = values.iter().find(|value| !value.is_whitespace()).is_some_and(|value| {
             value.ident().is_some_and(|ident| {
@@ -1966,6 +2319,8 @@ pub(crate) fn parse_position_property(
         property_id::BACKGROUND_POSITION_X | property_id::BACKGROUND_POSITION_Y
     ) {
         parse_background_position_axis(context, property, values)
+    } else if matches!(property, property_id::OFFSET_POSITION | property_id::OFFSET_ANCHOR) {
+        parse_offset_position_or_anchor(context, property, values)
     } else {
         let accepted_types = property_accepted_value_types(property);
         let background_position = accepted_types.contains(&VALUE_TYPE_BACKGROUND_POSITION);

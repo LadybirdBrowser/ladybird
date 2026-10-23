@@ -3975,7 +3975,7 @@ pub(crate) fn parse_initial_value(property: u16) -> Option<Arc<StyleValueData>> 
     }
 }
 
-fn parse_initial_longhand(context: &ParseContext, property: u16) -> Option<StyleValueData> {
+pub(crate) fn parse_initial_longhand(context: &ParseContext, property: u16) -> Option<StyleValueData> {
     let initial = property_initial_value(property);
     let values = consume_a_list_of_component_values(tokenize_for_parser(initial.as_bytes())).ok()?;
     match parse_css_value(context, property, &values) {
@@ -3984,7 +3984,7 @@ fn parse_initial_longhand(context: &ParseContext, property: u16) -> Option<Style
     }
 }
 
-fn shorthand_value(property: u16, sub_properties: Vec<u16>, values: Vec<StyleValueData>) -> StyleValueData {
+pub(crate) fn shorthand_value(property: u16, sub_properties: Vec<u16>, values: Vec<StyleValueData>) -> StyleValueData {
     retained_shorthand_value(
         property,
         sub_properties,
