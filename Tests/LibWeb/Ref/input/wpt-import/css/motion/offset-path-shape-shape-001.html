@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: &lt;basic-shape&gt; shape() function</title>
+<link rel="help" href="https://drafts.fxtf.org/motion/#valdef-offset-path-basic-shape">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-2/#shape-function">
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-shape-shape-001-ref.html">
+<meta name="assert" content="This tests that shape() generates a rotation and translation.">
+
+<style>
+#outer {
+  top: 100px;
+  left: 100px;
+  position: relative;
+  width: 600px;
+  height: 400px;
+}
+
+#box {
+  width: 100px;
+  height: 100px;
+  background-color: green;
+  offset-path: shape(from 0px 0%,
+                     hline by 100%,
+                     vline to 400px,
+                     hline by -100%,
+                     close);
+  offset-distance: 40%;
+  border-radius: 50% 50% 0 0;
+}
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

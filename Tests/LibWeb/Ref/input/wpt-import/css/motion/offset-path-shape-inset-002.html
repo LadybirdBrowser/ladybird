@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: &lt;basic-shape&gt; inset() path with explicit arguments and radius</title>
+<meta name="fuzzy" content="maxDifference=0-170; totalPixels=0-500">
+<link rel="author" title="Daniil Sakhapov" href="sakhapov@google.com">
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-shape-inset-002-ref.html">
+<link rel="help" href="https://drafts.fxtf.org/motion/#valdef-offset-path-basic-shape">
+
+<style>
+#outer {
+  top: 100px;
+  left: 100px;
+  position: relative;
+  width: 400px;
+  height: 400px;
+}
+#box {
+  background-color: green;
+  position: relative;
+  offset-path: inset(50px round 50%);
+  offset-anchor: 0 0;
+  offset-distance: 12.5%;
+  border-radius: 50% 50% 0 0;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

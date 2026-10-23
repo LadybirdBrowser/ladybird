@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: ray paths with contain</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-ray-contain-005-ref.html">
+    <meta name="assert" content="This tests that ray() with contain and the path length increases.">
+    <style>
+      #container {
+        width: 250px;
+        height: 250px;
+        /* move container to right 100px to make sure we render the element
+           properly */
+        transform: translate(100px);
+      }
+      #target {
+        position: relative;
+        left: 50px;
+        top: 50px;
+        width: 150px;
+        height: 25px;
+        background-color: lime;
+        offset-path: ray(-90deg closest-side contain);
+        offset-anchor: 200% -300%;
+        offset-rotate: -90deg;
+        offset-distance: 50%;
+        offset-position: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="target"></div>
+    </div>
+  </body>
+</html>

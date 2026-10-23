@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: offset-distance</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#calculating-the-computed-distance-along-a-path">
+    <link rel="match" href="../../../../expected/wpt-import/css/motion/offset-distance-ref.html">
+    <meta name="assert" content="This tests used offset-distance when offset-path is an unclosed interval.">
+    <style>
+      #target {
+        position: absolute;
+        width: 100px;
+        height: 40px;
+        background-color: lime;
+        transform-origin: 0% 0%;
+        offset-path: path('m -80 0 h 1000');
+        offset-distance: 20%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="target"></div>
+  </body>
+</html>

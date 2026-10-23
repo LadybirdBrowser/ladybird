@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: offset-path:rect() path with explicit arguments and padding-box</title>
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-shape-rect-003-ref.html">
+<link rel="help" href="https://drafts.fxtf.org/motion/#valdef-offset-path-basic-shape">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-1/#funcdef-basic-shape-rect">
+
+<style>
+#outer {
+  top: 100px;
+  left: 100px;
+  position: relative;
+  width: 200px;
+  height: 100px;
+  padding: 50px;
+  border: 50px solid black;
+}
+#box {
+  background-color: green;
+  position: relative;
+  offset-path: rect(auto auto 50% 10px) padding-box;
+  offset-distance: 40%;
+  border-radius: 50% 50% 0 0;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

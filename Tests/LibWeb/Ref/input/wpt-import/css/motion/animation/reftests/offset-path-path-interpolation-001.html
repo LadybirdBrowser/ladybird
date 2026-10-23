@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <head>
+    <title>offset-path path() interpolation</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+    <link rel="match" href="../../../../../../expected/wpt-import/css/motion/animation/reftests/offset-path-path-interpolation-ref.html">
+    <meta name="assert" content="offset-path path supports animation.">
+    <style>
+      @keyframes anim {
+        from { offset-path: path("m 100 100 l 100 100"); }
+        to   { offset-path: path("m 100 200 l 100 -100"); }
+      }
+      #target {
+        position: absolute;
+        left: 300px;
+        top: 0px;
+        width: 300px;
+        height: 200px;
+        background-color: lime;
+        transform-origin: 0px 0px;
+        animation: anim 10s -5s paused linear;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="target"></div>
+  </body>
+  <script>
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove('reftest-wait');
+    });
+  </script>
+</html>

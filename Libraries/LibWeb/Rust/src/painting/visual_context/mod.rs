@@ -15,6 +15,7 @@ pub mod dirty;
 pub mod dump;
 pub mod incremental;
 pub mod node_values;
+pub mod offset_transform;
 pub mod reconcile;
 pub mod records;
 pub mod refresh;

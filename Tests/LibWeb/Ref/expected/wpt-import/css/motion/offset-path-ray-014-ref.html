@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test reference: ray() path with default position</title>
+<link rel="author" title="Daniil Sakhapov" href="sakhapov@google.com">
+
+<style>
+  #outer {
+    top: 100px;
+    left: 100px;
+    position: relative;
+    width: 600px;
+    height: 400px;
+  }
+  #box {
+    background-color: green;
+    position: relative;
+    top: 100px;
+    left: 100px;
+    transform: translate(150px, -150px);
+    width: 100px;
+    height: 100px;
+  }
+</style>
+
+<div id="outer">
+  <div id="inner">
+    <div id="box"></div>
+  </div>
+</div>

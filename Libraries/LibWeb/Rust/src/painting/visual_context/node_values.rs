@@ -150,7 +150,7 @@ pub(crate) fn compute_transform(
     };
 
     let transform_values = style.transform();
-    let style_has_transform = transform_values.resolved_transforms.length != 0;
+    let style_has_transform = transform_values.resolved_transforms.length != 0 || transform_values.has_offset_path;
     let has_transform_node_input = style_has_transform
         || additional_element_transform.is_some()
         || style_queries::will_change_promotes_transform_node(style);
@@ -177,15 +177,36 @@ pub(crate) fn compute_transform(
     // 3. Translate by the computed X, Y, and Z values of translate.
     // 4. Rotate by the computed <angle> about the specified axis of rotate.
     // 5. Scale by the computed X, Y, and Z values of scale.
-    // FIXME: 6. Translate and rotate by the transform specified by offset.
+    // 6. Translate and rotate by the transform specified by offset.
     // 7. Multiply by each of the transform functions in transform from left to right.
     // NB: The resolved transform list carries translate, rotate, scale, and the
     //     transform functions pre-lowered in exactly that order.
-    let mut matrix = multiply_transform_functions(
-        translation_matrix(0.0, 0.0, origin_z),
-        transform_values.resolved_transforms.as_slice(),
-        reference_box,
-    );
+    let resolved_transforms = transform_values.resolved_transforms.as_slice();
+    let mut matrix = translation_matrix(0.0, 0.0, origin_z);
+    if transform_values.has_offset_path {
+        let individual_transform_count = [
+            &transform_values.translate,
+            &transform_values.rotate,
+            &transform_values.scale,
+        ]
+        .into_iter()
+        .filter(|handle| !handle.pointer.is_null())
+        .count();
+        let (individual_transforms, transform_functions) = resolved_transforms.split_at(individual_transform_count);
+        matrix = multiply_transform_functions(matrix, individual_transforms, reference_box);
+        if let Some(offset_transform) = super::offset_transform::compute_offset_transform(
+            style,
+            layout_arena,
+            node,
+            reference_box,
+            (origin_x.to_double(), origin_y.to_double()),
+        ) {
+            matrix = matrix.multiplied(offset_transform);
+        }
+        matrix = multiply_transform_functions(matrix, transform_functions, reference_box);
+    } else {
+        matrix = multiply_transform_functions(matrix, resolved_transforms, reference_box);
+    }
 
     // The x and y properties of <use> define an additional translation applied after any
     // transformations specified with other properties.

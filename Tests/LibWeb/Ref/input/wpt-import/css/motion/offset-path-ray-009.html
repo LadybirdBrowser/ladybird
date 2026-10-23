@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: ray paths</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-ray-009-ref.html">
+    <meta name="assert" content="The initial position is outside the containing block.">
+    <style>
+      #container {
+        width: 200px;
+        height: 200px;
+      }
+      #target {
+        position: relative;
+        left: 140%;
+        top: 70%;
+        width: 40px;
+        height: 40px;
+        background-color: lime;
+        offset-path: ray(180deg closest-side);
+        offset-distance: 100%;
+        offset-position: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="target"></div>
+    </div>
+  </body>
+</html>

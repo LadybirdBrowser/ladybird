@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: &lt;basic-shape&gt; ellipse() path with offset-position</title>
+<meta name="fuzzy" content="maxDifference=0-100; totalPixels=0-500" />
+<link rel="author" title="Daniil Sakhapov" href="sakhapov@google.com">
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-shape-ellipse-005-ref.html">
+<link rel="help" href="https://drafts.fxtf.org/motion/#valdef-offset-path-basic-shape">
+
+<style>
+#outer {
+  top: 100px;
+  left: 100px;
+  position: relative;
+  width: 600px;
+  height: 400px;
+}
+#box {
+  background-color: green;
+  position: relative;
+  offset-path: ellipse(100px 100px);
+  offset-position: normal;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

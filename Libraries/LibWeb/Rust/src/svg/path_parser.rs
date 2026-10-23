@@ -897,6 +897,11 @@ impl ParsedPath {
         Some((commands, points))
     }
 
+    /// Whether the path ends with a closepath command, which makes it a closed loop.
+    pub(crate) fn ends_with_close_path(&self) -> bool {
+        matches!(self.instructions.last(), Some(PathInstruction::ClosePath))
+    }
+
     pub(crate) fn serialize(&self) -> String {
         let mut output = String::new();
         self.serialize_into(&mut output);

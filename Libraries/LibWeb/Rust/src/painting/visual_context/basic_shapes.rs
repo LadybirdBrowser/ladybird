@@ -16,7 +16,7 @@ use crate::painting::{paintable_geometry, style_queries};
 use libgfx_rust::WindingRule;
 use libgfx_rust::path::{OwnedPath, PathBuilder};
 
-mod basic_shape_kind {
+pub(super) mod basic_shape_kind {
     pub const INSET: u8 = 0;
     pub const CIRCLE: u8 = 3;
     pub const ELLIPSE: u8 = 4;

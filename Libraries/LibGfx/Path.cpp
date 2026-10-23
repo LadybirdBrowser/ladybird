@@ -25,6 +25,7 @@ void ladybird_gfx_path_append_svg_string(void const*, void (*)(void*, char const
 void ladybird_gfx_path_bounding_box(void const*, float*);
 void ladybird_gfx_path_serialize(void const*, void (*)(void*, u8 const*, size_t), void*);
 float ladybird_gfx_path_length(void const*);
+bool ladybird_gfx_path_point_at_length(void const*, float, float*);
 void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const* values, size_t count);
 void ladybird_gfx_path_append_ops(void*, u8 const* kinds, float const* values, size_t count);
 void ladybird_gfx_path_append_path(void*, void const* other);
@@ -109,6 +110,18 @@ extern "C" void ladybird_gfx_path_serialize(void const* path, void (*append)(voi
 extern "C" float ladybird_gfx_path_length(void const* path)
 {
     return static_cast<Gfx::Path const*>(path)->length();
+}
+
+extern "C" bool ladybird_gfx_path_point_at_length(void const* path, float distance, float* out)
+{
+    auto point = static_cast<Gfx::Path const*>(path)->point_at_length(distance);
+    if (!point.has_value())
+        return false;
+    out[0] = point->point.x();
+    out[1] = point->point.y();
+    out[2] = point->tangent.x();
+    out[3] = point->tangent.y();
+    return true;
 }
 
 enum class PathBuilderOpKind : u8 {

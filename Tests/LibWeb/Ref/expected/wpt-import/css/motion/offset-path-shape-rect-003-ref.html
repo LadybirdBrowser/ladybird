@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test reference: offset-path:rect() path with explicit arguments and padding-box</title>
+
+<style>
+#outer {
+  top: 100px;
+  left: 100px;
+  position: relative;
+  width: 200px;
+  height: 100px;
+  padding: 50px;
+  border: 50px solid black;
+}
+#box {
+  background-color: green;
+  transform: translate(200px, -78px) rotate(90deg);
+  border-radius: 50% 50% 0 0;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

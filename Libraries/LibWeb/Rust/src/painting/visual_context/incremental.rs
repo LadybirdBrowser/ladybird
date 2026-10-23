@@ -69,6 +69,7 @@ struct WorkPlan {
 fn expand_dirty_entries(
     layout_arena: &impl PaintableRowsRead,
     dirty: &VisualContextDirtySet,
+    offset_path_boxes: &HashSet<NodeSlotId>,
 ) -> Result<WorkPlan, VisualContextUpdateScope> {
     let mut work: HashMap<NodeSlotId, BoxDirtyBits> = HashMap::default();
     for (slot, bits) in &dirty.boxes {
@@ -121,6 +122,24 @@ fn expand_dirty_entries(
             }
             ancestor = layout_arena.node_parent_if_live(parent);
         }
+    }
+    // The offset transform of a box with an offset path depends on the geometry and style of its containing block,
+    // so the box is rebuilt whenever its containing block is.
+    let offset_path_boxes_to_rebuild: Vec<_> = offset_path_boxes
+        .iter()
+        .copied()
+        .filter(|slot| {
+            !work.contains_key(slot)
+                && layout_arena.paintable_row_is_populated(*slot)
+                && layout_arena
+                    .node_containing_block_if_live(*slot)
+                    .is_some_and(|containing_block| work.contains_key(&containing_block))
+        })
+        .collect();
+    for slot in offset_path_boxes_to_rebuild {
+        work.entry(slot)
+            .or_default()
+            .insert(VisualContextBoxDirtyKind::OffsetPathContainingBlockChanged);
     }
     let mut plan = WorkPlan {
         work,
@@ -413,7 +432,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     let plan = if scope.rebuilds_every_box() {
         WorkPlan::default()
     } else {
-        match expand_dirty_entries(layout_arena, &state.dirty_boxes) {
+        match expand_dirty_entries(layout_arena, &state.dirty_boxes, &state.offset_path_boxes) {
             Ok(plan) => plan,
             Err(reason) => return IncrementalUpdateResult::NeedsFullBuild(reason),
         }
@@ -427,6 +446,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         "removed handles name nodes of the discarded tree"
     );
     tombstone_removed_blocks(std::sync::Arc::make_mut(tree), &state.dirty_boxes, &mut delta);
+    if scope.rebuilds_every_box() {
+        state.offset_path_boxes.clear();
+    }
 
     let environment = BoxBuildEnvironment {
         layout_arena,
@@ -540,6 +562,14 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                 },
             );
             let (handles, reconcile) = writer.finish();
+            if layout_arena
+                .node_style_if_live(slot)
+                .is_some_and(|style| style.transform().has_offset_path)
+            {
+                state.offset_path_boxes.insert(slot);
+            } else {
+                state.offset_path_boxes.remove(&slot);
+            }
             let new_output = assignment.record.output_for_descendants;
             assignment.node_handles = handles;
             assignment.record.owns_geometry_dependent_nodes =

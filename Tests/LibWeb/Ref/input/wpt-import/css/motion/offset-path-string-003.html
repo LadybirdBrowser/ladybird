@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: path(string) with zero length path</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-string-ref.html">
+    <meta name="assert" content="This tests that path(<string>) generates a
+                                 proper rotation and translation when the path
+                                 is zero length.">
+    <style>
+      #target {
+        position: absolute;
+        left: 50px;
+        top: 80px;
+        width: 200px;
+        height: 300px;
+        background-color: lime;
+        transform-origin: 0px 0px;
+        offset-path: path('M 50 40');
+      }
+    </style>
+  </head>
+  <body>
+    <div id="target"></div>
+  </body>
+</html>

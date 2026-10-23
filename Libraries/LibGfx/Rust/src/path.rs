@@ -39,6 +39,7 @@ unsafe extern "C" {
         dash_offset: f32,
     ) -> *mut c_void;
     fn ladybird_gfx_path_length(path: *const c_void) -> f32;
+    fn ladybird_gfx_path_point_at_length(path: *const c_void, distance: f32, out: *mut f32) -> bool;
     fn ladybird_gfx_path_create_from_ops(kinds: *const u8, values: *const f32, count: usize) -> *mut c_void;
     fn ladybird_gfx_path_append_ops(path: *mut c_void, kinds: *const u8, values: *const f32, count: usize);
     fn ladybird_gfx_path_append_path(path: *mut c_void, other: *const c_void);
@@ -430,6 +431,13 @@ impl OwnedPath {
     pub fn length(&self) -> f32 {
         // SAFETY: The path is live for the duration of the call.
         unsafe { ladybird_gfx_path_length(self.raw.as_ptr()) }
+    }
+
+    /// The point at the given distance along the path, followed by the path's tangent there.
+    pub fn point_at_length(&self, distance: f32) -> Option<[f32; 4]> {
+        let mut out = [0.0f32; 4];
+        // SAFETY: The path is live for the duration of the call; the out-array holds four floats.
+        unsafe { ladybird_gfx_path_point_at_length(self.raw.as_ptr(), distance, out.as_mut_ptr()) }.then_some(out)
     }
 
     pub fn copy_transformed(&self, affine_values: [f32; 6]) -> OwnedPath {

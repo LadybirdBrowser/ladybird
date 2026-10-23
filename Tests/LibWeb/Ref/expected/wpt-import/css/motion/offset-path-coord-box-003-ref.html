@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test reference: &lt;coord-box&gt; &lt;content-box&gt;</title>
+<link rel="author" title="Daniil Sakhapov" href="sakhapov@google.com">
+
+<style>
+#outer {
+  top: 100px;
+  left: 100px;
+  position: relative;
+  border: 10px solid black;
+  padding: 10px;
+  width: 600px;
+  height: 400px;
+}
+#box {
+  background-color: green;
+  position: relative;
+  top: 100px;
+  left: 100px;
+  transform: translate(150px, -150px);
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

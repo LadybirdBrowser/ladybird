@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: ray() path with content-box</title>
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-ray-016-ref.html">
+<link rel="help" href="https://drafts.fxtf.org/motion/#ray-function">
+
+<style>
+  #outer {
+    top: 100px;
+    left: 100px;
+    position: relative;
+    width: 200px;
+    height: 200px;
+    padding: 50px;
+    border: 50px solid black;
+  }
+  #box {
+    background-color: green;
+    offset-path: ray(0deg sides at 0% 0%) content-box;
+    offset-rotate: 0deg;
+    offset-anchor: 0% 0%;
+    width: 100px;
+    height: 100px;
+    background-color: green;
+  }
+</style>
+
+<div id="outer">
+  <div style="width: 100px; height: 100px; background-color: red;"></div>
+  <div id="box"></div>
+</div>

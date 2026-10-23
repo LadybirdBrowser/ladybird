@@ -1,0 +1,5 @@
+ray: 188.00,98.00 40x20
+coordBox: 88.00,-2.00 40x20
+After changing the containing block:
+ray: 388.00,98.00 40x20
+coordBox: 177.27,-2.00 40x20

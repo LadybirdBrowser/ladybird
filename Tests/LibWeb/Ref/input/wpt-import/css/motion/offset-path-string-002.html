@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: path(string) paths</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-string-ref.html">
+    <meta name="assert" content="This tests that path(<string>) generates a rotation and translation.">
+    <style>
+      #target {
+        position: absolute;
+        left: 300px;
+        top: 0px;
+        width: 300px;
+        height: 200px;
+        background-color: lime;
+        transform-origin: 0px 0px;
+        offset-path: path('m 0 120 v 200');
+      }
+    </style>
+  </head>
+  <body>
+    <div id="target"></div>
+  </body>
+</html>

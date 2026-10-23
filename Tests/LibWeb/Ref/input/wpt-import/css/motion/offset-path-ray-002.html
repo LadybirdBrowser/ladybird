@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: ray paths</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-ray-001-ref.html">
+    <meta name="assert" content="This tests that ray() generates a rotation and translation.">
+    <meta name="fuzzy" content="maxDifference=0-1; totalPixels=0-10">
+    <style>
+      #target {
+        position: absolute;
+        left: 300px;
+        top: 100px;
+        width: 300px;
+        height: 200px;
+        background-color: lime;
+        transform-origin: 0px 0px;
+        offset-path: ray(135deg closest-side);
+        offset-distance: 20%;
+        offset-position: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="target"></div>
+  </body>
+</html>

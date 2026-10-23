@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: &lt;basic-shape&gt; ellipse() path with offset from container</title>
+<!-- Chrome currently passes with 13 max pixel difference and 473 total different pixels -->
+<!-- You can increase the numbers to handle anti-aliasing -->
+<meta name="fuzzy" content="maxDifference=0-150; totalPixels=0-530">
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-shape-ellipse-003-ref.html">
+<link rel="help" href="https://drafts.fxtf.org/motion/#valdef-offset-path-basic-shape">
+
+<style>
+#outer {
+  top: 100px;
+  left: 100px;
+  position: relative;
+  width: 400px;
+  height: 200px;
+}
+#box {
+  top: 100px;
+  left: 100px;
+  background-color: green;
+  position: relative;
+  offset-path: ellipse(farthest-side farthest-side at top);
+  offset-distance: 37.5%;
+  border-radius: 50% 50% 0 0;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: offset-rotate</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-rotate-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/motion/offset-rotate-ref.html">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="assert" content="This tests offset-rotate <angle>">
+    <meta name="fuzzy" content="maxDifference=0-1; totalPixels=0-57" />
+    <style>
+      #target {
+        position: absolute;
+        left: 300px;
+        top: 100px;
+        width: 300px;
+        height: 200px;
+        background-color: lime;
+        transform-origin: 0px 0px;
+        offset-path: path('m 0 0 v -200 -200') ;
+        offset-rotate: 30deg;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="target"></div>
+  </body>
+</html>
