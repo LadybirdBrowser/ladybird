@@ -896,11 +896,11 @@ TEST_CASE(extension_world_hash_cache_scales)
 {
     auto vm = JS::VM::create();
     TestRealm extension_realm { *vm, Web::Bindings::WrapperWorld::Type::Extension };
-    Vector<GC::Ref<TestWrappable>> wrappables;
+    GC::RootVector<GC::Ref<TestWrappable>> wrappables;
     for (size_t i = 0; i < 512; ++i)
         wrappables.append(extension_realm.realm().create<TestWrappable>(extension_realm.realm()));
 
-    Vector<GC::Ref<JS::HostObject>> wrappers;
+    GC::RootVector<GC::Ref<JS::HostObject>> wrappers;
     for (auto wrappable : wrappables)
         wrappers.append(wrap_test_wrappable(extension_realm.realm(), wrappable));
 
@@ -913,7 +913,7 @@ TEST_CASE(wrapper_world_cache_reference_survives_growth)
     auto vm = JS::VM::create();
     TestRealm extension_realm { *vm, Web::Bindings::WrapperWorld::Type::Extension };
     Web::Bindings::WrapperWorldWeakValueCacheMap<TestWrappable, JS::HostObject> caches;
-    Vector<GC::Ref<TestWrappable>> keys;
+    GC::RootVector<GC::Ref<TestWrappable>> keys;
     for (size_t i = 0; i < 128; ++i)
         keys.append(extension_realm.realm().create<TestWrappable>(extension_realm.realm()));
 
