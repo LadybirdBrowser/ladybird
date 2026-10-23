@@ -2,38 +2,38 @@ Harness status: OK
 
 Found 50 tests
 
-6 Pass
-44 Fail
+30 Pass
+20 Fail
 Pass	forwarddelete at <pre>abc[]</pre><p>def</p>
 Pass	forwarddelete at <pre>abc[]</pre>\n<p>def</p>
 Pass	forwarddelete at <p>abc[]</p><pre>def</pre>
 Pass	forwarddelete at <p>abc[]</p>\n<pre>def</pre>
-Fail	forwarddelete at <pre>abc[]</pre><p>def<br>ghi</p>
-Fail	forwarddelete at <pre>abc[]</pre>\n<p>def<br>ghi</p>
-Fail	forwarddelete at <p>abc[]</p><pre>def\nghi</pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre>def\nghi</pre>
-Fail	forwarddelete at <p>abc[]</p><pre>def<br>ghi</pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre>def<br>ghi</pre>
+Pass	forwarddelete at <pre>abc[]</pre><p>def<br>ghi</p>
+Pass	forwarddelete at <pre>abc[]</pre>\n<p>def<br>ghi</p>
+Pass	forwarddelete at <p>abc[]</p><pre>def\nghi</pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre>def\nghi</pre>
+Pass	forwarddelete at <p>abc[]</p><pre>def<br>ghi</pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre>def<br>ghi</pre>
 Pass	forwarddelete at <pre>abc[]</pre><p><b>def</b></p>
 Pass	forwarddelete at <pre>abc[]</pre>\n<p><b>def</b></p>
-Fail	forwarddelete at <pre>abc[]</pre><p><b>def<br>ghi</b></p>
-Fail	forwarddelete at <pre>abc[]</pre>\n<p><b>def<br>ghi</b></p>
-Fail	forwarddelete at <p>abc[]</p><pre><b>def\nghi</b></pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre><b>def\nghi</b></pre>
-Fail	forwarddelete at <p>abc[]</p><pre><b>def<br>ghi</b></pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre><b>def<br>ghi</b></pre>
-Fail	forwarddelete at <p>abc[]</p><pre><b>def</b>\nghi</pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre><b>def</b>\nghi</pre>
-Fail	forwarddelete at <p>abc[]</p><pre><b>def</b><br>ghi</pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre><b>def</b><br>ghi</pre>
-Fail	forwarddelete at <p>abc[]</p><pre><b>def\n</b>ghi</pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre><b>def\n</b>ghi</pre>
-Fail	forwarddelete at <p>abc[]</p><pre><b>def<br></b>ghi</pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre><b>def<br></b>ghi</pre>
-Fail	forwarddelete at <p>abc[]</p><pre>\ndef\nghi</pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre>\ndef\nghi</pre>
-Fail	forwarddelete at <p>abc[]</p><pre>\n\ndef\nghi</pre>
-Fail	forwarddelete at <p>abc[]</p>\n<pre>\n\ndef\nghi</pre>
+Pass	forwarddelete at <pre>abc[]</pre><p><b>def<br>ghi</b></p>
+Pass	forwarddelete at <pre>abc[]</pre>\n<p><b>def<br>ghi</b></p>
+Pass	forwarddelete at <p>abc[]</p><pre><b>def\nghi</b></pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre><b>def\nghi</b></pre>
+Pass	forwarddelete at <p>abc[]</p><pre><b>def<br>ghi</b></pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre><b>def<br>ghi</b></pre>
+Pass	forwarddelete at <p>abc[]</p><pre><b>def</b>\nghi</pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre><b>def</b>\nghi</pre>
+Pass	forwarddelete at <p>abc[]</p><pre><b>def</b><br>ghi</pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre><b>def</b><br>ghi</pre>
+Pass	forwarddelete at <p>abc[]</p><pre><b>def\n</b>ghi</pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre><b>def\n</b>ghi</pre>
+Pass	forwarddelete at <p>abc[]</p><pre><b>def<br></b>ghi</pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre><b>def<br></b>ghi</pre>
+Pass	forwarddelete at <p>abc[]</p><pre>\ndef\nghi</pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre>\ndef\nghi</pre>
+Pass	forwarddelete at <p>abc[]</p><pre>\n\ndef\nghi</pre>
+Pass	forwarddelete at <p>abc[]</p>\n<pre>\n\ndef\nghi</pre>
 Fail	forwarddelete at <p>abc[]</p><pre>def</pre> (with <style>pre { white-space: pre; }</style>)
 Fail	forwarddelete at <p>abc[]</p>\n<pre>def</pre> (with <style>pre { white-space: pre; }</style>)
 Fail	forwarddelete at <p>abc[]</p><pre>def\nghi</pre> (with <style>pre { white-space: pre; }</style>)

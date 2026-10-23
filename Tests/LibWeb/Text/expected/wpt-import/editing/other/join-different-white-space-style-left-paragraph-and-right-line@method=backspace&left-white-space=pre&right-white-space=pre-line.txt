@@ -2,38 +2,38 @@ Harness status: OK
 
 Found 33 tests
 
-2 Pass
-31 Fail
+22 Pass
+11 Fail
 Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line">[]def</span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine">[]def</span>
 Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line">[]def</span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line">[]def\nghi</span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line">[]def\nghi</span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine">[]def\nghi</span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line">[]def\nghi</span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line">[]def<br>ghi</span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line">[]def\nghi</span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line">[]def<br>ghi</span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine">[]def<br>ghi</span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line">[]def<br>ghi</span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def\nghi</b></span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line">[]def<br>ghi</span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def\nghi</b></span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine"><b>[]def\nghi</b></span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def\nghi</b></span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def<br>ghi</b></span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def\nghi</b></span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def<br>ghi</b></span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine"><b>[]def<br>ghi</b></span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def<br>ghi</b></span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def</b>\nghi</span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def<br>ghi</b></span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def</b>\nghi</span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine"><b>[]def</b>\nghi</span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def</b>\nghi</span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def</b><br>ghi</span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def</b>\nghi</span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def</b><br>ghi</span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine"><b>[]def</b><br>ghi</span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def</b><br>ghi</span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def\n</b>ghi</span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def</b><br>ghi</span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def\n</b>ghi</span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine"><b>[]def\n</b>ghi</span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def\n</b>ghi</span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def<br></b>ghi</span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def\n</b>ghi</span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def<br></b>ghi</span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine"><b>[]def<br></b>ghi</span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def<br></b>ghi</span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def\nghi</b>jkl</span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def<br></b>ghi</span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def\nghi</b>jkl</span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine"><b>[]def\nghi</b>jkl</span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def\nghi</b>jkl</span>
-Fail	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def<br>ghi</b>jkl</span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def\nghi</b>jkl</span>
+Pass	delete at <div style="white-space:pre">abc</div><span style="white-space:pre-line"><b>[]def<br>ghi</b>jkl</span>
 Fail	delete at <div style="white-space:pre">abc</div><span class="preLine"><b>[]def<br>ghi</b>jkl</span>
-Fail	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def<br>ghi</b>jkl</span>
+Pass	delete at <div class="pre">abc</div><span style="white-space:pre-line"><b>[]def<br>ghi</b>jkl</span>

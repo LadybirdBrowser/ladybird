@@ -2,40 +2,40 @@ Harness status: OK
 
 Found 52 tests
 
-6 Pass
-46 Fail
+32 Pass
+20 Fail
 Pass	forwarddelete at <pre>abc[]</pre><div>def</div>
 Pass	forwarddelete at <pre>abc[]</pre>\n<div>def</div>
 Pass	forwarddelete at <div>abc[]</div><pre>def</pre>
 Pass	forwarddelete at <div>abc[]</div>\n<pre>def</pre>
-Fail	forwarddelete at <pre>abc[]</pre><div>def<br>ghi</div>
-Fail	forwarddelete at <pre>abc[]</pre>\n<div>def<br>ghi</div>
-Fail	forwarddelete at <pre>abc[]</pre><div>def<div>ghi</div></div>
-Fail	forwarddelete at <pre>abc[]</pre>\n<div>def<div>ghi</div></div>
-Fail	forwarddelete at <div>abc[]</div><pre>def\nghi</pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre>def\nghi</pre>
-Fail	forwarddelete at <div>abc[]</div><pre>def<br>ghi</pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre>def<br>ghi</pre>
+Pass	forwarddelete at <pre>abc[]</pre><div>def<br>ghi</div>
+Pass	forwarddelete at <pre>abc[]</pre>\n<div>def<br>ghi</div>
+Pass	forwarddelete at <pre>abc[]</pre><div>def<div>ghi</div></div>
+Pass	forwarddelete at <pre>abc[]</pre>\n<div>def<div>ghi</div></div>
+Pass	forwarddelete at <div>abc[]</div><pre>def\nghi</pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre>def\nghi</pre>
+Pass	forwarddelete at <div>abc[]</div><pre>def<br>ghi</pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre>def<br>ghi</pre>
 Pass	forwarddelete at <pre>abc[]</pre><div><b>def</b></div>
 Pass	forwarddelete at <pre>abc[]</pre>\n<div><b>def</b></div>
-Fail	forwarddelete at <pre>abc[]</pre><div><b>def<br>ghi</b></div>
-Fail	forwarddelete at <pre>abc[]</pre>\n<div><b>def<br>ghi</b></div>
-Fail	forwarddelete at <div>abc[]</div><pre><b>def\nghi</b></pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre><b>def\nghi</b></pre>
-Fail	forwarddelete at <div>abc[]</div><pre><b>def<br>ghi</b></pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre><b>def<br>ghi</b></pre>
-Fail	forwarddelete at <div>abc[]</div><pre><b>def</b>\nghi</pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre><b>def</b>\nghi</pre>
-Fail	forwarddelete at <div>abc[]</div><pre><b>def</b><br>ghi</pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre><b>def</b><br>ghi</pre>
-Fail	forwarddelete at <div>abc[]</div><pre><b>def\n</b>ghi</pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre><b>def\n</b>ghi</pre>
-Fail	forwarddelete at <div>abc[]</div><pre><b>def<br></b>ghi</pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre><b>def<br></b>ghi</pre>
-Fail	forwarddelete at <div>abc[]</div><pre>\ndef\nghi</pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre>\ndef\nghi</pre>
-Fail	forwarddelete at <div>abc[]</div><pre>\n\ndef\nghi</pre>
-Fail	forwarddelete at <div>abc[]</div>\n<pre>\n\ndef\nghi</pre>
+Pass	forwarddelete at <pre>abc[]</pre><div><b>def<br>ghi</b></div>
+Pass	forwarddelete at <pre>abc[]</pre>\n<div><b>def<br>ghi</b></div>
+Pass	forwarddelete at <div>abc[]</div><pre><b>def\nghi</b></pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre><b>def\nghi</b></pre>
+Pass	forwarddelete at <div>abc[]</div><pre><b>def<br>ghi</b></pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre><b>def<br>ghi</b></pre>
+Pass	forwarddelete at <div>abc[]</div><pre><b>def</b>\nghi</pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre><b>def</b>\nghi</pre>
+Pass	forwarddelete at <div>abc[]</div><pre><b>def</b><br>ghi</pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre><b>def</b><br>ghi</pre>
+Pass	forwarddelete at <div>abc[]</div><pre><b>def\n</b>ghi</pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre><b>def\n</b>ghi</pre>
+Pass	forwarddelete at <div>abc[]</div><pre><b>def<br></b>ghi</pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre><b>def<br></b>ghi</pre>
+Pass	forwarddelete at <div>abc[]</div><pre>\ndef\nghi</pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre>\ndef\nghi</pre>
+Pass	forwarddelete at <div>abc[]</div><pre>\n\ndef\nghi</pre>
+Pass	forwarddelete at <div>abc[]</div>\n<pre>\n\ndef\nghi</pre>
 Fail	forwarddelete at <div>abc[]</div><pre>def</pre> (with <style>pre { white-space: pre; }</style>)
 Fail	forwarddelete at <div>abc[]</div>\n<pre>def</pre> (with <style>pre { white-space: pre; }</style>)
 Fail	forwarddelete at <div>abc[]</div><pre>def\nghi</pre> (with <style>pre { white-space: pre; }</style>)

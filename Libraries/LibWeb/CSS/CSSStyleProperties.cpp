@@ -740,6 +740,7 @@ Optional<RefPtr<StyleValue const>> CSSStyleProperties::resolved_value_read_from_
     case PropertyID::FontWeight:
     case PropertyID::TextAlign:
     case PropertyID::TextDecorationLine:
+    case PropertyID::TextWrapMode:
     case PropertyID::WhiteSpaceCollapse:
         break;
     default:

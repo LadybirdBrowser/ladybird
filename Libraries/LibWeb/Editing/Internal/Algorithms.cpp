@@ -809,6 +809,100 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Re
     return { set_the_tag_name(element, HTML::TagNames::span) };
 }
 
+namespace {
+
+struct ResolvedWhiteSpace {
+    Optional<CSS::Keyword> collapse;
+    Optional<CSS::Keyword> wrap_mode;
+
+    bool operator==(ResolvedWhiteSpace const&) const = default;
+
+    bool preserves_line_breaks() const
+    {
+        return collapse.has_value()
+            && first_is_one_of(*collapse, CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks, CSS::Keyword::BreakSpaces);
+    }
+};
+
+}
+
+static ResolvedWhiteSpace resolved_white_space(GC::Ref<DOM::Node> node)
+{
+    return {
+        resolved_keyword(node, CSS::PropertyID::WhiteSpaceCollapse),
+        resolved_keyword(node, CSS::PropertyID::TextWrapMode),
+    };
+}
+
+// INTEROP: When joining a paragraph into a preceding one, browsers only move its first line: the content up to the
+//          first line break, which is a br, a preserved newline or the start of a block. The line break itself is
+//          removed. This splits the inline run that starts at first, a child of container, so that the line ends at a
+//          child boundary of container, removes the line break and returns the children of container in the line.
+static GC::RootVector<GC::Ref<DOM::Node>> isolate_first_line_of_inline_run(GC::Ref<DOM::Node> container, GC::Ref<DOM::Node> first)
+{
+    Optional<DOM::BoundaryPoint> line_end;
+    GC::Ptr<DOM::Node> child = first;
+    for (; child && !line_end.has_value(); child = child->next_sibling()) {
+        if (!is_inline_node(*child))
+            break;
+
+        for (GC::Ptr<DOM::Node> node = child; node; node = node->next_in_pre_order(child.ptr())) {
+            if (is<HTML::HTMLBRElement>(*node) && node->is_editable()) {
+                line_end = DOM::BoundaryPoint { *node->parent(), static_cast<WebIDL::UnsignedLong>(node->index()) };
+                remove_node(*node);
+                break;
+            }
+
+            auto* text = as_if<DOM::Text>(*node);
+            if (!text || !text->is_editable() || !resolved_white_space(*text).preserves_line_breaks())
+                continue;
+            auto newline_offset = text->data().utf16_view().find_code_unit_offset(u'\n');
+            if (!newline_offset.has_value())
+                continue;
+
+            MUST(delete_data(*text, *newline_offset, 1));
+            if (text->length() == 0) {
+                line_end = DOM::BoundaryPoint { *text->parent(), static_cast<WebIDL::UnsignedLong>(text->index()) };
+                remove_node(*text);
+            } else {
+                line_end = DOM::BoundaryPoint { *text, static_cast<WebIDL::UnsignedLong>(*newline_offset) };
+            }
+            break;
+        }
+    }
+
+    // Split the inline ancestors of the line end, so that the line ends at a child boundary of container.
+    if (line_end.has_value()) {
+        while (line_end->node != container) {
+            auto node = line_end->node;
+            auto parent = GC::Ref { *node->parent() };
+            auto index = static_cast<WebIDL::UnsignedLong>(node->index());
+            if (line_end->offset == 0) {
+                line_end = DOM::BoundaryPoint { parent, index };
+            } else if (line_end->offset >= node->length()) {
+                line_end = DOM::BoundaryPoint { parent, index + 1 };
+            } else if (auto* text = as_if<DOM::Text>(*node)) {
+                MUST(split_text(*text, line_end->offset));
+                line_end = DOM::BoundaryPoint { parent, index + 1 };
+            } else {
+                auto clone = MUST(clone_node_for_editing(node, false));
+                insert_node_before(clone, parent, node->next_sibling());
+                while (node->child_count() > line_end->offset)
+                    move_node_preserving_ranges(*node->child_at_index(line_end->offset), clone, clone->child_count());
+                line_end = DOM::BoundaryPoint { parent, index + 1 };
+            }
+        }
+    }
+
+    GC::RootVector<GC::Ref<DOM::Node>> line;
+    for (GC::Ptr<DOM::Node> node = first->is_connected() ? first.ptr() : nullptr; node; node = node->next_sibling()) {
+        if (line_end.has_value() ? node->index() >= line_end->offset : !is_inline_node(*node))
+            break;
+        line.append(*node);
+    }
+    return line;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#delete-the-selection
 void delete_the_selection(Selection& selection, bool block_merging, bool strip_wrappers, Selection::Direction direction)
 {
@@ -1108,18 +1202,17 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         }
 
         // 6. Let children be a list of nodes, initially empty.
-        Vector<GC::Ref<DOM::Node>> children;
-
         // 7. Append the first child of end block to children.
-        children.append(*end_block->first_child());
-
         // 8. While children's last member is not a br, and children's last member's nextSibling is an inline node,
         //    append children's last member's nextSibling to children.
-        while (!is<HTML::HTMLBRElement>(*children.last()) && children.last()->next_sibling()) {
-            GC::Ref<DOM::Node> next_sibling = *children.last()->next_sibling();
-            if (!is_inline_node(next_sibling))
-                break;
-            children.append(next_sibling);
+        // INTEROP: Only the first line is moved, and its line break is removed. See
+        //          isolate_first_line_of_inline_run().
+        auto children = isolate_first_line_of_inline_run(*end_block, *end_block->first_child());
+        if (children.is_empty()) {
+            if (!end_block->has_children() && end_block->is_editable())
+                remove_node(*end_block);
+            restore_states_and_values(document, overrides);
+            return;
         }
 
         // 9. Record the values of children, and let values be the result.
@@ -1154,17 +1247,15 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
             remove_node(*start_block->last_child());
 
         // 5. Let nodes to move be a list of nodes, initially empty.
-        Vector<GC::Ref<DOM::Node>> nodes_to_move;
+        GC::RootVector<GC::Ref<DOM::Node>> nodes_to_move;
 
         // 6. If reference node's nextSibling is neither null nor a block node, append it to nodes to move.
-        if (reference_node->next_sibling() && !is_block_node(*reference_node->next_sibling()))
-            nodes_to_move.append(*reference_node->next_sibling());
-
         // 7. While nodes to move is nonempty and its last member isn't a br and its last member's nextSibling is
         //    neither null nor a block node, append its last member's nextSibling to nodes to move.
-        while (!nodes_to_move.is_empty() && !is<HTML::HTMLBRElement>(*nodes_to_move.last())
-            && nodes_to_move.last()->next_sibling() && !is_block_node(*nodes_to_move.last()->next_sibling()))
-            nodes_to_move.append(*nodes_to_move.last()->next_sibling());
+        // INTEROP: Only the first line is moved, and its line break is removed. See
+        //          isolate_first_line_of_inline_run().
+        if (reference_node->next_sibling() && !is_block_node(*reference_node->next_sibling()))
+            nodes_to_move = isolate_first_line_of_inline_run(*end_block, *reference_node->next_sibling());
 
         // 8. Record the values of nodes to move, and let values be the result.
         values = record_the_values_of_nodes(nodes_to_move);
@@ -1188,18 +1279,26 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
             remove_node(*start_block->last_child());
 
         // 3. Record the values of end block's children, and let values be the result.
-        Vector<GC::Ref<DOM::Node>> end_block_children;
-        end_block_children.ensure_capacity(end_block->child_count());
-        end_block->for_each_child([&end_block_children](auto& child) {
-            end_block_children.append(child);
-            return IterationDecision::Continue;
-        });
+        // INTEROP: If end block starts with an inline node and has another white-space style than start block, only
+        //          its first line is moved, and its line break is removed. The other lines keep their white-space
+        //          style in end block. See isolate_first_line_of_inline_run().
+        GC::RootVector<GC::Ref<DOM::Node>> end_block_children;
+        if (end_block->first_child() && is_inline_node(*end_block->first_child())
+            && resolved_white_space(*start_block) != resolved_white_space(*end_block)) {
+            end_block_children = isolate_first_line_of_inline_run(*end_block, *end_block->first_child());
+        } else {
+            end_block_children.ensure_capacity(end_block->child_count());
+            end_block->for_each_child([&end_block_children](auto& child) {
+                end_block_children.append(child);
+                return IterationDecision::Continue;
+            });
+        }
         values = record_the_values_of_nodes(end_block_children);
 
         // 4. While end block has children, append the first child of end block to start block, preserving ranges.
         auto new_position = start_block->length();
-        while (end_block->has_children())
-            move_node_preserving_ranges(*end_block->first_child(), *start_block, new_position++);
+        for (auto child : end_block_children)
+            move_node_preserving_ranges(child, *start_block, new_position++);
 
         // 5. While end block has no children, let parent be the parent of end block, then remove end block from parent,
         //    then set end block to parent.

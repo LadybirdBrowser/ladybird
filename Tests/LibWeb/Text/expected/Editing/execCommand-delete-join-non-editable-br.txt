@@ -1,0 +1,4 @@
+Before: <div>abc</div><div style="white-space: pre"><span contenteditable="false">x<br>y</span>z</div>
+After: <div>abc<span contenteditable="false">x<br>y</span><span style="white-space: pre;">z</span></div>
+Before: <div>abc</div><div style="white-space: pre"><span contenteditable="false">x<br>y</span>z<br>w</div>
+After: <div>abc<span contenteditable="false">x<br>y</span><span style="white-space: pre;">z</span></div><div style="white-space: pre">w</div>

@@ -2,27 +2,27 @@ Harness status: OK
 
 Found 40 tests
 
-11 Pass
-29 Fail
-Fail	delete at abc[<div style="white-space:pre-wrap">]def\nghi</div>
+18 Pass
+22 Fail
+Pass	delete at abc[<div style="white-space:pre-wrap">]def\nghi</div>
 Fail	delete at abc[<div class="preWrap">]def\nghi</div>
 Pass	delete at abc[<div style="white-space:pre-wrap">]def<br>ghi</div>
 Fail	delete at abc[<div class="preWrap">]def<br>ghi</div>
-Fail	delete at abc[<div style="white-space:pre-wrap"><b>]def\nghi</b></div>
+Pass	delete at abc[<div style="white-space:pre-wrap"><b>]def\nghi</b></div>
 Fail	delete at abc[<div class="preWrap"><b>]def\nghi</b></div>
-Fail	delete at abc[<div style="white-space:pre-wrap"><b>]def<br>ghi</b></div>
+Pass	delete at abc[<div style="white-space:pre-wrap"><b>]def<br>ghi</b></div>
 Fail	delete at abc[<div class="preWrap"><b>]def<br>ghi</b></div>
 Fail	delete at abc[<div style="white-space:pre-wrap"><b>]def</b>ghi\njkl</div>
 Fail	delete at abc[<div class="preWrap"><b>]def</b>ghi\njkl</div>
 Fail	delete at abc[<div style="white-space:pre-wrap"><b>]def</b>ghi<br>jkl</div>
 Fail	delete at abc[<div class="preWrap"><b>]def</b>ghi<br>jkl</div>
-Fail	delete at abc[<div style="white-space:pre-wrap"><b>]def</b>\nghi</div>
+Pass	delete at abc[<div style="white-space:pre-wrap"><b>]def</b>\nghi</div>
 Fail	delete at abc[<div class="preWrap"><b>]def</b>\nghi</div>
 Pass	delete at abc[<div style="white-space:pre-wrap"><b>]def</b><br>ghi</div>
 Fail	delete at abc[<div class="preWrap"><b>]def</b><br>ghi</div>
-Fail	delete at abc[<div style="white-space:pre-wrap"><b>]def\n</b>ghi</div>
+Pass	delete at abc[<div style="white-space:pre-wrap"><b>]def\n</b>ghi</div>
 Fail	delete at abc[<div class="preWrap"><b>]def\n</b>ghi</div>
-Fail	delete at abc[<div style="white-space:pre-wrap"><b>]def<br></b>ghi</div>
+Pass	delete at abc[<div style="white-space:pre-wrap"><b>]def<br></b>ghi</div>
 Fail	delete at abc[<div class="preWrap"><b>]def<br></b>ghi</div>
 Pass	delete at abc[<div style="white-space:pre-wrap"><div>]def</div>ghi</div>
 Fail	delete at abc[<div class="preWrap"><div>]def</div>ghi</div>
@@ -36,7 +36,7 @@ Pass	delete at abc[<div style="white-space:pre-wrap">]def<div>ghi</div>\njkl</di
 Fail	delete at abc[<div class="preWrap">]def<div>ghi</div>\njkl</div>
 Pass	delete at abc[<div style="white-space:pre-wrap">]def<div>ghi</div><br>jkl</div>
 Fail	delete at abc[<div class="preWrap">]def<div>ghi</div><br>jkl</div>
-Fail	delete at abc[<div style="white-space:pre-wrap"><div>]def\nghi</div>jkl\nmno</div>
+Pass	delete at abc[<div style="white-space:pre-wrap"><div>]def\nghi</div>jkl\nmno</div>
 Fail	delete at abc[<div class="preWrap"><div>]def\nghi</div>jkl\nmno</div>
 Pass	delete at abc[<div style="white-space:pre-wrap"><div>]def<br>ghi</div>jkl<br>mno</div>
 Fail	delete at abc[<div class="preWrap"><div>]def<br>ghi</div>jkl<br>mno</div>
