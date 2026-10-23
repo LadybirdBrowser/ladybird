@@ -291,7 +291,7 @@ void FormAssociatedElement::form_node_was_moved()
 
 void FormAssociatedElement::reposition_associated_elements_after_move(Badge<DOM::Element>, DOM::Node& moved_subtree_root)
 {
-    HashMap<GC::Ref<HTMLFormElement>, Vector<GC::Ref<HTMLElement>>> moved_elements_by_form;
+    GC::RootHashMap<GC::Ref<HTMLFormElement>, GC::RootVector<GC::Ref<HTMLElement>>> moved_elements_by_form;
     moved_subtree_root.for_each_in_inclusive_subtree_of_type<HTMLElement>([&](HTMLElement& element) {
         if (!element.is_form_associated_element())
             return TraversalDecision::Continue;
