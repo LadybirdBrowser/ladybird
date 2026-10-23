@@ -28,9 +28,9 @@ public:
 
     Utf16String const& id() const { return m_id; }
 
-    Vector<GC::Ref<MediaStreamTrack>> get_audio_tracks() const;
-    Vector<GC::Ref<MediaStreamTrack>> get_video_tracks() const;
-    Vector<GC::Ref<MediaStreamTrack>> get_tracks() const;
+    GC::RootVector<GC::Ref<MediaStreamTrack>> get_audio_tracks() const;
+    GC::RootVector<GC::Ref<MediaStreamTrack>> get_video_tracks() const;
+    GC::RootVector<GC::Ref<MediaStreamTrack>> get_tracks() const;
     GC::Ptr<MediaStreamTrack> get_track_by_id(Utf16String const& track_id) const;
 
     void add_track(GC::Ref<MediaStreamTrack> track);
