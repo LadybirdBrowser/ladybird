@@ -1542,6 +1542,33 @@ impl<'pass> GridFormattingContext<'pass> {
         // content box of its grid container taking gap into account; if any number of repetitions would
         // overflow, then 1 repetition.
         let available = self.axis_available(axis);
+        let maximum_size = match available {
+            AvailableSize::Definite(size) => Some(size),
+            _ => self.grid_container_maximum_size(axis),
+        };
+        let minimum_size = || {
+            let style = self.style(self.run.box_);
+            let minimum = axis.select(style.min_width(), style.min_height());
+            if crate::layout::sizing_context::is_plain_auto(minimum) || minimum.is_intrinsic_sizing_constraint() {
+                return None;
+            }
+            Some(self.sizing().calculate_inner_size_for_property(
+                self.run.box_,
+                axis.sizing_axis(),
+                axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
+                self.container_available_space(),
+                self.layout_input.unwrap().containing_block_constraints,
+            ))
+        };
+        let Some((available_size, round_up)) = maximum_size
+            .map(|size| (size, false))
+            .or_else(|| minimum_size().map(|size| (size, true)))
+        else {
+            // Otherwise, the specified track list repeats only once.
+            return 1;
+        };
+        // NB: Percentages resolve against the size that the repetitions fill.
+        let available = AvailableSize::Definite(available_size);
         // For this purpose, each track is treated as its max track sizing function if that is definite or
         // else its min track sizing function if that is definite. If both are definite, floor the max track
         // sizing function by the min track sizing function. If neither are definite, the number of
@@ -1570,9 +1597,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         let gap = self.resolved_gap(axis, available);
         let denominator = repeated_size + gap * repeated.tracks.len();
-        if let AvailableSize::Definite(available_size) = available
-            && denominator > CssPixels::default()
-        {
+        if denominator > CssPixels::default() {
             // The repetitions must not cause the grid to overflow, so the definite contribution of
             // the tracks outside the auto repeat is subtracted first. Expanding the template with
             // zero auto repetitions expands fixed repeat(N, ...) entries fully while the auto
@@ -1597,13 +1622,17 @@ impl<'pass> GridFormattingContext<'pass> {
             }
             // NOTE: Gap size is added to free space to compensate for the fact that the last track does not have a gap
             // If any number of repetitions would overflow, then 1 repetition.
-            let leftover = available_size + gap - rest_size - gap * rest.tracks.len();
-            return ((leftover.raw_value() as i64 / denominator.raw_value() as i64).max(1)) as usize;
+            // Otherwise, if the grid container has a definite minimum size in the relevant axis, the number of
+            // repetitions is the smallest possible positive integer that fulfills that minimum requirement.
+            let leftover = (available_size + gap - rest_size - gap * rest.tracks.len()).raw_value() as i64;
+            let denominator = denominator.raw_value() as i64;
+            let count = if round_up {
+                (leftover.max(0) + denominator - 1) / denominator
+            } else {
+                leftover / denominator
+            };
+            return count.clamp(1, MAX_GRID_LINE_NUMBER as i64) as usize;
         }
-        // FIXME: Otherwise, if the grid container has a definite minimum size in the relevant axis, the number of
-        //        repetitions is the smallest possible positive integer that fulfills that minimum requirement.
-        //
-        // Otherwise, the specified track list repeats only once.
         1
     }
 
