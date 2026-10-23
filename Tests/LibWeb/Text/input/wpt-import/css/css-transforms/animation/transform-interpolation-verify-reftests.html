@@ -1,0 +1,35 @@
+<!DOCTYPE HTML>
+<meta charset="UTF-8">
+<title>transform interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<script src="support/transform-interpolation-reftests.js"></script>
+
+<!--
+
+The tests in transform-interpolation-reftests.js are used for reftests
+that are designed to test animation that happens on the compositor.
+Here we run those same tests through test_interpolation to check that
+they match the non-compositor codepath.
+
+-->
+
+<body>
+<script>
+for (const set in transformTests) {
+  for (const obj of transformTests[set]) {
+    let test = ("test" in obj) ? obj.test : obj;
+    let midpoint = ("midpoint" in obj) ? obj.midpoint : 0.5;
+    test_interpolation({
+      property: 'transform',
+      from: test[0],
+      to: test[2]
+    }, [
+      { at: midpoint, expect: test[1] },
+    ]);
+  }
+}
+</script>

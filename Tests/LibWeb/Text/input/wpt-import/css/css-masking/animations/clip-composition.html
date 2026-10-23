@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<title>clip composition</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#clip-property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<body>
+<script>
+test_composition({
+  property: 'clip',
+  underlying: 'rect(0px 10px 20px 30px)',
+  addFrom: 'rect(40px 50px 60px 70px)',
+  addTo: 'rect(140px 150px 160px 170px)',
+}, [
+  {at: -1, expect: 'rect(-60px -40px -20px 0px)'},
+  {at: 0, expect: 'rect(40px 60px 80px 100px)'},
+  {at: 0.25, expect: 'rect(65px 85px 105px 125px)'},
+  {at: 0.75, expect: 'rect(115px 135px 155px 175px)'},
+  {at: 1, expect: 'rect(140px 160px 180px 200px)'},
+  {at: 2, expect: 'rect(240px 260px 280px 300px)'},
+]);
+
+test_composition({
+  property: 'clip',
+  underlying: 'auto',
+  addFrom: 'rect(0px 0px 0px 0px)',
+  addTo: 'rect(100px 100px 100px 100px)',
+}, [
+  {at: -1, expect: 'rect(-100px -100px -100px -100px)'},
+  {at: 0, expect: 'rect(0px 0px 0px 0px)'},
+  {at: 0.25, expect: 'rect(25px 25px 25px 25px)'},
+  {at: 0.75, expect: 'rect(75px 75px 75px 75px)'},
+  {at: 1, expect: 'rect(100px 100px 100px 100px)'},
+  {at: 2, expect: 'rect(200px 200px 200px 200px)'},
+]);
+
+test_composition({
+  property: 'clip',
+  underlying: 'rect(50px auto auto 50px)',
+  addFrom: 'rect(50px auto auto 50px)',
+  addTo: 'rect(100px 100px 100px 100px)',
+}, [
+  {at: -1, expect: 'rect(100px auto auto 100px)'},
+  {at: 0, expect: 'rect(100px auto auto 100px)'},
+  {at: 0.25, expect: 'rect(100px auto auto 100px)'},
+  {at: 0.75, expect: 'rect(100px 100px 100px 100px)'},
+  {at: 1, expect: 'rect(100px 100px 100px 100px)'},
+  {at: 2, expect: 'rect(100px 100px 100px 100px)'},
+]);
+
+test_composition({
+  property: 'clip',
+  underlying: 'rect(50px 50px 50px 50px)',
+  addFrom: 'rect(50px auto auto 50px)',
+  addTo: 'rect(100px auto auto 100px)',
+}, [
+  {at: -1, expect: 'rect(0px auto auto 0px)'},
+  {at: 0, expect: 'rect(50px auto auto 50px)'},
+  {at: 0.25, expect: 'rect(62.5px auto auto 62.5px)'},
+  {at: 0.75, expect: 'rect(87.5px auto auto 87.5px)'},
+  {at: 1, expect: 'rect(100px auto auto 100px)'},
+  {at: 2, expect: 'rect(150px auto auto 150px)'},
+]);
+
+test_composition({
+  property: 'clip',
+  underlying: 'rect(50px auto auto 50px)',
+  addFrom: 'rect(50px 50px 50px 50px)',
+  replaceTo: 'rect(100px auto auto 100px)',
+}, [
+  {at: -1, expect: 'rect(50px 50px 50px 50px)'},
+  {at: 0, expect: 'rect(50px 50px 50px 50px)'},
+  {at: 0.25, expect: 'rect(50px 50px 50px 50px)'},
+  {at: 0.75, expect: 'rect(100px auto auto 100px)'},
+  {at: 1, expect: 'rect(100px auto auto 100px)'},
+  {at: 2, expect: 'rect(100px auto auto 100px)'},
+]);
+
+test_composition({
+  property: 'clip',
+  underlying: 'rect(50px 50px 50px 50px)',
+  addFrom: 'rect(50px auto auto 50px)',
+  addTo: 'auto',
+}, [
+  {at: -1, expect: 'rect(50px auto auto 50px)'},
+  {at: 0, expect: 'rect(50px auto auto 50px)'},
+  {at: 0.25, expect: 'rect(50px auto auto 50px)'},
+  {at: 0.75, expect: 'auto'},
+  {at: 1, expect: 'auto'},
+  {at: 2, expect: 'auto'},
+]);
+</script>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform-rotate composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#funcdef-transform-rotate">
+<meta name="assert" content="transform-rotate supports animation as a transform list">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+// ------------ Addition tests --------------
+
+test_composition({
+  property: 'transform',
+  underlying: 'rotateX(20deg)',
+  addFrom: 'rotateX(40deg)',
+  addTo: 'rotateX(60deg)',
+}, [
+  {at: -0.5, expect: 'rotateX(50deg)'},
+  {at: 0, expect: 'rotateX(60deg)'},
+  {at: 0.25, expect: 'rotateX(65deg)'},
+  {at: 0.5, expect: 'rotateX(70deg)'},
+  {at: 0.75, expect: 'rotateX(75deg)'},
+  {at: 1, expect: 'rotateX(80deg)'},
+  {at: 1.5, expect: 'rotateX(90deg)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'rotateY(20deg)',
+  addFrom: 'rotateY(40deg)',
+  addTo: 'rotateY(60deg)',
+}, [
+  {at: -0.5, expect: 'rotateY(50deg)'},
+  {at: 0, expect: 'rotateY(60deg)'},
+  {at: 0.25, expect: 'rotateY(65deg)'},
+  {at: 0.5, expect: 'rotateY(70deg)'},
+  {at: 0.75, expect: 'rotateY(75deg)'},
+  {at: 1, expect: 'rotateY(80deg)'},
+  {at: 1.5, expect: 'rotateY(90deg)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'rotateZ(20deg)',
+  addFrom: 'rotateZ(40deg)',
+  addTo: 'rotateZ(60deg)',
+}, [
+  {at: -0.5, expect: 'rotateZ(50deg)'},
+  {at: 0, expect: 'rotateZ(60deg)'},
+  {at: 0.25, expect: 'rotateZ(65deg)'},
+  {at: 0.5, expect: 'rotateZ(70deg)'},
+  {at: 0.75, expect: 'rotateZ(75deg)'},
+  {at: 1, expect: 'rotateZ(80deg)'},
+  {at: 1.5, expect: 'rotateZ(90deg)'},
+]);
+
+// When testing rotate functions in isolation, the additive and accumulation
+// behaviors are functionally identical. This test includes a skew to ensure
+// both methods are implemented; add should append the from/to after the skew.
+test_composition({
+  property: 'transform',
+  underlying: 'rotate(45deg) skew(10deg, 20deg)',
+  addFrom: 'rotate(45deg)',
+  addTo: 'rotate(225deg)',
+}, [
+  {at: -0.5, expect: 'rotate(45deg) skew(10deg, 20deg) rotate(-45deg)'},
+  {at: 0, expect: 'rotate(45deg) skew(10deg, 20deg) rotate(45deg)'},
+  {at: 0.25, expect: 'rotate(45deg) skew(10deg, 20deg) rotate(90deg)'},
+  {at: 0.5, expect: 'rotate(45deg) skew(10deg, 20deg) rotate(135deg)'},
+  {at: 0.75, expect: 'rotate(45deg) skew(10deg, 20deg) rotate(180deg)'},
+  {at: 1, expect: 'rotate(45deg) skew(10deg, 20deg) rotate(225deg)'},
+  {at: 1.5, expect: 'rotate(45deg) skew(10deg, 20deg) rotate(315deg)'},
+]);
+// ------------ Accumulation tests --------------
+
+test_composition({
+  property: 'transform',
+  underlying: 'rotateX(20deg)',
+  accumulateFrom: 'rotateX(40deg)',
+  accumulateTo: 'rotateX(60deg)',
+}, [
+  {at: -0.5, expect: 'rotateX(50deg)'},
+  {at: 0, expect: 'rotateX(60deg)'},
+  {at: 0.25, expect: 'rotateX(65deg)'},
+  {at: 0.5, expect: 'rotateX(70deg)'},
+  {at: 0.75, expect: 'rotateX(75deg)'},
+  {at: 1, expect: 'rotateX(80deg)'},
+  {at: 1.5, expect: 'rotateX(90deg)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'rotateY(20deg)',
+  accumulateFrom: 'rotateY(40deg)',
+  accumulateTo: 'rotateY(60deg)',
+}, [
+  {at: -0.5, expect: 'rotateY(50deg)'},
+  {at: 0, expect: 'rotateY(60deg)'},
+  {at: 0.25, expect: 'rotateY(65deg)'},
+  {at: 0.5, expect: 'rotateY(70deg)'},
+  {at: 0.75, expect: 'rotateY(75deg)'},
+  {at: 1, expect: 'rotateY(80deg)'},
+  {at: 1.5, expect: 'rotateY(90deg)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'rotateZ(20deg)',
+  accumulateFrom: 'rotateZ(40deg)',
+  accumulateTo: 'rotateZ(60deg)',
+}, [
+  {at: -0.5, expect: 'rotateZ(50deg)'},
+  {at: 0, expect: 'rotateZ(60deg)'},
+  {at: 0.25, expect: 'rotateZ(65deg)'},
+  {at: 0.5, expect: 'rotateZ(70deg)'},
+  {at: 0.75, expect: 'rotateZ(75deg)'},
+  {at: 1, expect: 'rotateZ(80deg)'},
+  {at: 1.5, expect: 'rotateZ(90deg)'},
+]);
+
+// The rotate functions all share the same primitive type (rotate3d), so can be
+// accumulated between. If primitive type matching is not properly being
+// performed, this test would likely fail with a fallback to replace behavior.
+test_composition({
+  property: 'transform',
+  underlying: 'rotateX(45deg)',
+  accumulateFrom: 'rotateY(30deg)',
+  accumulateTo: 'rotateY(70deg)',
+}, [
+  // Due to how rotation is accumulated (addition of underlying angles), the
+  // behavior is identical to concatenating the components. The expectations
+  // are expressed as concatenations for readability.
+  {at: -0.5, expect: 'rotateX(45deg) rotateY(10deg)'},
+  {at: 0, expect: 'rotateX(45deg) rotateY(30deg)'},
+  {at: 0.25, expect: 'rotateX(45deg) rotateY(40deg)'},
+  {at: 0.5, expect: 'rotateX(45deg) rotateY(50deg)'},
+  {at: 0.75, expect: 'rotateX(45deg) rotateY(60deg)'},
+  {at: 1, expect: 'rotateX(45deg) rotateY(70deg)'},
+  {at: 1.5, expect: 'rotateX(45deg) rotateY(90deg)'},
+]);
+
+// When testing rotate functions in isolation, the additive and accumulation
+// behaviors are functionally identical. This test includes a skew to ensure
+// both methods are implemented; accumulate should combine the rotate before
+// the skew.
+test_composition({
+  property: 'transform',
+  underlying: 'rotate(45deg) skew(10deg, 20deg)',
+  accumulateFrom: 'rotate(45deg)',
+  accumulateTo: 'rotate(225deg)',
+}, [
+  {at: -0.5, expect: 'rotate(0deg) skew(10deg, 20deg)'},
+  {at: 0, expect: 'rotate(90deg) skew(10deg, 20deg)'},
+  {at: 0.25, expect: 'rotate(135deg) skew(10deg, 20deg)'},
+  {at: 0.5, expect: 'rotate(180deg) skew(10deg, 20deg)'},
+  {at: 0.75, expect: 'rotate(225deg) skew(10deg, 20deg)'},
+  {at: 1, expect: 'rotate(270deg) skew(10deg, 20deg)'},
+  {at: 1.5, expect: 'rotate(360deg) skew(10deg, 20deg)'},
+]);
+</script>
+</body>

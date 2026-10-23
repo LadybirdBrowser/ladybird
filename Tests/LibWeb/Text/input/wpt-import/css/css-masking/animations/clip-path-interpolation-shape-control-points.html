@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>clip-path-interpolation</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-2/#interpolating-shape">
+<meta name="assert" content="clip-path supports animation for shape()">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+html {
+  font-size: 16px;
+  font-family: Ahem;
+}
+
+.parent {
+  clip-path: shape(from -5px 5px, move to 5% 1px);
+  padding: 10px;
+}
+
+.target {
+  display: inline-block;
+  width: 100px;
+  height: 100px;
+  background-color: black;
+  clip-path: shape(from 5px 5px, line to 10px 10%);
+}
+
+.expected {
+  background-color: green;
+}
+</style>
+<body>
+<script>
+test_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, curve to 100% 50% with 20px 30px from origin / 40px 50px)',
+    to: 'shape(from top left, curve to 100% 50% with 20px 30px / 40px 150px from origin)',
+  }, [
+    {at: 0,    expect: 'shape(from top left, curve to 100% 50% with 20px 30px / 40px 50px)'},
+    {at: 0.5,  expect: 'shape(from top left, curve to 100% 50% with 20px 30px / 40px 100px)'},
+    {at: 1,    expect: 'shape(from top left, curve to 100% 50% with 20px 30px / 40px 150px)'},
+]);
+
+test_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, curve to 100% 50% with 20px 30px from start / 40px 50px)',
+    to: 'shape(from top left, curve to 100% 50% with 20px 30px from start / 40px 150px from origin)',
+  }, [
+    {at: 0,    expect: 'shape(from top left, curve to 100% 50% with 20px 30px from start / 40px 50px)'},
+    {at: 0.5,  expect: 'shape(from top left, curve to 100% 50% with 20px 30px from start / 40px 100px)'},
+    {at: 1,    expect: 'shape(from top left, curve to 100% 50% with 20px 30px from start / 40px 150px)'},
+]);
+
+test_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, curve by 100% 50% with 20px 30px from start / 40px 50px)',
+    to: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 150px)',
+  }, [
+    {at: 0,    expect: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 50px)'},
+    {at: 0.5,  expect: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 100px)'},
+    {at: 1,    expect: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 150px)'},
+]);
+
+test_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 50px from start)',
+    to: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 150px)',
+  }, [
+    {at: 0,    expect: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 50px)'},
+    {at: 0.5,  expect: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 100px)'},
+    {at: 1,    expect: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 150px)'},
+]);
+
+test_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 50px from origin)',
+    to: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 150px from origin)',
+  }, [
+    {at: 0,    expect: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 50px from origin)'},
+    {at: 0.5,  expect: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 100px from origin)'},
+    {at: 1,    expect: 'shape(from top left, curve by 100% 50% with 20px 30px / 40px 150px from origin)'},
+]);
+
+test_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, curve by 100% 50% with 20px 30px from end / 40px 50px)',
+    to: 'shape(from top left, curve by 100% 50% with 20px 30px from end / 40px 150px)',
+  }, [
+    {at: 0,    expect: 'shape(from top left, curve by 100% 50% with 20px 30px from end / 40px 50px)'},
+    {at: 0.5,  expect: 'shape(from top left, curve by 100% 50% with 20px 30px from end / 40px 100px)'},
+    {at: 1,    expect: 'shape(from top left, curve by 100% 50% with 20px 30px from end / 40px 150px)'},
+]);
+
+test_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, smooth to 100% 50% with 20px 50px)',
+    to: 'shape(from top left, smooth to 100% 50% with 20px 150px from origin)',
+  }, [
+    {at: 0,    expect: 'shape(from top left, smooth to 100% 50% with 20px 50px)'},
+    {at: 0.5,  expect: 'shape(from top left, smooth to 100% 50% with 20px 100px)'},
+    {at: 1,    expect: 'shape(from top left, smooth to 100% 50% with 20px 150px)'},
+]);
+
+test_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, smooth to 100% 50% with 20px 50px from start)',
+    to: 'shape(from top left, smooth to 100% 50% with 20px 150px from start)',
+  }, [
+    {at: 0,    expect: 'shape(from top left, smooth to 100% 50% with 20px 50px from start)'},
+    {at: 0.5,  expect: 'shape(from top left, smooth to 100% 50% with 20px 100px from start)'},
+    {at: 1,    expect: 'shape(from top left, smooth to 100% 50% with 20px 150px from start)'},
+]);
+
+test_no_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, curve to 100% 50% with 20px 30px from start / 40px 50px)',
+    to: 'shape(from top left, curve to 100% 50% with 20px 30px / 40px 150px from origin)',
+});
+
+test_no_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, curve to 100% 50% with 20px 30px from end / 40px 50px)',
+    to: 'shape(from top left, curve to 100% 50% with 20px 30px / 40px 150px from origin)',
+});
+
+test_no_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, curve to 100% 50% with 20px 30px / 40px 50px from end)',
+    to: 'shape(from top left, curve to 100% 50% with 20px 30px / 40px 150px from origin)',
+});
+
+
+test_no_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, smooth to 100% 50% with 20px 50px from start)',
+    to: 'shape(from top left, smooth to 100% 50% with 20px 150px)',
+});
+
+test_no_interpolation({
+    property: 'clip-path',
+    from: 'shape(from top left, smooth by 100% 50% with 20px 50px from origin)',
+    to: 'shape(from top left, smooth by 100% 50% with 20px 150px)',
+});
+
+</script>
+</body>

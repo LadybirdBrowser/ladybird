@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform-scale composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#two-d-transform-functions">
+<meta name="assert" content="transform-scale supports animation as a transform list">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+// Addition (aka concatenation) of scale functions results in multiplying their
+// values (scale(2) scale(3) == scale(6)), whereas accumulation does a 1-based
+// sum of the components (accumulate(scale(2), scale(3)) == scale(2 + 3 - 1) ==
+// scale(4)).
+
+// ------------ Addition tests --------------
+
+test_composition({
+  property: 'transform',
+  underlying: 'scaleX(2)',
+  addFrom: 'scaleX(3)',
+  addTo: 'scaleX(4)',
+}, [
+  {at: -0.5, expect: 'scaleX(5)'},
+  {at: 0, expect: 'scaleX(6)'},
+  {at: 0.25, expect: 'scaleX(6.5)'},
+  {at: 0.5, expect: 'scaleX(7)'},
+  {at: 0.75, expect: 'scaleX(7.5)'},
+  {at: 1, expect: 'scaleX(8)'},
+  {at: 1.5, expect: 'scaleX(9)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'scaleY(2)',
+  addFrom: 'scaleY(3)',
+  addTo: 'scaleY(4)',
+}, [
+  {at: -0.5, expect: 'scaleY(5)'},
+  {at: 0, expect: 'scaleY(6)'},
+  {at: 0.25, expect: 'scaleY(6.5)'},
+  {at: 0.5, expect: 'scaleY(7)'},
+  {at: 0.75, expect: 'scaleY(7.5)'},
+  {at: 1, expect: 'scaleY(8)'},
+  {at: 1.5, expect: 'scaleY(9)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'scaleZ(2)',
+  addFrom: 'scaleZ(3)',
+  addTo: 'scaleZ(4)',
+}, [
+  {at: -0.5, expect: 'scaleZ(5)'},
+  {at: 0, expect: 'scaleZ(6)'},
+  {at: 0.25, expect: 'scaleZ(6.5)'},
+  {at: 0.5, expect: 'scaleZ(7)'},
+  {at: 0.75, expect: 'scaleZ(7.5)'},
+  {at: 1, expect: 'scaleZ(8)'},
+  {at: 1.5, expect: 'scaleZ(9)'},
+]);
+
+// ------------ Accumulation tests --------------
+
+test_composition({
+  property: 'transform',
+  underlying: 'scaleX(2)',
+  accumulateFrom: 'scaleX(3)',
+  accumulateTo: 'scaleX(4)',
+}, [
+  {at: -0.5, expect: 'scaleX(3.5)'},
+  {at: 0, expect: 'scaleX(4)'},
+  {at: 0.25, expect: 'scaleX(4.25)'},
+  {at: 0.5, expect: 'scaleX(4.5)'},
+  {at: 0.75, expect: 'scaleX(4.75)'},
+  {at: 1, expect: 'scaleX(5)'},
+  {at: 1.5, expect: 'scaleX(5.5)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'scaleY(2)',
+  accumulateFrom: 'scaleY(3)',
+  accumulateTo: 'scaleY(4)',
+}, [
+  {at: -0.5, expect: 'scaleY(3.5)'},
+  {at: 0, expect: 'scaleY(4)'},
+  {at: 0.25, expect: 'scaleY(4.25)'},
+  {at: 0.5, expect: 'scaleY(4.5)'},
+  {at: 0.75, expect: 'scaleY(4.75)'},
+  {at: 1, expect: 'scaleY(5)'},
+  {at: 1.5, expect: 'scaleY(5.5)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'scaleZ(2)',
+  accumulateFrom: 'scaleZ(3)',
+  accumulateTo: 'scaleZ(4)',
+}, [
+  {at: -0.5, expect: 'scaleZ(3.5)'},
+  {at: 0, expect: 'scaleZ(4)'},
+  {at: 0.25, expect: 'scaleZ(4.25)'},
+  {at: 0.5, expect: 'scaleZ(4.5)'},
+  {at: 0.75, expect: 'scaleZ(4.75)'},
+  {at: 1, expect: 'scaleZ(5)'},
+  {at: 1.5, expect: 'scaleZ(5.5)'},
+]);
+
+// The scale functions all share the same primitive type (scale3d), so can be
+// accumulated between.
+test_composition({
+  property: 'transform',
+  underlying: 'scale(2, 4)',
+  accumulateFrom: 'scaleZ(3)',
+  accumulateTo: 'scaleZ(4)',
+}, [
+  {at: -0.5, expect: 'scale3d(2, 4, 2.5)'},
+  {at: 0, expect: 'scale3d(2, 4, 3)'},
+  {at: 0.25, expect: 'scale3d(2, 4, 3.25)'},
+  {at: 0.5, expect: 'scale3d(2, 4, 3.5)'},
+  {at: 0.75, expect: 'scale3d(2, 4, 3.75)'},
+  {at: 1, expect: 'scale3d(2, 4, 4)'},
+  {at: 1.5, expect: 'scale3d(2, 4, 4.5)'},
+]);
+</script>
+</body>

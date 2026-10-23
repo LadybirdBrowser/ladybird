@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>transform-translate composition</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms/#two-d-transform-functions">
+<meta name="assert" content="transform-translate supports animation as a transform list">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script src="../interpolation/resources/interpolation-test.js"></script>
+<script>
+// ------------ Addition tests --------------
+
+test_composition({
+  property: 'transform',
+  underlying: 'translate(10px, 20px)',
+  addFrom: 'translate(100px, 200px)',
+  addTo: 'translate(200px, 400px)',
+}, [
+  {at: -0.5, expect: 'translate(60px, 120px)'},
+  {at: 0, expect: 'translate(110px, 220px)'},
+  {at: 0.25, expect: 'translate(135px, 270px)'},
+  {at: 0.5, expect: 'translate(160px, 320px)'},
+  {at: 0.75, expect: 'translate(185px, 370px)'},
+  {at: 1, expect: 'translate(210px, 420px)'},
+  {at: 1.5, expect: 'translate(260px, 520px)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'translate(10px, 20px)',
+  addFrom: 'translate(100px, 200px)',
+  replaceTo: 'translate(210px, 420px)',
+}, [
+  {at: -0.5, expect: 'translate(60px, 120px)'},
+  {at: 0, expect: 'translate(110px, 220px)'},
+  {at: 0.25, expect: 'translate(135px, 270px)'},
+  {at: 0.5, expect: 'translate(160px, 320px)'},
+  {at: 0.75, expect: 'translate(185px, 370px)'},
+  {at: 1, expect: 'translate(210px, 420px)'},
+  {at: 1.5, expect: 'translate(260px, 520px)'},
+]);
+
+// When testing translate functions in isolation, the additive and accumulation
+// behaviors are functionally identical. This test includes a rotate to ensure
+// both methods are implemented; add should append the from/to after the rotate.
+test_composition({
+  property: 'transform',
+  underlying: 'translateX(100px) rotate(90deg)',
+  addFrom: 'translateX(100px)',
+  addTo: 'translateX(200px)',
+}, [
+  {at: -0.5, expect: 'translateX(100px) rotate(90deg) translateX(50px)'},
+  {at: 0, expect: 'translateX(100px) rotate(90deg) translateX(100px)'},
+  {at: 0.25, expect: 'translateX(100px) rotate(90deg) translateX(125px)'},
+  {at: 0.5, expect: 'translateX(100px) rotate(90deg) translateX(150px)'},
+  {at: 0.75, expect: 'translateX(100px) rotate(90deg) translateX(175px)'},
+  {at: 1, expect: 'translateX(100px) rotate(90deg) translateX(200px)'},
+  {at: 1.5, expect: 'translateX(100px) rotate(90deg) translateX(250px)'},
+]);
+
+// ------------ Accumulation tests --------------
+
+test_composition({
+  property: 'transform',
+  underlying: 'translateX(100px)',
+  accumulateFrom: 'translateX(50px)',
+  accumulateTo: 'translateX(250px)',
+}, [
+  {at: -0.5, expect: 'translateX(50px)'},
+  {at: 0, expect: 'translateX(150px)'},
+  {at: 0.25, expect: 'translateX(200px)'},
+  {at: 0.5, expect: 'translateX(250px)'},
+  {at: 0.75, expect: 'translateX(300px)'},
+  {at: 1, expect: 'translateX(350px)'},
+  {at: 1.5, expect: 'translateX(450px)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'translateY(100px)',
+  accumulateFrom: 'translateY(50px)',
+  accumulateTo: 'translateY(250px)',
+}, [
+  {at: -0.5, expect: 'translateY(50px)'},
+  {at: 0, expect: 'translateY(150px)'},
+  {at: 0.25, expect: 'translateY(200px)'},
+  {at: 0.5, expect: 'translateY(250px)'},
+  {at: 0.75, expect: 'translateY(300px)'},
+  {at: 1, expect: 'translateY(350px)'},
+  {at: 1.5, expect: 'translateY(450px)'},
+]);
+
+test_composition({
+  property: 'transform',
+  underlying: 'translateZ(100px)',
+  accumulateFrom: 'translateZ(50px)',
+  accumulateTo: 'translateZ(250px)',
+}, [
+  {at: -0.5, expect: 'translateZ(50px)'},
+  {at: 0, expect: 'translateZ(150px)'},
+  {at: 0.25, expect: 'translateZ(200px)'},
+  {at: 0.5, expect: 'translateZ(250px)'},
+  {at: 0.75, expect: 'translateZ(300px)'},
+  {at: 1, expect: 'translateZ(350px)'},
+  {at: 1.5, expect: 'translateZ(450px)'},
+]);
+
+// The translate functions all share the same primitive type (translate3d), so
+// can be accumulated between.
+test_composition({
+  property: 'transform',
+  underlying: 'translate(100px, 50px)',
+  accumulateFrom: 'translateZ(50px)',
+  accumulateTo: 'translateZ(250px)',
+}, [
+  {at: -0.5, expect: 'translate3d(100px, 50px, -50px)'},
+  {at: 0, expect: 'translate3d(100px, 50px, 50px)'},
+  {at: 0.25, expect: 'translate3d(100px, 50px, 100px)'},
+  {at: 0.5, expect: 'translate3d(100px, 50px, 150px)'},
+  {at: 0.75, expect: 'translate3d(100px, 50px, 200px)'},
+  {at: 1, expect: 'translate3d(100px, 50px, 250px)'},
+  {at: 1.5, expect: 'translate3d(100px, 50px, 350px)'},
+]);
+
+// When testing translate functions in isolation, the additive and accumulation
+// behaviors are functionally identical. This test includes a rotate to ensure
+// both methods are implemented; accumulate should combine the transform before
+// the rotate.
+test_composition({
+  property: 'transform',
+  underlying: 'translateX(100px) rotate(90deg)',
+  accumulateFrom: 'translateX(100px)',
+  accumulateTo: 'translateX(200px)',
+}, [
+  {at: -0.5, expect: 'translateX(150px) rotate(90deg)'},
+  {at: 0, expect: 'translateX(200px) rotate(90deg)'},
+  {at: 0.25, expect: 'translateX(225px) rotate(90deg)'},
+  {at: 0.5, expect: 'translateX(250px) rotate(90deg)'},
+  {at: 0.75, expect: 'translateX(275px) rotate(90deg)'},
+  {at: 1, expect: 'translateX(300px) rotate(90deg)'},
+  {at: 1.5, expect: 'translateX(350px) rotate(90deg)'},
+]);
+</script>
+</body>

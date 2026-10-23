@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>clip-path interpolation with allow-discrete</title>
+    <link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+    <meta name="assert" content="clip-path supports animation with allow-discrete.">
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+    <script src="../../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <style>
+    .parent {
+      clip-path: circle(farthest-side);
+    }
+    .target {
+      clip-path: circle(10px);
+    }
+  </style>
+  <body>
+    <script>
+      'use strict';
+
+      test_interpolation({
+        property: 'clip-path',
+        behavior: 'allow-discrete',
+        from: 'circle(10px)',
+        to: 'inset(20px)',
+      }, [
+        {at: -1, expect: 'circle(10px)'},
+        {at: 0, expect: 'circle(10px)'},
+        {at: 0.4, expect: 'circle(10px)'},
+        {at: 0.5, expect: 'inset(20px)'},
+        {at: 1, expect: 'inset(20px)'},
+        {at: 1.5, expect: 'inset(20px)'},
+      ]);
+
+      test_interpolation({
+        property: 'clip-path',
+        behavior: 'allow-discrete',
+        from: 'ellipse()',
+        to: 'padding-box',
+      }, [
+        {at: -1, expect: 'ellipse()'},
+        {at: 0, expect: 'ellipse()'},
+        {at: 0.4, expect: 'ellipse()'},
+        {at: 0.5, expect: 'padding-box'},
+        {at: 1, expect: 'padding-box'},
+        {at: 1.5, expect: 'padding-box'},
+      ]);
+
+      test_interpolation({
+        property: 'clip-path',
+        behavior: 'allow-discrete',
+        from: neutralKeyframe,
+        to: 'none',
+      }, [
+        {at: -1, expect: 'circle(10px)'},
+        {at: 0, expect: 'circle(10px)'},
+        {at: 0.4, expect: 'circle(10px)'},
+        {at: 0.5, expect: 'none'},
+        {at: 1, expect: 'none'},
+        {at: 1.5, expect: 'none'},
+      ]);
+
+      test_interpolation({
+        property: 'clip-path',
+        behavior: 'allow-discrete',
+        from: 'initial',
+        to: 'circle()',
+      }, [
+        {at: -1, expect: 'none'},
+        {at: 0, expect: 'none'},
+        {at: 0.4, expect: 'none'},
+        {at: 0.5, expect: 'circle()'},
+        {at: 1, expect: 'circle()'},
+        {at: 1.5, expect: 'circle()'},
+      ]);
+
+      test_interpolation({
+        property: 'clip-path',
+        behavior: 'allow-discrete',
+        from: 'inherit',
+        to: 'circle()',
+      }, [
+        {at: -0.1, expect: 'circle(farthest-side)'},
+        {at: 0, expect: 'circle(farthest-side)'},
+        {at: 0.4, expect: 'circle(farthest-side)'},
+        {at: 0.5, expect: 'circle()'},
+        {at: 1, expect: 'circle()'},
+        {at: 1.5, expect: 'circle()'},
+      ]);
+
+      test_interpolation({
+        property: 'clip-path',
+        behavior: 'allow-discrete',
+        from: 'unset',
+        to: 'inset(10%)',
+      }, [
+        {at: -0.1, expect: 'none'},
+        {at: 0, expect: 'none'},
+        {at: 0.4, expect: 'none'},
+        {at: 0.5, expect: 'inset(10%)'},
+        {at: 1, expect: 'inset(10%)'},
+        {at: 1.5, expect: 'inset(10%)'},
+      ]);
+
+      test_interpolation({
+        property: 'clip-path',
+        behavior: 'allow-discrete',
+        from: 'stroke-box',
+        to: 'url("abc")',
+      }, [
+        {at: -0.1, expect: 'stroke-box'},
+        {at: 0, expect: 'stroke-box'},
+        {at: 0.4, expect: 'stroke-box'},
+        {at: 0.5, expect: 'url("abc")'},
+        {at: 1, expect: 'url("abc")'},
+        {at: 1.5, expect: 'url("abc")'},
+      ]);
+
+    </script>
+  </body>
+</html>
