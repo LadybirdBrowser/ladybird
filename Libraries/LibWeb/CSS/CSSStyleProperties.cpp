@@ -645,7 +645,7 @@ static void ensure_pseudo_element_style_for_cssom(Layout::BegunRead const& read,
     // A highlight pseudo-element inherits from its parent element's, which is only kept current near an active
     // highlight, so the chain is computed outermost first.
     if (is_highlight_pseudo_element(*pseudo_element)) {
-        Vector<DOM::AbstractElement> ancestors;
+        GC::ConservativeVector<DOM::AbstractElement> ancestors;
         for (auto ancestor = abstract_element.element().element_to_inherit_style_from({}); ancestor; ancestor = ancestor->element_to_inherit_style_from({}))
             ancestors.append({ *ancestor, pseudo_element });
         for (auto& ancestor : ancestors.in_reverse())
