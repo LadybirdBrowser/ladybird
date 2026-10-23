@@ -5420,7 +5420,7 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
     if (m_user_scroll_gesture_hold_count > 0)
         return;
 
-    auto targets = move(m_pending_user_scrollend_targets);
+    GC::ConservativeVector targets { move(m_pending_user_scrollend_targets) };
     auto document = active_document();
     if (!document)
         return;
