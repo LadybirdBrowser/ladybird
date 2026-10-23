@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Motion Path properties</title>
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#property-index">
+<meta name="assert" content="Properties inherit or not according to the spec.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+<div id="target"></div>
+</div>
+<script>
+assert_not_inherited('offset-anchor', 'auto', '2px 3px');
+assert_not_inherited('offset-distance', '0px', '4px');
+assert_not_inherited('offset-path', 'none', 'path("M 5 6 H 7")');
+assert_not_inherited('offset-position', 'normal', '8px 9px');
+// https://github.com/w3c/fxtf-drafts/issues/340
+assert_not_inherited('offset-rotate', ['auto 0deg', 'auto'], '90deg');
+</script>
+</body>
+</html>

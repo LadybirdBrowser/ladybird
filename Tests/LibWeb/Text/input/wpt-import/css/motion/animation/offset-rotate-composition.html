@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>offset-rotate composition</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-rotate-property">
+<meta name="assert" content="offset-rotate supports animation.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+// Angle rotations compose.
+test_composition({
+  property: 'offset-rotate',
+  underlying: '20deg',
+  addFrom: '10deg',
+  addTo: '20deg',
+}, [
+  {at: -0.3, expect: '27deg'},
+  {at: 0, expect: '30deg'},
+  {at: 0.3, expect: '33deg'},
+  {at: 0.6, expect: '36deg'},
+  {at: 1, expect: '40deg'},
+  {at: 1.5, expect: '45deg'},
+]);
+
+// Angle rotations don't compose with underlying 'auto'.
+test_composition({
+  property: 'offset-rotate',
+  underlying: 'auto 20deg',
+  addFrom: '10deg',
+  addTo: '20deg',
+}, [
+  {at: -0.3, expect: '7deg'},
+  {at: 0, expect: '10deg'},
+  {at: 0.3, expect: '13deg'},
+  {at: 0.6, expect: '16deg'},
+  {at: 1, expect: '20deg'},
+  {at: 1.5, expect: '25deg'},
+]);
+
+// Auto rotations compose with underlying 'auto'.
+test_composition({
+  property: 'offset-rotate',
+  underlying: 'auto 20deg',
+  addFrom: 'reverse 10deg',
+  addTo: 'auto 20deg',
+}, [
+  {at: -0.3, expect: 'auto 261deg'},
+  {at: 0, expect: 'auto 210deg'},
+  {at: 0.3, expect: 'auto 159deg'},
+  {at: 0.6, expect: 'auto 108deg'},
+  {at: 1, expect: 'auto 40deg'},
+  {at: 1.5, expect: 'auto -45deg'},
+]);
+
+// When we can't interpolate, we can't compose.
+test_composition({
+  property: 'offset-rotate',
+  underlying: '20deg',
+  addFrom: 'reverse 10deg',
+  addTo: '20deg',
+}, [
+  {at: -0.3, expect: 'auto 190deg'},
+  {at: 0, expect: 'auto 190deg'},
+  {at: 0.3, expect: 'auto 190deg'},
+  {at: 0.6, expect: '40deg'},
+  {at: 1, expect: '40deg'},
+  {at: 1.5, expect: '40deg'},
+]);
+
+test_composition({
+  property: 'offset-rotate',
+  underlying: '20deg',
+  replaceFrom: 'reverse 10deg',
+  addTo: '20deg',
+}, [
+  {at: -0.3, expect: 'auto 190deg'},
+  {at: 0, expect: 'auto 190deg'},
+  {at: 0.3, expect: 'auto 190deg'},
+  {at: 0.6, expect: '40deg'},
+  {at: 1, expect: '40deg'},
+  {at: 1.5, expect: '40deg'},
+]);
+
+// Angle rotations compose with underlying angle.
+test_composition({
+  property: 'offset-rotate',
+  underlying: '20deg',
+  addFrom: '10deg',
+  replaceTo: '10deg',
+}, [
+  {at: -0.3, expect: '36deg'},
+  {at: 0, expect: '30deg'},
+  {at: 0.3, expect: '24deg'},
+  {at: 0.6, expect: '18deg'},
+  {at: 1, expect: '10deg'},
+  {at: 1.5, expect: '0deg'},
+]);
+</script>
+</body>

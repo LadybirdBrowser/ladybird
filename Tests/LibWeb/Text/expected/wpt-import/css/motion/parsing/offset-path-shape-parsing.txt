@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 35 tests
+
+15 Pass
+20 Fail
+Fail	e.style['offset-path'] = "shape(from 0px 0px, line to 10px 10px)" should set the property value
+Fail	e.style['offset-path'] = "shape(  from 0px    0px, line  to 10px  10px     )" should set the property value
+Fail	e.style['offset-path'] = "shape(from 1em 50%, line to 10px 10px)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 1ch 50px, line to 10rem 10vh)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 1ch -50px, line to -10% 12px)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, move by 10px 5px, line by 20px 40%, close)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, hline by 10px, vline to 5rem)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, vline by 5%, hline to 1vw)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, curve to 50px 20px with 10rem 1%)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, curve to 50px 20px with 10rem 1px / 20vh 1ch)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, curve by 50px 20px with 10rem 1px / 20vh 1ch)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, smooth to 50px 20px with 10rem 1%)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, smooth to 50px 1pt)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, arc to 50px 1pt of 10px 10px)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, arc to 50px 1pt of 10px 10px small rotate 0deg)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10% 1rem, arc to 50px 1pt of 20% cw large rotate 25deg)" should set the property value
+Fail	e.style['offset-path'] = "shape(evenodd from 0px 0px, line to 10px 10px)" should set the property value
+Fail	e.style['offset-path'] = "shape(nonzero from 0px 0px, line to 10px 10px)" should set the property value
+Fail	e.style['offset-path'] = "shape(evenodd from 0px 0px, close)" should set the property value
+Fail	e.style['offset-path'] = "shape(from 10px 10px, curve to 50px 20px with  10rem center)" should set the property value
+Pass	e.style['offset-path'] = "shape(from 0px 0px, close path)" should not set the property value
+Pass	e.style['offset-path'] = "shape(from 10px 10px, curve to 50px 20px with  10rem 1% 12px)" should not set the property value
+Pass	e.style['offset-path'] = "shape(from 10px 10px, hline byy 10px, vline to 5rem)" should not set the property value
+Pass	e.style['offset-path'] = "shape(from 10px 10px, vline by 5% hline by 1vw" should not set the property value
+Pass	e.style['offset-path'] = "shape(from 10px 10px, smooth to 50px 20px via  10rem)" should not set the property value
+Pass	e.style['offset-path'] = "shape(from 10px 10px, smooth to 50px 20px via  10rem 2px 2pt)" should not set the property value
+Pass	e.style['offset-path'] = "shape()" should not set the property value
+Pass	e.style['offset-path'] = "shape(from)" should not set the property value
+Pass	e.style['offset-path'] = "shape(from 0px)" should not set the property value
+Pass	e.style['offset-path'] = "shape(from 0px 20px,)" should not set the property value
+Pass	e.style['offset-path'] = "shape(close)" should not set the property value
+Pass	e.style['offset-path'] = "shape(nonzero close)" should not set the property value
+Pass	e.style['offset-path'] = "shape(from 0px 10px)" should not set the property value
+Pass	e.style['offset-path'] = "shape(allkindsofnonsense)" should not set the property value
+Pass	e.style['offset-path'] = "shape(arc)" should not set the property value

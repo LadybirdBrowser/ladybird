@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: getComputedStyle().offsetRotate</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-rotate-property">
+<meta name="assert" content="offset-rotate reverse is auto 180deg.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+// https://github.com/w3c/fxtf-drafts/issues/340
+test_computed_value("offset-rotate", "auto", ["auto 0deg", "auto"]);
+test_computed_value("offset-rotate", "reverse", "auto 180deg");
+test_computed_value("offset-rotate", "calc(90deg - 0.5turn - 300grad + 0rad)", "-360deg");
+test_computed_value("offset-rotate", "auto 5turn", "auto 1800deg");
+test_computed_value("offset-rotate", "reverse -50grad", "auto 135deg");
+</script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>offset-distance interpolation</title>
+    <link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-distance-property">
+    <meta name="assert" content="offset-distance supports animation.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <style>
+    .parent {
+      offset-distance: 30px;
+    }
+    .target {
+      width: 10px;
+      height: 10px;
+      background-color: black;
+      offset-path: path("M0 0H 400");
+      offset-distance: 10px;
+    }
+    .expected {
+      background-color: green;
+    }
+  </style>
+  <body>
+    <script>
+      test_interpolation({
+        property: 'offset-distance',
+        from: '-30px',
+        to: '50px',
+      }, [
+        {at: -1, expect: '-110px'},
+        {at: 0, expect: '-30px'},
+        {at: 0.125, expect: '-20px'},
+        {at: 0.875, expect: '40px'},
+        {at: 1, expect: '50px'},
+        {at: 2, expect: '130px'}
+      ]);
+
+      test_interpolation({
+        property: 'offset-distance',
+        from: '20%',
+        to: '100%',
+      }, [
+        {at: -1, expect: '-60%'},
+        {at: 0, expect: '20%'},
+        {at: 0.125, expect: '30%'},
+        {at: 0.875, expect: '90%'},
+        {at: 1, expect: '100%'},
+        {at: 2, expect: '180%'}
+      ]);
+
+      test_interpolation({
+        property: 'offset-distance',
+        from: 'calc(20% - 30px)',
+        to: 'calc(50px + 100%)',
+      }, [
+        {at: -1, expect: 'calc(-110px + -60%)'},
+        {at: 0, expect: 'calc(20% - 30px)'},
+        {at: 0.125, expect: 'calc(-20px + 30%)'},
+        {at: 0.875, expect: 'calc(40px + 90%)'},
+        {at: 1, expect: 'calc(50px + 100%)'},
+        {at: 2, expect: 'calc(130px + 180%)'}
+      ]);
+
+      test_interpolation({
+        property: 'offset-distance',
+        from: neutralKeyframe,
+        to: '20px',
+      }, [
+        {at: -0.3, expect: '7px'},
+        {at: 0, expect: '10px'},
+        {at: 0.3, expect: '13px'},
+        {at: 0.6, expect: '16px'},
+        {at: 1, expect: '20px'},
+        {at: 1.5, expect: '25px'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-distance',
+        from: 'initial',
+        to: '20px',
+      }, [
+        {at: -0.3, expect: '-6px'},
+        {at: 0, expect: '0px'},
+        {at: 0.3, expect: '6px'},
+        {at: 0.6, expect: '12px'},
+        {at: 1, expect: '20px'},
+        {at: 1.5, expect: '30px'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-distance',
+        from: 'inherit',
+        to: '20px',
+      }, [
+        {at: -0.3, expect: '33px'},
+        {at: 0, expect: '30px'},
+        {at: 0.3, expect: '27px'},
+        {at: 0.6, expect: '24px'},
+        {at: 1, expect: '20px'},
+        {at: 1.5, expect: '15px'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-distance',
+        from: 'unset',
+        to: '20px',
+      }, [
+        {at: -0.3, expect: '-6px'},
+        {at: 0, expect: '0px'},
+        {at: 0.3, expect: '6px'},
+        {at: 0.6, expect: '12px'},
+        {at: 1, expect: '20px'},
+        {at: 1.5, expect: '30px'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-distance',
+        from: '10px',
+        to: '100%',
+      }, [
+        {at: -0.3, expect: 'calc(13px + -30%)'},
+        {at: 0, expect: 'calc(0% + 10px)'},
+        {at: 0.3, expect: 'calc(7px + 30%)'},
+        {at: 0.6, expect: 'calc(4px + 60%)'},
+        {at: 1, expect: '100%'},
+        {at: 1.5, expect: 'calc(-5px + 150%)'},
+      ]);
+    </script>
+  </body>
+</html>

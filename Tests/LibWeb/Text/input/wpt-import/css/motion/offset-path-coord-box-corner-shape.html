@@ -1,0 +1,88 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path: coord-box follows corner-shape</title>
+<link rel="author" title="Helmut Januschka" href="mailto:helmut@januschka.com">
+<link rel="help" href="https://drafts.fxtf.org/motion/#valdef-offset-path-coord-box">
+<link rel="help" href="https://drafts.csswg.org/css-borders-4/#corner-shaping">
+<meta name="assert" content="A coord-box offset path follows the box's corner-shape contour.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  body {
+    margin: 0;
+  }
+  .container {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border: 1px solid transparent;
+    border-radius: 50px;
+    box-sizing: border-box;
+  }
+  .target {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    offset-path: border-box;
+    offset-rotate: 0deg;
+  }
+  #bevel {
+    corner-shape: bevel;
+  }
+  #bevel-target,
+  #square-target,
+  #scoop-target {
+    offset-distance: 12.5%;
+  }
+  #square {
+    corner-shape: square;
+  }
+  #mixed {
+    corner-shape: round;
+    corner-top-right-shape: bevel;
+  }
+  #mixed-target {
+    offset-distance: 25px;
+  }
+  #scoop {
+    corner-shape: scoop;
+  }
+</style>
+<div id="bevel" class="container">
+  <div id="bevel-target" class="target"></div>
+</div>
+<div id="square" class="container">
+  <div id="square-target" class="target"></div>
+</div>
+<div id="mixed" class="container">
+  <div id="mixed-target" class="target"></div>
+</div>
+<div id="scoop" class="container">
+  <div id="scoop-target" class="target"></div>
+</div>
+<script>
+  const cases = [
+    ['bevel-target', 70, 20, 'beveled corners'],
+    ['square-target', 45, -5, 'square corners'],
+    [
+      'mixed-target',
+      45 + 25 * Math.SQRT1_2,
+      -5 + 25 * Math.SQRT1_2,
+      'one beveled corner',
+    ],
+    [
+      'scoop-target',
+      95 - 50 * Math.SQRT1_2,
+      -5 + 50 * Math.SQRT1_2,
+      'scooped corners',
+    ],
+  ];
+
+  for (const [id, expectedX, expectedY, description] of cases) {
+    test(() => {
+      const rect = document.getElementById(id).getBoundingClientRect();
+      assert_approx_equals(rect.x, expectedX, 0.1);
+      assert_approx_equals(rect.y, expectedY, 0.1);
+    }, `offset-path: border-box follows ${description}`);
+  }
+</script>

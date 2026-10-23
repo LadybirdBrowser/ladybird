@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: parsing offset with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-shorthand">
+<meta name="assert" content="offset supports only the grammar from the spec.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("offset", "100px 0deg path('m 0 0 h 100')");
+test_invalid_value("offset", "30deg path('M 20 30 A 60 70 80')");
+test_invalid_value("offset", "30deg");
+test_invalid_value("offset", "auto 30deg 90px");
+test_invalid_value("offset", "none / 10px 20px 30deg");
+test_invalid_value("offset", "none /");
+test_invalid_value("offset", "path('M 20 30 A 60 70 80') bottom");
+test_invalid_value("offset", "path('m 0 0 h 100') 100px 0");
+test_invalid_value("offset", "path('m 0 0 h 100') 100px 200px");
+test_invalid_value("offset", "path('m 0 0 h 100') 200% auto 100px");
+test_invalid_value("offset", "path('m 0 0 h 100') auto reverse");
+test_invalid_value("offset", "path('m 0 0 h 100') reverse 100px 30deg");
+test_invalid_value("offset", "ray(sides 0) 50% 90deg auto");
+</script>
+</body>
+</html>

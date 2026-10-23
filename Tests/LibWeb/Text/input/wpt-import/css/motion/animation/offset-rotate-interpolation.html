@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>offset-rotate interpolation</title>
+    <link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-rotate-property">
+    <meta name="assert" content="offset-rotate supports animation.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <style>
+    .parent {
+      offset-rotate: 30deg;
+    }
+    .target {
+      width: 80px;
+      height: 80px;
+      display: inline-block;
+      background-color: black;
+      margin-right: 5px;
+      offset-rotate: 10deg;
+    }
+    .expected {
+      background-color: green;
+      margin-right: 15px;
+    }
+  </style>
+  <body>
+    <script>
+      test_interpolation({
+        property: 'offset-rotate',
+        from: '100deg',
+        to: '180deg',
+      }, [
+        {at: -1, expect: '20deg'},
+        {at: 0, expect: '100deg'},
+        {at: 0.125, expect: '110deg'},
+        {at: 0.875, expect: '170deg'},
+        {at: 1, expect: '180deg'},
+        {at: 2, expect: '260deg'}
+      ]);
+
+      test_interpolation({
+        property: 'offset-rotate',
+        from: 'auto 45deg',
+        to: 'auto 125deg',
+      }, [
+        {at: -1, expect: 'auto -35deg'},
+        {at: 0, expect: 'auto 45deg'},
+        {at: 0.125, expect: 'auto 55deg'},
+        {at: 0.875, expect: 'auto 115deg'},
+        {at: 1, expect: 'auto 125deg'},
+        {at: 2, expect: 'auto 205deg'}
+      ]);
+
+      test_interpolation({
+        property: 'offset-rotate',
+        from: 'auto 170deg',
+        to: '100grad auto',
+      }, [
+        {at: -1, expect: 'auto 250deg'},
+        {at: 0, expect: 'auto 170deg'},
+        {at: 0.125, expect: 'auto 160deg'},
+        {at: 0.875, expect: 'auto 100deg'},
+        {at: 1, expect: '100grad auto'},
+        {at: 2, expect: 'auto 10deg'}
+      ]);
+
+      test_interpolation({
+        property: 'offset-rotate',
+        from: 'auto -280deg',
+        to: 'auto calc(90deg - 0.5turn - 300grad + 0rad)',
+      }, [
+        {at: -1, expect: 'auto -200deg'},
+        {at: 0, expect: 'auto -280deg'},
+        {at: 0.125, expect: 'auto -290deg'},
+        {at: 0.875, expect: 'auto -350deg'},
+        {at: 1, expect: 'auto calc(90deg - 0.5turn - 300grad + 0rad)'},
+        {at: 2, expect: 'auto -440deg'}
+      ]);
+
+      test_interpolation({
+        property: 'offset-rotate',
+        from: 'auto 100deg',
+        to: 'reverse',
+      }, [
+        {at: -1, expect: 'auto 20deg'},
+        {at: 0, expect: 'auto 100deg'},
+        {at: 0.125, expect: 'auto 110deg'},
+        {at: 0.875, expect: 'auto 170deg'},
+        {at: 1, expect: 'reverse'},
+        {at: 2, expect: 'auto 260deg'}
+      ]);
+
+      // No interpolation between auto/reverse and angle.
+      test_no_interpolation({
+        property: 'offset-rotate',
+        from: 'reverse 90deg',
+        to: '360deg',
+      });
+
+      test_no_interpolation({
+        property: 'offset-rotate',
+        from: '6rad',
+        to: 'auto',
+      });
+
+      // Neutral keyframes use the inline style.
+      test_interpolation({
+        property: 'offset-rotate',
+        from: neutralKeyframe,
+        to: '20deg',
+      }, [
+        {at: -0.3, expect: '7deg'},
+        {at: 0, expect: '10deg'},
+        {at: 0.3, expect: '13deg'},
+        {at: 0.6, expect: '16deg'},
+        {at: 1, expect: '20deg'},
+        {at: 1.5, expect: '25deg'},
+      ]);
+
+      // No interpolation to an angle from the initial value 'auto'.
+      test_no_interpolation({
+        property: 'offset-rotate',
+        from: 'initial',
+        to: '20deg',
+      });
+
+      // 'inherit' keyframes use the parent style.
+      test_interpolation({
+        property: 'offset-rotate',
+        from: 'inherit',
+        to: '20deg',
+      }, [
+        {at: -0.3, expect: '33deg'},
+        {at: 0, expect: '30deg'},
+        {at: 0.3, expect: '27deg'},
+        {at: 0.6, expect: '24deg'},
+        {at: 1, expect: '20deg'},
+        {at: 1.5, expect: '15deg'},
+      ]);
+
+      // No interpolation to an angle from the initial value 'auto'.
+      test_no_interpolation({
+        property: 'offset-rotate',
+        from: 'unset',
+        to: '20deg',
+      });
+
+      // Interpolation between angles.
+      test_interpolation({
+        property: 'offset-rotate',
+        from: '10deg',
+        to: '50deg'
+      }, [
+        {at: -0.3, expect: '-2deg'},
+        {at: 0, expect: '10deg'},
+        {at: 0.3, expect: '22deg'},
+        {at: 0.6, expect: '34deg'},
+        {at: 1, expect: '50deg'},
+        {at: 1.5, expect: '70deg'},
+      ]);
+
+      // Interpolation between auto angles.
+      test_interpolation({
+        property: 'offset-rotate',
+        from: 'auto 10deg',
+        to: 'auto 50deg'
+      }, [
+        {at: -0.3, expect: 'auto -2deg'},
+        {at: 0, expect: 'auto 10deg'},
+        {at: 0.3, expect: 'auto 22deg'},
+        {at: 0.6, expect: 'auto 34deg'},
+        {at: 1, expect: 'auto 50deg'},
+        {at: 1.5, expect: 'auto 70deg'},
+      ]);
+
+      // 'reverse' is like 'auto 180deg'.
+      test_interpolation({
+        property: 'offset-rotate',
+        from: 'reverse -170deg',
+        to: 'reverse -130deg'
+      }, [
+        {at: -0.3, expect: 'auto -2deg'},
+        {at: 0, expect: 'auto 10deg'},
+        {at: 0.3, expect: 'auto 22deg'},
+        {at: 0.6, expect: 'auto 34deg'},
+        {at: 1, expect: 'auto 50deg'},
+        {at: 1.5, expect: 'auto 70deg'},
+      ]);
+
+      // Interpolation between 'auto' and 'reverse'.
+      test_interpolation({
+        property: 'offset-rotate',
+        from: 'auto 10deg',
+        to: 'reverse -130deg'
+      }, [
+        {at: -0.3, expect: 'auto -2deg'},
+        {at: 0, expect: 'auto 10deg'},
+        {at: 0.3, expect: 'auto 22deg'},
+        {at: 0.6, expect: 'auto 34deg'},
+        {at: 1, expect: 'auto 50deg'},
+        {at: 1.5, expect: 'auto 70deg'},
+      ]);
+      test_interpolation({
+        property: 'offset-rotate',
+        from: 'reverse -170deg',
+        to: 'auto 50deg'
+      }, [
+        {at: -0.3, expect: 'auto -2deg'},
+        {at: 0, expect: 'auto 10deg'},
+        {at: 0.3, expect: 'auto 22deg'},
+        {at: 0.6, expect: 'auto 34deg'},
+        {at: 1, expect: 'auto 50deg'},
+        {at: 1.5, expect: 'auto 70deg'},
+      ]);
+
+      // No interpolation between auto/reverse and angle.
+      test_no_interpolation({
+        property: 'offset-rotate',
+        from: 'auto 200deg',
+        to: '300deg'
+      });
+      test_no_interpolation({
+        property: 'offset-rotate',
+        from: '300deg',
+        to: 'reverse 20deg'
+      });
+    </script>
+  </body>
+</html>

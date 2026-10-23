@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: parsing offset-rotate with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-rotate-property">
+<meta name="assert" content="offset-rotate supports only the grammar '[ auto | reverse ] || <angle>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("offset-rotate", "none");
+test_invalid_value("offset-rotate", "0");
+test_invalid_value("offset-rotate", "auto reverse");
+test_invalid_value("offset-rotate", "reverse 30deg auto");
+</script>
+</body>
+</html>

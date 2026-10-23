@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Fail
+Fail	e.style['offset'] = "left bottom ray(0rad closest-corner) 10px auto 30deg / right bottom" should set offset-anchor
+Fail	e.style['offset'] = "left bottom ray(0rad closest-corner) 10px auto 30deg / right bottom" should set offset-distance
+Fail	e.style['offset'] = "left bottom ray(0rad closest-corner) 10px auto 30deg / right bottom" should set offset-path
+Fail	e.style['offset'] = "left bottom ray(0rad closest-corner) 10px auto 30deg / right bottom" should set offset-position
+Fail	e.style['offset'] = "left bottom ray(0rad closest-corner) 10px auto 30deg / right bottom" should set offset-rotate
+Fail	e.style['offset'] = "left bottom ray(0rad closest-corner) 10px auto 30deg / right bottom" should not set unrelated longhands
+Fail	e.style['offset'] = "top right / top left" should set offset-anchor
+Fail	e.style['offset'] = "top right / top left" should set offset-distance
+Fail	e.style['offset'] = "top right / top left" should set offset-path
+Fail	e.style['offset'] = "top right / top left" should set offset-position
+Fail	e.style['offset'] = "top right / top left" should set offset-rotate
+Fail	e.style['offset'] = "top right / top left" should not set unrelated longhands
+Fail	e.style['offset'] = "path(\"M 0 0 H 2\") reverse 50%" should set offset-anchor
+Fail	e.style['offset'] = "path(\"M 0 0 H 2\") reverse 50%" should set offset-distance
+Fail	e.style['offset'] = "path(\"M 0 0 H 2\") reverse 50%" should set offset-path
+Fail	e.style['offset'] = "path(\"M 0 0 H 2\") reverse 50%" should set offset-position
+Fail	e.style['offset'] = "path(\"M 0 0 H 2\") reverse 50%" should set offset-rotate
+Fail	e.style['offset'] = "path(\"M 0 0 H 2\") reverse 50%" should not set unrelated longhands

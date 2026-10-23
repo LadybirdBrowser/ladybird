@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-shorthand">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <body>
+    <script>
+      test_interpolation({
+        property: 'offset',
+        from: 'path("M0 200H 700") 500px 800deg',
+        to: 'path("M0 300H 700 Z") 600px 900deg',
+        method: 'CSS Transitions',
+      }, [
+        {at: -0.3, expect: 'path("M0 300H 700 Z") 470px 770deg'},
+        {at: 0, expect: 'path("M0 300H 700 Z") 500px 800deg'},
+        {at: 0.3, expect: 'path("M0 300H 700 Z") 530px 830deg'},
+        {at: 0.6, expect: 'path("M0 300H 700 Z") 560px 860deg'},
+        {at: 1, expect: 'path("M0 300H 700 Z") 600px 900deg'},
+        {at: 1.5, expect: 'path("M0 300H 700 Z") 650px 950deg'},
+      ]);
+
+      test_interpolation({
+        property: 'offset',
+        from: 'path("M0 0H 200") 500px auto',
+        to: 'path("M0 0H 300") 600px 0deg',
+        method: 'CSS Transitions',
+      }, [
+        {at: -0.3, expect: 'path("M0 0H 170") 470px 0deg'},
+        {at: 0, expect: 'path("M0 0H 200") 500px 0deg'},
+        {at: 0.3, expect: 'path("M0 0H 230") 530px 0deg'},
+        {at: 0.6, expect: 'path("M0 0H 260") 560px 0deg'},
+        {at: 1, expect: 'path("M0 0H 300") 600px 0deg'},
+        {at: 1.5, expect: 'path("M0 0H 350") 650px 0deg'},
+      ]);
+
+      test_interpolation({
+        property: 'offset',
+        from: 'path("M0 200H 700") 500px 800deg',
+        to: 'path("M0 300H 700 Z") 600px 900deg',
+        method: 'CSS Animations',
+      }, [
+        {at: -0.3, expect: 'path("M0 200H 700") 470px 770deg'},
+        {at: 0, expect: 'path("M0 200H 700") 500px 800deg'},
+        {at: 0.3, expect: 'path("M0 200H 700") 530px 830deg'},
+        {at: 0.6, expect: 'path("M0 300H 700 Z") 560px 860deg'},
+        {at: 1, expect: 'path("M0 300H 700 Z") 600px 900deg'},
+        {at: 1.5, expect: 'path("M0 300H 700 Z") 650px 950deg'},
+      ]);
+
+      test_interpolation({
+        property: 'offset',
+        from: 'path("M0 0H 200") 500px auto',
+        to: 'path("M0 0H 300") 600px 0deg',
+        method: 'CSS Animations',
+      }, [
+        {at: -0.3, expect: 'path("M0 0H 170") 470px'},
+        {at: 0, expect: 'path("M0 0H 200") 500px'},
+        {at: 0.3, expect: 'path("M0 0H 230") 530px'},
+        {at: 0.6, expect: 'path("M0 0H 260") 560px 0deg'},
+        {at: 1, expect: 'path("M0 0H 300") 600px 0deg'},
+        {at: 1.5, expect: 'path("M0 0H 350") 650px 0deg'},
+      ]);
+
+      test_interpolation({
+        property: 'offset',
+        from: 'path("M0 200H 700") 500px 800deg',
+        to: 'path("M0 300H 700 Z") 600px 900deg',
+        method: 'Web Animations',
+      }, [
+        {at: -0.3, expect: 'path("M0 200H 700") 470px 770deg'},
+        {at: 0, expect: 'path("M0 200H 700") 500px 800deg'},
+        {at: 0.3, expect: 'path("M0 200H 700") 530px 830deg'},
+        {at: 0.6, expect: 'path("M0 300H 700 Z") 560px 860deg'},
+        {at: 1, expect: 'path("M0 300H 700 Z") 600px 900deg'},
+        {at: 1.5, expect: 'path("M0 300H 700 Z") 650px 950deg'},
+      ]);
+
+      test_interpolation({
+        property: 'offset',
+        from: 'path("M0 0V 200") 500px auto',
+        to: 'path("M0 0H 300") 600px 0deg',
+        method: 'Web Animations',
+      }, [
+        {at: -0.3, expect: 'path("M0 0V 200") 470px'},
+        {at: 0, expect: 'path("M0 0V 200") 500px'},
+        {at: 0.3, expect: 'path("M0 0V 200") 530px'},
+        {at: 0.6, expect: 'path("M0 0H 300") 560px 0deg'},
+        {at: 1, expect: 'path("M0 0H 300") 600px 0deg'},
+        {at: 1.5, expect: 'path("M0 0H 300") 650px 0deg'},
+      ]);
+    </script>
+  </body>
+</html>

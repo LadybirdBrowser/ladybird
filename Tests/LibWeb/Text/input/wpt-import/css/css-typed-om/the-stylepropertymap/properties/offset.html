@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'offset' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runUnsupportedPropertyTests('offset', [
+  'auto', '10px 30px', 'none',
+  'ray(45deg closest-side)',
+  'path("M 100 100 L 300 100 L 200 300 z")',
+  'ray(45deg closest-side) / 40px 20px'
+]);
+
+</script>

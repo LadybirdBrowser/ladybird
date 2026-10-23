@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Fail
+Fail	e.style['offset-anchor'] = "auto" should set the property value
+Fail	e.style['offset-anchor'] = "left bottom" should set the property value
+Fail	e.style['offset-anchor'] = "center center" should set the property value
+Fail	e.style['offset-anchor'] = "right center" should set the property value
+Fail	e.style['offset-anchor'] = "center top" should set the property value
+Fail	e.style['offset-anchor'] = "center bottom" should set the property value
+Fail	e.style['offset-anchor'] = "calc(20% + 10px) center" should set the property value
+Fail	e.style['offset-anchor'] = "right 30em" should set the property value
+Fail	e.style['offset-anchor'] = "10px 20%" should set the property value
+Fail	e.style['offset-anchor'] = "left -10px top -20%" should set the property value
+Fail	e.style['offset-anchor'] = "right 10% bottom 20em" should set the property value

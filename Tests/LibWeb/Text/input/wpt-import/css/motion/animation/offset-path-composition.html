@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>offset-distance composition</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-distance-property">
+<meta name="assert" content="offset-distance supports animation.">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+// TODO(ericwilligers) Support additive animation for path strings crbug.com/699308
+
+// Ray paths compose.
+test_composition({
+  property: 'offset-path',
+  underlying: 'ray(20deg sides)',
+  addFrom: 'ray(10deg sides)',
+  addTo: 'ray(20deg sides)',
+}, [
+  {at: -0.3, expect: 'ray(27deg sides)'},
+  {at: 0, expect: 'ray(30deg sides)'},
+  {at: 0.3, expect: 'ray(33deg sides)'},
+  {at: 0.6, expect: 'ray(36deg sides)'},
+  {at: 1, expect: 'ray(40deg sides)'},
+  {at: 1.5, expect: 'ray(45deg sides)'},
+]);
+
+// Ray paths without contain don't compose with underlying contain.
+test_composition({
+  property: 'offset-path',
+  underlying: 'ray(20deg closest-corner contain)',
+  addFrom: 'ray(10deg closest-corner)',
+  addTo: 'ray(20deg closest-corner)',
+}, [
+  {at: -0.3, expect: 'ray(7deg closest-corner)'},
+  {at: 0, expect: 'ray(10deg closest-corner)'},
+  {at: 0.3, expect: 'ray(13deg closest-corner)'},
+  {at: 0.6, expect: 'ray(16deg closest-corner)'},
+  {at: 1, expect: 'ray(20deg closest-corner)'},
+  {at: 1.5, expect: 'ray(25deg closest-corner)'},
+]);
+
+// Ray paths don't compose when underlying has different size.
+test_composition({
+  property: 'offset-path',
+  underlying: 'ray(20deg closest-side)',
+  addFrom: 'ray(10deg closest-corner)',
+  addTo: 'ray(20deg closest-corner)',
+}, [
+  {at: -0.3, expect: 'ray(7deg closest-corner)'},
+  {at: 0, expect: 'ray(10deg closest-corner)'},
+  {at: 0.3, expect: 'ray(13deg closest-corner)'},
+  {at: 0.6, expect: 'ray(16deg closest-corner)'},
+  {at: 1, expect: 'ray(20deg closest-corner)'},
+  {at: 1.5, expect: 'ray(25deg closest-corner)'},
+]);
+
+// Ray contain paths compose with underlying contain.
+test_composition({
+  property: 'offset-path',
+  underlying: 'ray(20deg farthest-side contain)',
+  addFrom: 'ray(190deg farthest-side contain)',
+  addTo: 'ray(20deg farthest-side contain)',
+}, [
+  {at: -0.3, expect: 'ray(261deg farthest-side contain)'},
+  {at: 0, expect: 'ray(210deg farthest-side contain)'},
+  {at: 0.3, expect: 'ray(159deg farthest-side contain)'},
+  {at: 0.6, expect: 'ray(108deg farthest-side contain)'},
+  {at: 1, expect: 'ray(40deg farthest-side contain)'},
+  {at: 1.5, expect: 'ray(-45deg farthest-side contain)'},
+]);
+
+// When we can't interpolate, we can't compose.
+test_composition({
+  property: 'offset-path',
+  underlying: 'ray(20deg farthest-corner)',
+  addFrom: 'ray(190deg farthest-corner contain)',
+  addTo: 'ray(20deg farthest-corner)',
+}, [
+  {at: -0.3, expect: 'ray(190deg farthest-corner contain)'},
+  {at: 0, expect: 'ray(190deg farthest-corner contain)'},
+  {at: 0.3, expect: 'ray(190deg farthest-corner contain)'},
+  {at: 0.6, expect: 'ray(40deg farthest-corner)'},
+  {at: 1, expect: 'ray(40deg farthest-corner)'},
+  {at: 1.5, expect: 'ray(40deg farthest-corner)'},
+]);
+
+test_composition({
+  property: 'offset-path',
+  underlying: 'ray(20deg sides)',
+  replaceFrom: 'ray(190deg sides contain)',
+  addTo: 'ray(20deg sides)',
+}, [
+  {at: -0.3, expect: 'ray(190deg sides contain)'},
+  {at: 0, expect: 'ray(190deg sides contain)'},
+  {at: 0.3, expect: 'ray(190deg sides contain)'},
+  {at: 0.6, expect: 'ray(40deg sides)'},
+  {at: 1, expect: 'ray(40deg sides)'},
+  {at: 1.5, expect: 'ray(40deg sides)'},
+]);
+
+// Ray paths compose with underlying.
+test_composition({
+  property: 'offset-path',
+  underlying: 'ray(20deg closest-side)',
+  addFrom: 'ray(10deg closest-side)',
+  replaceTo: 'ray(10deg closest-side)',
+}, [
+  {at: -0.3, expect: 'ray(36deg closest-side)'},
+  {at: 0, expect: 'ray(30deg closest-side)'},
+  {at: 0.3, expect: 'ray(24deg closest-side)'},
+  {at: 0.6, expect: 'ray(18deg closest-side)'},
+  {at: 1, expect: 'ray(10deg closest-side)'},
+  {at: 1.5, expect: 'ray(0deg closest-side)'},
+]);
+</script>
+</body>

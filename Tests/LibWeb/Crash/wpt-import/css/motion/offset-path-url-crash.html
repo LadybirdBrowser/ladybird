@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: path(url) paths</title>
+    <link rel="help" href="https://crbug.com/1465301">
+    <meta name="assert" content="This tests that path(<url>) does not crash when the url() is removed before target.">
+    <style>
+      #test {
+        position: absolute;
+        left: 300px;
+        top: 0px;
+        width: 300px;
+        height: 200px;
+        background-color: lime;
+        transform-origin: 0px 0px;
+        offset-path: url(#target);
+      }
+    </style>
+  </head>
+  <body onload="start();">
+    <iframe id="target"></iframe>
+    <div id="test"></div>
+  </body>
+  <script>
+    async function change_style_and_remove() {
+      let el = document.querySelectorAll("style")[0];
+      el.innerHTML = "garbadge";
+      let t = document.createElement("frame");
+      document.body.appendChild(t);
+      let target = document.querySelectorAll("iframe")[0];
+      target.parentNode.removeChild(target);
+    }
+    function start() {
+      change_style_and_remove();
+    }
+  </script>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE HTML>
+<link rel="author" title="jj" href="mailto:jj@imput.net">
+<link rel="help" href="https://issues.chromium.org/issues/482074624">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+<body></body>
+<script>
+test_interpolation({
+    property: 'offset-path',
+    from: 'shape(from 0px 0px, curve to 100px 0px with 10% 80% / 90% 80%)',
+    to: 'shape(from 0px 0px, curve to 100px 0px with 10% 20% / 90% 20%)',
+}, [
+    {at: 0, expect: 'shape(from 0px 0px, curve to 100px 0px with 10% 80% / 90% 80%)'},
+    {at: 0.5, expect: 'shape(from 0px 0px, curve to 100px 0px with 10% 50% / 90% 50%)'},
+    {at: 1, expect: 'shape(from 0px 0px, curve to 100px 0px with 10% 20% / 90% 20%)'},
+]);
+
+test_interpolation({
+    property: 'clip-path',
+    from: 'shape(from 0px 0px, curve to 100px 0px with 10% 80% / 90% 80%)',
+    to: 'shape(from 0px 0px, curve to 100px 0px with 10% 20% / 90% 20%)',
+}, [
+    {at: 0, expect: 'shape(from 0px 0px, curve to 100px 0px with 10% 80% / 90% 80%)'},
+    {at: 0.5, expect: 'shape(from 0px 0px, curve to 100px 0px with 10% 50% / 90% 50%)'},
+    {at: 1, expect: 'shape(from 0px 0px, curve to 100px 0px with 10% 20% / 90% 20%)'},
+]);
+
+test_interpolation({
+    property: 'offset-path',
+    from: 'shape(from 5px 5px, curve to 50px 50px with 20% 70px / 80% 70px)',
+    to: 'shape(from 5px 5px, curve to 50px 50px with 20% 30px / 80% 30px)',
+}, [
+    {at: 0, expect: 'shape(from 5px 5px, curve to 50px 50px with 20% 70px / 80% 70px)'},
+    {at: 0.5, expect: 'shape(from 5px 5px, curve to 50px 50px with 20% 50px / 80% 50px)'},
+    {at: 1, expect: 'shape(from 5px 5px, curve to 50px 50px with 20% 30px / 80% 30px)'},
+]);
+</script>

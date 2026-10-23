@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['offset-rotate'] = "none" should not set the property value
+Pass	e.style['offset-rotate'] = "0" should not set the property value
+Pass	e.style['offset-rotate'] = "auto reverse" should not set the property value
+Pass	e.style['offset-rotate'] = "reverse 30deg auto" should not set the property value

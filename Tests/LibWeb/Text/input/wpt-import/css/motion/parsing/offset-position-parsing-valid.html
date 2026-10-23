@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: parsing offset-position with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-position-property">
+<meta name="assert" content="offset-position supports the full grammar 'auto | normal | <position>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("offset-position", "auto");
+test_valid_value("offset-position", "normal");
+
+test_valid_value("offset-position", "left bottom");
+test_valid_value("offset-position", "center center");
+test_valid_value("offset-position", "right center");
+test_valid_value("offset-position", "center top");
+test_valid_value("offset-position", "center bottom");
+test_valid_value("offset-position", "calc(20% + 10px) center");
+test_valid_value("offset-position", "right 30em");
+test_valid_value("offset-position", "10px 20%");
+test_valid_value("offset-position", "left -10px top -20%");
+test_valid_value("offset-position", "right 10% bottom 20em");
+</script>
+</body>
+</html>

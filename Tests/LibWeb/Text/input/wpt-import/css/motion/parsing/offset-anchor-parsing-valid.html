@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: parsing offset-anchor with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-anchor-property">
+<meta name="assert" content="offset-anchor supports the full grammar 'auto | <position>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("offset-anchor", "auto");
+
+test_valid_value("offset-anchor", "left bottom");
+test_valid_value("offset-anchor", "center center");
+test_valid_value("offset-anchor", "right center");
+test_valid_value("offset-anchor", "center top");
+test_valid_value("offset-anchor", "center bottom");
+test_valid_value("offset-anchor", "calc(20% + 10px) center");
+test_valid_value("offset-anchor", "right 30em");
+test_valid_value("offset-anchor", "10px 20%");
+test_valid_value("offset-anchor", "left -10px top -20%");
+test_valid_value("offset-anchor", "right 10% bottom 20em");
+</script>
+</body>
+</html>
