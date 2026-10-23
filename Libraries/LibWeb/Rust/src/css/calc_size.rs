@@ -130,6 +130,15 @@ pub(crate) fn calc_size_basis_keyword(value: &StyleValueData) -> Option<u16> {
     }
 }
 
+/// Whether a calc-size() has a <calc-sum> basis, after following nested calc-size() bases.
+pub(crate) fn calc_size_has_calc_sum_basis(value: &StyleValueData) -> bool {
+    match calc_size_arguments(value) {
+        Some((StyleValueData::Keyword { .. }, _)) | None => false,
+        Some((basis @ StyleValueData::Function { .. }, _)) => calc_size_has_calc_sum_basis(basis),
+        Some(_) => true,
+    }
+}
+
 /// Resolves a calc-size() to pixels at used-value time.
 /// `keyword_size` gives the used size of a sizing keyword basis, and percentages resolve against
 /// `percentage_basis`, or against zero when that is indefinite.
@@ -139,27 +148,12 @@ pub(crate) fn resolve_calc_size(
     percentage_basis: Option<f64>,
     keyword_size: &dyn Fn(u16) -> f64,
 ) -> Option<f64> {
-    resolve_calc_size_with_basis_size(value, percentage_basis, None, keyword_size)
-}
-
-/// Resolves a calc-size() like resolve_calc_size(), with its size keyword standing for `basis_size` when given.
-/// That is the used size of a basis that behaves as auto, like a percentage of an indefinite size.
-pub(crate) fn resolve_calc_size_with_basis_size(
-    value: &StyleValueData,
-    percentage_basis: Option<f64>,
-    basis_size: Option<f64>,
-    keyword_size: &dyn Fn(u16) -> f64,
-) -> Option<f64> {
     let (basis, calculation) = calc_size_arguments(value)?;
-    let size = if let Some(basis_size) = basis_size {
-        basis_size
-    } else {
-        match basis {
-            StyleValueData::Keyword { keyword: keyword::ANY } => 0.0,
-            StyleValueData::Keyword { keyword } => keyword_size(*keyword),
-            basis @ StyleValueData::Function { .. } => resolve_calc_size(basis, percentage_basis, keyword_size)?,
-            basis => resolve_length_percentage(basis, percentage_basis)?,
-        }
+    let size = match basis {
+        StyleValueData::Keyword { keyword: keyword::ANY } => 0.0,
+        StyleValueData::Keyword { keyword } => keyword_size(*keyword),
+        basis @ StyleValueData::Function { .. } => resolve_calc_size(basis, percentage_basis, keyword_size)?,
+        basis => resolve_length_percentage(basis, percentage_basis)?,
     };
     match calculation {
         calculation @ StyleValueData::Calculated { .. } => {

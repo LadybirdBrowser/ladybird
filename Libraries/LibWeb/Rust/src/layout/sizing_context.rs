@@ -3305,6 +3305,13 @@ impl<'pass> SizingContext<'pass> {
         let Some(calc_size) = size.calc_size() else {
             return content_size;
         };
+        // https://drafts.csswg.org/css-values-5/#valdef-calc-size-calc-sum
+        // For all purposes other than actually resolving the size, the calc-size() acts like this calculation wrapped
+        // in a calc() (including, for example, whether it represents a definite or indefinite size).
+        // NB: A size given as a calculation reaches here when it behaves as auto, so the calc-size() does too.
+        if crate::css::calc_size::calc_size_has_calc_sum_basis(calc_size) {
+            return content_size;
+        }
         // The size is that of the box the box-sizing property names.
         let style = self.style(node);
         let edges = if style.box_sizing() == box_sizing::BORDER_BOX {
@@ -3327,14 +3334,11 @@ impl<'pass> SizingContext<'pass> {
             CssPixels::default()
         };
         let basis_size = (content_size + edges).to_double();
-        // A size given as a calculation reaches here when it behaves as auto, and auto's size then stands for it.
-        let behaves_as_auto = size.is_length_percentage();
-        let Some(resolved) = crate::css::calc_size::resolve_calc_size_with_basis_size(
-            calc_size,
-            percentage_basis.map(CssPixels::to_double),
-            behaves_as_auto.then_some(basis_size),
-            &|_| basis_size,
-        ) else {
+        let Some(resolved) =
+            crate::css::calc_size::resolve_calc_size(calc_size, percentage_basis.map(CssPixels::to_double), &|_| {
+                basis_size
+            })
+        else {
             return content_size;
         };
         (CssPixels::nearest_value_for(resolved) - edges).max(CssPixels::default())
