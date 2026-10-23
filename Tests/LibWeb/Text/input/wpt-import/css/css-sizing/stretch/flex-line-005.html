@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11784">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="An item's cross-size:stretch should stretch to the line size, not the container size; single-line container has indefinite height">
+<style>
+  .container {
+    display: inline-flex;
+    width: 100px;
+    border: solid;
+    margin: 10px;
+  }
+
+  .container>div {
+    border: 3px solid;
+  }
+
+  .stretch {
+    height: -moz-available;
+    height: -webkit-fill-available;
+    height: stretch;
+  }
+</style>
+
+<div class="container">
+  <div class="stretch" style="width: 75px; border-color: cyan"
+    data-expected-height="156"></div>
+  <div style="border-color: orange; height: 150px"></div>
+</div>
+
+<script>
+    checkLayout(".stretch");
+</script>

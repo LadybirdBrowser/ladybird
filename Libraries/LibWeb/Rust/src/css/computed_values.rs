@@ -2722,6 +2722,13 @@ impl ComputedSize {
             Some(StyleValueData::Keyword { keyword: value }) if *value == keyword::MAX_CONTENT => {
                 Self::keyword(ComputedSizeKind::MaxContent)
             }
+            Some(StyleValueData::Keyword { keyword: value }) if *value == keyword::STRETCH => {
+                Self::keyword(ComputedSizeKind::Stretch)
+            }
+            // NB: -webkit-fill-available behaves as stretch, and keeps its own keyword for serialization.
+            Some(StyleValueData::Keyword { keyword: value }) if *value == keyword::_WEBKIT_FILL_AVAILABLE => {
+                Self::retained(ComputedSizeKind::Stretch, data)
+            }
             Some(StyleValueData::Keyword { keyword: value }) if *value == keyword::NONE => {
                 Self::keyword(ComputedSizeKind::None)
             }
@@ -2734,6 +2741,7 @@ impl ComputedSize {
                     Some(keyword::MIN_CONTENT) => ComputedSizeKind::MinContent,
                     Some(keyword::MAX_CONTENT) => ComputedSizeKind::MaxContent,
                     Some(keyword::FIT_CONTENT) => ComputedSizeKind::FitContent,
+                    Some(keyword::STRETCH) => ComputedSizeKind::Stretch,
                     _ => ComputedSizeKind::Calculated,
                 };
                 Self::retained(kind, data)

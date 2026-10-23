@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#sizing-values">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="stretch min/max-height on flex items should interact correctly with non-stretch constraints">
+<style>
+  .flex {
+    display: inline-flex;
+    width: 100px;
+    height: 200px;
+    vertical-align: top;
+    margin: 2px;
+  }
+</style>
+
+<!-- Test 1: max-height:stretch should clamp, but fixed min-height should raise.
+     height:300px, max-height:stretch=200px -> 200px, min-height:250px wins -> 250px. -->
+<div class="flex">
+  <div style="height: 300px; max-height: stretch; min-height: 250px; background: green"
+    data-expected-height="250">test 1</div>
+</div>
+
+<script>
+  checkLayout("[data-expected-height]");
+</script>

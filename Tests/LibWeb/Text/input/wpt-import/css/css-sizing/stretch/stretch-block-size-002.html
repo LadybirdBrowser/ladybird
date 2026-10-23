@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#sizing-values">
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="block-size:stretch causes an absolutely-positioned element's content-box to be sized to fill the available space in its containing block, regardless of the writing-mode of its DOM-tree parent.">
+<style>
+  .cb {
+    block-size: 50px;
+    inline-size: 40px;
+
+    /* This margin & border are purely cosmetic and don't impact the sizing
+     * calculations in this test: */
+    margin: 5px;
+    border: 2px solid black;
+
+    /* This padding is relevant to 'stretch' sizing, since our padding-box
+     * forms the containing block for the abspos child. Our padding-box
+     * block-size 50 + 2*5 = 60px, and its inline-size is 40 + 2*3 = 46px */
+    padding-block: 5px;
+    padding-inline: 3px;
+
+    /* We make each containing block an inline-level box, so we can display
+     * subtests in multiple rows, for easier visualization: */
+    display: inline-block;
+    vertical-align: top;
+    position: relative;
+  }
+
+  .test {
+    /* To make sizes predictable, we start out at the edge of our
+     * containing block: */
+    inset-inline-start: 0;
+    inset-block-start: 0;
+
+    position: absolute;
+    /* We have 2+3 = 5px of margin in the block axis. This means the stretched
+     * children should all have a border-box block-size that's 5px less than
+     * the containing block's padding-box size in the same axis. The dimension
+     * of the containing block's padding-box that we're filling will depend on
+     * whether our WM is orthogonal to it or not. If we're orthogonal, our
+     * expected stretch size is 46px - 5px = 41px.  If we're not orthogonal,
+     * our expected stretch size is 60px - 5px = 55px. */
+    margin-block-start: 2px;
+    margin-block-end: 3px;
+
+    /* We also have some border/padding that UAs will need to account for
+     * when computing the stretched children's content-box sizes; but these
+     * don't reduce our `data-expected-{width,height}` expectations, since
+     * those correspond to the border-box size. */
+    border: 3px solid blue;
+    padding: 2px;
+
+    block-size: stretch;
+    inline-size: 20px;
+    background: fuchsia;
+  }
+  .htb { writing-mode: horizontal-tb; }
+  .vlr { writing-mode: vertical-lr;   }
+  .vrl { writing-mode: vertical-rl;   }
+</style>
+<script>
+  function runTests() {
+    checkLayout('.test');
+
+    // Add box-sizing:border-box (which shouldn't impact the actual resolved
+    // box sizes that 'stretch' produces), and retest:
+    for (let elem of document.querySelectorAll(".test")) {
+      elem.style.boxSizing = "border-box";
+    }
+    checkLayout('.test');
+  }
+</script>
+<body onload="runTests()">
+  <!-- This test is exercising cases where the abspos element's containing
+       block (which happens to be its grandparent) has a writing-mode that
+       disagrees with the abspos element's parent. We exercise all 6
+       pairwise-mismatching combinations of {htb,vlr,vrl} for the grandparent &
+       parent.  For each such pair, we test all three of those same
+       writing-modes on the innermost abspos element.
+
+       Note that we use 'data-expected-{height,width}' depending on which axis
+       is the block axis for the abspos ".test" element (since that's the
+       element whose "block-size: stretch" resolution we're testing).  So for
+       "test htb" elements, we check the height; whereas for "test vlr" and
+       "test vrl", we check the width.
+    -->
+
+  <!-- htb / vlr / {htb,vlr,vrl} -->
+  <div class="cb htb"><div class="vlr">
+      <div class="test htb" data-expected-height="55"></div>
+  </div></div>
+  <div class="cb htb"><div class="vlr">
+      <div class="test vlr" data-expected-width="41"></div>
+  </div></div>
+  <div class="cb htb"><div class="vlr">
+      <div class="test vrl" data-expected-width="41"></div>
+  </div></div>
+  <br>
+
+  <!-- htb / vrl / {htb,vlr,vrl} -->
+  <div class="cb htb"><div class="vrl">
+      <div class="test htb" data-expected-height="55"></div>
+  </div></div>
+  <div class="cb htb"><div class="vrl">
+      <div class="test vlr" data-expected-width="41"></div>
+  </div></div>
+  <div class="cb htb"><div class="vrl">
+      <div class="test vrl" data-expected-width="41"></div>
+  </div></div>
+  <br>
+
+  <!-- vlr / htb / {htb,vlr,vrl} -->
+  <div class="cb vlr"><div class="htb">
+      <div class="test htb" data-expected-height="41"></div>
+  </div></div>
+  <div class="cb vlr"><div class="htb">
+      <div class="test vlr" data-expected-width="55"></div>
+  </div></div>
+  <div class="cb vlr"><div class="htb">
+      <div class="test vrl" data-expected-width="55"></div>
+  </div></div>
+  <br>
+
+  <!-- vlr / vrl / {htb,vlr,vrl} -->
+  <div class="cb vlr"><div class="vrl">
+      <div class="test htb" data-expected-height="41"></div>
+  </div></div>
+  <div class="cb vlr"><div class="vrl">
+      <div class="test vlr" data-expected-width="55"></div>
+  </div></div>
+  <div class="cb vlr"><div class="vrl">
+      <div class="test vrl" data-expected-width="55"></div>
+  </div></div>
+  <br>
+
+  <!-- vrl / htb / {htb,vlr,vrl} -->
+  <div class="cb vrl"><div class="htb">
+      <div class="test htb" data-expected-height="41"></div>
+  </div></div>
+  <div class="cb vrl"><div class="htb">
+      <div class="test vlr" data-expected-width="55"></div>
+  </div></div>
+  <div class="cb vrl"><div class="htb">
+      <div class="test vrl" data-expected-width="55"></div>
+  </div></div>
+  <br>
+
+  <!-- vrl / vlr / {htb,vlr,vrl} -->
+  <div class="cb vrl"><div class="vrl">
+      <div class="test htb" data-expected-height="41"></div>
+  </div></div>
+  <div class="cb vrl"><div class="vrl">
+      <div class="test vlr" data-expected-width="55"></div>
+  </div></div>
+  <div class="cb vrl"><div class="vrl">
+      <div class="test vrl" data-expected-width="55"></div>
+  </div></div>
+  <br>
+
+</body>

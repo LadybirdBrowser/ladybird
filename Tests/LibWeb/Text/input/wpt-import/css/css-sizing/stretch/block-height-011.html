@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<title>Stretching block-level on the block axis</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/13260">
+<meta name="assert" content="The stretch size of a block-level in the block axis
+  treats margins as zero when the containing block has neither border nor padding,
+  and doesn't establish a BFC.">
+
+<style>
+.group { display: inline-block; vertical-align: top; }
+.group > .cb { width: 100px; height: 100px; margin: 25px; }
+.group.border > .cb { border: solid; }
+.group.outline > .cb { outline: solid; }
+.test { margin: 25px; height: stretch; background: cyan; }
+</style>
+
+<div id="log"></div>
+
+<div class="group">
+  <!-- Simple case, the containing block is just the parent. -->
+  <div class="cb">
+    <div class="test"></div>
+  </div>
+
+  <!-- The block-level has an inline parent, the containing block is
+       the nearest block container. -->
+  <div class="cb">
+    <span>
+      <div class="test"></div>
+    </span>
+  </div>
+
+  <!-- Now the inline is wrapped inside an anonymous block, which doesn't
+       establish a containing block. -->
+  <div class="cb">
+    <div></div>
+    <span>
+      <div class="test"></div>
+    </span>
+  </div>
+
+  <!-- The inline now has a border, this shouldn't affect the outcome. -->
+  <div class="cb">
+    <span style="border: solid orange">
+      <div class="test"></div>
+    </span>
+  </div>
+</div>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script>
+let borderGroup = document.querySelector(".group");
+let outlineGroup = borderGroup.cloneNode(true);
+borderGroup.classList.add("border");
+outlineGroup.classList.add("outline");
+for (let el of borderGroup.querySelectorAll(".test")) {
+  el.dataset.expectedHeight = "50";
+}
+for (let el of outlineGroup.querySelectorAll(".test")) {
+  el.dataset.expectedHeight = "100";
+}
+borderGroup.after(outlineGroup);
+
+checkLayout(".test");
+</script>

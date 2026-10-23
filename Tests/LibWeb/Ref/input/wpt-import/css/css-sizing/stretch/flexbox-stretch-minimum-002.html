@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Non-negative content-box size of stretched flex item with `stretch` min cross size</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#stretched">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11076">
+<link rel="help" href="https://github.com/servo/servo/issues/38517">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/../../reference/ref-filled-green-200px-square.html">
+<meta assert="Stretching the cross size of a flex item to the flex line should never result
+              in a negative content-box size.">
+
+<style>
+#red {
+  position: absolute;
+  z-index: -1;
+  width: 200px;
+  height: 200px;
+  background: red;
+}
+#flex-container {
+  display: flex;
+  flex-direction: column;
+  width: 0;
+}
+#flex-item {
+  min-width: stretch;
+  border: 100px solid green;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="red"></div>
+<div id="flex-container">
+  <div id="flex-item"></div>
+</div>

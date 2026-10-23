@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Intrinsic & Extrinsic Sizing Test: parsing stretch value</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#sizing-values">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("width", "stretch");
+test_valid_value("height", "stretch");
+test_valid_value("max-width", "stretch");
+test_valid_value("min-width", "stretch");
+test_valid_value("max-height", "stretch");
+test_valid_value("min-height", "stretch");
+test_valid_value("inline-size", "stretch");
+test_valid_value("block-size", "stretch");
+test_valid_value("max-inline-size", "stretch");
+test_valid_value("min-inline-size", "stretch");
+test_valid_value("max-block-size", "stretch");
+test_valid_value("min-block-size", "stretch");
+
+test_valid_value("flex-basis", "stretch");
+test_shorthand_value('flex', '1 0 stretch', {
+  'flex-grow': '1',
+  'flex-shrink': '0',
+  'flex-basis': 'stretch'
+});
+
+</script>
+</body>
+</html>

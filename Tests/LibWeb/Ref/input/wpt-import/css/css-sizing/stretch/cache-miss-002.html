@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://crbug.com/386052671">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/../../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="Height change caused by 2-pass flex layout affects stretched-height descendant.">
+
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+</p>
+<div id="reference-overlapped-red"></div>
+
+  <div style="width: 100px; height: 100px; display: flex; flex-direction: column;">
+      <main style="flex-basis: 0px; flex-grow: 1; width: -webkit-fill-available;">
+          <div style="height: 100%; position: relative;">
+              <div style="position: absolute; inset: 0px;">
+                  <div style="height: -webkit-fill-available; background: green; color: green; overflow-y: auto;">
+                      <div>Content</div>
+                  </div>
+              </div>
+          </div>
+      </main>
+  </div>

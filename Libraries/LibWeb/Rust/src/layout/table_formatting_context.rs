@@ -1445,10 +1445,12 @@ impl<'pass> TableFormattingContext<'pass> {
         let width = style.width();
         // NB: A calc-size() width counts as well, whatever its basis.
         //     https://drafts.csswg.org/css-values-5/#calc-size
+        // NB: So does a stretch width, as resolved in https://github.com/w3c/csswg-drafts/issues/10937.
         style.table_layout() == TABLE_LAYOUT_FIXED
             && (width.is_length_percentage()
                 || width.is_min_content()
                 || width.is_fit_content()
+                || width.is_stretch()
                 || width.calc_size().is_some())
     }
 
@@ -2153,6 +2155,15 @@ impl<'pass> TableFormattingContext<'pass> {
                 basis
             };
             return resolve_calc_size_of_keyword(constraint, grid_max.min(grid_min.max(limit)), basis);
+        }
+        // https://drafts.csswg.org/css-sizing-3/#stretch-fit-sizing
+        // NB: The table wrapper box carries the margins, so a stretch size fills the basis with the table's border box.
+        if constraint.is_stretch() {
+            let used = self.used_values(self.run.box_);
+            let collapsed = used.uses_collapsing_borders_model.get();
+            let stretch_fit_size =
+                (basis - used.border_box_left(collapsed) - used.border_box_right(collapsed)).max(CssPixels::default());
+            return resolve_calc_size_of_keyword(constraint, stretch_fit_size, basis);
         }
         // CSS Sizing says box-sizing:border-box applies length/percentage width/min-width/max-width constraints to
         // the border box. The table inline-size algorithm compares content inline sizes, so convert them before comparing.

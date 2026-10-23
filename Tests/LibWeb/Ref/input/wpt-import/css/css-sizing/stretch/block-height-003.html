@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<meta name="assert"
+  content="Both margins are ignored for sizing, but top margin still collapses. Bottom margin doesn't collapse because parent has a definite height.">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/block-height-003-ref.html">
+
+<style>
+  .surrounding-block {
+    width: 100px;
+    height: 100px;
+    border: solid;
+  }
+</style>
+
+<!--
+<p>These tests assert the behavior described at
+  https://github.com/w3c/csswg-drafts/issues/11044#issuecomment-2599101601
+</p>
+-->
+
+<div class="surrounding-block"></div>
+<div style="width: 200px; height: 200px; outline: 1px solid;">
+  <div
+    style="height: stretch; margin: 75px 0px 25px 0px; border: 2px dashed blue;">
+  </div>
+</div>
+<div class="surrounding-block"></div>

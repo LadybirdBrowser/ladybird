@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help"
+      href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+      content="The stretch keyword should work as a block-size for table parts">
+<style>
+table {
+  border-spacing: 0;
+  margin-bottom: 3px;
+}
+td {
+  border: 0;
+  padding: 0;
+}
+.stretch {
+    height: -webkit-fill-available;
+    height: stretch;
+}
+.spacer {
+  height: 10px;
+  width: 20px;
+  background: tan;
+}
+</style>
+<body onload="checkLayout('.stretch')">
+  <!-- 'stretch' on a table: -->
+  <table class="stretch"
+         data-expected-width="40"
+         data-expected-height="10">
+    <tbody>
+      <tr>
+        <td><div class="spacer"></div></td>
+        <td><div class="spacer"></div></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 'stretch' on a table in a fixed-height div: -->
+  <div style="height: 30px">
+    <table class="stretch"
+           data-expected-width="40"
+           data-expected-height="30">
+      <tbody>
+        <tr>
+          <td><div class="spacer"></div></td>
+          <td><div class="spacer"></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 'stretch' on a tbody: -->
+  <table>
+    <tbody class="stretch"
+           data-expected-width="40"
+           data-expected-height="10">
+      <tr>
+        <td><div class="spacer"></div></td>
+        <td><div class="spacer"></div></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 'stretch' on a table row: -->
+  <table>
+    <tbody>
+      <tr class="stretch"
+          data-expected-width="40"
+          data-expected-height="10">
+        <td><div class="spacer"></div></td>
+        <td><div class="spacer"></div></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 'stretch' on a table cell: -->
+  <table>
+    <tbody>
+      <tr>
+        <td class="stretch"
+            data-expected-width="20"
+            data-expected-height="10">
+          <div class="spacer"></div>
+        </td>
+        <td><div class="spacer"></div></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 'stretch' on a row-spanning table cell: -->
+  <table>
+    <tbody>
+      <tr>
+        <td><div class="spacer"></div></td>
+        <td class="stretch"
+            data-expected-width="20"
+            data-expected-height="20" rowspan="2">
+          <div class="spacer"></div>
+        </td>
+      </tr>
+      <tr><td><div class="spacer"></div></td></tr>
+    </tbody>
+  </table>
+
+  <!-- 'stretch' on a caption: -->
+  <table>
+    <caption class="stretch"
+             data-expected-width="40"
+             data-expected-height="10">
+      <div class="spacer"></div>
+    </caption>
+    <tbody>
+      <tr>
+        <td><div class="spacer"></div></td>
+        <td><div class="spacer"></div></td>
+      </tr>
+    </tbody>
+  </table>
+</body>

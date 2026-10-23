@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11044">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/../../reference/ref-filled-green-100px-square.xht">
+<meta name="assert"
+  content="Bottom margin is treated as 0 for stretch sizing even if there is a proceeding float">
+
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+</p>
+<div id="reference-overlapped-red"></div>
+
+<div style="height: 100px;">
+  <div
+    style="display: flow-root; width: 100px; height: stretch; margin-bottom: 50px; background: green;">
+  </div>
+  <div style="float: left; width: 50px; height: 50px;">
+  </div>
+</div>

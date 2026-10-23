@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11784">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<meta name="assert"
+  content="An item's cross-size:stretch should stretch to the line size, not the container size; container has indefinite height">
+<style>
+  .container {
+    /* inline just so they don't overflow on each other */
+    display: inline-flex;
+    width: 100px;
+    border: solid;
+    flex-wrap: wrap;
+    /* Prevent the lines from stretching. */
+    align-content: start;
+    font: 20px/1 Ahem;
+  }
+
+  .container>div {
+    border: 3px solid;
+  }
+
+  .stretch {
+    height: -moz-available;
+    height: -webkit-fill-available;
+    height: stretch;
+  }
+</style>
+
+<div class="container">
+  <div class="stretch" style="width: 75px; border-color: cyan"
+    data-expected-height="26">a</div>
+  <div class="stretch" style="width: 75px; border-color: magenta"
+    data-expected-height="26">b</div>
+</div>
+<div class="container">
+  <div class="stretch" style="width: 75px; border-color: cyan"
+    data-expected-height="156">a</div>
+  <div style="border-color: orange; height: 150px"></div>
+  <div class="stretch" style="width: 75px; border-color: magenta"
+    data-expected-height="26">b</div>
+</div>
+
+<script>
+  document.fonts.ready.then(() => checkLayout(".stretch"));
+</script>

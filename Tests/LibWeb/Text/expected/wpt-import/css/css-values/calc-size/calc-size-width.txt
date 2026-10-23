@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 20 tests
 
-19 Pass
-1 Fail
+20 Pass
 Pass	resolved width for width: calc-size(any, 357px)
 Pass	resolved width for width: calc-size(any, 31%)
 Pass	resolved width for width: calc-size(max-content, 31%)
@@ -13,7 +12,7 @@ Pass	resolved width for width: calc-size(83px, size * 3)
 Pass	resolved width for width: calc-size(min-content, size / 2)
 Pass	resolved width for width: calc-size(max-content, size * 1.2)
 Pass	resolved width for width: calc-size(fit-content, size / 4 + 30px)
-Fail	resolved width for width: calc-size(stretch, size / 2 - 10%)
+Pass	resolved width for width: calc-size(stretch, size / 2 - 10%)
 Pass	resolved width for width: calc-size(30px, 15em)
 Pass	resolved width for width: calc-size(calc-size(any, 30px), 15em)
 Pass	resolved width for width: calc-size(calc-size(2in, 30px), 15em)

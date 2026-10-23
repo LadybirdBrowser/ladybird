@@ -63,7 +63,7 @@ fn parse_basis(context: &ParseContext, property: u16, values: &[ComponentValue])
             // <size-keyword> represents any sizing keywords allowed in the context where the function is used.
             let is_size_keyword = match keyword {
                 keyword::ANY => true,
-                keyword::AUTO | keyword::CONTENT | keyword::MIN_CONTENT | keyword::MAX_CONTENT => {
+                keyword::AUTO | keyword::CONTENT | keyword::MIN_CONTENT | keyword::MAX_CONTENT | keyword::STRETCH => {
                     property_accepted_keywords(property).contains(&keyword)
                 }
                 keyword::FIT_CONTENT => property_accepted_value_types(property).contains(&VALUE_TYPE_FIT_CONTENT),
@@ -119,7 +119,7 @@ pub(crate) fn calc_size_arguments(value: &StyleValueData) -> Option<(&StyleValue
 }
 
 /// The sizing keyword a calc-size() acts as, after following nested calc-size() bases: auto, min-content,
-/// max-content or fit-content, or none when its basis is any or a calculation.
+/// max-content, fit-content or stretch, or none when its basis is any or a calculation.
 pub(crate) fn calc_size_basis_keyword(value: &StyleValueData) -> Option<u16> {
     let (basis, _) = calc_size_arguments(value)?;
     match basis {

@@ -260,7 +260,9 @@ fn grid_track_breadth_view(breadth: &ComputedGridTrackBreadth) -> GridTrackBread
         ComputedSizeKind::MinContent => GridTrackBreadth::MinContent,
         ComputedSizeKind::MaxContent => GridTrackBreadth::MaxContent,
         ComputedSizeKind::FitContent => GridTrackBreadth::FitContent(&breadth.size),
-        ComputedSizeKind::None => unreachable!("grid track sizes cannot be none"),
+        ComputedSizeKind::Stretch | ComputedSizeKind::None => {
+            unreachable!("grid track sizes cannot be stretch or none")
+        }
     }
 }
 

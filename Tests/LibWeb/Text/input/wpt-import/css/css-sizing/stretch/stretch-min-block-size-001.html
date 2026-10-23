@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#sizing-values">
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="min-block-size:stretch (setting 'min-height' in this case) resolves and clamps as expected (producing similar results as if we had specified the keyword for the block-size property)">
+<style>
+  .cb {
+    block-size: 50px;
+    inline-size: 40px;
+
+    /* This margin & border are purely cosmetic and don't impact the sizing
+     * calculations in this test: */
+    margin: 5px;
+    border: 2px solid black;
+
+    /* This padding only comes into play for the subtests with absolutely
+     * positioned children (where our padding-box forms the containing block
+     * for the abspos child). */
+    padding-block: 5px;
+    padding-inline: 3px;
+
+    /* We make each containing block an inline-level box, so we can display
+     * subtests in multiple rows, for easier visualization: */
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .test {
+    /* We have 2+3 = 5px of margin in the block axis. This means the stretched
+     * children should all have a border-box size that's 5px less than the
+     * containing block's content-box size, i.e. 50 - 5 = 45px. */
+    margin-block-start: 2px;
+    margin-block-end: 3px;
+
+    /* We also have some border/padding that UAs will need to account for
+     * when computing the stretched children's content-box sizes; but these
+     * don't reduce our `data-expected-height` expectations, since those
+     * correspond to the border-box size. */
+    border: 3px solid blue;
+    padding: 2px;
+
+    /* We expect "min-block-size:stretch" to cause the used value of
+     * "block-size" to be clamped to the "stretch" size. */
+    min-block-size: stretch;
+    block-size: 0;
+    inline-size: 20px;
+    background: fuchsia;
+  }
+</style>
+<script>
+  function runTests() {
+    checkLayout('[data-expected-height]');
+
+    // Add box-sizing:border-box (which shouldn't impact the actual resolved
+    // box sizes that 'stretch' produces), and retest:
+    for (let elem of document.querySelectorAll(".test")) {
+      elem.style.boxSizing = "border-box";
+    }
+    checkLayout('[data-expected-height]');
+  }
+</script>
+<body onload="runTests()">
+  <!-- 'stretch' on a block box, replaced element, various form controls: -->
+  <div class="cb">
+    <div class="test" data-expected-height="45"></div>
+  </div>
+  <div class="cb">
+    <canvas class="test" data-expected-height="45"></canvas>
+  </div>
+  <div class="cb">
+    <input class="test" data-expected-height="45">
+  </div>
+  <div class="cb">
+    <textarea class="test" data-expected-height="45"></textarea>
+  </div>
+  <div class="cb">
+    <button class="test" data-expected-height="45"></button>
+  </div>
+  <div class="cb">
+    <div class="test" style="float: left" data-expected-height="45"></div>
+  </div>
+
+  <br>
+
+  <!-- 'stretch' on various abspos configurations, which use the container's
+        padding-box as the area-to-fill (which in this case is 10px larger than
+        the container's content-box, hence the larger 'data-expected-*'
+        values vs. the previous subtests). -->
+  <!-- With 0 insets, the child's margin-box fills the CB's padding-box, so
+       the child's border-box should end being
+       cb-padding-box-size - child-margin-size = 60px - 5px = 55px -->
+  <div class="cb" style="position: relative">
+    <div class="test" style="position: absolute; inset-block: 0;"
+         data-expected-height="55"></div>
+  </div>
+
+  <!-- With auto insets, the child is placed at its static position which is
+       the origin of the CB's content-box, and then 'stretch' makes it extend
+       to reach the far end of the CB's padding-box. So it should be as large
+       as the zero-insets case above, minus the CB's block-start-padding
+       which is 5px. -->
+  <div class="cb" style="position: relative">
+    <div class="test" style="position: absolute" data-expected-height="50"></div>
+  </div>
+
+  <!-- When we specify an inset, the child should be as large as the
+       zero-insets case above, minus whatever nonzero inset we choose. -->
+  <div class="cb" style="position: relative">
+    <div class="test" style="position: absolute; inset-block-start: 10px"
+         data-expected-height="45"></div>
+  </div>
+  <div class="cb" style="position: relative">
+    <div class="test" style="position: absolute; inset-block-end: 10px"
+         data-expected-height="45"></div>
+  </div>
+
+  <!-- If an inset pushes the child past the edge of the CB, 'stretch' shrinks
+       to just the 10px needed for the child's border/padding: -->
+  <div class="cb" style="position: relative">
+    <div class="test" style="position: absolute; inset-block-end: 55px"
+         data-expected-height="10"></div>
+  </div>
+  <div class="cb" style="position: relative">
+    <div class="test" style="position: absolute; inset-block-start: 55px"
+         data-expected-height="10"></div>
+  </div>
+
+  <br>
+
+  <!-- 'stretch' on various abspos configurations in a grid: similar to
+       above, but the grid area forms the containing block. -->
+  <!-- Similar to zero insets case above, but just now in a grid: -->
+  <div class="cb"
+       style="display: inline-grid; position: relative">
+    <div class="test"
+         style="position: absolute; inset-block: 0;"
+         data-expected-height="55"></div>
+  </div>
+
+  <!-- With no insets, we're placed at our static position which is the grid's
+       padding-box origin, and then we stretch to reach the far end of its
+       padding-box. So we should be as large as the zero-insets case above. -->
+  <div class="cb"
+       style="display: inline-grid; position: relative">
+    <div class="test"
+         style="position: absolute"
+         data-expected-height="55"></div>
+  </div>
+
+  <!-- When we specify an inset, the child should be as large as the
+       zero-insets case above, minus whatever nonzero inset we choose. -->
+  <div class="cb"
+       style="display: inline-grid; position: relative">
+    <div class="test"
+         style="position: absolute; inset-block-start: 10px"
+         data-expected-height="45"></div>
+  </div>
+  <div class="cb"
+       style="display: inline-grid; position: relative">
+    <div class="test"
+         style="position: absolute; inset-block-end: 10px"
+         data-expected-height="45"></div>
+  </div>
+
+  <!-- If an inset pushes the child past the edge of the CB, 'stretch' shrinks
+       to just the 10px needed for the child's border/padding: -->
+  <div class="cb"
+       style="display: inline-grid; position: relative">
+    <div class="test"
+         style="position: absolute; inset-block-end: 55px"
+         data-expected-height="10"></div>
+  </div>
+  <div class="cb"
+       style="display: inline-grid; position: relative">
+    <div class="test"
+         style="position: absolute; inset-block-start: 55px"
+         data-expected-height="10"></div>
+  </div>
+
+  <br>
+
+  <!-- 'stretch' on a flex item: -->
+  <div class="cb" style="display: inline-flex; flex-direction: row">
+    <div class="test" data-expected-height="45"></div>
+  </div>
+  <div class="cb" style="display: inline-flex; flex-direction: column">
+    <div class="test" data-expected-height="45"></div>
+  </div>
+  <!--...now with an extra-large sibling sharing the child's flex line, to be
+      sure our 'stretch' sizing value resolves against the flex line's size: -->
+  <div class="cb" style="display: inline-flex; flex-flow: row wrap">
+    <div class="test" data-expected-height="55"></div>
+    <div style="block-size: 60px"></div>
+  </div>
+
+  <!-- 'stretch' on a grid item in a definite-size grid track: -->
+  <div class="cb" style="display: inline-grid; grid-template-rows: 35px">
+    <div class="test" data-expected-height="30"></div>
+  </div>
+
+  <!-- 'stretch' on a grid item in an automatically-sized grid track: -->
+  <div class="cb" style="display: inline-grid">
+    <div class="test" data-expected-height="45"></div>
+  </div>
+</body>

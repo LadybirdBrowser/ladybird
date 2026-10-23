@@ -15,6 +15,7 @@ pub enum ComputedSizeKind {
     MinContent,
     MaxContent,
     FitContent,
+    Stretch,
     None,
 }
 

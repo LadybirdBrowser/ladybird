@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="stretch keyword works in the presence of aspect-ratio">
+
+<style>
+  p {
+    margin-bottom: 4px;
+  }
+
+  .grandchild {
+    width: 30px;
+    height: 40px;
+  }
+</style>
+
+<body onload="checkLayout('p + div > div')">
+
+  <p>basic stretch into definite width</p>
+  <div style="width: 100px;">
+    <div style="outline: 5px solid; aspect-ratio: 2 / 1; width: stretch;"
+      data-expected-height="50">
+      <div class="grandchild"></div>
+    </div>
+  </div>
+
+  <p>basic stretch into definite height</p>
+  <div style="height: 100px;">
+    <div style="outline: 5px solid; aspect-ratio: 2 / 1; height: stretch;"
+      data-expected-width="200">
+      <div class="grandchild"></div>
+    </div>
+  </div>
+
+  <p>indefinite height stretch is ignored</p>
+  <div style="width: 100px;">
+    <div style="outline: 5px solid; aspect-ratio: 2 / 1; height: stretch;"
+      data-expected-height="50">
+      <div class="grandchild"></div>
+    </div>
+  </div>
+
+  <p>indefinite min-height stretch is ignored</p>
+  <div style="width: 100px;">
+    <div style="outline: 5px solid; aspect-ratio: 2 / 1; min-height: stretch;"
+      data-expected-height="50">
+      <div class="grandchild"></div>
+    </div>
+  </div>

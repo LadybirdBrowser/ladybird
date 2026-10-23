@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11044">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="stretch sizing treating margins as 0 isn't affected by preceding floats">
+
+<style>
+  .outer {
+    width: 100px;
+    height: 100px;
+    outline: solid;
+    position: relative;
+  }
+
+  .float {
+    float: left;
+    width: 30px;
+    height: 30px;
+    background: skyblue;
+  }
+</style>
+
+<p>These tests assert the behavior described at
+  https://github.com/w3c/csswg-drafts/issues/11044#issuecomment-2599101601
+</p>
+
+<div class="outer">
+  <div class="float"></div>
+  <div
+    style="height: stretch; width: 30px; margin-top: 50px; display: flow-root; border: solid magenta;"
+    data-expected-height="100" data-offset-y="0">
+  </div>
+</div>
+
+<div class="outer">
+  <div class="float"></div>
+  <div
+    style="height: stretch; width: 90px; margin-top: 50px; display: flow-root; border: solid cyan;"
+    data-expected-height="100" data-offset-y="30">
+  </div>
+</div>
+
+<div class="outer">
+  <div class="float"></div>
+  <div
+    style="height: stretch; width: 90px; margin-top: 50px; border: solid green;"
+    data-expected-height="100" data-offset-y="0">
+  </div>
+</div>
+
+<div class="outer">
+  <div class="float"></div>
+  <div
+    style="height: stretch; width: 90px; clear: both; margin-top: 50px; border: solid orange;"
+    data-expected-height="100" data-offset-y="30">
+  </div>
+</div>
+
+<script>checkLayout(".float + div")</script>

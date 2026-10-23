@@ -566,6 +566,25 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let sizing = self.sizing();
         let available_inline_size = available_space.inline_size.to_px_or_zero();
+        let calculate_inner_inline_size = |size: &ComputedSize| {
+            if size.is_stretch()
+                && let Some(remaining_inline_size) = float_avoidance_inline_size
+            {
+                // https://drafts.csswg.org/css-sizing-3/#stretch-fit-sizing
+                // For in-flow block-level boxes that form an independent formatting context, use the space available
+                // to line boxes (i.e. excluding floats) in place of the containing block's inline size.
+                let stretch_fit_size =
+                    sizing.stretch_fit_inner_size(node, SizingAxis::Inline, remaining_inline_size, constraints);
+                return sizing.resolve_calc_size(
+                    node,
+                    SizingAxis::Inline,
+                    size,
+                    stretch_fit_size,
+                    constraints.percentage_basis_inline_size,
+                );
+            }
+            sizing.calculate_inner_inline_size(node, available_space.inline_size, size, constraints)
+        };
         let sized_as_replaced = sizing.box_is_sized_as_replaced_element(node, available_space, constraints);
         let replaced_inline_size = sized_as_replaced.then(|| {
             // 10.3.4 Block-level, replaced elements in normal flow:
@@ -576,6 +595,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             {
                 let used = self.used(node);
                 used.resolve_horizontal_box_model(&style, available_inline_size);
+            }
+            // NB: Replaced element sizing does not know about the floats a stretch inline size avoids.
+            if style.width().is_stretch() && float_avoidance_inline_size.is_some() {
+                return calculate_inner_inline_size(style.width());
             }
             sizing.compute_inline_size_for_replaced_element(node, available_space, constraints)
         });
@@ -750,7 +773,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else if sizing.should_treat_inline_size_as_auto(node, available_space) {
             None
         } else {
-            Some(sizing.calculate_inner_inline_size(node, available_space.inline_size, style.width(), constraints))
+            Some(calculate_inner_inline_size(style.width()))
         };
 
         // 1. The tentative used width is calculated (without 'min-width' and 'max-width')
@@ -786,8 +809,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // 2. The tentative used width is greater than 'max-width', the rules above are applied again,
         //    but this time using the computed value of 'max-width' as the computed value for 'width'.
         if !sizing.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
-            let max_inline_size =
-                sizing.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints);
+            let max_inline_size = calculate_inner_inline_size(style.max_width());
             if used_inline_size.unwrap_or_default() > max_inline_size {
                 used_inline_size = compute(
                     Some(max_inline_size),
@@ -821,8 +843,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if !min_width.is_auto()
             && let Some(value) = used_inline_size
         {
-            let min_inline_size =
-                sizing.calculate_inner_inline_size(node, available_space.inline_size, min_width, constraints);
+            let min_inline_size = calculate_inner_inline_size(min_width);
             if value < min_inline_size {
                 used_inline_size = compute(
                     Some(min_inline_size),

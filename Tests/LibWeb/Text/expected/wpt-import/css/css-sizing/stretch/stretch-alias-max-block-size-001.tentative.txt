@@ -1,0 +1,51 @@
+Harness status: OK
+
+Found 45 tests
+
+43 Pass
+2 Fail
+Pass	[data-expected-height] 1
+Pass	[data-expected-height] 2
+Pass	[data-expected-height] 3
+Pass	[data-expected-height] 4
+Pass	[data-expected-height] 5
+Pass	[data-expected-height] 6
+Pass	[data-expected-height] 7
+Pass	[data-expected-height] 8
+Pass	[data-expected-height] 9
+Pass	[data-expected-height] 10
+Pass	[data-expected-height] 11
+Pass	[data-expected-height] 12
+Pass	[data-expected-height] 13
+Pass	[data-expected-height] 14
+Pass	[data-expected-height] 15
+Pass	[data-expected-height] 16
+Pass	[data-expected-height] 17
+Pass	[data-expected-height] 18
+Pass	[data-expected-height] 19
+Pass	[data-expected-height] 20
+Fail	[data-expected-height] 21
+Pass	[data-expected-height] 22
+Pass	[data-expected-height] 23
+Pass	[data-expected-height]:not([skip-second-pass]) 24
+Pass	[data-expected-height]:not([skip-second-pass]) 25
+Pass	[data-expected-height]:not([skip-second-pass]) 26
+Pass	[data-expected-height]:not([skip-second-pass]) 27
+Pass	[data-expected-height]:not([skip-second-pass]) 28
+Pass	[data-expected-height]:not([skip-second-pass]) 29
+Pass	[data-expected-height]:not([skip-second-pass]) 30
+Pass	[data-expected-height]:not([skip-second-pass]) 31
+Pass	[data-expected-height]:not([skip-second-pass]) 32
+Pass	[data-expected-height]:not([skip-second-pass]) 33
+Pass	[data-expected-height]:not([skip-second-pass]) 34
+Pass	[data-expected-height]:not([skip-second-pass]) 35
+Pass	[data-expected-height]:not([skip-second-pass]) 36
+Pass	[data-expected-height]:not([skip-second-pass]) 37
+Pass	[data-expected-height]:not([skip-second-pass]) 38
+Pass	[data-expected-height]:not([skip-second-pass]) 39
+Pass	[data-expected-height]:not([skip-second-pass]) 40
+Pass	[data-expected-height]:not([skip-second-pass]) 41
+Pass	[data-expected-height]:not([skip-second-pass]) 42
+Pass	[data-expected-height]:not([skip-second-pass]) 43
+Fail	[data-expected-height]:not([skip-second-pass]) 44
+Pass	[data-expected-height]:not([skip-second-pass]) 45

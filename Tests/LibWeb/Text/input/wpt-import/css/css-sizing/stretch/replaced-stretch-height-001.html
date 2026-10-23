@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#sizing-values">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="min-height:stretch on replaced elements should transfer through aspect ratio to width">
+<style>
+  .block {
+    width: 100px;
+    height: 200px;
+  }
+</style>
+
+<!-- canvas (1:1) with min-height:stretch in a block container.
+     Intrinsic 50px, min-height:stretch=200px wins, width scales to 200px. -->
+<div class="block">
+  <canvas width="50" height="50" style="min-height: stretch; background: teal"
+    data-expected-height="200" data-expected-width="200"></canvas>
+</div>
+
+<script>
+  checkLayout("[data-expected-height], [data-expected-width]");
+</script>

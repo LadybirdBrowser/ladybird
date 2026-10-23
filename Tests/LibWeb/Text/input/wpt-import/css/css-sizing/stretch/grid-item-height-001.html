@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert" content="Checks the behaviour of height: stretch on grid items.">
+<style>
+.content {
+  width: 20px;
+  height: 20px;
+  background: lime;
+}
+</style>
+<body onload="checkLayout('[data-expected-height]')">
+
+<!-- Grid item with stretch in an indefinite-height grid with definite row tracks.
+     The grid area provides a definite height even though the grid container doesn't. -->
+<div style="display: grid; grid-template-rows: 80px;">
+  <div data-expected-height=80 style="height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<!-- Grid item with stretch in an indefinite-height grid with auto row tracks.
+     The grid area height is indefinite, so stretch falls back to auto. -->
+<div style="display: grid;">
+  <div data-expected-height=20 style="height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+</body>

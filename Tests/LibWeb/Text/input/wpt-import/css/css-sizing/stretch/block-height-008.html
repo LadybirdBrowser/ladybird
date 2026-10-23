@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<meta name="assert"
+  content="margins of the stretched element are accounted for correctly in more writing mode combinations and presence of borders">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<style>
+  .container {
+    width: 50px;
+    height: 50px;
+    margin: 3px;
+    background: magenta;
+    position: relative;
+  }
+
+  .child {
+    margin: 1px 3px 5px 7px;
+    background: cyan;
+    font-size: 10px;
+  }
+</style>
+
+<div id="log"></div>
+<main id="main" style="display: flex; gap: 15px;">
+  <div>vertical-rl
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: horizontal-tb; width: 20px; height: stretch;">1
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: horizontal-tb; width: stretch; height: 20px;">2
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: horizontal-tb; width: 20px; height: stretch;">3
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: horizontal-tb; width: stretch; height: 20px;">4
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-rl; width: 20px; height: stretch;">5
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: vertical-rl; width: stretch; height: 20px;">6
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-rl; width: 20px; height: stretch;">7
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: vertical-rl; width: stretch; height: 20px;">8
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-lr; width: 20px; height: stretch;">9
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: vertical-lr; width: stretch; height: 20px;">10
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-lr; width: 20px; height: stretch;">11
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: vertical-lr; width: stretch; height: 20px;">12
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-rl; width: 20px; height: stretch;">13
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: sideways-rl; width: stretch; height: 20px;">14
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-rl; width: 20px; height: stretch;">15
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: sideways-rl; width: stretch; height: 20px;">16
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-lr; width: 20px; height: stretch;">17
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: sideways-lr; width: stretch; height: 20px;">18
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-lr; width: 20px; height: stretch;">19
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: sideways-lr; width: stretch; height: 20px;">20
+        </div>
+      </div>
+    </div>
+  </div>
+  <div>vertical-lr
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: horizontal-tb; width: 20px; height: stretch;">21
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: horizontal-tb; width: stretch; height: 20px;">22
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: horizontal-tb; width: 20px; height: stretch;">23
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: horizontal-tb; width: stretch; height: 20px;">24
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-rl; width: 20px; height: stretch;">25
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: vertical-rl; width: stretch; height: 20px;">26
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-rl; width: 20px; height: stretch;">27
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: vertical-rl; width: stretch; height: 20px;">28
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-lr; width: 20px; height: stretch;">29
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: vertical-lr; width: stretch; height: 20px;">30
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-lr; width: 20px; height: stretch;">31
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: vertical-lr; width: stretch; height: 20px;">32
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-rl; width: 20px; height: stretch;">33
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: sideways-rl; width: stretch; height: 20px;">34
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-rl; width: 20px; height: stretch;">35
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: sideways-rl; width: stretch; height: 20px;">36
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-lr; width: 20px; height: stretch;">37
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: sideways-lr; width: stretch; height: 20px;">38
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-lr; width: 20px; height: stretch;">39
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: vertical-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: sideways-lr; width: stretch; height: 20px;">40
+        </div>
+      </div>
+    </div>
+  </div>
+  <div>sideways-rl
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: horizontal-tb; width: 20px; height: stretch;">41
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: horizontal-tb; width: stretch; height: 20px;">42
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: horizontal-tb; width: 20px; height: stretch;">43
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: horizontal-tb; width: stretch; height: 20px;">44
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-rl; width: 20px; height: stretch;">45
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: vertical-rl; width: stretch; height: 20px;">46
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-rl; width: 20px; height: stretch;">47
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: vertical-rl; width: stretch; height: 20px;">48
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-lr; width: 20px; height: stretch;">49
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: vertical-lr; width: stretch; height: 20px;">50
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-lr; width: 20px; height: stretch;">51
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: vertical-lr; width: stretch; height: 20px;">52
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-rl; width: 20px; height: stretch;">53
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: sideways-rl; width: stretch; height: 20px;">54
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-rl; width: 20px; height: stretch;">55
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: sideways-rl; width: stretch; height: 20px;">56
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-lr; width: 20px; height: stretch;">57
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: sideways-lr; width: stretch; height: 20px;">58
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-lr; width: 20px; height: stretch;">59
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-rl;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: sideways-lr; width: stretch; height: 20px;">60
+        </div>
+      </div>
+    </div>
+  </div>
+  <div>sideways-lr
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: horizontal-tb; width: 20px; height: stretch;">61
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: horizontal-tb; width: stretch; height: 20px;">62
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: horizontal-tb; width: 20px; height: stretch;">63
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: horizontal-tb; width: stretch; height: 20px;">64
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-rl; width: 20px; height: stretch;">65
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: vertical-rl; width: stretch; height: 20px;">66
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-rl; width: 20px; height: stretch;">67
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: vertical-rl; width: stretch; height: 20px;">68
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-lr; width: 20px; height: stretch;">69
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: vertical-lr; width: stretch; height: 20px;">70
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: vertical-lr; width: 20px; height: stretch;">71
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: vertical-lr; width: stretch; height: 20px;">72
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-rl; width: 20px; height: stretch;">73
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: sideways-rl; width: stretch; height: 20px;">74
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-rl; width: 20px; height: stretch;">75
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: sideways-rl; width: stretch; height: 20px;">76
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-lr; width: 20px; height: stretch;">77
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-top: 5px solid;">
+        <div class="child" data-expected-width="50" data-expected-height="20"
+          style="writing-mode: sideways-lr; width: stretch; height: 20px;">78
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="20" data-expected-height="44"
+          style="writing-mode: sideways-lr; width: 20px; height: stretch;">79
+        </div>
+      </div>
+    </div>
+    <div style="writing-mode: sideways-lr;">
+      <div class="container" style="border-right: 5px solid;">
+        <div class="child" data-expected-width="47" data-expected-height="20"
+          style="writing-mode: sideways-lr; width: stretch; height: 20px;">80
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  checkLayout('.child');
+
+  // Add direction:rtl (which shouldn't impact the actual resolved
+  // box sizes that 'stretch' produces), and retest:
+  for (let container of document.querySelectorAll(".container")) {
+    container.style.direction = "rtl";
+  }
+  checkLayout('.child');
+
+</script>

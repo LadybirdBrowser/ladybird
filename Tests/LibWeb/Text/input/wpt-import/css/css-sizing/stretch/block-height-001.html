@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#propdef-width">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert" content="Checks the behaviour of stretch in various configurations.">
+<style>
+.content {
+  width: 20px;
+  height: 20px;
+  background: lime;
+}
+.tall-content {
+  width: 20px;
+  height: 120px;
+  background: lime;
+}
+</style>
+<body onload="checkLayout('[data-expected-height]')">
+
+<div style="height: 100px;">
+  <div data-expected-height=100 style="display: block; height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100px;">
+  <div data-expected-height=100 style="display: flex; height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100px;">
+  <div data-expected-height=100 style="display: grid; height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<!-- As the height of the container is indefinite, stretch is treated as auto. -->
+<div style="height: 100%;">
+  <div data-expected-height=20 style="display: block; height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100%;">
+  <div data-expected-height=20 style="display: flex; height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100%;">
+  <div data-expected-height=20 style="display: grid; height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100px;">
+  <div data-expected-height=100 style="display: block; min-height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100px;">
+  <div data-expected-height=100 style="display: flex; min-height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100px;">
+  <div data-expected-height=100 style="display: grid; min-height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100%;">
+  <div data-expected-height=20 style="display: block; min-height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100%;">
+  <div data-expected-height=20 style="display: flex; min-height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100%;">
+  <div data-expected-height=20 style="display: grid; min-height: stretch;">
+    <div class=content></div>
+  </div>
+</div>
+
+<div style="height: 100px;">
+  <div data-expected-height=100 style="display: block; max-height: stretch;">
+    <div class=tall-content></div>
+  </div>
+</div>
+
+<div style="height: 100px;">
+  <div data-expected-height=100 style="display: flex; max-height: stretch;">
+    <div class=tall-content></div>
+  </div>
+</div>
+
+<div style="height: 100px;">
+  <div data-expected-height=100 style="display: grid; max-height: stretch;">
+    <div class=tall-content></div>
+  </div>
+</div>
+
+<div style="height: 100%;">
+  <div data-expected-height=120 style="display: block; max-height: stretch;">
+    <div class=tall-content></div>
+  </div>
+</div>
+
+<div style="height: 100%;">
+  <div data-expected-height=120 style="display: flex; max-height: stretch;">
+    <div class=tall-content></div>
+  </div>
+</div>
+
+<div style="height: 100%;">
+  <div data-expected-height=120 style="display: grid; max-height: stretch;">
+    <div class=tall-content></div>
+  </div>
+</div>

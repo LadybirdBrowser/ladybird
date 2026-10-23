@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<link rel="help"
+      href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+      content="stretch keyword works as a block-size for replaced elements with intrinsic-size keyword for inline-size (which in turn depends on the stretched block-size)">
+<style>
+.container {
+    width: 20px;
+    height: 20px;
+    margin: 5px;
+    border: 1px solid black;
+}
+canvas {
+    height: -webkit-fill-available;
+    height: stretch;
+    background: purple;
+}
+
+.withBorder {
+    border: 2px solid cyan;
+    border-width: 2px 3px 4px 5px;
+}
+.withPadding {
+    padding: 2px 3px 4px 5px;
+}
+.withPxMargin {
+    margin: 1px 2px 3px 4px;
+}
+.withPctMargin {
+    /* This works out to 1px 2px 3px 4px */
+    margin: 5% 10% 15% 20%;
+}
+</style>
+<body onload="checkLayout('canvas')">
+  <!-- Simplest cases - replaced element with stretched block-size and
+       intrinsic inline-size: -->
+  <div class="container">
+    <canvas width="30" height="60"
+            data-expected-width="10"
+            data-expected-height="20"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            style="width: 1px; min-width: fit-content"
+            data-expected-width="10"
+            data-expected-height="20"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            style="width: 100px; max-width: fit-content"
+            data-expected-width="10"
+            data-expected-height="20"></canvas>
+  </div>
+
+  <!-- Now without any block-size on the containing block (this makes
+       the canvas's bsize be treated as "auto", so it just takes on its
+       regular intrinsic size in both axes): -->
+  <div class="container" style="height: auto">
+    <canvas width="30" height="60"
+            data-expected-width="30"
+            data-expected-height="60"></canvas>
+  </div>
+  <div class="container" style="height: auto">
+    <canvas width="30" height="60"
+            style="width: 1px; min-width: fit-content"
+            data-expected-width="30"
+            data-expected-height="60"></canvas>
+  </div>
+  <div class="container" style="height: auto">
+    <canvas width="30" height="60"
+            style="width: 100px; max-width: fit-content"
+            data-expected-width="30"
+            data-expected-height="60"></canvas>
+  </div>
+
+  <!-- Now with pixel-valued border: -->
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withBorder"
+            data-expected-width="15"
+            data-expected-height="20"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withBorder"
+            style="width: 1px; min-width: fit-content"
+            data-expected-width="15"
+            data-expected-height="20"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withBorder"
+            style="width: 100px; max-width: fit-content"
+            data-expected-width="15"
+            data-expected-height="20"></canvas>
+  </div>
+
+  <!-- Now with pixel-valued padding: -->
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withPadding"
+            data-expected-width="15"
+            data-expected-height="20"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withPadding"
+            style="width: 1px; min-width: fit-content"
+            data-expected-width="15"
+            data-expected-height="20"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withPadding"
+            style="width: 100px; max-width: fit-content"
+            data-expected-width="15"
+            data-expected-height="20"></canvas>
+  </div>
+
+  <!-- Now with a pixel-valued margin: -->
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withPxMargin"
+            data-expected-width="8"
+            data-expected-height="16"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withPxMargin"
+            style="width: 1px; min-width: fit-content"
+            data-expected-width="8"
+            data-expected-height="16"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withPxMargin"
+            style="width: 100px; max-width: fit-content"
+            data-expected-width="8"
+            data-expected-height="16"></canvas>
+  </div>
+
+  <!-- Now with a percent-valued margin: -->
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withPctMargin"
+            data-expected-width="8"
+            data-expected-height="16"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withPctMargin"
+            style="width: 1px; min-width: fit-content"
+            data-expected-width="8"
+            data-expected-height="16"></canvas>
+  </div>
+  <div class="container">
+    <canvas width="30" height="60"
+            class="withPctMargin"
+            style="width: 100px; max-width: fit-content"
+            data-expected-width="8"
+            data-expected-height="16"></canvas>
+  </div>
+</body>

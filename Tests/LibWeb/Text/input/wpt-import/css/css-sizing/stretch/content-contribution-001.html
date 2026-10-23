@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<link rel="help"
+  href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/11006">
+<script src='../../../resources/testharness.js'></script>
+<script src='../../../resources/testharnessreport.js'></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="stretched children contribute their automatic size to parent's min/max content sizes">
+
+<style>
+  .test {
+    outline: solid;
+    margin-bottom: 10px;
+  }
+</style>
+
+<div style="width: max-content;" class="test" data-expected-client-width="100">
+  <div style="float: left; width: 100px; height: 100px;"></div>
+  <div style="float: left; width: stretch; outline: solid blue;"></div>
+</div>
+
+<div style="width: max-content;" class="test" data-expected-client-width="120">
+  <div style="float: left; width: 100px; height: 100px;"></div>
+  <div style="float: left; width: stretch; outline: solid blue;">
+    <div style="width: 20px; height: 20px;"></div>
+  </div>
+</div>
+
+<div style="width: 100px; height: max-content;" class="test"
+  data-expected-client-height="100">
+  <div style="width: 100px; height: 100px;"></div>
+  <div style="height: stretch; outline: solid blue;"></div>
+</div>
+
+<div style="width: 100px; height: max-content;" class="test"
+  data-expected-client-height="120">
+  <div style="width: 100px; height: 100px;"></div>
+  <div style="height: stretch; outline: solid blue;">
+    <div style="width: 20px; height: 20px;"></div>
+  </div>
+</div>
+
+<div style="writing-mode: vertical-lr;">
+  <div style="inline-size: stretch; block-size: 100px;" class="test"
+    data-expected-client-height="0"></div>
+</div>
+
+<div style="writing-mode: vertical-lr;">
+  <div style="inline-size: stretch; block-size: 100px; border: solid"
+    data-expected-client-height="20">
+    <div style="height: 20px;"></div>
+  </div>
+</div>
+
+<script>
+  checkLayout('.test');
+</script>

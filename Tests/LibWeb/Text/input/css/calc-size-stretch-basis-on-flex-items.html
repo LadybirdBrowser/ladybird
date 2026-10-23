@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="display: flex; width: 300px"><div id="a" style="flex: 0 0 calc-size(stretch, size / 2); height: 10px"></div></div>
+<div style="display: flex; width: 300px"><div id="b" style="flex: 0 0 auto; width: calc-size(stretch, size / 2); height: 10px"></div></div>
+<script>
+test(() => {
+    println(`calc-size() flex-basis with a stretch basis: ${document.getElementById("a").offsetWidth}`);
+    println(`calc-size() width with a stretch basis: ${document.getElementById("b").offsetWidth}`);
+});
+</script>

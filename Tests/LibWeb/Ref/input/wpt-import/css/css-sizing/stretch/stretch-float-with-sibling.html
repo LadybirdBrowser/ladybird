@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Sizing: stretch on float with tall sibling between floats</title>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/stretch-float-with-sibling-ref.html">
+<meta name="assert" content="
+  A float with width:stretch should resolve to the containing block width
+  even when a tall non-float block separates it from a previous float.
+">
+<style>
+.stretch {
+    width: -webkit-fill-available;
+    width: stretch;
+    float: left;
+    height: 20px;
+    background: green;
+}
+</style>
+<p>Test passes if there are two filled green rectangles of equal width.</p>
+<div style="width: 200px">
+    <div class="stretch"></div>
+    <div style="height: 100px"></div>
+    <div class="stretch"></div>
+</div>

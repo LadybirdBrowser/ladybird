@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#stretch-fit-sizing">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/4028">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/stretch/../../reference/ref-filled-green-100px-square.xht">
+<style>
+  #reference-overlapped-red {
+    position: absolute;
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    z-index: -1;
+  }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="reference-overlapped-red"></div>
+
+<div style="width:200px; margin-left: -100px;">
+  <div style="float: left; width: 100px; height: 100px;"></div>
+  <div
+    style="display: flow-root; width: stretch; height: 100px; background: green;">
+  </div>
+</div>

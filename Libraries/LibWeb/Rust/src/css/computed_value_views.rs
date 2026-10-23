@@ -180,6 +180,10 @@ impl ComputedSize {
         self.kind == ComputedSizeKind::FitContent
     }
 
+    pub(crate) fn is_stretch(&self) -> bool {
+        self.kind == ComputedSizeKind::Stretch
+    }
+
     pub(crate) fn is_none(&self) -> bool {
         self.kind == ComputedSizeKind::None
     }
@@ -229,6 +233,7 @@ impl ComputedSize {
             ComputedSizeKind::Auto
             | ComputedSizeKind::MinContent
             | ComputedSizeKind::MaxContent
+            | ComputedSizeKind::Stretch
             | ComputedSizeKind::None => CssPixels::default(),
             ComputedSizeKind::Calculated | ComputedSizeKind::Length | ComputedSizeKind::Percentage => {
                 self.length_percentage().to_px(reference)
@@ -245,6 +250,10 @@ impl ComputedSize {
             | ComputedSizeKind::MinContent
             | ComputedSizeKind::MaxContent
             | ComputedSizeKind::None => false,
+            // NB: A stretch size depends on the size of the containing block, and behaves as auto, zero or none
+            //     wherever a percentage of it would not resolve.
+            // https://drafts.csswg.org/css-sizing-3/#stretch-fit-sizing
+            ComputedSizeKind::Stretch => true,
             ComputedSizeKind::Calculated | ComputedSizeKind::Length | ComputedSizeKind::Percentage => {
                 self.length_percentage().contains_percentage()
             }
