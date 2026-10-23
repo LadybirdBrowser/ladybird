@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+    .item { display: block; width: 200px; }
+    .later-list-item { list-style-position: inside; }
+    dialog::backdrop { background: green; }
+</style>
+<div id="plain" class="item">plain</div>
+<div id="before" class="item">before</div>
+<div id="list" class="item later-list-item">list</div>
+<dialog id="dialog">dialog</dialog>
+<div id="hidden" style="display: none"></div>
+<script>
+    // Every element above is styled once without any pseudo-element that generates a box. Each then gains one: a
+    // ::before from a stylesheet inserted later, a ::marker from becoming a list item, a ::backdrop from entering
+    // the top layer, and in a display:none subtree, elements inserted after their parent was styled whose
+    // pseudo-elements generate once the subtree is revealed.
+    document.body.offsetHeight;
+    const sheet = document.createElement("style");
+    sheet.textContent = "#before::before, #hidden .gen::after { content: '[x]'; } #hidden .gen::before { content: '[y]'; }";
+    document.head.appendChild(sheet);
+    document.body.offsetHeight;
+    document.getElementById("list").style.display = "list-item";
+    document.body.offsetHeight;
+    document.getElementById("dialog").showModal();
+    document.body.offsetHeight;
+    const hidden = document.getElementById("hidden");
+    for (let i = 0; i < 3; ++i) {
+        const element = document.createElement(i == 1 ? "li" : "div");
+        element.className = "gen";
+        element.textContent = "inserted " + i;
+        hidden.appendChild(element);
+    }
+    document.body.offsetHeight;
+    hidden.style.display = "block";
+</script>
