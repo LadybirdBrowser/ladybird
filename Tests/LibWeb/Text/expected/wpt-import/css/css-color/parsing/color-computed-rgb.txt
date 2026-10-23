@@ -2,24 +2,23 @@ Harness status: OK
 
 Found 99 tests
 
-83 Pass
-16 Fail
-Fail	Property color value 'rgb(none none none)'
-Fail	Property color value 'rgb(none none none / none)'
-Fail	Property color value 'rgb(128 none none)'
-Fail	Property color value 'rgb(128 none none / none)'
-Fail	Property color value 'rgb(none none none / .5)'
-Fail	Property color value 'rgb(20% none none)'
-Fail	Property color value 'rgb(20% none none / none)'
-Fail	Property color value 'rgb(none none none / 50%)'
-Fail	Property color value 'rgba(none none none)'
-Fail	Property color value 'rgba(none none none / none)'
-Fail	Property color value 'rgba(128 none none)'
-Fail	Property color value 'rgba(128 none none / none)'
-Fail	Property color value 'rgba(none none none / .5)'
-Fail	Property color value 'rgba(20% none none)'
-Fail	Property color value 'rgba(20% none none / none)'
-Fail	Property color value 'rgba(none none none / 50%)'
+99 Pass
+Pass	Property color value 'rgb(none none none)'
+Pass	Property color value 'rgb(none none none / none)'
+Pass	Property color value 'rgb(128 none none)'
+Pass	Property color value 'rgb(128 none none / none)'
+Pass	Property color value 'rgb(none none none / .5)'
+Pass	Property color value 'rgb(20% none none)'
+Pass	Property color value 'rgb(20% none none / none)'
+Pass	Property color value 'rgb(none none none / 50%)'
+Pass	Property color value 'rgba(none none none)'
+Pass	Property color value 'rgba(none none none / none)'
+Pass	Property color value 'rgba(128 none none)'
+Pass	Property color value 'rgba(128 none none / none)'
+Pass	Property color value 'rgba(none none none / .5)'
+Pass	Property color value 'rgba(20% none none)'
+Pass	Property color value 'rgba(20% none none / none)'
+Pass	Property color value 'rgba(none none none / 50%)'
 Pass	Property color value 'rgb(00, 51, 102)' [Valid numbers should be parsed]
 Pass	Property color value 'r\gb(00, 51, 102)' [Correct escape sequences should still parse]
 Pass	Property color value 'r\67 b(00, 51, 102)' [Correct escape sequences should still parse]

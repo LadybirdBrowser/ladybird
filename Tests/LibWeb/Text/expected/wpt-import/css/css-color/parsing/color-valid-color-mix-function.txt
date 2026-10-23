@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 677 tests
 
-659 Pass
-18 Fail
+677 Pass
 Pass	e.style['color'] = "color-mix(in srgb, red, blue)" should set the property value
 Pass	e.style['color'] = "color-mix(in srgb, 70% red, 50% blue)" should set the property value
 Pass	e.style['color'] = "color-mix(in hsl, red, blue)" should set the property value
@@ -65,15 +64,15 @@ Pass	e.style['color'] = "color-mix(in hsl decreasing hue, hsl(50deg 50% 50%), hs
 Pass	e.style['color'] = "color-mix(in hsl decreasing hue, hsl(330deg 50% 50%), hsl(50deg 50% 50%))" should set the property value
 Pass	e.style['color'] = "color-mix(in hsl decreasing hue, hsl(20deg 50% 50%), hsl(320deg 50% 50%))" should set the property value
 Pass	e.style['color'] = "color-mix(in hsl decreasing hue, hsl(320deg 50% 50%), hsl(20deg 50% 50%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hsl, hsl(none none none), hsl(none none none))" should set the property value
-Fail	e.style['color'] = "color-mix(in hsl, hsl(none none none), hsl(30deg 40% 80%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hsl, hsl(120deg 20% 40%), hsl(none none none))" should set the property value
-Fail	e.style['color'] = "color-mix(in hsl, hsl(120deg 20% none), hsl(30deg 40% 60%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hsl, hsl(120deg 20% 40%), hsl(30deg 20% none))" should set the property value
-Fail	e.style['color'] = "color-mix(in hsl, hsl(none 20% 40%), hsl(30deg none 80%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hsl, hsl(120deg 40% 40% / none), hsl(0deg 40% 40%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hsl, hsl(120deg 40% 40% / none), hsl(0deg 40% 40% / 0.5))" should set the property value
-Fail	e.style['color'] = "color-mix(in hsl, hsl(120deg 40% 40% / none), hsl(0deg 40% 40% / none))" should set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(none none none), hsl(none none none))" should set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(none none none), hsl(30deg 40% 80%))" should set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 20% 40%), hsl(none none none))" should set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 20% none), hsl(30deg 40% 60%))" should set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 20% 40%), hsl(30deg 20% none))" should set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(none 20% 40%), hsl(30deg none 80%))" should set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 40% 40% / none), hsl(0deg 40% 40%))" should set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 40% 40% / none), hsl(0deg 40% 40% / 0.5))" should set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 40% 40% / none), hsl(0deg 40% 40% / none))" should set the property value
 Pass	e.style['color'] = "color-mix(in hsl, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%)" should set the property value
 Pass	e.style['color'] = "color-mix(in hsl, lab(100 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)" should set the property value
 Pass	e.style['color'] = "color-mix(in hsl, lab(0 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)" should set the property value
@@ -138,15 +137,15 @@ Pass	e.style['color'] = "color-mix(in hwb decreasing hue, hwb(50deg 30% 40%), hw
 Pass	e.style['color'] = "color-mix(in hwb decreasing hue, hwb(330deg 30% 40%), hwb(50deg 30% 40%))" should set the property value
 Pass	e.style['color'] = "color-mix(in hwb decreasing hue, hwb(20deg 30% 40%), hwb(320deg 30% 40%))" should set the property value
 Pass	e.style['color'] = "color-mix(in hwb decreasing hue, hwb(320deg 30% 40%), hwb(20deg 30% 40%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hwb, hwb(none none none), hwb(none none none))" should set the property value
-Fail	e.style['color'] = "color-mix(in hwb, hwb(none none none), hwb(30deg 30% 40%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20%), hwb(none none none))" should set the property value
-Fail	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% none), hwb(30deg 30% 40%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% none))" should set the property value
-Fail	e.style['color'] = "color-mix(in hwb, hwb(none 10% 20%), hwb(30deg none 40%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20% / none), hwb(30deg 30% 40%))" should set the property value
-Fail	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20% / none), hwb(30deg 30% 40% / 0.5))" should set the property value
-Fail	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20% / none), hwb(30deg 30% 40% / none))" should set the property value
+Pass	e.style['color'] = "color-mix(in hwb, hwb(none none none), hwb(none none none))" should set the property value
+Pass	e.style['color'] = "color-mix(in hwb, hwb(none none none), hwb(30deg 30% 40%))" should set the property value
+Pass	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20%), hwb(none none none))" should set the property value
+Pass	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% none), hwb(30deg 30% 40%))" should set the property value
+Pass	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20%), hwb(30deg 30% none))" should set the property value
+Pass	e.style['color'] = "color-mix(in hwb, hwb(none 10% 20%), hwb(30deg none 40%))" should set the property value
+Pass	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20% / none), hwb(30deg 30% 40%))" should set the property value
+Pass	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20% / none), hwb(30deg 30% 40% / 0.5))" should set the property value
+Pass	e.style['color'] = "color-mix(in hwb, hwb(120deg 10% 20% / none), hwb(30deg 30% 40% / none))" should set the property value
 Pass	e.style['color'] = "color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%)" should set the property value
 Pass	e.style['color'] = "color-mix(in hwb, lab(100 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)" should set the property value
 Pass	e.style['color'] = "color-mix(in hwb, lab(0 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)" should set the property value

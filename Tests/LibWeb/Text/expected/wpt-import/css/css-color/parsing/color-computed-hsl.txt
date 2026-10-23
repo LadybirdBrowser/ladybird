@@ -2,29 +2,28 @@ Harness status: OK
 
 Found 3753 tests
 
-3744 Pass
-9 Fail
+3753 Pass
 Pass	Property color value 'hsl(120 30% 50%)'
 Pass	Property color value 'hsl(120 30% 50% / 0.5)'
 Pass	Property color value 'hsl(120 30% 50% / 50%)'
-Fail	Property color value 'hsl(none none none)'
+Pass	Property color value 'hsl(none none none)'
 Pass	Property color value 'hsl(0 0% 0%)'
-Fail	Property color value 'hsl(none none none / none)'
+Pass	Property color value 'hsl(none none none / none)'
 Pass	Property color value 'hsl(0 0% 0% / 0)'
-Fail	Property color value 'hsla(none none none)'
+Pass	Property color value 'hsla(none none none)'
 Pass	Property color value 'hsla(0 0% 0%)'
-Fail	Property color value 'hsla(none none none / none)'
+Pass	Property color value 'hsla(none none none / none)'
 Pass	Property color value 'hsla(0 0% 0% / 0)'
-Fail	Property color value 'hsl(120 none none)'
+Pass	Property color value 'hsl(120 none none)'
 Pass	Property color value 'hsl(120 0% 0%)'
-Fail	Property color value 'hsl(120 80% none)'
+Pass	Property color value 'hsl(120 80% none)'
 Pass	Property color value 'hsl(120 80% 0%)'
-Fail	Property color value 'hsl(120 none 50%)'
+Pass	Property color value 'hsl(120 none 50%)'
 Pass	Property color value 'hsl(120 0% 50%)'
-Fail	Property color value 'hsl(120 100% 50% / none)'
+Pass	Property color value 'hsl(120 100% 50% / none)'
 Pass	Property color value 'hsl(120 100% 50% / 0)'
 Pass	Property color value 'hsl(120 100% 50% / 0%)'
-Fail	Property color value 'hsl(none 100% 50%)'
+Pass	Property color value 'hsl(none 100% 50%)'
 Pass	Property color value 'hsl(0 100% 50%)'
 Pass	Property color value 'HSL(0, 0%, 0%)' [Capitalization should not affect parsing]
 Pass	Property color value 'hsL(0, 100%, 50%)' [Capitalization should not affect parsing]

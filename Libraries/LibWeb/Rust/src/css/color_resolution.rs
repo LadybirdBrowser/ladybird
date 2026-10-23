@@ -1322,6 +1322,15 @@ fn computed_value_form(value: StyleValueData) -> StyleValueData {
     if !matches!(color_type, ct::RGB | ct::HSL | ct::HWB) {
         return value;
     }
+    // https://drafts.csswg.org/css-color-5/#serial-relative-color
+    // However, if the resolved value of an hsl() or hwb() relative color has at least one missing color
+    // component (including a missing alpha carried forward from the origin color per
+    // [[css-color-4#interpolation-missing]]), the form used is the modern hsl(h s l / a) or hwb(h w b / a)
+    // syntax respectively, preserving the original color function and each none value, rather than
+    // degrading to color(srgb r g b) (which would lose the hsl/hwb identity).
+    if color_type != ct::RGB && crate::css::serialize::color_function_has_missing_component(&value) {
+        return value;
+    }
     let number = |channel: &RetainedStyleValueData| match channel.optional_data() {
         Some(StyleValueData::Number { value }) => Some(*value),
         _ => None,
@@ -1415,6 +1424,16 @@ pub unsafe extern "C" fn rust_color_mix_resolved_value(
         Some(resolved) => Arc::into_raw(Arc::new(resolved)),
         None => core::ptr::null(),
     }
+}
+
+/// Whether a color function value has a missing color component, which its resolved value keeps.
+///
+/// # Safety
+/// `value` must point at live style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_color_function_has_missing_component(value: *const core::ffi::c_void) -> bool {
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    crate::css::serialize::color_function_has_missing_component(value)
 }
 
 /// Port of ColorStyleValue::extract_channels_in_color_space().

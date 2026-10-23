@@ -2,27 +2,26 @@ Harness status: OK
 
 Found 60 tests
 
-46 Pass
-14 Fail
+60 Pass
 Pass	e.style['color'] = "hsl(120 30% 50%)" should set the property value
 Pass	e.style['color'] = "hsl(120 30% 50% / 0.5)" should set the property value
-Fail	e.style['color'] = "hsl(none none none)" should set the property value
+Pass	e.style['color'] = "hsl(none none none)" should set the property value
 Pass	e.style['color'] = "hsl(0 0% 0%)" should set the property value
-Fail	e.style['color'] = "hsl(none none none / none)" should set the property value
+Pass	e.style['color'] = "hsl(none none none / none)" should set the property value
 Pass	e.style['color'] = "hsl(0 0% 0% / 0)" should set the property value
-Fail	e.style['color'] = "hsla(none none none)" should set the property value
+Pass	e.style['color'] = "hsla(none none none)" should set the property value
 Pass	e.style['color'] = "hsla(0 0% 0%)" should set the property value
-Fail	e.style['color'] = "hsla(none none none / none)" should set the property value
+Pass	e.style['color'] = "hsla(none none none / none)" should set the property value
 Pass	e.style['color'] = "hsla(0 0% 0% / 0)" should set the property value
-Fail	e.style['color'] = "hsl(120 none none)" should set the property value
+Pass	e.style['color'] = "hsl(120 none none)" should set the property value
 Pass	e.style['color'] = "hsl(120 0% 0%)" should set the property value
-Fail	e.style['color'] = "hsl(120 80% none)" should set the property value
+Pass	e.style['color'] = "hsl(120 80% none)" should set the property value
 Pass	e.style['color'] = "hsl(120 80% 0%)" should set the property value
-Fail	e.style['color'] = "hsl(120 none 50%)" should set the property value
+Pass	e.style['color'] = "hsl(120 none 50%)" should set the property value
 Pass	e.style['color'] = "hsl(120 0% 50%)" should set the property value
-Fail	e.style['color'] = "hsl(120 100% 50% / none)" should set the property value
+Pass	e.style['color'] = "hsl(120 100% 50% / none)" should set the property value
 Pass	e.style['color'] = "hsl(120 100% 50% / 0)" should set the property value
-Fail	e.style['color'] = "hsl(none 100% 50%)" should set the property value
+Pass	e.style['color'] = "hsl(none 100% 50%)" should set the property value
 Pass	e.style['color'] = "hsl(0 100% 50%)" should set the property value
 Pass	e.style['color'] = "hsl(120 30 50)" should set the property value
 Pass	e.style['color'] = "hsl(120 30 50 / 0.5)" should set the property value
@@ -30,11 +29,11 @@ Pass	e.style['color'] = "hsl(120 30% 50)" should set the property value
 Pass	e.style['color'] = "hsl(120 30% 50 / 0.5)" should set the property value
 Pass	e.style['color'] = "hsl(120 30 50%)" should set the property value
 Pass	e.style['color'] = "hsl(120 30 50% / 0.5)" should set the property value
-Fail	e.style['color'] = "hsl(120 none 50)" should set the property value
-Fail	e.style['color'] = "hsl(120 none 50 / 0.5)" should set the property value
-Fail	e.style['color'] = "hsl(120 30 none)" should set the property value
-Fail	e.style['color'] = "hsl(120 30 none / 0.5)" should set the property value
-Fail	e.style['color'] = "hsl(120 30 50 / none)" should set the property value
+Pass	e.style['color'] = "hsl(120 none 50)" should set the property value
+Pass	e.style['color'] = "hsl(120 none 50 / 0.5)" should set the property value
+Pass	e.style['color'] = "hsl(120 30 none)" should set the property value
+Pass	e.style['color'] = "hsl(120 30 none / 0.5)" should set the property value
+Pass	e.style['color'] = "hsl(120 30 50 / none)" should set the property value
 Pass	e.style['color'] = "hsl(0 -50% 40%)" should set the property value
 Pass	e.style['color'] = "hsl(30 -50% 60)" should set the property value
 Pass	e.style['color'] = "hsl(0 -50 40%)" should set the property value

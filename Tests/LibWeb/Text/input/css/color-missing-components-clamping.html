@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        for (const value of [
+            "rgb(none 300 0)",
+            "rgb(none -10 0)",
+            "rgb(none 10% 200%)",
+            "hsl(none -10% 50%)",
+            "hsl(120 -10% none)",
+            "rgb(none calc(255 * sign(1em - 10px)) 0)",
+        ]) {
+            target.style.color = value;
+            println(`${value}: specified ${target.style.color}, computed ${getComputedStyle(target).color}`);
+        }
+    });
+</script>
