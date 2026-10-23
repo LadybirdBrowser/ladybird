@@ -1272,27 +1272,28 @@ TEST_CASE(rust_interpolates_terminal_matrix_transform_functions)
     EXPECT_APPROXIMATE(arguments[13]->as_number().number(), 20.0);
 }
 
+static NonnullRefPtr<StyleValueList const> make_identity_matrix_and_translate_x(TransformFunction matrix_function, double translation)
+{
+    StyleValueVector arguments;
+    auto argument_count = matrix_function == TransformFunction::Matrix ? 6u : 16u;
+    for (u32 index = 0; index < argument_count; ++index) {
+        auto is_diagonal = matrix_function == TransformFunction::Matrix ? index == 0 || index == 3 : index % 5 == 0;
+        arguments.append(NumberStyleValue::create(is_diagonal ? 1 : 0));
+    }
+    return StyleValueList::create(
+        { TransformationStyleValue::create(PropertyID::Transform, matrix_function, move(arguments)),
+            TransformationStyleValue::create(
+                PropertyID::Transform,
+                TransformFunction::TranslateX,
+                { LengthStyleValue::create(Length::make_px(translation)) }) },
+        StyleValueList::Separator::Space);
+}
+
 TEST_CASE(rust_post_multiplies_transform_matrix_suffixes)
 {
-    auto make_transform = [](double translation) {
-        return StyleValueList::create(
-            { TransformationStyleValue::create(
-                  PropertyID::Transform,
-                  TransformFunction::Matrix,
-                  { NumberStyleValue::create(1),
-                      NumberStyleValue::create(0),
-                      NumberStyleValue::create(0),
-                      NumberStyleValue::create(1),
-                      NumberStyleValue::create(0),
-                      NumberStyleValue::create(0) }),
-                TransformationStyleValue::create(
-                    PropertyID::Transform,
-                    TransformFunction::TranslateX,
-                    { LengthStyleValue::create(Length::make_px(translation)) }) },
-            StyleValueList::Separator::Space);
-    };
-    auto from = make_transform(100);
-    auto to = make_transform(200);
+    // NB: matrix() and matrix3d() have no common name, so they and every function after them are post-multiplied.
+    auto from = make_identity_matrix_and_translate_x(TransformFunction::Matrix, 100);
+    auto to = make_identity_matrix_and_translate_x(TransformFunction::Matrix3d, 200);
 
     auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
         nullptr,
@@ -1307,6 +1308,34 @@ TEST_CASE(rust_post_multiplies_transform_matrix_suffixes)
     auto arguments = transformations[0]->as_transformation().values();
     EXPECT_EQ(arguments.size(), 16u);
     EXPECT_APPROXIMATE(arguments[12]->as_number().number(), 150.0);
+}
+
+TEST_CASE(rust_interpolates_matrix_pairs_on_their_own)
+{
+    auto from = make_identity_matrix_and_translate_x(TransformFunction::Matrix, 100);
+    auto to = make_identity_matrix_and_translate_x(TransformFunction::Matrix, 200);
+
+    auto result = StyleValueFFI::rust_interpolate_scalar_style_value(
+        nullptr,
+        to_underlying(PropertyID::Transform),
+        from->rust_style_value_data(),
+        to->rust_style_value_data(),
+        0.5f);
+    EXPECT(result.handled);
+    auto interpolated = StyleValue::adopt_rust_style_value_data(result.value);
+    auto transformations = interpolated->as_value_list().values();
+    EXPECT_EQ(transformations.size(), 2u);
+    EXPECT_EQ(transformations[0]->as_transformation().transform_function(), TransformFunction::Matrix3d);
+    auto matrix = transformations[0]->as_transformation().values();
+    EXPECT_EQ(matrix.size(), 16u);
+    for (size_t index = 0; index < matrix.size(); ++index)
+        EXPECT_APPROXIMATE(matrix[index]->as_number().number(), index % 5 == 0 ? 1.0 : 0.0);
+    EXPECT_EQ(transformations[1]->as_transformation().transform_function(), TransformFunction::Translate);
+    auto translation = transformations[1]->as_transformation().values();
+    EXPECT_EQ(translation.size(), 2u);
+    EXPECT_APPROXIMATE(translation[0]->as_length().length().raw_value(), 150.0);
+    EXPECT(translation[0]->as_length().length().is_px());
+    EXPECT_APPROXIMATE(translation[1]->as_length().length().raw_value(), 0.0);
 }
 
 TEST_CASE(rust_interpolates_transform_functions_without_a_common_primitive)
