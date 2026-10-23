@@ -92,6 +92,8 @@ public:
     virtual Utf16String form_value() const override { return value(); }
     virtual Optional<Utf16String> optional_value() const override;
     WebIDL::ExceptionOr<void> set_value(Utf16View);
+    Utf16String value_binding() const { return value(); }
+    WebIDL::ExceptionOr<void> set_value_binding(Utf16View);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     virtual Utf16String relevant_value() const override;

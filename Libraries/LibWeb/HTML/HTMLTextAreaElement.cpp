@@ -20,6 +20,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -169,6 +170,14 @@ Utf16String HTMLTextAreaElement::value() const
 {
     // The value IDL attribute must, on getting, return the element's API value.
     return api_value();
+}
+
+void HTMLTextAreaElement::set_value_binding(Utf16View value)
+{
+    // INTEROP: Browsers forget the undo history of a text control when a script sets its value.
+    if (auto history = document().editing_history_if_exists())
+        history->forget_steps_for(*this);
+    set_value(value);
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-value
