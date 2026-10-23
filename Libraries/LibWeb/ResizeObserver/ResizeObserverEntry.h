@@ -25,9 +25,9 @@ public:
     GC::Ref<Geometry::DOMRectReadOnly> content_rect() const { return *m_content_rect; }
     GC::Ref<DOM::Element> target() const { return m_target; }
 
-    Vector<GC::Ref<ResizeObserverSize>> const& border_box_size() const { return m_border_box_size; }
-    Vector<GC::Ref<ResizeObserverSize>> const& content_box_size() const { return m_content_box_size; }
-    Vector<GC::Ref<ResizeObserverSize>> const& device_pixel_content_box_size() const { return m_device_pixel_content_box_size; }
+    ReadonlySpan<GC::Ref<ResizeObserverSize>> border_box_size() const { return m_border_box_size; }
+    ReadonlySpan<GC::Ref<ResizeObserverSize>> content_box_size() const { return m_content_box_size; }
+    ReadonlySpan<GC::Ref<ResizeObserverSize>> device_pixel_content_box_size() const { return m_device_pixel_content_box_size; }
 
 private:
     explicit ResizeObserverEntry(DOM::Element& target)
