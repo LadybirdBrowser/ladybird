@@ -154,10 +154,10 @@ GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag 
 }
 
 // https://dom.spec.whatwg.org/#find-slotables
-Vector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
+GC::ConservativeVector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 {
     // 1. Let result be an empty list.
-    Vector<Slottable> result;
+    GC::ConservativeVector<Slottable> result;
 
     // 2. Let root be slot’s root.
     auto& root = slot->root();
@@ -205,10 +205,10 @@ Vector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 }
 
 // https://dom.spec.whatwg.org/#find-flattened-slotables
-Vector<Slottable> find_flattened_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
+GC::ConservativeVector<Slottable> find_flattened_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
 {
     // 1. Let result be « ».
-    Vector<Slottable> result;
+    GC::ConservativeVector<Slottable> result;
 
     // 2. If slot’s root is not a shadow root, then return result.
     if (!slot->root().is_shadow_root())
@@ -300,7 +300,7 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot, SignalSlotChange sig
     //         old slottables to another slot, which the old slot must not overwrite when it is
     //         processed afterward.
     if (assignment_changed && !slot->assigned_nodes_internal().is_empty()) {
-        HashTable<Node const*> slottable_nodes;
+        GC::RootHashTable<Node const*> slottable_nodes;
         slottable_nodes.ensure_capacity(slottables.size());
         for (auto const& slottable : slottables)
             slottable_nodes.set(slottable_as_node(slottable));
