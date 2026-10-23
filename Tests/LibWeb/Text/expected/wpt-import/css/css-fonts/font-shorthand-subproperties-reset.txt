@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Property font-kerning should be reset to its initial value.
+Pass	Property font-variant-caps should be reset to its initial value.
+Pass	Property font-variant-ligatures should be reset to its initial value.
+Pass	Property font-variant-position should be reset to its initial value.
+Pass	Property font-variant-numeric should be reset to its initial value.
+Pass	Property font-variant-alternates should be reset to its initial value.
+Pass	Property font-variant-east-asian should be reset to its initial value.
+Pass	Property font-variant-emoji should be reset to its initial value.
+Pass	Property font-feature-settings should be reset to its initial value.
+Pass	Property font-language-override should be reset to its initial value.
+Pass	Property font-optical-sizing should be reset to its initial value.
+Pass	Property font-variation-settings should be reset to its initial value.

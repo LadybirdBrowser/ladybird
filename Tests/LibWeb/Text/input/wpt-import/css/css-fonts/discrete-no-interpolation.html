@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<meta name=timeout content=long>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/4441">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+  test_no_interpolation({
+    property: 'font-family',
+    from: 'serif',
+    to: 'monospace'
+  });
+
+  test_no_interpolation({
+    property: 'font-kerning',
+    from: 'initial',
+    to: 'none'
+  });
+
+  test_no_interpolation({
+    property: 'font-optical-sizing',
+    from: 'initial',
+    to: 'none'
+  });
+
+  test_no_interpolation({
+    property: 'font-feature-settings',
+    from: 'initial',
+    to: '"smcp"'
+  });
+
+  test_no_interpolation({
+    property: 'font-synthesis-small-caps',
+    from: 'initial',
+    to: 'none'
+  });
+
+  test_no_interpolation({
+    property: 'font-synthesis-style',
+    from: 'initial',
+    to: 'none'
+  });
+
+  test_no_interpolation({
+    property: 'font-synthesis-weight',
+    from: 'initial',
+    to: 'none'
+  });
+
+  test_no_interpolation({
+    property: 'font-variant-alternates',
+    from: 'initial',
+    to: 'historical-forms'
+  });
+
+  test_no_interpolation({
+    property: 'font-variant-caps',
+    from: 'initial',
+    to: 'small-caps'
+  });
+
+  test_no_interpolation({
+    property: 'font-variant-east-asian',
+    from: 'initial',
+    to: 'full-width'
+  });
+
+  test_no_interpolation({
+    property: 'font-variant-ligatures',
+    from: 'common-ligatures',
+    to: 'no-common-ligatures'
+  });
+
+  test_no_interpolation({
+    property: 'font-variant-numeric',
+    from: 'initial',
+    to: 'tabular-nums'
+  });
+
+  test_no_interpolation({
+    property: 'font-variant-position',
+    from: 'initial',
+    to: 'super'
+  });
+</script>
