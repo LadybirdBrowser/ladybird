@@ -333,8 +333,8 @@ private:
     bool cannot_show_simple_dialogs() const;
 
     struct [[nodiscard]] NamedObjects {
-        Vector<GC::Ref<Navigable>> navigables;
-        Vector<GC::Ref<DOM::Element>> elements;
+        GC::RootVector<GC::Ref<Navigable>> navigables;
+        GC::RootVector<GC::Ref<DOM::Element>> elements;
     };
     NamedObjects named_objects(Utf16View name);
 
