@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<!-- The image has no source, so it has no aspect ratio. Its min-content block size is measured for the inner flex
+     container's automatic minimum size, with no containing block height for its percentage height to resolve against. -->
+<div style="display: inline-flex; flex-direction: column">
+    <div style="display: flex; flex-direction: column">
+        <div>
+            <img style="display: block; height: 100%">
+        </div>
+    </div>
+</div>
