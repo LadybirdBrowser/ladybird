@@ -1058,7 +1058,7 @@ void fetch_single_module_script(JS::Realm& realm,
     }
 
     // 7. Set moduleMap[(url, moduleType)] to « onComplete ».
-    ModuleMap::CallbackList callbacks;
+    GC::RootVector<ModuleMap::CallbackFunction> callbacks;
     callbacks.append(GC::create_function(GC::Heap::the(), [on_complete](GC::Ptr<ModuleScript> module_script) { on_complete->function()(module_script); }));
     module_map.set(url, module_type, move(callbacks));
 
