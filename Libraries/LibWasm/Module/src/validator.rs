@@ -327,6 +327,10 @@ struct Frame {
     legacy_clauses: Vec<CatchClause>,
     /// The local in which a legacy handler keeps its exception.
     exception_local: Option<u32>,
+    /// How many legacy handlers this frame is in, itself included: the position among the exception locals, which
+    /// come after the declared locals, of the one a handler directly inside it takes. Kept per frame so that a handler
+    /// need not count them in every frame around it, which made deeply nested handlers take quadratic time.
+    catch_depth: u32,
 }
 
 impl Frame {
@@ -445,6 +449,8 @@ impl FunctionValidator<'_> {
     fn push_frame(&mut self, kind: FrameKind, params: Vec<ValType>, results: Vec<ValType>, start_pc: u32) {
         let height = self.operands.len();
         let slot_height = self.slot_height;
+        let catch_depth = self.frames.last().map_or(0, |frame| frame.catch_depth)
+            + u32::from(matches!(kind, FrameKind::Catch | FrameKind::CatchAll));
         self.frames.push(Frame {
             kind,
             params: params.clone(),
@@ -461,6 +467,7 @@ impl FunctionValidator<'_> {
             legacy_region: None,
             legacy_clauses: Vec::new(),
             exception_local: None,
+            catch_depth,
         });
         self.push_values(&params);
     }
@@ -1017,11 +1024,7 @@ impl FunctionValidator<'_> {
                 });
                 let mut fixups = frame.fixups;
                 fixups.push(Fixup::Entry { entry, branch_pc: pc });
-                let nesting = self
-                    .frames
-                    .iter()
-                    .filter(|frame| matches!(frame.kind, FrameKind::Catch | FrameKind::CatchAll))
-                    .count() as u32;
+                let nesting = self.frames.last().map_or(0, |frame| frame.catch_depth);
                 self.exception_local_count = self.exception_local_count.max(nesting + 1);
                 let exception_local = self.locals.len() as u32 + nesting;
                 let mut clauses = frame.legacy_clauses;
