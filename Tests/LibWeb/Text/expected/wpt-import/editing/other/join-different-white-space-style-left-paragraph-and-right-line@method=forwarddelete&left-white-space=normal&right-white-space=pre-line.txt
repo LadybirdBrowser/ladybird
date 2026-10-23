@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 22 tests
+
+1 Pass
+21 Fail
+Pass	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line">def</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine">def</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line">def\nghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine">def\nghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line">def<br>ghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine">def<br>ghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line"><b>def\nghi</b></span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine"><b>def\nghi</b></span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line"><b>def<br>ghi</b></span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine"><b>def<br>ghi</b></span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line"><b>def</b>\nghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine"><b>def</b>\nghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line"><b>def</b><br>ghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine"><b>def</b><br>ghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line"><b>def\n</b>ghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine"><b>def\n</b>ghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line"><b>def<br></b>ghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine"><b>def<br></b>ghi</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line"><b>def\nghi</b>jkl</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine"><b>def\nghi</b>jkl</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span style="white-space:pre-line"><b>def<br>ghi</b>jkl</span>
+Fail	forwarddelete at <div style="white-space:normal">abc[]</div><span class="preLine"><b>def<br>ghi</b>jkl</span>

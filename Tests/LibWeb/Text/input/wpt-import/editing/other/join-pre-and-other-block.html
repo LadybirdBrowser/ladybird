@@ -1,0 +1,329 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="variant" content="?method=backspace&block=div">
+<meta name="variant" content="?method=backspace&block=p">
+<meta name="variant" content="?method=backspace&block=blockquote">
+<meta name="variant" content="?method=forwarddelete&block=div">
+<meta name="variant" content="?method=forwarddelete&block=p">
+<meta name="variant" content="?method=forwarddelete&block=blockquote">
+<meta name="variant" content="?method=select-boundary&block=div">
+<meta name="variant" content="?method=select-boundary&block=p">
+<meta name="variant" content="?method=select-boundary&block=blockquote">
+<title>Tests for joining pre and other block element</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+</head>
+<body>
+<div contenteditable></div>
+<script>
+"use strict";
+
+const searchParams = new URLSearchParams(document.location.search);
+const testingBackspace = searchParams.get("method") == "backspace";
+const testingSelectBoundary = searchParams.get("method") == "select-boundary";
+const commandName =
+  testingBackspace || testingSelectBoundary ? "delete" : "forwarddelete";
+const editingHost = document.querySelector("div[contenteditable]");
+const caretInLeft = (() => {
+  if (testingSelectBoundary) {
+    return "[";
+  }
+  return testingBackspace ? "" : "[]";
+})();
+const caretInRight = (() => {
+  if (testingSelectBoundary) {
+    return "]";
+  }
+  return testingBackspace ? "[]" : "";
+})();
+const tag = searchParams.get("block");
+
+// These expectations are odd because they don't preserve white-space style
+// coming from another element.  However, this is traditional behavior so that
+// browsers should not change the behavior.
+const tests = [
+  {
+    initialHTML:
+      `<pre>abc${caretInLeft}</pre>` +
+        `<${tag}>${caretInRight}def</${tag}>`,
+    expectedHTML: [
+      "<pre>abcdef</pre>",
+    ],
+  },
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre>${caretInRight}def</pre>`,
+    expectedHTML: [
+      `<${tag}>abcdef</${tag}>`,
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<span style="white-space:pre">def</span></${tag}>`,
+    ],
+  },
+  {
+    initialHTML:
+      `<pre>abc${caretInLeft}</pre>` +
+        `<${tag}>${caretInRight}def<br>ghi</${tag}>`,
+    expectedHTML: [
+      `<pre>abcdef</pre>` +
+        `<${tag}>ghi</${tag}>`,
+    ],
+  },
+  {
+    initialHTML:
+      `<pre>abc${caretInLeft}</pre>` +
+        `<${tag}>${caretInRight}def<div>ghi</div></${tag}>`,
+    expectedHTML: [
+      "<pre>abcdef</pre>" +
+        `<${tag}><div>ghi</div></${tag}>`,
+    ],
+    skip: tag == "p",
+  },
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre>${caretInRight}def\nghi</pre>`,
+    expectedHTML: [
+      `<${tag}>abcdef</${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<span style="white-space:pre">def</span></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+  },
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre>${caretInRight}def<br>ghi</pre>`,
+    expectedHTML: [
+      `<${tag}>abcdef</${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<span style="white-space:pre">def</span></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+  },
+  {
+    initialHTML:
+      `<pre>abc${caretInLeft}</pre>` +
+        `<${tag}><b>${caretInRight}def</b></${tag}>`,
+    expectedHTML: [
+      "<pre>abc<b>def</b></pre>",
+    ],
+  },
+  {
+    initialHTML:
+      `<pre>abc${caretInLeft}</pre>` +
+         `<${tag}><b>${caretInRight}def<br>ghi</b></${tag}>`,
+    expectedHTML: [
+      "<pre>abc<b>def</b></pre>" +
+        `<${tag}><b>ghi</b></${tag}>`,
+    ],
+  },
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre><b>${caretInRight}def\nghi</b></pre>`,
+    expectedHTML: [
+      `<${tag}>abc<b>def</b></${tag}>` +
+        "<pre><b>ghi</b></pre>",
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<b style="white-space:pre">def</b></${tag}>` +
+        "<pre><b>ghi</b></pre>",
+      `<${tag}>abc<span style="white-space:pre"><b>def</b></span></${tag}>` +
+        "<pre><b>ghi</b></pre>",
+    ],
+  },
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre><b>${caretInRight}def<br>ghi</b></pre>`,
+    expectedHTML: [
+      `<${tag}>abc<b>def</b></${tag}>` +
+        "<pre><b>ghi</b></pre>",
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<b style="white-space:pre">def</b></${tag}>` +
+        "<pre><b>ghi</b></pre>",
+      `<${tag}>abc<span style="white-space:pre"><b>def</b></span></${tag}>` +
+        "<pre><b>ghi</b></pre>",
+    ],
+  },
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre><b>${caretInRight}def</b>\nghi</pre>`,
+    expectedHTML: [
+      `<${tag}>abc<b>def</b></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<b style="white-space:pre">def</b></${tag}>` +
+        "<pre>ghi</pre>",
+      `<${tag}>abc<span style="white-space:pre"><b>def</b></span></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+  },
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre><b>${caretInRight}def</b><br>ghi</pre>`,
+    expectedHTML: [
+      `<${tag}>abc<b>def</b></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<b style="white-space:pre">def</b></${tag}>` +
+        "<pre>ghi</pre>",
+      `<${tag}>abc<span style="white-space:pre"><b>def</b></span></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+  },
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre><b>${caretInRight}def\n</b>ghi</pre>`,
+    expectedHTML: [
+      `<${tag}>abc<b>def</b></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<b style="white-space:pre">def</b></${tag}>` +
+        `<pre>ghi</pre>`,
+      `<${tag}>abc<span style="white-space:pre"><b>def</b></span></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+  },
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre><b>${caretInRight}def<br></b>ghi</pre>`,
+    expectedHTML: [
+      `<${tag}>abc<b>def</b></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<b style="white-space:pre">def</b></${tag}>` +
+        "<pre>ghi</pre>",
+      `<${tag}>abc<span style="white-space:pre"><b>def</b></span></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+  },
+  // One linefeed at start of <pre> should be ignored.
+  // Note that if setupEditingHost() does not touch the text node in <pre>,
+  // the leading line break is ignored, but if it touches the text node,
+  // the value is set to as-is.  Therefore, the following tests can work
+  // with empty caretInRight value.
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre>\ndef\nghi</pre>`,
+    expectedHTML: [
+      `<${tag}>abcdef</${tag}>` +
+        `<pre>ghi</pre>`,
+    ],
+    expectedHTMLWithStyledPre: [
+      `<${tag}>abc<span style="white-space:pre">def</span></${tag}>` +
+        "<pre>ghi</pre>",
+    ],
+    skip: caretInRight !== "",
+  },
+  // When there are two line breaks at start of <pre>, the first one should be
+  // ignored by the parser but the second one should make empty first line.
+  // Therefore, the first empty line should be removed.
+  {
+    initialHTML:
+      `<${tag}>abc${caretInLeft}</${tag}>` +
+        `<pre>\n\ndef\nghi</pre>`,
+    expectedHTML: [
+      `<${tag}>abc</${tag}>` +
+        "<pre>def\nghi</pre>",
+    ],
+    skip: caretInRight !== "",
+  },
+];
+const utils = new EditorTestUtils(editingHost);
+
+const betweenBlockAndPre = new RegExp(`</${tag}><pre>`);
+const betweenPreAndBlock = new RegExp(`</pre><${tag}>`);
+function putStyleElement() {
+  const styleElement = document.createElement("style");
+  styleElement.textContent = "pre { white-space: pre; }";
+  document.head.appendChild(styleElement);
+}
+
+for (const specifyPreStyle of [false, true]) {
+  for (const t of tests) {
+    if (t.skip) {
+      continue;
+    }
+    if (specifyPreStyle && !t.expectedHTMLWithStyledPre) {
+      continue;
+    }
+    promise_test(async () => {
+      if (specifyPreStyle) {
+        putStyleElement();
+      }
+      try {
+        utils.setupEditingHost(t.initialHTML);
+        await (testingBackspace ? utils.sendBackspaceKey() : utils.sendDeleteKey());
+        utils.normalizeStyleAttributeValues();
+        assert_in_array(
+          editingHost.innerHTML,
+          specifyPreStyle ? t.expectedHTMLWithStyledPre : t.expectedHTML,
+          `white-space should${
+            !specifyPreStyle ? " not" : ""
+          } be preserved by <span> elements`
+        );
+      } finally {
+        if (specifyPreStyle) {
+          document.querySelector("style")?.remove();
+        }
+      }
+    }, `${commandName} at ${t.initialHTML.replace(/\n/g, "\\n")}${
+      specifyPreStyle ? " (with <style>pre { white-space: pre; }</style>)" : ""
+    }`);
+
+    // Repeat same tests with inserting a line break between the paragraphs.
+    const initialHTMLWithLineBreak =
+      t.initialHTML
+        .replace(betweenBlockAndPre, `</${tag}>\n<pre>`)
+        .replace(betweenPreAndBlock, `</pre>\n<${tag}>`);
+    promise_test(async () => {
+      if (specifyPreStyle) {
+        putStyleElement();
+      }
+      try {
+        utils.setupEditingHost(initialHTMLWithLineBreak);
+        await (testingBackspace ? utils.sendBackspaceKey() : utils.sendDeleteKey());
+        utils.normalizeStyleAttributeValues();
+        assert_in_array(
+          editingHost.innerHTML,
+          specifyPreStyle ? t.expectedHTMLWithStyledPre : t.expectedHTML,
+          `white-space should${
+            !specifyPreStyle ? " not" : ""
+          } be preserved by <span> elements (testing with a line break between paragraphs)`
+        );
+      } finally {
+        if (specifyPreStyle) {
+          document.querySelector("style")?.remove();
+        }
+      }
+    }, `${commandName} at ${initialHTMLWithLineBreak.replace(/\n/g, "\\n")}${
+      specifyPreStyle ? " (with <style>pre { white-space: pre; }</style>)" : ""
+    }`);
+  }
+}
+</script>
+</body>
+</html>

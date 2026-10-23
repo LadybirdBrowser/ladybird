@@ -1,0 +1,52 @@
+Harness status: OK
+
+Found 46 tests
+
+6 Pass
+40 Fail
+Pass	delete at <pre>abc</pre><div>[]def</div>
+Pass	delete at <pre>abc</pre>\n<div>[]def</div>
+Pass	delete at <div>abc</div><pre>[]def</pre>
+Pass	delete at <div>abc</div>\n<pre>[]def</pre>
+Fail	delete at <pre>abc</pre><div>[]def<br>ghi</div>
+Fail	delete at <pre>abc</pre>\n<div>[]def<br>ghi</div>
+Fail	delete at <pre>abc</pre><div>[]def<div>ghi</div></div>
+Fail	delete at <pre>abc</pre>\n<div>[]def<div>ghi</div></div>
+Fail	delete at <div>abc</div><pre>[]def\nghi</pre>
+Fail	delete at <div>abc</div>\n<pre>[]def\nghi</pre>
+Fail	delete at <div>abc</div><pre>[]def<br>ghi</pre>
+Fail	delete at <div>abc</div>\n<pre>[]def<br>ghi</pre>
+Pass	delete at <pre>abc</pre><div><b>[]def</b></div>
+Pass	delete at <pre>abc</pre>\n<div><b>[]def</b></div>
+Fail	delete at <pre>abc</pre><div><b>[]def<br>ghi</b></div>
+Fail	delete at <pre>abc</pre>\n<div><b>[]def<br>ghi</b></div>
+Fail	delete at <div>abc</div><pre><b>[]def\nghi</b></pre>
+Fail	delete at <div>abc</div>\n<pre><b>[]def\nghi</b></pre>
+Fail	delete at <div>abc</div><pre><b>[]def<br>ghi</b></pre>
+Fail	delete at <div>abc</div>\n<pre><b>[]def<br>ghi</b></pre>
+Fail	delete at <div>abc</div><pre><b>[]def</b>\nghi</pre>
+Fail	delete at <div>abc</div>\n<pre><b>[]def</b>\nghi</pre>
+Fail	delete at <div>abc</div><pre><b>[]def</b><br>ghi</pre>
+Fail	delete at <div>abc</div>\n<pre><b>[]def</b><br>ghi</pre>
+Fail	delete at <div>abc</div><pre><b>[]def\n</b>ghi</pre>
+Fail	delete at <div>abc</div>\n<pre><b>[]def\n</b>ghi</pre>
+Fail	delete at <div>abc</div><pre><b>[]def<br></b>ghi</pre>
+Fail	delete at <div>abc</div>\n<pre><b>[]def<br></b>ghi</pre>
+Fail	delete at <div>abc</div><pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div>\n<pre>[]def</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div><pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div>\n<pre>[]def\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div><pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div>\n<pre>[]def<br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div><pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div>\n<pre><b>[]def\nghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div><pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div>\n<pre><b>[]def<br>ghi</b></pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div><pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div>\n<pre><b>[]def</b>\nghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div><pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div>\n<pre><b>[]def</b><br>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div><pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div>\n<pre><b>[]def\n</b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div><pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)
+Fail	delete at <div>abc</div>\n<pre><b>[]def<br></b>ghi</pre> (with <style>pre { white-space: pre; }</style>)

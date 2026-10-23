@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Fail
+Fail	delete at <div style="white-space:pre">abc[</div>]def
+Fail	delete at <div class="pre">abc[</div>]def
+Fail	delete at <div style="white-space:pre">abc[</div>]def<br>ghi
+Fail	delete at <div class="pre">abc[</div>]def<br>ghi
+Fail	delete at <div style="white-space:pre">abc[</div>]def<div>ghi</div>
+Fail	delete at <div class="pre">abc[</div>]def<div>ghi</div>
+Fail	delete at <div style="white-space:pre">abc[</div><b>]def</b>
+Fail	delete at <div class="pre">abc[</div><b>]def</b>
+Fail	delete at <div style="white-space:pre">abc[</div><b>]def<br>ghi</b>
+Fail	delete at <div class="pre">abc[</div><b>]def<br>ghi</b>
+Fail	delete at <div style="white-space:pre">abc[</div><b>]def</b><br>ghi
+Fail	delete at <div class="pre">abc[</div><b>]def</b><br>ghi
+Fail	delete at <div style="white-space:pre">abc[</div><b>]def<br></b>ghi
+Fail	delete at <div class="pre">abc[</div><b>]def<br></b>ghi

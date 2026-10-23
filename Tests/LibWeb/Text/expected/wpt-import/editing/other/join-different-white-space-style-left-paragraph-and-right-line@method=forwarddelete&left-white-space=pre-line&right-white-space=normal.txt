@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Fail
+Fail	forwarddelete at <div style="white-space:pre-line">abc[]</div>def
+Fail	forwarddelete at <div class="preLine">abc[]</div>def
+Fail	forwarddelete at <div style="white-space:pre-line">abc[]</div>def<br>ghi
+Fail	forwarddelete at <div class="preLine">abc[]</div>def<br>ghi
+Fail	forwarddelete at <div style="white-space:pre-line">abc[]</div>def<div>ghi</div>
+Fail	forwarddelete at <div class="preLine">abc[]</div>def<div>ghi</div>
+Fail	forwarddelete at <div style="white-space:pre-line">abc[]</div><b>def</b>
+Fail	forwarddelete at <div class="preLine">abc[]</div><b>def</b>
+Fail	forwarddelete at <div style="white-space:pre-line">abc[]</div><b>def<br>ghi</b>
+Fail	forwarddelete at <div class="preLine">abc[]</div><b>def<br>ghi</b>
+Fail	forwarddelete at <div style="white-space:pre-line">abc[]</div><b>def</b><br>ghi
+Fail	forwarddelete at <div class="preLine">abc[]</div><b>def</b><br>ghi
+Fail	forwarddelete at <div style="white-space:pre-line">abc[]</div><b>def<br></b>ghi
+Fail	forwarddelete at <div class="preLine">abc[]</div><b>def<br></b>ghi
