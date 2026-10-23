@@ -15,7 +15,7 @@ use std::ffi::c_void;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use ak::ScopeGuard;
+use ak::{ScopeGuard, Utf16FlyString};
 
 use crate::css::calc::CanonicalNumericType;
 use crate::css::cascaded_properties::parse_substituted_value;
@@ -42,7 +42,6 @@ use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, RandomFunctionIndex, is_css_wide_keyword,
 };
 use crate::css::property_metadata::property_id;
-use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::serialize::{
     normalized_component_values_equal, serialize_component_values_to_utf16, serialize_resolved_style_value_to_utf16,
 };
@@ -107,7 +106,7 @@ pub struct FfiCustomPropertyStoreEntry<'a> {
 
 #[derive(Clone)]
 pub(crate) struct CustomPropertyEntry {
-    _name: RetainedUtf16FlyString,
+    _name: Utf16FlyString,
     pub(crate) name: Arc<[u16]>,
     pub(crate) value: RetainedStyleValueData,
     pub(crate) important: bool,
@@ -130,7 +129,7 @@ unsafe impl Send for CustomPropertyStore {}
 unsafe impl Sync for CustomPropertyStore {}
 
 pub struct CustomPropertyRegistry {
-    registrations: HashMap<Vec<u16>, RegisteredCustomProperty>,
+    registrations: HashMap<Utf16FlyString, RegisteredCustomProperty>,
     document_url: Vec<u8>,
     document_base_url: Vec<u8>,
     /// What a value parses to with a registration's syntax, by registration and value identity,
@@ -322,17 +321,24 @@ impl CustomPropertyRegistry {
         self.registrations.values().any(|registration| !registration.inherits)
     }
 
+    fn registration(&self, name: &[u16]) -> Option<&RegisteredCustomProperty> {
+        if self.registrations.is_empty() {
+            return None;
+        }
+        self.registrations.get(&Utf16FlyString::from_utf16(name))
+    }
+
     pub(crate) fn name_is_registered(&self, name: &[u16]) -> bool {
-        self.registrations.contains_key(name)
+        self.registration(name).is_some()
     }
 
     /// Whether a name has the same effective registration in two document registries.
     pub(crate) fn registration_matches(&self, other: &Self, name: &[u16]) -> bool {
-        self.registrations.get(name) == other.registrations.get(name)
+        self.registration(name) == other.registration(name)
     }
 
     /// Whether a custom property of this name inherits: only a registration can say it does not.
-    pub(crate) fn name_inherits(&self, name: &[u16]) -> bool {
+    pub(crate) fn name_inherits(&self, name: &Utf16FlyString) -> bool {
         self.registrations
             .get(name)
             .is_none_or(|registration| registration.inherits)
@@ -341,8 +347,7 @@ impl CustomPropertyRegistry {
     /// Whether a custom property of this name is registered with a syntax other than the universal
     /// one, which its values compute against.
     pub(crate) fn name_has_syntax(&self, name: &[u16]) -> bool {
-        self.registrations
-            .get(name)
+        self.registration(name)
             .is_some_and(|registration| !matches!(registration.syntax, SyntaxNode::Universal))
     }
 
@@ -360,15 +365,14 @@ impl CustomPropertyRegistry {
                 SyntaxNode::Alternatives(alternatives) => alternatives.iter().any(is_interpolable),
             }
         }
-        self.registrations
-            .get(name)
+        self.registration(name)
             .is_some_and(|registration| is_interpolable(&registration.syntax))
     }
 
     /// A custom property's initial value: what its registration's initial value computes to, and
     /// the guaranteed-invalid value for an unregistered name or a registration without one.
     pub(crate) fn initial_value(&self, name: &[u16]) -> RetainedStyleValueData {
-        self.registrations.get(name).map_or_else(
+        self.registration(name).map_or_else(
             || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
             |registration| registration.computed_initial.clone(),
         )
@@ -532,7 +536,7 @@ impl CustomPropertyRegistry {
         finalization: &CustomPropertyFinalization<'_>,
     ) -> Result<(RetainedStyleValueData, RegisteredValueReads), RetainedStyleValueData> {
         use crate::css::style_compute::keyword;
-        let registration = self.registrations.get(name);
+        let registration = self.registration(name);
         let initial = || {
             registration.map_or_else(
                 || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
@@ -761,7 +765,7 @@ impl CustomPropertyStore {
         if self.hands_down_every_value(registry) {
             return None;
         }
-        let inherits = |entry: &CustomPropertyEntry| registry.name_inherits(&entry.name);
+        let inherits = |entry: &CustomPropertyEntry| registry.name_inherits(&entry._name);
         let own_values: HashMap<usize, CustomPropertyEntry> = self
             .own_values
             .iter()
@@ -810,7 +814,7 @@ impl CustomPropertyStore {
     pub(crate) fn hands_down_every_value(&self, registry: &CustomPropertyRegistry) -> bool {
         self.own_values
             .values()
-            .all(|entry| registry.name_inherits(&entry.name))
+            .all(|entry| registry.name_inherits(&entry._name))
     }
 
     pub(crate) fn value_matches(&self, name_raw: usize, value: &StyleValueData) -> bool {
@@ -914,7 +918,7 @@ impl CustomPropertyStore {
                 (
                     name_raw,
                     CustomPropertyEntry {
-                        _name: unsafe { RetainedUtf16FlyString::from_borrowed_raw(name_raw) },
+                        _name: unsafe { Utf16FlyString::from_raw_borrowed(name_raw) },
                         name,
                         value: unsafe {
                             RetainedStyleValueData::from_retained_pointer(
@@ -1523,7 +1527,7 @@ fn resolve_css_wide_keyword(
     recursion_depth: u32,
     lookup: CustomPropertyLookup,
 ) -> TokenResolution {
-    let registration = registry.and_then(|registry| registry.registrations.get(name));
+    let registration = registry.and_then(|registry| registry.registration(name));
     // Mirror StyleComputer::resolve_css_wide_keyword_for_custom_property().
     if keyword.eq_ignore_ascii_case("initial") {
         return registration
@@ -1726,7 +1730,7 @@ fn resolve_custom_property_with_lookup(
     if lookup == CustomPropertyLookup::Normal && context.guarded_contexts.mark_cycle_if_guarded(&substitution_context) {
         return TokenResolution::Cyclic;
     }
-    let registration = registry.and_then(|registry| registry.registrations.get(name));
+    let registration = registry.and_then(|registry| registry.registration(name));
     let entry_and_owner = store.and_then(|store| {
         if lookup == CustomPropertyLookup::ExplicitInheritance {
             return store.get_by_name_with_owner(name);
@@ -2377,7 +2381,7 @@ fn evaluate_named_style_feature(
     let registration = context
         .function_local_scopes
         .is_empty()
-        .then(|| registry.and_then(|registry| registry.registrations.get(name)))
+        .then(|| registry.and_then(|registry| registry.registration(name)))
         .flatten();
     context.note_style_query_dependency(name);
     let computed = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
@@ -3557,7 +3561,7 @@ mod tests {
             vec![(
                 0,
                 CustomPropertyEntry {
-                    _name: RetainedUtf16FlyString::none(),
+                    _name: Utf16FlyString::default(),
                     name: name.into(),
                     value: RetainedStyleValueData::from_owned(StyleValueData::Number { value: 1.0 }),
                     important: false,
@@ -3934,7 +3938,7 @@ mod tests {
                 (
                     name_raw,
                     CustomPropertyEntry {
-                        _name: RetainedUtf16FlyString::none(),
+                        _name: Utf16FlyString::default(),
                         name: utf16(name).into(),
                         value: RetainedStyleValueData::from_arc(value),
                         important: false,
@@ -4065,7 +4069,7 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
             ))
         };
         registry.registrations.insert(
-            name,
+            Utf16FlyString::from_utf16(&name),
             RegisteredCustomProperty {
                 syntax,
                 inherits: registration.inherits,
@@ -4144,7 +4148,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
             (
                 entry.name_raw,
                 CustomPropertyEntry {
-                    _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
+                    _name: unsafe { Utf16FlyString::from_raw_owned(entry.name_raw) },
                     name,
                     value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
                     important: entry.important,
@@ -4187,7 +4191,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
         (
             entry.name_raw,
             CustomPropertyEntry {
-                _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
+                _name: unsafe { Utf16FlyString::from_raw_owned(entry.name_raw) },
                 name,
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
                 important: entry.important,
