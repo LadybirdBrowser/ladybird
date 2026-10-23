@@ -1490,7 +1490,7 @@ public:
         }
         auto& realm = HTML::relevant_realm(*document);
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-        Vector<GC::Ref<WebIDL::Promise>> scroll_promises;
+        GC::RootVector<GC::Ref<WebIDL::Promise>> scroll_promises;
         for (auto& navigable : HTML::all_local_navigables()) {
             if (&navigable->page() == &m_browsing_context->page() && !navigable->has_been_destroyed())
                 navigable->wait_for_wheel_scrolls(scroll_promises);
