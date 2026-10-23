@@ -144,6 +144,8 @@ pub mod tier_up {
     pub fn tier_up_check(_vm: &Vm, _encoded_pc: u64) -> i64 {
         unreachable!("only the profiling interpreter checks tier-up budgets");
     }
+
+    pub fn finish_top_level_code(_vm: &Vm, _executable: &crate::bytecode::executable::Executable) {}
 }
 
 pub mod entry_exit {

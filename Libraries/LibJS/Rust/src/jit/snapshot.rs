@@ -36,6 +36,7 @@ use crate::gc::class::Extends;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
+use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::{
     DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, RawNativeFunction,
 };
@@ -99,7 +100,10 @@ struct SnapshotBuilder<'vm> {
     cells: Vec<Gc<CellHeader>>,
     entries: Vec<Entry>,
     indices: HashMap<InlinedFunction, u32>,
-    compiled_function: Gc<EcmascriptFunctionObject>,
+    /// The function the compiled executable runs, or `None` for the top-level code of a script or of a module.
+    compiled_function: Option<Gc<EcmascriptFunctionObject>>,
+    /// The words the compiled executable's frames start with (see `FunctionFrameFields`).
+    compiled_function_fields: FunctionFrameFields,
     /// The closure templates of the compiled executable, until its snapshot takes them. Only the compiled function
     /// allocates closures itself.
     closure_templates: Vec<Option<ClosureTemplateSnapshot>>,
@@ -336,6 +340,13 @@ fn function_frame_fields(function: Gc<EcmascriptFunctionObject>) -> FunctionFram
         environment: word_of(function, offset_of!(EcmascriptFunctionObject, environment)),
         private_environment: word_of(function, offset_of!(EcmascriptFunctionObject, private_environment)),
     }
+}
+
+/// The words of the `[[ScriptOrModule]]` of a frame, like `function_frame_fields()` has them of a function.
+fn script_or_module_words(frame: &ExecutionContext) -> [u64; 2] {
+    let address = core::ptr::from_ref(&frame.script_or_module).cast::<u64>();
+    // SAFETY: The field is two words.
+    unsafe { [address.read_unaligned(), address.add(1).read_unaligned()] }
 }
 
 /// The words at `offset` of a cell.
@@ -906,7 +917,7 @@ impl SnapshotBuilder<'_> {
         let Entry { executable, realm, .. } = *entry;
         // NB: Builtins never create arguments objects.
         let arguments_function = match entry.function {
-            None => Some(self.compiled_function),
+            None => self.compiled_function,
             Some(InlinedFunction::Ecmascript(function)) => Some(function),
             Some(InlinedFunction::Builtin(_)) => None,
         };
@@ -998,7 +1009,7 @@ impl SnapshotBuilder<'_> {
                 Some(InlinedFunction::Ecmascript(function)) => Some(function_frame_fields(function)),
                 // NB: The compiled function's script tells which inlined calls
                 //     run in it.
-                None => Some(function_frame_fields(self.compiled_function)),
+                None => Some(self.compiled_function_fields),
                 Some(InlinedFunction::Builtin(_)) => None,
             },
             environment: match entry.function {
@@ -1179,18 +1190,30 @@ fn captured_binding_accesses(executable: &Executable) -> CapturedBindingAccesses
     }
 }
 
-/// Captures the snapshot of a compile job for `executable`, whose frames run `function`. `osr_pc` is the loop back
-/// edge whose tier-up budget ran out, if a loop triggered the compile.
+/// Captures the snapshot of a compile job for `executable`, whose frames run `function` in `realm`, or the top-level
+/// code of a script or of a module without one, in the running frame. `osr_pc` is the loop back edge whose tier-up
+/// budget ran out, if a loop triggered the compile.
 pub fn capture_snapshot(
     vm: &Vm,
     executable: Gc<Executable>,
-    function: Gc<EcmascriptFunctionObject>,
+    function: Option<Gc<EcmascriptFunctionObject>>,
+    realm: Gc<Realm>,
     osr_pc: Option<u32>,
 ) -> CapturedSnapshot {
-    let realm = function.realm().expect("an ECMAScript function has a realm");
+    let compiled_function_fields = match function {
+        Some(function) => function_frame_fields(function),
+        None => FunctionFrameFields {
+            script_or_module: script_or_module_words(vm.running_execution_context_ref()),
+            ..FunctionFrameFields::default()
+        },
+    };
     // NB: These allocate (and so may collect garbage), which they do before anything is captured.
     let allocation = allocation_infos(vm, realm);
-    let closure_templates = closure_templates(vm, executable, function);
+    // NB: Closures that top-level code creates have its environments, which the code does not know.
+    let closure_templates = match function {
+        Some(function) => closure_templates(vm, executable, function),
+        None => (0..executable.shared_function_data_count()).map(|_| None).collect(),
+    };
     let closure_samples = closure_templates
         .iter()
         .map(|template| template.as_ref().map(|(sample, _)| *sample))
@@ -1206,6 +1229,7 @@ pub fn capture_snapshot(
         }],
         indices: HashMap::new(),
         compiled_function: function,
+        compiled_function_fields,
         closure_templates: Vec::new(),
         environment_templates: Vec::new(),
         lexical_environment_templates: Vec::new(),

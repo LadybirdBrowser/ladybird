@@ -90,13 +90,22 @@ pub fn enter_jit_code_at_loop(vm: &Vm, frame: NonNull<ExecutionContext>, pc: u32
         // NB: A fixed budget can keep expiring at the same back edge in nested loops, missing the code's OSR entry
         //     forever. Try the next back edge when the code has an entry at a loop this one is in. Frames in other
         //     loops would check at every back edge without ever reaching an entry.
+        // NB: Top-level code runs once, so no later frame would enter its code at the start.
+        let runs_once = frame_ref.function.get().is_none();
         if code.reaches_osr_entry_from(pc) {
             executable.head.tier_up_budget.set(tier_up_costs::LOOP_ITERATION);
-        } else if code.exit_count() >= EXIT_COUNT_BEFORE_DISCARD_FROM_LOOP && !code.may_reach_osr_entry_from(pc) {
+        } else if (runs_once || code.exit_count() >= EXIT_COUNT_BEFORE_DISCARD_FROM_LOOP)
+            && !code.may_reach_osr_entry_from(pc)
+        {
             // NB: The frame may have exited into this loop, and no later iteration of a loop it is in reaches an entry.
             //     Once the code is detached, a later check here compiles the executable again, with what the exits
             //     taught it and an entry at this loop.
             vm.jit.count_coverage("discard-from-loop");
+            // NB: Top-level code that moved on to a later loop recompiles with an entry there, which is progress, so
+            //     scripts with many long loops are not refused after MAX_FRUITLESS_DISCARD_COUNT of them.
+            if runs_once {
+                executable.note_learned_jit_exit_site();
+            }
             executable.discard_jit_code(vm);
         }
         return None;

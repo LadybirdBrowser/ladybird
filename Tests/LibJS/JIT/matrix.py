@@ -13,8 +13,9 @@ Suites:
             interpreter's with the same repeat count.
   test262   The whole test262 suite through libjs-test262's main.py; the per-file results must match the
             interpreter's.
-  programs  Every .js file in the --programs directories (Tests/LibJS/JIT/programs by default), run with js; the exit
-            code and the output must match the interpreter's (lines with timings are ignored).
+  programs  Every .js file (and .mjs file, as a module) in the --programs directories (Tests/LibJS/JIT/programs by
+            default), run with js; the exit code and the output must match the interpreter's (lines with timings are
+            ignored).
 
 Every mismatch is printed with a command that reproduces it. The exit code is 1 if there were any.
 """
@@ -198,7 +199,8 @@ class ProgramsSuite(Suite):
         self.files = sorted(
             path
             for directory in directories
-            for path in Path(directory).rglob("*.js")
+            for pattern in ("*.js", "*.mjs")
+            for path in Path(directory).rglob(pattern)
             if all(f in str(path) for f in arguments.filter)
         )
 
@@ -206,7 +208,7 @@ class ProgramsSuite(Suite):
         wait_until_machine_is_free()
         try:
             process = subprocess.run(
-                [self.js, "--expose-jit-testing", path.name],
+                self.command(path),
                 cwd=path.parent,
                 env=environment_for(mode, self.arguments.seed),
                 stdout=subprocess.PIPE,
@@ -228,9 +230,14 @@ class ProgramsSuite(Suite):
         path = Path(key)
         return command_line(
             {"LIBJS_JIT": mode.environment_value(self.arguments.seed)},
-            [self.js, "--expose-jit-testing", path.name],
+            self.command(path),
             cwd=path.parent,
         )
+
+    def command(self, path: Path) -> List:
+        """The js command line that runs the program at `path`, as a module if it is a .mjs file."""
+        module = ["--as-module"] if path.suffix == ".mjs" else []
+        return [self.js, "--expose-jit-testing", *module, path.name]
 
 
 SUITES = {suite.name: suite for suite in (TestJsSuite, Test262Suite, ProgramsSuite)}
