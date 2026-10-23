@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 54 tests
 
-37 Pass
-17 Fail
+43 Pass
+11 Fail
 Pass	Spacing inside an <mfrac> child of <math>.
 Pass	Spacing around an <mfrac> child of an <math>.
 Pass	Spacing inside an <mfrac> child of <mrow>.
@@ -52,9 +52,9 @@ Pass	Spacing inside an <munderover> child of <mrow>.
 Pass	Spacing around an <munderover> child of an <mrow>.
 Pass	Spacing inside an <munderover> child of <mtd>.
 Fail	Spacing around an <munderover> child of an <mtd>.
-Fail	Spacing inside an <mroot> child of <math>.
-Fail	Spacing around an <mroot> child of an <math>.
-Fail	Spacing inside an <mroot> child of <mrow>.
-Fail	Spacing around an <mroot> child of an <mrow>.
-Fail	Spacing inside an <mroot> child of <mtd>.
-Fail	Spacing around an <mroot> child of an <mtd>.
+Pass	Spacing inside an <mroot> child of <math>.
+Pass	Spacing around an <mroot> child of an <math>.
+Pass	Spacing inside an <mroot> child of <mrow>.
+Pass	Spacing around an <mroot> child of an <mrow>.
+Pass	Spacing inside an <mroot> child of <mtd>.
+Pass	Spacing around an <mroot> child of an <mtd>.

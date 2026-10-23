@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 76 tests
 
-70 Pass
-6 Fail
+76 Pass
 Pass	Margin properties on a
 Pass	Margin properties on a (rtl)
 Pass	Margin properties on a (no margin-collapsing)
@@ -40,9 +39,9 @@ Pass	Margin properties on mpadded (no margin-collapsing)
 Pass	Margin properties on mphantom
 Pass	Margin properties on mphantom (rtl)
 Pass	Margin properties on mphantom (no margin-collapsing)
-Fail	Margin properties on mroot
-Fail	Margin properties on mroot (rtl)
-Fail	Margin properties on mroot (no margin-collapsing)
+Pass	Margin properties on mroot
+Pass	Margin properties on mroot (rtl)
+Pass	Margin properties on mroot (no margin-collapsing)
 Pass	Margin properties on mrow
 Pass	Margin properties on mrow (rtl)
 Pass	Margin properties on mrow (no margin-collapsing)
@@ -50,9 +49,9 @@ Pass	Margin properties on ms
 Pass	Margin properties on ms (rtl)
 Pass	Margin properties on ms (no margin-collapsing)
 Pass	Margin properties on mspace
-Fail	Margin properties on msqrt
-Fail	Margin properties on msqrt (rtl)
-Fail	Margin properties on msqrt (no margin-collapsing)
+Pass	Margin properties on msqrt
+Pass	Margin properties on msqrt (rtl)
+Pass	Margin properties on msqrt (no margin-collapsing)
 Pass	Margin properties on mstyle
 Pass	Margin properties on mstyle (rtl)
 Pass	Margin properties on mstyle (no margin-collapsing)

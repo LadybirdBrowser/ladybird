@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 51 tests
 
-47 Pass
-4 Fail
+51 Pass
 Pass	Padding properties on a
 Pass	Padding properties on a (rtl)
 Pass	Padding properties on maction
@@ -28,15 +27,15 @@ Pass	Padding properties on mpadded
 Pass	Padding properties on mpadded (rtl)
 Pass	Padding properties on mphantom
 Pass	Padding properties on mphantom (rtl)
-Fail	Padding properties on mroot
-Fail	Padding properties on mroot (rtl)
+Pass	Padding properties on mroot
+Pass	Padding properties on mroot (rtl)
 Pass	Padding properties on mrow
 Pass	Padding properties on mrow (rtl)
 Pass	Padding properties on ms
 Pass	Padding properties on ms (rtl)
 Pass	Padding properties on mspace
-Fail	Padding properties on msqrt
-Fail	Padding properties on msqrt (rtl)
+Pass	Padding properties on msqrt
+Pass	Padding properties on msqrt (rtl)
 Pass	Padding properties on mstyle
 Pass	Padding properties on mstyle (rtl)
 Pass	Padding properties on msub
