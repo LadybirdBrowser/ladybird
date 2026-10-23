@@ -1292,7 +1292,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         remove_node(*start_block->first_child());
 
     // 32. If start block is an ancestor of end block:
-    Vector<RecordedNodeValue> values;
+    GC::ConservativeVector<RecordedNodeValue> values;
     GC::ConservativeVector<RecordedWhiteSpace> recorded_white_space;
     if (start_block->is_ancestor_of(*end_block)) {
         // 1. Let reference node be end block.
