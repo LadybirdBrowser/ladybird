@@ -811,6 +811,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'position-anchor': 'normal'
 'positionArea': 'none'
 'position-area': 'none'
+'positionTry': 'none'
+'position-try': 'none'
 'positionTryFallbacks': 'none'
 'position-try-fallbacks': 'none'
 'positionTryOrder': 'normal'

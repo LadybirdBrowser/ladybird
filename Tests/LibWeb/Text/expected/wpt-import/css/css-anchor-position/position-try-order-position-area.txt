@@ -2,38 +2,38 @@ Harness status: OK
 
 Found 27 tests
 
-27 Fail
-Fail	--right | --right
-Fail	--left | --left
-Fail	--top | --top
-Fail	--bottom | --bottom
-Fail	--right, --left, --bottom, --top | --right
-Fail	normal --right, --left, --bottom, --top | --right
-Fail	normal --top, --left, --bottom, --right | --top
-Fail	most-block-size --right, --left | --right
-Fail	most-height --right, --left | --right
-Fail	most-inline-size --right, --left | --left
-Fail	most-width --right, --left | --left
-Fail	most-inline-size --bottom, --top | --bottom
-Fail	most-width --bottom, --top | --bottom
-Fail	most-block-size --bottom, --top | --top
-Fail	most-height --bottom, --top | --top
-Fail	most-inline-size --right, --left, --bottom, --top | --bottom
-Fail	most-inline-size --right, --left, --top, --bottom | --top
-Fail	most-block-size --bottom, --top, --right, --left | --right
-Fail	most-block-size --bottom, --top, --left, --right | --left
-Fail	most-inline-size --left-sweep, --bottom-sweep | --left-sweep
-Fail	most-inline-size --bottom-sweep, --left-sweep | --bottom-sweep
-Fail	most-block-size --left-sweep, --bottom-sweep | --left-sweep
-Fail	most-block-size --bottom-sweep, --left-sweep | --left-sweep
-Fail	most-inline-size --right-sweep, --left-sweep, --bottom-sweep, --top-sweep | --left-sweep
-Fail	most-block-size --right-sweep, --left-sweep, --bottom-sweep, --top-sweep | --top-sweep
-Fail	most-inline-size
+27 Pass
+Pass	--right | --right
+Pass	--left | --left
+Pass	--top | --top
+Pass	--bottom | --bottom
+Pass	--right, --left, --bottom, --top | --right
+Pass	normal --right, --left, --bottom, --top | --right
+Pass	normal --top, --left, --bottom, --right | --top
+Pass	most-block-size --right, --left | --right
+Pass	most-height --right, --left | --right
+Pass	most-inline-size --right, --left | --left
+Pass	most-width --right, --left | --left
+Pass	most-inline-size --bottom, --top | --bottom
+Pass	most-width --bottom, --top | --bottom
+Pass	most-block-size --bottom, --top | --top
+Pass	most-height --bottom, --top | --top
+Pass	most-inline-size --right, --left, --bottom, --top | --bottom
+Pass	most-inline-size --right, --left, --top, --bottom | --top
+Pass	most-block-size --bottom, --top, --right, --left | --right
+Pass	most-block-size --bottom, --top, --left, --right | --left
+Pass	most-inline-size --left-sweep, --bottom-sweep | --left-sweep
+Pass	most-inline-size --bottom-sweep, --left-sweep | --bottom-sweep
+Pass	most-block-size --left-sweep, --bottom-sweep | --left-sweep
+Pass	most-block-size --bottom-sweep, --left-sweep | --left-sweep
+Pass	most-inline-size --right-sweep, --left-sweep, --bottom-sweep, --top-sweep | --left-sweep
+Pass	most-block-size --right-sweep, --left-sweep, --bottom-sweep, --top-sweep | --top-sweep
+Pass	most-inline-size
   --right-sweep, --left-sweep, --bottom-sweep, --top-sweep,
   /* --right, --left, --bottom, --top */
   --bottom
    | --bottom
-Fail	most-block-size
+Pass	most-block-size
   --right-sweep, --left-sweep, --bottom-sweep, --top-sweep,
   /* --right, --left, --bottom, --top */
   --right

@@ -4236,6 +4236,13 @@
       "none"
     ]
   },
+  "position-try": {
+    "initial": "normal none",
+    "longhands": [
+      "position-try-order",
+      "position-try-fallbacks"
+    ]
+  },
   "position-try-fallbacks": {
     "style-group": "AnchorValues",
     "animation-type": "discrete",

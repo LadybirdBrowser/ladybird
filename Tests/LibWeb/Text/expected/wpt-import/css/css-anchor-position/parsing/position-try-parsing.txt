@@ -2,40 +2,39 @@ Harness status: OK
 
 Found 35 tests
 
-4 Pass
-31 Fail
-Fail	e.style['position-try'] = "flip-inline" should set the property value
-Fail	e.style['position-try'] = "flip-y" should set the property value
-Fail	e.style['position-try'] = "most-height none" should set the property value
-Fail	e.style['position-try'] = "--bar, --baz" should set the property value
-Fail	e.style['position-try'] = "most-inline-size --baz, flip-inline" should set the property value
-Fail	e.style['position-try'] = "most-block-size flip-inline flip-block, --bar, --baz" should set the property value
-Fail	e.style['position-try'] = "most-width flip-y flip-x, --foo, --bar" should set the property value
-Fail	e.style['position-try'] = "normal none" should set the property value
-Fail	e.style['position-try'] = "most-width none" should set the property value
-Fail	e.style['position-try'] = "normal --foo" should set the property value
+35 Pass
+Pass	e.style['position-try'] = "flip-inline" should set the property value
+Pass	e.style['position-try'] = "flip-y" should set the property value
+Pass	e.style['position-try'] = "most-height none" should set the property value
+Pass	e.style['position-try'] = "--bar, --baz" should set the property value
+Pass	e.style['position-try'] = "most-inline-size --baz, flip-inline" should set the property value
+Pass	e.style['position-try'] = "most-block-size flip-inline flip-block, --bar, --baz" should set the property value
+Pass	e.style['position-try'] = "most-width flip-y flip-x, --foo, --bar" should set the property value
+Pass	e.style['position-try'] = "normal none" should set the property value
+Pass	e.style['position-try'] = "most-width none" should set the property value
+Pass	e.style['position-try'] = "normal --foo" should set the property value
 Pass	e.style['position-try'] = "normal --foo, most-width --bar" should not set the property value
 Pass	e.style['position-try'] = "none normal" should not set the property value
 Pass	e.style['position-try'] = "flip-block most-height" should not set the property value
 Pass	e.style['position-try'] = "most-height, flip-start" should not set the property value
-Fail	e.style['position-try'] = "flip-inline" should set position-try-fallbacks
-Fail	e.style['position-try'] = "flip-inline" should set position-try-order
-Fail	e.style['position-try'] = "flip-inline" should not set unrelated longhands
-Fail	e.style['position-try'] = "flip-y" should set position-try-fallbacks
-Fail	e.style['position-try'] = "flip-y" should set position-try-order
-Fail	e.style['position-try'] = "flip-y" should not set unrelated longhands
-Fail	e.style['position-try'] = "most-width none" should set position-try-fallbacks
-Fail	e.style['position-try'] = "most-width none" should set position-try-order
-Fail	e.style['position-try'] = "most-width none" should not set unrelated longhands
-Fail	e.style['position-try'] = "--foo, --bar" should set position-try-fallbacks
-Fail	e.style['position-try'] = "--foo, --bar" should set position-try-order
-Fail	e.style['position-try'] = "--foo, --bar" should not set unrelated longhands
-Fail	e.style['position-try'] = "most-inline-size --foo, flip-inline" should set position-try-fallbacks
-Fail	e.style['position-try'] = "most-inline-size --foo, flip-inline" should set position-try-order
-Fail	e.style['position-try'] = "most-inline-size --foo, flip-inline" should not set unrelated longhands
-Fail	e.style['position-try'] = "most-inline-size flip-inline flip-block, --foo, --bar" should set position-try-fallbacks
-Fail	e.style['position-try'] = "most-inline-size flip-inline flip-block, --foo, --bar" should set position-try-order
-Fail	e.style['position-try'] = "most-inline-size flip-inline flip-block, --foo, --bar" should not set unrelated longhands
-Fail	e.style['position-try'] = "most-width flip-y flip-x, --foo, --bar" should set position-try-fallbacks
-Fail	e.style['position-try'] = "most-width flip-y flip-x, --foo, --bar" should set position-try-order
-Fail	e.style['position-try'] = "most-width flip-y flip-x, --foo, --bar" should not set unrelated longhands
+Pass	e.style['position-try'] = "flip-inline" should set position-try-fallbacks
+Pass	e.style['position-try'] = "flip-inline" should set position-try-order
+Pass	e.style['position-try'] = "flip-inline" should not set unrelated longhands
+Pass	e.style['position-try'] = "flip-y" should set position-try-fallbacks
+Pass	e.style['position-try'] = "flip-y" should set position-try-order
+Pass	e.style['position-try'] = "flip-y" should not set unrelated longhands
+Pass	e.style['position-try'] = "most-width none" should set position-try-fallbacks
+Pass	e.style['position-try'] = "most-width none" should set position-try-order
+Pass	e.style['position-try'] = "most-width none" should not set unrelated longhands
+Pass	e.style['position-try'] = "--foo, --bar" should set position-try-fallbacks
+Pass	e.style['position-try'] = "--foo, --bar" should set position-try-order
+Pass	e.style['position-try'] = "--foo, --bar" should not set unrelated longhands
+Pass	e.style['position-try'] = "most-inline-size --foo, flip-inline" should set position-try-fallbacks
+Pass	e.style['position-try'] = "most-inline-size --foo, flip-inline" should set position-try-order
+Pass	e.style['position-try'] = "most-inline-size --foo, flip-inline" should not set unrelated longhands
+Pass	e.style['position-try'] = "most-inline-size flip-inline flip-block, --foo, --bar" should set position-try-fallbacks
+Pass	e.style['position-try'] = "most-inline-size flip-inline flip-block, --foo, --bar" should set position-try-order
+Pass	e.style['position-try'] = "most-inline-size flip-inline flip-block, --foo, --bar" should not set unrelated longhands
+Pass	e.style['position-try'] = "most-width flip-y flip-x, --foo, --bar" should set position-try-fallbacks
+Pass	e.style['position-try'] = "most-width flip-y flip-x, --foo, --bar" should set position-try-order
+Pass	e.style['position-try'] = "most-width flip-y flip-x, --foo, --bar" should not set unrelated longhands

@@ -3129,6 +3129,19 @@ fn serialize_shorthand(
         }
         return;
     }
+    if shorthand_property == property_id::POSITION_TRY {
+        let (Some(order), Some(fallbacks)) = (
+            longhand(property_id::POSITION_TRY_ORDER),
+            longhand(property_id::POSITION_TRY_FALLBACKS),
+        ) else {
+            unreachable!("Shorthand style values must have valid value graphs");
+        };
+        if !matches!(order, StyleValueData::Keyword { keyword: code } if *code == keyword::NORMAL) {
+            serialize_style_value(sink, order, mode);
+            sink.push_ascii(" ");
+        }
+        return serialize_style_value(sink, fallbacks, mode);
+    }
     if shorthand_property == property_id::GRID_COLUMN || shorthand_property == property_id::GRID_ROW {
         let (start_id, end_id) = if shorthand_property == property_id::GRID_COLUMN {
             (property_id::GRID_COLUMN_START, property_id::GRID_COLUMN_END)
