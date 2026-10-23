@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<div style="display: grid; grid-template-columns: [a] 10px [a] 10px [a];">
+    <div style="grid-column: calc(1 - 1) a;"></div>
+    <div style="grid-row: calc(1 - 1) a / calc(2 - 2) b;"></div>
+    <div style="grid-column: calc(1 - 1);"></div>
+</div>
+<div style="display: grid; position: relative;">
+    <div style="position: absolute; grid-column: calc(1 - 1) a;"></div>
+</div>

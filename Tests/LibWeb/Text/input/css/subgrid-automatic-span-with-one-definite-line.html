@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 50px);
+    }
+
+    .subgrid {
+        display: grid;
+        grid-template-columns: subgrid [a] [b] [c];
+        height: 10px;
+    }
+</style>
+<div class="grid"><div class="subgrid" id="start" style="grid-column-start: 2"></div></div>
+<div class="grid"><div class="subgrid" id="start-auto" style="grid-column: 2 / auto"></div></div>
+<div class="grid"><div class="subgrid" id="end" style="grid-column-end: 5"></div></div>
+<div class="grid"><div class="subgrid" id="explicit-span" style="grid-column: 2 / span 2"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["start", "start-auto", "end", "explicit-span"]) {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: x=${rect.x} width=${rect.width}`);
+        }
+    });
+</script>

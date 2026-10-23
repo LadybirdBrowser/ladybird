@@ -414,111 +414,178 @@ fn is_span(placement: ComputedGridPlacement) -> bool {
 }
 
 fn clamped_line_number(placement: ComputedGridPlacement) -> Option<i32> {
-    placement
-        .has_line_number
-        .then(|| placement.line_number.clamp(-MAX_GRID_LINE_NUMBER, MAX_GRID_LINE_NUMBER))
+    placement.has_line_number.then(|| match placement.line_number {
+        // AD-HOC: A calc() that resolves to 0 is not rejected at parse time as a literal 0 is, but no grid line has the
+        //         number 0. Treat it as 1.
+        0 => 1,
+        number => number.clamp(-MAX_GRID_LINE_NUMBER, MAX_GRID_LINE_NUMBER),
+    })
 }
 
 fn clamped_span(placement: ComputedGridPlacement) -> usize {
     placement.line_number.clamp(1, MAX_GRID_LINE_NUMBER) as usize
 }
 
-/// Resolves one axis exactly as `GridFormattingContext::resolve_grid_position`.
-/// Names are pre-interned in F1, including the area `-start`/`-end` aliases.
+/// The lines of one axis that carry names a placement can refer to: the explicit grid's lines, the first of which is
+/// line 0. Every implicit line, before or after them, is assumed to have every name.
+#[derive(Clone, Copy)]
+pub(crate) struct ExplicitGridLines<'a> {
+    lines: &'a [Vec<LineName>],
+}
+
+impl<'a> ExplicitGridLines<'a> {
+    pub(crate) fn new(lines: &'a [Vec<LineName>]) -> Self {
+        Self { lines }
+    }
+
+    fn last_line(self) -> i32 {
+        self.lines.len() as i32 - 1
+    }
+
+    fn lines_named(self, name_raw: usize) -> impl DoubleEndedIterator<Item = i32> + 'a {
+        self.lines
+            .iter()
+            .enumerate()
+            .filter(move |(_, names)| names.iter().any(|name| name.raw == name_raw))
+            .map(|(index, _)| index as i32)
+    }
+
+    // https://drafts.csswg.org/css-grid-2/#grid-placement-int
+    // Contributes the Nth grid line to the grid item’s placement. If a negative integer is given, it instead counts in
+    // reverse, starting from the end edge of the explicit grid. If a name is given as a <custom-ident>, only lines
+    // with that name are counted. If not enough lines with that name exist, all implicit grid lines are assumed to
+    // have that name for the purpose of finding this position.
+    fn nth_line(self, n: i32, name_raw: Option<usize>) -> i32 {
+        let Some(name_raw) = name_raw else {
+            return if n > 0 { n - 1 } else { self.last_line() + 1 + n };
+        };
+        let wanted = n.unsigned_abs() as usize;
+        let named: Vec<i32> = self.lines_named(name_raw).collect();
+        if n > 0 {
+            named
+                .get(wanted - 1)
+                .copied()
+                .unwrap_or_else(|| self.last_line().saturating_add((wanted - named.len()) as i32))
+        } else {
+            named
+                .len()
+                .checked_sub(wanted)
+                .map(|index| named[index])
+                .unwrap_or_else(|| -((wanted - named.len()) as i32))
+        }
+    }
+
+    // https://drafts.csswg.org/css-grid-2/#grid-placement-span-int
+    // Contributes a grid span to the grid item’s placement such that the corresponding edge of the grid item’s grid
+    // area is N lines from its opposite edge in the corresponding direction. [...] If a name is given as a
+    // <custom-ident>, only lines with that name are counted. If not enough lines with that name exist, all implicit
+    // grid lines on the side of the explicit grid corresponding to the search direction are assumed to have that name
+    // for the purpose of counting this span.
+    fn line_spanned_from(self, from: i32, n: usize, name_raw: Option<usize>, endward: bool) -> i32 {
+        let n = n.min(MAX_GRID_LINE_NUMBER as usize) as i32;
+        let Some(name_raw) = name_raw else {
+            return if endward {
+                from.saturating_add(n)
+            } else {
+                from.saturating_sub(n)
+            };
+        };
+        let candidates: Vec<i32> = if endward {
+            self.lines_named(name_raw).filter(|&line| line > from).collect()
+        } else {
+            self.lines_named(name_raw).rev().filter(|&line| line < from).collect()
+        };
+        if let Some(&line) = candidates.get(n as usize - 1) {
+            return line;
+        }
+        let missing = n - candidates.len() as i32;
+        if endward {
+            from.max(self.last_line()).saturating_add(missing)
+        } else {
+            from.min(0).saturating_sub(missing)
+        }
+    }
+
+    fn resolve_line(self, placement: ComputedGridPlacement, placement_names: &[usize], is_start: bool) -> i32 {
+        let name = placement
+            .has_name
+            .then(|| placement_names.get(placement.name_index as usize).copied())
+            .flatten();
+        let Some(n) = clamped_line_number(placement) else {
+            // https://drafts.csswg.org/css-grid-2/#grid-placement-slot
+            // First attempt to match the grid area’s edge to a named grid area: if there is a grid line whose line name
+            // is <custom-ident>-start (for grid-*-start) / <custom-ident>-end (for grid-*-end), contributes the first
+            // such line to the grid item’s placement.
+            let area_edge_name = placement_names
+                .get(if is_start {
+                    placement.implicit_start_name_index
+                } else {
+                    placement.implicit_end_name_index
+                } as usize)
+                .copied();
+            if let Some(line) = area_edge_name.and_then(|name| self.lines_named(name).next()) {
+                return line;
+            }
+            // Otherwise, treat this as if the integer 1 had been specified along with the <custom-ident>.
+            return self.nth_line(1, name);
+        };
+        self.nth_line(n, name)
+    }
+}
+
+/// Resolves the placement of one axis in which at least one of the placement properties is a line, to lines
+/// numbered from the explicit grid's first line, which is line 0. `automatic_span` is the automatic grid span used when
+/// only one of the placement properties is a line, which is 1 unless the item is subgridded in this axis.
 pub(crate) fn resolve_placement_position(
     placement_start: ComputedGridPlacement,
     placement_end: ComputedGridPlacement,
     placement_names: &[usize],
-    lines: &[Vec<LineName>],
-    explicit_line_count: usize,
-    occupation_track_count: usize,
+    lines: ExplicitGridLines<'_>,
+    automatic_span: Option<usize>,
 ) -> ResolvedPlacementPosition {
-    let start_line_number = clamped_line_number(placement_start);
-    let end_line_number = clamped_line_number(placement_end);
-    let mut result = ResolvedPlacementPosition {
-        start: 0,
-        end: 0,
-        span: 1,
+    let automatic_span = automatic_span.unwrap_or(1).max(1) as i32;
+    let span_name = |placement: ComputedGridPlacement| {
+        placement
+            .has_name
+            .then(|| placement_names.get(placement.name_index as usize).copied())
+            .flatten()
     };
-
-    if let Some(number) = start_line_number {
-        result.start = if number > 0 {
-            number - 1
+    let (mut start, mut end) = if is_positioned(placement_start) {
+        let start = lines.resolve_line(placement_start, placement_names, true);
+        let end = if is_positioned(placement_end) {
+            lines.resolve_line(placement_end, placement_names, false)
+        } else if is_span(placement_end) {
+            lines.line_spanned_from(start, clamped_span(placement_end), span_name(placement_end), true)
         } else {
-            explicit_line_count as i32 + number
+            start.saturating_add(automatic_span)
         };
-    }
-    if let Some(number) = end_line_number {
-        result.end = number - 1;
-    }
-    if result.end < 0 {
-        result.end = occupation_track_count as i32 + result.end + 2;
-    }
-
-    // FIXME: If a name is given as a <custom-ident>, only lines with that name are counted. If not enough lines with
-    //        that name exist, all implicit grid lines on the side of the explicit grid corresponding to the search
-    //        direction are assumed to have that name for the purpose of counting this span.
-    if is_span(placement_end) {
-        result.span = clamped_span(placement_end);
-    }
-    if is_span(placement_start) {
-        result.span = clamped_span(placement_start);
-        result.start = result.end - result.span as i32;
-        // FIXME: Remove me once have implemented spans overflowing into negative indexes, e.g., grid-row: span 2 / 1
-        result.start = result.start.max(0);
-    }
-
-    if placement_end.has_name {
-        let number = end_line_number.unwrap_or(1);
-        result.end = placement_names
-            .get(placement_end.implicit_end_name_index as usize)
-            .and_then(|name| nth_named_line(lines, *name, number))
-            .or_else(|| {
-                placement_names
-                    .get(placement_end.name_index as usize)
-                    .and_then(|name| nth_named_line(lines, *name, number))
-            })
-            .unwrap_or(explicit_line_count as i32);
-        if !placement_start.has_line_number {
-            result.start = result.end - 1;
-        }
-    }
-
-    if placement_start.has_name {
-        let number = start_line_number.unwrap_or(1);
-        result.start = placement_names
-            .get(placement_start.implicit_start_name_index as usize)
-            .and_then(|name| nth_named_line(lines, *name, number))
-            .or_else(|| {
-                placement_names
-                    .get(placement_start.name_index as usize)
-                    .and_then(|name| nth_named_line(lines, *name, number))
-            })
-            .unwrap_or(explicit_line_count as i32);
-    }
-
-    if !is_positioned(placement_start) && is_positioned(placement_end) && !is_span(placement_end) {
-        result.start = result.end - result.span as i32;
-    }
-
-    if is_positioned(placement_start) && is_positioned(placement_end) {
-        if result.start > result.end {
-            std::mem::swap(&mut result.start, &mut result.end);
-        }
-        if result.start != result.end {
-            result.span = (result.end - result.start) as usize;
+        (start, end)
+    } else {
+        let end = lines.resolve_line(placement_end, placement_names, false);
+        let start = if is_span(placement_start) {
+            lines.line_spanned_from(end, clamped_span(placement_start), span_name(placement_start), false)
         } else {
-            result.span = 1;
-            result.end = result.start + 1;
-        }
+            end.saturating_sub(automatic_span)
+        };
+        (start, end)
+    };
+    // https://drafts.csswg.org/css-grid-2/#grid-placement-errors
+    // If the placement for a grid item contains two lines, and the start line is further end-ward than the end line,
+    // swap the two lines. If the start line is equal to the end line, remove the end line.
+    if start > end {
+        std::mem::swap(&mut start, &mut end);
     }
-
-    // If the placement contains two spans, remove the one contributed by the end grid-placement
-    // property.
-    if is_span(placement_start) && is_span(placement_end) {
-        result.span = clamped_span(placement_start);
+    if start == end {
+        end = start.saturating_add(1);
     }
-    result
+    // https://drafts.csswg.org/css-grid/#overlarge-grids
+    start = start.clamp(-MAX_GRID_LINE_NUMBER, MAX_GRID_LINE_NUMBER - 1);
+    end = end.clamp(start + 1, MAX_GRID_LINE_NUMBER);
+    ResolvedPlacementPosition {
+        start,
+        end,
+        span: (end - start) as usize,
+    }
 }
 
 pub(crate) fn resolve_placement_span(
@@ -526,11 +593,18 @@ pub(crate) fn resolve_placement_span(
     placement_end: ComputedGridPlacement,
     automatic_subgrid_span: Option<usize>,
 ) -> usize {
-    if is_span(placement_start) {
-        return clamped_span(placement_start);
-    }
-    if is_span(placement_end) {
-        return clamped_span(placement_end);
+    // https://drafts.csswg.org/css-grid-2/#grid-placement-errors
+    // If the placement contains two spans, remove the one contributed by the end grid-placement property.
+    // If the placement contains only a span for a named line, replace it with a span of 1.
+    let span = if is_span(placement_start) {
+        Some(placement_start)
+    } else if is_span(placement_end) {
+        Some(placement_end)
+    } else {
+        None
+    };
+    if let Some(span) = span {
+        return if span.has_name { 1 } else { clamped_span(span) };
     }
     if !(is_positioned(placement_start) && is_positioned(placement_end))
         && let Some(span) = automatic_subgrid_span
@@ -1537,16 +1611,19 @@ impl<'pass> GridFormattingContext<'pass> {
     ) -> ResolvedAxisPlacement {
         let start_is_auto = start.kind != crate::layout::ComputedGridPlacementKind::Line as u8;
         let end_is_auto = end.kind != crate::layout::ComputedGridPlacementKind::Line as u8;
-        let lines = self.axis_lines(axis);
-        let explicit_lines = self.explicit_line_count(axis);
-        let explicit_tracks = lines.len().saturating_sub(1);
         if start_is_auto && end_is_auto {
             return ResolvedAxisPlacement {
                 start: None,
                 span: resolve_placement_span(start, end, automatic_subgrid_span_value),
             };
         }
-        let resolved = resolve_placement_position(start, end, placement_names, lines, explicit_lines, explicit_tracks);
+        let resolved = resolve_placement_position(
+            start,
+            end,
+            placement_names,
+            self.explicit_grid_lines(axis),
+            automatic_subgrid_span_value,
+        );
         ResolvedAxisPlacement {
             start: Some(resolved.start),
             span: resolved.span,
@@ -1870,6 +1947,18 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn explicit_line_count(&self, axis: Axis) -> usize {
         axis.select(self.explicit_column_line_count, self.explicit_row_line_count)
+    }
+
+    fn explicit_start(&self, axis: Axis) -> usize {
+        axis.select(self.explicit_column_start, self.explicit_row_start)
+    }
+
+    /// The explicit grid's lines, which come after the implicit lines that items placed before it add.
+    fn explicit_grid_lines(&self, axis: Axis) -> ExplicitGridLines<'_> {
+        let lines = self.axis_lines(axis);
+        let start = self.explicit_start(axis).min(lines.len());
+        let end = start.saturating_add(self.explicit_line_count(axis)).min(lines.len());
+        ExplicitGridLines::new(&lines[start..end])
     }
 
     fn content_alignment(&self, axis: Axis) -> Alignment {
@@ -3631,29 +3720,34 @@ impl<'pass> GridFormattingContext<'pass> {
         end: ComputedGridPlacement,
         placement_names: &[usize],
     ) -> (CssPixels, CssPixels) {
-        let lines = self.axis_lines(axis);
-        let explicit_lines = self.explicit_line_count(axis);
-        let resolved = resolve_placement_position(
-            start,
-            end,
-            placement_names,
-            lines,
-            explicit_lines,
-            lines.len().saturating_sub(1),
-        );
-        let is_auto_positioned =
-            |placement: ComputedGridPlacement| placement.kind != crate::layout::ComputedGridPlacementKind::Line as u8;
-        let mut rect = self.axis_grid_area(
-            axis,
-            (!(is_auto_positioned(start) && is_auto_positioned(end))).then_some((resolved.start, resolved.span)),
-        );
-
-        let start_is_augmented =
-            is_auto_positioned(start) && end.kind == crate::layout::ComputedGridPlacementKind::Line as u8;
-        let end_is_augmented =
-            is_auto_positioned(end) && start.kind == crate::layout::ComputedGridPlacementKind::Line as u8;
-        if !start_is_augmented && !end_is_augmented {
-            return rect;
+        let is_line = |placement: ComputedGridPlacement| is_positioned(placement);
+        if !is_line(start) && !is_line(end) {
+            return self.axis_grid_area(axis, None);
+        }
+        let resolved = resolve_placement_position(start, end, placement_names, self.explicit_grid_lines(axis), None);
+        // https://drafts.csswg.org/css-grid-2/#abspos-items
+        // If a grid-placement property refers to a non-existent line either by explicitly specifying such a line or by
+        // spanning outside of the existing implicit grid, it is instead treated as specifying auto (instead of
+        // creating new implicit grid lines).
+        let line_count = self.axis_lines(axis).len() as i32;
+        let existing_line = |line: i32| {
+            let line = line.saturating_add(self.explicit_start(axis) as i32);
+            (0..line_count).contains(&line).then_some(line)
+        };
+        let start_line = if is_line(start) || is_line(end) && is_span(start) {
+            existing_line(resolved.start)
+        } else {
+            None
+        };
+        let end_line = if is_line(end) || is_line(start) && is_span(end) {
+            existing_line(resolved.end)
+        } else {
+            None
+        };
+        if let (Some(start_line), Some(end_line)) = (start_line, end_line)
+            && start_line < self.axis_tracks(axis).len() as i32
+        {
+            return self.axis_grid_area(axis, Some((start_line, (end_line - start_line) as usize)));
         }
 
         // Instead of auto-placement, an auto value for a grid-placement property contributes a special line to the placement whose position
@@ -3691,18 +3785,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 offset
             }
         };
-        let start_offset = if start_is_augmented {
-            augmented_edge(true)
-        } else {
-            explicit_line_position(resolved.start, false)
-        };
-        let end_offset = if end_is_augmented {
-            augmented_edge(false)
-        } else {
-            explicit_line_position(resolved.end, true)
-        };
-        rect = (start_offset, end_offset - start_offset);
-        rect
+        let start_offset = start_line.map_or_else(|| augmented_edge(true), |line| explicit_line_position(line, false));
+        let end_offset = end_line.map_or_else(|| augmented_edge(false), |line| explicit_line_position(line, true));
+        (start_offset, end_offset - start_offset)
     }
 
     fn layout_items(&mut self, run: &FormattingContextRun<'pass>) {
@@ -5284,31 +5369,6 @@ pub(crate) fn add_template_area_lines(
             false,
         ));
     }
-}
-
-pub(crate) fn nth_named_line(lines: &[Vec<LineName>], name_raw: usize, nth_line: i32) -> Option<i32> {
-    // FIXME: If not enough lines with the name exist, all implicit grid lines on the side
-    // of the explicit grid corresponding to the search direction are assumed to have that name for the purpose of counting this span.
-    // Source: https://drafts.csswg.org/css-grid/#line-placement
-    let mut remaining = if nth_line < 0 {
-        lines.len().wrapping_add_signed(nth_line as isize)
-    } else {
-        nth_line.saturating_sub(1) as usize
-    };
-    for (line_index, names) in lines.iter().enumerate() {
-        for name in names {
-            if name.raw != name_raw {
-                continue;
-            }
-            if remaining == 0 {
-                // https://drafts.csswg.org/css-grid/#line-placement
-                // Contributes the nth grid line to the grid item’s placement.
-                return Some(line_index as i32);
-            }
-            remaining = remaining.wrapping_sub(1);
-        }
-    }
-    None
 }
 
 #[derive(Clone, Copy, Debug)]
