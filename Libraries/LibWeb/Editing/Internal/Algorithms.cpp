@@ -711,7 +711,7 @@ Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Re
     // 4. If element is a simple modifiable element:
     if (is_simple_modifiable_element(element)) {
         // 1. Let children be the children of element.
-        Vector<GC::Ref<DOM::Node>> children;
+        GC::RootVector<GC::Ref<DOM::Node>> children;
         element->for_each_child([&children](DOM::Node& child) {
             children.append(child);
             return IterationDecision::Continue;
@@ -1213,7 +1213,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         MUST(delete_data(static_cast<DOM::Text&>(*start.node), start.offset, start.node->length() - start.offset));
 
     // 23. Let node list be a list of nodes, initially empty.
-    Vector<GC::Ref<DOM::Node>> node_list;
+    GC::RootVector<GC::Ref<DOM::Node>> node_list;
 
     // 24. For each node contained in the active range, append node to node list if the last member of node list (if
     //     any) is not an ancestor of node; node is editable; and node is not a thead, tbody, tfoot, tr, th, or td.
@@ -1817,7 +1817,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
     if (!is_allowed_child_of_node(node, HTML::TagNames::span)) {
         // 1. Let children be all children of node, omitting any that are Elements whose specified command value for
         //    command is neither null nor equivalent to new value.
-        Vector<GC::Ref<DOM::Node>> children;
+        GC::RootVector<GC::Ref<DOM::Node>> children;
         node->for_each_child([&](GC::Ref<DOM::Node> child) {
             if (is<DOM::Element>(*child)) {
                 auto const child_specified_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
@@ -1993,7 +1993,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
 
         // 3. Let children be all children of node, omitting any that are Elements whose specified command value for
         //    command is neither null nor equivalent to new value.
-        Vector<GC::Ref<DOM::Node>> children;
+        GC::RootVector<GC::Ref<DOM::Node>> children;
         node->for_each_child([&](GC::Ref<DOM::Node> child) {
             if (is<DOM::Element>(*child)) {
                 auto child_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
@@ -3071,7 +3071,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
 
     // 2. Let element list be a list of all editable Elements contained in new range that either has an attribute in the
     //    HTML namespace whose local name is "align", or has a style attribute that sets "text-align", or is a center.
-    Vector<GC::Ref<DOM::Element>> element_list;
+    GC::RootVector<GC::Ref<DOM::Element>> element_list;
     new_range->for_each_contained([&element_list](GC::Ref<DOM::Node> node) {
         if (!node->is_editable() || !is<DOM::Element>(*node))
             return IterationDecision::Continue;
@@ -3110,7 +3110,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
     new_range = block_extend_a_range(*active_range(document));
 
     // 5. Let node list be a list of nodes, initially empty.
-    Vector<GC::Ref<DOM::Node>> node_list;
+    GC::RootVector<GC::Ref<DOM::Node>> node_list;
 
     // 6. For each node node contained in new range, append node to node list if the last member of node list (if any)
     //    is not an ancestor of node; node is editable; node is an allowed child of "div"; and node's alignment value is
@@ -3127,7 +3127,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
     // 7. While node list is not empty:
     while (!node_list.is_empty()) {
         // 1. Let sublist be a list of nodes, initially empty.
-        Vector<GC::Ref<DOM::Node>> sublist;
+        GC::RootVector<GC::Ref<DOM::Node>> sublist;
 
         // 2. Remove the first member of node list and append it to sublist.
         sublist.append(node_list.take_first());
@@ -3435,7 +3435,7 @@ void outdent(GC::Ref<DOM::Node> node)
     GC::Ptr<DOM::Node> current_ancestor = node->parent();
 
     // 5. Let ancestor list be a list of nodes, initially empty.
-    Vector<GC::Ref<DOM::Node>> ancestor_list;
+    GC::RootVector<GC::Ref<DOM::Node>> ancestor_list;
 
     // 6. While current ancestor is an editable Element that is neither a simple indentation element nor an ol nor a ul,
     //    append current ancestor to ancestor list and then set current ancestor to its parent.
@@ -3478,7 +3478,7 @@ void outdent(GC::Ref<DOM::Node> node)
         remove_attribute(node_element, HTML::AttributeNames::type);
 
         // 2. Let children be the children of node.
-        Vector<GC::Ref<DOM::Node>> children;
+        GC::RootVector<GC::Ref<DOM::Node>> children;
         for (auto* child = node->first_child(); child; child = child->next_sibling())
             children.append(*child);
 
@@ -3544,10 +3544,10 @@ void outdent(GC::Ref<DOM::Node> node)
         //    siblings of target.
         // NB: Both lists are in tree order, like in the spec's reference implementation. Indenting a list relies on
         //     this, since it looks for a new parent next to the first and last members of the list.
-        Vector<GC::Ref<DOM::Node>> preceding_siblings;
+        GC::RootVector<GC::Ref<DOM::Node>> preceding_siblings;
         for (auto* sibling = current_ancestor->first_child(); sibling != target.ptr(); sibling = sibling->next_sibling())
             preceding_siblings.append(*sibling);
-        Vector<GC::Ref<DOM::Node>> following_siblings;
+        GC::RootVector<GC::Ref<DOM::Node>> following_siblings;
         for (auto* sibling = target->next_sibling(); sibling; sibling = sibling->next_sibling())
             following_siblings.append(*sibling);
 
@@ -3634,7 +3634,7 @@ void push_down_values(Utf16FlyString const& command, GC::Ref<DOM::Node> node, Op
     auto current_ancestor = GC::Ptr { node->parent() };
 
     // 5. Let ancestor list be a list of nodes, initially empty.
-    Vector<GC::Ref<DOM::Node>> ancestor_list;
+    GC::RootVector<GC::Ref<DOM::Node>> ancestor_list;
 
     // 6. While current ancestor is an editable Element and the effective command value of command is not loosely
     //    equivalent to new value on it, append current ancestor to ancestor list, then set current ancestor to its
@@ -3889,7 +3889,7 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
 {
     // To remove a node node while preserving its descendants, split the parent of node's children if it has any.
     if (node->has_children()) {
-        Vector<GC::Ref<DOM::Node>> children;
+        GC::RootVector<GC::Ref<DOM::Node>> children;
         children.ensure_capacity(node->child_count());
         for (auto* child = node->first_child(); child; child = child->next_sibling())
             children.append(*child);
@@ -4066,7 +4066,7 @@ SelectionsListState selections_list_state(DOM::Document const& document)
     auto new_range = block_extend_a_range(*range);
 
     // 3. Let node list be a list of nodes, initially empty.
-    Vector<GC::Ref<DOM::Node>> node_list;
+    GC::RootVector<GC::Ref<DOM::Node>> node_list;
 
     // 4. For each node contained in new range, append node to node list if the last member of node list (if any) is not
     //    an ancestor of node; node is editable; node is not an indentation element; and node is either an ol or ul, or
@@ -4231,7 +4231,7 @@ void set_the_selections_value(DOM::Document& document, Utf16FlyString const& com
         MUST(split_text(static_cast<DOM::Text&>(*end.node), end.offset));
 
     // 5. Let element list be all editable Elements effectively contained in the active range.
-    Vector<GC::Ref<DOM::Element>> element_list;
+    GC::RootVector<GC::Ref<DOM::Element>> element_list;
     for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
         if (descendant->is_editable() && is<DOM::Element>(*descendant))
             element_list.append(static_cast<DOM::Element&>(*descendant));
@@ -4243,7 +4243,7 @@ void set_the_selections_value(DOM::Document& document, Utf16FlyString const& com
         clear_the_value(command, element);
 
     // 7. Let node list be all editable nodes effectively contained in the active range.
-    Vector<GC::Ref<DOM::Node>> node_list;
+    GC::RootVector<GC::Ref<DOM::Node>> node_list;
     for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
         if (descendant->is_editable())
             node_list.append(descendant);
@@ -4601,7 +4601,7 @@ void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
     auto other_tag_name = tag_name == HTML::TagNames::ul ? HTML::TagNames::ol : HTML::TagNames::ul;
 
     // 3. Let items be a list of all lis that are inclusive ancestors of the active range's start and/or end node.
-    Vector<GC::Ref<DOM::Node>> items;
+    GC::RootVector<GC::Ref<DOM::Node>> items;
     auto add_li_ancestors = [&items](GC::Ref<DOM::Node> node) {
         node->for_each_inclusive_ancestor([&items](GC::Ref<DOM::Node> ancestor) {
             if (is<HTML::HTMLLIElement>(*ancestor) && !items.contains_slow(ancestor))
@@ -4623,7 +4623,7 @@ void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
     // 6. If mode is "enable", then let lists to convert consist of every editable HTML element with local name other
     //    tag name that is contained in new range, and for every list in lists to convert:
     if (mode == ToggleListMode::Enable) {
-        Vector<GC::Ref<DOM::Node>> lists_to_convert;
+        GC::RootVector<GC::Ref<DOM::Node>> lists_to_convert;
         new_range->for_each_contained([&](GC::Ref<DOM::Node> node) {
             if (node->is_editable() && is<HTML::HTMLElement>(*node)
                 && static_cast<DOM::Element&>(*node).local_name() == other_tag_name)
@@ -4637,7 +4637,7 @@ void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
                 || (is<HTML::HTMLElement>(list->next_sibling()) && list->next_sibling()->is_editable()
                     && static_cast<DOM::Element&>(*list->next_sibling()).local_name() == tag_name)) {
                 // 1. Let children be list's children.
-                Vector<GC::Ref<DOM::Node>> children;
+                GC::RootVector<GC::Ref<DOM::Node>> children;
                 list->for_each_child([&children](GC::Ref<DOM::Node> child) {
                     children.append(child);
                     return IterationDecision::Continue;
@@ -4671,7 +4671,7 @@ void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
     }
 
     // 7. Let node list be a list of nodes, initially empty.
-    Vector<GC::Ref<DOM::Node>> node_list;
+    GC::RootVector<GC::Ref<DOM::Node>> node_list;
 
     // 8. For each node node contained in new range, if node is editable; the last member of node list (if any) is not
     //    an ancestor of node; node is not an indentation element; and either node is an ol or ul, or its parent is an
@@ -4699,7 +4699,7 @@ void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
     if (mode == ToggleListMode::Disable) {
         while (!node_list.is_empty()) {
             // 1. Let sublist be an empty list of nodes.
-            Vector<GC::Ref<DOM::Node>> sublist;
+            GC::RootVector<GC::Ref<DOM::Node>> sublist;
 
             // 2. Remove the first member from node list and append it to sublist.
             sublist.append(node_list.take_first());
@@ -4737,7 +4737,7 @@ void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
     else {
         while (!node_list.is_empty()) {
             // 1. Let sublist be an empty list of nodes.
-            Vector<GC::Ref<DOM::Node>> sublist;
+            GC::RootVector<GC::Ref<DOM::Node>> sublist;
 
             // 2. While either sublist is empty, or node list is not empty and its first member is the nextSibling of
             //    sublist's last member:
@@ -4763,7 +4763,7 @@ void toggle_lists(DOM::Document& document, Utf16FlyString const& tag_name)
                 // 3. Otherwise:
                 else {
                     // 1. Let nodes to wrap be a list of nodes, initially empty.
-                    Vector<GC::Ref<DOM::Node>> nodes_to_wrap;
+                    GC::RootVector<GC::Ref<DOM::Node>> nodes_to_wrap;
 
                     // 2. While nodes to wrap is empty, or node list is not empty and its first member is the
                     //    nextSibling of nodes to wrap's last member and the first member of node list is an inline node
