@@ -472,7 +472,7 @@ void HTMLFormElement::reposition_moved_associated_elements(Badge<FormAssociatedE
     if (moved_elements.size() == m_associated_elements_in_tree_order.size())
         return;
 
-    HashTable<HTMLElement const*> moved_element_set;
+    GC::RootHashTable<HTMLElement const*> moved_element_set;
     for (auto const& element : moved_elements)
         moved_element_set.set(element.ptr());
 
@@ -729,9 +729,9 @@ WebIDL::ExceptionOr<bool> HTMLFormElement::report_validity()
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#category-submit
-Vector<GC::Ref<DOM::Element>> HTMLFormElement::get_submittable_elements()
+GC::RootVector<GC::Ref<DOM::Element>> HTMLFormElement::get_submittable_elements()
 {
-    Vector<GC::Ref<DOM::Element>> submittable_elements;
+    GC::RootVector<GC::Ref<DOM::Element>> submittable_elements;
 
     for (auto const& element : m_associated_elements_in_tree_order) {
         if (element->is_submittable())

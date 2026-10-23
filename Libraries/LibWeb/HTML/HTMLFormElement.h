@@ -76,7 +76,7 @@ public:
     void add_associated_element(Badge<FormAssociatedElement>, HTMLElement&);
     void remove_associated_element(Badge<FormAssociatedElement>, HTMLElement&);
 
-    Vector<GC::Ref<DOM::Element>> get_submittable_elements();
+    GC::RootVector<GC::Ref<DOM::Element>> get_submittable_elements();
 
     GC::Ref<HTMLFormControlsCollection> elements() const;
     unsigned length() const;
