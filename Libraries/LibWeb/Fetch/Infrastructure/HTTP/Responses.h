@@ -22,6 +22,7 @@
 #include <LibRequests/Request.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/ResponseCacheState.h>
@@ -62,9 +63,14 @@ public:
 
     // RequestServer bookkeeping is transport state, not JS-visible response data.
     struct RequestServerRequest {
+        // The request itself pauses and resumes the body's delivery.
+        struct DeliveredByRequest { };
+
         int client_id { -1 };
         u64 request_id { 0 };
         RefPtr<Requests::Request> request;
+        // A body paced by a FetchByteChannel is released from the navigation hold through its delivery gate.
+        Variant<DeliveredByRequest, NonnullRefPtr<Engine::FetchBodyDeliveryGate>> body_delivery { DeliveredByRequest {} };
     };
 
     [[nodiscard]] static GC::Ref<Response> create();

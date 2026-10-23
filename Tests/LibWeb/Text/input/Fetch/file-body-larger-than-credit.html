@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A file: body arrives from its loader in one piece, larger than the credit a body stream grants at once.
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            println("loaded");
+            done();
+        };
+        iframe.src = "../../../Assets/test-webm.webm";
+        document.body.appendChild(iframe);
+    });
+</script>

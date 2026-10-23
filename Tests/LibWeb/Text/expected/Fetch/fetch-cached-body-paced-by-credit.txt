@@ -1,0 +1,5 @@
+first response complete: true
+second response came from the cache: true
+cached body arrived in several reads: true
+no read exceeded the credit: true
+content complete: true

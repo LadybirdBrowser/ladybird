@@ -123,18 +123,30 @@ void Response::release_request_transfer_lease() const
 void Response::resume_body_delivery() const
 {
     release_request_transfer_lease();
-    if (m_request_server_request.has_value()) {
-        if (m_request_server_request->request)
-            m_request_server_request->request->resume_body_delivery();
-    }
+    if (!m_request_server_request.has_value())
+        return;
+
+    auto const& request = m_request_server_request->request;
+    m_request_server_request->body_delivery.visit(
+        [&](RequestServerRequest::DeliveredByRequest) {
+            if (request)
+                request->resume_body_delivery();
+        },
+        [](NonnullRefPtr<Engine::FetchBodyDeliveryGate> const& gate) { gate->release_hold(); });
 }
 
 void Response::resume_body_delivery_up_to(size_t byte_count) const
 {
-    if (m_request_server_request.has_value()) {
-        if (m_request_server_request->request)
-            m_request_server_request->request->resume_body_delivery_up_to(byte_count);
-    }
+    if (!m_request_server_request.has_value())
+        return;
+
+    auto const& request = m_request_server_request->request;
+    m_request_server_request->body_delivery.visit(
+        [&](RequestServerRequest::DeliveredByRequest) {
+            if (request)
+                request->resume_body_delivery_up_to(byte_count);
+        },
+        [&](NonnullRefPtr<Engine::FetchBodyDeliveryGate> const& gate) { gate->release_hold_up_to(byte_count); });
 }
 
 // https://fetch.spec.whatwg.org/#concept-response-url

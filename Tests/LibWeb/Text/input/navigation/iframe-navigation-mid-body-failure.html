@@ -10,9 +10,20 @@
         const output = [];
         const println = line => output.push(line);
 
-        const countBodyReceivers = () =>
-            Object.values(JSON.parse(internals.dumpGCGraph())).filter(cell => cell.class_name === "FetchedDataReceiver")
-                .length;
+        // The body arrives through a body pump, or through a receiver when the navigation adopts a request fetched
+        // elsewhere.
+        const countBodyCells = () => {
+            const counts = { pumps: 0, pullSources: 0, receivers: 0 };
+            for (const cell of Object.values(JSON.parse(internals.dumpGCGraph()))) {
+                if (cell.class_name === "NetworkBodyPump")
+                    ++counts.pumps;
+                else if (cell.class_name === "BodyStreamPullSource")
+                    ++counts.pullSources;
+                else if (cell.class_name === "FetchedDataReceiver")
+                    ++counts.receivers;
+            }
+            return counts;
+        };
         const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
         // A stale pointer on the stack can keep a cell alive through one conservative collection.
@@ -20,14 +31,17 @@
             const deadline = performance.now() + 10000;
             for (;;) {
                 await internals.gcAsync();
-                if (countBodyReceivers() === initial || performance.now() > deadline)
-                    return;
+                const counts = countBodyCells();
+                if (counts.pumps === initial.pumps && counts.pullSources === initial.pullSources && counts.receivers === initial.receivers)
+                    return "released";
+                if (performance.now() > deadline)
+                    return `left ${counts.pumps - initial.pumps} pumps, ${counts.pullSources - initial.pullSources} pull sources and ${counts.receivers - initial.receivers} receivers`;
                 await sleep(10);
             }
         };
 
         await internals.gcAsync();
-        const initial = countBodyReceivers();
+        const initial = countBodyCells();
 
         const frame = document.createElement("iframe");
         let loaded = false;
@@ -37,7 +51,7 @@
 
         // The body is held after its first chunk, and ends short once it is let go.
         const arrivalDeadline = performance.now() + 10000;
-        while (countBodyReceivers() === initial) {
+        for (let counts = countBodyCells(); counts.pumps === initial.pumps && counts.receivers === initial.receivers; counts = countBodyCells()) {
             if (performance.now() > arrivalDeadline) {
                 println("body of the failed navigation never arrived");
                 return output;
@@ -46,8 +60,7 @@
         }
         await fetch(urls.unblock);
 
-        // The navigation has settled once its body is released.
-        await waitForRelease(initial);
+        println(`body of the failed navigation: ${await waitForRelease(initial)}`);
         println(`iframe produced a document from the partial body: ${loaded}`);
         const stayed = frame.contentDocument !== null && frame.contentDocument.querySelector("#partial") === null;
         println(`iframe stayed on its initial document: ${stayed}`);
