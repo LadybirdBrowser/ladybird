@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/RootVector.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/EmbeddingABIConversions.h>
 #include <LibJS/Runtime/ArrayBufferABIConversions.h>
@@ -207,12 +206,6 @@ struct HostHookThunks {
     {
         auto& vm = vm_of(data);
         auto import_meta_properties = vm.host_get_import_meta_properties(module_from_abi<SourceTextModule>(module));
-
-        // The values have to stay alive until they are appended, and appending one can collect garbage.
-        GC::RootVector<Value> values_being_appended;
-        for (auto const& property : import_meta_properties)
-            values_being_appended.append(property.value);
-
         for (auto const& property : import_meta_properties)
             properties->append(properties->context, *property_key_to_abi(property.key), value_to_abi(property.value));
     }
@@ -350,7 +343,7 @@ void VM::install_default_host_hooks()
         js_vm_default_host_load_imported_module(vm_abi(*this), imported_module_referrer_to_abi(referrer), abi_module_request.ptr(), load_state.ptr(), imported_module_payload_to_abi(payload));
     };
 
-    host_get_import_meta_properties = [](SourceTextModule&) -> HashMap<PropertyKey, Value> {
+    host_get_import_meta_properties = [](SourceTextModule&) -> GC::RootHashMap<PropertyKey, Value> {
         return {};
     };
 

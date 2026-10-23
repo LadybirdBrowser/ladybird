@@ -29,6 +29,7 @@
 #include <LibCrypto/Forward.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
+#include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Breakpoint.h>
 #include <LibJS/CyclicModule.h>
@@ -429,7 +430,7 @@ public:
     // 16.2.1.10 HostLoadImportedModule ( referrer, moduleRequest, hostDefined, payload ), https://tc39.es/ecma262/#sec-HostLoadImportedModule
     Function<void(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GC::Cell> load_state, ImportedModulePayload)> host_load_imported_module;
 
-    Function<HashMap<PropertyKey, Value>(SourceTextModule&)> host_get_import_meta_properties;
+    Function<GC::RootHashMap<PropertyKey, Value>(SourceTextModule&)> host_get_import_meta_properties;
 
     Function<Vector<Utf16String>()> host_get_supported_import_attributes;
 
