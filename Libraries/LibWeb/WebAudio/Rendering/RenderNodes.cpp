@@ -17,6 +17,8 @@ namespace Web::WebAudio::Rendering {
 // fundamental frequencies.
 static constexpr size_t MAX_OSCILLATOR_HARMONICS = 5000;
 
+static constexpr double FRAME_BOUNDARY_SNAPPING_TOLERANCE = 1.0 / 2048;
+
 struct PanGains {
     float left { 0 };
     float right { 0 };
@@ -84,6 +86,13 @@ void ScheduledSourceRenderNode::process(RenderGraph& graph, RenderContext const&
     // NB: The start time is clamped to the first render quantum processed after the start message arrived, since the
     //     control thread's currentTime may already have advanced past the scheduled time by then.
     if (m_start_time_needs_clamping) {
+        // AD-HOC: Start times built by summing buffer durations may induce rounding error and place the start part
+        //         of a frame after the prior buffer's end. Snap starts that are close to a frame boundary onto it
+        //         to prevent this from becoming audible in continuous streams.
+        auto start_frame = *m_start_time * context.sample_rate;
+        auto nearest_frame = AK::round(start_frame);
+        if (AK::abs(start_frame - nearest_frame) < FRAME_BOUNDARY_SNAPPING_TOLERANCE)
+            m_start_time = nearest_frame / context.sample_rate;
         m_start_time = max(*m_start_time, context.quantum_start_time());
         m_start_time_needs_clamping = false;
     }
@@ -300,6 +309,12 @@ float AudioBufferSourceRenderNode::sample_buffer(size_t channel, double playhead
     };
     if (fraction == 0.f)
         return sample_at(index);
+    // Past the last frame there is nothing to interpolate toward, so the slope leading into it is continued instead.
+    if (!m_loop && index == static_cast<i64>(samples.size()) - 1) {
+        if (index == 0)
+            return sample_at(index);
+        return sample_at(index) + fraction * (sample_at(index) - sample_at(index - 1));
+    }
     return sample_at(index) + fraction * (sample_at(index + 1) - sample_at(index));
 }
 
