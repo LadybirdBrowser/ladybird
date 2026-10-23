@@ -107,7 +107,13 @@ impl CodeGenerator<'_> {
             }
             Op::InstanceField | Op::LoadPointer => {
                 let address = Address::new(gpr(a), node.args[1] as i32);
-                self.asm.mov_rm(Width::W64, gpr(output), &address);
+                // NB: A 32-bit load zero-extends, as an i32 must be in its register.
+                let load_width = if node.op == Op::LoadPointer && node.flags == 4 {
+                    Width::W32
+                } else {
+                    Width::W64
+                };
+                self.asm.mov_rm(load_width, gpr(output), &address);
             }
             _ => unreachable!("{} is no memory op", node.op.name()),
         }
