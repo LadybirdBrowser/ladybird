@@ -8,6 +8,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibGC/WeakInlines.h>
 #include <LibURL/InternalURLs.h>
 #include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -48,13 +49,16 @@ GC::Ref<Environment> Environment::create(EnvironmentId id, URL::URL creation_url
     return GC::Heap::the().allocate<Environment>(move(id), move(creation_url), move(top_level_creation_url), move(top_level_origin), move(target_browsing_context));
 }
 
-Environment::~Environment() = default;
-
-void Environment::visit_edges(Cell::Visitor& visitor)
+Environment::Environment(EnvironmentId id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url, Optional<URL::Origin> top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
+    : id(move(id))
+    , creation_url(move(creation_url))
+    , top_level_creation_url(move(top_level_creation_url))
+    , top_level_origin(move(top_level_origin))
+    , target_browsing_context(target_browsing_context)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(target_browsing_context);
 }
+
+Environment::~Environment() = default;
 
 EnvironmentSettingsObject::EnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> realm_execution_context)
     : m_realm_execution_context(move(realm_execution_context))
