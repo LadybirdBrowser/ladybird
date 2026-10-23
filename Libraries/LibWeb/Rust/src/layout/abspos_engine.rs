@@ -3180,8 +3180,7 @@ impl<'pass> AbsposEngine<'pass> {
                     .set(style.inset_bottom().to_px(containing_block_size.block_size));
             }
         }
-        let is_measurement = self.purpose.is_measurement();
-        if !is_measurement {
+        if self.fragments.is_some() {
             self.used(node).rare_data_mut().abspos_layout_inputs = Some(inputs);
         }
         formatting_context::place_child_in_containing_block(
@@ -3201,7 +3200,6 @@ impl<'pass> AbsposEngine<'pass> {
         run: &FormattingContextRun<'pass>,
         mut child: abspos_inputs::PendingAbsposChild,
     ) {
-        debug_assert!(!self.purpose.is_measurement());
         let child_box = child.child_box;
         let position_option = self.determine_position_fallback_styles(&child);
         self.records

@@ -1390,7 +1390,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let Some(grid) = self.collapsed_border_grid.take() else {
             return;
         };
-        if self.run.purpose.is_measurement() {
+        if self.run.fragments.is_none() {
             return;
         }
         if !grid.has_paintable_edges() {
@@ -3102,7 +3102,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let used = self.used_values(cell.box_);
             let measured_content_block_size = used.content_block_size.get();
             if let Some(measurement) = self.cell_measurements[cell_index]
-                && run.purpose.is_measurement()
+                && run.fragments.is_none()
                 && self.style(cell.box_).height().is_auto()
                 && !self.node_facts(cell.box_).is_anonymous()
                 && !measurement.depends_on_percentage_block_size

@@ -1960,7 +1960,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
         // An embedded SVG viewport's outer size does not depend on its descendants. Measuring it
         // only needs the root sizing above; shapes, text, and foreignObject content wait for layout.
-        if self.run.purpose.is_measurement() && kind == NodeKind::SVGSVGBox && !facts.is_document_element {
+        if self.run.fragments.is_none() && kind == NodeKind::SVGSVGBox && !facts.is_document_element {
             return;
         }
 
