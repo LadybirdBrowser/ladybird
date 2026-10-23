@@ -1281,6 +1281,7 @@ impl SourceTextModule {
                 Ok(value) if value.is_empty() => Completion::normal(Value::UNDEFINED),
                 Ok(value) => Completion::normal(value),
             };
+            crate::jit::tier_up::finish_top_level_code(vm, &executable);
 
             // d. Let env be moduleContext's LexicalEnvironment.
             let env = module_context_ref

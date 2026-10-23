@@ -21,10 +21,12 @@ use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
 use crate::jit::options::Options;
 use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::execution_context::ScriptOrModule;
 use crate::layout::function_object::EcmascriptFunctionObject;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::realm_watchpoints;
+use crate::runtime::source_text_module::SourceTextModule;
 
 /// `threshold` invocations.
 fn threshold_budget(options: &Options) -> i32 {
@@ -106,16 +108,44 @@ pub fn charge_call_from_compiled_code(vm: &Vm, executable: &Executable) {
     budget.set(budget.get().saturating_sub(extra));
 }
 
-/// The function to compile the running frame's executable for, if it should be compiled at all.
-fn function_to_compile(vm: &Vm) -> Option<Gc<EcmascriptFunctionObject>> {
+/// What the running frame's executable is compiled for.
+#[derive(Clone, Copy)]
+enum CompileTarget {
+    /// The executable of a function, whose frames run it.
+    Function(Gc<EcmascriptFunctionObject>),
+    /// The top-level code of a script or of a module, which runs once, in the running frame.
+    TopLevel,
+}
+
+impl CompileTarget {
+    fn function(self) -> Option<Gc<EcmascriptFunctionObject>> {
+        match self {
+            CompileTarget::Function(function) => Some(function),
+            CompileTarget::TopLevel => None,
+        }
+    }
+}
+
+/// What to compile the running frame's executable for, if it should be compiled at all.
+fn code_to_compile(vm: &Vm) -> Option<CompileTarget> {
     if vm.debugging_enabled() {
         return None;
     }
-    // NB: Top-level code runs once, like the body of a module with top-level await, which runs as an async function.
-    //     Generators, async functions and async generators resume in their code at the entries of their
-    //     continuations.
-    let function = as_ecmascript_function_object(vm.running_execution_context_ref().function.get()?)?;
-    (!function.shared_data().is_module_wrapper()).then_some(function)
+    let frame = vm.running_execution_context_ref();
+    let Some(function) = frame.function.get() else {
+        // NB: The top-level code of a script or of a module runs once, but its loops can run long. Other code without
+        //     a function, like that of eval, is not compiled.
+        let top_level_executable = match frame.script_or_module.get() {
+            ScriptOrModule::Script(script) => Some(script.cached_executable()),
+            ScriptOrModule::Module(module) => module.downcast_ref::<SourceTextModule>()?.cached_executable(),
+            _ => None,
+        };
+        return (top_level_executable? == vm.current_executable()).then_some(CompileTarget::TopLevel);
+    };
+    // NB: The body of a module with top-level await runs once, as an async function. Generators, async functions and
+    //     async generators resume in their code at the entries of their continuations.
+    let function = as_ecmascript_function_object(function)?;
+    (!function.shared_data().is_module_wrapper()).then_some(CompileTarget::Function(function))
 }
 
 /// Whether the running frame runs a builtin written in JavaScript.
@@ -135,6 +165,34 @@ pub fn refuse_jit_compile(vm: &Vm, executable: &Executable) {
     executable.head.tier_up_budget.set(i32::MAX);
     if !vm.jit.options.dump_feedback {
         executable.set_interpreter_tier(InterpreterTier::Unprofiled);
+    }
+}
+
+/// Drops the JIT code of the top-level code of a script or of a module whose frame returned, or its compile job, and
+/// never compiles it again: the code never runs again, but its executable lives as long as the functions it created.
+pub fn finish_top_level_code(vm: &Vm, executable: &Executable) {
+    match executable.jit_compile_state() {
+        CompileState::None | CompileState::Refused => {
+            // NB: Code that was never compiled has nothing to drop, and keeps its tier: refuse_jit_compile() would
+            //     give it feedback arrays that nothing ever fills.
+            executable.set_jit_compile_state(CompileState::Refused);
+            executable.head.tier_up_budget.set(i32::MAX);
+            return;
+        }
+        CompileState::Queued => {
+            vm.jit.abandon_compile_job_of(executable);
+            executable.set_jit_compile_state(CompileState::None);
+        }
+        CompileState::Installed => executable.discard_jit_code(vm),
+        // NB: No tier-up check of this executable would detach its code later.
+        CompileState::Discarding => {
+            executable.detach_discarded_jit_code_if_unused(vm);
+        }
+    }
+    if executable.jit_compile_state() == CompileState::Discarding {
+        executable.refuse_jit_compile_once_detached();
+    } else {
+        refuse_jit_compile(vm, executable);
     }
 }
 
@@ -170,7 +228,7 @@ pub fn on_budget_exhausted(vm: &Vm, pc: u32, is_loop: bool) {
     // A warm executable starts collecting feedback, and the tier-up threshold counts from here, unless the JIT would
     // never compile it.
     if executable.interpreter_tier() == InterpreterTier::WarmingUp {
-        if options.enabled && !vm.debugging_enabled() && function_to_compile(vm).is_none() {
+        if options.enabled && !vm.debugging_enabled() && code_to_compile(vm).is_none() {
             if runs_builtin(vm) {
                 // NB: Builtins written in JavaScript are never compiled on their own, but code that calls them
                 //     inlines them, and needs their feedback.
@@ -228,11 +286,11 @@ pub fn on_budget_exhausted(vm: &Vm, pc: u32, is_loop: bool) {
             return;
         }
     }
-    let Some(function) = function_to_compile(vm) else {
+    let Some(code) = code_to_compile(vm) else {
         refuse_jit_compile(vm, &executable);
         return;
     };
-    compile(vm, executable, function, is_loop.then_some(pc), options.sync);
+    compile(vm, executable, code.function(), is_loop.then_some(pc), options.sync);
     if executable.jit_compile_state() == CompileState::Queued {
         executable.head.tier_up_budget.set(QUEUED_BUDGET);
     }
@@ -360,12 +418,12 @@ fn finish_compile(
     }
 }
 
-/// Compiles `executable`, whose frames run `function`: right away if `sync`, otherwise on a compile thread, whose
-/// code a later tier-up check installs.
+/// Compiles `executable`, whose frames run `function`, or top-level code without one, in the running frame:
+/// right away if `sync`, otherwise on a compile thread, whose code a later tier-up check installs.
 fn compile(
     vm: &Vm,
     executable: Gc<Executable>,
-    function: Gc<EcmascriptFunctionObject>,
+    function: Option<Gc<EcmascriptFunctionObject>>,
     osr_pc: Option<u32>,
     sync: bool,
 ) {
@@ -374,14 +432,21 @@ fn compile(
 
     // NB: Asking the realm watches its intrinsics anew with new sets where the old ones fired, which allocates, so it
     //     happens before the snapshot captures which valid sets the realm holds.
-    let realm = function.realm().expect("an ECMAScript function has a realm");
+    let realm = match function {
+        Some(function) => function.realm().expect("an ECMAScript function has a realm"),
+        None => vm
+            .running_execution_context_ref()
+            .realm
+            .get()
+            .expect("the frame of top-level code has a realm"),
+    };
     realm_watchpoints::array_iterators_have_no_return(vm, realm);
     realm_watchpoints::array_iterators_have_builtin_next(vm, realm);
     realm_watchpoints::arrays_have_builtin_iterator_method(vm, realm);
 
     // NB: Nothing may collect the cells the snapshot captured before something keeps them alive.
     let defer_gc = DeferGc::new(vm);
-    let captured = capture_snapshot(vm, executable, function, osr_pc);
+    let captured = capture_snapshot(vm, executable, function, realm, osr_pc);
     if sync {
         // NB: Nothing collects garbage while compiling on this thread, so the snapshot's cells stay alive.
         let result = libjs_jit::compile(&captured.snapshot);
@@ -424,7 +489,7 @@ pub fn compile_now(vm: &Vm, function: Gc<EcmascriptFunctionObject>) -> bool {
     }
     if executable.jit_compile_state() == CompileState::None {
         executable.ensure_feedback().update_value_feedback();
-        compile(vm, executable, function, None, true);
+        compile(vm, executable, Some(function), None, true);
     }
     executable.jit_compile_state() == CompileState::Installed
 }

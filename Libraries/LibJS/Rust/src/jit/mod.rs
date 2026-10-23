@@ -391,6 +391,13 @@ impl JitState {
         self.jobs.borrow_mut().clear();
     }
 
+    /// Forgets the compile job of `executable`, whose result is dropped when it finishes.
+    pub(crate) fn abandon_compile_job_of(&self, executable: &Executable) {
+        self.jobs
+            .borrow_mut()
+            .retain(|_, job| !core::ptr::eq(job.executable.as_ptr(), executable));
+    }
+
     pub(crate) fn take_job(&self, id: u64) -> Option<CompileJob> {
         self.jobs.borrow_mut().remove(&id)
     }

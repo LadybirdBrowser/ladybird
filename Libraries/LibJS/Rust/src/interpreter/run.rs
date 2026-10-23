@@ -319,6 +319,7 @@ impl Vm {
         if result.is_ok() {
             // a. Set result to Completion(Evaluation of script).
             result = vm.run_executable(script_context, executable, 0).map_err(Throw::new);
+            crate::jit::tier_up::finish_top_level_code(vm, &executable);
 
             // b. If result is a normal completion and result.[[Value]] is empty, then
             if result.is_ok_and(Value::is_empty) {
