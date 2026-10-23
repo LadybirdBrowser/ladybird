@@ -96,7 +96,7 @@ private:
         void dispatch_error(DecoderError&&);
         void flush_decoder();
         DecoderErrorOr<void> retrieve_next_block(AudioBlock&);
-        bool handle_seek();
+        void handle_seek();
         void resolve_seek(u32 seek_id);
         bool seek_to_resubmit_if_decoder_lost_its_state(DecoderError const&);
         bool seek_to_replace_decoder_if_it_cannot_decode_the_stream(DecoderError const&);
@@ -126,7 +126,11 @@ private:
         };
 
         void note_consumer_activity_while_locked() const;
-        void wait_for_queue_space_or_auto_suspend_while_locked();
+        enum class WaitResult : u8 {
+            ContinueDecoding,
+            ExitDecodeLoop,
+        };
+        WaitResult wait_for_queue_space_while_locked();
         void dispatch_read_blocked_change(ReadBlocked blocked);
 
         Core::EventLoop& m_main_thread_event_loop;
@@ -164,7 +168,6 @@ private:
 
         AK::Duration const m_auto_suspend_idle_timeout;
         mutable MonotonicTime m_last_consumer_activity { MonotonicTime::now() };
-        bool m_auto_suspended { false };
         mutable bool m_auto_suspend_requested { false };
     };
 
