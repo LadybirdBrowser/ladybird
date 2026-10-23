@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 103 tests
 
-95 Pass
-8 Fail
+103 Pass
 Pass	width and height properties on a
 Pass	inline-size and block-size properties on a
 Pass	width and height properties on a (content overflowing)
@@ -52,10 +51,10 @@ Pass	width and height properties on mphantom
 Pass	inline-size and block-size properties on mphantom
 Pass	width and height properties on mphantom (content overflowing)
 Pass	width property on mphantom (preferred width)
-Fail	width and height properties on mroot
-Fail	inline-size and block-size properties on mroot
-Fail	width and height properties on mroot (content overflowing)
-Fail	width property on mroot (preferred width)
+Pass	width and height properties on mroot
+Pass	inline-size and block-size properties on mroot
+Pass	width and height properties on mroot (content overflowing)
+Pass	width property on mroot (preferred width)
 Pass	width and height properties on mrow
 Pass	inline-size and block-size properties on mrow
 Pass	width and height properties on mrow (content overflowing)
@@ -68,10 +67,10 @@ Pass	width and height properties on mspace
 Pass	inline-size and block-size properties on mspace
 Pass	width and height properties on mspace (content overflowing)
 Pass	width property on mspace (preferred width)
-Fail	width and height properties on msqrt
-Fail	inline-size and block-size properties on msqrt
-Fail	width and height properties on msqrt (content overflowing)
-Fail	width property on msqrt (preferred width)
+Pass	width and height properties on msqrt
+Pass	inline-size and block-size properties on msqrt
+Pass	width and height properties on msqrt (content overflowing)
+Pass	width property on msqrt (preferred width)
 Pass	width and height properties on mstyle
 Pass	inline-size and block-size properties on mstyle
 Pass	width and height properties on mstyle (content overflowing)

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 51 tests
 
-47 Pass
-4 Fail
+51 Pass
 Pass	Border properties on a
 Pass	Border properties on a (rtl)
 Pass	Border properties on maction
@@ -28,15 +27,15 @@ Pass	Border properties on mpadded
 Pass	Border properties on mpadded (rtl)
 Pass	Border properties on mphantom
 Pass	Border properties on mphantom (rtl)
-Fail	Border properties on mroot
-Fail	Border properties on mroot (rtl)
+Pass	Border properties on mroot
+Pass	Border properties on mroot (rtl)
 Pass	Border properties on mrow
 Pass	Border properties on mrow (rtl)
 Pass	Border properties on ms
 Pass	Border properties on ms (rtl)
 Pass	Border properties on mspace
-Fail	Border properties on msqrt
-Fail	Border properties on msqrt (rtl)
+Pass	Border properties on msqrt
+Pass	Border properties on msqrt (rtl)
 Pass	Border properties on mstyle
 Pass	Border properties on mstyle (rtl)
 Pass	Border properties on msub

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 166 tests
 
-152 Pass
-14 Fail
+166 Pass
 Pass	a preferred width calculation is not affected by children with "display: none" style
 Pass	a layout is not affected by children with "display: none" style
 Pass	a preferred width calculation is not affected by children with "display: contents" style
@@ -86,12 +85,12 @@ Pass	mphantom preferred width calculation is not affected by children with "posi
 Pass	mphantom layout is not affected by children with "position: absolute" style
 Pass	mphantom preferred width calculation is not affected by children with "position: fixed" style
 Pass	mphantom layout is not affected by children with "position: fixed" style
-Fail	mroot preferred width calculation is not affected by children with "display: none" style
-Fail	mroot layout is not affected by children with "display: none" style
-Fail	mroot preferred width calculation is not affected by children with "position: absolute" style
-Fail	mroot layout is not affected by children with "position: absolute" style
-Fail	mroot preferred width calculation is not affected by children with "position: fixed" style
-Fail	mroot layout is not affected by children with "position: fixed" style
+Pass	mroot preferred width calculation is not affected by children with "display: none" style
+Pass	mroot layout is not affected by children with "display: none" style
+Pass	mroot preferred width calculation is not affected by children with "position: absolute" style
+Pass	mroot layout is not affected by children with "position: absolute" style
+Pass	mroot preferred width calculation is not affected by children with "position: fixed" style
+Pass	mroot layout is not affected by children with "position: fixed" style
 Pass	mrow preferred width calculation is not affected by children with "display: none" style
 Pass	mrow layout is not affected by children with "display: none" style
 Pass	mrow preferred width calculation is not affected by children with "display: contents" style
@@ -106,14 +105,14 @@ Pass	ms preferred width calculation is not affected by children with "position: 
 Pass	ms layout is not affected by children with "position: absolute" style
 Pass	ms preferred width calculation is not affected by children with "position: fixed" style
 Pass	ms layout is not affected by children with "position: fixed" style
-Fail	msqrt preferred width calculation is not affected by children with "display: none" style
-Fail	msqrt layout is not affected by children with "display: none" style
-Fail	msqrt preferred width calculation is not affected by children with "display: contents" style
-Fail	msqrt layout is not affected by children with "display: contents" style
-Fail	msqrt preferred width calculation is not affected by children with "position: absolute" style
-Fail	msqrt layout is not affected by children with "position: absolute" style
-Fail	msqrt preferred width calculation is not affected by children with "position: fixed" style
-Fail	msqrt layout is not affected by children with "position: fixed" style
+Pass	msqrt preferred width calculation is not affected by children with "display: none" style
+Pass	msqrt layout is not affected by children with "display: none" style
+Pass	msqrt preferred width calculation is not affected by children with "display: contents" style
+Pass	msqrt layout is not affected by children with "display: contents" style
+Pass	msqrt preferred width calculation is not affected by children with "position: absolute" style
+Pass	msqrt layout is not affected by children with "position: absolute" style
+Pass	msqrt preferred width calculation is not affected by children with "position: fixed" style
+Pass	msqrt layout is not affected by children with "position: fixed" style
 Pass	mstyle preferred width calculation is not affected by children with "display: none" style
 Pass	mstyle layout is not affected by children with "display: none" style
 Pass	mstyle preferred width calculation is not affected by children with "display: contents" style

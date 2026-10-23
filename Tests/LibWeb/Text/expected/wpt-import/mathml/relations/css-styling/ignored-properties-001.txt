@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 260 tests
 
-240 Pass
-20 Fail
+260 Pass
 Pass	a preferred width calculation is not affected by writing-mode: vertical-rl;
 Pass	a layout is not affected by writing-mode: vertical-rl;
 Pass	a preferred width calculation is not affected by white-space: normal;
@@ -124,16 +123,16 @@ Pass	mphantom preferred width calculation is not affected by align-content: end;
 Pass	mphantom layout is not affected by align-content: end; justify-content: end;
 Pass	mphantom preferred width calculation is not affected by align-self: end; justify-self: end;
 Pass	mphantom layout is not affected by align-self: end; justify-self: end;
-Fail	mroot preferred width calculation is not affected by writing-mode: vertical-rl;
-Fail	mroot layout is not affected by writing-mode: vertical-rl;
-Fail	mroot preferred width calculation is not affected by white-space: normal;
-Fail	mroot layout is not affected by white-space: normal;
-Fail	mroot preferred width calculation is not affected by float: right;
-Fail	mroot layout is not affected by float: right;
-Fail	mroot preferred width calculation is not affected by align-content: end; justify-content: end;
-Fail	mroot layout is not affected by align-content: end; justify-content: end;
-Fail	mroot preferred width calculation is not affected by align-self: end; justify-self: end;
-Fail	mroot layout is not affected by align-self: end; justify-self: end;
+Pass	mroot preferred width calculation is not affected by writing-mode: vertical-rl;
+Pass	mroot layout is not affected by writing-mode: vertical-rl;
+Pass	mroot preferred width calculation is not affected by white-space: normal;
+Pass	mroot layout is not affected by white-space: normal;
+Pass	mroot preferred width calculation is not affected by float: right;
+Pass	mroot layout is not affected by float: right;
+Pass	mroot preferred width calculation is not affected by align-content: end; justify-content: end;
+Pass	mroot layout is not affected by align-content: end; justify-content: end;
+Pass	mroot preferred width calculation is not affected by align-self: end; justify-self: end;
+Pass	mroot layout is not affected by align-self: end; justify-self: end;
 Pass	mrow preferred width calculation is not affected by writing-mode: vertical-rl;
 Pass	mrow layout is not affected by writing-mode: vertical-rl;
 Pass	mrow preferred width calculation is not affected by white-space: normal;
@@ -164,16 +163,16 @@ Pass	mspace preferred width calculation is not affected by align-content: end; j
 Pass	mspace layout is not affected by align-content: end; justify-content: end;
 Pass	mspace preferred width calculation is not affected by align-self: end; justify-self: end;
 Pass	mspace layout is not affected by align-self: end; justify-self: end;
-Fail	msqrt preferred width calculation is not affected by writing-mode: vertical-rl;
-Fail	msqrt layout is not affected by writing-mode: vertical-rl;
-Fail	msqrt preferred width calculation is not affected by white-space: normal;
-Fail	msqrt layout is not affected by white-space: normal;
-Fail	msqrt preferred width calculation is not affected by float: right;
-Fail	msqrt layout is not affected by float: right;
-Fail	msqrt preferred width calculation is not affected by align-content: end; justify-content: end;
-Fail	msqrt layout is not affected by align-content: end; justify-content: end;
-Fail	msqrt preferred width calculation is not affected by align-self: end; justify-self: end;
-Fail	msqrt layout is not affected by align-self: end; justify-self: end;
+Pass	msqrt preferred width calculation is not affected by writing-mode: vertical-rl;
+Pass	msqrt layout is not affected by writing-mode: vertical-rl;
+Pass	msqrt preferred width calculation is not affected by white-space: normal;
+Pass	msqrt layout is not affected by white-space: normal;
+Pass	msqrt preferred width calculation is not affected by float: right;
+Pass	msqrt layout is not affected by float: right;
+Pass	msqrt preferred width calculation is not affected by align-content: end; justify-content: end;
+Pass	msqrt layout is not affected by align-content: end; justify-content: end;
+Pass	msqrt preferred width calculation is not affected by align-self: end; justify-self: end;
+Pass	msqrt layout is not affected by align-self: end; justify-self: end;
 Pass	mstyle preferred width calculation is not affected by writing-mode: vertical-rl;
 Pass	mstyle layout is not affected by writing-mode: vertical-rl;
 Pass	mstyle preferred width calculation is not affected by white-space: normal;

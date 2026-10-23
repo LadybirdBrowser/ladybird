@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 50 tests
 
-46 Pass
-4 Fail
+50 Pass
 Pass	position: absolute; children in a
 Pass	position: absolute; children in maction
 Pass	position: absolute; children in menclose
@@ -16,10 +15,10 @@ Pass	position: absolute; children in mo
 Pass	position: absolute; children in mover
 Pass	position: absolute; children in mpadded
 Pass	position: absolute; children in mphantom
-Fail	position: absolute; children in mroot
+Pass	position: absolute; children in mroot
 Pass	position: absolute; children in mrow
 Pass	position: absolute; children in ms
-Fail	position: absolute; children in msqrt
+Pass	position: absolute; children in msqrt
 Pass	position: absolute; children in mstyle
 Pass	position: absolute; children in msub
 Pass	position: absolute; children in msubsup
@@ -41,10 +40,10 @@ Pass	position: fixed; children in mo
 Pass	position: fixed; children in mover
 Pass	position: fixed; children in mpadded
 Pass	position: fixed; children in mphantom
-Fail	position: fixed; children in mroot
+Pass	position: fixed; children in mroot
 Pass	position: fixed; children in mrow
 Pass	position: fixed; children in ms
-Fail	position: fixed; children in msqrt
+Pass	position: fixed; children in msqrt
 Pass	position: fixed; children in mstyle
 Pass	position: fixed; children in msub
 Pass	position: fixed; children in msubsup

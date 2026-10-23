@@ -866,27 +866,22 @@ impl<'pass> MathFormattingContext<'pass> {
                 self.accents(root),
             ),
             (MathLayoutKind::Mspace, _) => self.layout_space(&root_style),
+            (MathLayoutKind::Mroot, 2) => {
+                let radical = RadicalMetrics::new(&root_style, &constants);
+                layout_root(&children[0], &children[1], &radical, &constants)
+            }
+            (MathLayoutKind::Msqrt, _) => {
+                let radical = RadicalMetrics::new(&root_style, &constants);
+                // NB: The children of <msqrt> are laid out in an anonymous <mrow> box.
+                let base = self.layout_row_with_operator_spacing(&children, kind, true);
+                layout_square_root(base, &radical)
+            }
             _ => {
                 // https://w3c.github.io/mathml-core/#layout-of-mrow
                 // Set add-space to true if the box corresponds to a <math> element or is not an embellished operator;
                 // and to false otherwise.
                 let add_space = kind == MathLayoutKind::Math || self.core_operator(root).is_none();
-                let nodes: Vec<Node> = children.iter().map(|child| child.node).collect();
-                let first_and_last_non_space_like = if add_space {
-                    self.first_and_last_non_space_like(&nodes, kind)
-                } else {
-                    Option::None
-                };
-                let spacing: Vec<Option<(CssPixels, CssPixels)>> = (0..nodes.len())
-                    .map(|index| {
-                        add_space
-                            .then(|| {
-                                self.embellished_operator_spacing(&nodes, index, kind, first_and_last_non_space_like)
-                            })
-                            .flatten()
-                    })
-                    .collect();
-                layout_row(&children, &spacing)
+                self.layout_row_with_operator_spacing(&children, kind, add_space)
             }
         };
 
@@ -937,6 +932,28 @@ impl<'pass> MathFormattingContext<'pass> {
             last: Some(content.ascent),
         };
         self.content = content;
+    }
+
+    fn layout_row_with_operator_spacing(
+        &self,
+        children: &[Child],
+        kind: MathLayoutKind,
+        add_space: bool,
+    ) -> MathContent {
+        let nodes: Vec<Node> = children.iter().map(|child| child.node).collect();
+        let first_and_last_non_space_like = if add_space {
+            self.first_and_last_non_space_like(&nodes, kind)
+        } else {
+            Option::None
+        };
+        let spacing: Vec<Option<(CssPixels, CssPixels)>> = (0..nodes.len())
+            .map(|index| {
+                add_space
+                    .then(|| self.embellished_operator_spacing(&nodes, index, kind, first_and_last_non_space_like))
+                    .flatten()
+            })
+            .collect();
+        layout_row(children, &spacing)
     }
 
     /// Whether the accentunder and accent attributes of an <munder>, <mover> or <munderover> are a match to true.
@@ -1373,5 +1390,138 @@ fn layout_underover(
         ascent,
         descent,
         positions,
+    }
+}
+
+/// The radical glyph of an <msqrt> or <mroot> and the radical parameters of its font.
+// https://w3c.github.io/mathml-core/#radical-symbol
+struct RadicalMetrics {
+    glyph_advance: CssPixels,
+    glyph_ascent: CssPixels,
+    glyph_descent: CssPixels,
+    gap: CssPixels,
+    rule_thickness: CssPixels,
+    extra_ascender: CssPixels,
+}
+
+impl RadicalMetrics {
+    fn new(style: &StyleValues<'_>, constants: &MathConstants) -> Self {
+        // The radical glyph is the glyph obtained as a result of running get a glyph corresponding to the U+221A
+        // SQUARE ROOT character given dir.
+        // FIXME: Stretch the radical glyph to the radical target size, and mirror it for dir rtl.
+        const SQUARE_ROOT: u32 = 0x221A;
+        let font = style.frozen_font_list().font_for_code_point(
+            SQUARE_ROOT,
+            libgfx_rust::font::emoji_presentation_for_code_point(SQUARE_ROOT, None),
+        );
+        let facts = font.facts();
+        // The radical gap is given by RadicalVerticalGap if the math-style is compact and
+        // RadicalDisplayStyleVerticalGap if the math-style is normal.
+        // NB: radicalVerticalGap falls back to 1¼ × default rule thickness, radicalDisplayStyleVerticalGap to default
+        //     rule thickness + ¼ OS/2.sxHeight, and radicalRuleThickness and radicalExtraAscender to default rule
+        //     thickness.
+        let gap = if style.math_style() == math_style::NORMAL {
+            constants.default_rule_thickness + constants.x_height.scaled(0.25)
+        } else {
+            constants.default_rule_thickness.scaled(1.25)
+        };
+        Self {
+            glyph_advance: CssPixels::nearest_value_for_f32(font.glyph_width(SQUARE_ROOT)),
+            glyph_ascent: CssPixels::nearest_value_for_f32(facts.ascent),
+            glyph_descent: CssPixels::nearest_value_for_f32(facts.descent),
+            gap,
+            rule_thickness: constants.default_rule_thickness,
+            extra_ascender: constants.default_rule_thickness,
+        }
+    }
+}
+
+// https://w3c.github.io/mathml-core/#square-root
+fn layout_square_root(base: MathContent, radical: &RadicalMetrics) -> MathContent {
+    // The inline size of the math content is the sum of the advance width of the box metrics of the radical glyph
+    // and of the inline size of the msqrt base's margin's box.
+    let inline_size = radical.glyph_advance + base.inline_size;
+    // The line-ascent of the math content is the maximum between:
+    // - The line-ascent of the msqrt base's margin box.
+    // - The sum of the ink line-ascent of the msqrt base, the radical gap, the RadicalRuleThickness and
+    //   RadicalExtraAscender.
+    let ascent = base
+        .ascent
+        .max(base.ascent + radical.gap + radical.rule_thickness + radical.extra_ascender);
+    // The line-descent of the math content is the maximum between:
+    // - The line-descent of the msqrt base's margin box.
+    // - The sum of the line-ascent and line-descent for the box metrics of the radical glyph and of the
+    //   RadicalExtraAscender, minus the line-ascent of the math content.
+    let descent = base
+        .descent
+        .max(radical.glyph_ascent + radical.glyph_descent + radical.extra_ascender - ascent);
+    // The inline offsets of the msqrt base and overbar are also the same and equal to the width of the box metrics of
+    // the radical glyph.
+    let positions = base
+        .positions
+        .into_iter()
+        .map(|position| ChildPosition {
+            line_left_offset: position.line_left_offset + radical.glyph_advance,
+            ..position
+        })
+        .collect();
+    MathContent {
+        inline_size,
+        ascent,
+        descent,
+        positions,
+    }
+}
+
+// https://w3c.github.io/mathml-core/#root-with-index
+fn layout_root(base: &Child, index: &Child, radical: &RadicalMetrics, constants: &MathConstants) -> MathContent {
+    // The mroot index is first ignored and the mroot base and radical glyph are laid out as shown on figure using the
+    // same algorithm as in <msqrt> in order to produce a margin box B.
+    let b = layout_square_root(
+        MathContent {
+            inline_size: base.inline_size,
+            ascent: base.ascent,
+            descent: base.descent,
+            positions: vec![ChildPosition::default()],
+        },
+        radical,
+    );
+    let b_block_size = b.ascent + b.descent;
+    // NB: radicalKernBeforeDegree falls back to 5/18em, radicalKernAfterDegree to −10/18em and
+    //     radicalDegreeBottomRaisePercent to 0.6.
+    let kern_before_degree = constants.em.scaled(5.0 / 18.0);
+    let kern_after_degree = constants.em.scaled(-10.0 / 18.0);
+    let degree_bottom_raise = b_block_size.scaled(0.6);
+    // AdjustedRadicalKernBeforeDegree and AdjustedRadicalKernAfterDegree are respectively defined as
+    // max(0, RadicalKernBeforeDegree) and max(−inline size of the index's margin box, RadicalKernAfterDegree).
+    let adjusted_kern_before_degree = kern_before_degree.max(CssPixels::default());
+    let adjusted_kern_after_degree = kern_after_degree.max(-index.inline_size);
+    // The inline size of the math content is the sum of AdjustedRadicalKernBeforeDegree, the inline size of the
+    // index's margin box, AdjustedRadicalKernAfterDegree and of the inline size of B.
+    let inline_size = adjusted_kern_before_degree + index.inline_size + adjusted_kern_after_degree + b.inline_size;
+    // The alphabetic baseline of the index is shifted away from the line-under edge by a distance of
+    // RadicalDegreeBottomRaisePercent × the block size of B + the line-descent of the index's margin box.
+    let index_baseline_shift = b.descent - degree_bottom_raise - index.descent;
+    // NB: The line-ascent and line-descent of the math content are those of the union of B and the index.
+    let ascent = b.ascent.max(index.ascent - index_baseline_shift);
+    let descent = b.descent.max(index.descent + index_baseline_shift);
+    // The inline offset of the index is AdjustedRadicalKernBeforeDegree. The inline-offset of the mroot base is the
+    // same + the inline size of the index's margin box.
+    // NB: The base also follows the radical glyph and AdjustedRadicalKernAfterDegree.
+    let b_offset = adjusted_kern_before_degree + index.inline_size + adjusted_kern_after_degree;
+    MathContent {
+        inline_size,
+        ascent,
+        descent,
+        positions: vec![
+            ChildPosition {
+                line_left_offset: b_offset + b.positions[0].line_left_offset,
+                baseline_shift: CssPixels::default(),
+            },
+            ChildPosition {
+                line_left_offset: adjusted_kern_before_degree,
+                baseline_shift: index_baseline_shift,
+            },
+        ],
     }
 }
