@@ -64,6 +64,8 @@ public:
     bool VisitCXXMethodDecl(clang::CXXMethodDecl*);
     bool VisitCXXConstructExpr(clang::CXXConstructExpr*);
     bool VisitClassTemplateDecl(clang::ClassTemplateDecl*);
+    bool VisitVarDecl(clang::VarDecl*);
+    bool VisitCXXForRangeStmt(clang::CXXForRangeStmt*);
 
 private:
     struct CellMacroExpectation {
@@ -73,6 +75,7 @@ private:
 
     void validate_record_macros(clang::CXXRecordDecl const&);
     void validate_engine_subclass_is_in_libjs(clang::CXXRecordDecl const&);
+    void validate_object_on_stack(clang::VarDecl const&, clang::SourceLocation);
     CellMacroExpectation get_record_cell_macro_expectation(clang::CXXRecordDecl const&);
 
     clang::ASTContext& m_context;
