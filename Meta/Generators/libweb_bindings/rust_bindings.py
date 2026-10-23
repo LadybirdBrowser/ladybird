@@ -395,6 +395,7 @@ def write_parameter_conversions(
         unsupported = set(parameter.extended_attributes) - {
             "AllowShared",
             "AllowResizable",
+            "Clamp",
             "EnforceRange",
             "LegacyNullToEmptyString",
         }
@@ -402,7 +403,13 @@ def write_parameter_conversions(
             raise UnsupportedByRustBindings(f"{parameter_what} has the extended attributes {sorted(unsupported)}")
         name = rust_local_name(parameter.name)
         conversion = rust_to_idl_value(
-            parameter.type, parameter.extended_attributes, f"argument{index}", parameter.name, context, parameter_what
+            parameter.type,
+            parameter.extended_attributes,
+            f"argument{index}",
+            parameter.name,
+            context,
+            parameter_what,
+            is_parameter=True,
         )
         out.write(f"        let argument{index} = vm.argument({index});\n")
         if parameter.optional and parameter.default_value is not None:
@@ -569,8 +576,8 @@ def write_rust_interface(
 
     use ak::Utf16String;
     use libjs_rust::api::{{
-        ArrayBuffer, DataView, EmbedderClass, ErrorKind, ErrorType, FunctionObject, Gc, JSHostClass, Object,
-        PropertyKey, RawNativeFunctionResult, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm,
+        ArrayBuffer, DataView, EmbedderClass, ErrorKind, ErrorType, FunctionObject, Gc, JSHostClass, MarkedVec,
+        Object, PropertyKey, RawNativeFunctionResult, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm,
         is_host_instance_of, raw_native,
     }};
 
@@ -580,8 +587,9 @@ def write_rust_interface(
         sequence_to_js, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
         to_cpp_interface_in_union, to_dom_string,
         to_dom_string_treating_null_as_empty, to_double, to_float, to_long, to_long_enforcing_range, to_long_long,
-        to_long_long_enforcing_range, to_typed_array, to_unrestricted_double, to_unrestricted_float, to_unsigned_long,
-        to_unsigned_long_enforcing_range, to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string,
+        to_long_long_clamping, to_long_long_enforcing_range, to_typed_array, to_unrestricted_double,
+        to_unrestricted_float, to_unsigned_long, to_unsigned_long_enforcing_range, to_unsigned_long_long,
+        to_unsigned_long_long_enforcing_range, to_usv_string,
     }};
     use crate::bindings::interface::{{
         Inherits, Interface, Ref, Wrapped, cell_class, construct_arguments, construct_wrapper, create_dictionary_object,
@@ -1343,16 +1351,18 @@ pub(crate) mod definitions {
     use crate::bindings::CallContext;
     use crate::bindings::conversions::{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
-        dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface, iterator_method,
-        record_from_js, record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js, sequence_to_js,
-        throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
+        buffer_source_if, dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface,
+        iterator_method, record_from_js, record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js,
+        sequence_to_js, throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source,
+        to_cpp_interface,
         to_dom_string, to_dom_string_treating_null_as_empty, to_double, to_enumeration_value, to_float, to_long,
         to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_typed_array, to_unrestricted_double,
         to_unrestricted_float, to_unsigned_long, to_unsigned_long_enforcing_range, to_unsigned_long_long,
         to_unsigned_long_long_enforcing_range, to_usv_string,
     };
     use crate::bindings::interface::{
-        Interface, Ref, create_dictionary_object, implementation_of, set_dictionary_member, to_interface,
+        Interface, Ref, create_dictionary_object, implementation_if, implementation_of, set_dictionary_member,
+        to_interface,
     };
 """
     )

@@ -20,6 +20,7 @@ use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
+use ak::Utf16String;
 use libjs_rust::api::{RawNativeFunctionResult, ThrowCompletionOr, Value};
 
 use crate::bindings::interface::{Interface, allocate, cell_from_abi, realm_arguments, wrap};
@@ -30,10 +31,18 @@ unsafe extern "C" {
     fn web_bindings_serialize_u32(serialized: *mut c_void, value: u32);
     fn web_bindings_serialize_f64(serialized: *mut c_void, value: f64);
     fn web_bindings_serialize_bool(serialized: *mut c_void, value: bool);
+    fn web_bindings_serialize_i64(serialized: *mut c_void, value: i64);
+    fn web_bindings_serialize_utf16_string(serialized: *mut c_void, string: usize);
+    fn web_bindings_serialize_bytes(serialized: *mut c_void, bytes: ak::Span<'_, u8>);
     fn web_bindings_deserialize_value(serialized: *mut c_void) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_u32(serialized: *mut c_void, out_value: &mut u32) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_f64(serialized: *mut c_void, out_value: &mut f64) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_bool(serialized: *mut c_void, out_value: &mut bool) -> RawNativeFunctionResult;
+    fn web_bindings_deserialize_i64(serialized: *mut c_void, out_value: &mut i64) -> RawNativeFunctionResult;
+    fn web_bindings_deserialize_utf16_string(
+        serialized: *mut c_void,
+        out_string: &mut usize,
+    ) -> RawNativeFunctionResult;
     fn web_bindings_serialize_inline_object_header(serialized: *mut c_void, interface_name: u16);
     fn web_bindings_deserialize_inline_object_header(
         serialized: *mut c_void,
@@ -75,6 +84,21 @@ impl SerializationWriter<'_> {
     pub(crate) fn write_bool(&mut self, value: bool) {
         // SAFETY: The writer is lent for the steps.
         unsafe { web_bindings_serialize_bool(self.raw.as_ptr(), value) };
+    }
+
+    pub(crate) fn write_i64(&mut self, value: i64) {
+        // SAFETY: The writer is lent for the steps.
+        unsafe { web_bindings_serialize_i64(self.raw.as_ptr(), value) };
+    }
+
+    pub(crate) fn write_utf16_string(&mut self, string: &Utf16String) {
+        // SAFETY: The writer is lent for the steps, and the call borrows the string.
+        unsafe { web_bindings_serialize_utf16_string(self.raw.as_ptr(), string.raw_identity()) };
+    }
+
+    pub(crate) fn write_bytes(&mut self, bytes: &[u8]) {
+        // SAFETY: The writer is lent for the steps, and the call borrows the bytes.
+        unsafe { web_bindings_serialize_bytes(self.raw.as_ptr(), ak::Span::new(bytes)) };
     }
 
     /// Writes the record of a serializable object in place, as StructuredSerializeInternal writes it, but without
@@ -140,6 +164,21 @@ impl SerializationReader<'_> {
         // SAFETY: The reader is lent for the steps.
         unsafe { web_bindings_deserialize_bool(self.raw.as_ptr(), &mut value) }.into_completion()?;
         Ok(value)
+    }
+
+    pub(crate) fn read_i64(&mut self) -> WebIdlResult<i64> {
+        let mut value = 0;
+        // SAFETY: The reader is lent for the steps.
+        unsafe { web_bindings_deserialize_i64(self.raw.as_ptr(), &mut value) }.into_completion()?;
+        Ok(value)
+    }
+
+    pub(crate) fn read_utf16_string(&mut self) -> WebIdlResult<Utf16String> {
+        let mut string = 0;
+        // SAFETY: The reader is lent for the steps.
+        unsafe { web_bindings_deserialize_utf16_string(self.raw.as_ptr(), &mut string) }.into_completion()?;
+        // SAFETY: LibWeb hands over the string it read.
+        Ok(unsafe { Utf16String::from_raw_owned(string) })
     }
 }
 

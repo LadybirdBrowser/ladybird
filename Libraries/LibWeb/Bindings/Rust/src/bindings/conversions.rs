@@ -13,7 +13,7 @@ use std::borrow::Cow;
 
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
-    Array, ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, FunctionObject, Gc, Must, Object,
+    Array, ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, FunctionObject, Gc, MarkedVec, Must, Object,
     PrimitiveString, PropertyKey, Root, ThrowCompletionOr, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
     get_iterator_from_method_impl, get_view_byte_length, is_typed_array_out_of_bounds, is_view_out_of_bounds,
     iterator_step_value, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
@@ -229,7 +229,7 @@ fn to_integer_enforcing_range(vm: &Vm, value: Value, lower_bound: f64, upper_bou
 }
 
 /// The largest integer that a JS number represents unambiguously, the upper bound of a 64-bit integer type with
-/// [EnforceRange].
+/// [EnforceRange] or [Clamp].
 const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
 
 /// A JS value converted to a long with [EnforceRange], https://webidl.spec.whatwg.org/#js-long
@@ -269,6 +269,35 @@ pub(crate) fn to_long_long_enforcing_range(vm: &Vm, value: Value) -> ThrowComple
 )]
 pub(crate) fn to_unsigned_long_long_enforcing_range(vm: &Vm, value: Value) -> ThrowCompletionOr<u64> {
     Ok(to_integer_enforcing_range(vm, value, 0.0, MAX_SAFE_INTEGER)? as u64)
+}
+
+/// A JS value converted to an integer of the IDL type with [Clamp], whose bounds those are: steps 4, 5, 7 and 8 of
+/// https://webidl.spec.whatwg.org/#abstract-opdef-converttoint
+fn to_integer_clamping(vm: &Vm, value: Value, lower_bound: f64, upper_bound: f64) -> ThrowCompletionOr<f64> {
+    // 4. Let x be ? ToNumber(V).
+    // 5. If x is −0, then set x to +0.
+    let x = value.to_double(vm)? + 0.0;
+
+    // 7. If x is not NaN and the conversion is to an IDL type associated with the [Clamp] extended attribute, then:
+    if !x.is_nan() {
+        //     1. Set x to min(max(x, lowerBound), upperBound).
+        //     2. Round x to the nearest integer, choosing the even integer if it lies halfway between two, and
+        //        choosing +0 rather than −0.
+        //     3. Return x.
+        return Ok(x.clamp(lower_bound, upper_bound).round_ties_even() + 0.0);
+    }
+
+    // 8. If x is NaN, +0, +∞, or −∞, then return +0.
+    Ok(0.0)
+}
+
+/// A JS value converted to a long long with [Clamp], https://webidl.spec.whatwg.org/#js-long-long
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "the value is an integer within the bounds of the type"
+)]
+pub(crate) fn to_long_long_clamping(vm: &Vm, value: Value) -> ThrowCompletionOr<i64> {
+    Ok(to_integer_clamping(vm, value, -MAX_SAFE_INTEGER, MAX_SAFE_INTEGER)? as i64)
 }
 
 /// The number that https://webidl.spec.whatwg.org/#abstract-opdef-converttoint has after step 10 for a bit length of
@@ -472,7 +501,8 @@ fn check_buffer_of_buffer_source(
 }
 
 /// An IDL BufferSource value, https://webidl.spec.whatwg.org/#BufferSource
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Trace)]
+#[gc(crate = libjs_rust)]
 pub(crate) enum BufferSource {
     ArrayBuffer(Gc<ArrayBuffer>),
     DataView(Gc<DataView>),
@@ -630,40 +660,52 @@ impl ArrayBufferView {
 /// A JS value converted to a BufferSource, with the steps of the conversion to a union type that apply to the buffer
 /// source types, https://webidl.spec.whatwg.org/#js-union
 pub(crate) fn to_buffer_source(vm: &Vm, value: Value, rules: &BufferSourceRules) -> ThrowCompletionOr<BufferSource> {
-    if value.is_object() {
-        let object = value.as_object();
-
-        // 6. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is false, then:
-        //     1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
-        if let Some(buffer) = object.downcast::<ArrayBuffer>()
-            && !buffer.is_shared_array_buffer()
-        {
-            check_buffer_of_buffer_source(vm, &buffer, "ArrayBuffer", rules)?;
-            return Ok(BufferSource::ArrayBuffer(buffer));
-        }
-
-        // FIXME: 7. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is true,
-        //           then:
-
-        // 8. If V is an Object and V has a [[DataView]] internal slot, then:
-        //     1. If types includes DataView, then return the result of converting V to DataView.
-        if let Some(view) = object.downcast::<DataView>() {
-            check_buffer_of_buffer_source(vm, &view.viewed_array_buffer(), "DataView", rules)?;
-            return Ok(BufferSource::DataView(view));
-        }
-
-        // 9. If V is an Object and V has a [[TypedArrayName]] internal slot, then:
-        //     1. If types includes a typed array type whose name is the value of V's [[TypedArrayName]] internal slot,
-        //        then return the result of converting V to that type.
-        if let Some(typed_array) = object.downcast::<TypedArrayBase>() {
-            let type_name = format!("{:?}", typed_array.kind());
-            check_buffer_of_buffer_source(vm, &typed_array.viewed_array_buffer(), &type_name, rules)?;
-            return Ok(BufferSource::TypedArray(typed_array));
-        }
+    if value.is_object()
+        && let Some(buffer_source) = buffer_source_if(vm, value.as_object(), rules)?
+    {
+        return Ok(buffer_source);
     }
 
     // 20. Throw a TypeError.
     throw_no_union_types_matched(vm)
+}
+
+/// An object converted to a BufferSource if it is one, with the steps of the conversion to a union type that apply
+/// to the buffer source types, https://webidl.spec.whatwg.org/#js-union
+pub(crate) fn buffer_source_if(
+    vm: &Vm,
+    object: Gc<Object>,
+    rules: &BufferSourceRules,
+) -> ThrowCompletionOr<Option<BufferSource>> {
+    // 6. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is false, then:
+    //     1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
+    if let Some(buffer) = object.downcast::<ArrayBuffer>()
+        && !buffer.is_shared_array_buffer()
+    {
+        check_buffer_of_buffer_source(vm, &buffer, "ArrayBuffer", rules)?;
+        return Ok(Some(BufferSource::ArrayBuffer(buffer)));
+    }
+
+    // FIXME: 7. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is true,
+    //           then:
+
+    // 8. If V is an Object and V has a [[DataView]] internal slot, then:
+    //     1. If types includes DataView, then return the result of converting V to DataView.
+    if let Some(view) = object.downcast::<DataView>() {
+        check_buffer_of_buffer_source(vm, &view.viewed_array_buffer(), "DataView", rules)?;
+        return Ok(Some(BufferSource::DataView(view)));
+    }
+
+    // 9. If V is an Object and V has a [[TypedArrayName]] internal slot, then:
+    //     1. If types includes a typed array type whose name is the value of V's [[TypedArrayName]] internal slot,
+    //        then return the result of converting V to that type.
+    if let Some(typed_array) = object.downcast::<TypedArrayBase>() {
+        let type_name = format!("{:?}", typed_array.kind());
+        check_buffer_of_buffer_source(vm, &typed_array.viewed_array_buffer(), &type_name, rules)?;
+        return Ok(Some(BufferSource::TypedArray(typed_array)));
+    }
+
+    Ok(None)
 }
 
 /// A JS value converted to an ArrayBufferView, with the steps of the conversion to a union type that apply to the
@@ -704,13 +746,32 @@ pub(crate) fn throw_no_union_types_matched<T>(vm: &Vm) -> ThrowCompletionOr<T> {
     vm.throw_completion_with_message(ErrorKind::TypeError, "No union types matched".to_string())
 }
 
-/// A JS value converted to an IDL sequence, https://webidl.spec.whatwg.org/#js-sequence, with the conversion of its
-/// elements. The elements are in a Vec, which hides cells from the collector, so their type holds none.
-pub(crate) fn sequence_from_js<T>(
+/// Where an IDL sequence keeps its elements: a Vec, which hides cells from the collector, so its elements hold none,
+/// or a MarkedVec, which keeps them alive while the rest are converted and for as long as the sequence lives.
+pub(crate) trait SequenceStorage<T> {
+    fn append(&mut self, value: T);
+}
+
+impl<T> SequenceStorage<T> for Vec<T> {
+    fn append(&mut self, value: T) {
+        self.push(value);
+    }
+}
+
+impl<T: Trace + Clone + 'static> SequenceStorage<T> for MarkedVec<'_, T> {
+    fn append(&mut self, value: T) {
+        self.push(value);
+    }
+}
+
+/// A JS value converted to an IDL sequence in `sequence`, https://webidl.spec.whatwg.org/#js-sequence, with the
+/// conversion of its elements.
+pub(crate) fn sequence_from_js<T, S: SequenceStorage<T>>(
     vm: &Vm,
     value: Value,
+    sequence: S,
     element_from_js: impl FnMut(Value) -> ThrowCompletionOr<T>,
-) -> ThrowCompletionOr<Vec<T>> {
+) -> ThrowCompletionOr<S> {
     // 1. If V is not an Object, throw a TypeError.
     if !value.is_object() {
         return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
@@ -723,7 +784,7 @@ pub(crate) fn sequence_from_js<T>(
     };
 
     // 4. Return the result of creating a sequence from V and method.
-    sequence_from_iterable(vm, value, method, element_from_js)
+    sequence_from_iterable(vm, value, method, sequence, element_from_js)
 }
 
 /// ? GetMethod(V, %Symbol.iterator%), which decides whether a JS value converts to a sequence type.
@@ -731,27 +792,27 @@ pub(crate) fn iterator_method(vm: &Vm, value: Value) -> ThrowCompletionOr<Option
     value.get_method(vm, &PropertyKey::from(vm.well_known_symbols().iterator))
 }
 
-/// An IDL sequence created from an iterable and its iterator getter method,
+/// An IDL sequence in `sequence` created from an iterable and its iterator getter method,
 /// https://webidl.spec.whatwg.org/#create-sequence-from-iterable
-pub(crate) fn sequence_from_iterable<T>(
+pub(crate) fn sequence_from_iterable<T, S: SequenceStorage<T>>(
     vm: &Vm,
     iterable: Value,
     method: Gc<FunctionObject>,
+    mut sequence: S,
     mut element_from_js: impl FnMut(Value) -> ThrowCompletionOr<T>,
-) -> ThrowCompletionOr<Vec<T>> {
+) -> ThrowCompletionOr<S> {
     // 1. Let iteratorRecord be ? GetIteratorFromMethod(iterable, method).
     let iterator_record = get_iterator_from_method_impl(vm, iterable, method)?;
 
     // 2. Initialize i to be 0.
     // 3. Repeat
-    let mut sequence = Vec::new();
     //     1. Let next be ? IteratorStepValue(iteratorRecord).
     //     2. If next is done, then return an IDL sequence value of type sequence<T> of length i, where the value of the
     //        element at index j is Sj.
     while let Some(next) = iterator_step_value(vm, &iterator_record)? {
         //     3. Initialize Si to the result of converting next to an IDL value of type T.
         //     4. Set i to i + 1.
-        sequence.push(element_from_js(next)?);
+        sequence.append(element_from_js(next)?);
     }
     Ok(sequence)
 }
