@@ -436,41 +436,46 @@ void Geolocation::acquire_position_from_page(GC::Ref<WebIDL::CallbackType> succe
                 return;
             }
 
-            // FIXME: 6. If acquiring the position data from the system succeeds:
-            {
-                // FIXME: 1. Let positionData be a map with the following name/value pairs based on the acquired position data:
-                //    * longitude:
-                //        A double that represents the longitude coordinates on the Earth's surface in degrees, using
-                //        the [WGS84] coordinate system. Longitude measures how far east or west a point is from the
-                //        Prime Meridian.
-                //    * altitude:
-                //        A double? that represents the altitude in meters above the [WGS84] ellipsoid, or null if not
-                //        available. Altitude measures the height above sea level.
-                //    * accuracy:
-                //        A non-negative double that represents the accuracy value indicating the 95% confidence level
-                //        in meters. Accuracy measures how close the measured coordinates are to the true position.
-                //    * altitudeAccuracy:
-                //        A non-negative double? that represents the altitude accuracy, or null if not available,
-                //        indicating the 95% confidence level in meters. Altitude accuracy measures how close the
-                //        measured altitude is to the true altitude.
-                //    * speed:
-                //        A non-negative double? that represents the speed in meters per second, or null if not
-                //        available. Speed measures how fast the device is moving.
-                //    * heading:
-                //        A double? that represents the heading in degrees, or null if not available or the device is
-                //        stationary. Heading measures the direction in which the device is moving relative to true
-                //        north.
-                auto position_data = GC::Heap::the().allocate<GeolocationCoordinates>();
-                auto position = GC::Heap::the().allocate<GeolocationPosition>(position_data, acquisition_time, options.enable_high_accuracy);
+            // 6. If acquiring the position data from the system succeeds:
+            // 6.1. Let positionData be a map with the following name/value pairs based on the acquired position data:
+            //      * latitude:
+            //          A double that represents the latitude coordinates on the Earth's surface in degrees, using the
+            //          [WGS84] coordinate system. Latitude measures how far north or south a point is from the Equator.
+            //      * longitude:
+            //          A double that represents the longitude coordinates on the Earth's surface in degrees, using the
+            //          [WGS84] coordinate system. Longitude measures how far east or west a point is from the Prime
+            //          Meridian.
+            //      * altitude:
+            //          A double? that represents the altitude in meters above the [WGS84] ellipsoid, or null if not
+            //          available. Altitude measures the height above sea level.
+            //      * accuracy:
+            //          A non-negative double that represents the accuracy value indicating the 95% confidence level in
+            //          meters. Accuracy measures how close the measured coordinates are to the true position.
+            //      * altitudeAccuracy:
+            //          A non-negative double? that represents the altitude accuracy, or null if not available,
+            //          indicating the 95% confidence level in meters. Altitude accuracy measures how close the measured
+            //          altitude is to the true altitude.
+            //      * speed:
+            //          A non-negative double? that represents the speed in meters per second, or null if not available.
+            //          Speed measures how fast the device is moving.
+            //      * heading:
+            //          A double? that represents the heading in degrees, or null if not available or the device is
+            //          stationary. Heading measures the direction in which the device is moving relative to true north.
+            auto position_data = GC::Heap::the().allocate<GeolocationCoordinates>(result.get<CoordinatesData>());
 
-                // 3. Set this's [[cachedPosition]] to position.
-                m_cached_position = *position;
+            // 6.2. Set position to a new GeolocationPosition passing positionData, acquisitionTime and
+            //      options.enableHighAccuracy.
+            auto position = GC::Heap::the().allocate<GeolocationPosition>(position_data, acquisition_time, options.enable_high_accuracy);
 
-                // 8. Queue a task on the geolocation task source with a step that invokes successCallback with « position »
-                //    and "report".
-                queue_success_callback(success_callback, position);
-                stop_timeout_timer();
-            }
+            // 6.3. Set this's [[cachedPosition]] to position.
+            m_cached_position = *position;
+
+            // 7. Stop the timeout.
+            stop_timeout_timer();
+
+            // 8. Queue a task on the geolocation task source with a step that invokes successCallback with « position »
+            //    and "report".
+            queue_success_callback(success_callback, position);
         });
 
     request_state->request_id = page.request_geolocation_position(position_callback, watch_id.has_value() ? Page::GeolocationRequestType::Watch : Page::GeolocationRequestType::OneShot);
