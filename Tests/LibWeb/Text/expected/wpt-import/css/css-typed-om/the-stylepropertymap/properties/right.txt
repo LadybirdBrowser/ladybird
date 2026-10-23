@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 32 tests
 
-31 Pass
-1 Fail
+32 Pass
 Pass	Can set 'right' to CSS-wide keywords: initial
 Pass	Can set 'right' to CSS-wide keywords: inherit
 Pass	Can set 'right' to CSS-wide keywords: unset
@@ -13,7 +12,7 @@ Pass	Can set 'right' to the 'auto' keyword: auto
 Pass	Can set 'right' to a percent: 0%
 Pass	Can set 'right' to a percent: -3.14%
 Pass	Can set 'right' to a percent: 3.14%
-Fail	Can set 'right' to a percent: calc(0% + 0%)
+Pass	Can set 'right' to a percent: calc(0% + 0%)
 Pass	Can set 'right' to a length: 0px
 Pass	Can set 'right' to a length: -3.14em
 Pass	Can set 'right' to a length: 3.14cm

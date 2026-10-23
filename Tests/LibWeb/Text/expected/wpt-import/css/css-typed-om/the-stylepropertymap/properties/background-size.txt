@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 35 tests
 
-33 Pass
-2 Fail
+34 Pass
+1 Fail
 Pass	Can set 'background-size' to CSS-wide keywords: initial
 Pass	Can set 'background-size' to CSS-wide keywords: inherit
 Pass	Can set 'background-size' to CSS-wide keywords: unset
@@ -16,7 +16,7 @@ Pass	Can set 'background-size' to a length: calc(0px + 0em)
 Pass	Can set 'background-size' to a percent: 0%
 Fail	Can set 'background-size' to a percent: -3.14%
 Pass	Can set 'background-size' to a percent: 3.14%
-Fail	Can set 'background-size' to a percent: calc(0% + 0%)
+Pass	Can set 'background-size' to a percent: calc(0% + 0%)
 Pass	Can set 'background-size' to the 'auto' keyword: auto
 Pass	Can set 'background-size' to the 'cover' keyword: cover
 Pass	Can set 'background-size' to the 'contain' keyword: contain

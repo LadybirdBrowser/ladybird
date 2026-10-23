@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 72 tests
 
-58 Pass
-14 Fail
+60 Pass
+12 Fail
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: initial
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: inherit
 Pass	Can set 'grid-auto-columns' to CSS-wide keywords: unset
@@ -19,7 +19,7 @@ Pass	Can set 'grid-auto-columns' to a length: calc(0px + 0em)
 Pass	Can set 'grid-auto-columns' to a percent: 0%
 Fail	Can set 'grid-auto-columns' to a percent: -3.14%
 Pass	Can set 'grid-auto-columns' to a percent: 3.14%
-Fail	Can set 'grid-auto-columns' to a percent: calc(0% + 0%)
+Pass	Can set 'grid-auto-columns' to a percent: calc(0% + 0%)
 Fail	Can set 'grid-auto-columns' to a flexible length: 0fr
 Fail	Can set 'grid-auto-columns' to a flexible length: 1fr
 Pass	Setting 'grid-auto-columns' to a time: 0s throws TypeError
@@ -55,7 +55,7 @@ Pass	Can set 'grid-auto-rows' to a length: calc(0px + 0em)
 Pass	Can set 'grid-auto-rows' to a percent: 0%
 Fail	Can set 'grid-auto-rows' to a percent: -3.14%
 Pass	Can set 'grid-auto-rows' to a percent: 3.14%
-Fail	Can set 'grid-auto-rows' to a percent: calc(0% + 0%)
+Pass	Can set 'grid-auto-rows' to a percent: calc(0% + 0%)
 Fail	Can set 'grid-auto-rows' to a flexible length: 0fr
 Fail	Can set 'grid-auto-rows' to a flexible length: 1fr
 Pass	Setting 'grid-auto-rows' to a time: 0s throws TypeError

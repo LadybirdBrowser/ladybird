@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 31 tests
 
-29 Pass
-2 Fail
+30 Pass
+1 Fail
 Pass	Can set 'shape-margin' to CSS-wide keywords: initial
 Pass	Can set 'shape-margin' to CSS-wide keywords: inherit
 Pass	Can set 'shape-margin' to CSS-wide keywords: unset
@@ -16,7 +16,7 @@ Pass	Can set 'shape-margin' to a length: calc(0px + 0em)
 Pass	Can set 'shape-margin' to a percent: 0%
 Fail	Can set 'shape-margin' to a percent: -3.14%
 Pass	Can set 'shape-margin' to a percent: 3.14%
-Fail	Can set 'shape-margin' to a percent: calc(0% + 0%)
+Pass	Can set 'shape-margin' to a percent: calc(0% + 0%)
 Pass	Setting 'shape-margin' to a time: 0s throws TypeError
 Pass	Setting 'shape-margin' to a time: -3.14ms throws TypeError
 Pass	Setting 'shape-margin' to a time: 3.14s throws TypeError
