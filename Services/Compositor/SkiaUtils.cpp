@@ -29,9 +29,23 @@
 
 namespace Gfx {
 
+static_assert(to_underlying(PathVerb::Move) == to_underlying(SkPathVerb::kMove));
+static_assert(to_underlying(PathVerb::Line) == to_underlying(SkPathVerb::kLine));
+static_assert(to_underlying(PathVerb::Quad) == to_underlying(SkPathVerb::kQuad));
+static_assert(to_underlying(PathVerb::Conic) == to_underlying(SkPathVerb::kConic));
+static_assert(to_underlying(PathVerb::Cubic) == to_underlying(SkPathVerb::kCubic));
+static_assert(to_underlying(PathVerb::Close) == to_underlying(SkPathVerb::kClose));
+static_assert(sizeof(PathVerb) == sizeof(SkPathVerb));
+static_assert(sizeof(FloatPoint) == sizeof(SkPoint));
+
 SkPath to_skia_path(Path const& path)
 {
-    return static_cast<PathImplSkia const&>(path.impl()).sk_path();
+    auto data = path.data();
+    return SkPath::Raw(
+        { reinterpret_cast<SkPoint const*>(data.points.data()), data.points.size() },
+        { reinterpret_cast<SkPathVerb const*>(data.verbs.data()), data.verbs.size() },
+        { data.conic_weights.data(), data.conic_weights.size() },
+        to_skia_path_fill_type(data.winding_rule));
 }
 
 namespace {

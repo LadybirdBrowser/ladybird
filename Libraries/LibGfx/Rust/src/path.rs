@@ -350,8 +350,7 @@ pub struct OwnedPath {
 }
 
 // SAFETY: OwnedPath uniquely owns its Gfx::Path. Every operation on a shared reference is a const
-// query, which PathImplSkia makes safe to run concurrently by publishing its lazily built SkPath
-// with a compare-and-swap.
+// query, which only reads the path.
 unsafe impl Send for OwnedPath {}
 // SAFETY: See the Send implementation above.
 unsafe impl Sync for OwnedPath {}

@@ -14,7 +14,7 @@
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/PathSkia.h>
+#include <LibGfx/Path.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/WindingRule.h>
 #include <core/SkBlender.h>

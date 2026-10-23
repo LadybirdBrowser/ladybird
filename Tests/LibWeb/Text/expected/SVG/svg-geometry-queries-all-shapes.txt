@@ -1,16 +1,16 @@
 rect: length=240 point=(90, 10) fill=1011
-rect with rx and ry: length=228.42 point=(90, 19.03) fill=1011
-rect with percentage rx and auto ry: length=262.81 point=(116.89, 12.76) fill=1110
-rect with oversized ry and auto rx: length=198.62 point=(88.47, 36.31) fill=1010
+rect with rx and ry: length=228.44 point=(90, 19.04) fill=1011
+rect with percentage rx and auto ry: length=262.83 point=(116.9, 12.76) fill=1110
+rect with oversized ry and auto rx: length=198.65 point=(88.47, 36.3) fill=1010
 rect with zero width: length=0 fill=0000
-circle: length=125.61 point=(90, 67.32) fill=0100
-circle with percentages: length=99.21 point=(92.1, 63.68) fill=0100
+circle: length=125.66 point=(90, 67.32) fill=0100
+circle with percentages: length=99.25 point=(92.1, 63.68) fill=0100
 circle with zero r: length=0 fill=0000
-ellipse: length=193.74 point=(83.97, 68.32) fill=0100
-ellipse with percentages: length=193.74 point=(83.97, 68.32) fill=0100
-ellipse with auto rx: length=125.61 point=(90, 67.32) fill=0100
+ellipse: length=193.77 point=(83.97, 68.32) fill=0100
+ellipse with percentages: length=193.77 point=(83.97, 68.32) fill=0100
+ellipse with auto rx: length=125.66 point=(90, 67.32) fill=0100
 ellipse with auto radii: length=0 fill=0000
-ellipse with negative ry: length=188.46 point=(85, 75.98) fill=0100
+ellipse with negative ry: length=188.5 point=(85, 75.98) fill=0100
 line: length=100 point=(36.67, 40) fill=0000
 line with percentages: length=170.88 point=(73.33, 40) fill=0000
 polyline: length=130 point=(53.33, 10) fill=1001
@@ -21,11 +21,11 @@ path with evenodd fill: length=600 point=(100, 100) fill=0101
 path with nonzero fill: length=600 point=(100, 100) fill=1111
 path with d property: length=100 point=(30, 36.67) fill=0000
 path without d: length=0 fill=0000
-circle in viewBox: length=49.66 point=(46.05, 31.85) fill=1000
+circle in viewBox: length=49.68 point=(46.05, 31.85) fill=1000
 line in viewBox: length=111.8 point=(33.33, 16.67) fill=0100
-detached rect: length=91.37 point=(30, 7.61) fill=0001
-detached circle: length=62.81 point=(45, 38.66) fill=1000
-detached ellipse: length=96.85 point=(41.98, 39.16) fill=1000
+detached rect: length=91.42 point=(30, 7.62) fill=0001
+detached circle: length=62.83 point=(45, 38.66) fill=1000
+detached ellipse: length=96.88 point=(41.98, 39.16) fill=1000
 detached line: length=50 point=(10, 13.33) fill=0000
 detached polygon: length=224.34 point=(84.78, 10) fill=1001
 detached path: length=209.44 point=(79.81, 10) fill=1001
