@@ -45,6 +45,7 @@ enum class ChromeIcon;
 class DownloadsPopover;
 class ContentBlockingButton;
 class ContentBlockingPopover;
+class ReloadButton;
 class JavaScriptDialog;
 class MessagePopover;
 class WindowControlButton;
@@ -255,6 +256,8 @@ private:
     QAction* m_navigate_back_action { nullptr };
     QAction* m_navigate_forward_action { nullptr };
     QAction* m_reload_action { nullptr };
+    QAction* m_stop_action { nullptr };
+    ReloadButton* m_reload_button { nullptr };
     QAction* m_open_downloads_page_action { nullptr };
     Optional<ChromeIcon> m_downloads_button_icon;
     QString m_downloads_button_tooltip;
