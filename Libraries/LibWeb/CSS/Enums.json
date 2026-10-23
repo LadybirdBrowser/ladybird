@@ -1218,7 +1218,9 @@
   "try-tactic": [
     "flip-block",
     "flip-inline",
-    "flip-start"
+    "flip-start",
+    "flip-x",
+    "flip-y"
   ],
   "unicode-bidi": [
     "bidi-override",

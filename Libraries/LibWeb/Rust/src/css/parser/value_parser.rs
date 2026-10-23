@@ -2583,7 +2583,11 @@ fn parse_position_try_fallbacks_property(context: &ParseContext, values: &[Compo
                 if let Some(keyword) = value.ident().and_then(keyword_from_ascii_case_insensitive)
                     && matches!(
                         keyword,
-                        keyword::FLIP_BLOCK | keyword::FLIP_INLINE | keyword::FLIP_START
+                        keyword::FLIP_BLOCK
+                            | keyword::FLIP_INLINE
+                            | keyword::FLIP_START
+                            | keyword::FLIP_X
+                            | keyword::FLIP_Y
                     )
                 {
                     if dashed_ident.is_some() {

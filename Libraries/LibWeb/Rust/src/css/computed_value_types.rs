@@ -825,7 +825,7 @@ pub struct RetainedPositionAreaList {
 #[repr(C)]
 pub struct ComputedPositionTryFallback {
     pub name: crate::css::retained_fly_string::RetainedUtf16FlyString,
-    pub tactics: [u8; 3],
+    pub tactics: [u8; 5],
     pub tactic_count: usize,
     pub has_position_area: bool,
     pub position_area: RetainedPositionAreaList,
