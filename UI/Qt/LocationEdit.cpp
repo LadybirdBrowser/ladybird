@@ -486,8 +486,11 @@ void LocationEdit::focusOutEvent(QFocusEvent* event)
 void LocationEdit::update_focus_glow(int alpha)
 {
     m_focus_glow_alpha = alpha;
-    if (m_focus_glow_effect)
-        m_focus_glow_effect->setColor(location_focus_glow_color(alpha));
+    if (!m_focus_glow_effect)
+        return;
+    m_focus_glow_effect->setColor(location_focus_glow_color(alpha));
+    // NB: An enabled effect renders the edit offscreen and blurs it on every repaint, even when the glow is invisible.
+    m_focus_glow_effect->setEnabled(alpha > 0);
 }
 
 void LocationEdit::animate_focus_glow(int target_alpha)
