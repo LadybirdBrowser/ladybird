@@ -1,0 +1,4 @@
+parent: Shift_JIS
+no-declaration.html: Shift_JIS
+plain.txt: Shift_JIS
+text/plain blob: Shift_JIS
