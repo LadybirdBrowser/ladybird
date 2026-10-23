@@ -247,6 +247,14 @@ pub(crate) fn scrollbar_is_enlarged(arena: &impl PaintRead, slot: NodeSlotId, di
     arena.paintable_data(slot).has_flag(flag)
 }
 
+pub(crate) fn scrollbar_is_hidden(arena: &impl PaintRead, slot: NodeSlotId, direction: ScrollDirection) -> bool {
+    let flag = match direction {
+        ScrollDirection::Horizontal => PaintableFlag::HorizontalScrollbarHidden,
+        ScrollDirection::Vertical => PaintableFlag::VerticalScrollbarHidden,
+    };
+    arena.paintable_data(slot).has_flag(flag)
+}
+
 pub(crate) struct ChromeGeometry<'a, Arena: PaintRead> {
     pub(crate) arena: &'a Arena,
     pub(crate) metrics: FfiChromeMetrics,

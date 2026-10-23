@@ -340,6 +340,7 @@ private:
     ContextPresenter::FrameContent frame_content(Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, CompositedContextResolver const*) const;
     Gfx::IntRect damage_rect_of_blinking_carets();
     Gfx::IntRect update_scrollbar_visibility();
+    void report_scrollbar_visibility_changes();
 
     CompositorStateWebContentClient& m_web_content_client;
     Web::CompositorContextId m_context_id;

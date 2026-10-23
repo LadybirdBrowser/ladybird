@@ -5,7 +5,7 @@
  */
 
 use super::*;
-use crate::painting::chrome_geometry::{ChromeGeometry, scrollbar_is_enlarged};
+use crate::painting::chrome_geometry::{ChromeGeometry, scrollbar_is_enlarged, scrollbar_is_hidden};
 use crate::painting::ffi::ScrollDirection;
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::paint_read::PaintRead;
@@ -139,9 +139,11 @@ impl HitTestList {
                         } else {
                             ScrollDirection::Vertical
                         };
-                        chrome_geometry
-                            .absolute_scrollbar_rect(node, direction, scrollbar_is_enlarged(rows, node, direction))
-                            .is_some_and(|rect| rect.contains_point(local_point))
+                        // An overlay scrollbar that has faded out takes no pointer input, as in Chromium.
+                        !scrollbar_is_hidden(rows, node, direction)
+                            && chrome_geometry
+                                .absolute_scrollbar_rect(node, direction, scrollbar_is_enlarged(rows, node, direction))
+                                .is_some_and(|rect| rect.contains_point(local_point))
                     }
                     _ => false,
                 }

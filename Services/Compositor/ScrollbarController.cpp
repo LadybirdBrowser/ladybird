@@ -198,7 +198,8 @@ Optional<ScrollbarController::Drag> ScrollbarController::begin_drag(Compositing:
     auto scrollbar_index = hit_test_scrollbar_painted_by_compositor(async_scroll_tree, scroll_state_snapshot, position);
     if (!scrollbar_index.has_value())
         scrollbar_index = hit_test_scrollbar_painted_by_display_list(async_scroll_tree, visual_context_tree, scroll_state_snapshot, position);
-    if (!scrollbar_index.has_value())
+    // A scrollbar that has faded out takes no press, as in Chromium.
+    if (!scrollbar_index.has_value() || opacity(*scrollbar_index) <= 0)
         return {};
 
     auto const& scrollbar = m_scrollbars[*scrollbar_index];
@@ -363,6 +364,21 @@ Optional<MonotonicTime> ScrollbarController::next_fade_out_time() const
             next_fade_out_time = visibility.fade_out_time;
     }
     return next_fade_out_time;
+}
+
+Vector<Web::OverlayScrollbarVisibility> ScrollbarController::take_visibility_changes()
+{
+    Vector<Web::OverlayScrollbarVisibility> changes;
+    for (size_t i = 0; i < m_scrollbars.size(); ++i) {
+        auto const& scrollbar = m_scrollbars[i];
+        auto& visibility = m_visibilities[i];
+        auto hidden = opacity(i) <= 0;
+        if (!scrollbar.scroller_stable_node_id.has_value() || hidden == visibility.reported_hidden)
+            continue;
+        visibility.reported_hidden = hidden;
+        changes.append({ .scroller_stable_node_id = *scrollbar.scroller_stable_node_id, .vertical = scrollbar.vertical, .hidden = hidden });
+    }
+    return changes;
 }
 
 bool ScrollbarController::fades_need_frame(MonotonicTime now) const

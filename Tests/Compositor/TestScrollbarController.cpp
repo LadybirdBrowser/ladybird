@@ -10,6 +10,18 @@
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibTest/TestCase.h>
 
+// A scroll shows the scrollbars, which only take a press while shown. Scrolling back leaves them where they started.
+static void show_scrollbars_by_scrolling_away_and_back(Compositor::ScrollbarController& controller, Compositing::SpatialNodeIndex scroll_node_index)
+{
+    Compositing::ScrollStateSnapshot scroll_state_snapshot;
+    auto now = MonotonicTime::now();
+    (void)controller.update_visibility(nullptr, scroll_state_snapshot, now);
+    scroll_state_snapshot.set_device_offset_for_index(scroll_node_index, { 1, 1 });
+    (void)controller.update_visibility(nullptr, scroll_state_snapshot, now);
+    scroll_state_snapshot.set_device_offset_for_index(scroll_node_index, { 0, 0 });
+    (void)controller.update_visibility(nullptr, scroll_state_snapshot, now);
+}
+
 static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position, Optional<Gfx::IntRect> expanded_thumb_rect = {})
 {
     auto vertical = orientation == Gfx::Orientation::Vertical;
@@ -72,6 +84,7 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
 
     Compositor::ScrollbarController controller;
     controller.set_scrollbars(scrollbars);
+    show_scrollbars_by_scrolling_away_and_back(controller, scroll_node_index);
     auto drag = controller.begin_drag(scroll_tree, visual_context_tree, scroll_state_snapshot, position);
     VERIFY(drag.has_value());
     return drag.release_value();
@@ -364,4 +377,38 @@ TEST_CASE(press_beside_thumb_pages_toward_pointer_until_thumb_reaches_it)
     EXPECT_EQ(controller.paging_direction(0, 60, { 0, 0 }), 1);
     EXPECT_EQ(controller.paging_direction(0, 60, { 0, 30 }), 0);
     EXPECT_EQ(controller.paging_direction(0, 60, { 0, 60 }), -1);
+}
+
+TEST_CASE(scrollbar_that_has_faded_out_is_reported_hidden)
+{
+    Compositor::ScrollbarController controller;
+    controller.set_scrollbars({ scrollbar_painted_by_display_list() });
+    Compositing::ScrollStateSnapshot scroll_state_snapshot;
+    auto visual_context_tree = visual_context_tree_with_scroller();
+    auto start = MonotonicTime::now();
+
+    // A scrollbar starts out hidden, which the main thread hears once.
+    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    auto changes = controller.take_visibility_changes();
+    EXPECT_EQ(changes.size(), 1u);
+    EXPECT(changes[0].vertical);
+    EXPECT(changes[0].hidden);
+    EXPECT(controller.take_visibility_changes().is_empty());
+
+    // A scroll shows it.
+    scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 10 });
+    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    changes = controller.take_visibility_changes();
+    EXPECT_EQ(changes.size(), 1u);
+    EXPECT(!changes[0].hidden);
+
+    // It is still shown while it fades out, and hidden once it has.
+    auto shown_until = start + Compositor::ScrollbarController::shown_duration_after_activity;
+    (void)controller.advance_fades(visual_context_tree, scroll_state_snapshot, shown_until);
+    (void)controller.advance_fades(visual_context_tree, scroll_state_snapshot, shown_until + half_fade_duration);
+    EXPECT(controller.take_visibility_changes().is_empty());
+    (void)controller.advance_fades(visual_context_tree, scroll_state_snapshot, shown_until + Compositing::OverlayFade::duration);
+    changes = controller.take_visibility_changes();
+    EXPECT_EQ(changes.size(), 1u);
+    EXPECT(changes[0].hidden);
 }

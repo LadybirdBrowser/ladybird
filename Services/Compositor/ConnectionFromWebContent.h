@@ -100,6 +100,7 @@ private:
     virtual void pointer_moved(Web::CompositorContextId, Web::DevicePixelPoint, u32 buttons, bool scrolled_since_frame, u64 input_event_id) override;
     virtual void pointer_left(Web::CompositorContextId, u64 input_event_id) override;
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) override;
+    virtual void overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> const&) override;
     virtual void create_video_edge(Media::VideoSinkHandle) override;
     virtual void release_video_edge(Media::VideoSinkHandle) override;
     virtual void video_sink_presented_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>, Media::DisplayingVideoSinkFrameCounts) override;

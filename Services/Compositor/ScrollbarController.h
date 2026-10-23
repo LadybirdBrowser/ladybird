@@ -76,6 +76,9 @@ public:
     Gfx::IntRect update_visibility(Compositing::AccumulatedVisualContextTree const*, Compositing::ScrollStateSnapshot const&, MonotonicTime now);
     // When the next scrollbar starts to fade out.
     Optional<MonotonicTime> next_fade_out_time() const;
+    // The scrollbars that faded out or were shown again since the last call. The main thread hit tests the scrollbars
+    // too, and passes by the ones that have faded out.
+    Vector<Web::OverlayScrollbarVisibility> take_visibility_changes();
     bool fades_need_frame(MonotonicTime now) const;
     // Returns the rect in the viewport of the scrollbars whose opacity or geometry changed.
     Gfx::IntRect advance_fades(Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, MonotonicTime frame_time);
@@ -111,6 +114,8 @@ private:
         Optional<MonotonicTime> fade_out_time;
         // How far the scrollbar has grown from its thin geometry to its expanded one.
         Compositing::OverlayFade expansion;
+        // Whether the main thread was last told that the scrollbar has faded out.
+        bool reported_hidden { false };
     };
 
     bool is_expanded(size_t scrollbar_index) const;

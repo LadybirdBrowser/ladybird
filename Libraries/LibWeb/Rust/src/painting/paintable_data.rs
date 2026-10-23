@@ -16,6 +16,8 @@ pub enum PaintableFlag {
     HasNonInvertibleCssTransform = 1 << 0,
     HorizontalScrollbarEnlarged = 1 << 1,
     VerticalScrollbarEnlarged = 1 << 2,
+    HorizontalScrollbarHidden = 1 << 3,
+    VerticalScrollbarHidden = 1 << 4,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

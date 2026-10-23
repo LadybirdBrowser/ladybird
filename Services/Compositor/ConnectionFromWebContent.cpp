@@ -151,6 +151,11 @@ void ConnectionFromWebContent::async_scroll_updates(Web::CompositorContextId con
     async_async_scroll_updates(context_id, updates);
 }
 
+void ConnectionFromWebContent::overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> const& visibilities)
+{
+    async_overlay_scrollbar_visibilities_changed(visibilities);
+}
+
 void ConnectionFromWebContent::dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const& event)
 {
     async_mouse_event(page_id, event);

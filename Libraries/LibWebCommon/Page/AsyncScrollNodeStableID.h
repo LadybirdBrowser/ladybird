@@ -48,6 +48,15 @@ struct ScrollbarDraggedByCompositor {
     bool operator==(ScrollbarDraggedByCompositor const&) const = default;
 };
 
+// Whether an overlay scrollbar that the compositor fades has faded out, so that it takes no pointer input.
+struct OverlayScrollbarVisibility {
+    AsyncScrollNodeStableID scroller_stable_node_id;
+    bool vertical { false };
+    bool hidden { false };
+
+    bool operator==(OverlayScrollbarVisibility const&) const = default;
+};
+
 }
 
 template<>
@@ -75,5 +84,10 @@ template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::ScrollbarDraggedByCompositor const&);
 template<>
 WEBCOMMON_API ErrorOr<Web::ScrollbarDraggedByCompositor> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::OverlayScrollbarVisibility const&);
+template<>
+WEBCOMMON_API ErrorOr<Web::OverlayScrollbarVisibility> decode(Decoder&);
 
 }
