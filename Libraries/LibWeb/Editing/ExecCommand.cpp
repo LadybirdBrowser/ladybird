@@ -526,9 +526,9 @@ WebIDL::ExceptionOr<Utf16String> Document::query_command_value(Utf16FlyString co
     if (!optional_command.has_value())
         return Utf16String {};
     auto const& command_definition = optional_command.release_value();
-    auto value_override = command_value_override(command_definition.command);
-    if (!command_definition.value && !value_override.has_value())
+    if (!command_definition.value)
         return Utf16String {};
+    auto value_override = command_value_override(command_definition.command);
 
     // 2. If command is "fontSize" and its value override is set, convert the value override to an
     //    integer number of pixels and return the legacy font size for the result.
