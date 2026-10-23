@@ -889,6 +889,14 @@
   ],
   "pointer-events": [
     "auto",
+    "bounding-box",
+    "visiblepainted",
+    "visiblefill",
+    "visiblestroke",
+    "visible",
+    "painted",
+    "fill",
+    "stroke",
     "all",
     "none"
   ],
