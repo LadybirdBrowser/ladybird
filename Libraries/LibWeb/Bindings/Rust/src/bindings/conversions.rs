@@ -13,8 +13,8 @@ use std::borrow::Cow;
 
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
-    Array, ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, FunctionObject, Gc, Object, PrimitiveString,
-    PropertyKey, Root, ThrowCompletionOr, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
+    Array, ArrayBuffer, ArrayBufferOrder, DataView, ErrorKind, ErrorType, FunctionObject, Gc, Must, Object,
+    PrimitiveString, PropertyKey, Root, ThrowCompletionOr, Trace, TypedArrayBase, TypedArrayKind, Value, Vm,
     get_iterator_from_method_impl, get_view_byte_length, is_typed_array_out_of_bounds, is_view_out_of_bounds,
     iterator_step_value, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
     to_well_formed, typed_array_byte_length,
@@ -26,7 +26,7 @@ use crate::bindings::interface::{Interface, Ref, create_dictionary_object, wrap}
 use crate::bindings::services::web_bindings_object_implements_interface;
 
 /// A USVString, a string without lone surrogates. Its UTF-16 code units are always well-formed.
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) struct UsvString(Utf16String);
 
 impl UsvString {
@@ -746,6 +746,60 @@ pub(crate) fn sequence_from_iterable<T>(
     Ok(sequence)
 }
 
+/// A JS value converted to an IDL record, https://webidl.spec.whatwg.org/#js-record, with the conversions of its keys
+/// and values. The entries are in a Vec in the order of the record, which hides cells from the collector, so their
+/// types hold none.
+pub(crate) fn record_from_js<K: PartialEq, V>(
+    vm: &Vm,
+    value: Value,
+    mut key_from_js: impl FnMut(Value) -> ThrowCompletionOr<K>,
+    mut value_from_js: impl FnMut(Value) -> ThrowCompletionOr<V>,
+) -> ThrowCompletionOr<Vec<(K, V)>> {
+    // 1. If O is not an Object, throw a TypeError.
+    if !value.is_object() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+    }
+    let object = value.as_object();
+
+    // 2. Let result be a new empty instance of record<K, V>.
+    let mut result: Vec<(K, V)> = Vec::new();
+
+    // 3. Let keys be ? O.[[OwnPropertyKeys]]().
+    let keys = object.internal_own_property_keys(vm)?;
+
+    // 4. For each key of keys:
+    for index in 0..keys.len() {
+        let key = keys.get(index).expect("the index is in bounds");
+        let property_key = PropertyKey::from_value(vm, key).must();
+
+        // 1. Let desc be ? O.[[GetOwnProperty]](key).
+        let descriptor = object.internal_get_own_property(vm, &property_key)?;
+
+        // 2. If desc is not undefined and desc.[[Enumerable]] is true:
+        if !descriptor.is_some_and(|descriptor| descriptor.enumerable == Some(true)) {
+            continue;
+        }
+
+        // 1. Let typedKey be key converted to an IDL value of type K.
+        let typed_key = key_from_js(key)?;
+
+        // 2. Let value be ? Get(O, key).
+        let value = object.get(vm, &property_key)?;
+
+        // 3. Let typedValue be value converted to an IDL value of type V.
+        let typed_value = value_from_js(value)?;
+
+        // 4. Set result[typedKey] to typedValue.
+        match result.iter_mut().find(|(existing_key, _)| *existing_key == typed_key) {
+            Some(entry) => entry.1 = typed_value,
+            None => result.push((typed_key, typed_value)),
+        }
+    }
+
+    // 5. Return result.
+    Ok(result)
+}
+
 /// The types of the IDL definitions that a JS value converts to, with the conversions that the generated bindings
 /// write for them.
 pub(crate) trait FromJs: Sized {
@@ -940,6 +994,26 @@ pub(crate) fn to_cpp_interface(
     }
     // 2. Throw a TypeError.
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&name])
+}
+
+/// A JS value converted to a union of interfaces that LibWeb implements in C++, which the values of their
+/// Web::Bindings::InterfaceName name, https://webidl.spec.whatwg.org/#js-union
+pub(crate) fn to_cpp_interface_in_union(
+    vm: &Vm,
+    value: Value,
+    interface_names: &[u16],
+) -> ThrowCompletionOr<CppInterface> {
+    // 5. If V is a platform object, then:
+    //     1. If types includes an interface type that V implements, then return the IDL value that is a reference to
+    //        the object V.
+    if value.is_object()
+        && interface_names
+            .iter()
+            .any(|interface_name| implements_cpp_interface(value.as_object(), *interface_name))
+    {
+        return Ok(CppInterface(value.as_object()));
+    }
+    throw_no_union_types_matched(vm)
 }
 
 /// https://webidl.spec.whatwg.org/#js-interface

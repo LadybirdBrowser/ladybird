@@ -23,12 +23,12 @@ pub use crate::layout::host_class::JSHostClass;
 pub use crate::layout::value::Value;
 pub use crate::layout_forward::{RawNativeFunctionPointer, RawNativeFunctionResult};
 pub use crate::raw_native;
-pub use crate::runtime::abstract_operations::get_function_realm;
+pub use crate::runtime::abstract_operations::{call, get_function_realm};
 pub use crate::runtime::array::Array;
 pub use crate::runtime::array_buffer::{
     ArrayBuffer, DataBlock, Order as ArrayBufferOrder, Shared as ArrayBufferShared,
 };
-pub use crate::runtime::completion::{Throw, ThrowCompletionOr};
+pub use crate::runtime::completion::{Must, Throw, ThrowCompletionOr};
 pub use crate::runtime::data_view::{
     DataView, DataViewWithBufferWitness, get_view_byte_length, is_view_out_of_bounds,
     make_data_view_with_buffer_witness_record,
@@ -36,7 +36,7 @@ pub use crate::runtime::data_view::{
 pub use crate::runtime::error::ErrorKind;
 pub use crate::runtime::error_types::ErrorType;
 pub use crate::runtime::intrinsics::Intrinsics;
-pub use crate::runtime::iterator::{get_iterator_from_method_impl, iterator_step_value};
+pub use crate::runtime::iterator::{create_iterator_result_object, get_iterator_from_method_impl, iterator_step_value};
 pub use crate::runtime::native_function::RawNativeFunction;
 pub use crate::runtime::object::Object;
 pub use crate::runtime::primitive_string::PrimitiveString;

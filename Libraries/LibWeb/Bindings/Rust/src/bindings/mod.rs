@@ -18,6 +18,7 @@ pub(crate) mod conversions;
 #[cfg(web_idl_bindings)]
 pub(crate) mod generated;
 pub(crate) mod interface;
+pub(crate) mod iterable;
 pub(crate) mod realm_data;
 pub(crate) mod services;
 pub(crate) mod structured_data;
