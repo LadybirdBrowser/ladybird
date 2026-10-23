@@ -86,6 +86,11 @@ public:
     WebContentView& view() { return *m_view; }
     WebContentView const& view() const { return *m_view; }
 
+    // A page that has never had a real size must be sized while hidden, so that it doesn't load into Qt's placeholder
+    // geometry. Once it has had one, it keeps its size while hidden and takes the window's when it is shown again.
+    bool has_had_real_size() const { return m_has_had_real_size; }
+    void did_get_real_size() { m_has_had_real_size = true; }
+
     void navigate(URL::URL const&);
     void load_html(StringView);
 
@@ -229,6 +234,7 @@ private:
     QIcon m_favicon;
     QTimer* m_loading_animation_timer { nullptr };
     bool m_is_loading { false };
+    bool m_has_had_real_size { false };
     bool m_is_updating_chrome_style { false };
     bool m_vertical_tabs_enabled { false };
     WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };
