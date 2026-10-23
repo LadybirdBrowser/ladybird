@@ -82,6 +82,12 @@ if (APPLE)
     )
 endif()
 
+if (WIN32)
+    list(APPEND SOURCES
+        WindowsMediaFoundation/WindowsMediaFoundationAudioDecoder.cpp
+    )
+endif()
+
 compile_ipc(VideoPresentation/VideoPresentationClient.ipc VideoPresentation/VideoPresentationClientEndpoint.h)
 compile_ipc(VideoPresentation/VideoPresentationServer.ipc VideoPresentation/VideoPresentationServerEndpoint.h)
 
@@ -91,6 +97,10 @@ target_link_libraries(LibMedia PUBLIC LibAudio LibMediaCodecs)
 
 if (APPLE)
     target_link_libraries(LibMedia PRIVATE "-framework AudioToolbox")
+endif()
+
+if (WIN32)
+    target_link_libraries(LibMedia PRIVATE mfplat mfuuid)
 endif()
 
 target_sources(LibMedia PRIVATE

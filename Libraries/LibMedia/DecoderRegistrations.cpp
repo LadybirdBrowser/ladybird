@@ -15,6 +15,9 @@
 #ifdef AK_OS_LINUX
 #    include <LibMedia/FFmpeg/SystemFFmpegDecoders.h>
 #endif
+#ifdef AK_OS_WINDOWS
+#    include <LibMedia/WindowsMediaFoundation/WindowsMediaFoundationAudioDecoder.h>
+#endif
 
 namespace Media {
 
@@ -59,11 +62,21 @@ static DecoderErrorOr<NonnullOwnPtr<AudioDecoder>> create_audiotoolbox_audio_dec
 }
 #endif
 
+#ifdef AK_OS_WINDOWS
+static DecoderErrorOr<NonnullOwnPtr<AudioDecoder>> create_windows_media_foundation_audio_decoder(CodecID codec_id, Audio::SampleSpecification const& sample_specification, ReadonlyBytes codec_initialization_data)
+{
+    return NonnullOwnPtr<AudioDecoder> { TRY(WindowsMediaFoundation::WindowsMediaFoundationAudioDecoder::try_create(codec_id, sample_specification, codec_initialization_data)) };
+}
+#endif
+
 ReadonlySpan<AudioDecoderRegistration> audio_decoders()
 {
     static constexpr Array decoders {
 #ifdef AK_OS_MACOS
         AudioDecoderRegistration { AudioToolbox::AudioToolboxAudioDecoder::capabilities, create_audiotoolbox_audio_decoder },
+#endif
+#ifdef AK_OS_WINDOWS
+        AudioDecoderRegistration { WindowsMediaFoundation::WindowsMediaFoundationAudioDecoder::capabilities, create_windows_media_foundation_audio_decoder },
 #endif
         AudioDecoderRegistration { FFmpeg::FFmpegAudioDecoder::capabilities, create_ffmpeg_audio_decoder },
 #ifdef AK_OS_LINUX
