@@ -94,10 +94,15 @@ JSCompletion web_bindings_serialize_value(RustSerializationWriter*, JSValue);
 void web_bindings_serialize_u32(RustSerializationWriter*, u32);
 void web_bindings_serialize_f64(RustSerializationWriter*, double);
 void web_bindings_serialize_bool(RustSerializationWriter*, bool);
+void web_bindings_serialize_i64(RustSerializationWriter*, i64);
+void web_bindings_serialize_utf16_string(RustSerializationWriter*, FlatPtr string);
+void web_bindings_serialize_bytes(RustSerializationWriter*, ReadonlyBytes);
 JSCompletion web_bindings_deserialize_value(RustSerializationReader*);
 JSCompletion web_bindings_deserialize_u32(RustSerializationReader*, u32* out_value);
 JSCompletion web_bindings_deserialize_f64(RustSerializationReader*, double* out_value);
 JSCompletion web_bindings_deserialize_bool(RustSerializationReader*, bool* out_value);
+JSCompletion web_bindings_deserialize_i64(RustSerializationReader*, i64* out_value);
+JSCompletion web_bindings_deserialize_utf16_string(RustSerializationReader*, FlatPtr* out_string);
 void web_bindings_serialize_inline_object_header(RustSerializationWriter*, u16 interface_name);
 JSCompletion web_bindings_deserialize_inline_object_header(RustSerializationReader*, u16 interface_name);
 
@@ -186,6 +191,21 @@ void web_bindings_serialize_bool(RustSerializationWriter* writer, bool value)
     writer->serialized.encode(value);
 }
 
+void web_bindings_serialize_i64(RustSerializationWriter* writer, i64 value)
+{
+    writer->serialized.encode(value);
+}
+
+void web_bindings_serialize_utf16_string(RustSerializationWriter* writer, FlatPtr string)
+{
+    writer->serialized.encode(Utf16String::from_raw(string));
+}
+
+void web_bindings_serialize_bytes(RustSerializationWriter* writer, ReadonlyBytes bytes)
+{
+    writer->serialized.encode(bytes);
+}
+
 // StructuredDeserialize of a value that the serialized form of an object holds, https://html.spec.whatwg.org/multipage/structured-data.html#sub-deserialization
 JSCompletion web_bindings_deserialize_value(RustSerializationReader* reader)
 {
@@ -205,6 +225,19 @@ JSCompletion web_bindings_deserialize_f64(RustSerializationReader* reader, doubl
 JSCompletion web_bindings_deserialize_bool(RustSerializationReader* reader, bool* out_value)
 {
     return deserialize_plain_value(reader, out_value);
+}
+
+JSCompletion web_bindings_deserialize_i64(RustSerializationReader* reader, i64* out_value)
+{
+    return deserialize_plain_value(reader, out_value);
+}
+
+JSCompletion web_bindings_deserialize_utf16_string(RustSerializationReader* reader, FlatPtr* out_string)
+{
+    Utf16String string;
+    auto result = deserialize_plain_value(reader, &string);
+    *out_string = move(string).into_raw();
+    return result;
 }
 
 // The record of a serializable object of the interface as StructuredSerializeInternal starts it, for an object that

@@ -41,7 +41,13 @@ TYPED_ARRAY_NAMES = {
 }
 
 # The extended attributes of a type or a parameter that the Rust bindings handle.
-SUPPORTED_TYPE_EXTENDED_ATTRIBUTES = {"AllowShared", "AllowResizable", "EnforceRange", "LegacyNullToEmptyString"}
+SUPPORTED_TYPE_EXTENDED_ATTRIBUTES = {
+    "AllowShared",
+    "AllowResizable",
+    "Clamp",
+    "EnforceRange",
+    "LegacyNullToEmptyString",
+}
 
 # The integer types, with the Rust type of their values.
 INTEGER_TYPES = {"long": "i32", "unsigned long": "u32", "long long": "i64", "unsigned long long": "u64"}
@@ -169,6 +175,13 @@ def rust_interface_path(interface: Interface) -> str:
     return f"{rust_module_path(interface.path)}::{interface.name}"
 
 
+def rust_any_interface_path(interface: Interface) -> str:
+    """The Rust path of the enum of an object of an interface that others inherit from, which is an object of the
+    interface or of any of those, with a variant for each that is named after its interface:
+    crate::file_api::blob::AnyBlob for FileAPI/Blob.idl."""
+    return f"{rust_module_path(interface.path)}::Any{interface.name}"
+
+
 def rust_dictionary_path(dictionary: Dictionary, context: GenerationContext) -> str:
     """The Rust path of the struct of a dictionary, which is in the module of the IDL file that defines the
     dictionary: crate::encoding::text_encoder::TextEncoderEncodeIntoResult."""
@@ -274,6 +287,18 @@ def runtime_union_type(idl_type: IDLType, context: GenerationContext) -> Optiona
     return None
 
 
+def union_member_types(idl_type: IDLUnionType, context: GenerationContext) -> List[IDLType]:
+    """The flattened member types of the union, except that a union the bindings runtime has a type for is one
+    member, as BufferSource is in (BufferSource or Blob or USVString)."""
+    member_types: List[IDLType] = []
+    for member_type in idl_type.member_types:
+        if isinstance(member_type, IDLUnionType) and runtime_union_type(member_type, context) is None:
+            member_types.extend(union_member_types(member_type, context))
+        else:
+            member_types.append(member_type)
+    return member_types
+
+
 def member_other_than_undefined(idl_type: IDLType) -> Optional[IDLType]:
     """The other member of a union of a type and undefined, whose IDL values are those of the type or nothing."""
     if not isinstance(idl_type, IDLUnionType) or idl_type.nullable or len(idl_type.member_types) != 2:
@@ -373,10 +398,7 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
         if inheriting_interfaces(interface, context) and not is_result:
             # NB: An object of such a type is a cell of any of several classes, which Ref<T> cannot express. An object
             #     that an implementation returns is one of exactly the interface, whose cell it created.
-            raise UnsupportedByRustBindings(
-                f"{what} has the type {idl_type}, an interface that others inherit from, which the Rust bindings do "
-                "not convert yet"
-            )
+            return rust_any_interface_path(interface)
         return f"Ref<{rust_interface_path(interface)}>"
     if cpp_interface(idl_type, context) is not None or is_unnamed_union_of_cpp_interfaces(idl_type, context):
         return "CppInterface"
@@ -393,7 +415,7 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
     if optional_member is not None:
         return f"Option<{rust_type(optional_member, context, what)}>"
     if isinstance(idl_type, IDLUnionType):
-        for member_type in idl_type.flattened_member_types():
+        for member_type in union_member_types(idl_type, context):
             rust_type(member_type, context, what)
         return rust_union_path(idl_type, context, what)
     raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings do not convert yet")
@@ -447,9 +469,24 @@ def holds_cells(
     )
 
 
+def is_sequence_of_cells(idl_type: IDLType, context: GenerationContext) -> bool:
+    """Whether the type is a sequence whose elements are or can hold cells, which the bindings gather in a MarkedVec
+    for a parameter."""
+    return (
+        isinstance(idl_type, IDLParameterizedType)
+        and idl_type.name == "sequence"
+        and not idl_type.nullable
+        and holds_cells(idl_type.parameters[0], context)
+    )
+
+
 def rust_parameter_type(parameter: OperationParameter, context: GenerationContext, what: str) -> str:
     """The Rust type the implementation receives for the parameter."""
-    value_type = rust_type(parameter.type, context, what)
+    if is_sequence_of_cells(parameter.type, context):
+        assert isinstance(parameter.type, IDLParameterizedType)
+        value_type = f"MarkedVec<'_, {rust_type(parameter.type.parameters[0], context, what)}>"
+    else:
+        value_type = rust_type(parameter.type, context, what)
     if parameter.optional and parameter.default_value is None:
         return f"Option<{value_type}>"
     return value_type

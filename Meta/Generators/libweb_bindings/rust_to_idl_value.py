@@ -24,11 +24,14 @@ from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import cpp_interface
 from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
 from Generators.libweb_bindings.rust_types import holds_cells
+from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_named_union
+from Generators.libweb_bindings.rust_types import is_sequence_of_cells
 from Generators.libweb_bindings.rust_types import is_unnamed_union_of_cpp_interfaces
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
 from Generators.libweb_bindings.rust_types import resolved_dictionary
 from Generators.libweb_bindings.rust_types import runtime_union_type
+from Generators.libweb_bindings.rust_types import rust_any_interface_path
 from Generators.libweb_bindings.rust_types import rust_dictionary_path
 from Generators.libweb_bindings.rust_types import rust_enumeration_path
 from Generators.libweb_bindings.rust_types import rust_enumeration_variant
@@ -38,6 +41,7 @@ from Generators.libweb_bindings.rust_types import rust_interface_path
 from Generators.libweb_bindings.rust_types import rust_type
 from Generators.libweb_bindings.rust_types import rust_union_path
 from Generators.libweb_bindings.rust_types import rust_union_variant
+from Generators.libweb_bindings.rust_types import union_member_types
 from Utils.webidl_parser import Dictionary
 from Utils.webidl_parser import DictionaryMember
 from Utils.webidl_parser import Enumeration
@@ -63,16 +67,20 @@ def rust_to_idl_value(
     identifier: str,
     context: GenerationContext,
     what: str,
+    is_parameter: bool = False,
 ) -> str:
     """An expression of type ThrowCompletionOr<T> that converts the JS value to the IDL value. The identifier is the
-    name of the parameter or member that the value is of, which the errors of some conversions name."""
+    name of the parameter or member that the value is of, which the errors of some conversions name. The value of a
+    parameter can be a sequence of values that are or can hold cells, rust_parameter_type()."""
     rust_type(idl_type, context, what)
     name = idl_type.name
     attributes = {**idl_type.extended_attributes, **parameter_attributes}
-    if "EnforceRange" in attributes and (idl_type.nullable or name not in INTEGER_TYPES):
-        raise UnsupportedByRustBindings(
-            f"{what} has the type {idl_type} with [EnforceRange], which the Rust bindings only handle on integer types"
-        )
+    for integer_attribute in ("Clamp", "EnforceRange"):
+        if integer_attribute in attributes and (idl_type.nullable or name not in INTEGER_TYPES):
+            raise UnsupportedByRustBindings(
+                f"{what} has the type {idl_type} with [{integer_attribute}], which the Rust bindings only handle on "
+                "integer types"
+            )
     if "LegacyNullToEmptyString" in attributes and (idl_type.nullable or name != "DOMString"):
         raise UnsupportedByRustBindings(
             f"{what} has the type {idl_type} with [LegacyNullToEmptyString], which applies to DOMString only"
@@ -88,8 +96,11 @@ def rust_to_idl_value(
         inner = rust_to_idl_value(inner_type, parameter_attributes, value, identifier, context, what)
         return f"if {value}.is_nullish() {{ Ok(None) }} else {{ {inner}.map(Some) }}"
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "sequence":
+        if is_parameter and is_sequence_of_cells(idl_type, context):
+            element = rust_to_idl_value(idl_type.parameters[0], {}, "value", identifier, context, what)
+            return f"sequence_from_js(vm, {value}, MarkedVec::new(vm), |value| {element})"
         element = rust_sequence_element_to_idl_value(idl_type, identifier, context, what)
-        return f"sequence_from_js(vm, {value}, |value| {element})"
+        return f"sequence_from_js(vm, {value}, Vec::new(), |value| {element})"
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "record":
         return rust_record_to_idl_value(idl_type, value, identifier, context, what)
     if isinstance(idl_type, IDLParameterizedType):
@@ -109,6 +120,8 @@ def rust_to_idl_value(
     if name in INTEGER_TYPES:
         if "EnforceRange" in attributes:
             return f"to_{name.replace(' ', '_')}_enforcing_range(vm, {value})"
+        if "Clamp" in attributes:
+            return f"to_{name.replace(' ', '_')}_clamping(vm, {value})"
         return f"to_{name.replace(' ', '_')}(vm, {value})"
     if name == "float":
         return f'to_float(vm, {value}, "{identifier}")'
@@ -130,6 +143,11 @@ def rust_to_idl_value(
         return f"<{rust_enumeration_path(enumeration, context)}>::from_js(vm, {value})"
     interface = rust_interface(idl_type, context)
     if interface is not None:
+        if inheriting_interfaces(interface, context):
+            raise UnsupportedByRustBindings(
+                f"{what} has the type {idl_type}, an interface that others inherit from, which the Rust bindings only "
+                "convert to as a member of a union yet"
+            )
         return f"to_interface::<{rust_interface_path(interface)}>(vm, {value})"
     interface = cpp_interface(idl_type, context)
     if interface is not None:
@@ -196,6 +214,7 @@ class UnionMembers:
     numeric_type: Optional[IDLType] = None
     sequence_type: Optional[IDLParameterizedType] = None
     record_type: Optional[IDLParameterizedType] = None
+    buffer_source_type: Optional[IDLType] = None
     typed_array_types: List[IDLType] = field(default_factory=list)
     # The interfaces, implemented in either language, in the order of the union.
     interface_types: List[IDLType] = field(default_factory=list)
@@ -203,8 +222,10 @@ class UnionMembers:
 
 def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, what: str) -> UnionMembers:
     members = UnionMembers()
-    for member_type in union_type.flattened_member_types():
-        if resolved_dictionary(member_type, context) is not None and members.dictionary_type is None:
+    for member_type in union_member_types(union_type, context):
+        if runtime_union_type(member_type, context) == "BufferSource" and members.buffer_source_type is None:
+            members.buffer_source_type = member_type
+        elif resolved_dictionary(member_type, context) is not None and members.dictionary_type is None:
             members.dictionary_type = member_type
         elif member_type.name in STRING_TYPES and members.string_type is None:
             members.string_type = member_type
@@ -432,6 +453,7 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
         or members.sequence_type is not None
         or members.record_type is not None
         or members.interface_types
+        or members.buffer_source_type is not None
     ):
         if dictionary_conversion is not None:
             steps.append(
@@ -452,6 +474,28 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
                 //        reference to the object V.
 """
             )
+            if rust_interface(interface_type, context) is not None and inheriting_interfaces(interface, context):
+                # NB: A wrapper of the interface wraps an object of the interface or of one that inherits from it,
+                #     which the variant holds as such.
+                interface_path = rust_interface_path(interface)
+                any_interface_path = rust_any_interface_path(interface)
+                steps.append(
+                    f"""                if is_host_instance_of(&value.as_object(), <{interface_path} as Interface>::wrapper_class()) {{
+"""
+                )
+                for implementing in [interface] + inheriting_interfaces(interface, context):
+                    steps.append(
+                        f"""                    if let Some(object) = implementation_if::<{rust_interface_path(implementing)}>(value.as_object()) {{
+                        return Ok(Self::{rust_union_variant(interface_type)}({any_interface_path}::{implementing.name}(object)));
+                    }}
+"""
+                    )
+                steps.append(
+                    """                    unreachable!("a wrapper of the interface wraps an object of it or of an interface that inherits from it");
+                }
+"""
+                )
+                continue
             if rust_interface(interface_type, context) is not None:
                 interface_path = rust_interface_path(interface)
                 steps.append(
@@ -466,6 +510,22 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
                     // SAFETY: The object is a wrapper of an object that implements the interface.
                     let object = unsafe {{ CppInterface::from_wrapper(value.as_object()) }};
                     return Ok(Self::{rust_union_variant(interface_type)}(object));
+                }}
+"""
+            )
+        if members.buffer_source_type is not None:
+            rules = buffer_source_rules(members.buffer_source_type, {})
+            steps.append(
+                f"""                // 6. If V is an Object, V has an [[ArrayBufferData]] internal slot, and IsSharedArrayBuffer(V) is
+                //    false, then:
+                //     1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
+                // 8. If V is an Object and V has a [[DataView]] internal slot, then:
+                //     1. If types includes DataView, then return the result of converting V to DataView.
+                // 9. If V is an Object and V has a [[TypedArrayName]] internal slot, then:
+                //     1. If types includes a typed array type whose name is the value of V's [[TypedArrayName]]
+                //        internal slot, then return the result of converting V to that type.
+                if let Some(buffer_source) = buffer_source_if(vm, value.as_object(), {rules})? {{
+                    return Ok(Self::BufferSource(buffer_source));
                 }}
 """
             )
@@ -491,7 +551,7 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
                 //         2. If method is not undefined, return the result of creating a sequence of that type from
                 //            V and method.
                 if let Some(method) = iterator_method(vm, value)? {{
-                    return Ok(Self::Sequence(sequence_from_iterable(vm, value, method, |value| {element})?));
+                    return Ok(Self::Sequence(sequence_from_iterable(vm, value, method, Vec::new(), |value| {element})?));
                 }}
 """
             )
