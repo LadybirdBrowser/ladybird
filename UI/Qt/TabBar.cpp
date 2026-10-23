@@ -49,6 +49,7 @@
 #include <QPainterPath>
 #include <QPixmap>
 #include <QScreen>
+#include <QStaticText>
 #include <QStyle>
 #include <QStyleOptionButton>
 #include <QStylePainter>
@@ -786,6 +787,16 @@ void TabBar::paintEvent(QPaintEvent*)
     auto is_collapsed_vertical = tab_layout() == TabLayout::VerticalCollapsed;
     auto dragged_index = dragged_tab_index();
 
+    // Titles are shaped once and kept for as long as some tab shows them, since resizing the window repaints the tab
+    // bar on every step without changing any title.
+    auto title_font = tab_title_font(font());
+    if (m_tab_title_texts_font != title_font) {
+        m_tab_title_texts.clear();
+        m_tab_title_texts_font = title_font;
+    }
+    QHash<QString, QStaticText> title_texts;
+    auto title_line_height = QFontMetricsF(title_font).height();
+
     for (int index = 0; index < count(); ++index) {
         // The tab being dragged follows the cursor as the drag's image, leaving a gap where it would be dropped.
         if (index == dragged_index)
@@ -893,31 +904,67 @@ void TabBar::paintEvent(QPaintEvent*)
         painter.setOpacity(1.0);
         contents_rect.setLeft(icon_rect.right() + 8);
 
-        auto title_font = tab_title_font(font());
         painter.setFont(title_font);
 
         auto title = tabText(index);
+        auto title_text = m_tab_title_texts.value(title);
+        if (title_text.text().isEmpty() && !title.isEmpty()) {
+            auto single_line_title = title;
+            single_line_title.replace(QLatin1Char('\n'), QLatin1Char(' '));
+            title_text.setText(single_line_title);
+            title_text.setTextFormat(Qt::PlainText);
+            title_text.prepare(QTransform(), title_font);
+        }
+        title_texts.insert(title, title_text);
+
         auto tab_text_color = text_color;
         if (!is_selected)
             tab_text_color.setAlpha(is_hovered ? (dark ? 236 : 228) : (dark ? 226 : 216));
 
-        // A title too long for its tab fades out toward the tab's end, rather than being cut short with an ellipsis.
-        // NB: Measure in fractional pixels, so a title that just fits is not taken for one that does not.
-        if (QFontMetricsF(title_font).horizontalAdvance(title) > contents_rect.width()) {
-            auto faded_text_color = tab_text_color;
-            faded_text_color.setAlpha(0);
-            QLinearGradient fade(contents_rect.right() + 1 - TAB_TITLE_FADE_WIDTH, 0, contents_rect.right() + 1, 0);
-            fade.setColorAt(0.0, tab_text_color);
-            fade.setColorAt(1.0, faded_text_color);
-            painter.setPen(QPen(QBrush(fade), 1));
-        } else {
-            painter.setPen(tab_text_color);
-        }
+        // NB: A static text's height includes the font's leading, but a title is centered on its ascent and descent.
+        auto title_size = title_text.size();
+        QPointF title_position(contents_rect.left(), contents_rect.top() + ((contents_rect.height() - title_line_height) / 2));
+
         painter.save();
-        painter.setClipRect(contents_rect);
-        painter.drawText(contents_rect, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine, title);
+        painter.setPen(tab_text_color);
+
+        // A title too long for its tab fades out toward the tab's end, rather than being cut short with an ellipsis.
+        // NB: Compare in fractional pixels, so a title that just fits is not taken for one that does not.
+        if (title_size.width() > contents_rect.width()) {
+            QRect fade_rect(contents_rect.right() + 1 - TAB_TITLE_FADE_WIDTH, contents_rect.top(), TAB_TITLE_FADE_WIDTH, contents_rect.height());
+            painter.setClipRect(contents_rect.adjusted(0, 0, -TAB_TITLE_FADE_WIDTH, 0));
+            painter.drawStaticText(title_position, title_text);
+
+            // NB: Qt draws text with a gradient pen far more slowly than with a solid one, so only the fading end is
+            //     drawn offscreen and faded out there.
+            auto device_pixel_ratio = devicePixelRatioF();
+            // NB: Round up, so the image covers all of the fade at a fractional pixel ratio. It is clipped to it.
+            QImage fade_image(QSize(ceil(fade_rect.width() * device_pixel_ratio), ceil(fade_rect.height() * device_pixel_ratio)), QImage::Format_ARGB32_Premultiplied);
+            fade_image.setDevicePixelRatio(device_pixel_ratio);
+            fade_image.fill(Qt::transparent);
+            {
+                QPainter fade_painter(&fade_image);
+                fade_painter.setFont(title_font);
+                fade_painter.setPen(tab_text_color);
+                fade_painter.drawStaticText(title_position - QPointF(fade_rect.topLeft()), title_text);
+
+                QLinearGradient fade(0, 0, fade_rect.width(), 0);
+                fade.setColorAt(0.0, Qt::black);
+                fade.setColorAt(1.0, Qt::transparent);
+                fade_painter.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+                fade_painter.fillRect(QRect(QPoint(), fade_rect.size()), fade);
+            }
+            // NB: A title narrower than the fade starts fading at its start, never over the icon before it.
+            painter.setClipRect(fade_rect.intersected(contents_rect));
+            painter.drawImage(fade_rect.topLeft(), fade_image);
+        } else {
+            painter.setClipRect(contents_rect);
+            painter.drawStaticText(title_position, title_text);
+        }
         painter.restore();
     }
+
+    m_tab_title_texts = AK::move(title_texts);
 }
 
 void TabBar::contextMenuEvent(QContextMenuEvent* event)
