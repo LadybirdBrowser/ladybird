@@ -567,6 +567,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'font-weight': '400'
 'fontWidth': '100%'
 'font-width': '100%'
+'forcedColorAdjust': 'auto'
+'forced-color-adjust': 'auto'
 'gap': 'normal'
 'grid': 'none'
 'gridArea': 'auto'
