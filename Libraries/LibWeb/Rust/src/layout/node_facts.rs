@@ -65,6 +65,7 @@ struct ReplacedContentStyle {
     line_height: CssPixels,
     is_horizontal: bool,
     appearance_is_none: bool,
+    field_sizing_is_content: bool,
 }
 
 impl ReplacedContentStyle {
@@ -98,6 +99,7 @@ impl ReplacedContentStyle {
             line_height: style.line_height(),
             is_horizontal: style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
             appearance_is_none: style.appearance() == crate::css::css_enums::appearance::NONE,
+            field_sizing_is_content: style_sizes_field_to_content(style),
         }
     }
 
@@ -170,17 +172,19 @@ fn replaced_content_facts(
 ) -> FfiReplacedContentFacts {
     let mut facts = FfiReplacedContentFacts::default();
     set_auto_content_size(&mut facts, auto_content_size(kind, style, input));
-    if style.appearance_is_none
-        && let ReplacedContentInput::Input {
-            size,
-            is_text_entry: true,
-        } = input
+    if let ReplacedContentInput::Input {
+        size,
+        is_text_entry: true,
+    } = input
     {
-        let (width, height) = style.text_control_default_preferred_size(size);
-        facts.has_default_preferred_width = true;
-        facts.default_preferred_width = width;
-        facts.has_default_preferred_height = true;
-        facts.default_preferred_height = height;
+        facts.text_entry_content_is_ordinary_box = style.appearance_is_none || style.field_sizing_is_content;
+        if style.appearance_is_none && !style.field_sizing_is_content {
+            let (width, height) = style.text_control_default_preferred_size(size);
+            facts.has_default_preferred_width = true;
+            facts.default_preferred_width = width;
+            facts.has_default_preferred_height = true;
+            facts.default_preferred_height = height;
+        }
     }
     facts
 }
@@ -216,6 +220,12 @@ impl AutoContentSize {
 fn auto_content_size(kind: NodeKind, style: ReplacedContentStyle, input: ReplacedContentInput) -> AutoContentSize {
     if let Some(explicit_size) = style.size_contained {
         return AutoContentSize::of_size(explicit_size);
+    }
+    // https://drafts.csswg.org/css-forms-1/#valdef-field-sizing-content
+    // The UA must determine the element's intrinsic size based on its content, and must ignore any default preferred
+    // size defined by the host language for that element.
+    if style.field_sizing_is_content && matches!(kind, NodeKind::TextAreaBox | NodeKind::TextInputBox) {
+        return AutoContentSize::default();
     }
     match kind {
         NodeKind::CheckBox => AutoContentSize::of_size((CssPixels::from_integer(13), CssPixels::from_integer(13))),
@@ -408,11 +418,20 @@ pub(crate) fn node_is_fragmented_inline(data: &impl NodeShape, style: Option<Com
 }
 
 pub(crate) fn node_has_auto_content_box_size(data: &NodeData) -> bool {
-    (kind_is_replaced_box(data.kind.get()) && data.kind.get() != NodeKind::AudioBox)
-        || matches!(
-            data.kind.get(),
-            NodeKind::RangeInputBox | NodeKind::TextAreaBox | NodeKind::TextInputBox
-        )
+    match data.kind.get() {
+        NodeKind::AudioBox => false,
+        NodeKind::RangeInputBox => true,
+        // A text control sized to its content lays out as the block container it is.
+        NodeKind::TextAreaBox | NodeKind::TextInputBox => {
+            !node_style_view(data).is_some_and(style_sizes_field_to_content)
+        }
+        kind => kind_is_replaced_box(kind),
+    }
+}
+
+// https://drafts.csswg.org/css-forms-1/#field-sizing
+fn style_sizes_field_to_content(style: ComputedValuesView<'_>) -> bool {
+    style.field_sizing() == crate::css::css_enums::field_sizing::CONTENT
 }
 
 // https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Block_formatting_context
@@ -1107,14 +1126,15 @@ impl<'pass> NodeFacts<'pass> {
         has_flag(self.data(), NodeFlag::IsHtmlInputElement)
     }
 
-    /// A text entry input with `appearance: none`, which lays out its text control content as an ordinary box.
-    pub(crate) fn is_primitive_text_input(&self) -> bool {
-        self.is_html_input_element() && self.has_default_preferred_height()
+    /// A text entry input that lays out its text control content as an ordinary box: one without its native
+    /// appearance, or one sized to its content with `field-sizing: content`.
+    pub(crate) fn lays_out_text_input_content_as_ordinary_box(&self) -> bool {
+        self.is_html_input_element() && self.replaced_content().text_entry_content_is_ordinary_box
     }
 
     /// A text entry input, with or without its native appearance.
     pub(crate) fn is_text_input(&self) -> bool {
-        self.data().kind.get() == NodeKind::TextInputBox || self.is_primitive_text_input()
+        self.data().kind.get() == NodeKind::TextInputBox || self.lays_out_text_input_content_as_ordinary_box()
     }
 
     pub(crate) fn is_fieldset_box(&self) -> bool {
@@ -1415,6 +1435,7 @@ mod node_facts_tests {
             line_height: CssPixels::from_integer(16),
             is_horizontal: true,
             appearance_is_none: false,
+            field_sizing_is_content: false,
         }
     }
 

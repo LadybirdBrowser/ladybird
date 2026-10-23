@@ -3040,10 +3040,10 @@ impl<'pass> SizingContext<'pass> {
         let facts = self.facts(node);
         // https://drafts.csswg.org/css-ui-4/#input-rules
         // The content is vertically centered
-        // NB: A text input without its native appearance centers its content too, including content that overflows a
-        //     content box made shorter by a max-height.
-        let is_primitive_text_input = facts.is_primitive_text_input();
-        if !facts.uses_button_layout() && !is_primitive_text_input {
+        // NB: A text input that lays out its content as an ordinary box centers its content too, including content
+        //     that overflows a content box made shorter by a max-height.
+        let text_input_content_is_ordinary_box = facts.lays_out_text_input_content_as_ordinary_box();
+        if !facts.uses_button_layout() && !text_input_content_is_ordinary_box {
             return;
         }
         // Flex/grid-inside controls are their own flex/grid container, which aligns their content itself, so there is
@@ -3055,7 +3055,8 @@ impl<'pass> SizingContext<'pass> {
         // With auto height and no min-height the content box already exactly wraps the content, so there is
         // no extra space to center within and no need to force a definite content box. A text input's max-height can
         // still make its content box shorter than its content.
-        let max_height_can_clamp_text_input_content = is_primitive_text_input && !style.max_height().is_auto();
+        let max_height_can_clamp_text_input_content =
+            text_input_content_is_ordinary_box && !style.max_height().is_auto();
         if style.height().is_auto() && is_plain_auto(style.min_height()) && !max_height_can_clamp_text_input_content {
             return;
         }
@@ -3104,7 +3105,7 @@ impl<'pass> SizingContext<'pass> {
         // preferred or minimum size has room to center within, or when a text input's differs from it in either
         // direction. A content-sized box stays indefinite, so an intrinsic keyword does not resolve percentage-sized
         // descendants.
-        let content_box_needs_to_be_definite = if is_primitive_text_input {
+        let content_box_needs_to_be_definite = if text_input_content_is_ordinary_box {
             used_block_size != natural
         } else {
             used_block_size > natural

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="help" href="https://drafts.csswg.org/css-ui-4/#field-sizing">
+<link rel=match href="../../../../../expected/wpt-import/html/rendering/widgets/field-sizing-textarea-relayout-ref.html">
+<meta name="fuzzy" content="maxDifference=0-153; totalPixels=0-2" />
+<script src="../../../common/reftest-wait.js"></script>
+<body>
+<textarea id="textarea" style="field-sizing: content"></textarea><textarea></textarea>
+<script>
+requestAnimationFrame(() => {
+  textarea.value = '';
+  requestAnimationFrame(() => {
+    textarea.value = '12345';
+    takeScreenshot();
+  });
+});
+</script>
+</body>
+</html>

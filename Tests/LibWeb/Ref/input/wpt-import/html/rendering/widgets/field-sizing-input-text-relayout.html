@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="help" href="https://drafts.csswg.org/css-ui-4/#field-sizing">
+<link rel=match href="../../../../../expected/wpt-import/html/rendering/widgets/field-sizing-input-text-relayout-ref.html">
+<script src="../../../common/reftest-wait.js"></script>
+<body>
+<input id="inputa" style="field-sizing: content" value=""><input>
+<script>
+requestAnimationFrame(() => {
+  inputa.value = '';
+  requestAnimationFrame(() => {
+    inputa.value = '12345';
+    takeScreenshot();
+  });
+});
+</script>
+</body>
+</html>
