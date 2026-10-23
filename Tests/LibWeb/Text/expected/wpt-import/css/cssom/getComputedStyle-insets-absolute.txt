@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 324 tests
 
-288 Pass
-36 Fail
+300 Pass
+24 Fail
 Pass	horizontal-tb ltr inside horizontal-tb ltr - Pixels resolve as-is
 Pass	horizontal-tb ltr inside horizontal-tb ltr - Relative lengths are absolutized into pixels
 Pass	horizontal-tb ltr inside horizontal-tb ltr - Percentages are absolutized into pixels
@@ -12,7 +12,7 @@ Pass	horizontal-tb ltr inside horizontal-tb ltr - Pixels resolve as-is when over
 Pass	horizontal-tb ltr inside horizontal-tb ltr - Percentages absolutize the computed value when overconstrained
 Pass	horizontal-tb ltr inside horizontal-tb ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	horizontal-tb ltr inside horizontal-tb ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	horizontal-tb ltr inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
+Pass	horizontal-tb ltr inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
 Pass	horizontal-tb ltr inside horizontal-tb rtl - Pixels resolve as-is
 Pass	horizontal-tb ltr inside horizontal-tb rtl - Relative lengths are absolutized into pixels
 Pass	horizontal-tb ltr inside horizontal-tb rtl - Percentages are absolutized into pixels
@@ -30,7 +30,7 @@ Pass	horizontal-tb ltr inside vertical-lr ltr - Pixels resolve as-is when overco
 Pass	horizontal-tb ltr inside vertical-lr ltr - Percentages absolutize the computed value when overconstrained
 Pass	horizontal-tb ltr inside vertical-lr ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	horizontal-tb ltr inside vertical-lr ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	horizontal-tb ltr inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
+Pass	horizontal-tb ltr inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
 Pass	horizontal-tb ltr inside vertical-lr rtl - Pixels resolve as-is
 Pass	horizontal-tb ltr inside vertical-lr rtl - Relative lengths are absolutized into pixels
 Pass	horizontal-tb ltr inside vertical-lr rtl - Percentages are absolutized into pixels
@@ -66,7 +66,7 @@ Pass	horizontal-tb rtl inside horizontal-tb ltr - Pixels resolve as-is when over
 Pass	horizontal-tb rtl inside horizontal-tb ltr - Percentages absolutize the computed value when overconstrained
 Pass	horizontal-tb rtl inside horizontal-tb ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	horizontal-tb rtl inside horizontal-tb ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	horizontal-tb rtl inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
+Pass	horizontal-tb rtl inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
 Pass	horizontal-tb rtl inside horizontal-tb rtl - Pixels resolve as-is
 Pass	horizontal-tb rtl inside horizontal-tb rtl - Relative lengths are absolutized into pixels
 Pass	horizontal-tb rtl inside horizontal-tb rtl - Percentages are absolutized into pixels
@@ -84,7 +84,7 @@ Pass	horizontal-tb rtl inside vertical-lr ltr - Pixels resolve as-is when overco
 Pass	horizontal-tb rtl inside vertical-lr ltr - Percentages absolutize the computed value when overconstrained
 Pass	horizontal-tb rtl inside vertical-lr ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	horizontal-tb rtl inside vertical-lr ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	horizontal-tb rtl inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
+Pass	horizontal-tb rtl inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
 Pass	horizontal-tb rtl inside vertical-lr rtl - Pixels resolve as-is
 Pass	horizontal-tb rtl inside vertical-lr rtl - Relative lengths are absolutized into pixels
 Pass	horizontal-tb rtl inside vertical-lr rtl - Percentages are absolutized into pixels
@@ -120,7 +120,7 @@ Pass	vertical-lr ltr inside horizontal-tb ltr - Pixels resolve as-is when overco
 Pass	vertical-lr ltr inside horizontal-tb ltr - Percentages absolutize the computed value when overconstrained
 Pass	vertical-lr ltr inside horizontal-tb ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	vertical-lr ltr inside horizontal-tb ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	vertical-lr ltr inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
+Pass	vertical-lr ltr inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
 Pass	vertical-lr ltr inside horizontal-tb rtl - Pixels resolve as-is
 Pass	vertical-lr ltr inside horizontal-tb rtl - Relative lengths are absolutized into pixels
 Pass	vertical-lr ltr inside horizontal-tb rtl - Percentages are absolutized into pixels
@@ -138,7 +138,7 @@ Pass	vertical-lr ltr inside vertical-lr ltr - Pixels resolve as-is when overcons
 Pass	vertical-lr ltr inside vertical-lr ltr - Percentages absolutize the computed value when overconstrained
 Pass	vertical-lr ltr inside vertical-lr ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	vertical-lr ltr inside vertical-lr ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	vertical-lr ltr inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
+Pass	vertical-lr ltr inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
 Pass	vertical-lr ltr inside vertical-lr rtl - Pixels resolve as-is
 Pass	vertical-lr ltr inside vertical-lr rtl - Relative lengths are absolutized into pixels
 Pass	vertical-lr ltr inside vertical-lr rtl - Percentages are absolutized into pixels
@@ -174,7 +174,7 @@ Pass	vertical-lr rtl inside horizontal-tb ltr - Pixels resolve as-is when overco
 Pass	vertical-lr rtl inside horizontal-tb ltr - Percentages absolutize the computed value when overconstrained
 Pass	vertical-lr rtl inside horizontal-tb ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	vertical-lr rtl inside horizontal-tb ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	vertical-lr rtl inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
+Pass	vertical-lr rtl inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
 Pass	vertical-lr rtl inside horizontal-tb rtl - Pixels resolve as-is
 Pass	vertical-lr rtl inside horizontal-tb rtl - Relative lengths are absolutized into pixels
 Pass	vertical-lr rtl inside horizontal-tb rtl - Percentages are absolutized into pixels
@@ -192,7 +192,7 @@ Pass	vertical-lr rtl inside vertical-lr ltr - Pixels resolve as-is when overcons
 Pass	vertical-lr rtl inside vertical-lr ltr - Percentages absolutize the computed value when overconstrained
 Pass	vertical-lr rtl inside vertical-lr ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	vertical-lr rtl inside vertical-lr ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	vertical-lr rtl inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
+Pass	vertical-lr rtl inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
 Pass	vertical-lr rtl inside vertical-lr rtl - Pixels resolve as-is
 Pass	vertical-lr rtl inside vertical-lr rtl - Relative lengths are absolutized into pixels
 Pass	vertical-lr rtl inside vertical-lr rtl - Percentages are absolutized into pixels
@@ -228,7 +228,7 @@ Pass	vertical-rl ltr inside horizontal-tb ltr - Pixels resolve as-is when overco
 Pass	vertical-rl ltr inside horizontal-tb ltr - Percentages absolutize the computed value when overconstrained
 Pass	vertical-rl ltr inside horizontal-tb ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	vertical-rl ltr inside horizontal-tb ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	vertical-rl ltr inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
+Pass	vertical-rl ltr inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
 Pass	vertical-rl ltr inside horizontal-tb rtl - Pixels resolve as-is
 Pass	vertical-rl ltr inside horizontal-tb rtl - Relative lengths are absolutized into pixels
 Pass	vertical-rl ltr inside horizontal-tb rtl - Percentages are absolutized into pixels
@@ -246,7 +246,7 @@ Pass	vertical-rl ltr inside vertical-lr ltr - Pixels resolve as-is when overcons
 Pass	vertical-rl ltr inside vertical-lr ltr - Percentages absolutize the computed value when overconstrained
 Pass	vertical-rl ltr inside vertical-lr ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	vertical-rl ltr inside vertical-lr ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	vertical-rl ltr inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
+Pass	vertical-rl ltr inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
 Pass	vertical-rl ltr inside vertical-lr rtl - Pixels resolve as-is
 Pass	vertical-rl ltr inside vertical-lr rtl - Relative lengths are absolutized into pixels
 Pass	vertical-rl ltr inside vertical-lr rtl - Percentages are absolutized into pixels
@@ -282,7 +282,7 @@ Pass	vertical-rl rtl inside horizontal-tb ltr - Pixels resolve as-is when overco
 Pass	vertical-rl rtl inside horizontal-tb ltr - Percentages absolutize the computed value when overconstrained
 Pass	vertical-rl rtl inside horizontal-tb ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	vertical-rl rtl inside horizontal-tb ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	vertical-rl rtl inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
+Pass	vertical-rl rtl inside horizontal-tb ltr - If opposite sides are 'auto', they resolve to used value
 Pass	vertical-rl rtl inside horizontal-tb rtl - Pixels resolve as-is
 Pass	vertical-rl rtl inside horizontal-tb rtl - Relative lengths are absolutized into pixels
 Pass	vertical-rl rtl inside horizontal-tb rtl - Percentages are absolutized into pixels
@@ -300,7 +300,7 @@ Pass	vertical-rl rtl inside vertical-lr ltr - Pixels resolve as-is when overcons
 Pass	vertical-rl rtl inside vertical-lr ltr - Percentages absolutize the computed value when overconstrained
 Pass	vertical-rl rtl inside vertical-lr ltr - If start side is 'auto' and end side is not, 'auto' resolves to used value
 Pass	vertical-rl rtl inside vertical-lr ltr - If end side is 'auto' and start side is not, 'auto' resolves to used value
-Fail	vertical-rl rtl inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
+Pass	vertical-rl rtl inside vertical-lr ltr - If opposite sides are 'auto', they resolve to used value
 Pass	vertical-rl rtl inside vertical-lr rtl - Pixels resolve as-is
 Pass	vertical-rl rtl inside vertical-lr rtl - Relative lengths are absolutized into pixels
 Pass	vertical-rl rtl inside vertical-lr rtl - Percentages are absolutized into pixels
