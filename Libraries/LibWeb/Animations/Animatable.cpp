@@ -118,19 +118,19 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(JS::Realm& realm, GC
 }
 
 // https://drafts.csswg.org/web-animations-1/#dom-animatable-getanimations
-WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations(GetAnimationsOptions const& options)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animation>>> Animatable::get_animations(GetAnimationsOptions const& options)
 {
     as<DOM::Element>(*this).document().update_style();
 
     return get_animations_internal(GetAnimationsSorted::Yes, options);
 }
 
-WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations(Bindings::GetAnimationsOptions const& options)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animation>>> Animatable::get_animations(Bindings::GetAnimationsOptions const& options)
 {
     return get_animations(TRY(get_animations_options_from_bindings(options)));
 }
 
-WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_internal(GetAnimationsSorted sorted, GetAnimationsOptions const& options)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animation>>> Animatable::get_animations_internal(GetAnimationsSorted sorted, GetAnimationsOptions const& options)
 {
     // 1. Let object be the object on which this method was called.
 
@@ -142,7 +142,7 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
 
     // 4. If options is passed with subtree set to true, then return the set of relevant animations for a subtree of target.
     //    Otherwise, return the set of relevant animations for target.
-    Vector<GC::Ref<Animation>> relevant_animations;
+    GC::RootVector<GC::Ref<Animation>> relevant_animations;
     if (m_impl) {
         auto& associated_animations = m_impl->associated_animations;
         for (auto const& animation : associated_animations) {

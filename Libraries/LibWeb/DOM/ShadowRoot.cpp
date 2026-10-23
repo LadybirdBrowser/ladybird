@@ -284,7 +284,7 @@ void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::StyleSheetSt
     }
 }
 
-WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> ShadowRoot::get_animations()
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animations::Animation>>> ShadowRoot::get_animations()
 {
     document().update_style();
     return calculate_get_animations(*this);
