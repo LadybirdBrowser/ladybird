@@ -241,7 +241,7 @@ void AudioWorkletGlobalScope::pump(NodeID node_id, Rendering::AudioWorkletPipe& 
                 return config.output_channel_capacity[output];
             };
             auto outputs = MUST(JS::Array::create(realm, config.output_count));
-            Vector<GC::Ref<JS::Array>> output_channel_arrays;
+            GC::RootVector<GC::Ref<JS::Array>> output_channel_arrays;
             output_channel_arrays.ensure_capacity(config.output_count);
             for (size_t output = 0; output < config.output_count; ++output) {
                 auto channels = build_channel_array(output_channel_count(output), [&](size_t, auto&) { });
