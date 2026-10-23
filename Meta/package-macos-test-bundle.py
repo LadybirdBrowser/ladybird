@@ -19,7 +19,7 @@ leaves every binary with only the absolute rpaths it was built with (the vcpkg l
 for a sanitizer build, the compiler's runtime directory); leaves behind the dylibs it links from those directories; and
 "--strip" rewrites every executable after the build signed it — invalidating signatures.
 
-    Meta/package-macos-app-bundle.py --build-dir Build/release --install-dir /tmp/Install --output /tmp/Ladybird.tar.gz
+    Meta/package-macos-test-bundle.py --build-dir Build/release --install-dir /tmp/Install --output /tmp/Ladybird.tar.gz
 """
 
 from __future__ import annotations
