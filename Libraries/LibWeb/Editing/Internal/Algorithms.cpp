@@ -2071,7 +2071,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#indent
-void indent(Vector<GC::Ref<DOM::Node>> node_list)
+void indent(GC::RootVector<GC::Ref<DOM::Node>> node_list)
 {
     // 1. If node list is empty, do nothing and abort these steps.
     if (node_list.is_empty())
@@ -4998,7 +4998,7 @@ bool values_are_loosely_equivalent(Utf16FlyString const& command, Optional<Utf16
 
 // https://w3c.github.io/editing/docs/execCommand/#wrap
 GC::Ptr<DOM::Node> wrap(
-    Vector<GC::Ref<DOM::Node>> node_list,
+    GC::RootVector<GC::Ref<DOM::Node>> node_list,
     Function<bool(GC::Ref<DOM::Node>)> sibling_criteria,
     Function<GC::Ptr<DOM::Node>()> new_parent_instructions)
 {
