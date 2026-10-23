@@ -1741,6 +1741,37 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     //     length of container).
     auto new_line_range = DOM::Range::create(active_range->start_container(), active_range->start_offset(), *container, container->length());
 
+    // INTEROP: Browsers keep the inline formatting of the caret in a line that the split leaves empty. They give it
+    //          clones of the inline ancestors of the caret that change its formatting, with its line break inside
+    //          them. They do not do this if the caret is in a link. Collect these ancestors here, before the split
+    //          moves the caret.
+    Vector<GC::Ref<DOM::Element>> inline_ancestors_to_clone;
+    for (GC::Ptr<DOM::Node> ancestor = active_range->start_container(); ancestor && ancestor != container; ancestor = ancestor->parent()) {
+        if (is<HTML::HTMLAnchorElement>(*ancestor)) {
+            inline_ancestors_to_clone.clear();
+            break;
+        }
+        auto* element = as_if<HTML::HTMLElement>(*ancestor);
+        if (element && is_inline_node(*element) && element_changes_formatting(*element))
+            inline_ancestors_to_clone.prepend(*element);
+    }
+    auto append_line_break = [&](DOM::Node& parent, GC::Ptr<DOM::Node> line_break) -> GC::Ref<DOM::Node> {
+        GC::Ref<DOM::Node> innermost = parent;
+        for (auto ancestor : inline_ancestors_to_clone) {
+            auto clone = MUST(clone_node_for_editing(ancestor, false));
+            if (auto* clone_element = as_if<DOM::Element>(*clone)) {
+                EditingHistory::ProxyMutationScope mutation_scope { *clone };
+                clone_element->remove_attribute(HTML::AttributeNames::id);
+            }
+            MUST(append_node(clone, innermost));
+            innermost = clone;
+        }
+        if (!line_break)
+            line_break = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
+        MUST(append_node(*line_break, innermost));
+        return innermost;
+    };
+
     // 15. While new line range's start offset is zero and its start node is not a prohibited paragraph child, set its
     //     start to (parent of start node, index of start node).
     GC::Ptr<DOM::Node> start_container = new_line_range->start_container();
@@ -1866,16 +1897,22 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
 
     // 32. If container has no visible children, call createElement("br") on the context object, and append the result
     //     as the last child of container.
+    // NB: See the INTEROP note at step 14 for the inline ancestors that the br is placed in.
     if (!has_visible_children(*container))
-        MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *container));
+        append_line_break(*container, {});
 
     // 33. If new container has no visible children, call createElement("br") on the context object, and append the
     //     result as the last child of new container.
-    if (!has_visible_children(*new_container))
-        MUST(append_node(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML)), *new_container));
+    // NB: See the INTEROP note at step 14 for the inline ancestors that the br is placed in. If new container only
+    //     contains the br that ended the line, that br is moved into them.
+    GC::Ref<DOM::Node> caret_container = *new_container;
+    auto only_child_is_line_break = !inline_ancestors_to_clone.is_empty() && new_container->child_count() == 1
+        && is<HTML::HTMLBRElement>(new_container->first_child());
+    if (!has_visible_children(*new_container) || (end_of_line && only_child_is_line_break))
+        caret_container = append_line_break(*new_container, only_child_is_line_break ? new_container->first_child() : nullptr);
 
     // 34. Call collapse(new container, 0) on the context object's selection.
-    MUST(document.get_selection()->collapse(new_container, 0));
+    MUST(document.get_selection()->collapse(caret_container, 0));
 
     // 35. Return true
     return true;

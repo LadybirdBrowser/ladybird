@@ -956,7 +956,7 @@ static bool white_space_is_from_default_style(GC::Ref<DOM::Node> node)
 
 // Whether element gives its children formatting that its parent does not, as one of the command values that are
 // recorded by "record the values of nodes".
-static bool element_changes_formatting(DOM::Element& element)
+bool element_changes_formatting(DOM::Element& element)
 {
     Array const commands = { CommandNames::subscript, CommandNames::bold, CommandNames::fontName,
         CommandNames::fontSize, CommandNames::foreColor, CommandNames::hiliteColor, CommandNames::italic,
