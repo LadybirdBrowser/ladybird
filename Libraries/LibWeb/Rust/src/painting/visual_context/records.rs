@@ -24,6 +24,8 @@ pub struct VisualContextState {
     pub quarantined_slots_are_releasable: bool,
     // The list the tree was last given, which the next pass compares its own against.
     pub published_compositor_animations: Vec<VisualAnimation>,
+    // The boxes whose transform node has an offset path, which depends on the geometry of their containing block.
+    pub offset_path_boxes: crate::fast_hash::FastSet<NodeSlotId>,
 }
 
 impl VisualContextState {

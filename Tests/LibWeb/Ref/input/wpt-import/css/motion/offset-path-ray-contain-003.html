@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: ray paths with contain</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-ray-contain-003-ref.html">
+    <meta name="assert" content="This tests that the element should be contained in ray() path circle.">
+    <style>
+      #container {
+        width: 300px;
+        height: 300px;
+      }
+      #target {
+        position: relative;
+        left: 150px;
+        top: 150px;
+        width: 100px;
+        height: 100px;
+        background-color: lime;
+        offset-path: ray(45deg closest-side contain);
+        offset-rotate: 0deg;
+        offset-distance: 100%;
+        offset-position: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="target"></div>
+    </div>
+  </body>
+</html>

@@ -127,6 +127,11 @@ extern "C" fn ladybird_gfx_path_length(_path: *const c_void) -> f32 {
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_path_point_at_length(_path: *const c_void, _distance: f32, _out: *mut f32) -> bool {
+    unreachable!("no unit test builds a path");
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_path_place_glyph_runs_along(
     _path: *const c_void,
     _runs: *const c_void,

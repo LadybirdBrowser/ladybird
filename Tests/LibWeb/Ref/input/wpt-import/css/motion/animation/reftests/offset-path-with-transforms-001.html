@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <head>
+    <title>CSS Motion Path: Combined transformation matrix interpolation</title>
+    <link rel="help" href="https://drafts.csswg.org/css-transforms-2/#ctm">
+    <link rel="match" href="../../../../../../expected/wpt-import/css/motion/animation/reftests/offset-path-with-transforms-ref.html">
+    <meta name="assert" content="This tests animating combined transformation matrix.">
+    <style>
+      @keyframes anim {
+        to {
+          translate: 0px 100px;
+          offset-distance: 100%;
+          transform: translateX(-100px);
+        }
+      }
+      #target {
+        position: absolute;
+        width: 100px;
+        height: 50px;
+        background-color: lime;
+        offset-path: path("M25 0v100");
+        animation: anim 10s -5s paused linear;
+      }
+    </style>
+  </head>
+  <body onload="load()">
+    <div id="target"></div>
+    <div style='width: 50px; height: 100px; background-color: red;'></div>
+  </body>
+  <script>
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove('reftest-wait');
+    });
+  </script>
+</html>

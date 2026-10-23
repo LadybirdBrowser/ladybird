@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: &lt;basic-shape&gt; circle() path with offset-distance and offset-anchor</title>
+<meta name="fuzzy" content="maxDifference=0-300; totalPixels=0-500">
+<link rel="author" title="Daniil Sakhapov" href="sakhapov@google.com">
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-shape-circle-004-ref.html">
+<link rel="help" href="https://drafts.fxtf.org/motion/#valdef-offset-path-basic-shape">
+
+<style>
+#outer {
+  top: 100px;
+  left: 100px;
+  position: relative;
+  width: 400px;
+  height: 400px;
+}
+#box {
+  background-color: green;
+  position: relative;
+  offset-path: circle(10% at bottom 25% right 25%);
+  offset-anchor: 100% 100%;
+  offset-distance: 75%;
+  border-radius: 50% 50% 0 0;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

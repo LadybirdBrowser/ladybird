@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+#container { position: relative; width: 200px; height: 200px; }
+.box { position: absolute; left: 0; top: 0; width: 40px; height: 20px; offset-rotate: 0deg; }
+#ray { offset-path: ray(90deg sides); offset-position: 0 100px; offset-distance: 100%; }
+#coordBox { offset-path: border-box; offset-distance: 12.5%; }
+</style>
+<div id="container">
+    <div class="box" id="ray"></div>
+    <div class="box" id="coordBox"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    function printRect(element) {
+        const rect = element.getBoundingClientRect();
+        println(`${element.id}: ${rect.x.toFixed(2)},${rect.y.toFixed(2)} ${rect.width}x${rect.height}`);
+    }
+
+    asyncTest(done => {
+        printRect(ray);
+        printRect(coordBox);
+        requestAnimationFrame(() => {
+            container.style.width = "400px";
+            container.style.borderRadius = "50px";
+            requestAnimationFrame(() => {
+                println("After changing the containing block:");
+                printRect(ray);
+                printRect(coordBox);
+                done();
+            });
+        });
+    });
+</script>

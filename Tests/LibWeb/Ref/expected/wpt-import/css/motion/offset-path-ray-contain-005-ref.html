@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: ray paths with contain</title>
+    <style>
+      #container {
+        width: 250px;
+        height: 250px;
+        transform: translate(100px);
+      }
+      #target {
+        position: relative;
+        left: 50px;
+        top: 50px;
+        width: 150px;
+        height: 25px;
+        background-color: lime;
+        /*
+         * The original path length is 50px, contain applies
+         * decrease, so that the new length is -25px (-150px / 2).
+         * Note: offset-anchor is "200% -300%", and ray angle is -90deg
+           and offset-rotate is -90deg.
+         */
+        transform: translate(-75px, -12.5px) rotate(-90deg) translate(-225px, 87.5px);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="target"></div>
+    </div>
+  </body>
+</html>

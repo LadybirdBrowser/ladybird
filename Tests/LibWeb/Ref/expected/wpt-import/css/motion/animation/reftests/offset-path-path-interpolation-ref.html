@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>offset-path path interpolation reference</title>
+    <style>
+      #target {
+        position: absolute;
+        left: 300px;
+        top: 0px;
+        width: 300px;
+        height: 200px;
+        background-color: lime;
+        transform-origin: 0px 0px;
+        offset-path: path("M 100 150 L 200 150");
+      }
+    </style>
+  </head>
+  <body>
+    <div id="target"></div>
+  </body>
+</html>

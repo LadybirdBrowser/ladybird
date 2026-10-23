@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: ray() path with offset-position: normal</title>
+<link rel="author" title="Daniil Sakhapov" href="sakhapov@google.com">
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-ray-011-ref.html">
+<link rel="help" href="https://drafts.fxtf.org/motion/#ray-function">
+
+<style>
+  #outer {
+    top: 100px;
+    left: 100px;
+    position: relative;
+    width: 600px;
+    height: 400px;
+  }
+  #box {
+    background-color: green;
+    position: relative;
+    offset-path: ray(90deg);
+    offset-distance: 10px;
+    offset-position: normal;
+    width: 100px;
+    height: 100px;
+  }
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

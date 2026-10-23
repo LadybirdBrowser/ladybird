@@ -241,6 +241,11 @@ fn style_establishes_fixed_positioning_containing_block(
     if (!transform.scale.pointer.is_null() || will_change(b"scale")) && transformable() {
         return true;
     }
+    // https://drafts.csswg.org/motion-1/#offset-path-property
+    // All the usual effects of having a transform apply (such as creating a stacking context, etc.)
+    if (transform.has_offset_path || will_change(b"offset-path")) && transformable() {
+        return true;
+    }
 
     if (transform.has_perspective || will_change(b"perspective")) && transformable() {
         return true;
@@ -348,7 +353,8 @@ pub(crate) fn has_css_transform(arena: &impl PaintRead, node: NodeSlotId, style:
     let has_transform = !transform.transformations.pointer.is_null()
         || !transform.rotate.pointer.is_null()
         || !transform.translate.pointer.is_null()
-        || !transform.scale.pointer.is_null();
+        || !transform.scale.pointer.is_null()
+        || transform.has_offset_path;
     has_transform && is_transformable(arena, node)
 }
 
@@ -723,6 +729,11 @@ pub(crate) fn establishes_stacking_context(arena: &impl PaintRead, node: NodeSlo
             return true;
         }
         if !transform.scale.pointer.is_null() || will_change(b"scale") {
+            return true;
+        }
+        // https://drafts.csswg.org/motion-1/#offset-path-property
+        // All the usual effects of having a transform apply (such as creating a stacking context, etc.)
+        if transform.has_offset_path || will_change(b"offset-path") {
             return true;
         }
     }

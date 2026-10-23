@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: &lt;coord-box&gt; &lt;content-box&gt;</title>
+<link rel="author" title="Daniil Sakhapov" href="sakhapov@google.com">
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-coord-box-003-ref.html">
+<link rel="help" href="https://drafts.fxtf.org/motion/#valdef-offset-path-coord-box">
+
+<style>
+#outer {
+  top: 100px;
+  left: 100px;
+  position: relative;
+  border: 10px solid black;
+  padding: 10px;
+  width: 600px;
+  height: 400px;
+}
+#box {
+  background-color: green;
+  top: 100px;
+  left: 100px;
+  position: relative;
+  offset-path: content-box;
+  offset-distance: 15%;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

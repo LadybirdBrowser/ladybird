@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<title>Change offset-path property</title>
+<link rel="author" title="Philip Rogers" href="mailto:pdr@chromium.org">
+<link rel="help" href="https://crbug.com/1365255">
+<link rel="match" href="../../../../expected/wpt-import/css/motion/../reference/ref-filled-green-100px-square-only.html">
+<style>
+#target {
+  will-change: transform;
+  transform: translate(50px, 50px);
+  offset-path: path('M 0 0 L 200 200 Z');
+  width: 100px;
+  height: 100px;
+  background: green;
+}
+#container {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    target.style.offsetPath = 'path(\'M 0 0 Z\')';
+    document.documentElement.removeAttribute('class');
+  });
+});
+</script>

@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Motion Path test: ray() path with padding-box</title>
+<link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-ray-015-ref.html">
+<link rel="help" href="https://drafts.fxtf.org/motion/#ray-function">
+
+<style>
+  #outer {
+    top: 100px;
+    left: 100px;
+    position: relative;
+    width: 200px;
+    height: 200px;
+    padding: 50px;
+    border: 50px solid black;
+  }
+  #box {
+    background-color: green;
+    offset-path: ray(0deg sides at 0% 0%) padding-box;
+    offset-rotate: 0deg;
+    offset-anchor: 0% 0%;
+    width: 100px;
+    height: 100px;
+    background-color: green;
+  }
+</style>
+
+<div id="outer">
+  <div id="box"></div>
+</div>

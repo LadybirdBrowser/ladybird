@@ -22,6 +22,7 @@ pub enum VisualContextBoxDirtyKind {
     ScrollableOverflowFlipped = 7,
     ReattachedInLayoutTree = 8,
     DefaultScrollShiftInputsChanged = 9,
+    OffsetPathContainingBlockChanged = 10,
 }
 
 impl VisualContextBoxDirtyKind {

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: ray paths with contain</title>
+    <style>
+      #container {
+        width: 300px;
+        height: 300px;
+      }
+      #target {
+        position: relative;
+        left: 100px;
+        top: 100px;
+        width: 100px;
+        height: 100px;
+        background-color: lime;
+        /* ray length is sqrt(150^2 + 0^2); contain does -max(100, 100) / 2; */
+        /* the result length is 100. sin(45deg) * length = 70.71; */
+        transform: rotate(-45deg) translate(100px);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="target"></div>
+    </div>
+  </body>
+</html>

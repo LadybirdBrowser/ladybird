@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Motion Path: ray paths</title>
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+    <link rel="match" href="../../../../expected/wpt-import/css/motion/offset-path-ray-007-ref.html">
+    <meta name="assert" content="This tests ray() in a flex box.">
+    <style>
+      #container {
+        display: flex;
+        width: 400px;
+        height: 300px;
+      }
+      #target {
+        position: relative;
+        left: 200px;
+        top: 100px;
+        width: 100px;
+        height: 50px;
+        background-color: lime;
+        transform-origin: 0px 0px;
+        offset-path: ray(180deg sides);
+        offset-distance: 100%;
+        offset-position: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="target"></div>
+    </div>
+  </body>
+</html>
