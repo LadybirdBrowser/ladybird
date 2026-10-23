@@ -1885,6 +1885,16 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     for (auto node_to_move : nodes_to_move)
         MUST(append_node(node_to_move, *new_container));
 
+    // INTEROP: Splitting an inline-level container does not start a new line. Browsers wrap the new container, and
+    //          sometimes also container, in a new div in this case. Do this for both of them.
+    if (auto display = resolved_display(*container); display.has_value() && display->is_inline_outside()) {
+        for (GC::Ref<DOM::Node> node : { GC::Ref<DOM::Node> { *container }, GC::Ref<DOM::Node> { *new_container } }) {
+            auto wrapper = MUST(DOM::create_element(document, HTML::TagNames::div, Namespace::HTML));
+            insert_node_before(wrapper, *node->parent(), node);
+            MUST(append_node(node, wrapper));
+        }
+    }
+
     // 30. While container's lastChild is a prohibited paragraph child, set container to its lastChild.
     while (container->last_child() && is_prohibited_paragraph_child(*container->last_child()))
         container = container->last_child();
