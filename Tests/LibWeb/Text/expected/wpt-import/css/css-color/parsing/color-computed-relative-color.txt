@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1170 tests
 
-1166 Pass
-4 Fail
+1168 Pass
+2 Fail
 Pass	Property color value 'rgb(from rebeccapurple r g b)'
 Pass	Property color value 'rgb(from rebeccapurple r g b / alpha)'
 Pass	Property color value 'rgb(from rgb(20%, 40%, 60%, 80%) r g b / alpha)'
@@ -203,8 +203,8 @@ Pass	Property color value 'hwb(from rebeccapurple h w none / alpha)'
 Pass	Property color value 'hwb(from rebeccapurple h w b / none)'
 Pass	Property color value 'hwb(from rebeccapurple none w b / alpha)'
 Pass	Property color value 'hwb(from hwb(120deg 20% 50% / .5) h w none / alpha)'
-Fail	Property color value 'hwb(from hwb(120deg 20% 50% / .5) h w b / none)'
-Fail	Property color value 'hwb(from hwb(120deg 20% 50% / .5) none w b / alpha)'
+Pass	Property color value 'hwb(from hwb(120deg 20% 50% / .5) h w b / none)'
+Pass	Property color value 'hwb(from hwb(120deg 20% 50% / .5) none w b / alpha)'
 Pass	Property color value 'hwb(from hwb(none none none) h w b)'
 Pass	Property color value 'hwb(from hwb(none none none / none) h w b / alpha)'
 Pass	Property color value 'hwb(from hwb(120deg none 50% / .5) h w b)'
