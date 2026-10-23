@@ -5285,7 +5285,21 @@ RefPtr<CSS::StyleValue const> resolved_value(GC::Ref<DOM::Node> node, CSS::Prope
 void take_the_action_for_command(DOM::Document& document, Utf16FlyString const& command, Utf16View value)
 {
     auto const& command_definition = find_command_definition(command);
+
+    // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
+    // If a command preserves overrides, then before taking its action, the user agent must record current overrides.
+    Vector<RecordedOverride> overrides;
+    if (command_definition->preserves_overrides)
+        overrides = record_current_overrides(document);
+
     command_definition->action(document, value);
+
+    // After taking the action, if the active range is collapsed, it must restore states and values from the recorded
+    // list.
+    if (!overrides.is_empty()) {
+        if (auto range = active_range(document); range && range->collapsed())
+            restore_states_and_values(document, overrides);
+    }
 }
 
 bool value_contains_keyword(CSS::StyleValue const& value, CSS::Keyword keyword)

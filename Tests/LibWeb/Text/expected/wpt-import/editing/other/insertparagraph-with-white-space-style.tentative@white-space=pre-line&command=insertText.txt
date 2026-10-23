@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 138 tests
 
-132 Pass
-6 Fail
+134 Pass
+4 Fail
 Pass	<div contenteditable style="white-space:pre-line; display:block">abc[]</div> (defaultParagraphSeparator: div)
 Pass	<div contenteditable style="white-space:pre-line; display:block">[]abc</div> (defaultParagraphSeparator: div)
 Pass	<div contenteditable style="white-space:pre-line; display:block">a[]bc</div> (defaultParagraphSeparator: div)
-Fail	<div contenteditable style="white-space:pre-line; display:block">abc[]</div> (defaultParagraphSeparator: div) (preserving temporary inline style test)
+Pass	<div contenteditable style="white-space:pre-line; display:block">abc[]</div> (defaultParagraphSeparator: div) (preserving temporary inline style test)
 Pass	<div contenteditable style="white-space:pre-line; display:block"><b>abc[]</b></div> (defaultParagraphSeparator: div) (preserving inline style test)
 Pass	<div contenteditable style="display:block"><div style="white-space:pre-line">abc[]</div></div> (defaultParagraphSeparator: div)
 Pass	<div contenteditable style="display:block"><div style="white-space:pre-line">[]abc</div></div> (defaultParagraphSeparator: div)
@@ -76,7 +76,7 @@ Pass	<div contenteditable><p style="display:inline-block; white-space:pre-line">
 Pass	<div contenteditable style="white-space:pre-line; display:block">abc[]</div> (defaultParagraphSeparator: p)
 Pass	<div contenteditable style="white-space:pre-line; display:block">[]abc</div> (defaultParagraphSeparator: p)
 Pass	<div contenteditable style="white-space:pre-line; display:block">a[]bc</div> (defaultParagraphSeparator: p)
-Fail	<div contenteditable style="white-space:pre-line; display:block">abc[]</div> (defaultParagraphSeparator: p) (preserving temporary inline style test)
+Pass	<div contenteditable style="white-space:pre-line; display:block">abc[]</div> (defaultParagraphSeparator: p) (preserving temporary inline style test)
 Pass	<div contenteditable style="white-space:pre-line; display:block"><b>abc[]</b></div> (defaultParagraphSeparator: p) (preserving inline style test)
 Pass	<div contenteditable style="display:block"><div style="white-space:pre-line">abc[]</div></div> (defaultParagraphSeparator: p)
 Pass	<div contenteditable style="display:block"><div style="white-space:pre-line">[]abc</div></div> (defaultParagraphSeparator: p)
