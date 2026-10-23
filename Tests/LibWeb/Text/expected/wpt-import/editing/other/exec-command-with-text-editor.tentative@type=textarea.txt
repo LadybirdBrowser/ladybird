@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 648 tests
 
-510 Pass
-138 Fail
+628 Pass
+20 Fail
 Pass	In <textarea>, execCommand("getHTML", false, null), a[b]c): The command should not be supported
 Pass	In <textarea>, execCommand("getHTML", false, null), a[b]c): The command should not be enabled
 Pass	In <textarea>, execCommand("bold", false, bold), a[b]c): The command should be supported
@@ -52,37 +52,37 @@ Fail	In <textarea>, execCommand("copy", false, null), a[bc]d): The command shoul
 Fail	In <textarea>, execCommand("paste", false, null), a[]c): The command should be supported
 Fail	In <textarea>, execCommand("paste", false, null), a[]c): The command should be enabled
 Pass	In <textarea>, execCommand("delete", false, null), ab[]c): The command should be supported
-Fail	In <textarea>, execCommand("delete", false, null), ab[]c): The command should be enabled
-Fail	In <textarea>, execCommand("delete", false, null), ab[]c): execCommand() should return true
-Fail	In <textarea>, execCommand("delete", false, null), ab[]c): <textarea>.value should be "a[]c"
+Pass	In <textarea>, execCommand("delete", false, null), ab[]c): The command should be enabled
+Pass	In <textarea>, execCommand("delete", false, null), ab[]c): execCommand() should return true
+Pass	In <textarea>, execCommand("delete", false, null), ab[]c): <textarea>.value should be "a[]c"
 Pass	In <textarea>, execCommand("delete", false, null), ab[]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("delete", false, null), ab[]c): input.inputType should be deleteContentBackward
-Fail	In <textarea>, execCommand("delete", false, null), ab[]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("delete", false, null), ab[]c): input.inputType should be deleteContentBackward
+Pass	In <textarea>, execCommand("delete", false, null), ab[]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("delete", false, null), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("delete", false, null), a[b]c): The command should be enabled
-Fail	In <textarea>, execCommand("delete", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea>, execCommand("delete", false, null), a[b]c): <textarea>.value should be "a[]c"
+Pass	In <textarea>, execCommand("delete", false, null), a[b]c): The command should be enabled
+Pass	In <textarea>, execCommand("delete", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea>, execCommand("delete", false, null), a[b]c): <textarea>.value should be "a[]c"
 Pass	In <textarea>, execCommand("delete", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("delete", false, null), a[b]c): input.inputType should be deleteContentBackward
-Fail	In <textarea>, execCommand("delete", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("delete", false, null), a[b]c): input.inputType should be deleteContentBackward
+Pass	In <textarea>, execCommand("delete", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): The command should be enabled
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): <textarea>.value should be "a[]c"
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): The command should be enabled
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): <textarea>.value should be "a[]c"
 Pass	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): input.inputType should be deleteContentForward
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): input.inputType should be deleteContentForward
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): The command should be supported
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): The command should be enabled
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): execCommand() should return true
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): <textarea>.value should be "a[]c"
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): The command should be enabled
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): execCommand() should return true
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): <textarea>.value should be "a[]c"
 Pass	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): should not fire beforeinput event
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): input.inputType should be deleteContentForward
-Fail	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): input.inputType should be deleteContentForward
+Pass	In <textarea>, execCommand("forwarddelete", false, null), a[]bc): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("selectall", false, null), a[b]c): The command should be supported
 Pass	In <textarea>, execCommand("selectall", false, null), a[b]c): The command should be enabled
 Pass	In <textarea>, execCommand("selectall", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea>, execCommand("selectall", false, null), a[b]c): <textarea>.value should be "[abc]"
+Pass	In <textarea>, execCommand("selectall", false, null), a[b]c): <textarea>.value should be "[abc]"
 Pass	In <textarea>, execCommand("selectall", false, null), a[b]c): should not fire beforeinput event
 Pass	In <textarea>, execCommand("selectall", false, null), a[b]c): input.inputType should be undefined
 Pass	In <textarea>, execCommand("selectall", false, null), a[b]c): input.target should be undefined
@@ -95,11 +95,11 @@ Pass	In <textarea>, execCommand("undo", false, null), [a]bc): input.inputType sh
 Pass	In <textarea>, execCommand("undo", false, null), [a]bc): input.target should be undefined
 Pass	In <textarea>, execCommand("undo", false, null), a[b]c): The command should be supported
 Fail	In <textarea>, execCommand("undo", false, null), a[b]c): The command should be enabled
-Fail	In <textarea>, execCommand("undo", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea>, execCommand("undo", false, null), a[b]c): execCommand() should return true
 Pass	In <textarea>, execCommand("undo", false, null), a[b]c): <textarea>.value should be "a[b]c"
 Pass	In <textarea>, execCommand("undo", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("undo", false, null), a[b]c): input.inputType should be historyUndo
-Fail	In <textarea>, execCommand("undo", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("undo", false, null), a[b]c): input.inputType should be historyUndo
+Pass	In <textarea>, execCommand("undo", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("redo", false, null), [a]bc): The command should be supported
 Pass	In <textarea>, execCommand("redo", false, null), [a]bc): The command should not be enabled
 Pass	In <textarea>, execCommand("redo", false, null), [a]bc): execCommand() should return false
@@ -109,11 +109,11 @@ Pass	In <textarea>, execCommand("redo", false, null), [a]bc): input.inputType sh
 Pass	In <textarea>, execCommand("redo", false, null), [a]bc): input.target should be undefined
 Pass	In <textarea>, execCommand("redo", false, null), a[b]c): The command should be supported
 Fail	In <textarea>, execCommand("redo", false, null), a[b]c): The command should be enabled
-Fail	In <textarea>, execCommand("redo", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea>, execCommand("redo", false, null), a[b]c): <textarea>.value should be "a[]c"
+Pass	In <textarea>, execCommand("redo", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea>, execCommand("redo", false, null), a[b]c): <textarea>.value should be "a[]c"
 Pass	In <textarea>, execCommand("redo", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("redo", false, null), a[b]c): input.inputType should be historyRedo
-Fail	In <textarea>, execCommand("redo", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("redo", false, null), a[b]c): input.inputType should be historyRedo
+Pass	In <textarea>, execCommand("redo", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("indent", false, null), a[b]c): The command should be supported
 Pass	In <textarea>, execCommand("indent", false, null), a[b]c): The command should not be enabled
 Pass	In <textarea>, execCommand("indent", false, null), a[b]c): execCommand() should return false
@@ -189,26 +189,26 @@ Pass	In <textarea>, execCommand("insertimage", false, no-image.png), a[b]c): sho
 Pass	In <textarea>, execCommand("insertimage", false, no-image.png), a[b]c): input.inputType should be undefined
 Pass	In <textarea>, execCommand("insertimage", false, no-image.png), a[b]c): input.target should be undefined
 Pass	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): The command should be enabled
-Fail	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): execCommand() should return true
-Fail	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): <textarea>.value should be "ainserted[]c"
+Pass	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): The command should be enabled
+Pass	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): execCommand() should return true
+Pass	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): <textarea>.value should be "ainserted[]c"
 Pass	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): input.inputType should be insertText
-Fail	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): input.inputType should be insertText
+Pass	In <textarea>, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): The command should be enabled
-Fail	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): execCommand() should return true
-Fail	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): <textarea>.value should be "a**inserted**[]c"
+Pass	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): The command should be enabled
+Pass	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): execCommand() should return true
+Pass	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): <textarea>.value should be "a**inserted**[]c"
 Pass	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): input.inputType should be insertText
-Fail	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): input.inputType should be insertText
+Pass	In <textarea>, execCommand("inserttext", false, **inserted**), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("inserttext", false, ), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("inserttext", false, ), a[b]c): The command should be enabled
-Fail	In <textarea>, execCommand("inserttext", false, ), a[b]c): execCommand() should return true
-Fail	In <textarea>, execCommand("inserttext", false, ), a[b]c): <textarea>.value should be "a[]c"
+Pass	In <textarea>, execCommand("inserttext", false, ), a[b]c): The command should be enabled
+Pass	In <textarea>, execCommand("inserttext", false, ), a[b]c): execCommand() should return true
+Pass	In <textarea>, execCommand("inserttext", false, ), a[b]c): <textarea>.value should be "a[]c"
 Pass	In <textarea>, execCommand("inserttext", false, ), a[b]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("inserttext", false, ), a[b]c): input.inputType should be insertText
-Fail	In <textarea>, execCommand("inserttext", false, ), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("inserttext", false, ), a[b]c): input.inputType should be insertText
+Pass	In <textarea>, execCommand("inserttext", false, ), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("justifyleft", false, null), a[b]c): The command should be supported
 Pass	In <textarea>, execCommand("justifyleft", false, null), a[b]c): The command should not be enabled
 Pass	In <textarea>, execCommand("justifyleft", false, null), a[b]c): execCommand() should return false
@@ -266,21 +266,21 @@ Pass	In <textarea>, execCommand("insertunorderedlist", false, null), a[b]c): sho
 Pass	In <textarea>, execCommand("insertunorderedlist", false, null), a[b]c): input.inputType should be undefined
 Pass	In <textarea>, execCommand("insertunorderedlist", false, null), a[b]c): input.target should be undefined
 Pass	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): The command should be enabled
-Fail	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): <textarea>.value should be "a
+Pass	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): The command should be enabled
+Pass	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): <textarea>.value should be "a
 []c"
 Pass	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): input.inputType should be insertParagraph
-Fail	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): input.inputType should be insertParagraph
+Pass	In <textarea>, execCommand("insertparagraph", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): The command should be enabled
-Fail	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): <textarea>.value should be "a
+Pass	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): The command should be enabled
+Pass	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): <textarea>.value should be "a
 []c"
 Pass	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): input.inputType should be insertLineBreak
-Fail	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): input.inputType should be insertLineBreak
+Pass	In <textarea>, execCommand("insertlinebreak", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea>, execCommand("formatblock", false, div), a[b]c): The command should be supported
 Pass	In <textarea>, execCommand("formatblock", false, div), a[b]c): The command should not be enabled
 Pass	In <textarea>, execCommand("formatblock", false, div), a[b]c): execCommand() should return false
@@ -291,17 +291,17 @@ Pass	In <textarea>, execCommand("formatblock", false, div), a[b]c): input.target
 Pass	In <textarea>, execCommand("heading", false, h1), a[b]c): The command should not be supported
 Pass	In <textarea>, execCommand("heading", false, h1), a[b]c): The command should not be enabled
 Pass	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): The command should not be enabled
-Fail	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): execCommand() should return false
+Pass	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): The command should not be enabled
+Pass	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): execCommand() should return false
 Pass	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): <textarea>.value should be "a[b]c"
 Pass	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): should not fire beforeinput event
 Pass	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): input.inputType should be undefined
 Pass	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): input.target should be undefined
-Fail	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): styleWithCSS state should be false when <textarea> has focus
-Fail	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): styleWithCSS state should be false when <textarea> does not have focus
+Pass	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): styleWithCSS state should be false when <textarea> has focus
+Pass	In <textarea>, execCommand("styleWithCSS", false, true), a[b]c): styleWithCSS state should be false when <textarea> does not have focus
 Pass	In <textarea>, execCommand("styleWithCSS", false, false), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("styleWithCSS", false, false), a[b]c): The command should not be enabled
-Fail	In <textarea>, execCommand("styleWithCSS", false, false), a[b]c): execCommand() should return false
+Pass	In <textarea>, execCommand("styleWithCSS", false, false), a[b]c): The command should not be enabled
+Pass	In <textarea>, execCommand("styleWithCSS", false, false), a[b]c): execCommand() should return false
 Pass	In <textarea>, execCommand("styleWithCSS", false, false), a[b]c): <textarea>.value should be "a[b]c"
 Pass	In <textarea>, execCommand("styleWithCSS", false, false), a[b]c): should not fire beforeinput event
 Pass	In <textarea>, execCommand("styleWithCSS", false, false), a[b]c): input.inputType should be undefined
@@ -313,17 +313,17 @@ Pass	In <textarea>, execCommand("contentReadOnly", false, true), a[b]c): The com
 Pass	In <textarea>, execCommand("contentReadOnly", false, false), a[b]c): The command should not be supported
 Pass	In <textarea>, execCommand("contentReadOnly", false, false), a[b]c): The command should not be enabled
 Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): The command should not be enabled
-Fail	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): execCommand() should return false
+Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): The command should not be enabled
+Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): execCommand() should return false
 Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): <textarea>.value should be "a[b]c"
 Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): should not fire beforeinput event
 Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): input.inputType should be undefined
 Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): input.target should be undefined
-Fail	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): defaultParagraphSeparator value should be "p" when <textarea> has focus
-Fail	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): defaultParagraphSeparator value should be "p" when <textarea> does not have focus
+Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): defaultParagraphSeparator value should be "p" when <textarea> has focus
+Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, p), a[b]c): defaultParagraphSeparator value should be "p" when <textarea> does not have focus
 Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, div), a[b]c): The command should be supported
-Fail	In <textarea>, execCommand("defaultParagraphSeparator", false, div), a[b]c): The command should not be enabled
-Fail	In <textarea>, execCommand("defaultParagraphSeparator", false, div), a[b]c): execCommand() should return false
+Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, div), a[b]c): The command should not be enabled
+Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, div), a[b]c): execCommand() should return false
 Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, div), a[b]c): <textarea>.value should be "a[b]c"
 Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, div), a[b]c): should not fire beforeinput event
 Pass	In <textarea>, execCommand("defaultParagraphSeparator", false, div), a[b]c): input.inputType should be undefined
@@ -378,37 +378,37 @@ Fail	In <textarea> in contenteditable, execCommand("copy", false, null), a[bc]d)
 Fail	In <textarea> in contenteditable, execCommand("paste", false, null), a[]c): The command should be supported
 Fail	In <textarea> in contenteditable, execCommand("paste", false, null), a[]c): The command should be enabled
 Pass	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): The command should be supported
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): <textarea>.value should be "a[]c"
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): The command should be enabled
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): <textarea>.value should be "a[]c"
 Pass	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): input.inputType should be deleteContentBackward
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): input.inputType should be deleteContentBackward
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), ab[]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): The command should be supported
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): <textarea>.value should be "a[]c"
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): The command should be enabled
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): <textarea>.value should be "a[]c"
 Pass	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): input.inputType should be deleteContentBackward
-Fail	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): input.inputType should be deleteContentBackward
+Pass	In <textarea> in contenteditable, execCommand("delete", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): The command should be supported
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): <textarea>.value should be "a[]c"
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): The command should be enabled
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): <textarea>.value should be "a[]c"
 Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): input.inputType should be deleteContentForward
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): input.inputType should be deleteContentForward
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): The command should be supported
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): <textarea>.value should be "a[]c"
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): The command should be enabled
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): <textarea>.value should be "a[]c"
 Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): input.inputType should be deleteContentForward
-Fail	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): input.inputType should be deleteContentForward
+Pass	In <textarea> in contenteditable, execCommand("forwarddelete", false, null), a[]bc): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("selectall", false, null), a[b]c): The command should be supported
 Pass	In <textarea> in contenteditable, execCommand("selectall", false, null), a[b]c): The command should be enabled
 Pass	In <textarea> in contenteditable, execCommand("selectall", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("selectall", false, null), a[b]c): <textarea>.value should be "[abc]"
+Pass	In <textarea> in contenteditable, execCommand("selectall", false, null), a[b]c): <textarea>.value should be "[abc]"
 Pass	In <textarea> in contenteditable, execCommand("selectall", false, null), a[b]c): should not fire beforeinput event
 Pass	In <textarea> in contenteditable, execCommand("selectall", false, null), a[b]c): input.inputType should be undefined
 Pass	In <textarea> in contenteditable, execCommand("selectall", false, null), a[b]c): input.target should be undefined
@@ -421,11 +421,11 @@ Pass	In <textarea> in contenteditable, execCommand("undo", false, null), [a]bc):
 Pass	In <textarea> in contenteditable, execCommand("undo", false, null), [a]bc): input.target should be undefined
 Pass	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): The command should be supported
 Fail	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): execCommand() should return true
 Pass	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): <textarea>.value should be "a[b]c"
 Pass	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): input.inputType should be historyUndo
-Fail	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): input.inputType should be historyUndo
+Pass	In <textarea> in contenteditable, execCommand("undo", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("redo", false, null), [a]bc): The command should be supported
 Pass	In <textarea> in contenteditable, execCommand("redo", false, null), [a]bc): The command should not be enabled
 Pass	In <textarea> in contenteditable, execCommand("redo", false, null), [a]bc): execCommand() should return false
@@ -435,11 +435,11 @@ Pass	In <textarea> in contenteditable, execCommand("redo", false, null), [a]bc):
 Pass	In <textarea> in contenteditable, execCommand("redo", false, null), [a]bc): input.target should be undefined
 Pass	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): The command should be supported
 Fail	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): <textarea>.value should be "a[]c"
+Pass	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): <textarea>.value should be "a[]c"
 Pass	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): input.inputType should be historyRedo
-Fail	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): input.inputType should be historyRedo
+Pass	In <textarea> in contenteditable, execCommand("redo", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("indent", false, null), a[b]c): The command should be supported
 Pass	In <textarea> in contenteditable, execCommand("indent", false, null), a[b]c): The command should not be enabled
 Pass	In <textarea> in contenteditable, execCommand("indent", false, null), a[b]c): execCommand() should return false
@@ -515,26 +515,26 @@ Pass	In <textarea> in contenteditable, execCommand("insertimage", false, no-imag
 Pass	In <textarea> in contenteditable, execCommand("insertimage", false, no-image.png), a[b]c): input.inputType should be undefined
 Pass	In <textarea> in contenteditable, execCommand("insertimage", false, no-image.png), a[b]c): input.target should be undefined
 Pass	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): The command should be supported
-Fail	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): <textarea>.value should be "ainserted[]c"
+Pass	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): The command should be enabled
+Pass	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): <textarea>.value should be "ainserted[]c"
 Pass	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): input.inputType should be insertText
-Fail	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): input.inputType should be insertText
+Pass	In <textarea> in contenteditable, execCommand("inserthtml", false, <b>inserted</b>), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): The command should be supported
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): <textarea>.value should be "a**inserted**[]c"
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): The command should be enabled
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): <textarea>.value should be "a**inserted**[]c"
 Pass	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): input.inputType should be insertText
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): input.inputType should be insertText
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, **inserted**), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): The command should be supported
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): <textarea>.value should be "a[]c"
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): The command should be enabled
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): <textarea>.value should be "a[]c"
 Pass	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): input.inputType should be insertText
-Fail	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): input.inputType should be insertText
+Pass	In <textarea> in contenteditable, execCommand("inserttext", false, ), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("justifyleft", false, null), a[b]c): The command should be supported
 Pass	In <textarea> in contenteditable, execCommand("justifyleft", false, null), a[b]c): The command should not be enabled
 Pass	In <textarea> in contenteditable, execCommand("justifyleft", false, null), a[b]c): execCommand() should return false
@@ -592,21 +592,21 @@ Pass	In <textarea> in contenteditable, execCommand("insertunorderedlist", false,
 Pass	In <textarea> in contenteditable, execCommand("insertunorderedlist", false, null), a[b]c): input.inputType should be undefined
 Pass	In <textarea> in contenteditable, execCommand("insertunorderedlist", false, null), a[b]c): input.target should be undefined
 Pass	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): The command should be supported
-Fail	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): <textarea>.value should be "a
+Pass	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): The command should be enabled
+Pass	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): <textarea>.value should be "a
 []c"
 Pass	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): input.inputType should be insertParagraph
-Fail	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): input.inputType should be insertParagraph
+Pass	In <textarea> in contenteditable, execCommand("insertparagraph", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): The command should be supported
-Fail	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): The command should be enabled
-Fail	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): execCommand() should return true
-Fail	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): <textarea>.value should be "a
+Pass	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): The command should be enabled
+Pass	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): execCommand() should return true
+Pass	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): <textarea>.value should be "a
 []c"
 Pass	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): should not fire beforeinput event
-Fail	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): input.inputType should be insertLineBreak
-Fail	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
+Pass	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): input.inputType should be insertLineBreak
+Pass	In <textarea> in contenteditable, execCommand("insertlinebreak", false, null), a[b]c): input.target should be [object HTMLTextAreaElement]
 Pass	In <textarea> in contenteditable, execCommand("formatblock", false, div), a[b]c): The command should be supported
 Pass	In <textarea> in contenteditable, execCommand("formatblock", false, div), a[b]c): The command should not be enabled
 Pass	In <textarea> in contenteditable, execCommand("formatblock", false, div), a[b]c): execCommand() should return false
