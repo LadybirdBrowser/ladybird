@@ -369,12 +369,12 @@ TEST_CASE(style_engine_consumes_native_inline_declaration_blocks)
     auto transitions = parse_native_declaration_block(u"transition-duration: 1s"sv);
     auto retained = declarations.retain();
     StyleValueFFI::rust_style_ffi_counters_reset();
-    engine.set_element_inline_style_properties(node, &declarations);
+    engine.set_element_inline_style_properties(node, declarations.handle());
     EXPECT(!engine.css_transitions_may_observe_style_changes());
-    engine.set_element_inline_style_properties(node, &shared);
+    engine.set_element_inline_style_properties(node, shared.handle());
     engine.set_element_inline_style_properties(node, nullptr);
     declarations.replace(transitions);
-    engine.set_element_inline_style_properties(node, &retained);
+    engine.set_element_inline_style_properties(node, retained.handle());
     EXPECT(engine.css_transitions_may_observe_style_changes());
     for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
         auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));

@@ -85,7 +85,12 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM:
     // https://drafts.csswg.org/cssom/#dom-elementcssinlinestyle-style
     // The style attribute must return a CSS declaration block object whose readonly flag is unset, whose parent CSS
     // rule is null, and whose owner node is the context object.
-    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::No, Readonly::No, RustDeclarationBlock { {}, {} }, move(element_reference));
+    return create_element_inline_style(move(element_reference), RustDeclarationBlock { {}, {} });
+}
+
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM::AbstractElement element_reference, RustDeclarationBlock declarations)
+{
+    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::No, Readonly::No, move(declarations), move(element_reference));
 }
 
 CSSStyleProperties::CSSStyleProperties(Computed computed, Readonly readonly, RustDeclarationBlock declarations, Optional<DOM::AbstractElement> owner_node)

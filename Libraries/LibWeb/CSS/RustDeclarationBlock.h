@@ -65,6 +65,8 @@ public:
     bool remove_custom(Utf16FlyString const&);
 
     Parser::ValueParserFFI::DeclarationBlock const* handle() const { return m_block; }
+    // Hands the block to the caller, who destroys it with rust_declaration_block_destroy(). The views are dropped.
+    [[nodiscard]] Parser::ValueParserFFI::DeclarationBlock* leak_handle() &&;
 
 private:
     void update_views() const;
