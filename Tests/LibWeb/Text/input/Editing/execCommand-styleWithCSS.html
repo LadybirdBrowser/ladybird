@@ -3,10 +3,11 @@
 <div contenteditable="true">foobar</div>
 <script>
     test(() => {
+        const divElm = document.querySelector('div');
         const range = document.createRange();
+        range.setStart(divElm, 0);
         getSelection().addRange(range);
 
-        const divElm = document.querySelector('div');
         const report = () => println(`Div contents: "${divElm.innerHTML}" bold state: ${document.queryCommandState('bold')}`);
         report();
 

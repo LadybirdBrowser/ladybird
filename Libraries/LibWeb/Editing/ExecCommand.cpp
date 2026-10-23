@@ -421,11 +421,15 @@ static bool command_is_enabled(Document& document, Utf16FlyString const& command
     // Among commands defined in this specification, those listed in Miscellaneous commands are always enabled, except
     // for the cut command and the paste command.
     // NOTE: cut and paste are actually in the Clipboard commands section
+    // INTEROP: Browsers do not enable these commands if the active range's start node is neither editable nor an
+    //          editing host.
     if (command.is_one_of_ignoring_ascii_case(
             Editing::CommandNames::defaultParagraphSeparator,
             Editing::CommandNames::styleWithCSS,
-            Editing::CommandNames::useCSS))
-        return true;
+            Editing::CommandNames::useCSS)) {
+        auto active_range = Editing::active_range(document);
+        return !active_range || active_range->start_container()->is_editable_or_editing_host();
+    }
 
     // INTEROP: The spec lists undo and redo among the always-enabled miscellaneous commands, but in Chromium
     //          queryCommandEnabled("undo") is true only when there is a step to undo, and execCommand("undo") on an
