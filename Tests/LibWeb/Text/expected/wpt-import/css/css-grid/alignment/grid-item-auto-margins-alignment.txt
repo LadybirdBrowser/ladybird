@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-4 Pass
-4 Fail
+8 Pass
 Pass	.grid 1
 Pass	.grid 2
 Pass	.grid 3
 Pass	.grid 4
-Fail	.grid 5
-Fail	.grid 6
-Fail	.grid 7
-Fail	.grid 8
+Pass	.grid 5
+Pass	.grid 6
+Pass	.grid 7
+Pass	.grid 8
