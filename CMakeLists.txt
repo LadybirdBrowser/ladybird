@@ -140,6 +140,14 @@ endif()
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(Services)
     add_subdirectory(UI)
+
+    # Android has no Compositor process yet, so it keeps Skia elsewhere.
+    if (NOT ANDROID AND NOT VCPKG_TARGET_ANDROID)
+        include(check_skia_confinement)
+        set(processes_without_skia ${ladybird_helper_processes} ladybird WebDriver)
+        list(REMOVE_ITEM processes_without_skia Compositor)
+        ladybird_check_skia_confinement(${processes_without_skia})
+    endif()
 endif()
 
 add_custom_target(lint-shell-scripts
