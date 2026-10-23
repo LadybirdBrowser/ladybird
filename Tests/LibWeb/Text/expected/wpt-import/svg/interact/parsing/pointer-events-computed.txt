@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+3 Pass
+8 Fail
+Pass	Property pointer-events value 'auto'
+Fail	Property pointer-events value 'bounding-box'
+Fail	Property pointer-events value 'visiblepainted'
+Fail	Property pointer-events value 'visiblefill'
+Fail	Property pointer-events value 'visiblestroke'
+Fail	Property pointer-events value 'visible'
+Fail	Property pointer-events value 'painted'
+Fail	Property pointer-events value 'fill'
+Fail	Property pointer-events value 'stroke'
+Pass	Property pointer-events value 'all'
+Pass	Property pointer-events value 'none'

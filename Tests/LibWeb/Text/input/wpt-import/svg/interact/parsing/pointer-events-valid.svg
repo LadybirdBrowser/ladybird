@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="8000px">
+  <title>SVG Scripting and Interactivity: parsing pointer-events with valid values</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/interact.html#PointerEventsProperty"/>
+    <h:meta name="assert" content="pointer-events supports the full grammar 'auto | bounding-box | visiblePainted | visibleFill | visibleStroke | visible | painted | fill | stroke | all | none'."/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/parsing-testcommon.js"/>
+  <script><![CDATA[
+
+test_valid_value("pointer-events", "auto");
+test_valid_value("pointer-events", "bounding-box");
+test_valid_value("pointer-events", "visiblePainted", "visiblepainted");
+test_valid_value("pointer-events", "visibleFill", "visiblefill");
+test_valid_value("pointer-events", "visibleStroke", "visiblestroke");
+test_valid_value("pointer-events", "visible");
+test_valid_value("pointer-events", "painted");
+test_valid_value("pointer-events", "fill");
+test_valid_value("pointer-events", "stroke");
+test_valid_value("pointer-events", "all");
+test_valid_value("pointer-events", "none");
+
+  ]]></script>
+</svg>

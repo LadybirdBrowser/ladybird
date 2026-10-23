@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<title>pointer-events: bounding-box</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/interact.html#PointerEventsProp">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style type="text/css">
+  #svgRoot {
+    margin: 0px;
+    padding: 0px;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    font: 10px/1 Ahem;
+  }
+
+  .test { fill: blue; pointer-events: bounding-box; }
+  .test:hover { fill: green; visibility: visible; }
+</style>
+<svg id="svgRoot" width="800px" height="360px" viewBox="0 0 800 360" opacity="0">
+  <g class="test" id="test1" transform="rotate(15)">
+    <circle id="circle1" cx="50" cy="50" r="10"/>
+    <circle cx="150" cy="150" r="10"/>
+  </g>
+  <circle class="test" id="circle2" cx="400" cy="150" r="50" visibility="hidden"/>
+  <text class="test" id="text1" x="100" y="20">Text should change color when mouse is within <tspan id="tspan1" dy="3em">the bbox.</tspan></text>
+  <text class="test" id="text2" x="150" y="100" transform="rotate(15)">Text should change color when mouse is within <tspan id="tspan2" dy="3em">the bbox.</tspan></text>
+  <text class="test" id="text3" x="200" y="280" transform="rotate(5)">Text should end here.<tspan id="tspan3" dy="2em" display="none">invisible</tspan></text>
+  <image class="test" id="image1" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 30'><rect x='10' y='10' width='20' height='10' fill='blue'/></svg>"
+         width="50" height="30" visibility="hidden" transform="translate(0,200)"/>
+</svg>
+<script>
+const group1 = document.getElementById("test1");
+const circle1 = document.getElementById("circle1");
+const circle2 = document.getElementById("circle2");
+const text1 = document.getElementById("text1");
+const tspan1 = document.getElementById("tspan1");
+const text2 = document.getElementById("text2");
+const tspan2 = document.getElementById("tspan2");
+const text3 = document.getElementById("text3");
+const tspan3 = document.getElementById("tspan3");
+const image1 = document.getElementById("image1");
+
+const pointsOnCircle1 = [
+  {x: 36, y: 60},
+  {x: 42, y: 67}
+];
+
+const pointsNotOnCircle1 = [
+  {x: 50, y: 50},
+  {x: 50, y: 55}
+];
+
+const pointsInsideBBoxOfCircle1 = [
+  {x: 100, y: 100},
+  {x: 137, y: 84},
+  {x: 51, y: 156},
+  {x:70, y:120}
+];
+
+const pointsOnCircle2 = [
+  {x: 400, y: 150},
+  {x: 432, y: 182},
+  {x: 361, y: 122}
+];
+
+const pointsInsideBBoxOfCircle2 = [
+  {x: 438, y: 103},
+  {x: 450, y: 200}
+];
+
+const pointsOnText1 = [
+  {x: 134, y: 16}
+];
+
+const pointsOnTspan1 = [
+  {x: 579, y: 46}
+];
+
+const pointsNotOnText1 = [
+  {x: 395, y: 73},
+  {x: 74, y: 5}
+];
+
+const pointsInsideBBoxOfText1 = [
+  {x: 435, y: 32},
+  {x: 115, y: 46}
+];
+
+const pointsOnText2 = [
+  {x: 178, y: 146}
+];
+
+const pointsOnTspan2 = [
+  {x: 568, y: 283}
+];
+
+const pointsNotOnText2 = [
+  {x: 319, y: 161},
+  {x: 179, y: 131}
+];
+
+const pointsInsideBBoxOfText2 = [
+  {x: 295, y: 214},
+  {x: 444, y: 222}
+];
+
+const pointsOnText3 = [
+  {x: 198, y: 291},
+  {x: 286, y: 301}
+];
+
+const pointsNotOnText3 = [
+  {x: 302, y: 337},
+  {x: 348, y: 335}
+];
+
+const pointsOnImage1 = [
+  {x: 19, y: 215},
+  {x: 45, y: 225}
+];
+
+function hitTest(point, element, shouldContain, optionalLabel) {
+  const label = optionalLabel || element.id;
+  test(() => {
+    const contain = element.contains(document.elementFromPoint(point.x, point.y));
+    if (shouldContain)
+      assert_true(contain);
+    else
+      assert_false(contain);
+  }, `${label} ${shouldContain ? 'contains' : 'does not contain'} point at (${point.x}, ${point.y})`);
+}
+
+setup({ explicit_done: true });
+
+document.fonts.ready.then(() => {
+  pointsOnCircle1.forEach(point => hitTest(point, circle1, true));
+  pointsNotOnCircle1.forEach(point => hitTest(point, circle1, false));
+  pointsInsideBBoxOfCircle1.forEach(point => hitTest(point, group1, true, 'group1'));
+
+  pointsOnCircle2.forEach(point => hitTest(point, circle2, true));
+  pointsInsideBBoxOfCircle2.forEach(point => hitTest(point, circle2, true, 'bbox of circle2'));
+
+  pointsOnText1.forEach(point => hitTest(point, text1, true));
+  pointsOnTspan1.forEach(point => hitTest(point, tspan1, true));
+  pointsNotOnText1.forEach(point => hitTest(point, text1, false));
+  pointsInsideBBoxOfText1.forEach(point => hitTest(point, text1, true, 'bbox of text1'));
+
+  pointsOnText2.forEach(point => hitTest(point, text2, true));
+  pointsOnTspan2.forEach(point => hitTest(point, tspan2, true));
+  pointsNotOnText2.forEach(point => hitTest(point, text2, false));
+  pointsInsideBBoxOfText2.forEach(point => hitTest(point, text2, true, 'bbox of text2'));
+
+  pointsOnText3.forEach(point => hitTest(point, text3, true));
+  pointsNotOnText3.forEach(point => hitTest(point, text3, false));
+
+  pointsOnImage1.forEach(point => hitTest(point, image1, true));
+
+  done();
+});
+</script>
