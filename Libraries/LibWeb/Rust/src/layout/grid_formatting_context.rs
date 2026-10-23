@@ -716,43 +716,18 @@ impl OccupationGrid {
         false
     }
 
-    fn find_unoccupied_grid_area(
-        &self,
-        flow: AutoFlowAxis,
-        column: &mut i32,
-        row: &mut i32,
-        column_span: usize,
-        row_span: usize,
-    ) {
-        match flow {
-            AutoFlowAxis::Row => {
-                // Row-flow: columns are the inner (minor) axis, rows are the outer (major) axis.
-                while *row <= self.max_row_index {
-                    while *column <= self.max_column_index {
-                        let minor_axis_fits = *column + column_span as i32 - 1 <= self.max_column_index;
-                        if minor_axis_fits && !self.is_area_occupied(*column, *row, column_span, row_span) {
-                            return;
-                        }
-                        *column += 1;
-                    }
-                    *row += 1;
-                    *column = self.min_column_index;
+    fn find_unoccupied_grid_area(&self, column: &mut i32, row: &mut i32, column_span: usize, row_span: usize) {
+        // Columns are the inner (minor) axis, rows are the outer (major) axis.
+        while *row <= self.max_row_index {
+            while *column <= self.max_column_index {
+                let minor_axis_fits = *column + column_span as i32 - 1 <= self.max_column_index;
+                if minor_axis_fits && !self.is_area_occupied(*column, *row, column_span, row_span) {
+                    return;
                 }
+                *column += 1;
             }
-            AutoFlowAxis::Column => {
-                // Column-flow: rows are the inner (minor) axis, columns are the outer (major) axis.
-                while *column <= self.max_column_index {
-                    while *row <= self.max_row_index {
-                        let minor_axis_fits = *row + row_span as i32 - 1 <= self.max_row_index;
-                        if minor_axis_fits && !self.is_area_occupied(*column, *row, column_span, row_span) {
-                            return;
-                        }
-                        *row += 1;
-                    }
-                    *column += 1;
-                    *row = self.min_row_index;
-                }
-            }
+            *row += 1;
+            *column = self.min_column_index;
         }
     }
 }
@@ -778,6 +753,45 @@ pub(crate) fn place_items_with_grid(
     explicit_column_count: usize,
     explicit_row_count: usize,
     flow: AutoFlowAxis,
+    dense: bool,
+) -> PlacementResult {
+    if flow == AutoFlowAxis::Row {
+        return place_items_in_row_flow(items, explicit_column_count, explicit_row_count, dense);
+    }
+    // NB: The algorithm for grid-auto-flow: column is the one for rows with the two axes swapped, so place the items
+    //     of a transposed grid in rows and transpose the result back.
+    let transposed = items
+        .iter()
+        .map(|item| PlacementInput {
+            row: item.column,
+            column: item.row,
+            ..*item
+        })
+        .collect::<Vec<_>>();
+    let result = place_items_in_row_flow(&transposed, explicit_row_count, explicit_column_count, dense);
+    PlacementResult {
+        items: result
+            .items
+            .into_iter()
+            .map(|item| PlacedItem {
+                id: item.id,
+                row: item.column,
+                row_span: item.column_span,
+                column: item.row,
+                column_span: item.row_span,
+            })
+            .collect(),
+        column_count: result.row_count,
+        row_count: result.column_count,
+        explicit_column_start: result.explicit_row_start,
+        explicit_row_start: result.explicit_column_start,
+    }
+}
+
+fn place_items_in_row_flow(
+    items: &[PlacementInput],
+    explicit_column_count: usize,
+    explicit_row_count: usize,
     dense: bool,
 ) -> PlacementResult {
     // https://drafts.csswg.org/css-grid/#overview-placement
@@ -808,8 +822,17 @@ pub(crate) fn place_items_with_grid(
         }
     }
 
-    // 2. Position items locked to a row.
     // 2. Process the items locked to a given row.
+    //    For each grid item with a definite row position (that is, the grid-row-start and grid-row-end properties
+    //    define a definite grid position), in order-modified document order:
+    //    "sparse" packing (default behavior)
+    //        Set the column-start line of its placement to the earliest (smallest positive index) line index that
+    //        ensures this item’s grid area will not overlap any occupied grid cells and that is past any grid items
+    //        previously placed in this row by this step.
+    //    "dense" packing (dense specified)
+    //        Set the column-start line of its placement to the earliest (smallest positive index) line index that
+    //        ensures this item’s grid area will not overlap any occupied grid cells.
+    let mut row_cursors = HashMap::<i32, i32>::default();
     for &index in &ordered_indices {
         if !remaining[index] {
             continue;
@@ -822,7 +845,11 @@ pub(crate) fn place_items_with_grid(
             continue;
         }
 
-        let mut column = 0;
+        let mut column = if dense {
+            0
+        } else {
+            row_cursors.get(&row).copied().unwrap_or(0)
+        };
         let mut found = false;
         while column <= grid.max_column_index {
             if !grid.is_area_occupied(column, row, item.column.span, item.row.span) {
@@ -834,6 +861,7 @@ pub(crate) fn place_items_with_grid(
         if !found {
             column = grid.max_column_index + 1;
         }
+        row_cursors.insert(row, column + item.column.span as i32);
         record(&mut grid, &mut output, item, row, column);
         remaining[index] = false;
     }
@@ -856,29 +884,16 @@ pub(crate) fn place_items_with_grid(
     // 3.3. If the largest column span among all the items without a definite column position is larger
     // than the width of the implicit grid, add columns to the end of the implicit grid to accommodate
     // that column span.
-    // NB: For column flow the whole algorithm is transposed, so these steps widen the row axis instead.
     for &index in &ordered_indices {
         if !remaining[index] {
             continue;
         }
         let item = items[index];
-        match flow {
-            AutoFlowAxis::Row => {
-                if let Some(column) = item.column.start {
-                    grid.min_column_index = grid.min_column_index.min(column);
-                    grid.max_column_index = grid.max_column_index.max(column + item.column.span as i32 - 1);
-                } else {
-                    grid.max_column_index = grid.max_column_index.max(item.column.span as i32 - 1);
-                }
-            }
-            AutoFlowAxis::Column => {
-                if let Some(row) = item.row.start {
-                    grid.min_row_index = grid.min_row_index.min(row);
-                    grid.max_row_index = grid.max_row_index.max(row + item.row.span as i32 - 1);
-                } else {
-                    grid.max_row_index = grid.max_row_index.max(item.row.span as i32 - 1);
-                }
-            }
+        if let Some(column) = item.column.start {
+            grid.min_column_index = grid.min_column_index.min(column);
+            grid.max_column_index = grid.max_column_index.max(column + item.column.span as i32 - 1);
+        } else {
+            grid.max_column_index = grid.max_column_index.max(item.column.span as i32 - 1);
         }
     }
 
@@ -929,26 +944,16 @@ pub(crate) fn place_items_with_grid(
             // area does not overlap any occupied grid cells, or the cursor's column position, plus the item's
             // column span, overflow the number of columns in the implicit grid, as determined earlier in this
             // algorithm.
-            grid.find_unoccupied_grid_area(
-                flow,
-                &mut cursor_column,
-                &mut cursor_row,
-                item.column.span,
-                item.row.span,
-            );
+            grid.find_unoccupied_grid_area(&mut cursor_column, &mut cursor_row, item.column.span, item.row.span);
             // 4.1.2.2. If a non-overlapping position was found in the previous step, set the item's row-start
             // and column-start lines to the cursor's position. Otherwise, increment the auto-placement cursor's
             // row position (creating new rows in the implicit grid as necessary), set its column position to the
             // start-most column line in the implicit grid, and return to the previous step.
             let column = cursor_column;
             let row = cursor_row;
-            // NB: The cursor's major-axis position must stay at the item's start line, so that subsequent items
-            //     keep packing into the same row (or column, for column flow) before moving on. Only advance the
-            //     minor-axis position past the item.
-            match flow {
-                AutoFlowAxis::Row => cursor_column += item.column.span as i32,
-                AutoFlowAxis::Column => cursor_row += item.row.span as i32,
-            }
+            // NB: The cursor's row position must stay at the item's start line, so that subsequent items keep packing
+            //     into the same row before moving on. Only advance the column position past the item.
+            cursor_column += item.column.span as i32;
             record(&mut grid, &mut output, item, row, column);
         }
     }

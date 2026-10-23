@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 38 tests
 
-30 Pass
-8 Fail
+38 Pass
 Pass	'grid' with: grid-template-columns: ; and grid-template-rows: ;
 Pass	'grid' with: grid-template-columns: auto auto; and grid-template-rows: ;
 Pass	'grid' with: grid-template-columns: 60px; and grid-template-rows: ;
@@ -33,12 +32,12 @@ Pass	'gridAutoFlowColumn' with: grid-template-columns: 60px; and grid-template-r
 Pass	'gridAutoFlowColumn' with: grid-template-columns: 60px; and grid-template-rows: 50px 30px;
 Pass	'gridAutoFlowColumn' with: grid-template-columns: 100px 60px; and grid-template-rows: 50px;
 Pass	'gridAutoFlowColumn' with: grid-template-columns: 100px 60px; and grid-template-rows: 50px 30px;
-Fail	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: ; and grid-template-rows: ;
-Fail	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px; and grid-template-rows: ;
-Fail	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px 70px; and grid-template-rows: ;
-Fail	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: ; and grid-template-rows: 60px;
-Fail	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: ; and grid-template-rows: 60px 70px;
-Fail	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px; and grid-template-rows: 60px;
-Fail	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px; and grid-template-rows: 60px 70px;
-Fail	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px 70px; and grid-template-rows: 60px;
+Pass	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: ; and grid-template-rows: ;
+Pass	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px; and grid-template-rows: ;
+Pass	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px 70px; and grid-template-rows: ;
+Pass	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: ; and grid-template-rows: 60px;
+Pass	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: ; and grid-template-rows: 60px 70px;
+Pass	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px; and grid-template-rows: 60px;
+Pass	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px; and grid-template-rows: 60px 70px;
+Pass	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px 70px; and grid-template-rows: 60px;
 Pass	'gridAutoFlowColumnItemsPositions' with: grid-template-columns: 60px 70px; and grid-template-rows: 60px 70px;
