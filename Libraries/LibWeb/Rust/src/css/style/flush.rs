@@ -2632,7 +2632,9 @@ impl StyleEngine {
         &mut self,
         mut pass: StylePass,
         mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
+        clock: &mut TransactionClock,
     ) -> bool {
+        clock.enter(Counter::ComputationPublicationMicroseconds, &self.retained.counters);
         // A record the host did not install from the last wave is gone, as at a transaction
         // boundary: the host answered that row from its demand, or skipped it.
         self.discard_engine_computed_records();
@@ -2658,8 +2660,10 @@ impl StyleEngine {
             self.retained
                 .counters
                 .add(Counter::PublishedMatchAnswerRecords, style_deltas.len() as u64);
+            clock.enter(Counter::EmitMicroseconds, &self.retained.counters);
             emit(pass.transaction_version, pass.program_version, &style_deltas);
         }
+        clock.enter(Counter::TransactionRemainderMicroseconds, &self.retained.counters);
 
         self.retained.published_match_answers = std::mem::take(&mut pass.published_match_answers);
         let scoped = pass.scoped;
@@ -2889,7 +2893,7 @@ impl StyleEngine {
                     && !self.host.program_staging.is_dirty()
                     && self.host.sheet_rule_replacement.is_none() =>
             {
-                self.continue_style_pass(pass, emit)
+                self.continue_style_pass(pass, emit, &mut clock)
             }
             pass => {
                 if let Some(pass) = pass {
