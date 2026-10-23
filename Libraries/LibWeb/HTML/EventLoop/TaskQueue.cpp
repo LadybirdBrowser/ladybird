@@ -170,7 +170,7 @@ void TaskQueue::remove_without_running(Task::Queue& tasks, Task& task)
 void TaskQueue::run_discard_steps()
 {
     while (!m_discarded_tasks.is_empty()) {
-        auto discarded_tasks = move(m_discarded_tasks);
+        GC::RootVector discarded_tasks { move(m_discarded_tasks) };
         for (auto& task : discarded_tasks)
             task->discard();
     }
