@@ -87,17 +87,27 @@
                 AbortSignal.timeout(10).addEventListener("abort", () => resolve(performance.now())));
             report("AbortSignal.timeout() waits for the wake-up", firedAtOrAfter(firedAt, wakeUp), { armedAt, wakeUp, firedAt });
 
-            waitForEarlyPhase();
-            armedAt = performance.now();
-            wakeUp = wakeUpAtOrAfter(armedAt + 10);
-            const armedHidden = fireTime(10);
-            await setSystemVisibilityState("visible");
-            firedAt = await armedHidden;
-            report("becoming visible puts a timer back on its own deadline",
-                firedAt >= armedAt + 10 - coarsening && firedAt < wakeUp, { armedAt, wakeUp, firedAt });
+            // The UI process changes visibility asynchronously. Only check a timer whose wake-up is still ahead once
+            // the document becomes visible; a timer may already have fired at a wake-up that came first.
+            while (true) {
+                waitForEarlyPhase();
+                armedAt = performance.now();
+                wakeUp = wakeUpAtOrAfter(armedAt + 10);
+                const armedHidden = fireTime(10);
+                await setSystemVisibilityState("visible");
+                if (performance.now() >= wakeUp) {
+                    await armedHidden;
+                    await setSystemVisibilityState("hidden");
+                    continue;
+                }
+                firedAt = await armedHidden;
+                report("becoming visible puts a timer back on its own deadline",
+                    firedAt >= armedAt + 10 - coarsening && firedAt < wakeUp, { armedAt, wakeUp, firedAt });
+                break;
+            }
 
-            // The UI process changes visibility asynchronously. Only check a timer whose deadline is still ahead
-            // once the document hides; an expired timer cannot be moved to a hidden-document wake-up.
+            // Likewise, only check a timer whose deadline is still ahead once the document hides; an expired timer
+            // cannot be moved to a hidden-document wake-up.
             let delay = 250;
             while (true) {
                 waitForEarlyPhase();
