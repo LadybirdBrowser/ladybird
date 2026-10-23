@@ -1,0 +1,22 @@
+When a checkbox or radio button keeps its native appearance, Ladybird
+lays it out with zero padding and border widths, and paints no CSS
+background or border under the control. Its computed values stay as the
+author set them: Only the used values change.
+
+Blink does the same in layout and painting, but at style time:
+LayoutTheme::AdjustCheckboxStyle() and AdjustRadioStyle() call
+ResetPadding() and ResetBorder(), so getComputedStyle() reports zero
+padding and border too. And BoxFragmentPainter skips PaintBackground()
+and PaintBorder() once ThemePainter::Paint() has drawn the control.
+
+WebKit also adjusts the style: RenderTheme::controlPadding() and
+controlBorder() return zero for Checkbox and Radio, and RenderTheme’s
+style adjustment for checkboxes and radio buttons applies them.
+RenderBox::paintBoxDecorations() then paints neither the background nor
+the border when theme().paint() draws the control.
+
+Gecko, like Ladybird, keeps the computed values and changes only the
+used ones: Theme::GetWidgetPadding() returns zero padding for them (they
+“can’t have author-specified padding”), and Theme::GetWidgetBorder()
+gives them no border. In nsDisplayList.cpp, a themed frame gets an
+nsDisplayThemedBackground instead of its CSS background.
