@@ -1646,6 +1646,9 @@ impl<'a> GraphBuilder<'a> {
             }
             Instruction::CallConstruct { .. } => return self.try_inline_construct(instruction),
             Instruction::Call { .. } => {
+                if let Some(flow) = self.try_build_builtin_call(instruction)? {
+                    return Ok(Some(flow));
+                }
                 if let Some(flow) = self.try_build_array_push(instruction)? {
                     return Ok(Some(flow));
                 }
@@ -1678,8 +1681,17 @@ impl<'a> GraphBuilder<'a> {
                 }
                 return Ok(None);
             }
-            Instruction::CallBuiltinStringFromCharCode { .. } => {
-                return self.try_build_string_from_char_code(instruction);
+            Instruction::CallBuiltinStringFromCharCode {
+                call_feedback,
+                dst,
+                callee,
+                argument,
+                ..
+            } => {
+                if self.holds_virtual_arguments(argument) {
+                    return Ok(None);
+                }
+                return self.try_build_string_from_char_code(call_feedback, dst, callee, argument);
             }
             Instruction::CreateDataPropertyOrThrow {
                 object,

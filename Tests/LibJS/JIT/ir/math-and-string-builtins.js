@@ -142,3 +142,24 @@ jit.compile(trigonometry);
 // CHECK-NOT: CallSlowPath
 
 console.log(bias(0.25, [0.5, 0.75]), trigonometry(0.5), trigonometry(2));
+
+// Calls that name the builtins otherwise are built from the callee that their
+// feedback saw.
+
+const math = Math;
+const fromCharCode = String.fromCharCode;
+function otherNames(x, s) {
+    return math.floor(x) + math.pow(x, 2) + s["charCodeAt"](1) + fromCharCode(65);
+}
+jit.prepare(otherNames);
+for (let i = 0; i < 10; ++i) otherNames(i + 0.5, "hello");
+jit.compile(otherNames);
+
+// CHECK-FUNCTION: otherNames
+// CHECK-PASS: graph building
+// CHECK: Float64Floor
+// CHECK: CallFloat64Pow
+// CHECK: LoadStringCodeUnit
+// CHECK: SingleCharacterString
+
+console.log(otherNames(2.5, "abc"));

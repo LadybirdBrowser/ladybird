@@ -45,7 +45,89 @@ const MAX_INLINE_PUSHED_VALUES: usize = 8;
 const MAX_MIN_MAX_ARGUMENTS: usize = 8;
 
 impl GraphBuilder<'_> {
-    /// Builds `Math.<op>(argument)`, a `CallBuiltinMath*` instruction, for
+    /// Builds a `Call` whose feedback saw a builtin that compiled code runs
+    /// inline: a function of `Math` that computes with numbers,
+    /// `String.prototype.charAt` and `charCodeAt`, or `String.fromCharCode`.
+    /// Returns `None`, having built nothing, if it is no such call.
+    pub(super) fn try_build_builtin_call(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
+        let Instruction::Call {
+            call_feedback,
+            dst,
+            callee,
+            this_value,
+            ref arguments,
+            ..
+        } = *instruction
+        else {
+            return Ok(None);
+        };
+        let Some(feedback) = self.call_feedback(call_feedback) else {
+            return Ok(None);
+        };
+        if std::iter::once(&this_value)
+            .chain(arguments)
+            .any(|operand| self.holds_virtual_arguments(*operand))
+        {
+            return Ok(None);
+        }
+        let layout = &self.runtime.layout;
+        let unary_ops = [
+            (layout.builtin_math_abs, Float64UnaryOp::Abs),
+            (layout.builtin_math_floor, Float64UnaryOp::Floor),
+            (layout.builtin_math_ceil, Float64UnaryOp::Ceil),
+            (layout.builtin_math_round, Float64UnaryOp::Round),
+            (layout.builtin_math_sqrt, Float64UnaryOp::Sqrt),
+        ];
+        let functions = [
+            (layout.builtin_math_exp, Float64Function::Exp),
+            (layout.builtin_math_log, Float64Function::Log),
+            (layout.builtin_math_sin, Float64Function::Sin),
+            (layout.builtin_math_cos, Float64Function::Cos),
+            (layout.builtin_math_tan, Float64Function::Tan),
+            (layout.builtin_math_pow, Float64Function::Pow),
+        ];
+        let characters = [
+            (layout.builtin_string_prototype_char_code_at, StringCharacter::CodeUnit),
+            (layout.builtin_string_prototype_char_at, StringCharacter::String),
+        ];
+        // NB: Only calls with as many arguments as the builtin reads take the inline path. The code calls the
+        //     builtin directly for others, which are rare, and the slow path of the inline path would not.
+        let Some(&first) = arguments.first() else {
+            return Ok(None);
+        };
+        if feedback.target_intrinsic == Some(Intrinsic::StringFromCharCode) && arguments.len() == 1 {
+            return self.try_build_string_from_char_code(call_feedback, dst, callee, first);
+        }
+        let Some(builtin) = feedback.target_builtin else {
+            return Ok(None);
+        };
+        if let Some(&(_, op)) = unary_ops.iter().find(|(id, _)| *id == builtin)
+            && arguments.len() == 1
+        {
+            return self
+                .build_math_function(op, dst, callee, first, call_feedback)
+                .map(Some);
+        }
+        if let Some(&(_, function)) = functions.iter().find(|(id, _)| *id == builtin) {
+            let count = if function == Float64Function::Pow { 2 } else { 1 };
+            if arguments.len() != count {
+                return Ok(None);
+            }
+            return self
+                .build_math_call(function, dst, callee, arguments, call_feedback)
+                .map(Some);
+        }
+        if let Some(&(_, character)) = characters.iter().find(|(id, _)| *id == builtin)
+            && arguments.len() == 1
+        {
+            return self
+                .build_string_character(character, dst, callee, this_value, first)
+                .map(Some);
+        }
+        Ok(None)
+    }
+
+    /// Builds `Math.<op>(argument)`, a `Call` of the builtin, for
     /// numbers, if `callee` is the builtin of any realm. The instruction's
     /// slow path, which calls the callee, handles everything else, or the code
     /// exits there where that did not happen before. A site that only saw
@@ -112,8 +194,8 @@ impl GraphBuilder<'_> {
         Ok(Flow::Continue)
     }
 
-    /// Builds `Math.<function>(arguments...)`, a `CallBuiltinMath*`
-    /// instruction, for numbers, like `build_math_function()`: the code
+    /// Builds `Math.<function>(arguments...)`, a `Call` of the builtin, for
+    /// numbers, like `build_math_function()`: the code
     /// calls the runtime's function of doubles for it, which only computes,
     /// so nothing after the call forgets what it knew.
     pub(super) fn build_math_call(
@@ -294,7 +376,7 @@ impl GraphBuilder<'_> {
     }
 
     /// Builds `this_value.charCodeAt(argument)` or `.charAt(argument)`, a
-    /// `CallBuiltinStringPrototypeCharCodeAt` or `CharAt` instruction, for
+    /// `Call` of the builtin, for
     /// strings whose characters are readable and int32 indices in bounds,
     /// if `callee` is the builtin of any realm. `charAt` makes the strings
     /// of ASCII code units, which the VM keeps. The instruction's slow path,
@@ -824,21 +906,11 @@ impl GraphBuilder<'_> {
     /// having built nothing, if the site saw something else.
     pub(super) fn try_build_string_from_char_code(
         &mut self,
-        instruction: &Instruction,
+        call_feedback: u16,
+        dst: Operand,
+        callee: Operand,
+        argument: Operand,
     ) -> Result<Option<Flow>, CompileFailure> {
-        let Instruction::CallBuiltinStringFromCharCode {
-            call_feedback,
-            dst,
-            callee,
-            argument,
-            ..
-        } = *instruction
-        else {
-            return Ok(None);
-        };
-        if self.holds_virtual_arguments(argument) {
-            return Ok(None);
-        }
         // NB: Checks nothing yet, so building nothing is fine.
         if self.peek_intrinsic_callee(call_feedback) != Some(Intrinsic::StringFromCharCode)
             || self.checked_intrinsic_callee(call_feedback, callee)?.is_none()
