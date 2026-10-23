@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 144 tests
 
-141 Pass
-3 Fail
+144 Pass
 Pass	Can set 'white-space-collapse' to CSS-wide keywords: initial
 Pass	Can set 'white-space-collapse' to CSS-wide keywords: inherit
 Pass	Can set 'white-space-collapse' to CSS-wide keywords: unset
@@ -115,9 +114,9 @@ Pass	Can set 'white-space-trim' to CSS-wide keywords: unset
 Pass	Can set 'white-space-trim' to CSS-wide keywords: revert
 Pass	Can set 'white-space-trim' to var() references:  var(--A)
 Pass	Can set 'white-space-trim' to the 'none' keyword: none
-Fail	Can set 'white-space-trim' to the 'discard-before' keyword: discard-before
-Fail	Can set 'white-space-trim' to the 'discard-after' keyword: discard-after
-Fail	Can set 'white-space-trim' to the 'discard-inner' keyword: discard-inner
+Pass	Can set 'white-space-trim' to the 'discard-before' keyword: discard-before
+Pass	Can set 'white-space-trim' to the 'discard-after' keyword: discard-after
+Pass	Can set 'white-space-trim' to the 'discard-inner' keyword: discard-inner
 Pass	Setting 'white-space-trim' to a length: 0px throws TypeError
 Pass	Setting 'white-space-trim' to a length: -3.14em throws TypeError
 Pass	Setting 'white-space-trim' to a length: 3.14cm throws TypeError
