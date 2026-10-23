@@ -212,7 +212,7 @@ void CSSTransition::adopt_lane_transitions(DOM::Document& document)
         // started that the host took in and the lane no longer runs. One the steps saw end by itself ends as it does,
         // with its events. One the host started since the lane forked is its own: the lane decided nothing over it, and
         // the host decides what becomes of it, and of its property, in its turn. So does one script finished meanwhile.
-        Vector<GC::Ref<CSSTransition>> ended;
+        GC::RootVector<GC::Ref<CSSTransition>> ended;
         Vector<PropertyID> host_decides;
         if (auto const* existing = element->existing_transitions({})) {
             for (auto const& [property_id, transition] : *existing) {
