@@ -798,7 +798,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
     }
 
     // 11. Let containedChildren be a list of all children of commonAncestor that are contained in range, in tree order.
-    Vector<GC::Ref<Node>> contained_children;
+    GC::RootVector<GC::Ref<Node>> contained_children;
     for (Node* node = common_ancestor->first_child(); node; node = node->next_sibling()) {
         if (contains_node(*node))
             contained_children.append(*node);
@@ -1127,7 +1127,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_the_contents()
     }
 
     // 11. Let contained children be a list of all children of common ancestor that are contained in range, in tree order.
-    Vector<GC::Ref<Node>> contained_children;
+    GC::RootVector<GC::Ref<Node>> contained_children;
     for (Node* node = common_ancestor->first_child(); node; node = node->next_sibling()) {
         if (contains_node(*node))
             contained_children.append(*node);
