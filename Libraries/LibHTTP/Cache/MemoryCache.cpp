@@ -164,25 +164,50 @@ void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderL
     auto cache_key = create_cache_key(serialized_url, method);
     auto vary_key = create_vary_key(request_headers, response_headers);
 
-    if (auto cache_entries = m_pending_entries.get(cache_key); cache_entries.has_value()) {
-        auto index = cache_entries->find_first_index_if([&](auto const& entry) {
-            return vary_key == entry.vary_key;
-        });
-        if (!index.has_value())
-            return;
+    auto cache_entry = take_pending_entry(cache_key, vary_key);
+    if (!cache_entry.has_value())
+        return;
 
-        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", url, response_body.size());
+    dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", url, response_body.size());
+    cache_entry->response_body = move(response_body);
 
-        auto cache_entry = cache_entries->take(*index);
-        cache_entry.response_body = move(response_body);
+    auto& complete_entries = m_complete_entries.ensure(cache_key);
+    complete_entries.remove_all_matching([&](auto const& entry) { return entry.vary_key == cache_entry->vary_key; });
+    complete_entries.append(cache_entry.release_value());
+}
 
-        if (cache_entries->is_empty())
-            m_pending_entries.remove(cache_key);
+void MemoryCache::abandon_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, HeaderList const& received_response_headers)
+{
+    auto response_headers_without_connection_specific_fields = remove_connection_specific_fields(received_response_headers);
+    auto const& response_headers = *response_headers_without_connection_specific_fields;
 
-        auto& complete_entries = m_complete_entries.ensure(cache_key);
-        complete_entries.remove_all_matching([&](auto const& entry) { return entry.vary_key == cache_entry.vary_key; });
-        complete_entries.append(move(cache_entry));
-    }
+    if (!is_cacheable(method, request_headers))
+        return;
+
+    auto serialized_url = serialize_url_for_cache_storage(url);
+    auto cache_key = create_cache_key(serialized_url, method);
+    auto vary_key = create_vary_key(request_headers, response_headers);
+
+    if (take_pending_entry(cache_key, vary_key).has_value())
+        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[33;1mAbandoned cache entry for\033[0m {}", url);
+}
+
+Optional<MemoryCache::Entry> MemoryCache::take_pending_entry(u64 cache_key, Optional<u64> vary_key)
+{
+    auto cache_entries = m_pending_entries.get(cache_key);
+    if (!cache_entries.has_value())
+        return {};
+
+    auto index = cache_entries->find_first_index_if([&](auto const& entry) {
+        return vary_key == entry.vary_key;
+    });
+    if (!index.has_value())
+        return {};
+
+    auto cache_entry = cache_entries->take(*index);
+    if (cache_entries->is_empty())
+        m_pending_entries.remove(cache_key);
+    return cache_entry;
 }
 
 void MemoryCache::update_javascript_bytecode_cache(URL::URL const& url, StringView method, HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes javascript_bytecode_cache)
