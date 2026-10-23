@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 384 tests
+Found 382 tests
 
-360 Pass
-24 Fail
+378 Pass
+4 Fail
 Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: calling execCommand
 Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: checking event on focused document
 Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: checking event on executed document
@@ -174,25 +174,24 @@ Pass	ChildDocument.execCommand(formatblock, false, div) with a[b]c: checking eve
 Pass	ChildDocument.execCommand(formatblock, false, div) with a[b]c: checking event on executed document
 Pass	ChildDocument.execCommand(formatblock, false, div) with a[b]c: checking result content in focused document
 Pass	ChildDocument.execCommand(formatblock, false, div) with a[b]c: checking result content in executed document
-Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling execCommand to initialize
+Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling execCommand to initialize
 Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after initializing
 Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focus document after initializing
-Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling execCommand to set state
-Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document
+Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling execCommand to set state
+Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document
 Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focused document
-Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandValue on executed document
-Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after making executed document editable
-Fail	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to initialize
+Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after making executed document editable
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to initialize
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document after initializing
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on focus document after initializing
-Fail	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to set state
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to set state
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on focused document
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document after making executed document editable
-Fail	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to initialize
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to initialize
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document after initializing
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on focus document after initializing
-Fail	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to set state
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to set state
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on focused document
 Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document after making executed document editable
@@ -366,25 +365,24 @@ Pass	ParentDocument.execCommand(formatblock, false, div) with a[b]c: checking ev
 Pass	ParentDocument.execCommand(formatblock, false, div) with a[b]c: checking event on executed document
 Pass	ParentDocument.execCommand(formatblock, false, div) with a[b]c: checking result content in focused document
 Pass	ParentDocument.execCommand(formatblock, false, div) with a[b]c: checking result content in executed document
-Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling execCommand to initialize
+Pass	ParentDocument.execCommand(styleWithCSS, false, true): calling execCommand to initialize
 Pass	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after initializing
-Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focus document after initializing
-Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling execCommand to set state
-Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document
-Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focused document
-Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandValue on executed document
-Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after making executed document editable
-Fail	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to initialize
+Pass	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focus document after initializing
+Pass	ParentDocument.execCommand(styleWithCSS, false, true): calling execCommand to set state
+Pass	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document
+Pass	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focused document
+Pass	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after making executed document editable
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to initialize
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document after initializing
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on focus document after initializing
-Fail	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to set state
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to set state
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on focused document
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document after making executed document editable
-Fail	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to initialize
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to initialize
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document after initializing
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on focus document after initializing
-Fail	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to set state
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to set state
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on focused document
 Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document after making executed document editable
