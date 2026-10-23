@@ -5194,7 +5194,8 @@ void Document::completely_finish_loading()
     if (!m_completely_loaded_time.has_value())
         m_completely_loaded_time = AK::UnixDateTime::now();
 
-    for (auto& time_container : exchange(m_smil_time_containers_to_begin, {}))
+    GC::RootVector time_containers_to_begin { exchange(m_smil_time_containers_to_begin, {}) };
+    for (auto& time_container : time_containers_to_begin)
         time_container->begin();
 
     auto navigable = this->navigable();
