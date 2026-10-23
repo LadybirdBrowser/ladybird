@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	Spacing properly set for <mo> with a previous sibling and a next sibling..
-Fail	Spacing properly set for <mo> with only a next sibling.
-Fail	Spacing properly set for <mo> with only a previous sibling.
-Fail	Spacing properly set for <mo> with no previous/next siblings (aka embellished operator).
+4 Pass
+Pass	Spacing properly set for <mo> with a previous sibling and a next sibling..
+Pass	Spacing properly set for <mo> with only a next sibling.
+Pass	Spacing properly set for <mo> with only a previous sibling.
+Pass	Spacing properly set for <mo> with no previous/next siblings (aka embellished operator).

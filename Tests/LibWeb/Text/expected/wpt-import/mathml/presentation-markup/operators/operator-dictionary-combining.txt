@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	Spacing around ≠
-Fail	Spacing around =⃒
-Fail	Spacing around |̸
-Fail	Spacing around |⃒
-Fail	Spacing around ⋉̸
-Fail	Spacing around ⋉⃒
-Fail	Spacing around ∄
-Fail	Spacing around ∃⃒
+8 Pass
+Pass	Spacing around ≠
+Pass	Spacing around =⃒
+Pass	Spacing around |̸
+Pass	Spacing around |⃒
+Pass	Spacing around ⋉̸
+Pass	Spacing around ⋉⃒
+Pass	Spacing around ∄
+Pass	Spacing around ∃⃒

@@ -2,51 +2,52 @@ Harness status: OK
 
 Found 48 tests
 
-48 Fail
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, LTR, normal text).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, LTR, largeop variant).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, LTR, stretchy variant).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, LTR, glyph assembly).
-Fail	lspace/rspace spacing correctly set around operator (child of math, not embellished, LTR, normal text).
-Fail	lspace/rspace spacing correctly set around operator (child of math, not embellished, LTR, largeop variant).
-Fail	lspace/rspace spacing correctly set around operator (child of math, not embellished, LTR, stretchy variant).
-Fail	lspace/rspace spacing correctly set around operator (child of math, not embellished, LTR, glyph assembly).
+32 Pass
+16 Fail
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, LTR, normal text).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, LTR, largeop variant).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, LTR, stretchy variant).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, LTR, glyph assembly).
+Pass	lspace/rspace spacing correctly set around operator (child of math, not embellished, LTR, normal text).
+Pass	lspace/rspace spacing correctly set around operator (child of math, not embellished, LTR, largeop variant).
+Pass	lspace/rspace spacing correctly set around operator (child of math, not embellished, LTR, stretchy variant).
+Pass	lspace/rspace spacing correctly set around operator (child of math, not embellished, LTR, glyph assembly).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, not embellished, LTR, normal text).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, not embellished, LTR, largeop variant).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, not embellished, LTR, stretchy variant).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, not embellished, LTR, glyph assembly).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, embellished, LTR, normal text).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, embellished, LTR, largeop variant).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, embellished, LTR, stretchy variant).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, embellished, LTR, glyph assembly).
-Fail	lspace/rspace spacing correctly set around operator (child of math, embellished, LTR, normal text).
-Fail	lspace/rspace spacing correctly set around operator (child of math, embellished, LTR, largeop variant).
-Fail	lspace/rspace spacing correctly set around operator (child of math, embellished, LTR, stretchy variant).
-Fail	lspace/rspace spacing correctly set around operator (child of math, embellished, LTR, glyph assembly).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, embellished, LTR, normal text).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, embellished, LTR, largeop variant).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, embellished, LTR, stretchy variant).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, embellished, LTR, glyph assembly).
+Pass	lspace/rspace spacing correctly set around operator (child of math, embellished, LTR, normal text).
+Pass	lspace/rspace spacing correctly set around operator (child of math, embellished, LTR, largeop variant).
+Pass	lspace/rspace spacing correctly set around operator (child of math, embellished, LTR, stretchy variant).
+Pass	lspace/rspace spacing correctly set around operator (child of math, embellished, LTR, glyph assembly).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, embellished, LTR, normal text).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, embellished, LTR, largeop variant).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, embellished, LTR, stretchy variant).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, embellished, LTR, glyph assembly).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, RTL, normal text).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, RTL, largeop variant).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, RTL, stretchy variant).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, RTL, glyph assembly).
-Fail	lspace/rspace spacing correctly set around operator (child of math, not embellished, RTL, normal text).
-Fail	lspace/rspace spacing correctly set around operator (child of math, not embellished, RTL, largeop variant).
-Fail	lspace/rspace spacing correctly set around operator (child of math, not embellished, RTL, stretchy variant).
-Fail	lspace/rspace spacing correctly set around operator (child of math, not embellished, RTL, glyph assembly).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, RTL, normal text).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, RTL, largeop variant).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, RTL, stretchy variant).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, not embellished, RTL, glyph assembly).
+Pass	lspace/rspace spacing correctly set around operator (child of math, not embellished, RTL, normal text).
+Pass	lspace/rspace spacing correctly set around operator (child of math, not embellished, RTL, largeop variant).
+Pass	lspace/rspace spacing correctly set around operator (child of math, not embellished, RTL, stretchy variant).
+Pass	lspace/rspace spacing correctly set around operator (child of math, not embellished, RTL, glyph assembly).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, not embellished, RTL, normal text).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, not embellished, RTL, largeop variant).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, not embellished, RTL, stretchy variant).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, not embellished, RTL, glyph assembly).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, embellished, RTL, normal text).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, embellished, RTL, largeop variant).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, embellished, RTL, stretchy variant).
-Fail	lspace/rspace spacing correctly set around operator (child of mrow, embellished, RTL, glyph assembly).
-Fail	lspace/rspace spacing correctly set around operator (child of math, embellished, RTL, normal text).
-Fail	lspace/rspace spacing correctly set around operator (child of math, embellished, RTL, largeop variant).
-Fail	lspace/rspace spacing correctly set around operator (child of math, embellished, RTL, stretchy variant).
-Fail	lspace/rspace spacing correctly set around operator (child of math, embellished, RTL, glyph assembly).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, embellished, RTL, normal text).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, embellished, RTL, largeop variant).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, embellished, RTL, stretchy variant).
+Pass	lspace/rspace spacing correctly set around operator (child of mrow, embellished, RTL, glyph assembly).
+Pass	lspace/rspace spacing correctly set around operator (child of math, embellished, RTL, normal text).
+Pass	lspace/rspace spacing correctly set around operator (child of math, embellished, RTL, largeop variant).
+Pass	lspace/rspace spacing correctly set around operator (child of math, embellished, RTL, stretchy variant).
+Pass	lspace/rspace spacing correctly set around operator (child of math, embellished, RTL, glyph assembly).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, embellished, RTL, normal text).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, embellished, RTL, largeop variant).
 Fail	lspace/rspace spacing correctly set around operator (child of mtd, embellished, RTL, stretchy variant).

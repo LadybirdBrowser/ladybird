@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	space-like maction
-Fail	space-like maction (no first child)
-Fail	non-space like maction (first child not space-like)
-Fail	space-like semantics
-Fail	space-like semantics (no first child)
-Fail	non-space like semantics (first child not space-like)
+6 Pass
+Pass	space-like maction
+Pass	space-like maction (no first child)
+Pass	non-space like maction (first child not space-like)
+Pass	space-like semantics
+Pass	space-like semantics (no first child)
+Pass	non-space like semantics (first child not space-like)
