@@ -125,10 +125,12 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(ReadonlySpan<
 
     // NB: We reorder the steps a little to avoid the awkward prepending.
     GC::RootVector<GC::Ref<CSSNumericValue>> values;
-    if (auto const* math_sum = as_if<CSSMathSum>(*this))
-        values.extend(math_sum->values()->values());
-    else
+    if (auto const* math_sum = as_if<CSSMathSum>(*this)) {
+        auto items = math_sum->values()->values();
+        values.append(items.data(), items.size());
+    } else {
         values.append(*this);
+    }
 
     for (auto const& value : initial_values)
         values.append(rectify_a_numberish_value(value));
@@ -183,10 +185,12 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::mul(ReadonlySpan<
 
     // NB: We reorder the steps a little to avoid the awkward prepending.
     GC::RootVector<GC::Ref<CSSNumericValue>> values;
-    if (auto const* math_product = as_if<CSSMathProduct>(*this))
-        values.extend(math_product->values()->values());
-    else
+    if (auto const* math_product = as_if<CSSMathProduct>(*this)) {
+        auto items = math_product->values()->values();
+        values.append(items.data(), items.size());
+    } else {
         values.append(*this);
+    }
 
     for (auto const& value : initial_values)
         values.append(rectify_a_numberish_value(value));
@@ -277,10 +281,12 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::min(ReadonlySpan<
 
     // NB: We reorder the steps a little to avoid the awkward prepending.
     GC::RootVector<GC::Ref<CSSNumericValue>> values;
-    if (auto const* math_product = as_if<CSSMathMin>(*this))
-        values.extend(math_product->values()->values());
-    else
+    if (auto const* math_product = as_if<CSSMathMin>(*this)) {
+        auto items = math_product->values()->values();
+        values.append(items.data(), items.size());
+    } else {
         values.append(*this);
+    }
 
     for (auto const& value : initial_values)
         values.append(rectify_a_numberish_value(value));
@@ -305,10 +311,12 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::max(ReadonlySpan<
 
     // NB: We reorder the steps a little to avoid the awkward prepending.
     GC::RootVector<GC::Ref<CSSNumericValue>> values;
-    if (auto const* math_product = as_if<CSSMathMax>(*this))
-        values.extend(math_product->values()->values());
-    else
+    if (auto const* math_product = as_if<CSSMathMax>(*this)) {
+        auto items = math_product->values()->values();
+        values.append(items.data(), items.size());
+    } else {
         values.append(*this);
+    }
 
     for (auto const& value : initial_values)
         values.append(rectify_a_numberish_value(value));

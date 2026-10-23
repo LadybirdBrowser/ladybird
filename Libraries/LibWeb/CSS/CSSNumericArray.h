@@ -24,7 +24,7 @@ public:
 
     WebIDL::UnsignedLong length() const;
     GC::Ptr<CSSNumericValue> value_at(size_t index) const;
-    Vector<GC::Ref<CSSNumericValue>> values() { return m_values; }
+    ReadonlySpan<GC::Ref<CSSNumericValue>> values() const { return m_values; }
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     bool is_equal_numeric_values(GC::Ref<CSSNumericArray> other) const;
