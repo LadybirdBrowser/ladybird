@@ -205,7 +205,7 @@ void Detail::complete_rendering_pending_stream(Streams::ReadableStream const& st
 {
     if (!s_pending_stats)
         return;
-    auto tokens = s_pending_stats->streams.take(&stream);
+    Optional<HashTable<GC::RawPtr<GC::Cell const>>> tokens = s_pending_stats->streams.take(&stream);
     if (!tokens.has_value())
         return;
     for (auto token : *tokens)
@@ -230,7 +230,7 @@ void Detail::flush_rendering_pending()
     auto* log = Core::StatsLog::the();
     if (!log || !s_pending_stats || s_pending_stats->task_depth)
         return;
-    auto dirty_pages = move(s_pending_stats->dirty_pages);
+    HashTable<GC::RawPtr<Page const>> dirty_pages = move(s_pending_stats->dirty_pages);
     for (auto page : dirty_pages) {
         auto it = s_pending_stats->pages.find(page);
         if (it == s_pending_stats->pages.end() || !page->has_top_level_traversable())
