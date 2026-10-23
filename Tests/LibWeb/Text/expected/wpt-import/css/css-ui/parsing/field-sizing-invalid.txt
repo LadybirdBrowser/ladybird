@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['field-sizing'] = "none" should not set the property value
+Pass	e.style['field-sizing'] = "legacy" should not set the property value
+Pass	e.style['field-sizing'] = "auto" should not set the property value
+Pass	e.style['field-sizing'] = "normal" should not set the property value
+Pass	e.style['field-sizing'] = "normal auto" should not set the property value
+Pass	e.style['field-sizing'] = "100%" should not set the property value
+Pass	e.style['field-sizing'] = "10px" should not set the property value
