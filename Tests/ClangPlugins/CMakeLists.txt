@@ -12,10 +12,6 @@ list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS
     -Wno-user-defined-literals
 )
 
-# Ensure we always check for invalid function field types regardless of the value of ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS
-# FIXME: Enabling this with lit and llvm 18 seems to not work as expected
-# list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS -fplugin-arg-libjs_gc_scanner-detect-invalid-function-members)
-
 get_property(CLANG_PLUGINS_INCLUDE_DIRECTORIES TARGET AK PROPERTY INCLUDE_DIRECTORIES)
 
 configure_lit_site_cfg(
