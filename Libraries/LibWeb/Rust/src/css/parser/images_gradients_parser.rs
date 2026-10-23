@@ -647,7 +647,46 @@ pub(crate) fn parse_image_value(
         tokens.discard_a_token();
         return Some(parsed);
     }
+    if let Some((name, arguments)) = tokens.next_token().function()
+        && equals_ascii_case_insensitive(name, b"light-dark")
+        && let Some(parsed) = parse_light_dark_image(context, property, arguments, allow_image_set)
+    {
+        tokens.discard_a_token();
+        return Some(parsed);
+    }
     None
+}
+
+// https://drafts.csswg.org/css-color-5/#light-dark
+fn parse_light_dark_image(
+    context: &ParseContext,
+    property: u16,
+    arguments: &[ComponentValue],
+    allow_image_set: bool,
+) -> Option<StyleValueData> {
+    // <light-dark-image> = light-dark( [ <image> | none ] , [ <image> | none ] )
+    // FIXME: Support none, which computes to image(transparent).
+    let mut tokens = TokenStream::new(arguments);
+    let light = parse_image_value(context, property, &mut tokens, allow_image_set)?;
+    tokens.discard_whitespace();
+    if !tokens.next_token().is_comma() {
+        return None;
+    }
+    tokens.discard_a_token();
+    let dark = parse_image_value(context, property, &mut tokens, allow_image_set)?;
+    tokens.discard_whitespace();
+    if tokens.has_next_token() {
+        return None;
+    }
+    Some(StyleValueData::LightDark {
+        color_base: crate::css::style_value::ColorBase {
+            has_color_type: false,
+            color_type: 0,
+            color_syntax: crate::css::value_codes::COLOR_SYNTAX_MODERN,
+        },
+        light: retained(light),
+        dark: retained(dark),
+    })
 }
 
 pub(crate) fn is_image_function_name(name: &[u16]) -> bool {
