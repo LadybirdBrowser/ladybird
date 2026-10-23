@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<title>Tests which properties are allowed in @position-try</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback-rule">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style id="style"></style>
+<script>
+function cleanup() {
+  while (style.sheet.cssRules.length)
+    style.sheet.deleteRule(0);
+}
+
+function test_allowed_declaration(property, value = '1px') {
+  test(t => {
+    t.add_cleanup(cleanup);
+    const serialization = `${property}: ${value}`;
+    const rule = `@position-try --foo  { ${property}: ${value}; }`;
+    const index = style.sheet.insertRule(rule);
+    const parsed = style.sheet.cssRules[index];
+    assert_equals(parsed.cssText, `@position-try --foo { ${serialization}; }`);
+  }, `${property}: ${value} is allowed in @position-try`);
+}
+
+function test_disallowed_declaration(property, value = '1px') {
+  test(t => {
+    t.add_cleanup(cleanup);
+    const rule = `@position-try --foo { ${property}: ${value}; }`;
+    const index = style.sheet.insertRule(rule);
+    const parsed = style.sheet.cssRules[index];
+    assert_equals(parsed.cssText, `@position-try --foo { }`);
+  }, `${property}: ${value} is disallowed in @position-try`);
+}
+
+// Inset properties are allowed
+test_allowed_declaration('top');
+test_allowed_declaration('bottom');
+test_allowed_declaration('left');
+test_allowed_declaration('right');
+test_allowed_declaration('inset-block-start');
+test_allowed_declaration('inset-block-end');
+test_allowed_declaration('inset-inline-start');
+test_allowed_declaration('inset-inline-end');
+test_allowed_declaration('inset-block');
+test_allowed_declaration('inset-inline');
+test_allowed_declaration('inset');
+test_allowed_declaration('position-area', 'span-all');
+
+// Margin properties are allowed
+test_allowed_declaration('margin-top');
+test_allowed_declaration('margin-bottom');
+test_allowed_declaration('margin-left');
+test_allowed_declaration('margin-right');
+test_allowed_declaration('margin-block-start');
+test_allowed_declaration('margin-block-end');
+test_allowed_declaration('margin-inline-start');
+test_allowed_declaration('margin-inline-end');
+test_allowed_declaration('margin-block');
+test_allowed_declaration('margin-inline');
+test_allowed_declaration('margin');
+
+// Sizing properties are allowed
+test_allowed_declaration('width');
+test_allowed_declaration('height');
+test_allowed_declaration('block-size');
+test_allowed_declaration('inline-size');
+test_allowed_declaration('min-width');
+test_allowed_declaration('min-height');
+test_allowed_declaration('min-block-size');
+test_allowed_declaration('min-inline-size');
+test_allowed_declaration('max-width');
+test_allowed_declaration('max-height');
+test_allowed_declaration('max-block-size');
+test_allowed_declaration('max-inline-size');
+
+// Box alignment properties are allowed
+test_allowed_declaration('justify-self', 'normal');
+test_allowed_declaration('align-self', 'normal');
+test_allowed_declaration('place-self', 'normal');
+
+// The 'position-anchor' property is allowed
+test_allowed_declaration('position-anchor', '--anchor');
+
+// Custom properties are disallowed
+test_disallowed_declaration('--custom');
+
+// Test some other disallowed properties
+test_disallowed_declaration('font-size');
+test_disallowed_declaration('border-width');
+test_disallowed_declaration('padding');
+test_disallowed_declaration('display');
+test_disallowed_declaration('position');
+test_disallowed_declaration('float');
+test_disallowed_declaration('justify-content', 'normal');
+test_disallowed_declaration('align-content', 'normal');
+test_disallowed_declaration('justify-items', 'normal');
+test_disallowed_declaration('align-items', 'normal');
+
+// 'revert' and 'revert-layer' are allowed
+test_allowed_declaration('top', 'revert');
+test_allowed_declaration('top', 'revert-layer');
+test_allowed_declaration('inset', 'revert');
+test_allowed_declaration('inset', 'revert-layer');
+
+// !important is disallowed
+test_disallowed_declaration('top', '1px !important');
+test_disallowed_declaration('inset', '1px !important');
+</script>

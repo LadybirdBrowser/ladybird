@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-center">
+<link rel="author" href="mailto:dshin@mozilla.com">
+<title>Tests the position of 'anchor-center' alignment with target margin: auto.</title>
+<style>
+.container {
+  width: 100px;
+  height: 100px;
+  border: solid 3px;
+  position: relative;
+  margin: 50px;
+}
+
+.anchor {
+  anchor-name: --anchor;
+  position: relative;
+  width: 50px;
+  height: 50px;
+  left: 30px;
+  top: 20px;
+  background: lime;
+}
+
+.target {
+  position-anchor: --anchor;
+  width: 24px;
+  height: 24px;
+  position: fixed;
+  background: cyan;
+}
+
+.justify {
+  justify-self: anchor-center;
+  top: anchor(bottom);
+  /* Should be overridden to 0. */
+  margin-inline: auto;
+}
+
+.align {
+  align-self: anchor-center;
+  right: anchor(left);
+  /* Should be overridden to 0. */
+  margin-block: auto;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.target')">
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target justify" data-offset-x="104"></div>
+  <div class="target align" data-offset-y="86"></div>
+</div>

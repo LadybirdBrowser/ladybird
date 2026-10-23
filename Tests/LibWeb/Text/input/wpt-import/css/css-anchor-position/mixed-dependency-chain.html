@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+
+<title>Tests that chain of elements that anchor to each other using anchor() and position-area works.</title>
+
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#determining">
+<link rel="author" title="Kiet Ho" href="mailto:kiet.ho@apple.com">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+
+<style>
+  .containing-block {
+    border: 1px solid black;
+
+    position: relative;
+    width: 700px;
+    height: 500px;
+  }
+
+  .box {
+    width: 50px;
+    height: 50px;
+    position: absolute;
+    anchor-name: --box;
+
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #box1 {
+    top: 0;
+    left: 0;
+    background: green;
+  }
+
+  .uses-anchor-function {
+    background: blue;
+    position-anchor: --box;
+    left: calc(anchor(right) + 10px);
+  }
+
+  .uses-position-area {
+    background: magenta;
+    position-anchor: --box;
+    position-area: right center;
+    margin-left: 10px;
+  }
+</style>
+
+<body onload="checkLayoutForAnchorPos('.target')">
+  <p>You should see a row of boxes in order.</p>
+
+  <div class="containing-block">
+    <div class="target box" id="box1" data-offset-x="0">1</div>
+
+    <div class="target box uses-position-area" data-offset-x="60">2</div>
+    <div class="target box uses-position-area" data-offset-x="120">3</div>
+
+    <div class="target box uses-anchor-function" data-offset-x="180">4</div>
+    <div class="target box uses-anchor-function" data-offset-x="240">5</div>
+
+    <div class="target box uses-position-area" data-offset-x="300">6</div>
+    <div class="target box uses-anchor-function" data-offset-x="360">7</div>
+    <div class="target box uses-position-area" data-offset-x="420">8</div>
+    <div class="target box uses-anchor-function" data-offset-x="480">9</div>
+    <div class="target box uses-position-area" data-offset-x="540">10</div>
+  </div>
+</body>

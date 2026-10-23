@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Uses flip-block
+Fail	Uses flip-inline
+Fail	Uses flip-block flip-inline

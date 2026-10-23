@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	flip-block does not affect sizing
+Fail	flip-inline does not affect sizing
+Fail	flip-start affects sizing

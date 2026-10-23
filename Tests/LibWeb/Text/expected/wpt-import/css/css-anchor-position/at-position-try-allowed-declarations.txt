@@ -1,0 +1,61 @@
+Harness status: OK
+
+Found 56 tests
+
+56 Fail
+Fail	top: 1px is allowed in @position-try
+Fail	bottom: 1px is allowed in @position-try
+Fail	left: 1px is allowed in @position-try
+Fail	right: 1px is allowed in @position-try
+Fail	inset-block-start: 1px is allowed in @position-try
+Fail	inset-block-end: 1px is allowed in @position-try
+Fail	inset-inline-start: 1px is allowed in @position-try
+Fail	inset-inline-end: 1px is allowed in @position-try
+Fail	inset-block: 1px is allowed in @position-try
+Fail	inset-inline: 1px is allowed in @position-try
+Fail	inset: 1px is allowed in @position-try
+Fail	position-area: span-all is allowed in @position-try
+Fail	margin-top: 1px is allowed in @position-try
+Fail	margin-bottom: 1px is allowed in @position-try
+Fail	margin-left: 1px is allowed in @position-try
+Fail	margin-right: 1px is allowed in @position-try
+Fail	margin-block-start: 1px is allowed in @position-try
+Fail	margin-block-end: 1px is allowed in @position-try
+Fail	margin-inline-start: 1px is allowed in @position-try
+Fail	margin-inline-end: 1px is allowed in @position-try
+Fail	margin-block: 1px is allowed in @position-try
+Fail	margin-inline: 1px is allowed in @position-try
+Fail	margin: 1px is allowed in @position-try
+Fail	width: 1px is allowed in @position-try
+Fail	height: 1px is allowed in @position-try
+Fail	block-size: 1px is allowed in @position-try
+Fail	inline-size: 1px is allowed in @position-try
+Fail	min-width: 1px is allowed in @position-try
+Fail	min-height: 1px is allowed in @position-try
+Fail	min-block-size: 1px is allowed in @position-try
+Fail	min-inline-size: 1px is allowed in @position-try
+Fail	max-width: 1px is allowed in @position-try
+Fail	max-height: 1px is allowed in @position-try
+Fail	max-block-size: 1px is allowed in @position-try
+Fail	max-inline-size: 1px is allowed in @position-try
+Fail	justify-self: normal is allowed in @position-try
+Fail	align-self: normal is allowed in @position-try
+Fail	place-self: normal is allowed in @position-try
+Fail	position-anchor: --anchor is allowed in @position-try
+Fail	--custom: 1px is disallowed in @position-try
+Fail	font-size: 1px is disallowed in @position-try
+Fail	border-width: 1px is disallowed in @position-try
+Fail	padding: 1px is disallowed in @position-try
+Fail	display: 1px is disallowed in @position-try
+Fail	position: 1px is disallowed in @position-try
+Fail	float: 1px is disallowed in @position-try
+Fail	justify-content: normal is disallowed in @position-try
+Fail	align-content: normal is disallowed in @position-try
+Fail	justify-items: normal is disallowed in @position-try
+Fail	align-items: normal is disallowed in @position-try
+Fail	top: revert is allowed in @position-try
+Fail	top: revert-layer is allowed in @position-try
+Fail	inset: revert is allowed in @position-try
+Fail	inset: revert-layer is allowed in @position-try
+Fail	top: 1px !important is disallowed in @position-try
+Fail	inset: 1px !important is disallowed in @position-try

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: position-area with writing-mode and direction</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#position-area">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<!-- The grid:
+
+          100      150      150
+      +--------+--------+--------+
+      |        |        |        |
+  150 |        |        |        |
+      |        |        |        |
+      +--------+--------+--------+
+      |        |        |        |
+   75 |        |        |        |
+      |        |        |        |
+      +--------+--------+--------+
+      |        |        |        |
+  175 |        |        |        |
+      |        |        |        |
+      +--------+--------+--------+
+
+  -->
+<style>
+  #container {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+  }
+  #anchored {
+    position: absolute;
+    align-self: stretch;
+    justify-self: stretch;
+    position-anchor: --anchor;
+  }
+  #anchor {
+    margin-top: 150px;
+    margin-bottom: 175px;
+    margin-left: 100px;
+    margin-right: 150px;
+    width: 150px;
+    height: 75px;
+    anchor-name: --anchor;
+  }
+</style>
+<div id="container">
+  <div id="anchored"></div>
+  <div id="anchor"></div>
+</div>
+<script>
+  function test_position_area(writing_direction, position_area, expected_offsets) {
+    anchored.style.positionArea = position_area;
+    test(() => {
+      assert_equals(anchored.offsetLeft, expected_offsets.left, "Checking offsetLeft");
+      assert_equals(anchored.offsetTop, expected_offsets.top, "Checking offsetTop");
+      assert_equals(anchored.offsetWidth, expected_offsets.width, "Checking offsetWidth");
+      assert_equals(anchored.offsetHeight, expected_offsets.height, "Checking offsetHeight");
+    }, "Offsets for: " + position_area + " with writing-mode / direction: " + writing_direction);
+  }
+
+  const top_left = {left:0, top:0, width:100, height:150};
+  const top_right = {left:250, top:0, width:150, height:150};
+  const bottom_left = {left:0, top:225, width:100, height:175};
+  const bottom_right = {left:250, top:225, width:150, height:175};
+
+  anchored.style.writingMode = "horizontal-tb";
+  anchored.style.direction = "ltr";
+
+  // Writing-mode and direction on container
+  let writing_direction = "containing-block: horizontal-tb / rtl";
+  container.style.writingMode = "horizontal-tb";
+  container.style.direction = "rtl";
+  test_position_area(writing_direction, "start start", top_right);
+  test_position_area(writing_direction, "self-start self-start", top_left);
+  test_position_area(writing_direction, "x-start y-start", top_right);
+  test_position_area(writing_direction, "self-x-start self-y-start", top_left);
+  test_position_area(writing_direction, "inline-start block-end", bottom_right);
+  test_position_area(writing_direction, "self-inline-start self-block-end", bottom_left);
+
+  // containing-block: vertical-lr / ltr
+  // self: horizontal-tb / ltr
+  writing_direction = "containing-block: vertical-lr / ltr";
+  container.style.writingMode = "vertical-lr";
+  container.style.direction = "ltr";
+  test_position_area(writing_direction, "start start", top_left);
+  test_position_area(writing_direction, "self-start self-start", top_left);
+  test_position_area(writing_direction, "x-start y-start", top_left);
+  test_position_area(writing_direction, "self-x-start self-y-start", top_left);
+  test_position_area(writing_direction, "inline-start block-end", top_right);
+  test_position_area(writing_direction, "self-inline-start self-block-end", bottom_left);
+
+  // containing-block: vertical-lr / rtl
+  // self: horizontal-tb / ltr
+  writing_direction = "containing-block: vertical-lr / rtl";
+  container.style.writingMode = "vertical-lr";
+  container.style.direction = "rtl";
+  test_position_area(writing_direction, "start start", bottom_left);
+  test_position_area(writing_direction, "self-start self-start", top_left);
+  test_position_area(writing_direction, "x-start y-start", bottom_left);
+  test_position_area(writing_direction, "self-x-start self-y-start", top_left);
+
+  // containing-block: vertical-rl / ltr
+  // self: horizontal-tb / ltr
+  writing_direction = "containing-block: vertical-rl / ltr";
+  container.style.writingMode = "vertical-rl";
+  container.style.direction = "ltr";
+  test_position_area(writing_direction, "start start", top_right);
+  test_position_area(writing_direction, "self-start self-start", top_left);
+  test_position_area(writing_direction, "x-start y-start", top_right);
+  test_position_area(writing_direction, "self-x-start self-y-start", top_left);
+
+  // containing-block: vertical-rl / rtl
+  // self: horizontal-tb / ltr
+  writing_direction = "containing-block: vertical-rl / rtl";
+  container.style.writingMode = "vertical-rl";
+  container.style.direction = "rtl";
+  test_position_area(writing_direction, "start start", bottom_right);
+  test_position_area(writing_direction, "self-start self-start", top_left);
+  test_position_area(writing_direction, "x-start y-start", bottom_right);
+  test_position_area(writing_direction, "self-x-start self-y-start", top_left);
+
+  // Writing-mode and direction on self
+  container.style.writingMode = "horizontal-tb";
+  container.style.direction = "ltr";
+
+  // containing-block: horizontal-tb / ltr
+  // self: horizontal-tb / rtl
+  writing_direction = "self: horizontal-tb / rtl";
+  anchored.style.writingMode = "horizontal-tb";
+  anchored.style.direction = "rtl";
+  test_position_area(writing_direction, "start start", top_left);
+  test_position_area(writing_direction, "self-start self-start", top_right);
+  test_position_area(writing_direction, "x-start y-start", top_left);
+  test_position_area(writing_direction, "self-x-start self-y-start", top_right);
+
+  // containing-block: horizontal-tb / ltr
+  // self: vertical-lr / ltr
+  writing_direction = "self: vertical-lr / ltr";
+  anchored.style.writingMode = "vertical-lr";
+  anchored.style.direction = "ltr";
+  test_position_area(writing_direction, "start start", top_left);
+  test_position_area(writing_direction, "self-start self-start", top_left);
+  test_position_area(writing_direction, "x-start y-start", top_left);
+  test_position_area(writing_direction, "self-x-start self-y-start", top_left);
+
+  // containing-block: horizontal-tb / ltr
+  // self: vertical-lr / rtl
+  writing_direction = "self: vertical-lr / rtl";
+  anchored.style.writingMode = "vertical-lr";
+  anchored.style.direction = "rtl";
+  test_position_area(writing_direction, "start start", top_left);
+  test_position_area(writing_direction, "self-start self-start", bottom_left);
+  test_position_area(writing_direction, "x-start y-start", top_left);
+  test_position_area(writing_direction, "self-x-start self-y-start", bottom_left);
+
+  // containing-block: horizontal-tb / ltr
+  // self: vertical-rl / ltr
+  writing_direction = "self: vertical-rl / ltr";
+  anchored.style.writingMode = "vertical-rl";
+  anchored.style.direction = "ltr";
+  test_position_area(writing_direction, "start start", top_left);
+  test_position_area(writing_direction, "self-start self-start", top_right);
+  test_position_area(writing_direction, "x-start y-start", top_left);
+  test_position_area(writing_direction, "self-x-start self-y-start", top_right);
+
+  // containing-block: horizontal-tb / ltr
+  // self: vertical-rl / rtl
+  writing_direction = "self: vertical-rl / rtl";
+  anchored.style.writingMode = "vertical-rl";
+  anchored.style.direction = "rtl";
+  test_position_area(writing_direction, "start start", top_left);
+  test_position_area(writing_direction, "self-start self-start", bottom_right);
+  test_position_area(writing_direction, "x-start y-start", top_left);
+  test_position_area(writing_direction, "self-x-start self-y-start", bottom_right);
+
+</script>

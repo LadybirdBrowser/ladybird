@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Anchor Positioning Test: Parsing of position-try shorthand</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-try-prop">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+<script>
+  test_valid_value("position-try", "flip-inline");
+  test_valid_value("position-try", "flip-y");
+  test_valid_value("position-try", "most-height none");
+  test_valid_value("position-try", "--bar, --baz");
+  test_valid_value("position-try", "most-inline-size --baz, flip-inline");
+  test_valid_value("position-try", "most-block-size flip-inline flip-block, --bar, --baz");
+  test_valid_value("position-try", "most-width flip-y flip-x, --foo, --bar");
+  test_valid_value("position-try", "normal none", "none");
+  test_valid_value("position-try", "most-width none");
+  test_valid_value("position-try", "normal --foo", "--foo");
+
+  test_invalid_value("position-try", "normal --foo, most-width --bar");
+  test_invalid_value("position-try", "none normal");
+  test_invalid_value("position-try", "flip-block most-height");
+  test_invalid_value("position-try", "most-height, flip-start");
+
+  test_shorthand_value("position-try", "flip-inline", {
+    "position-try-order": "normal",
+    "position-try-fallbacks": "flip-inline",
+  });
+  test_shorthand_value("position-try", "flip-y", {
+    "position-try-order": "normal",
+    "position-try-fallbacks": "flip-y",
+  });
+  test_shorthand_value("position-try", "most-width none", {
+    "position-try-order": "most-width",
+    "position-try-fallbacks": "none",
+  });
+  test_shorthand_value("position-try", "--foo, --bar", {
+    "position-try-order": "normal",
+    "position-try-fallbacks": "--foo, --bar",
+  });
+  test_shorthand_value("position-try", "most-inline-size --foo, flip-inline", {
+    "position-try-order": "most-inline-size",
+    "position-try-fallbacks": "--foo, flip-inline",
+  });
+  test_shorthand_value("position-try", "most-inline-size flip-inline flip-block, --foo, --bar", {
+    "position-try-order": "most-inline-size",
+    "position-try-fallbacks": "flip-inline flip-block, --foo, --bar",
+  });
+  test_shorthand_value("position-try", "most-width flip-y flip-x, --foo, --bar", {
+    "position-try-order": "most-width",
+    "position-try-fallbacks": "flip-y flip-x, --foo, --bar",
+  });
+</script>

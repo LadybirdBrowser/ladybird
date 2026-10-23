@@ -1,0 +1,52 @@
+Harness status: OK
+
+Found 46 tests
+
+39 Pass
+7 Fail
+Pass	, right:anchor(left), right:anchor(left)
+Pass	flip-block, right:anchor(left), right:anchor(left)
+Pass	flip-inline, bottom:anchor(top), bottom:anchor(top)
+Pass	flip-inline, right:anchor(left), left:anchor(right)
+Pass	flip-inline, left:anchor(right), right:anchor(left)
+Pass	flip-start, right:anchor(left), bottom:anchor(top)
+Pass	flip-start, bottom:anchor(top), right:anchor(left)
+Pass	flip-inline flip-start, right:anchor(left), top:anchor(bottom)
+Pass	flip-start flip-inline, top:anchor(bottom), right:anchor(left)
+Pass	flip-start flip-block, left:anchor(right), bottom:anchor(top)
+Pass	flip-block flip-start, bottom:anchor(top), left:anchor(right)
+Pass	flip-start, left:anchor(right), top:anchor(bottom)
+Pass	flip-start, top:anchor(bottom), left:anchor(right)
+Pass	flip-block, bottom:anchor(top), top:anchor(bottom)
+Pass	flip-block, top:anchor(bottom), bottom:anchor(top)
+Pass	flip-inline, right:anchor(start), left:anchor(right)
+Pass	flip-inline, left:anchor(end), right:anchor(left)
+Pass	flip-start, right:anchor(start), bottom:anchor(top)
+Pass	flip-start, bottom:anchor(start), right:anchor(left)
+Pass	flip-inline flip-start, right:anchor(start), top:anchor(bottom)
+Pass	flip-start flip-inline, top:anchor(end), right:anchor(left)
+Pass	flip-start flip-block, left:anchor(end), bottom:anchor(top)
+Pass	flip-block flip-start, bottom:anchor(start), left:anchor(right)
+Pass	flip-start, left:anchor(end), top:anchor(bottom)
+Pass	flip-start, top:anchor(end), left:anchor(right)
+Pass	flip-block, bottom:anchor(start), top:anchor(bottom)
+Pass	flip-block, top:anchor(end), bottom:anchor(top)
+Pass	flip-inline, right:anchor(self-start), left:anchor(right)
+Pass	flip-inline, left:anchor(self-end), right:anchor(left)
+Pass	flip-start, right:anchor(self-start), bottom:anchor(top)
+Pass	flip-start, bottom:anchor(self-start), right:anchor(left)
+Pass	flip-inline flip-start, right:anchor(self-start), top:anchor(bottom)
+Pass	flip-start flip-inline, top:anchor(self-end), right:anchor(left)
+Pass	flip-start flip-block, left:anchor(self-end), bottom:anchor(top)
+Pass	flip-block flip-start, bottom:anchor(self-start), left:anchor(right)
+Pass	flip-start, left:anchor(self-end), top:anchor(bottom)
+Pass	flip-start, top:anchor(self-end), left:anchor(right)
+Pass	flip-block, bottom:anchor(self-start), top:anchor(bottom)
+Pass	flip-block, top:anchor(self-end), bottom:anchor(top)
+Fail	CSS Anchor Positioning: try-tactic, anchor()
+Fail	flip-inline
+Fail	flip-block
+Fail	flip-start
+Fail	flip-inline flip-start
+Fail	flip-start flip-block
+Fail	Can transform a value post-var-substitution

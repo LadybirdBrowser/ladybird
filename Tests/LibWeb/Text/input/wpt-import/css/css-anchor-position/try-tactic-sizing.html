@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: try-tactic, sizing properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @position-try --pf {
+    left:50px;
+    top:50px;
+
+    min-width: 1px;
+    min-height: 2px;
+    max-width: 100px;
+    max-height: 200px;
+  }
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+  }
+  #target {
+    position: absolute;
+    left: 99999px; /* force fallback */
+    width: 30px;
+    height: 40px;
+    background-color: skyblue;
+  }
+</style>
+<div id=cb>
+  <div id=target></div>
+</div>
+<script>
+  test(() => {
+    target.style.positionTryFallbacks = '--pf flip-block';
+    let cs = getComputedStyle(target);
+    assert_equals(cs.width, '30px');
+    assert_equals(cs.height, '40px');
+    assert_equals(cs.minWidth, '1px');
+    assert_equals(cs.minHeight, '2px');
+    assert_equals(cs.maxWidth, '100px');
+    assert_equals(cs.maxHeight, '200px');
+  }, 'flip-block does not affect sizing');
+
+  test(() => {
+    target.style.positionTryFallbacks = '--pf flip-inline';
+    let cs = getComputedStyle(target);
+    assert_equals(cs.width, '30px');
+    assert_equals(cs.height, '40px');
+    assert_equals(cs.minWidth, '1px');
+    assert_equals(cs.minHeight, '2px');
+    assert_equals(cs.maxWidth, '100px');
+    assert_equals(cs.maxHeight, '200px');
+  }, 'flip-inline does not affect sizing');
+
+  test(() => {
+    target.style.positionTryFallbacks = '--pf flip-start';
+    let cs = getComputedStyle(target);
+    assert_equals(cs.width, '40px');
+    assert_equals(cs.height, '30px');
+    assert_equals(cs.minWidth, '2px');
+    assert_equals(cs.minHeight, '1px');
+    assert_equals(cs.maxWidth, '200px');
+    assert_equals(cs.maxHeight, '100px');
+  }, 'flip-start affects sizing');
+</script>

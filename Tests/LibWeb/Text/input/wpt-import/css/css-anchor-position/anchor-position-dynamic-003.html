@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<title>Tests that anchor layout changes in another BFC cause relayout on the anchored element</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#propdef-anchor-name">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+.containing-block {
+  position: absolute;
+}
+.anchor {
+  anchor-name: --a1;
+  width: 50px;
+  height: 70px;
+  background: orange;
+}
+.after .anchor {
+  width: 70px;
+  height: 50px;
+}
+.target {
+  position: absolute;
+  left: anchor(--a1 right);
+  top: anchor(--a1 bottom);
+  width: anchor-size(--a1 width);
+  height: anchor-size(--a1 height);
+  background: green;
+}
+
+/* Various types of BFC as the containing block of the anchor */
+.float {
+  float: left;
+}
+.table {
+  display: table;
+}
+.inline-block {
+  display: inline-block;
+  vertical-align: bottom;
+}
+.contain {
+  contain: layout;
+}
+.scroller {
+  overflow: scroll;
+  width: 20px;
+  height: 20px;
+}
+</style>
+<body>
+  <div class="containing-block">
+    <div class="float">
+      <div class="anchor"></div>
+    </div>
+    <div class="target"></div>
+  </div>
+
+  <div class="containing-block">
+    <div class="table">
+      <div class="anchor"></div>
+    </div>
+    <div class="target"></div>
+  </div>
+
+  <div class="containing-block">
+    <div class="inline-block">
+      <div class="anchor"></div>
+    </div>
+    <div class="target"></div>
+  </div>
+
+  <div class="containing-block">
+    <div class="contain">
+      <div class="anchor"></div>
+    </div>
+    <div class="target"></div>
+  </div>
+
+  <div class="containing-block">
+    <div class="scroller">
+      <div class="anchor"></div>
+    </div>
+    <div class="target"></div>
+  </div>
+
+<script type="module">
+for (const element of document.getElementsByClassName('target')) {
+  element.dataset.offsetX = '50';
+  element.dataset.offsetY = '70';
+  element.dataset.expectedWidth = '50';
+  element.dataset.expectedHeight = '70';
+}
+await checkLayoutForAnchorPos('.target', false);
+
+document.body.classList.add('after');
+for (const element of document.getElementsByClassName('target')) {
+  element.dataset.offsetX = '70';
+  element.dataset.offsetY = '50';
+  element.dataset.expectedWidth = '70';
+  element.dataset.expectedHeight = '50';
+}
+await checkLayoutForAnchorPos('.after .target', true);
+</script>
+</body>

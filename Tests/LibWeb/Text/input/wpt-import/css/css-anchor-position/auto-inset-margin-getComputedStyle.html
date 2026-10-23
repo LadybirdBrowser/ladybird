@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests that getComputedStyle() returns auto insets and margins 0 when position-area or anchor-center is used with valid default anchor</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-area">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-pos">
+<link rel="author" name="David Shin" href="mailto:dshin@mozilla.com">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.abs-cb {
+  width: 60px;
+  height: 60px;
+  border: 5px solid;
+  position: relative;
+  anchor-scope: all;
+  display: inline-block;
+  /* Nudge static position against padding box. */
+  padding: 15px;
+}
+
+.anchor {
+  anchor-name: --a;
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  width: 20px;
+  height: 20px;
+  background: pink;
+}
+
+.positioned {
+  position: absolute;
+  background: purple;
+  width: 20px;
+  height: 20px;
+}
+
+.margin-auto > .positioned {
+  inset: 0;
+  margin: auto;
+}
+
+.inset-auto > .positioned {
+  inset: auto;
+}
+
+.pa {
+  position-area: bottom right;
+}
+
+.jac {
+  justify-self: anchor-center;
+}
+
+.aac {
+  align-self: anchor-center;
+}
+
+.valid-anchor > .positioned {
+  position-anchor: --a;
+}
+</style>
+<div id=insetValidAnchor class="abs-cb inset-auto valid-anchor">
+  <div class=anchor></div>
+  <div class="positioned pa"></div>
+  <div class="positioned jac"></div>
+  <div class="positioned aac"></div>
+</div
+><div id=insetInvalidAnchor class="abs-cb inset-auto">
+  <div class=anchor></div>
+  <div class="positioned pa"></div>
+  <div class="positioned jac"></div>
+  <div class="positioned aac"></div>
+</div><br>
+<div id=marginValidAnchor class="abs-cb margin-auto valid-anchor">
+  <div class=anchor></div>
+  <div class="positioned pa"></div>
+  <div class="positioned jac"></div>
+  <div class="positioned aac"></div>
+</div
+><div id=marginInvalidAnchor class="abs-cb margin-auto">
+  <div class=anchor></div>
+  <div class="positioned pa"></div>
+  <div class="positioned jac"></div>
+  <div class="positioned aac"></div>
+</div>
+<script>
+function assert_zero(e, f, props, t) {
+  test(() => {
+    const s = getComputedStyle(e);
+    for (const prop of props) {
+      f(s.getPropertyValue(prop), "0px");
+    }
+  }, t);
+}
+
+const horizontalInsets = ['left', 'right'];
+const verticalInsets = ['top', 'bottom'];
+const allInsets = horizontalInsets.concat(verticalInsets);
+
+assert_zero(insetValidAnchor.querySelector('.pa'), assert_equals, allInsets, "position-area with valid anchor sets insets to zero");
+assert_zero(insetValidAnchor.querySelector('.jac'), assert_equals, horizontalInsets, "justify-self: anchor-center  with valid anchor sets insets to zero");
+assert_zero(insetValidAnchor.querySelector('.aac'), assert_equals, verticalInsets, "align-self: anchor-center  with valid anchor sets insets to zero");
+
+assert_zero(insetInvalidAnchor.querySelector('.pa'), assert_not_equals, allInsets, "position-area with invalid anchor does not set insets to zero");
+assert_zero(insetInvalidAnchor.querySelector('.jac'), assert_not_equals, horizontalInsets, "justify-self: anchor-center with invalid anchor does not set insets to zero");
+assert_zero(insetInvalidAnchor.querySelector('.aac'), assert_not_equals, verticalInsets, "align-self: anchor-center with invalid anchor does not set insets to zero");
+
+const horizontalMargins = ['margin-left', 'margin-right'];
+const verticalMargins = ['margin-top', 'margin-bottom'];
+const allMargins = horizontalMargins.concat(verticalMargins);
+
+assert_zero(marginValidAnchor.querySelector('.pa'), assert_equals, allMargins, "position-area with valid anchor sets margins to zero");
+assert_zero(marginValidAnchor.querySelector('.jac'), assert_equals, horizontalMargins, "justify-self: anchor-center  with valid anchor sets margins to zero");
+assert_zero(marginValidAnchor.querySelector('.aac'), assert_equals, verticalMargins, "align-self: anchor-center  with valid anchor sets margins to zero");
+
+assert_zero(marginInvalidAnchor.querySelector('.pa'), assert_not_equals, allMargins, "position-area with invalid anchor does not set margins to zero");
+assert_zero(marginInvalidAnchor.querySelector('.jac'), assert_not_equals, horizontalMargins, "justify-self: anchor-center with invalid anchor does not set margins to zero");
+assert_zero(marginInvalidAnchor.querySelector('.aac'), assert_not_equals, verticalMargins, "align-self: anchor-center with invalid anchor does not set margins to zero");
+</script>

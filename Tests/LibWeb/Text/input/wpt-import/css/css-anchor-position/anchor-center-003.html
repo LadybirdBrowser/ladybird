@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-center">
+<link rel="author" href="mailto:plampe@igalia.com">
+<title>Tests the position and available-size of 'anchor-center' alignment with target width: auto.</title>
+<style>
+.container {
+  width: 100px;
+  height: 100px;
+  border: solid 3px;
+  position: relative;
+  margin: 50px;
+}
+
+.anchor {
+  anchor-name: --anchor;
+  position: relative;
+  width: 50px;
+  height: 50px;
+  left: 40px;
+  top: 5px;
+  background: lime;
+}
+
+.target {
+  position-anchor: --anchor;
+  position: fixed;
+  background: cyan;
+  justify-self: anchor-center;
+  top: anchor(bottom);
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.target')">
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" data-expected-width="30" data-offset-x="111">
+    <div style="width:30px;height:20px;"></div>
+  </div>
+</div>

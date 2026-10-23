@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: position-area positioning - anchor partially outside containing block</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#position-area">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    margin: 100px auto;
+    border: 2px solid;
+    background: #eee;
+  }
+  #anchor {
+    position: absolute;
+    right: -50px;
+    top: -50px;
+    width: 100px;
+    height: 100px;
+    anchor-name: --anchor;
+    background: blue;
+  }
+  #anchored {
+    position: absolute;
+    align-self: stretch;
+    justify-self: stretch;
+    position-anchor: --anchor;
+    background: #FA08;
+    outline: 1px solid orange;
+  }
+</style>
+<div id="container">
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+</div>
+<script>
+  function test_position_area(position_area, expected_offsets) {
+    anchored.style.positionArea = position_area;
+
+    test(() => {
+      assert_equals(anchored.offsetLeft, expected_offsets.left, "Check expected offsetLeft");
+      assert_equals(anchored.offsetTop, expected_offsets.top, "Check expected offsetTop");
+      assert_equals(anchored.offsetWidth, expected_offsets.width, "Check expected offsetWidth");
+      assert_equals(anchored.offsetHeight, expected_offsets.height, "Check expected offsetHeight");
+    }, "Offsets for position-area: " + position_area);
+  }
+
+  test_position_area("span-all", {left:0, top:-50, width:450, height:450});
+
+  test_position_area("left span-all", {left:0, top:-50, width:350, height:450});
+  test_position_area("span-left span-all", {left:0, top:-50, width:450, height:450});
+  test_position_area("span-all center", {left:350, top:-50, width:100, height:450});
+  test_position_area("span-right span-all", {left:350, top:-50, width:100, height:450});
+  test_position_area("right span-all", {left:450, top:-50, width:0, height:450});
+
+  test_position_area("top span-all", {left:0, top:-50, width:450, height:0});
+  test_position_area("span-top span-all", {left:0, top:-50, width:450, height:100});
+  test_position_area("center span-all", {left:0, top:-50, width:450, height:100});
+  test_position_area("span-bottom span-all", {left:0, top:-50, width:450, height:450});
+  test_position_area("bottom span-all", {left:0, top:50, width:450, height:350});
+</script>

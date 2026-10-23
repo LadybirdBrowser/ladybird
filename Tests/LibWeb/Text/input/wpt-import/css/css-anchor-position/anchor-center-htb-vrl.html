@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/">
+<title>Tests the position and available-size of 'anchor-center' alignment with different insets.</title>
+<style>
+.container {
+  width: 100px;
+  height: 100px;
+  border: solid 3px;
+  position: relative;
+  margin: 50px;
+}
+
+.anchor {
+  anchor-name: --anchor;
+  position: relative;
+  width: 50px;
+  height: 50px;
+  left: 40px;
+  top: 40px;
+  background: lime;
+}
+
+.target {
+  writing-mode: vertical-rl;
+  position-anchor: --anchor;
+  position: absolute;
+  background: cyan;
+  align-self: anchor-center;
+  right: anchor(left);
+  width: 20px;
+}
+/* used to test the available-size given to the element */
+.target::after {
+  color: transparent;
+  content: 'a a a a a a a a a a a a a a a a a a';
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.target')">
+
+<!-- no insets -->
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" data-expected-height="100" data-offset-y="0"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="max-height: 60px;" data-expected-height="60" data-offset-y="35"></div>
+</div>
+
+<!-- single insets -->
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="top: 20px;" data-expected-height="80" data-offset-y="20"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="bottom: 20px;" data-expected-height="80" data-offset-y="0"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="bottom: -20px;" data-expected-height="120" data-offset-y="0"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="max-height: 100px; bottom: -20px;" data-expected-height="100" data-offset-y="15"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="bottom: -50px;" data-expected-height="150" data-offset-y="0"></div>
+</div>
+
+<!-- both insets -->
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="top: 10px; bottom: 20px;" data-expected-height="70" data-offset-y="10"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="top: 10px; bottom: -20px;" data-expected-height="110" data-offset-y="10"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="top: -10px; bottom: -50px;" data-expected-height="160" data-offset-y="-10"></div>
+</div>

@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	Property position-try value 'none'
+Fail	Property position-try value 'normal none'
+Fail	Property position-try value 'flip-block'
+Fail	Property position-try value 'flip-y'
+Fail	Property position-try value 'most-width none'
+Fail	Property position-try value 'most-height flip-block, flip-inline'
+Fail	Property position-try value 'most-height flip-y, flip-x'
+Fail	Property position-try value 'most-width --foo, --bar'
+Fail	Property position-try value 'normal --foo'

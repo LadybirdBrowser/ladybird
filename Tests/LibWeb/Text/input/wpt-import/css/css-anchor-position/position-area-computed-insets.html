@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: position-area should not affect computed inset values</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#position-area">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/css-typed-om/resources/testhelper.js"></script>
+<style>
+  #abs {
+    position: absolute;
+    position-area: span-all;
+  }
+</style>
+<div id="abs"></div>
+<script>
+  test(() => {
+    let style = abs.computedStyleMap();
+    assert_equals(style.get("position-area").toString(), "span-all", "position-area is supported");
+    assert_style_value_equals(style.get("left"), new CSSKeywordValue("auto"));
+    assert_style_value_equals(style.get("right"), new CSSKeywordValue("auto"));
+    assert_style_value_equals(style.get("top"), new CSSKeywordValue("auto"));
+    assert_style_value_equals(style.get("bottom"), new CSSKeywordValue("auto"));
+  }, "position-area does not affect insets at computed value time");
+</script>

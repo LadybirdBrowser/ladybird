@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning Test: parsing of @position-try rules</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#fallback-rule">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<script>
+test_valid_rule('@position-try --foo { }');
+test_valid_rule(`@position-try --foo { top: 1px; }`);
+
+// @position-try needs exactly one <dashed-ident> as its name
+test_invalid_rule('@position-try { }');
+test_invalid_rule('@position-try foo { }');
+test_invalid_rule('@position-try --foo --bar { }');
+test_invalid_rule('@position-try --foo, --bar { }');
+
+// @position-try only accepts a limited set of properties.
+test_valid_rule('@position-try --foo { backround-color: green; }',
+                '@position-try --foo { }');
+
+// @position-try accepts only regular style declarations. Other
+// contents should be ignored.
+test_valid_rule('@position-try --foo { @keyframes bar {} }',
+                '@position-try --foo { }');
+test_valid_rule('@position-try --foo { @font-face {} }',
+                '@position-try --foo { }');
+test_valid_rule('@position-try --foo { @media print {} }',
+                '@position-try --foo { }');
+test_valid_rule('@position-try --foo { & {} }',
+                '@position-try --foo { }');
+test_valid_rule('@position-try --foo { arbitrary garbage }',
+                '@position-try --foo { }');
+
+</script>

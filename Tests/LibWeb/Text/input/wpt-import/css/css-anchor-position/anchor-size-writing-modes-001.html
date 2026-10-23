@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#propdef-anchor-name">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+.container {
+  position: relative;
+  height: 10px;
+}
+.anchor1 {
+  anchor-name: --a1;
+  width: 5px;
+  height: 7px;
+  background: orange;
+}
+.target {
+  position: absolute;
+}
+.htb {
+  writing-mode: horizontal-tb;
+}
+.vrl {
+  writing-mode: vertical-rl;
+}
+</style>
+<body onload="checkLayoutForAnchorPos('.target')">
+  <div class="container">
+    <div class="anchor1 vrl"></div>
+
+    <!-- Anchor's `writing-mode` should not matter. -->
+    <div class="target" style="width: anchor-size(--a1 width)" data-expected-width=5></div>
+    <div class="target" style="width: anchor-size(--a1 height)" data-expected-width=7></div>
+    <div class="target" style="width: anchor-size(--a1 inline)" data-expected-width=5></div>
+    <div class="target" style="width: anchor-size(--a1 block)" data-expected-width=7></div>
+    <div class="target" style="width: anchor-size(--a1 self-inline)" data-expected-width=5></div>
+    <div class="target" style="width: anchor-size(--a1 self-block)" data-expected-width=7></div>
+
+    <!-- `self-inline` and `self-block` take target's `writing-mode` into account. -->
+    <div class="target vrl" style="width: anchor-size(--a1 width)" data-expected-width=5></div>
+    <div class="target vrl" style="width: anchor-size(--a1 height)" data-expected-width=7></div>
+    <div class="target vrl" style="width: anchor-size(--a1 inline)" data-expected-width=5></div>
+    <div class="target vrl" style="width: anchor-size(--a1 block)" data-expected-width=7></div>
+    <div class="target vrl" style="width: anchor-size(--a1 self-inline)" data-expected-width=7></div>
+    <div class="target vrl" style="width: anchor-size(--a1 self-block)" data-expected-width=5></div>
+  </div>
+  <div class="container vrl">
+    <div class="anchor1 htb"></div>
+
+    <!-- Anchor's `writing-mode` should not matter. -->
+    <div class="target" style="width: anchor-size(--a1 width)" data-expected-width=5></div>
+    <div class="target" style="width: anchor-size(--a1 height)" data-expected-width=7></div>
+    <div class="target" style="width: anchor-size(--a1 inline)" data-expected-width=7></div>
+    <div class="target" style="width: anchor-size(--a1 block)" data-expected-width=5></div>
+    <div class="target" style="width: anchor-size(--a1 self-inline)" data-expected-width=7></div>
+    <div class="target" style="width: anchor-size(--a1 self-block)" data-expected-width=5></div>
+
+    <!-- `self-inline` and `self-block` take target's `writing-mode` into account. -->
+    <div class="target htb" style="width: anchor-size(--a1 width)" data-expected-width=5></div>
+    <div class="target htb" style="width: anchor-size(--a1 height)" data-expected-width=7></div>
+    <div class="target htb" style="width: anchor-size(--a1 inline)" data-expected-width=7></div>
+    <div class="target htb" style="width: anchor-size(--a1 block)" data-expected-width=5></div>
+    <div class="target htb" style="width: anchor-size(--a1 self-inline)" data-expected-width=5></div>
+    <div class="target htb" style="width: anchor-size(--a1 self-block)" data-expected-width=7></div>
+  </div>
+</body>

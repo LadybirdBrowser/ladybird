@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: Basic anchor-scope behavior</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-scope">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .scope-all { anchor-scope: all; }
+  .scope-a { anchor-scope: --a; }
+  .scope-b { anchor-scope: --b; }
+  .scope-ab { anchor-scope: --a, --b; }
+
+  .anchor-a { anchor-name: --a; }
+  .anchor-b { anchor-name: --b; }
+  .anchor-ab { anchor-name: --a, --b; }
+  .anchor-a, .anchor-b, .anchor-ab {
+    background: skyblue;
+    height: 10px;
+  }
+
+  .anchored-a { position-anchor: --a; }
+  .anchored-b { position-anchor: --b; }
+  .anchored-a, .anchored-b {
+    position: absolute;
+    top: anchor(bottom);
+    left: anchor(left);
+    width: 5px;
+    height: 5px;
+    background: coral;
+  }
+
+  /* Containing block */
+  main {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 1px solid black;
+  }
+</style>
+<script>
+  function inflate(t, template_element) {
+    t.add_cleanup(() => main.replaceChildren());
+    main.append(template_element.content.cloneNode(true));
+  }
+</script>
+
+<main id=main>
+</main>
+
+<template id=test_inclusive_subtree>
+  <div class="scope-a anchor-a"> <!--A-->
+    <div class=anchored-a></div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_inclusive_subtree);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '10px');
+  }, 'Can anchor to a name both defined and scoped by the same element');
+</script>
+
+<template id=test_skips_named_anchor_with_scope>
+  <div class="anchor-a"></div>
+  <div class="anchor-a"></div>
+  <div class="anchor-a"></div> <!--A-->
+  <div class="scope-a anchor-a"></div>
+  <div class=anchored-a></div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_skips_named_anchor_with_scope);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '30px');
+  }, 'Sibling can not anchor into anchor-scope, even when anchor-name present');
+</script>
+
+<template id=test_scope_all_common_ancestor>
+  <div class=scope-all>
+    <div class=anchor-a></div>
+    <div class=anchor-a></div>
+    <div class=anchor-a></div>
+    <div class=anchor-a></div><!--A-->
+    <div class=anchored-a></div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_scope_all_common_ancestor);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '40px');
+  }, 'anchor-scope:all on common ancestor');
+</script>
+
+<template id=test_scope_named_common_ancestor>
+  <div class=scope-a>
+    <div class=anchor-a></div>
+    <div class=anchor-a></div>
+    <div class=anchor-a></div>
+    <div class=anchor-a></div><!--A-->
+    <div class=anchored-a></div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_scope_named_common_ancestor);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '40px');
+  }, 'anchor-scope:--a on common ancestor');
+</script>
+
+<template id=test_scope_all_sibling>
+  <div class=anchor-a></div>
+  <div class=anchor-a></div><!--A-->
+  <div class=scope-all>
+    <div class=anchor-a></div>
+    <div class=anchor-a></div>
+  </div>
+  <div class=anchored-a></div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_scope_all_sibling);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '20px');
+  }, 'anchor-scope:all on sibling');
+</script>
+
+<template id=test_scope_all_multiple>
+  <div class=anchor-b></div><!--B-->
+  <div class=anchor-a></div><!--A-->
+  <div class=scope-all>
+    <div class=anchor-b></div>
+    <div class=anchor-a></div>
+  </div>
+  <div class=anchored-a></div>
+  <div class=anchored-b></div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_scope_all_multiple);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '20px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).top, '10px');
+  }, 'anchor-scope:all scopes multiple names');
+</script>
+
+<template id=test_scope_ab>
+  <div class=anchor-b></div><!--B-->
+  <div class=anchor-a></div><!--A-->
+  <div class=scope-ab>
+    <div class=anchor-b></div>
+    <div class=anchor-a></div>
+  </div>
+  <div class=anchored-a></div>
+  <div class=anchored-b></div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_scope_ab);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '20px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).top, '10px');
+  }, 'anchor-scope:--a,--b scopes --a and --b');
+</script>
+
+<template id=test_scope_a>
+  <div class=anchor-b></div>
+  <div class=anchor-a></div><!--A-->
+  <div class=scope-a>
+    <div class=anchor-b></div>
+    <div class=anchor-ab></div><!--B-->
+    <div class=anchor-a></div>
+  </div>
+  <div class=anchored-a></div>
+  <div class=anchored-b></div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_scope_a);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '20px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).top, '40px');
+  }, 'anchor-scope:--a scopes only --a');
+</script>
+
+<template id=test_scope_b>
+  <div class=anchor-b></div><!--B-->
+  <div class=anchor-a></div>
+  <div class=scope-b>
+    <div class=anchor-a></div><!--A-->
+    <div class=anchor-b></div>
+  </div>
+  <div class=anchored-a></div>
+  <div class=anchored-b></div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_scope_b);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '30px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).top, '10px');
+  }, 'anchor-scope:--b scopes only --b');
+</script>
+
+<template id=test_out_of_flow_anchors>
+  <style>
+    .anchor-a, .anchor-b {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+    }
+  </style>
+  <div class=anchor-b style='left:10px'></div>
+  <div class=anchor-a style='left:20px'></div><!--A-->
+  <div class=scope-a>
+    <div class=anchor-b style='left:30px'></div><!--B-->
+    <div class=anchor-a style='left:40px'></div>
+  </div>
+  <div class=anchored-a></div>
+  <div class=anchored-b></div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_out_of_flow_anchors);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '5px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).left, '20px');
+
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).top, '5px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).left, '30px');
+  }, 'anchor-scope:--a scopes only --a (out-of-flow anchors)');
+</script>
+
+<!-- Out-of-flow anchor within anchor-scope:--a -->
+<template id=test_mixed_flow_anchors>
+  <style>
+    .abs {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+    }
+  </style>
+  <div class=anchor-b></div>
+  <div class=anchor-a></div><!--A-->
+  <div class=scope-a>
+    <div class=anchor-b></div><!--B-->
+    <div class='anchor-a abs' style='top:50px'></div>
+  </div>
+  <div class=anchored-a></div>
+  <div class=anchored-b></div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_mixed_flow_anchors);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '20px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).left, '0px');
+
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).top, '30px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).left, '0px');
+  }, 'anchor-scope:--a scopes only --a (both out-of-flow and in-flow anchors)');
+</script>
+
+<!-- In-flow anchor within anchor-scope:--a -->
+<template id=test_mixed_flow_anchors_reverse>
+  <style>
+    .abs {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+    }
+  </style>
+  <div class=anchor-b></div>
+  <div class='anchor-a abs' style='top:50px'></div><!--A-->
+  <div class=scope-a>
+    <div class=anchor-b></div><!--B-->
+    <div class=anchor-a></div>
+  </div>
+  <div class=anchored-a></div>
+  <div class=anchored-b></div>
+</template>
+<script>
+  test((t) => {
+    inflate(t, test_mixed_flow_anchors_reverse);
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).top, '55px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-a')).left, '0px');
+
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).top, '20px');
+    assert_equals(getComputedStyle(main.querySelector('.anchored-b')).left, '0px');
+  }, 'anchor-scope:--a scopes only --a (both out-of-flow and in-flow anchors, reverse)');
+</script>

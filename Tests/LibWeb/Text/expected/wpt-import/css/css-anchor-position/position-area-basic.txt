@@ -1,0 +1,53 @@
+Harness status: OK
+
+Found 47 tests
+
+2 Pass
+45 Fail
+Pass	Offsets for: none
+Fail	Offsets for: span-all
+Fail	Offsets for: span-all span-all
+Fail	Offsets for: top left
+Fail	Offsets for: top center
+Fail	Offsets for: top right
+Fail	Offsets for: center left
+Fail	Offsets for: center center
+Fail	Offsets for: center right
+Fail	Offsets for: bottom left
+Fail	Offsets for: bottom center
+Fail	Offsets for: bottom right
+Fail	Offsets for: start start
+Fail	Offsets for: start center
+Fail	Offsets for: start end
+Fail	Offsets for: center start
+Fail	Offsets for: center end
+Fail	Offsets for: end start
+Fail	Offsets for: end center
+Fail	Offsets for: end end
+Fail	Offsets for: self-start self-start
+Fail	Offsets for: self-start center
+Fail	Offsets for: self-start self-end
+Fail	Offsets for: center self-start
+Fail	Offsets for: center self-end
+Fail	Offsets for: self-end self-start
+Fail	Offsets for: self-end center
+Fail	Offsets for: self-end self-end
+Fail	Offsets for: y-start x-start
+Fail	Offsets for: y-start center
+Fail	Offsets for: y-start x-end
+Fail	Offsets for: center x-start
+Fail	Offsets for: center x-end
+Fail	Offsets for: y-end x-start
+Fail	Offsets for: y-end center
+Fail	Offsets for: y-end x-end
+Fail	Offsets for: self-y-start self-x-start
+Fail	Offsets for: self-y-start center
+Fail	Offsets for: self-y-start self-x-end
+Fail	Offsets for: center self-x-start
+Fail	Offsets for: center self-x-end
+Fail	Offsets for: self-y-end self-x-start
+Fail	Offsets for: self-y-end center
+Fail	Offsets for: self-y-end self-x-end
+Fail	Offsets for: span-self-y-start span-self-x-end
+Fail	Offsets for: span-bottom span-all
+Pass	Offsets for: span-all top

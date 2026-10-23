@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: basic position-area positioning</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#position-area">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<!-- The grid:
+
+          100      150      150
+      +--------+--------+--------+
+      |        |        |        |
+  150 |        |        |        |
+      |        |        |        |
+      +--------+--------+--------+
+      |        |        |        |
+   75 |        |        |        |
+      |        |        |        |
+      +--------+--------+--------+
+      |        |        |        |
+  175 |        |        |        |
+      |        |        |        |
+      +--------+--------+--------+
+
+  -->
+<style>
+  #container {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    margin: 0 auto;
+    border: 2px solid;
+    background: #eee;
+  }
+  #anchored {
+    position: absolute;
+    align-self: stretch;
+    justify-self: stretch;
+    position-anchor: --anchor;
+    background: #FA08;
+    outline: 1px solid orange;
+  }
+  #anchor {
+    margin-top: 150px;
+    margin-left: 100px;
+    width: 150px;
+    height: 75px;
+    anchor-name: --anchor;
+    background: blue;
+  }
+</style>
+<div id="container">
+  <div id="anchored"></div>
+  <div id="anchor"></div>
+</div>
+<script>
+  function test_position_area(position_area, expected_offsets) {
+    anchored.style.positionArea = position_area;
+    test(() => {
+      assert_equals(anchored.offsetLeft, expected_offsets.left, "Check expected offsetLeft");
+      assert_equals(anchored.offsetTop, expected_offsets.top, "Check expected offsetTop");
+      assert_equals(anchored.offsetWidth, expected_offsets.width, "Check expected offsetWidth");
+      assert_equals(anchored.offsetHeight, expected_offsets.height, "Check expected offsetHeight");
+    }, "Offsets for: " + position_area);
+  }
+
+  test_position_area("none", {left:0, top:0, width:0, height:0});
+  test_position_area("span-all", {left:0, top:0, width:400, height:400});
+  test_position_area("span-all span-all", {left:0, top:0, width:400, height:400});
+
+  // Single region spans
+  test_position_area("top left", {left:0, top:0, width:100, height:150});
+  test_position_area("top center", {left:100, top:0, width:150, height:150});
+  test_position_area("top right", {left:250, top:0, width:150, height:150});
+  test_position_area("center left", {left:0, top:150, width:100, height:75});
+  test_position_area("center center", {left:100, top:150, width:150, height:75});
+  test_position_area("center right", {left:250, top:150, width:150, height:75});
+  test_position_area("bottom left", {left:0, top:225, width:100, height:175});
+  test_position_area("bottom center", {left:100, top:225, width:150, height:175});
+  test_position_area("bottom right", {left:250, top:225, width:150, height:175});
+
+  test_position_area("start start", {left:0, top:0, width:100, height:150});
+  test_position_area("start center", {left:100, top:0, width:150, height:150});
+  test_position_area("start end", {left:250, top:0, width:150, height:150});
+  test_position_area("center start", {left:0, top:150, width:100, height:75});
+  test_position_area("center end", {left:250, top:150, width:150, height:75});
+  test_position_area("end start", {left:0, top:225, width:100, height:175});
+  test_position_area("end center", {left:100, top:225, width:150, height:175});
+  test_position_area("end end", {left:250, top:225, width:150, height:175});
+
+  test_position_area("self-start self-start", {left:0, top:0, width:100, height:150});
+  test_position_area("self-start center", {left:100, top:0, width:150, height:150});
+  test_position_area("self-start self-end", {left:250, top:0, width:150, height:150});
+  test_position_area("center self-start", {left:0, top:150, width:100, height:75});
+  test_position_area("center self-end", {left:250, top:150, width:150, height:75});
+  test_position_area("self-end self-start", {left:0, top:225, width:100, height:175});
+  test_position_area("self-end center", {left:100, top:225, width:150, height:175});
+  test_position_area("self-end self-end", {left:250, top:225, width:150, height:175});
+
+  test_position_area("y-start x-start", {left:0, top:0, width:100, height:150});
+  test_position_area("y-start center", {left:100, top:0, width:150, height:150});
+  test_position_area("y-start x-end", {left:250, top:0, width:150, height:150});
+  test_position_area("center x-start", {left:0, top:150, width:100, height:75});
+  test_position_area("center x-end", {left:250, top:150, width:150, height:75});
+  test_position_area("y-end x-start", {left:0, top:225, width:100, height:175});
+  test_position_area("y-end center", {left:100, top:225, width:150, height:175});
+  test_position_area("y-end x-end", {left:250, top:225, width:150, height:175});
+
+  test_position_area("self-y-start self-x-start", {left:0, top:0, width:100, height:150});
+  test_position_area("self-y-start center", {left:100, top:0, width:150, height:150});
+  test_position_area("self-y-start self-x-end", {left:250, top:0, width:150, height:150});
+  test_position_area("center self-x-start", {left:0, top:150, width:100, height:75});
+  test_position_area("center self-x-end", {left:250, top:150, width:150, height:75});
+  test_position_area("self-y-end self-x-start", {left:0, top:225, width:100, height:175});
+  test_position_area("self-y-end center", {left:100, top:225, width:150, height:175});
+  test_position_area("self-y-end self-x-end", {left:250, top:225, width:150, height:175});
+
+  // Multi-region spans
+  test_position_area("span-self-y-start span-self-x-end", {left:100, top:0, width:300, height:225});
+  test_position_area("span-bottom span-all", {left:0, top:150, width:400, height:250});
+
+  // No implicit anchor means the position-area should not apply.
+  anchored.style.positionAnchor = "auto";
+  test_position_area("span-all top", {left:0, top:0, width:0, height:0});
+</script>

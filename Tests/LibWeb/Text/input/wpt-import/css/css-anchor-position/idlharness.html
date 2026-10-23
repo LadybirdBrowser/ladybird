@@ -1,0 +1,37 @@
+<!doctype html>
+<title>CSS Anchor Positioning IDL tests</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#interfaces">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/WebIDLParser.js"></script>
+<script src="../../resources/idlharness.js"></script>
+
+<style>
+@position-fallback --fallback {
+  @try {}
+  @try {}
+}
+</style>
+
+<script>
+  'use strict';
+  idl_test(
+    ['css-anchor-position'],
+    ['cssom'],
+    idl_array => {
+      try {
+        self.positionFallback = document.styleSheets[0].cssRules.item(0);
+        self.try1 = self.positionFallback.cssRules.item(0);
+        self.try2 = self.positionFallback.cssRules.item(1);
+      } catch (e) {
+        // Will be surfaced when any rule is undefined below.
+      }
+
+      idl_array.add_objects({
+        CSSPositionFallbackRule: ['positionFallback'],
+        CSSTryRule: ['try1', 'try2'],
+        CSSStyleDeclaration: ['try1.style', 'try2.style'],
+      });
+    }
+  );
+</script>

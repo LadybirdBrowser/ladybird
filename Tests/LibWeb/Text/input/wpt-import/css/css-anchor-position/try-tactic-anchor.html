@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: try-tactic, anchor()</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  :root {
+    --anchor-left:anchor(left);
+  }
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+  }
+  #anchor {
+    position: absolute;
+    left: 150px;
+    top: 150px;
+    width: 60px;
+    height: 70px;
+    background-color: coral;
+    anchor-name: --a;
+  }
+  #target, #ref {
+    position: absolute;
+    left: 450px; /* force fallback */
+    width: 40px;
+    height: 40px;
+    background-color: skyblue;
+    position-anchor: --a;
+  }
+  #ref {
+    background-color: seagreen;
+  }
+</style>
+<style id=style>
+</style>
+<div id=cb>
+  <div id=anchor></div>
+  <div id=target></div>
+  <div id=ref></div>
+</div>
+<script>
+
+// Verify that a given try-tactic + untransformed declaration equals
+// a reference element using `transformed` directly.
+function test_anchor_flip(try_tactic, untransformed, transformed) {
+  test((t) => {
+    style.textContent = `
+      @position-try --pf {
+        inset: auto;
+        ${untransformed}
+      }
+      #target {
+        position-try-fallbacks: --pf ${try_tactic};
+      }
+      @position-try --ref {
+        inset: auto;
+        ${transformed}
+      }
+      #ref {
+        position-try-fallbacks: --ref;
+      }
+    `;
+    assert_equals(target.offsetLeft, ref.offsetLeft, 'offsetLeft');
+    assert_equals(target.offsetTop, ref.offsetTop, 'offsetTop');
+  }, `${try_tactic}, ${untransformed}, ${transformed}`);
+}
+
+// These are the possible transformations between
+// anchor(left/right/top/bottom):
+//
+// ┌───┬────┬────┬────┬────┐
+// │ - │ L  │ R  │ T  │ B  │
+// │ L │ -  │ LR │ LT │ LB │
+// │ R │ RL │ -  │ RT │ RB │
+// │ T │ TL │ TR │ -  │ TB │
+// │ B │ BL │ BR │ BT │ -  │
+// └───┴────┴────┴────┴────┘
+
+// No flip, no transformation.
+test_anchor_flip('', 'right:anchor(left)', 'right:anchor(left)');
+
+// flip-block does not affect left-right.
+test_anchor_flip('flip-block', 'right:anchor(left)', 'right:anchor(left)');
+// flip-inline does not affect left-right.
+test_anchor_flip('flip-inline', 'bottom:anchor(top)', 'bottom:anchor(top)');
+
+// Note that the letters represent the arguments to the anchor() functions,
+// not the properties. For example, LR: anchor(left) => anchor(right).
+
+// LR
+test_anchor_flip('flip-inline', 'right:anchor(left)', 'left:anchor(right)');
+// RL
+test_anchor_flip('flip-inline', 'left:anchor(right)', 'right:anchor(left)');
+
+// LT
+test_anchor_flip('flip-start', 'right:anchor(left)', 'bottom:anchor(top)');
+// TL
+test_anchor_flip('flip-start', 'bottom:anchor(top)', 'right:anchor(left)');
+
+// LB
+test_anchor_flip('flip-inline flip-start', 'right:anchor(left)', 'top:anchor(bottom)');
+// BL
+test_anchor_flip('flip-start flip-inline', 'top:anchor(bottom)', 'right:anchor(left)');
+
+// RT
+test_anchor_flip('flip-start flip-block', 'left:anchor(right)', 'bottom:anchor(top)');
+// TR
+test_anchor_flip('flip-block flip-start', 'bottom:anchor(top)', 'left:anchor(right)');
+
+// RB
+test_anchor_flip('flip-start', 'left:anchor(right)', 'top:anchor(bottom)');
+// BR
+test_anchor_flip('flip-start', 'top:anchor(bottom)', 'left:anchor(right)');
+
+// TB
+test_anchor_flip('flip-block', 'bottom:anchor(top)', 'top:anchor(bottom)');
+// BT
+test_anchor_flip('flip-block', 'top:anchor(bottom)', 'bottom:anchor(top)');
+
+// Logical versions.
+//
+// These tests duplicate the above, but replace the input logical anchor()
+// functions.
+
+// LR
+test_anchor_flip('flip-inline', 'right:anchor(start)', 'left:anchor(right)');
+// RL
+test_anchor_flip('flip-inline', 'left:anchor(end)', 'right:anchor(left)');
+
+// LT
+test_anchor_flip('flip-start', 'right:anchor(start)', 'bottom:anchor(top)');
+// TL
+test_anchor_flip('flip-start', 'bottom:anchor(start)', 'right:anchor(left)');
+
+// LB
+test_anchor_flip('flip-inline flip-start', 'right:anchor(start)', 'top:anchor(bottom)');
+// BL
+test_anchor_flip('flip-start flip-inline', 'top:anchor(end)', 'right:anchor(left)');
+
+// RT
+test_anchor_flip('flip-start flip-block', 'left:anchor(end)', 'bottom:anchor(top)');
+// TR
+test_anchor_flip('flip-block flip-start', 'bottom:anchor(start)', 'left:anchor(right)');
+
+// RB
+test_anchor_flip('flip-start', 'left:anchor(end)', 'top:anchor(bottom)');
+// BR
+test_anchor_flip('flip-start', 'top:anchor(end)', 'left:anchor(right)');
+
+// TB
+test_anchor_flip('flip-block', 'bottom:anchor(start)', 'top:anchor(bottom)');
+// BT
+test_anchor_flip('flip-block', 'top:anchor(end)', 'bottom:anchor(top)');
+
+// The same again, except with self-start/self-end.
+
+// LR
+test_anchor_flip('flip-inline', 'right:anchor(self-start)', 'left:anchor(right)');
+// RL
+test_anchor_flip('flip-inline', 'left:anchor(self-end)', 'right:anchor(left)');
+
+// LT
+test_anchor_flip('flip-start', 'right:anchor(self-start)', 'bottom:anchor(top)');
+// TL
+test_anchor_flip('flip-start', 'bottom:anchor(self-start)', 'right:anchor(left)');
+
+// LB
+test_anchor_flip('flip-inline flip-start', 'right:anchor(self-start)', 'top:anchor(bottom)');
+// BL
+test_anchor_flip('flip-start flip-inline', 'top:anchor(self-end)', 'right:anchor(left)');
+
+// RT
+test_anchor_flip('flip-start flip-block', 'left:anchor(self-end)', 'bottom:anchor(top)');
+// TR
+test_anchor_flip('flip-block flip-start', 'bottom:anchor(self-start)', 'left:anchor(right)');
+
+// RB
+test_anchor_flip('flip-start', 'left:anchor(self-end)', 'top:anchor(bottom)');
+// BR
+test_anchor_flip('flip-start', 'top:anchor(self-end)', 'left:anchor(right)');
+
+// TB
+test_anchor_flip('flip-block', 'bottom:anchor(self-start)', 'top:anchor(bottom)');
+// BT
+test_anchor_flip('flip-block', 'top:anchor(self-end)', 'bottom:anchor(top)');
+
+
+function test_anchor_size_flip(try_tactic, flip_expected) {
+  test((t) => {
+    style.textContent = `
+      @position-try --pf {
+        inset: auto;
+        width: calc(anchor-size(width) + 20px);
+        height: anchor-size(height);
+      }
+      #target {
+        position-try-fallbacks: --pf ${try_tactic};
+      }
+    `;
+
+    let expected_width = anchor.offsetWidth + (flip_expected ? 0 : 20);
+    let expected_height = anchor.offsetHeight + (flip_expected ? 20 : 0);
+
+    assert_equals(target.offsetWidth, expected_width, 'offsetWidth');
+    assert_equals(target.offsetHeight, expected_height, 'offsetHeight');
+  }, try_tactic);
+}
+
+// No flip, no transformation.
+test_anchor_size_flip('', /* expect_flip */ false);
+
+// Note: only the cross-axis flips cause width/height to change.
+// LR, TB (and their reverse versions) are in-axis, other combinations are
+// cross-axis.
+
+// In-axis:
+
+// LR, RL
+test_anchor_size_flip('flip-inline', /* expect_flip */ false);
+// TB, BT
+test_anchor_size_flip('flip-block', /* expect_flip */ false);
+
+// Cross-axis:
+
+// LT, TL, RB, BR
+test_anchor_size_flip('flip-start', /* expect_flip */ true);
+
+// LB, BL
+test_anchor_size_flip('flip-inline flip-start', /* expect_flip */ true);
+
+// RT, TR
+test_anchor_size_flip('flip-start flip-block', /* expect_flip */ true);
+
+
+test((t) => {
+  style.textContent = `
+    @position-try --pf {
+      inset: auto;
+      right: var(--anchor-left);
+    }
+    #target {
+      position-try-fallbacks: --pf;
+    }
+  `;
+  // Initially positioned to the left of the anchor.
+  assert_equals(target.offsetLeft, 110, 'offsetLeft');
+
+  // Now positioned to the right of the anchor.
+  style.textContent += `
+    #target {
+      position-try-fallbacks: --pf flip-inline;
+    }
+  `;
+  assert_equals(target.offsetLeft, 210, 'offsetLeft');
+}, 'Can transform a value post-var-substitution');
+
+</script>
