@@ -104,6 +104,8 @@ static int run_with_policy(Configure configure, Body body)
     auto child = fork();
     VERIFY(child >= 0);
     if (child == 0) {
+        rlimit limit { 0, 0 };
+        setrlimit(RLIMIT_CORE, &limit);
         MUST(Sandbox::install_no_new_privileges());
         Sandbox::SeccompPolicy policy;
         policy.allow_file_descriptor_operations();
@@ -231,9 +233,9 @@ TEST_CASE(gpu_policy_does_not_allow_unrelated_ioctls)
         auto status = run_with_policy(
             [](auto& policy) { policy.allow_gpu_device_operations(); },
             [&] { (void)ioctl(-1, request, nullptr); });
-        EXPECT(WIFEXITED(status));
-        if (WIFEXITED(status))
-            EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+        EXPECT(WIFSIGNALED(status));
+        if (WIFSIGNALED(status))
+            EXPECT_EQ(WTERMSIG(status), SIGSYS);
     }
 }
 
@@ -348,9 +350,9 @@ TEST_CASE(readonly_open_policy_accepts_the_flags_opendir_and_libpulse_use)
         [&] {
             (void)open(path, O_WRONLY | O_CLOEXEC);
         });
-    EXPECT(WIFEXITED(status));
-    if (WIFEXITED(status))
-        EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+    EXPECT(WIFSIGNALED(status));
+    if (WIFSIGNALED(status))
+        EXPECT_EQ(WTERMSIG(status), SIGSYS);
 
     VERIFY(unlink(path) == 0);
 }
@@ -396,9 +398,9 @@ TEST_CASE(pulseaudio_client_policy_allows_directory_creation_and_record_locks)
         [&] {
             (void)mkdir(existing_directory, 0700);
         });
-    EXPECT(WIFEXITED(status));
-    if (WIFEXITED(status))
-        EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+    EXPECT(WIFSIGNALED(status));
+    if (WIFSIGNALED(status))
+        EXPECT_EQ(WTERMSIG(status), SIGSYS);
 
     VERIFY(close(cookie) == 0);
     VERIFY(unlink(cookie_path) == 0);
@@ -489,9 +491,9 @@ TEST_CASE(ipc_policy_alone_does_not_pair_sockets)
             (void)socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
         });
 
-    EXPECT(WIFEXITED(status));
-    if (WIFEXITED(status))
-        EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+    EXPECT(WIFSIGNALED(status));
+    if (WIFSIGNALED(status))
+        EXPECT_EQ(WTERMSIG(status), SIGSYS);
 }
 
 TEST_CASE(socket_pair_policy_lets_a_process_pair_sockets_with_itself)
@@ -939,9 +941,9 @@ TEST_CASE(network_policy_refuses_incoming_connections)
         auto status = run_with_policy(configure, [listener, number] {
             (void)syscall(number, listener, nullptr, nullptr, 0);
         });
-        EXPECT(WIFEXITED(status));
-        if (WIFEXITED(status))
-            EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+        EXPECT(WIFSIGNALED(status));
+        if (WIFSIGNALED(status))
+            EXPECT_EQ(WTERMSIG(status), SIGSYS);
     }
 
     VERIFY(close(listener) == 0);

@@ -242,7 +242,7 @@ static u32 capture_native_stack(void* context)
     return frame_count;
 }
 
-static void crash_signal_handler(int signal, siginfo_t* info, void* context)
+void CrashHandler::handle_fatal_signal(int signal, siginfo_t* info, void* context)
 {
     if (__atomic_exchange_n(&s_crashing, 1, __ATOMIC_RELAXED))
         _exit(128 + signal);
@@ -304,7 +304,7 @@ ErrorOr<void> CrashHandler::initialize(int fd)
     if (sigaltstack(&stack, nullptr) < 0)
         return Error::from_errno(errno);
     struct sigaction action {};
-    action.sa_sigaction = crash_signal_handler;
+    action.sa_sigaction = CrashHandler::handle_fatal_signal;
     sigfillset(&action.sa_mask);
     action.sa_flags = SA_SIGINFO | SA_ONSTACK;
     for (int signal : { SIGSEGV, SIGBUS, SIGFPE, SIGABRT, SIGILL, SIGTRAP }) {
