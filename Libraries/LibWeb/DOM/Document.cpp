@@ -1201,7 +1201,7 @@ void Document::update_highlight_states_if_needed(Layout::BegunRead const& read)
     }
 }
 
-void Document::set_find_in_page_highlighted_matches(Vector<GC::Ref<Range>> matches)
+void Document::set_find_in_page_highlighted_matches(GC::RootVector<GC::Ref<Range>> matches)
 {
     if (matches.is_empty() && m_find_in_page_highlighted_matches.is_empty())
         return;
