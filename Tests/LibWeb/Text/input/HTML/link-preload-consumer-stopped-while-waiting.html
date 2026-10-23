@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = `link-preload-consumer-stopped-while-waiting-${Math.random()}`;
+        const preloadURL = await server.createEcho("GET", "/link-preload-consumer-stopped-while-waiting-preload", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: "body { color: rgb(255, 0, 0); }",
+            wait_for_unblock: token,
+        });
+        const stylesheetURL = await server.createEcho("GET", "/link-preload-consumer-stopped-while-waiting-stylesheet", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: "body { color: rgb(0, 128, 0); }",
+        });
+
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "style";
+        link.href = preloadURL;
+        document.head.append(link);
+
+        // Make sure the preload request reached the server, which holds its response until unblocked.
+        const recordedURL = server.recordedRequestHeadersURL(preloadURL);
+        while (true) {
+            try {
+                if ((await fetch(recordedURL)).ok) break;
+            } catch {}
+        }
+
+        // The stylesheet fetch waits on the preload that is still in flight, and is then stopped by the href change.
+        link.rel = "stylesheet";
+        link.href = stylesheetURL;
+        const loaded = new Promise(resolve => link.addEventListener("load", resolve, { once: true }));
+
+        // Let the preload complete while nothing waits on it anymore.
+        await fetch(new URL(`/unblock/${token}`, preloadURL));
+        await loaded;
+        await fetch(preloadURL, { mode: "no-cors" });
+        println(`Stylesheet loaded: ${!!link.sheet}`);
+        println(`Body color: ${getComputedStyle(document.body).color}`);
+        done();
+    });
+</script>

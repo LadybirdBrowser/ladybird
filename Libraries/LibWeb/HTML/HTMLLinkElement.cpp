@@ -467,6 +467,7 @@ void HTMLLinkElement::fetch_and_process_linked_resource()
 
     if (m_fetch_controller) {
         m_fetch_controller->stop_fetch();
+        m_fetch_controller = nullptr;
         document().remove_from_script_blocking_style_sheet_set(*this);
     }
 
@@ -610,14 +611,15 @@ void HTMLLinkElement::fetch_and_process_linked_preload_resource()
     options->destination = destination.get<Optional<Fetch::Infrastructure::Request::Destination>>();
 
     // 6. Preload options, with the following steps given a response response:
+    // NB: The preload's fetch is not stopped when el is fetched again, since other fetches may be waiting on it as a
+    //     consumer of the preloaded resource.
     GC::Weak weak_this { *this };
     auto fetch_generation = m_current_fetch_generation;
-    m_fetch_controller = preload(options, [weak_this, fetch_generation](Fetch::Infrastructure::Response& response) {
+    preload(options, [weak_this, fetch_generation](Fetch::Infrastructure::Response& response) {
         // 1. If response is a network error, fire an event named error at el. Otherwise, fire an event named load at el.
         if (auto link_element = weak_this.ptr()) {
             if (fetch_generation != link_element->m_current_fetch_generation)
                 return;
-            link_element->m_fetch_controller = nullptr;
             if (response.is_network_error())
                 link_element->dispatch_event(create_event_for_element(*link_element, HTML::EventNames::error));
             else
@@ -939,12 +941,12 @@ static bool type_matches_destination(Utf16View type, Optional<Fetch::Infrastruct
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#preload
-GC::Ptr<Fetch::Infrastructure::FetchController> HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetch::Infrastructure::Response&)> process_response)
+void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetch::Infrastructure::Response&)> process_response)
 {
     auto& realm = options.environment->realm();
     // 1. If options's type doesn't match options's destination, then return.
     if (!type_matches_destination(options.type, options.destination))
-        return {};
+        return;
 
     // 2. If options's destination is "image" and options's source set is not null, then set options's href to the
     //    result of selecting an image source from options's source set.
@@ -956,14 +958,14 @@ GC::Ptr<Fetch::Infrastructure::FetchController> HTMLLinkElement::preload(LinkPro
         options.href = options.source_set->select_an_image_source(device_pixel_ratio).source.url;
     }
     if (options.href.is_empty())
-        return {};
+        return;
 
     // 3. Let request be the result of creating a link request given options.
     auto request = create_link_request(options);
 
     // 4. If request is null, then return.
     if (!request)
-        return {};
+        return;
 
     // FIXME: 5. Let unsafeEndTime be 0.
 
@@ -1047,8 +1049,6 @@ GC::Ptr<Fetch::Infrastructure::FetchController> HTMLLinkElement::preload(LinkPro
         options.on_document_ready = commit;
     else
         commit->function()(*options.document);
-
-    return controller;
 }
 
 void HTMLLinkElement::modulepreload(LinkProcessingOptions const& options)
