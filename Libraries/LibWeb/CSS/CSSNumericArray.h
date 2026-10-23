@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
@@ -18,7 +19,7 @@ class CSSNumericArray : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(CSSNumericArray);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSNumericArray> create(Vector<GC::Ref<CSSNumericValue>>);
+    [[nodiscard]] static GC::Ref<CSSNumericArray> create(GC::RootVector<GC::Ref<CSSNumericValue>>);
 
     virtual ~CSSNumericArray() override;
 
