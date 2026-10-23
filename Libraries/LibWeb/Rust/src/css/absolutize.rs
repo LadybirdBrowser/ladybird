@@ -215,10 +215,11 @@ use crate::css::color_resolution::{
     resolve_relative_form, resolve_with_reference_value, to_color,
 };
 use crate::css::css_enums::keyword;
+use crate::css::serialize::color_function_has_missing_component;
 use crate::css::style_compute::{FfiLengthResolutionContext, absolutize_length, keyword_is_color};
 use crate::css::style_value::{
     BasicShapeData, ColorBase, CssString, OwnedBasicShapeData, RetainedGridTrackEntryList, RetainedStyleValueData,
-    RetainedStyleValueDataList, StyleValueData, value_depends_on_current_color,
+    RetainedStyleValueDataList, StyleValueData, is_none_keyword, value_depends_on_current_color,
 };
 use crate::css::value_codes::*;
 
@@ -523,6 +524,66 @@ fn hwb_to_absolutized_rgb(
     )
 }
 
+/// The computed form of an absolute rgb(), hsl() or hwb() function with missing components: the same
+/// function with every present component resolved to a number (hues in degrees, other hsl() and hwb()
+/// components in percent, rgb() components from 0 to 255) and alpha clamped to [0, 1].
+fn resolved_srgb_function_with_missing_components(value: &StyleValueData) -> Option<StyleValueData> {
+    let StyleValueData::ColorFunction {
+        color_base,
+        channel_0,
+        channel_1,
+        channel_2,
+        alpha,
+        ..
+    } = value
+    else {
+        return None;
+    };
+    let descriptor = descriptor_for_color_type(color_base.color_type);
+    let resolve_channel = |channel: &RetainedStyleValueData, index: usize| -> Option<RetainedStyleValueData> {
+        let value = channel.data();
+        if is_none_keyword(value) {
+            return Some(channel.clone_retained());
+        }
+        let channel_descriptor = &descriptor.channels[index];
+        let mut resolved = if channel_descriptor.is_hue {
+            resolve_hue(value, &EMPTY_INPUT)?
+        } else {
+            resolve_with_reference_value(value, f64::from(channel_descriptor.percent_reference), &EMPTY_INPUT)?
+        };
+        if color_base.color_type == crate::css::color_conversion::RGB {
+            resolved = resolved.clamp(0.0, 255.0);
+        }
+        // https://drafts.csswg.org/css-color-4/#the-hsl-notation
+        // For historical reasons, if the saturation is less than 0% it is clamped to 0% at parsed-value time,
+        // before being converted to an sRGB color.
+        if color_base.color_type == crate::css::color_conversion::HSL && index == 1 {
+            resolved = resolved.max(0.0);
+        }
+        Some(retain_new(StyleValueData::Number { value: resolved }))
+    };
+    let alpha = match alpha.optional_data() {
+        None => retained_null(),
+        Some(value) if is_none_keyword(value) => alpha.clone_retained(),
+        Some(value) => retain_new(StyleValueData::Number {
+            value: resolve_alpha(value, &EMPTY_INPUT)?,
+        }),
+    };
+    Some(StyleValueData::ColorFunction {
+        color_base: ColorBase {
+            color_syntax: COLOR_SYNTAX_MODERN,
+            ..*color_base
+        },
+        channel_0: resolve_channel(channel_0, 0)?,
+        channel_1: resolve_channel(channel_1, 1)?,
+        channel_2: resolve_channel(channel_2, 2)?,
+        alpha,
+        has_name: false,
+        name: CssString::none(),
+        origin_color: retained_null(),
+    })
+}
+
 /// Port of ColorFunctionStyleValue::absolutized: relative forms recurse their channels, alpha
 /// and origin; HSL and HWB resolve and convert to a legacy rgb() form; every other color
 /// function recurses its channels and alpha.
@@ -569,6 +630,40 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
     }
 
     let descriptor = descriptor_for_color_type(color_base.color_type);
+    let rebuilt = StyleValueData::ColorFunction {
+        color_base: *color_base,
+        channel_0: absolutized_c1,
+        channel_1: absolutized_c2,
+        channel_2: absolutized_c3,
+        alpha: absolutized_alpha,
+        has_name: *has_name,
+        name: name.clone(),
+        origin_color: retained_null(),
+    };
+
+    // https://drafts.csswg.org/css-color-4/#css-serialization-of-srgb
+    // An sRGB value with missing components keeps its color function, so that those components serialize as
+    // the none keyword.
+    if matches!(
+        color_base.color_type,
+        crate::css::color_conversion::RGB | crate::css::color_conversion::HSL | crate::css::color_conversion::HWB
+    ) && color_function_has_missing_component(&rebuilt)
+    {
+        return Some(Absolutized::Changed(retain_new(
+            resolved_srgb_function_with_missing_components(&rebuilt)?,
+        )));
+    }
+    let StyleValueData::ColorFunction {
+        channel_0: absolutized_c1,
+        channel_1: absolutized_c2,
+        channel_2: absolutized_c3,
+        alpha: absolutized_alpha,
+        ..
+    } = &rebuilt
+    else {
+        unreachable!();
+    };
+
     if descriptor.absolutizes_to_rgb {
         // https://drafts.csswg.org/css-color-4/#resolving-sRGB-values
         let c1 = if descriptor.channels[0].is_hue {
@@ -602,17 +697,6 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
         let canonical = canonical_legacy_rgb(&converted).unwrap_or(converted);
         return Some(Absolutized::Changed(retain_new(canonical)));
     }
-
-    let rebuilt = StyleValueData::ColorFunction {
-        color_base: *color_base,
-        channel_0: absolutized_c1,
-        channel_1: absolutized_c2,
-        channel_2: absolutized_c3,
-        alpha: absolutized_alpha,
-        has_name: *has_name,
-        name: name.clone(),
-        origin_color: retained_null(),
-    };
 
     if color_base.color_type == crate::css::color_conversion::RGB
         && let Some(canonical) = canonical_legacy_rgb(&rebuilt)

@@ -237,6 +237,22 @@ fn retained_component(value: f32, missing: bool) -> RetainedStyleValueData {
 
 fn make_result(color_type: u8, components: [f32; 4], missing: [bool; 4]) -> StyleValueData {
     let (color_type, components, missing) = match color_type {
+        // https://drafts.csswg.org/css-color-5/#serial-color-mix
+        // However, if the result of mixing in the hsl or hwb color space has at least one missing color
+        // component (including a missing alpha carried forward per [[css-color-4#interpolation-missing]]), the
+        // form used is the modern hsl(h s l / a) or hwb(h w b / a) syntax respectively, preserving the original
+        // color function and each none value per [[css-color-4#css-serialization-of-srgb]], rather than
+        // degrading to color(srgb r g b) (which would lose the hsl/hwb identity).
+        color_conversion::HSL | color_conversion::HWB if missing.contains(&true) => (
+            color_type,
+            [
+                components[0],
+                components[1] * 100.0,
+                components[2] * 100.0,
+                components[3],
+            ],
+            missing,
+        ),
         color_conversion::HSL | color_conversion::HWB => (
             color_conversion::SRGB,
             color_conversion::legacy_color_to_srgb(color_type, components).unwrap(),

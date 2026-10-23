@@ -1,0 +1,6 @@
+rgb(none 300 0): specified color(srgb none 1 0), computed color(srgb none 1 0)
+rgb(none -10 0): specified color(srgb none 0 0), computed color(srgb none 0 0)
+rgb(none 10% 200%): specified color(srgb none 0.1 1), computed color(srgb none 0.1 1)
+hsl(none -10% 50%): specified hsl(none 0% 50%), computed hsl(none 0% 50%)
+hsl(120 -10% none): specified hsl(120 0% none), computed hsl(120 0% none)
+rgb(none calc(255 * sign(1em - 10px)) 0): specified color(srgb none calc(calc(255 * sign(1em - 10px)) / 255) 0), computed color(srgb none 1 0)
