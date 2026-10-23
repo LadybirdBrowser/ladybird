@@ -48,7 +48,7 @@ void SpeechSynthesis::cancel()
 }
 
 // https://wicg.github.io/speech-api/#dom-speechsynthesis-getvoices
-Vector<GC::Ref<SpeechSynthesisVoice>> const& SpeechSynthesis::get_voices() const
+ReadonlySpan<GC::Ref<SpeechSynthesisVoice>> SpeechSynthesis::get_voices() const
 {
     // FIXME: Populate m_voices with available synthesis voices.
     return m_voices;

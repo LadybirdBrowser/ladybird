@@ -36,7 +36,7 @@ public:
 
     void cancel();
 
-    Vector<GC::Ref<SpeechSynthesisVoice>> const& get_voices() const;
+    ReadonlySpan<GC::Ref<SpeechSynthesisVoice>> get_voices() const;
 
 private:
     explicit SpeechSynthesis();
