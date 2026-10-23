@@ -1201,7 +1201,8 @@ fn interpolate_calc_size(
         _ => None,
     };
     let (from_kind, to_kind) = (kind(from)?, kind(to)?);
-    if from_kind == Kind::LengthPercentage && to_kind == Kind::LengthPercentage {
+    // NB: Two keywords never interpolate: the same keyword stays itself, and different keywords are not compatible.
+    if from_kind == to_kind && from_kind != Kind::CalcSize {
         return None;
     }
     // https://drafts.csswg.org/css-values-5/#valdef-interpolate-size-allow-keywords
