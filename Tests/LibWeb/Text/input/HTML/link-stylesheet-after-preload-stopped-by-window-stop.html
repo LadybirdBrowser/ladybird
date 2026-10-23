@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const preload = document.createElement("link");
+        preload.rel = "preload";
+        preload.as = "style";
+        preload.href = "../../data/import-1.css";
+        document.head.appendChild(preload);
+
+        // Stopping the document stops the preload's fetch before it has a response.
+        window.stop();
+
+        const stylesheet = document.createElement("link");
+        stylesheet.rel = "stylesheet";
+        stylesheet.href = "../../data/import-1.css";
+        stylesheet.addEventListener("load", () => {
+            println(`Loaded stylesheet, sheet: ${stylesheet.sheet !== null}`);
+            done();
+        });
+        stylesheet.addEventListener("error", () => {
+            println("Error");
+            done();
+        });
+        document.head.appendChild(stylesheet);
+    });
+</script>

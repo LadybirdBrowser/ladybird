@@ -106,6 +106,12 @@ bool consume_a_preloaded_resource(
     // 8. Remove preloads[key].
     preloads.remove(it);
 
+    // AD-HOC: A preload whose fetch was stopped before its response arrived, such as by stopping the document, will
+    //         never have a response: Stopping a fetch drops its algorithms. Return false, so the consumer fetches on
+    //         its own instead of waiting forever.
+    if (!entry->response && entry->controller && entry->controller->state() == Fetch::Infrastructure::FetchController::State::Stopped)
+        return false;
+
     // AD-HOC: A preload reports its own timing to Resource Timing, but a speculative fetch does not. Let the consumer
     //         know, so that it only reports timing when the preload does not.
     preload_reports_timing = !entry->is_speculative;
