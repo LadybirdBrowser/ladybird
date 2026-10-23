@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 17 tests
 
-11 Pass
-6 Fail
+15 Pass
+2 Fail
 Pass	Margin properties on the children of a
 Pass	Margin properties on the children of menclose
 Pass	Margin properties on the children of merror
-Fail	Margin properties on the children of mfrac
+Pass	Margin properties on the children of mfrac
 Pass	Margin properties on the children of mmultiscripts
 Pass	Margin properties on the children of mover
 Pass	Margin properties on the children of mpadded
@@ -16,8 +16,8 @@ Fail	Margin properties on the children of mroot
 Pass	Margin properties on the children of mrow
 Fail	Margin properties on the children of msqrt
 Pass	Margin properties on the children of mstyle
-Fail	Margin properties on the children of msub
-Fail	Margin properties on the children of msubsup
-Fail	Margin properties on the children of msup
+Pass	Margin properties on the children of msub
+Pass	Margin properties on the children of msubsup
+Pass	Margin properties on the children of msup
 Pass	Margin properties on the children of munder
 Pass	Margin properties on the children of munderover

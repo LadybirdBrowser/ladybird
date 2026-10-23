@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	Vertical alignment of cells
+1 Pass
+1 Fail
+Pass	Vertical alignment of cells
 Fail	Horizontal alignment of cells

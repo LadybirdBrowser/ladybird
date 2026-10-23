@@ -1163,6 +1163,7 @@ enum class MathMLLayoutKind : u32 {
     Mprescripts,
     None,
     Mpadded,
+    Mtext,
 };
 
 static MathMLLayoutKind mathml_layout_kind(DOM::Element const& element)
@@ -1173,7 +1174,9 @@ static MathMLLayoutKind mathml_layout_kind(DOM::Element const& element)
     auto const& name = element.local_name();
     if (name == TagNames::math)
         return MathMLLayoutKind::Math;
-    if (first_is_one_of(name, TagNames::mi, TagNames::mn, TagNames::ms, TagNames::mtext, TagNames::annotation, TagNames::annotation_xml))
+    if (name == TagNames::mtext)
+        return MathMLLayoutKind::Mtext;
+    if (first_is_one_of(name, TagNames::mi, TagNames::mn, TagNames::ms, TagNames::annotation, TagNames::annotation_xml))
         return MathMLLayoutKind::Token;
     if (name == TagNames::mo)
         return MathMLLayoutKind::Mo;

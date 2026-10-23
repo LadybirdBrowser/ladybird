@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 8 tests
 
-1 Pass
-7 Fail
-Fail	Baseline alignment
+2 Pass
+6 Fail
+Pass	Baseline alignment
 Pass	Heights of bases
 Fail	AccentBaseHeight, UnderbarExtraDescender
 Fail	AccentBaseHeight, UnderbarVerticalGap

@@ -50,8 +50,8 @@ void MathMLMspaceElement::apply_presentational_hints(Vector<CSS::StyleProperty>&
     // https://w3c.github.io/mathml-core/#attribute-mspace-height
     // If the height attribute is absent, invalid or a percentage then the requested line-ascent is 0. Otherwise the
     // requested line-ascent is the resolved value of the height attribute, clamping negative values to 0.
+    // NB: The requested line-ascent is applied by the layout of the box.
     auto height_value = parse_non_percentage_value(AttributeNames::height);
-    // FIXME: set the line-ascent
 
     // If both the height and depth attributes are present, valid and not a percentage then they are used as a
     // presentational hint setting the element's height property to the concatenation of the

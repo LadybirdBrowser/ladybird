@@ -37,6 +37,7 @@ WEB_API void register_layout_host(NodeArena&, DOM::Document&);
 // identity. An element's attributes are layout input that no pass can change, so the document publishes them as
 // they are written rather than answering for them while a pass runs.
 void publish_svg_attribute_facts(DOM::Element&);
+void publish_math_attribute_facts(DOM::Element const&);
 void publish_svg_style_references(DOM::Element&);
 
 // Which shape an SVG geometry element draws, and the endpoints a <line> parses. The other fields keep their defaults.

@@ -1112,6 +1112,8 @@ struct StyleNodeTables {
     /// tree build is under way: an element styled on the build's behalf replaces its style record,
     /// which republishes the resources its style names. No reader holds a borrow across a host call.
     svg_attribute_facts: RefCell<HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>>,
+    /// The parsed MathML attributes each MathML element published, keyed by its style node.
+    math_attribute_facts: RefCell<HashMap<StyleNodeID, super::math_formatting_context::FfiMathAttributeFacts>>,
     /// The `points` list each <polyline> and <polygon> published beside its facts.
     svg_points: RefCell<HashMap<StyleNodeID, std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>>>,
     /// The elements carrying each anchor name, in tree order. The DOM's registry republishes a
@@ -2317,6 +2319,7 @@ impl LayoutNodeArena {
             counters_sets,
             generated_content,
             svg_attribute_facts,
+            math_attribute_facts,
             svg_points,
             anchor_name_elements,
             identities_in_focused_text_control,
@@ -2334,6 +2337,7 @@ impl LayoutNodeArena {
             );
         }
         svg_points.borrow_mut().remove(&style_node);
+        math_attribute_facts.borrow_mut().remove(&style_node);
         identities_in_focused_text_control.borrow_mut().remove(&style_node);
         element_scroll_offsets.borrow_mut().remove(&style_node);
         pseudo_element_scroll_offsets.borrow_mut().remove(&style_node);
@@ -3209,6 +3213,31 @@ impl LayoutNodeArena {
             .get(&style_node)
             .copied()
             .unwrap_or_default()
+    }
+
+    /// The parsed MathML attributes of the element a row is built for. A row built for no MathML element answers
+    /// with the default facts, in which every attribute is absent.
+    pub(crate) fn math_attribute_facts(&self, id: NodeSlotId) -> super::math_formatting_context::FfiMathAttributeFacts {
+        self.dom_node_style_node(id)
+            .and_then(|style_node| {
+                self.style_node_tables
+                    .math_attribute_facts
+                    .borrow()
+                    .get(&style_node)
+                    .copied()
+            })
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn set_style_node_math_attribute_facts(
+        &self,
+        style_node: StyleNodeID,
+        facts: super::math_formatting_context::FfiMathAttributeFacts,
+    ) {
+        self.style_node_tables
+            .math_attribute_facts
+            .borrow_mut()
+            .insert(style_node, facts);
     }
 
     /// The `points` list a <polyline> or <polygon> parsed, shared rather than borrowed: a

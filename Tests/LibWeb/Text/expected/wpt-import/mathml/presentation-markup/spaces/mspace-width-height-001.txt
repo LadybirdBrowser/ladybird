@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-3 Fail
-Fail	width attribute + width property
+4 Pass
+Pass	width attribute + width property
 Pass	height/depth attributes + height property
-Fail	height attribute + height property
-Fail	depth attribute + height property
+Pass	height attribute + height property
+Pass	depth attribute + height property

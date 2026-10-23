@@ -8,6 +8,7 @@
 //! a node by its slot or its identity and queues the change on the document's host; it does not reach the arena.
 
 use super::LayoutNodeArena;
+use super::math_formatting_context::FfiMathAttributeFacts;
 use super::node_data::{NodeFlag, NodeSlotId};
 use super::svg_formatting_context::{FfiFloatPoint, FfiSvgAttributeFacts};
 use super::tree_mutation::{HostCalls, HostWorkDue, OwedHostWork};
@@ -81,6 +82,11 @@ pub(crate) enum LayoutChange {
         element: StyleNodeID,
         facts: Box<FfiSvgAttributeFacts>,
         points: Box<[FfiFloatPoint]>,
+    },
+    /// The parsed MathML attributes a MathML element published, which its layout reads.
+    MathAttributeFacts {
+        element: StyleNodeID,
+        facts: Box<FfiMathAttributeFacts>,
     },
     /// The resources an SVG graphics element's style names: its mask, clip path, fill and stroke.
     SvgStyleReferences {
@@ -173,6 +179,7 @@ impl LayoutChange {
             | Self::SetPseudoElementScrollOffset { .. }
             | Self::SetIdentityInFocusedTextControl { .. }
             | Self::SvgAttributeFacts { .. }
+            | Self::MathAttributeFacts { .. }
             | Self::SvgStyleReferences { .. }
             | Self::SetDocumentIsDecodedSvg(_)
             | Self::SetNodeFlag { .. }
@@ -270,6 +277,7 @@ impl LayoutChange {
             Self::SvgAttributeFacts { element, facts, points } => {
                 arena.set_style_node_svg_attribute_facts(element, *facts, &points);
             }
+            Self::MathAttributeFacts { element, facts } => arena.set_style_node_math_attribute_facts(element, *facts),
             Self::SvgStyleReferences { element, references } => {
                 arena.set_style_node_svg_style_references(element, references);
             }
@@ -635,6 +643,25 @@ pub extern "C" fn render_state_set_svg_style_references(
         references: [mask, clip_path, fill, stroke],
     };
     queue(host, change);
+}
+
+/// Publishes the MathML attributes an element parsed, which the layout of its box reads.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_set_math_attribute_facts(
+    host: &DocumentHost,
+    element: u32,
+    facts: FfiMathAttributeFacts,
+) {
+    let Some(element) = StyleNodeID::from_raw(element) else {
+        return;
+    };
+    queue(
+        host,
+        LayoutChange::MathAttributeFacts {
+            element,
+            facts: Box::new(facts),
+        },
+    );
 }
 
 #[unsafe(no_mangle)]

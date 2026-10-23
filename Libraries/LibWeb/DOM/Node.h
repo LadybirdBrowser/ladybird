@@ -97,6 +97,7 @@ enum class RootNodeComposed {
     X(HTMLVideoElementSetVideoTrack)                  \
     X(KeyframeEffect)                                 \
     X(LayoutTreeUpdate)                               \
+    X(MathMLAttributeChange)                          \
     X(NavigableSetViewportSize)                       \
     X(SVGImageElementFetchTheDocument)                \
     X(SVGResourceElementAttributeChange)              \

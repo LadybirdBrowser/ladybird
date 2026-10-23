@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/MathML/AttributeNames.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/MathML/TagNames.h>
@@ -29,6 +30,16 @@ void MathMLElement::attribute_changed(Utf16FlyString const& local_name, Optional
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
     HTMLOrSVGOrMathMLElement::attribute_changed(local_name, old_value, value, namespace_);
+
+    // NB: These attributes are read by the layout of the element's box.
+    if (old_value != value && !namespace_.has_value()
+        && local_name.is_one_of(AttributeNames::width, AttributeNames::height, AttributeNames::depth, AttributeNames::lspace, AttributeNames::rspace,
+            AttributeNames::voffset, AttributeNames::linethickness, AttributeNames::minsize, AttributeNames::maxsize, AttributeNames::form,
+            AttributeNames::stretchy, AttributeNames::symmetric, AttributeNames::largeop, AttributeNames::movablelimits, AttributeNames::accent,
+            AttributeNames::accentunder)) {
+        Layout::publish_math_attribute_facts(*this);
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::MathMLAttributeChange);
+    }
 }
 
 WebIDL::ExceptionOr<void> MathMLElement::cloned(DOM::Node& node, bool clone_children) const
