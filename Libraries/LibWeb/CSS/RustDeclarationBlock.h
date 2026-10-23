@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/ValueParserRustFFI.h>
@@ -68,10 +69,17 @@ public:
 private:
     void update_views() const;
 
+    // NB: Most blocks are never viewed from C++, and an element's inline style is one per element, so the views are
+    //     made on first use rather than carried empty by every block.
+    struct Views {
+        AK_ALLOC_WITH_KMALLOC;
+        Vector<StyleProperty> properties;
+        OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties;
+        Optional<u64> revision;
+    };
+
     Parser::ValueParserFFI::DeclarationBlock* m_block;
-    mutable Vector<StyleProperty> m_properties;
-    mutable OrderedHashMap<Utf16FlyString, StyleProperty> m_custom_properties;
-    mutable Optional<u64> m_view_revision;
+    mutable OwnPtr<Views> m_views;
 };
 
 }

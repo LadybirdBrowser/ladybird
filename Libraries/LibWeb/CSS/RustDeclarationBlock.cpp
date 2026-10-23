@@ -55,14 +55,18 @@ RustDeclarationBlockSnapshot& RustDeclarationBlockSnapshot::operator=(RustDeclar
 }
 
 RustDeclarationBlock::RustDeclarationBlock(Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
-    : m_properties(move(properties))
-    , m_custom_properties(move(custom_properties))
 {
+    // NB: The views of an empty block hold nothing worth keeping, and are made if it is ever viewed.
+    if (properties.is_empty() && custom_properties.is_empty()) {
+        m_block = rust_declaration_block_create(nullptr, 0, nullptr, 0);
+        return;
+    }
+    m_views = make<Views>(move(properties), move(custom_properties), OptionalNone {});
     Vector<FfiDeclaredProperty> property_views;
     Vector<FfiDeclaredProperty> custom_property_views;
-    for (auto const& property : m_properties)
+    for (auto const& property : m_views->properties)
         property_views.append(property_view(property.property_id, *property.value, property.important));
-    for (auto const& property : m_custom_properties)
+    for (auto const& property : m_views->custom_properties)
         custom_property_views.append(property_view(property.value.property_id, *property.value.value, property.value.important, property.key));
     m_block = rust_declaration_block_create(property_views.data(), property_views.size(), custom_property_views.data(), custom_property_views.size());
 }
@@ -80,9 +84,7 @@ RustDeclarationBlock::~RustDeclarationBlock()
 
 RustDeclarationBlock::RustDeclarationBlock(RustDeclarationBlock&& other)
     : m_block(exchange(other.m_block, nullptr))
-    , m_properties(move(other.m_properties))
-    , m_custom_properties(move(other.m_custom_properties))
-    , m_view_revision(other.m_view_revision)
+    , m_views(move(other.m_views))
 {
 }
 
@@ -90,9 +92,7 @@ RustDeclarationBlock& RustDeclarationBlock::operator=(RustDeclarationBlock&& oth
 {
     RustDeclarationBlock moved(move(other));
     swap(m_block, moved.m_block);
-    swap(m_properties, moved.m_properties);
-    swap(m_custom_properties, moved.m_custom_properties);
-    swap(m_view_revision, moved.m_view_revision);
+    swap(m_views, moved.m_views);
     return *this;
 }
 
@@ -143,17 +143,20 @@ bool RustDeclarationBlock::is_empty() const
 void RustDeclarationBlock::update_views() const
 {
     auto current_revision = revision();
-    if (m_view_revision == current_revision)
+    if (!m_views)
+        m_views = make<Views>();
+    auto& views = *m_views;
+    if (views.revision == current_revision)
         return;
 
     HashMap<void const*, NonnullRefPtr<StyleValue const>> existing_values;
-    for (auto const& property : m_properties)
+    for (auto const& property : views.properties)
         existing_values.set(property.value->rust_style_value_data(), property.value);
-    for (auto const& property : m_custom_properties)
+    for (auto const& property : views.custom_properties)
         existing_values.set(property.value.value->rust_style_value_data(), property.value.value);
 
-    m_properties.clear();
-    m_custom_properties.clear();
+    views.properties.clear();
+    views.custom_properties.clear();
     struct Context {
         RustDeclarationBlock const& block;
         HashMap<void const*, NonnullRefPtr<StyleValue const>>& values;
@@ -162,30 +165,33 @@ void RustDeclarationBlock::update_views() const
         auto& context = *static_cast<Context*>(raw_context);
         auto value = wrap_property(*property, context.values);
         if (property->name.length)
-            context.block.m_custom_properties.set(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(property->name.utf16), property->name.length }), move(value));
+            context.block.m_views->custom_properties.set(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(property->name.utf16), property->name.length }), move(value));
         else
-            context.block.m_properties.append(move(value));
+            context.block.m_views->properties.append(move(value));
     });
-    m_view_revision = current_revision;
+    views.revision = current_revision;
 }
 
 Vector<StyleProperty> const& RustDeclarationBlock::properties() const
 {
     update_views();
-    return m_properties;
+    return m_views->properties;
 }
 
 OrderedHashMap<Utf16FlyString, StyleProperty> const& RustDeclarationBlock::custom_properties() const
 {
     update_views();
-    return m_custom_properties;
+    return m_views->custom_properties;
 }
 
 size_t RustDeclarationBlock::external_memory_size() const
 {
     auto size = rust_declaration_block_external_memory_size(m_block);
-    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_properties));
-    return JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_custom_properties));
+    if (!m_views)
+        return size;
+    size = JS::saturating_add_external_memory_size(size, sizeof(Views));
+    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_views->properties));
+    return JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_views->custom_properties));
 }
 
 bool RustDeclarationBlock::set(PropertyID property_id, StyleValue const& value, Important important)
