@@ -14,6 +14,7 @@ mod rust_demangle;
 mod rust_panic;
 
 mod ffi;
+pub mod origin;
 pub mod pattern;
 mod textcodec;
 pub mod url;
@@ -23,6 +24,13 @@ pub use url::State;
 pub use url::Url;
 pub use url::basic_parse;
 pub use url::basic_parse_with_state_override;
+
+// LibURL's C++ is not linked into Rust unit tests.
+#[cfg(test)]
+#[unsafe(no_mangle)]
+extern "C" fn url_rust_file_scheme_urls_have_tuple_origins() -> bool {
+    false
+}
 
 // LibUnicode's C++ IDNA implementation is not linked into Rust unit tests.
 #[cfg(test)]

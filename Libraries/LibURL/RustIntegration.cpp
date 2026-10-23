@@ -167,6 +167,21 @@ Optional<Host> host_from_ffi(FFI::FfiUrlHost const& ffi)
     VERIFY_NOT_REACHED();
 }
 
+Origin origin_from_ffi(FFI::FfiOrigin const& ffi)
+{
+    if (ffi.is_opaque) {
+        Origin::OpaqueData::Nonce nonce;
+        static_assert(sizeof(nonce) == sizeof(ffi.nonce));
+        __builtin_memcpy(nonce.data(), ffi.nonce, sizeof(ffi.nonce));
+        return Origin { Origin::OpaqueData { nonce, static_cast<Origin::OpaqueData::Type>(ffi.opaque_kind) } };
+    }
+
+    Optional<u16> port;
+    if (ffi.has_port)
+        port = ffi.port;
+    return Origin { string_from_ffi(ffi.scheme), host_from_ffi(ffi.host).release_value(), port, host_from_ffi(ffi.domain) };
+}
+
 URLPattern::Impl::~Impl()
 {
     if (rust_url_pattern)

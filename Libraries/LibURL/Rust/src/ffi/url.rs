@@ -28,7 +28,7 @@ pub struct RustUrlInput {
 impl RustUrlInput {
     /// # Safety
     /// The selected pointer must borrow length storage units. Byte input must be valid UTF-8.
-    unsafe fn borrow<'a>(self) -> UrlInput<'a> {
+    pub(crate) unsafe fn borrow<'a>(self) -> UrlInput<'a> {
         if self.length == 0 {
             return UrlInput::Utf8("");
         }
@@ -48,7 +48,7 @@ pub struct RustUrlByteSlice {
 }
 
 impl RustUrlByteSlice {
-    fn from_str(string: &str) -> Self {
+    pub(crate) fn from_str(string: &str) -> Self {
         Self {
             data: string.as_ptr(),
             length: string.len(),
@@ -103,7 +103,7 @@ pub struct FfiUrlHost {
 }
 
 impl FfiUrlHost {
-    fn new(kind: HostKind, serialized_host: &str) -> Self {
+    pub(crate) fn new(kind: HostKind, serialized_host: &str) -> Self {
         let mut host = Self {
             kind,
             ipv4: [0; 4],

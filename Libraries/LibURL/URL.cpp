@@ -417,69 +417,29 @@ bool file_scheme_urls_have_tuple_origins()
     return s_file_scheme_urls_have_tuple_origins;
 }
 
+extern "C" bool url_rust_file_scheme_urls_have_tuple_origins();
+
+extern "C" bool url_rust_file_scheme_urls_have_tuple_origins()
+{
+    return s_file_scheme_urls_have_tuple_origins;
+}
+
 // https://url.spec.whatwg.org/#concept-url-origin
 Origin URL::origin() const
 {
     // The origin of a URL url is the origin returned by running these steps, switching on url’s scheme:
     // -> "blob"
-    if (scheme() == "blob"sv) {
-        // 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
-        if (blob_url_entry().has_value())
-            return blob_url_entry()->environment.origin;
+    //     1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
+    if (scheme() == "blob"sv && blob_url_entry().has_value())
+        return blob_url_entry()->environment.origin;
 
-        // 2. Let pathURL be the result of parsing the result of URL path serializing url.
-        auto path_url = Parser::basic_parse(serialize_path());
-
-        // 3. If pathURL is failure, then return a new opaque origin.
-        if (!path_url.has_value())
-            return Origin::create_opaque();
-
-        // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
-        if (path_url->scheme().is_one_of("http"sv, "https"sv, "file"sv))
-            return path_url->origin();
-
-        // 5. Return a new opaque origin.
-        return Origin::create_opaque();
-    }
-
-    // -> "ftp"
-    // -> "http"
-    // -> "https"
-    // -> "ws"
-    // -> "wss"
-    if (scheme().is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
-        // Return the tuple origin (url’s scheme, url’s host, url’s port, null).
-        return Origin(String::from_ascii_without_validation(scheme().bytes()), host().value(), port());
-    }
-
-    // AD-HOC: resource:// URLs are internal browser resources; give them a shared tuple origin
-    // so that same-origin checks pass between any two resource:// documents or worker scripts.
-    if (scheme() == "resource"sv)
-        return Origin("resource"_string, String {}, {});
-
-    // -> "file"
-    if (scheme() == "file"sv) {
-        // Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.
-
-        // Our implementation-defined behavior is to return an opaque origin for file:// URLs,
-        // tagged explicitly as a "file" opaque origin rather than a fully anonymous one.
-        //
-        // This keeps file:// URLs opaque by default while still allowing downstream code to
-        // identify and special-case them where needed - for example, to match cases where
-        // other browsers treat a file:// origin as if it were a tuple origin.
-        //
-        // A process-wide flag can opt into tuple origins for file:// URLs instead. This is
-        // intended for development/testing scenarios where web features requiring a non-opaque
-        // origin (such as localStorage) need to work with file:// pages.
-        if (file_scheme_urls_have_tuple_origins())
-            return Origin { "file"_string, String {}, {} };
-
-        return Origin::create_opaque(Origin::OpaqueData::Type::File);
-    }
-
-    // -> Otherwise
-    // Return a new opaque origin.
-    return Origin::create_opaque();
+    // NB: liburl_rust runs the remaining steps.
+    auto rust_url = to_rust();
+    Optional<Origin> origin;
+    FFI::rust_url_origin(&rust_url, &origin, [](void* ctx, FFI::FfiOrigin const* ffi_origin) {
+        *static_cast<Optional<Origin>*>(ctx) = RustIntegration::origin_from_ffi(*ffi_origin);
+    });
+    return origin.release_value();
 }
 
 bool URL::equals(URL const& other, ExcludeFragment exclude_fragments) const
