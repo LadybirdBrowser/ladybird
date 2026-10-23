@@ -59,12 +59,26 @@ public:
         return true;
     }
 
+    bool wait_until_the_caller_waits_for_output(AK::Duration timeout)
+    {
+        auto deadline = MonotonicTime::now() + timeout;
+        MutexLocker locker { m_mutex };
+        while (!m_caller_is_waiting_for_output) {
+            auto now = MonotonicTime::now();
+            if (now >= deadline)
+                return false;
+            m_caller_wait_changed.wait_for(deadline - now);
+        }
+        return true;
+    }
+
 private:
     friend class WithholdingVideoDecoder;
 
     mutable Mutex m_mutex;
     ConditionVariable m_released_changed { m_mutex };
     ConditionVariable m_withheld_changed { m_mutex };
+    ConditionVariable m_caller_wait_changed { m_mutex };
     Vector<Output> m_withheld;
     Vector<Output> m_released;
     Function<void()> m_output_arrived_callback;
@@ -115,6 +129,7 @@ public:
         // A device decoding as many frames as it can at once takes the next one only when one of them finishes.
         while (m_withheld_outputs->m_withheld.size() >= MAXIMUM_WITHHELD_OUTPUTS) {
             m_withheld_outputs->m_caller_is_waiting_for_output = true;
+            m_withheld_outputs->m_caller_wait_changed.broadcast();
             m_withheld_outputs->m_released_changed.wait();
             m_withheld_outputs->m_caller_is_waiting_for_output = false;
         }
@@ -137,6 +152,7 @@ public:
         };
         while (must_wait_for_a_release()) {
             m_withheld_outputs->m_caller_is_waiting_for_output = true;
+            m_withheld_outputs->m_caller_wait_changed.broadcast();
             m_withheld_outputs->m_released_changed.wait();
             m_withheld_outputs->m_caller_is_waiting_for_output = false;
         }

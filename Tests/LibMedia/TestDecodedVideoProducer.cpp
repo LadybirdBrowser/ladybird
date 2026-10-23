@@ -53,12 +53,15 @@ public:
             }
             m_samples_served++;
         }
+        if (m_seek_is_expected.load())
+            m_reads_before_the_expected_seek++;
         return m_inner->get_next_sample_for_track(track);
     }
 
     virtual AK::Duration select_fast_seek_target_for_track(Media::Track const& track, AK::Duration target, Media::SeekMode mode) override { return m_inner->select_fast_seek_target_for_track(track, target, mode); }
     virtual Media::DecoderErrorOr<Media::DemuxerSeekResult> seek_to_most_recent_keyframe(Media::Track const& track, AK::Duration timestamp, Media::DemuxerSeekOptions options) override
     {
+        m_seek_is_expected.store(false);
         m_seek_count++;
         return m_inner->seek_to_most_recent_keyframe(track, timestamp, options);
     }
@@ -108,6 +111,9 @@ public:
 
     size_t seek_count() const { return m_seek_count; }
 
+    void expect_seek() { m_seek_is_expected.store(true); }
+    size_t reads_before_the_expected_seek() const { return m_reads_before_the_expected_seek; }
+
 private:
     BlockingDemuxer(NonnullRefPtr<Media::Demuxer> inner, size_t samples_before_blocking)
         : m_inner(move(inner))
@@ -125,6 +131,8 @@ private:
     bool m_reads_are_aborted { false };
     bool m_read_is_blocked { false };
     Atomic<size_t> m_seek_count { 0 };
+    Atomic<bool> m_seek_is_expected { false };
+    Atomic<size_t> m_reads_before_the_expected_seek { 0 };
 };
 
 // Presents one track whose coded frames come from one demuxer and then another, so that the codec of a track's
@@ -640,6 +648,42 @@ TEST_CASE(a_seek_resolves_on_output_that_arrives_while_the_demuxer_blocks)
     EXPECT_EQ(demuxer->seek_count(), 1u);
 
     demuxer->stop_blocking_reads();
+}
+
+// Output finishing while a seek is requested wakes the decode thread between taking output and reading the next
+// sample. It must not read, and so submit, another sample of the old position before it seeks.
+TEST_CASE(no_further_sample_is_read_once_a_seek_is_requested)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto withheld_outputs = make_ref_counted<WithheldOutputs>();
+    WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(withheld_outputs);
+    ScopeGuard stop_withholding = [] { WithholdingVideoDecoder::set_withheld_outputs_for_new_decoders(nullptr); };
+
+    auto [inner_demuxer, track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
+    auto demuxer = BlockingDemuxer::create(inner_demuxer, NumericLimits<size_t>::max());
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, track));
+    producer->set_error_handler([&](Media::DecoderError&& error) {
+        FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
+    });
+    producer->start();
+
+    // Once as many outputs are withheld as the decoder decodes at once, the decode thread waits in it for one.
+    auto time_limit = AK::Duration::from_seconds(5);
+    if (!withheld_outputs->wait_until_the_caller_waits_for_output(time_limit)) {
+        FAIL("Timed out waiting for the decode thread to wait for output");
+        return;
+    }
+    EXPECT_EQ(withheld_outputs->withheld_count(), WithholdingVideoDecoder::MAXIMUM_WITHHELD_OUTPUTS);
+
+    demuxer->expect_seek();
+    producer->seek(AK::Duration::from_milliseconds(500));
+    EXPECT(withheld_outputs->release_next());
+
+    auto deadline = MonotonicTime::now_coarse() + time_limit;
+    while (demuxer->seek_count() == 0 && MonotonicTime::now_coarse() < deadline)
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(demuxer->seek_count(), 1u);
+    EXPECT_EQ(demuxer->reads_before_the_expected_seek(), 0u);
 }
 
 // A decoder finishing output on its own threads wakes the decode thread at arbitrary points of its loops. Seeking back
