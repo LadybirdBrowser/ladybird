@@ -1392,6 +1392,30 @@ pub unsafe extern "C" fn rust_relative_color_resolved_value(
     }
 }
 
+/// The resolved value of a `color-mix()` against a style: the color it mixes, in the form a mix whose colors are all
+/// known computes to. A computed mix stays a mix only where it reads `currentcolor`, which the style names. Returns
+/// one strong reference, or null when the value is no mix or does not resolve.
+///
+/// # Safety
+/// `value` must point at live style value data, and `style` must be null or point at a style
+/// whose group payloads outlive the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_color_mix_resolved_value(
+    value: *const core::ffi::c_void,
+    style: *const FfiColorResolutionStyle,
+) -> *const StyleValueData {
+    let value = unsafe { &*value.cast::<StyleValueData>() };
+    if !matches!(value, StyleValueData::ColorMix { .. }) {
+        return core::ptr::null();
+    }
+    // SAFETY: Guaranteed by the caller.
+    let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
+    match resolve_color_mix(value, &resolution_input) {
+        Some(resolved) => Arc::into_raw(Arc::new(resolved)),
+        None => core::ptr::null(),
+    }
+}
+
 /// Port of ColorStyleValue::extract_channels_in_color_space().
 ///
 /// NB: The C++ code computes linear sRGB with the direct transfer function; that function is
@@ -1539,7 +1563,6 @@ pub(crate) fn percentage_from_style_value(value: &StyleValueData) -> Option<f64>
 
 /// Percentages are represented as values from 0 to 100.
 pub(crate) struct NormalizedPercentages {
-    pub(crate) first_percentage: f64,
     pub(crate) second_percentage: f64,
     pub(crate) alpha_multiplier: f64,
 }
@@ -1550,7 +1573,7 @@ pub(crate) fn normalize_percentage_pair(p1: Option<f64>, p2: Option<f64>) -> Nor
 
     // 1. Let p1 be the first percentage and p2 the second one.
     // NB: Provided by the caller.
-    let (p1, p2) = match (p1, p2) {
+    let (_, p2) = match (p1, p2) {
         // 2. If both percentages are omitted, they each default to 50% (an equal mix of the two
         //    colors).
         (None, None) => (50.0, 50.0),
@@ -1582,7 +1605,6 @@ pub(crate) fn normalize_percentage_pair(p1: Option<f64>, p2: Option<f64>) -> Nor
     };
 
     NormalizedPercentages {
-        first_percentage: p1,
         second_percentage: p2,
         alpha_multiplier,
     }
@@ -1695,6 +1717,20 @@ pub(crate) fn resolve_color_for_interpolation(
     {
         resolved_relative_storage = resolve_relative_form(input_value, input)?;
         style_value = &resolved_relative_storage;
+    }
+    // NB: currentcolor and a nested mix interpolate from the color they name, not from that color rounded to 8-bit
+    //     channels.
+    if let StyleValueData::Keyword { keyword: code } = style_value
+        && *code == keyword::CURRENTCOLOR
+        && let Some(current_color_value) = input.current_color_value
+        && !value_depends_on_current_color(current_color_value)
+    {
+        return resolve_color_for_interpolation(current_color_value, input);
+    }
+    let resolved_mix_storage;
+    if let StyleValueData::ColorMix { .. } = style_value {
+        resolved_mix_storage = resolve_color_mix(style_value, input)?;
+        style_value = &resolved_mix_storage;
     }
 
     if let Some((color_type, components)) = resolve_native_color_components(style_value, input) {
@@ -2177,7 +2213,6 @@ mod tests {
     #[test]
     fn percentage_pair_normalization_matches_the_spec_steps() {
         let normalized = normalize_percentage_pair(None, None);
-        assert_eq!(normalized.first_percentage, 50.0);
         assert_eq!(normalized.second_percentage, 50.0);
         assert_eq!(normalized.alpha_multiplier, 1.0);
 
@@ -2185,15 +2220,13 @@ mod tests {
         assert_eq!(normalized.second_percentage, 70.0);
 
         let normalized = normalize_percentage_pair(None, Some(30.0));
-        assert_eq!(normalized.first_percentage, 70.0);
+        assert_eq!(normalized.second_percentage, 30.0);
 
         let normalized = normalize_percentage_pair(Some(100.0), Some(100.0));
-        assert_eq!(normalized.first_percentage, 50.0);
         assert_eq!(normalized.second_percentage, 50.0);
         assert_eq!(normalized.alpha_multiplier, 1.0);
 
         let normalized = normalize_percentage_pair(Some(20.0), Some(30.0));
-        assert_eq!(normalized.first_percentage, 40.0);
         assert_eq!(normalized.second_percentage, 60.0);
         assert_eq!(normalized.alpha_multiplier, 0.5);
 

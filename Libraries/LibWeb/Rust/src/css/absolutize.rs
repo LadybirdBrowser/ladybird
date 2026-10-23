@@ -41,6 +41,7 @@ mod grid_tests {
             random_base_values: &[],
             document_base_url: &[],
             style_sheet_resource_context: None,
+            current_color: None,
         };
         match absolutize(value, &context).unwrap() {
             Absolutized::Unchanged => unsafe {
@@ -217,7 +218,7 @@ use crate::css::css_enums::keyword;
 use crate::css::style_compute::{FfiLengthResolutionContext, absolutize_length, keyword_is_color};
 use crate::css::style_value::{
     BasicShapeData, ColorBase, CssString, OwnedBasicShapeData, RetainedGridTrackEntryList, RetainedStyleValueData,
-    RetainedStyleValueDataList, StyleValueData,
+    RetainedStyleValueDataList, StyleValueData, value_depends_on_current_color,
 };
 use crate::css::value_codes::*;
 
@@ -237,6 +238,10 @@ pub(crate) struct AbsolutizationContext<'a> {
     pub(crate) document_base_url: &'a [u8],
     /// The stylesheet resource context for the selected cascade source, if any.
     pub(crate) style_sheet_resource_context: Option<StyleSheetResourceContext<'a>>,
+    /// The computed value `currentcolor` names while the value computes, which only the `color` property knows: its
+    /// inherited value. Elsewhere `currentcolor` names the element's own color, which the computed value keeps
+    /// unresolved until it is used.
+    pub(crate) current_color: Option<&'a StyleValueData>,
 }
 
 #[derive(Clone, Copy)]
@@ -378,15 +383,20 @@ fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> 
 }
 
 /// The color-resolution input the C++ absolutizers build from a computation context: the
-/// context's color scheme and calculation inputs, no currentcolor and no channels.
+/// context's color scheme and calculation inputs, the currentcolor it knows of, and no channels.
 fn color_resolution_input<'a>(context: &'a AbsolutizationContext) -> ColorResolutionInput<'a> {
-    ColorResolutionInput {
+    let mut input = ColorResolutionInput {
         scheme: context.scheme,
         current_color: None,
         current_color_value: None,
         length: Some(context.length),
         channels: None,
+    };
+    if let Some(current_color) = context.current_color {
+        input.current_color = to_color(current_color, &input);
+        input.current_color_value = Some(current_color);
     }
+    input
 }
 
 /// The rgb() function form ColorFunctionStyleValue::create builds for an already-resolved
@@ -679,7 +689,16 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
     let resolved_first = resolved_first_storage.as_ref().unwrap_or(first_color.data());
     let resolved_second = resolved_second_storage.as_ref().unwrap_or(second_color.data());
 
+    // NB: Without a currentcolor to resolve against, a mix reading it keeps the mix, which the color it is used as
+    //     resolves against the element's own color.
+    let reads_unknown_current_color = context.current_color.is_none()
+        && [first_color, second_color]
+            .iter()
+            .any(|color| color.optional_data().is_some_and(value_depends_on_current_color));
     let interpolated = (|| -> Option<RetainedStyleValueData> {
+        if reads_unknown_current_color {
+            return None;
+        }
         let resolved_from = resolve_color_for_interpolation(resolved_first, &input)?;
         let resolved_to = resolve_color_for_interpolation(resolved_second, &input)?;
         let result = crate::css::color_interpolation::interpolate_color(
@@ -700,11 +719,19 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
     let mut colors_changed = false;
     let absolutized_first = absolutize_child(first_color, context, &mut colors_changed)?;
     let absolutized_second = absolutize_child(second_color, context, &mut colors_changed)?;
-    let percentage_matches = |slot: &RetainedStyleValueData, normalized_value: f64| matches!(slot.optional_data(), Some(StyleValueData::Percentage { value }) if *value == normalized_value);
-    if !colors_changed
-        && percentage_matches(first_percentage, normalized.first_percentage)
-        && percentage_matches(second_percentage, normalized.second_percentage)
-    {
+    // NB: The percentages are kept as given, since normalizing them here would lose the alpha multiplier of a sum
+    //     under 100%. The mix normalizes them when it resolves.
+    let percentage_matches =
+        |slot: &RetainedStyleValueData, absolutized: Option<f64>| match (slot.optional_data(), absolutized) {
+            (None, None) => true,
+            (Some(StyleValueData::Percentage { value }), Some(absolutized)) => *value == absolutized,
+            _ => false,
+        };
+    let retained_percentage = |absolutized: Option<f64>| match absolutized {
+        Some(value) => retain_new(StyleValueData::Percentage { value }),
+        None => retained_null(),
+    };
+    if !colors_changed && percentage_matches(first_percentage, p1) && percentage_matches(second_percentage, p2) {
         return Some(Absolutized::Unchanged);
     }
     Some(Absolutized::Changed(retain_new(StyleValueData::ColorMix {
@@ -715,13 +742,9 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
         },
         color_interpolation_method: absolutized_method,
         first_color: absolutized_first,
-        first_percentage: retain_new(StyleValueData::Percentage {
-            value: normalized.first_percentage,
-        }),
+        first_percentage: retained_percentage(p1),
         second_color: absolutized_second,
-        second_percentage: retain_new(StyleValueData::Percentage {
-            value: normalized.second_percentage,
-        }),
+        second_percentage: retained_percentage(p2),
     })))
 }
 
@@ -2086,6 +2109,7 @@ pub(crate) fn absolutize_with_element_facts(
             random_base_values: &random_base_values,
             document_base_url,
             style_sheet_resource_context: None,
+            current_color: None,
         },
     )
 }

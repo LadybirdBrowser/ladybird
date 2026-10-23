@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #parent { color: black; }
+    #parent.red { color: red; }
+    #mix { color: color-mix(in srgb, currentcolor, white); }
+    .background { background-color: color-mix(in srgb, currentcolor, white); }
+</style>
+<div id="parent"><div id="mix"><div id="child" class="background"></div></div></div>
+<script>
+    test(() => {
+        const report = () => {
+            println(`mix color ${getComputedStyle(mix).color}`);
+            println(`child color ${getComputedStyle(child).color}`);
+            println(`child background-color ${getComputedStyle(child).backgroundColor}`);
+        };
+        report();
+        document.getElementById("parent").classList.add("red");
+        report();
+    });
+</script>

@@ -1,0 +1,8 @@
+ownUnder background-color color(srgb 1 0.5 0.5 / 0.4)
+ownExact background-color color(srgb 1 0.7 0.7)
+ownOver background-color color(srgb 1 0.5 0.5)
+inheritedUnder background-color color(srgb 1 0.5 0.5 / 0.4)
+inheritedExact background-color color(srgb 1 0.7 0.7)
+inheritedOver background-color color(srgb 1 0.5 0.5)
+mixColorUnder background-color color(srgb 1 0.857143 0.857143 / 0.28)
+mixColor color color(srgb 1 0.5 0.5 / 0.4)
