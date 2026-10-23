@@ -82,7 +82,7 @@ HTML::StorageSerializationRecord const& Index::referenced_value(IndexRecord cons
 
 void Index::clear_records()
 {
-    auto deleted = move(m_records);
+    GC::ConservativeVector deleted { move(m_records) };
     if (auto log = m_object_store->mutation_log(); log && !deleted.is_empty())
         log->note_index_records_deleted(*this, move(deleted));
 }
@@ -154,7 +154,7 @@ void Index::remove_record(IndexRecord const& record)
 void Index::remove_records_with_value_in_range(GC::Ref<IDBKeyRange> range)
 {
     auto log = m_object_store->mutation_log();
-    Vector<IndexRecord> removed_records;
+    GC::ConservativeVector<IndexRecord> removed_records;
     for (size_t i = 0; i < m_records.size();) {
         auto const& record = m_records[i];
         if (range->is_in_range(record.value)) {
