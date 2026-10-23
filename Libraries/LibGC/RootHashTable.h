@@ -51,6 +51,12 @@ public:
 
     ~RootHashTable() = default;
 
+    RootHashTable(HashTableBase&& other)
+        : RootHashTableBase()
+        , HashTableBase(move(other))
+    {
+    }
+
     RootHashTable(RootHashTable const& other)
         : RootHashTableBase(*other.m_heap)
         , HashTableBase(static_cast<HashTableBase const&>(other))

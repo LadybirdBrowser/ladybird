@@ -47,6 +47,12 @@ public:
     {
     }
 
+    ConservativeVector(Vector<T, inline_capacity>&& other)
+        : ConservativeVectorBase()
+        , Vector<T, inline_capacity>(move(other))
+    {
+    }
+
     ~ConservativeVector() = default;
 
     ConservativeVector(ConservativeVector const& other)
