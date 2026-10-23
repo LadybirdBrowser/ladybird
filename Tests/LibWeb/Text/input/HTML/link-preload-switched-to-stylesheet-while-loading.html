@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = `link-preload-switched-to-stylesheet-while-loading-${Math.random()}`;
+        const url = await server.createEcho("GET", "/link-preload-switched-to-stylesheet-while-loading", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: "body { color: rgb(0, 128, 0); }",
+            wait_for_unblock: token,
+        });
+
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "style";
+        link.href = url;
+        document.head.append(link);
+
+        // Make sure the preload request reached the server, which holds its response until unblocked.
+        const recordedURL = server.recordedRequestHeadersURL(url);
+        while (true) {
+            try {
+                if ((await fetch(recordedURL)).ok) break;
+            } catch {}
+        }
+
+        // The stylesheet fetch consumes the preload that is still in flight.
+        link.rel = "stylesheet";
+        const loaded = new Promise(resolve => link.addEventListener("load", resolve, { once: true }));
+
+        await fetch(new URL(`/unblock/${token}`, url));
+        await loaded;
+        println(`Stylesheet loaded: ${!!link.sheet}`);
+        println(`Body color: ${getComputedStyle(document.body).color}`);
+        done();
+    });
+</script>

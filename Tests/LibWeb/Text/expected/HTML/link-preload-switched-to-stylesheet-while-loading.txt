@@ -1,0 +1,2 @@
+Stylesheet loaded: true
+Body color: rgb(0, 128, 0)
