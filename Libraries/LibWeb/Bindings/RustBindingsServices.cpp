@@ -7,6 +7,7 @@
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibURL/RustIntegration.h>
 #include <LibWeb/Bindings/DOMException.h>
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Bindings/RustSerialization.h>
@@ -14,6 +15,8 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -86,6 +89,7 @@ JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value,
 bool web_bindings_realm_is_window(void* realm);
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
+bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 JSCompletion web_bindings_serialize_value(RustSerializationWriter*, JSValue);
 void web_bindings_serialize_u32(RustSerializationWriter*, u32);
 void web_bindings_serialize_f64(RustSerializationWriter*, double);
@@ -133,6 +137,28 @@ JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, Fla
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     auto exception = WebIDL::DOMException::create(FlyString::from_utf8_without_validation(name), Utf16String::from_raw(message));
     return JS::HostABI::object_to_abi(wrap(host_defined_wrapper_world(js_realm), js_realm, exception).ptr());
+}
+
+// https://html.spec.whatwg.org/multipage/browsers.html#extract-an-origin
+bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*))
+{
+    auto* js_object = JS::HostABI::object_from_abi(object);
+    Optional<URL::Origin> origin;
+
+    // NB: IDL only ever sees HTML::WindowProxy but we want to use HTML::Window.
+    if (auto* window_proxy = HTML::WindowProxy::from_object(*js_object)) {
+        if (auto window = window_proxy->window())
+            origin = window->extract_an_origin();
+    } else if (auto const* wrappable = wrappable_impl_from(js_object)) {
+        origin = wrappable->extract_an_origin();
+    }
+
+    if (!origin.has_value())
+        return false;
+    URL::RustIntegration::lend_origin_to_ffi(*origin, [&](URL::FFI::FfiOrigin const& ffi_origin) {
+        on_origin(ctx, &ffi_origin);
+    });
+    return true;
 }
 
 // StructuredSerializeInternal of a value that the serialized form of an object of an interface implemented in Rust

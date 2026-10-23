@@ -11,6 +11,7 @@
 #include <AK/StringUtils.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
 #include <LibURL/RustFFI.h>
 #include <LibURL/RustIntegration.h>
@@ -180,6 +181,48 @@ Origin origin_from_ffi(FFI::FfiOrigin const& ffi)
     if (ffi.has_port)
         port = ffi.port;
     return Origin { string_from_ffi(ffi.scheme), host_from_ffi(ffi.host).release_value(), port, host_from_ffi(ffi.domain) };
+}
+
+static FFI::FfiUrlHost host_to_ffi(Optional<Host> const& host, String const& serialization)
+{
+    auto kind = FFI::HostKind::Null;
+    if (host.has_value()) {
+        kind = host->value().visit(
+            [](IPv4Address const&) { return FFI::HostKind::Ipv4; },
+            [](IPv6Address const&) { return FFI::HostKind::Ipv6; },
+            [](String const&) { return FFI::HostKind::Domain; },
+            [](OpaqueHost const&) { return FFI::HostKind::Opaque; });
+    }
+    return {
+        .kind = kind,
+        .ipv4 = {},
+        .ipv6 = {},
+        .string_data = serialization.bytes().data(),
+        .string_length = serialization.bytes().size(),
+    };
+}
+
+void lend_origin_to_ffi(Origin const& origin, Function<void(FFI::FfiOrigin const&)> const& callback)
+{
+    if (origin.is_opaque()) {
+        FFI::FfiOrigin ffi_origin {};
+        ffi_origin.is_opaque = true;
+        ffi_origin.opaque_kind = static_cast<FFI::OpaqueOriginKind>(origin.opaque_data().type);
+        __builtin_memcpy(ffi_origin.nonce, origin.opaque_data().nonce.data(), sizeof(ffi_origin.nonce));
+        callback(ffi_origin);
+        return;
+    }
+
+    auto scheme = origin.scheme().value_or(String {});
+    auto host = origin.host().serialize();
+    auto domain = origin.domain().map([](Host const& domain) { return domain.serialize(); }).value_or(String {});
+    FFI::FfiOrigin ffi_origin {};
+    ffi_origin.scheme = string_to_ffi(scheme);
+    ffi_origin.host = host_to_ffi(origin.host(), host);
+    ffi_origin.has_port = origin.port().has_value();
+    ffi_origin.port = origin.port().value_or(0);
+    ffi_origin.domain = host_to_ffi(origin.domain(), domain);
+    callback(ffi_origin);
 }
 
 URLPattern::Impl::~Impl()

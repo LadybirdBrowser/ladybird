@@ -4,17 +4,54 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use std::ffi::c_void;
+
 use crate::url::{BasicParseOptions, HostKind, Url, basic_parse};
 
 unsafe extern "C" {
     // NB: LibWeb's library links its own copy of this crate, so process-wide state lives in LibURL's C++.
     fn url_rust_file_scheme_urls_have_tuple_origins() -> bool;
+
+    fn url_rust_registrable_domain(
+        domain: *const u8,
+        domain_length: usize,
+        ctx: *mut c_void,
+        on_success: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+    );
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Host {
     pub kind: HostKind,
     pub serialization: String,
+}
+
+impl Host {
+    // https://url.spec.whatwg.org/#host-registrable-domain
+    pub fn registrable_domain(&self) -> Option<String> {
+        if self.kind != HostKind::Domain || self.serialization.is_empty() {
+            return None;
+        }
+
+        unsafe extern "C" fn on_success(ctx: *mut c_void, data: *const u8, length: usize) {
+            // SAFETY: ctx is the Option<String> below, and LibURL passes an ASCII string.
+            let result = unsafe { &mut *ctx.cast::<Option<String>>() };
+            let bytes = unsafe { ak::slice_from_raw_parts(data, length) };
+            *result = Some(String::from_utf8(bytes.to_vec()).expect("a registrable domain is ASCII"));
+        }
+
+        let mut result: Option<String> = None;
+        // SAFETY: The domain and the result outlive the call.
+        unsafe {
+            url_rust_registrable_domain(
+                self.serialization.as_ptr(),
+                self.serialization.len(),
+                (&raw mut result).cast(),
+                on_success,
+            );
+        }
+        result
+    }
 }
 
 #[repr(u8)]
@@ -45,6 +82,12 @@ pub enum Origin {
     },
 }
 
+// https://html.spec.whatwg.org/multipage/browsers.html#site
+enum Site<'a> {
+    Opaque(&'a Nonce),
+    SchemeAndHost(&'a str, Host),
+}
+
 impl Origin {
     pub fn new_opaque(kind: OpaqueOriginKind) -> Self {
         let mut nonce = Nonce::default();
@@ -58,6 +101,81 @@ impl Origin {
             host,
             port,
             domain: None,
+        }
+    }
+
+    pub fn is_opaque(&self) -> bool {
+        matches!(self, Self::Opaque { .. })
+    }
+
+    // https://html.spec.whatwg.org/multipage/origin.html#same-origin
+    pub fn is_same_origin(&self, other: &Self) -> bool {
+        match (self, other) {
+            // 1. If A and B are the same opaque origin, then return true.
+            (Self::Opaque { nonce: a, .. }, Self::Opaque { nonce: b, .. }) => a == b,
+            // 2. If A and B are both tuple origins, their schemes and ports are identical, and their hosts are equal, then
+            //    return true.
+            (
+                Self::Tuple {
+                    scheme: scheme_a,
+                    host: host_a,
+                    port: port_a,
+                    ..
+                },
+                Self::Tuple {
+                    scheme: scheme_b,
+                    host: host_b,
+                    port: port_b,
+                    ..
+                },
+            ) => scheme_a == scheme_b && port_a == port_b && host_a == host_b,
+            // 3. Return false.
+            _ => false,
+        }
+    }
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#obtain-a-site
+    fn site(&self) -> Site<'_> {
+        match self {
+            // 1. If origin is an opaque origin, then return origin.
+            Self::Opaque { nonce, .. } => Site::Opaque(nonce),
+            Self::Tuple { scheme, host, .. } => match host.registrable_domain() {
+                // 2. If origin's host's registrable domain is null, then return (origin's scheme, origin's host).
+                None => Site::SchemeAndHost(scheme, host.clone()),
+                // 3. Return (origin's scheme, origin's host's registrable domain).
+                Some(registrable_domain) => Site::SchemeAndHost(
+                    scheme,
+                    Host {
+                        kind: HostKind::Domain,
+                        serialization: registrable_domain,
+                    },
+                ),
+            },
+        }
+    }
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#same-site
+    pub fn is_same_site(&self, other: &Self) -> bool {
+        // 1. Let siteA be the result of obtaining a site given A.
+        let site_a = self.site();
+
+        // 2. Let siteB be the result of obtaining a site given B.
+        let site_b = other.site();
+
+        // 3. If siteA is same site with siteB, then return true.
+        // 4. Return false.
+        // https://html.spec.whatwg.org/multipage/browsers.html#concept-site-same-site
+        match (site_a, site_b) {
+            // 1. If A and B are the same opaque origin, then return true.
+            (Site::Opaque(a), Site::Opaque(b)) => a == b,
+            // 2. If A or B is an opaque origin, then return false.
+            (Site::Opaque(_), _) | (_, Site::Opaque(_)) => false,
+            // 3. If A's and B's scheme values are different, then return false.
+            // 4. If A's and B's host values are not equal, then return false.
+            // 5. Return true.
+            (Site::SchemeAndHost(scheme_a, host_a), Site::SchemeAndHost(scheme_b, host_b)) => {
+                scheme_a == scheme_b && host_a == host_b
+            }
         }
     }
 }

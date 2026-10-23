@@ -39,6 +39,15 @@ unsafe extern "C" {
     /// an interface that LibWeb implements in C++.
     pub(crate) fn web_bindings_object_implements_interface(object: *mut c_void, interface_name: u16) -> bool;
 
+    /// Runs the extract an origin operation of the object, https://html.spec.whatwg.org/multipage/browsers.html#extract-an-origin,
+    /// if it is a platform object of an interface implemented in C++ or a WindowProxy, and calls `on_origin` with the
+    /// origin, which it lends for the call, if that is not null. Returns whether it called `on_origin`.
+    pub(crate) fn web_bindings_extract_an_origin(
+        object: *mut c_void,
+        ctx: *mut c_void,
+        on_origin: unsafe extern "C" fn(*mut c_void, *const liburl_rust::FfiOrigin),
+    ) -> bool;
+
     /// The wrapper in the realm of a new DOMException with the name, which is ASCII, and the message, a borrowed
     /// AK::Utf16String.
     pub(crate) fn web_bindings_create_dom_exception(
