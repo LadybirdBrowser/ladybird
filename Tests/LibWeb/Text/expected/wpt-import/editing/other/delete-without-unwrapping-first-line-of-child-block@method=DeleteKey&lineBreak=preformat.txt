@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+3 Pass
+25 Fail
+Fail	Delete at abc\\n[\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at abc\n[\n<div id="child">]def<br>ghi</div>
+Fail	Delete at \\n[abc\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at \n[abc\n<div id="child">]def<br>ghi</div>
+Fail	Delete at \\n[\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at \n[\n<div id="child">]def<br>ghi</div>
+Fail	Delete at [\\n\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at [\n\n<div id="child">]def<br>ghi</div>
+Fail	Delete at [abc\\n\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at [abc\n\n<div id="child">]def<br>ghi</div>
+Fail	Delete at abc\\n[\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at abc\n[\n<div id="child">d]ef<br>ghi</div>
+Fail	Delete at \\n[abc\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at \n[abc\n<div id="child">d]ef<br>ghi</div>
+Fail	Delete at \\n[\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at \n[\n<div id="child">d]ef<br>ghi</div>
+Fail	Delete at [\\n\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at [\n\n<div id="child">d]ef<br>ghi</div>
+Fail	Delete at [abc\\n\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at [abc\n\n<div id="child">d]ef<br>ghi</div>
+Fail	Delete at abc\\n[]\\n<div id="child">def<br>ghi</div>
+Fail	Delete at \\n[]\\n<div id="child">def<br>ghi</div>
+Fail	Delete at []\\n<div id="child">def<br>ghi</div>
+Fail	Delete at <b>abc\\n[]\\n</b></b><div id="child">def<br>ghi</div>
+Pass	Delete at <b>[]\\n</b><div id="child">def<br>ghi</div>
+Pass	getTargetRanges() for Delete at abc\\n[]\\n<div id="child">def<br>ghi</div> should return a range before the child <div>
+Pass	getTargetRanges() for Delete at <b>abc\\n[]\\n</b></b><div id="child">def<br>ghi</div> should return a range before the child <div>
+Fail	getTargetRanges() for Delete at <b>[]\\n</b><div id="child">def<br>ghi</div> should return a range before the child <div>

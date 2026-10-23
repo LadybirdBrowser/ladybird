@@ -1,0 +1,1098 @@
+Harness status: OK
+
+Found 1092 tests
+
+987 Pass
+105 Fail
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=#0000FF>[bar</font>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<span style=background-color:#00FFFF>[bar</span>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=blue>[bar</font></a>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=blue><a href=http://www.google.com>[bar</a></font>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=brown>[bar</font></a>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font color=brown><a href=http://www.google.com>[bar</a></font>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><font color=black>[bar</font></a>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<a href=http://www.google.com><u>[bar</u></a>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<u><a href=http://www.google.com>[bar</a></u>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=2>[bar</font></sub>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=2><sub>[bar</sub></font>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<sub><font size=3>[bar</font></sub>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "foo<font size=3><sub>[bar</sub></font>baz]" queryCommandValue("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>": execCommand("inserttext", false, "a") return value
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" compare innerHTML
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandIndeterm("delete") before
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandState("delete") before
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandValue("delete") before
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandIndeterm("delete") after
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandState("delete") after
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandValue("delete") after
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandIndeterm("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandState("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandValue("inserttext") before
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandIndeterm("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandState("inserttext") after
+Pass	[["delete",""],["inserttext","a"]] "<blockquote><font color=blue>[foo]</font></blockquote>" queryCommandValue("inserttext") after
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("inserttext", false, "a") return value
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandIndeterm("bold") after
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("inserttext", false, "d") return value
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandIndeterm("bold") after
+Fail	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["delete",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("inserttext", false, "a") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandIndeterm("bold") after
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("inserttext", false, "d") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandIndeterm("bold") after
+Fail	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["delete",""],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>": execCommand("inserttext", false, "a") return value
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandIndeterm("bold") after
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","a"]] "<div><b>[abc]</b></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>": execCommand("inserttext", false, "d") return value
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandIndeterm("bold") after
+Fail	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["insertparagraph",""],["inserttext","d"]] "<div>abc<b>[def]</b></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>": execCommand("inserttext", false, "d") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>" queryCommandIndeterm("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b>abc[]<br></b></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>": execCommand("inserttext", false, "d") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>" queryCommandIndeterm("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]<br></b></i></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>": execCommand("inserttext", false, "d") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>" queryCommandIndeterm("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><i><b>abc[]</b><br></i></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>": execCommand("inserttext", false, "d") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>" queryCommandIndeterm("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i></b></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>": execCommand("inserttext", false, "d") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>" queryCommandIndeterm("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]</i><br></b></div>" queryCommandValue("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>": execCommand("inserttext", false, "d") return value
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>" queryCommandIndeterm("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>" queryCommandState("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>" queryCommandValue("bold") before
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>" queryCommandIndeterm("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>" queryCommandState("bold") after
+Pass	[["styleWithCSS","false"],["bold",""],["inserttext","d"]] "<div><b><i>abc[]<br></i><br></b></div>" queryCommandValue("bold") after
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def</b>]ghi": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def</b>]ghi": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def</b>]ghi": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def</b>]ghi": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def</b>]ghi" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def</b>]ghi" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc[<b>def]</b>ghi": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc[<b>def]</b>ghi": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc[<b>def]</b>ghi": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc[<b>def]</b>ghi": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc[<b>def]</b>ghi" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc[<b>def]</b>ghi" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def]</b>ghi": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def]</b>ghi": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def]</b>ghi": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def]</b>ghi": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def]</b>ghi" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>[def]</b>ghi" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>{def}</b>ghi": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>{def}</b>ghi": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>{def}</b>ghi": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>{def}</b>ghi": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>{def}</b>ghi" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc<b>{def}</b>ghi" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc{<b>def</b>}ghi": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc{<b>def</b>}ghi": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc{<b>def</b>}ghi": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc{<b>def</b>}ghi": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc{<b>def</b>}ghi" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "abc{<b>def</b>}ghi" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "g") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "g") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "g") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i>def</i></b>}ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def]</i></b>ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i>def]</i></b>ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc<b><i>[def</i></b>]ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>": execCommand("inserttext", false, "g") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc<b><i>[def</i></b>g]hi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "g") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc[<b><i>def</i></b>g]hi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>": execCommand("inserttext", false, "g") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>" checks for modifications to non-editable content
+Fail	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"],["inserttext","g"]] "<div>abc{<b><i>def</i></b>g]hi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" checks for modifications to non-editable content
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" checks for modifications to non-editable content
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("insertlinebreak", false, "") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("insertlinebreak", false, "") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def]</i></b>ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("insertlinebreak", false, "") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" checks for modifications to non-editable content
+Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc[<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("insertlinebreak", false, "") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>": execCommand("inserttext", false, "f") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" checks for modifications to non-editable content
+Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"],["inserttext","f"]] "<div>abc{<b><i><img src=\"/img/lion.svg\">def</i></b>]ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "c") return value
+Pass	[["delete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "c") return value
+Pass	[["forwarddelete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["forwarddelete",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "c") return value
+Pass	[["insertparagraph",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("insertlinebreak", false, "") return value
+Pass	[["insertlinebreak",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "c") return value
+Pass	[["insertlinebreak",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertlinebreak",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertlinebreak",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["insertlinebreak",""],["inserttext","c"],["inserttext","d"],["inserttext","e"]] "<div>ab[c<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("insertlinebreak", false, "") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("insertlinebreak", false, "") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["forwarddelete",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("insertlinebreak", false, "") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc[<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("insertlinebreak", false, "") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "d") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>": execCommand("inserttext", false, "e") return value
+Pass	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" checks for modifications to non-editable content
+Fail	[["insertlinebreak",""],["inserttext","d"],["inserttext","e"]] "<div>abc{<s></s><b><i>de]f</i></b>ghi</div>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>": execCommand("fontsize", false, "4") return value
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>": execCommand("insertText", false, "a") return value
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>" queryCommandIndeterm("fontsize") before
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>" queryCommandState("fontsize") before
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>" queryCommandValue("fontsize") before
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>" queryCommandIndeterm("fontsize") after
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>" queryCommandState("fontsize") after
+Pass	[["stylewithcss","false"],["fontsize","4"],["insertText","a"]] "<font size=7>{}<br></font>" queryCommandValue("fontsize") after
+Pass	[["stylewithcss","true"],["italic",""],["insertText","a"]] "<span style=font-weight:bold>{}<br></span></b>": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["italic",""],["insertText","a"]] "<span style=font-weight:bold>{}<br></span></b>": execCommand("italic", false, "") return value
+Pass	[["stylewithcss","true"],["italic",""],["insertText","a"]] "<span style=font-weight:bold>{}<br></span></b>": execCommand("insertText", false, "a") return value
+Pass	[["stylewithcss","true"],["italic",""],["insertText","a"]] "<span style=font-weight:bold>{}<br></span></b>" checks for modifications to non-editable content
+Fail	[["stylewithcss","true"],["italic",""],["insertText","a"]] "<span style=font-weight:bold>{}<br></span></b>" compare innerHTML
+Pass	[["stylewithcss","false"],["fontSize","4"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["fontSize","4"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("fontSize", false, "4") return value
+Pass	[["stylewithcss","false"],["fontSize","4"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("backColor", false, "#00dddd") return value
+Pass	[["stylewithcss","false"],["fontSize","4"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("insertText", false, "d") return value
+Pass	[["stylewithcss","false"],["fontSize","4"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["fontSize","4"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef" compare innerHTML
+Pass	[["stylewithcss","false"],["foreColor","#ff0000"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["foreColor","#ff0000"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("foreColor", false, "#ff0000") return value
+Pass	[["stylewithcss","false"],["foreColor","#ff0000"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("backColor", false, "#00dddd") return value
+Pass	[["stylewithcss","false"],["foreColor","#ff0000"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("insertText", false, "d") return value
+Pass	[["stylewithcss","false"],["foreColor","#ff0000"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["foreColor","#ff0000"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef" compare innerHTML
+Pass	[["stylewithcss","false"],["fontName","monospace"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("fontName", false, "monospace") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("backColor", false, "#00dddd") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("insertText", false, "d") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["fontName","monospace"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef" compare innerHTML
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontSize","4"],["insertText","d"]] "abc[]ef": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontSize","4"],["insertText","d"]] "abc[]ef": execCommand("backColor", false, "#00dddd") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontSize","4"],["insertText","d"]] "abc[]ef": execCommand("fontSize", false, "4") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontSize","4"],["insertText","d"]] "abc[]ef": execCommand("insertText", false, "d") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontSize","4"],["insertText","d"]] "abc[]ef" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["backColor","#00dddd"],["fontSize","4"],["insertText","d"]] "abc[]ef" compare innerHTML
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["foreColor","#ff0000"],["insertText","d"]] "abc[]ef": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["foreColor","#ff0000"],["insertText","d"]] "abc[]ef": execCommand("backColor", false, "#00dddd") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["foreColor","#ff0000"],["insertText","d"]] "abc[]ef": execCommand("foreColor", false, "#ff0000") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["foreColor","#ff0000"],["insertText","d"]] "abc[]ef": execCommand("insertText", false, "d") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["foreColor","#ff0000"],["insertText","d"]] "abc[]ef" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["backColor","#00dddd"],["foreColor","#ff0000"],["insertText","d"]] "abc[]ef" compare innerHTML
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontName","monospace"],["insertText","d"]] "abc[]ef": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontName","monospace"],["insertText","d"]] "abc[]ef": execCommand("backColor", false, "#00dddd") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontName","monospace"],["insertText","d"]] "abc[]ef": execCommand("fontName", false, "monospace") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontName","monospace"],["insertText","d"]] "abc[]ef": execCommand("insertText", false, "d") return value
+Pass	[["stylewithcss","false"],["backColor","#00dddd"],["fontName","monospace"],["insertText","d"]] "abc[]ef" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["backColor","#00dddd"],["fontName","monospace"],["insertText","d"]] "abc[]ef" compare innerHTML
+Pass	[["stylewithcss","false"],["fontName","monospace"],["foreColor","#ff0000"],["fontSize","7"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["foreColor","#ff0000"],["fontSize","7"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("fontName", false, "monospace") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["foreColor","#ff0000"],["fontSize","7"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("foreColor", false, "#ff0000") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["foreColor","#ff0000"],["fontSize","7"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("fontSize", false, "7") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["foreColor","#ff0000"],["fontSize","7"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("backColor", false, "#00dddd") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["foreColor","#ff0000"],["fontSize","7"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef": execCommand("insertText", false, "d") return value
+Pass	[["stylewithcss","false"],["fontName","monospace"],["foreColor","#ff0000"],["fontSize","7"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef" checks for modifications to non-editable content
+Fail	[["stylewithcss","false"],["fontName","monospace"],["foreColor","#ff0000"],["fontSize","7"],["backColor","#00dddd"],["insertText","d"]] "abc[]ef" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo</span><br></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo<br></span></p><span style=\"color:rgb(255, 0, 0)\">[]bar</span>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo</span><br><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo</span><br><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo</span><br><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo</span><br><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo</span><br><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo<br></span><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo<br></span><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo<br></span><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo<br></span><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo<br></span><p><span style=\"color:rgb(255, 0, 0)\">[]bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("forwarddelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("forwarddelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("forwarddelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>": execCommand("forwarddelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><span style=\"color:rgb(255, 0, 0)\">bar</span>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><span style=\"color:rgb(255, 0, 0)\">bar</span>": execCommand("forwarddelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><span style=\"color:rgb(255, 0, 0)\">bar</span>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><span style=\"color:rgb(255, 0, 0)\">bar</span>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]</span><br></p><span style=\"color:rgb(255, 0, 0)\">bar</span>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>": execCommand("forwarddelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<p><span style=\"color:rgb(0, 0, 255)\">foo[]<br></span></p><span style=\"color:rgb(255, 0, 0)\">bar</span>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]</span><br><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]</span><br><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("forwarddelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]</span><br><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]</span><br><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]</span><br><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]<br></span><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]<br></span><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("forwarddelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]<br></span><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>": execCommand("insertText", false, "A") return value
+Pass	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]<br></span><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["forwarddelete",""],["insertText","A"]] "<span style=\"color:rgb(0, 0, 255)\">foo[]<br></span><p><span style=\"color:rgb(255, 0, 0)\">bar</span></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]c": execCommand("italic", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]c" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]c" compare innerHTML
+Pass	[["styleWithCSS","false"],["italic",""],["bold",""],["insertText","b"]] "a[]c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["italic",""],["bold",""],["insertText","b"]] "a[]c": execCommand("italic", false, "") return value
+Pass	[["styleWithCSS","false"],["italic",""],["bold",""],["insertText","b"]] "a[]c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["italic",""],["bold",""],["insertText","b"]] "a[]c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["italic",""],["bold",""],["insertText","b"]] "a[]c" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["italic",""],["bold",""],["insertText","b"]] "a[]c" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<b>a[]</b>c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<b>a[]</b>c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<b>a[]</b>c": execCommand("italic", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<b>a[]</b>c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<b>a[]</b>c" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<b>a[]</b>c" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<i>a[]</i>c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<i>a[]</i>c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<i>a[]</i>c": execCommand("italic", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<i>a[]</i>c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<i>a[]</i>c" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "<i>a[]</i>c" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<b>c</b>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<b>c</b>": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<b>c</b>": execCommand("italic", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<b>c</b>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<b>c</b>" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<b>c</b>" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<i>c</i>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<i>c</i>": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<i>c</i>": execCommand("italic", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<i>c</i>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<i>c</i>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["bold",""],["italic",""],["insertText","b"]] "a[]<i>c</i>" compare innerHTML
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["insertText","b"]] "a[]c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["insertText","b"]] "a[]c": execCommand("foreColor", false, "#ff0000") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["insertText","b"]] "a[]c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["insertText","b"]] "a[]c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["insertText","b"]] "a[]c" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["insertText","b"]] "a[]c" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["foreColor","#ff0000"],["insertText","b"]] "a[]c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["foreColor","#ff0000"],["insertText","b"]] "a[]c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["foreColor","#ff0000"],["insertText","b"]] "a[]c": execCommand("foreColor", false, "#ff0000") return value
+Pass	[["styleWithCSS","false"],["bold",""],["foreColor","#ff0000"],["insertText","b"]] "a[]c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["bold",""],["foreColor","#ff0000"],["insertText","b"]] "a[]c" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["bold",""],["foreColor","#ff0000"],["insertText","b"]] "a[]c" compare innerHTML
+Pass	[["styleWithCSS","false"],["fontName","monospace"],["bold",""],["insertText","b"]] "a[]c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["fontName","monospace"],["bold",""],["insertText","b"]] "a[]c": execCommand("fontName", false, "monospace") return value
+Pass	[["styleWithCSS","false"],["fontName","monospace"],["bold",""],["insertText","b"]] "a[]c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["fontName","monospace"],["bold",""],["insertText","b"]] "a[]c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["fontName","monospace"],["bold",""],["insertText","b"]] "a[]c" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["fontName","monospace"],["bold",""],["insertText","b"]] "a[]c" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("fontName", false, "monospace") return value
+Pass	[["styleWithCSS","false"],["bold",""],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["bold",""],["fontName","monospace"],["insertText","b"]] "a[]c" checks for modifications to non-editable content
+Pass	[["styleWithCSS","false"],["bold",""],["fontName","monospace"],["insertText","b"]] "a[]c" compare innerHTML
+Pass	[["styleWithCSS","false"],["fontSize","5"],["bold",""],["insertText","b"]] "a[]c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["fontSize","5"],["bold",""],["insertText","b"]] "a[]c": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["fontSize","5"],["bold",""],["insertText","b"]] "a[]c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["fontSize","5"],["bold",""],["insertText","b"]] "a[]c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["fontSize","5"],["bold",""],["insertText","b"]] "a[]c" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["fontSize","5"],["bold",""],["insertText","b"]] "a[]c" compare innerHTML
+Pass	[["styleWithCSS","false"],["bold",""],["fontSize","5"],["insertText","b"]] "a[]c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["bold",""],["fontSize","5"],["insertText","b"]] "a[]c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["bold",""],["fontSize","5"],["insertText","b"]] "a[]c": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["bold",""],["fontSize","5"],["insertText","b"]] "a[]c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["bold",""],["fontSize","5"],["insertText","b"]] "a[]c" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["bold",""],["fontSize","5"],["insertText","b"]] "a[]c" compare innerHTML
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["fontSize","5"],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["fontSize","5"],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("foreColor", false, "#ff0000") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["fontSize","5"],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("bold", false, "") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["fontSize","5"],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["fontSize","5"],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("fontName", false, "monospace") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["fontSize","5"],["fontName","monospace"],["insertText","b"]] "a[]c": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["fontSize","5"],["fontName","monospace"],["insertText","b"]] "a[]c" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["foreColor","#ff0000"],["bold",""],["fontSize","5"],["fontName","monospace"],["insertText","b"]] "a[]c" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a</font></p><p>[]c</p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a</font></p><p>[]c</p>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a</font></p><p>[]c</p>": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a</font></p><p>[]c</p>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a</font></p><p>[]c</p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a</font></p><p>[]c</p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a</font></p><p>[]c</p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a</font></p><p>[]c</p>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a</font></p><p>[]c</p>": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a</font></p><p>[]c</p>": execCommand("foreColor", false, "#ff0000") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a</font></p><p>[]c</p>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a</font></p><p>[]c</p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a</font></p><p>[]c</p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p>[]c</p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p>[]c</p>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p>[]c</p>": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p>[]c</p>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p>[]c</p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p>[]c</p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p><i>[]c</i></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p><i>[]c</i></p>": execCommand("delete", false, "") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p><i>[]c</i></p>": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p><i>[]c</i></p>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p><i>[]c</i></p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["delete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a</b></font></p><p><i>[]c</i></p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a[]</font></p><p>c</p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a[]</font></p><p>c</p>": execCommand("forwardDelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a[]</font></p><p>c</p>": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a[]</font></p><p>c</p>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a[]</font></p><p>c</p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\">a[]</font></p><p>c</p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a[]</font></p><p>c</p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a[]</font></p><p>c</p>": execCommand("forwardDelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a[]</font></p><p>c</p>": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a[]</font></p><p>c</p>": execCommand("foreColor", false, "#ff0000") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a[]</font></p><p>c</p>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a[]</font></p><p>c</p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["foreColor","#ff0000"],["insertText","b"]] "<p><font size=\"5\" color=\"#ff0000\">a[]</font></p><p>c</p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p>c</p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p>c</p>": execCommand("forwardDelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p>c</p>": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p>c</p>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p>c</p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p>c</p>" compare innerHTML
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p><i>c</i></p>": execCommand("styleWithCSS", false, "false") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p><i>c</i></p>": execCommand("forwardDelete", false, "") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p><i>c</i></p>": execCommand("fontSize", false, "5") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p><i>c</i></p>": execCommand("insertText", false, "b") return value
+Pass	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p><i>c</i></p>" checks for modifications to non-editable content
+Fail	[["styleWithCSS","false"],["forwardDelete",""],["fontSize","5"],["insertText","b"]] "<p><font size=\"5\"><b>a[]</b></font></p><p><i>c</i></p>" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>{abc</div><div>def</div>}": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>{abc</div><div>def</div>}": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>{abc</div><div>def</div>}": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>{abc</div><div>def</div>}" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>{abc</div><div>def</div>}" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div>{def</div>}": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div>{def</div>}": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div>{def</div>}": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div>{def</div>}" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div>{def</div>}" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>{abc</span><span>def</span>}</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>{abc</span><span>def</span>}</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>{abc</span><span>def</span>}</div>": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>{abc</span><span>def</span>}</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>{abc</span><span>def</span>}</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span>{def</span>}</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span>{def</span>}</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span>{def</span>}</div>": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span>{def</span>}</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span>{def</span>}</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>{abc</span><span>def</span>}</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>{abc</span><span>def</span>}</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>{abc</span><span>def</span>}</div>": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>{abc</span><span>def</span>}</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>{abc</span><span>def</span>}</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span>{def</span>}</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span>{def</span>}</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span>{def</span>}</div>": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span>{def</span>}</div>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span>{def</span>}</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div><b>{abc</b></div><div>def</div>}": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div><b>{abc</b></div><div>def</div>}": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div><b>{abc</b></div><div>def</div>}": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div><b>{abc</b></div><div>def</div>}" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div><b>{abc</b></div><div>def</div>}" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div><b>{def</b></div>}": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div><b>{def</b></div>}": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div><b>{def</b></div>}": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div><b>{def</b></div>}" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div>abc</div><div><b>{def</b></div>}" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span><b>{abc</b></span><span>def</span>}</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span><b>{abc</b></span><span>def</span>}</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span><b>{abc</b></span><span>def</span>}</div>": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span><b>{abc</b></span><span>def</span>}</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span><b>{abc</b></span><span>def</span>}</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span><b>{def</b></span>}</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span><b>{def</b></span>}</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span><b>{def</b></span>}</div>": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span><b>{def</b></span>}</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:flex><span>abc</span><span><b>{def</b></span>}</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span><b>{abc</b></span><span>def</span>}</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span><b>{abc</b></span><span>def</span>}</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span><b>{abc</b></span><span>def</span>}</div>": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span><b>{abc</b></span><span>def</span>}</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span><b>{abc</b></span><span>def</span>}</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span><b>{def</b></span>}</div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span><b>{def</b></span>}</div>": execCommand("inserttext", false, "g") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span><b>{def</b></span>}</div>": execCommand("inserttext", false, "h") return value
+Pass	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span><b>{def</b></span>}</div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","g"],["inserttext","h"]] "<div style=display:grid><span>abc</span><span><b>{def</b></span>}</div>" compare innerHTML
+Pass	[["delete",""],["inserttext","Y"]] "<b>X[]<span contenteditable=false>abc</span></b><i>def</i>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","Y"]] "<b>X[]<span contenteditable=false>abc</span></b><i>def</i>": execCommand("inserttext", false, "Y") return value
+Pass	[["delete",""],["inserttext","Y"]] "<b>X[]<span contenteditable=false>abc</span></b><i>def</i>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","Y"]] "<b>X[]<span contenteditable=false>abc</span></b><i>def</i>" compare innerHTML
+Pass	[["delete",""],["inserttext","Y"]] "<b><span contenteditable=false>abc</span>X[]</b><i>def</i>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","Y"]] "<b><span contenteditable=false>abc</span>X[]</b><i>def</i>": execCommand("inserttext", false, "Y") return value
+Pass	[["delete",""],["inserttext","Y"]] "<b><span contenteditable=false>abc</span>X[]</b><i>def</i>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","Y"]] "<b><span contenteditable=false>abc</span>X[]</b><i>def</i>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","Y"]] "<b>[]X<span contenteditable=false>abc</span></b><i>def</i>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","Y"]] "<b>[]X<span contenteditable=false>abc</span></b><i>def</i>": execCommand("inserttext", false, "Y") return value
+Pass	[["forwarddelete",""],["inserttext","Y"]] "<b>[]X<span contenteditable=false>abc</span></b><i>def</i>" checks for modifications to non-editable content
+Pass	[["forwarddelete",""],["inserttext","Y"]] "<b>[]X<span contenteditable=false>abc</span></b><i>def</i>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","Y"]] "<b><span contenteditable=false>abc</span>[]X</b><i>def</i>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","Y"]] "<b><span contenteditable=false>abc</span>[]X</b><i>def</i>": execCommand("inserttext", false, "Y") return value
+Pass	[["forwarddelete",""],["inserttext","Y"]] "<b><span contenteditable=false>abc</span>[]X</b><i>def</i>" checks for modifications to non-editable content
+Pass	[["forwarddelete",""],["inserttext","Y"]] "<b><span contenteditable=false>abc</span>[]X</b><i>def</i>" compare innerHTML
+Pass	[["delete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("inserttext", false, "B") return value
+Pass	[["delete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
+Pass	[["delete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("inserttext", false, "B") return value
+Pass	[["delete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>": execCommand("inserttext", false, "B") return value
+Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","B"]] "<table><tr><td>a<td><b>[b</b><td><b>c</b><td><b>d]</b><td>e</table>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>": execCommand("inserttext", false, "B") return value
+Pass	[["forwarddelete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","B"]] "<table><tr><th>a<th><b>[b</b><th><b>c</b><th><b>d]</b><th>e</table>" compare innerHTML
+Pass	[["inserttext"," "],["bold",""],["inserttext","d"]] "<p><b>abc[]</b></p>": execCommand("inserttext", false, " ") return value
+Pass	[["inserttext"," "],["bold",""],["inserttext","d"]] "<p><b>abc[]</b></p>": execCommand("bold", false, "") return value
+Pass	[["inserttext"," "],["bold",""],["inserttext","d"]] "<p><b>abc[]</b></p>": execCommand("inserttext", false, "d") return value
+Pass	[["inserttext"," "],["bold",""],["inserttext","d"]] "<p><b>abc[]</b></p>" checks for modifications to non-editable content
+Pass	[["inserttext"," "],["bold",""],["inserttext","d"]] "<p><b>abc[]</b></p>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"]] "<p>abc<br> </p> <p>{}<br></p>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"]] "<p>abc<br> </p> <p>{}<br></p>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"]] "<p>abc<br> </p> <p>{}<br></p>" checks for modifications to non-editable content
+Pass	[["delete",""],["inserttext","d"]] "<p>abc<br> </p> <p>{}<br></p>" compare innerHTML
+Pass	[["delete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc</p> <p>{}<br></p></div>": execCommand("delete", false, "") return value
+Pass	[["delete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc</p> <p>{}<br></p></div>": execCommand("inserttext", false, "d") return value
+Pass	[["delete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc</p> <p>{}<br></p></div>" checks for modifications to non-editable content
+Fail	[["delete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc</p> <p>{}<br></p></div>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"]] "<p>abc[]<br> </p> <p><br></p>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"]] "<p>abc[]<br> </p> <p><br></p>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"]] "<p>abc[]<br> </p> <p><br></p>" checks for modifications to non-editable content
+Fail	[["forwarddelete",""],["inserttext","d"]] "<p>abc[]<br> </p> <p><br></p>" compare innerHTML
+Pass	[["forwarddelete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc[]</p> <p><br></p></div>": execCommand("forwarddelete", false, "") return value
+Pass	[["forwarddelete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc[]</p> <p><br></p></div>": execCommand("inserttext", false, "d") return value
+Pass	[["forwarddelete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc[]</p> <p><br></p></div>" checks for modifications to non-editable content
+Pass	[["forwarddelete",""],["inserttext","d"]] "<div style=white-space:pre><p>abc[]</p> <p><br></p></div>" compare innerHTML

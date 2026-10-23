@@ -1,0 +1,201 @@
+Harness status: OK
+
+Found 195 tests
+
+153 Pass
+42 Fail
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<br><span>baz</span>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<br><span>baz</span>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<br><span>baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span>qux": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span>qux": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span>qux" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span><br>qux": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span><br>qux": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span><br>qux" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span><br>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span>baz</span><br>qux": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span>baz</span><br>qux": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span>baz</span><br>qux" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<br>[]bar<span>baz</span><br>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span>baz</span>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span>baz</span>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span>baz</span>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span>baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>qux": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>qux": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>qux" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>bar[]<br><span contenteditable=\"false\">baz</span>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span>baz</span>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span>baz</span>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span>baz</span>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span>baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>qux": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>qux": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>qux" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>ba[]r<br><span contenteditable=\"false\">baz</span>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<br><span contenteditable=\"false\">baz</span>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<br><span contenteditable=\"false\">baz</span>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<br><span contenteditable=\"false\">baz</span>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<br><span contenteditable=\"false\">baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<br><span>baz</span>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<br><span>baz</span>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<br><span>baz</span>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<br><span>baz</span>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span>qux": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span>qux": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span>qux" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span><br>qux": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span><br>qux": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span><br>qux" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span contenteditable=\"false\">baz</span><br>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span>baz</span><br>qux": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span>baz</span><br>qux": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span>baz</span><br>qux" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<br>[]bar<span>baz</span><br>qux" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><span style=display:block>abc<br>def<br></span>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><span style=display:block>abc<br>def<br></span>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><span style=display:block>abc<br>def<br></span>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><span style=display:block>abc<br>def<br></span>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><span style=display:block>abc<br>def<br></span>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><span style=display:block>abc<br>def<br></span>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><span style=display:block>abc<br>def<br></span>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><span style=display:block>abc<br>def<br></span>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>[]abc</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>[]abc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>[]abc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>[]abc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>[]abc</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>[]abc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>[]abc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>[]abc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>[]abc</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>[]abc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>[]abc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>[]abc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>[]abc</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>[]abc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>[]abc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>[]abc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>a[]bc</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>a[]bc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>a[]bc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>a[]bc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>a[]bc</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>a[]bc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>a[]bc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>a[]bc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>a[]bc</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>a[]bc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>a[]bc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>a[]bc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>a[]bc</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>a[]bc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>a[]bc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>a[]bc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>abc[]</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>abc[]</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>abc[]</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:flex><span>abc[]</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>abc[]</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>abc[]</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>abc[]</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:flex><span>abc[]</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>abc[]</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>abc[]</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>abc[]</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-flex><span>abc[]</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>abc[]</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>abc[]</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>abc[]</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-flex><span>abc[]</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>[]abc</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>[]abc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>[]abc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>[]abc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>[]abc</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>[]abc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>[]abc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>[]abc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>[]abc</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>[]abc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>[]abc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>[]abc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>[]abc</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>[]abc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>[]abc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>[]abc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>a[]bc</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>a[]bc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>a[]bc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>a[]bc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>a[]bc</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>a[]bc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>a[]bc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>a[]bc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>a[]bc</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>a[]bc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>a[]bc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>a[]bc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>a[]bc</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>a[]bc</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>a[]bc</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>a[]bc</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>abc[]</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>abc[]</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>abc[]</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:grid><span>abc[]</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>abc[]</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>abc[]</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>abc[]</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:grid><span>abc[]</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>abc[]</span></div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>abc[]</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>abc[]</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:inline-grid><span>abc[]</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>abc[]</span></div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>abc[]</span></div>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>abc[]</span></div>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:inline-grid><span>abc[]</span></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] " <span contenteditable=\"false\">A</span>[] ; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span> ": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] " <span contenteditable=\"false\">A</span>[] ; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span> ": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] " <span contenteditable=\"false\">A</span>[] ; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span> " checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] " <span contenteditable=\"false\">A</span>[] ; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span> " compare innerHTML
+Pass	[["insertparagraph",""]] " <div><span contenteditable=\"false\">A</span></div><div>[]&nbsp;; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span></div> ": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] " <div><span contenteditable=\"false\">A</span></div><div>[]&nbsp;; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span></div> " checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] " <div><span contenteditable=\"false\">A</span></div><div>[]&nbsp;; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span></div> " compare innerHTML
+Pass	[["insertparagraph",""]] " <span contenteditable=\"false\">A</span><div>[]&nbsp;; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span></div> ": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] " <span contenteditable=\"false\">A</span><div>[]&nbsp;; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span></div> " checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] " <span contenteditable=\"false\">A</span><div>[]&nbsp;; <span contenteditable=\"false\">B</span> ; <span contenteditable=\"false\">C</span></div> " compare innerHTML
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc\n[]</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc\n[]</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc\n[]</div>" compare innerHTML
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc\n\n[]</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc\n\n[]</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc\n\n[]</div>" compare innerHTML
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc \n[]</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc \n[]</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc \n[]</div>" compare innerHTML
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc  \n[]</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc  \n[]</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc  \n[]</div>" compare innerHTML
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc&nbsp; \n[]</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc&nbsp; \n[]</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc&nbsp; \n[]</div>" compare innerHTML
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc &nbsp;\n[]</div>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc &nbsp;\n[]</div>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<div style=white-space:pre-line>abc &nbsp;\n[]</div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<output>a[]b</output>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<output>a[]b</output>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<output>a[]b</output>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<output>a[]b</output>" compare innerHTML

@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Fail
+Fail	Delete at abc<br>{<br><div id="child">]def<br>ghi</div>
+Fail	Typing "X" at abc<br>{<br><div id="child">]def<br>ghi</div>
+Fail	Delete at <br>[abc<br><div id="child">]def<br>ghi</div>
+Fail	Typing "X" at <br>[abc<br><div id="child">]def<br>ghi</div>
+Fail	Delete at <br>{<br><div id="child">]def<br>ghi</div>
+Fail	Typing "X" at <br>{<br><div id="child">]def<br>ghi</div>
+Fail	Delete at {<br><br><div id="child">]def<br>ghi</div>
+Fail	Typing "X" at {<br><br><div id="child">]def<br>ghi</div>
+Fail	Delete at [abc<br><br><div id="child">]def<br>ghi</div>
+Fail	Typing "X" at [abc<br><br><div id="child">]def<br>ghi</div>
+Fail	Delete at abc<br>{<br><div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at abc<br>{<br><div id="child">d]ef<br>ghi</div>
+Fail	Delete at <br>[abc<br><div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at <br>[abc<br><div id="child">d]ef<br>ghi</div>
+Fail	Delete at <br>{<br><div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at <br>{<br><div id="child">d]ef<br>ghi</div>
+Fail	Delete at {<br><br><div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at {<br><br><div id="child">d]ef<br>ghi</div>
+Fail	Delete at [abc<br><br><div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at [abc<br><br><div id="child">d]ef<br>ghi</div>
+Fail	Delete at abc<br>{}<br><div id="child">def<br>ghi</div>
+Fail	Delete at <br>{}<br><div id="child">def<br>ghi</div>
+Fail	Delete at {}<br><div id="child">def<br>ghi</div>
+Fail	Delete at <b>abc<br>{}<br></b></b><div id="child">def<br>ghi</div>
+Fail	Delete at <b>{}<br></b><div id="child">def<br>ghi</div>

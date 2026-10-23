@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+963 Pass
+37 Fail
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Fail	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<h5>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<h6>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<h6>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Fail	[["formatblock","<header>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<header>") return value
+Pass	[["formatblock","<header>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Fail	[["formatblock","<header>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<header>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<header>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<header>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<header>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<header>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Fail	[["formatblock","<header>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<head>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<head>") return value
+Pass	[["formatblock","<head>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<head>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<head>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<head>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<head>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<head>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<head>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<head>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Fail	[["formatblock","<hgroup>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<hgroup>") return value
+Pass	[["formatblock","<hgroup>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Fail	[["formatblock","<hgroup>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<hgroup>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<hgroup>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<hgroup>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<hgroup>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<hgroup>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Fail	[["formatblock","<hgroup>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<hr>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<hr>") return value
+Pass	[["formatblock","<hr>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<hr>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<hr>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<hr>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<hr>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<hr>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<hr>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<hr>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<html>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<html>") return value
+Pass	[["formatblock","<html>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<html>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<html>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<html>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<html>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<html>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<html>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<html>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<ins>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<ins>") return value
+Pass	[["formatblock","<ins>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<ins>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<ins>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<ins>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<ins>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<ins>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<ins>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<ins>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<li>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<li>") return value
+Pass	[["formatblock","<li>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<li>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<li>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<li>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<li>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<li>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<li>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<li>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<listing>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<listing>") return value
+Pass	[["formatblock","<listing>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<listing>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<listing>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<listing>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<listing>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<listing>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<listing>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<listing>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<menu>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<menu>") return value
+Pass	[["formatblock","<menu>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<menu>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<menu>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<menu>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<menu>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<menu>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<menu>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<menu>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Fail	[["formatblock","<nav>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<nav>") return value
+Pass	[["formatblock","<nav>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Fail	[["formatblock","<nav>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<nav>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<nav>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<nav>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<nav>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<nav>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Fail	[["formatblock","<nav>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<ol>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<ol>") return value
+Pass	[["formatblock","<ol>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<ol>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<ol>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<ol>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<ol>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<ol>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<ol>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<ol>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<plaintext>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<plaintext>") return value
+Pass	[["formatblock","<plaintext>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<plaintext>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<plaintext>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<plaintext>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<plaintext>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<plaintext>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<plaintext>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<plaintext>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<pre>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<pre>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Fail	[["formatblock","<section>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<section>") return value
+Pass	[["formatblock","<section>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Fail	[["formatblock","<section>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<section>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<section>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<section>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<section>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<section>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Fail	[["formatblock","<section>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<ul>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<ul>") return value
+Pass	[["formatblock","<ul>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<ul>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<ul>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<ul>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<ul>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<ul>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<ul>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<ul>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<xmp>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<xmp>") return value
+Pass	[["formatblock","<xmp>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<xmp>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<xmp>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<xmp>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<xmp>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<xmp>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<xmp>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<xmp>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["formatblock","<quasit>"]] "<p>[foobar]</p>": execCommand("formatblock", false, "<quasit>") return value
+Pass	[["formatblock","<quasit>"]] "<p>[foobar]</p>" checks for modifications to non-editable content
+Pass	[["formatblock","<quasit>"]] "<p>[foobar]</p>" compare innerHTML
+Pass	[["formatblock","<quasit>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<quasit>"]] "<p>[foobar]</p>" queryCommandState("formatblock") before
+Pass	[["formatblock","<quasit>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") before
+Pass	[["formatblock","<quasit>"]] "<p>[foobar]</p>" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<quasit>"]] "<p>[foobar]</p>" queryCommandState("formatblock") after
+Pass	[["formatblock","<quasit>"]] "<p>[foobar]</p>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<address>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<address>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<address>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Fail	[["formatblock","<article>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<article>") return value
+Pass	[["formatblock","<article>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Fail	[["formatblock","<article>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<article>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<article>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<article>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<article>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<article>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Fail	[["formatblock","<article>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Fail	[["formatblock","<aside>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<aside>") return value
+Pass	[["formatblock","<aside>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Fail	[["formatblock","<aside>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<aside>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<aside>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<aside>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<aside>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<aside>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Fail	[["formatblock","<aside>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Fail	[["formatblock","<blockquote>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<blockquote>") return value
+Pass	[["formatblock","<blockquote>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Fail	[["formatblock","<blockquote>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<blockquote>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<blockquote>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<blockquote>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<blockquote>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<blockquote>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Fail	[["formatblock","<blockquote>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<body>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<body>") return value
+Pass	[["formatblock","<body>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<body>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<body>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<body>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<body>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<body>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<body>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<body>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<dd>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<dd>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dd>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<del>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<del>") return value
+Pass	[["formatblock","<del>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<del>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<del>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<del>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<del>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<del>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<del>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<del>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<details>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<details>") return value
+Pass	[["formatblock","<details>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<details>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<details>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<details>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<details>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<details>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<details>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<details>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<dir>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<dir>") return value
+Pass	[["formatblock","<dir>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<dir>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<dir>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<dir>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<dir>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<dir>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<dir>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<dir>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<div>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<div>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<dl>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<dl>") return value
+Pass	[["formatblock","<dl>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<dl>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<dl>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<dl>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<dl>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<dl>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<dl>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<dl>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<dt>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<dt>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<dt>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<fieldset>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<fieldset>") return value
+Pass	[["formatblock","<fieldset>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<fieldset>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<fieldset>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<fieldset>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<fieldset>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<fieldset>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<fieldset>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<fieldset>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<figcaption>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<figcaption>") return value
+Pass	[["formatblock","<figcaption>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<figcaption>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<figcaption>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<figcaption>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<figcaption>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<figcaption>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<figcaption>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<figcaption>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<figure>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<figure>") return value
+Pass	[["formatblock","<figure>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<figure>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<figure>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<figure>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<figure>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<figure>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<figure>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<figure>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Fail	[["formatblock","<footer>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<footer>") return value
+Pass	[["formatblock","<footer>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Fail	[["formatblock","<footer>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<footer>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<footer>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<footer>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<footer>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<footer>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Fail	[["formatblock","<footer>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<form>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<form>") return value
+Pass	[["formatblock","<form>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<form>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<form>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<form>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<form>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<form>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<form>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<form>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h1>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h1>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h1>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h2>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h2>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h2>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h3>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h3>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h3>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h4>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h4>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h4>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h5>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h5>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h5>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h6>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<h6>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<h6>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Fail	[["formatblock","<header>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<header>") return value
+Pass	[["formatblock","<header>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Fail	[["formatblock","<header>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<header>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<header>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<header>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<header>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<header>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Fail	[["formatblock","<header>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<head>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<head>") return value
+Pass	[["formatblock","<head>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<head>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<head>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<head>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<head>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<head>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<head>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<head>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Fail	[["formatblock","<hgroup>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<hgroup>") return value
+Pass	[["formatblock","<hgroup>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Fail	[["formatblock","<hgroup>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<hgroup>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<hgroup>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<hgroup>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<hgroup>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<hgroup>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Fail	[["formatblock","<hgroup>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<hr>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<hr>") return value
+Pass	[["formatblock","<hr>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<hr>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<hr>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<hr>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<hr>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<hr>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<hr>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<hr>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<html>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<html>") return value
+Pass	[["formatblock","<html>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<html>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<html>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<html>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<html>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<html>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<html>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<html>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<ins>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<ins>") return value
+Pass	[["formatblock","<ins>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<ins>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<ins>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<ins>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<ins>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<ins>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<ins>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<ins>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<li>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<li>") return value
+Pass	[["formatblock","<li>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<li>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<li>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<li>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<li>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<li>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<li>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<li>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<listing>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<listing>") return value
+Pass	[["formatblock","<listing>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<listing>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<listing>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<listing>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<listing>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<listing>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<listing>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<listing>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<menu>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<menu>") return value
+Pass	[["formatblock","<menu>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<menu>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<menu>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<menu>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<menu>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<menu>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<menu>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<menu>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Fail	[["formatblock","<nav>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<nav>") return value
+Pass	[["formatblock","<nav>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Fail	[["formatblock","<nav>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<nav>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<nav>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<nav>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<nav>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<nav>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Fail	[["formatblock","<nav>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<ol>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<ol>") return value
+Pass	[["formatblock","<ol>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<ol>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<ol>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<ol>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<ol>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<ol>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<ol>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<ol>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<p>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<p>") return value
+Pass	[["formatblock","<p>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<p>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<p>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<p>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<p>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<p>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<p>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<p>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<plaintext>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<plaintext>") return value
+Pass	[["formatblock","<plaintext>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<plaintext>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<plaintext>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<plaintext>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<plaintext>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<plaintext>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<plaintext>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<plaintext>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<pre>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<pre>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<pre>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Fail	[["formatblock","<section>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<section>") return value
+Pass	[["formatblock","<section>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Fail	[["formatblock","<section>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<section>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<section>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<section>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<section>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<section>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Fail	[["formatblock","<section>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<ul>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<ul>") return value
+Pass	[["formatblock","<ul>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<ul>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<ul>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<ul>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<ul>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<ul>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<ul>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<ul>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<xmp>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<xmp>") return value
+Pass	[["formatblock","<xmp>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<xmp>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<xmp>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<xmp>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<xmp>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<xmp>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<xmp>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<xmp>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["formatblock","<quasit>"]] "<p>[foo<p>bar]": execCommand("formatblock", false, "<quasit>") return value
+Pass	[["formatblock","<quasit>"]] "<p>[foo<p>bar]" checks for modifications to non-editable content
+Pass	[["formatblock","<quasit>"]] "<p>[foo<p>bar]" compare innerHTML
+Pass	[["formatblock","<quasit>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") before
+Pass	[["formatblock","<quasit>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") before
+Pass	[["formatblock","<quasit>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") before
+Pass	[["formatblock","<quasit>"]] "<p>[foo<p>bar]" queryCommandIndeterm("formatblock") after
+Pass	[["formatblock","<quasit>"]] "<p>[foo<p>bar]" queryCommandState("formatblock") after
+Pass	[["formatblock","<quasit>"]] "<p>[foo<p>bar]" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>": execCommand("formatblock", false, "p") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>": execCommand("formatblock", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","p"]] "<div>[foobar]</div>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>": execCommand("formatblock", false, "<div>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>": execCommand("formatblock", false, "<div>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<div>"]] "<ol><li>[foo]<li>bar</ol>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>": execCommand("formatblock", false, "<p>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>": execCommand("formatblock", false, "<p>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo]<br>bar</h1>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>": execCommand("formatblock", false, "<p>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>": execCommand("formatblock", false, "<p>") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>foo<br>[bar]</h1>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>": execCommand("formatblock", false, "<p>") return value
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandIndeterm("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandState("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandValue("formatblock") before
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandIndeterm("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandState("formatblock") after
+Pass	[["defaultparagraphseparator","div"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>" queryCommandValue("formatblock") after
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["formatblock","<p>"]] "<h1>[foo<br>bar]</h1>": execCommand("formatblock", false, "<p>") return value

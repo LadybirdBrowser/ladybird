@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+966 Pass
+34 Fail
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["delete",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["delete",""]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["bold",""],["delete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["delete",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandState("delete") before
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandState("delete") after
+Pass	[["bold",""],["delete",""]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") before
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") after
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["bold",""],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["bold",""],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["indent",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["indent",""]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["bold",""],["indent",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["indent",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandState("indent") before
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandState("indent") after
+Pass	[["bold",""],["indent",""]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") before
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") after
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["bold",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Fail	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["bold",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Fail	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") after
+Pass	[["bold",""],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") after
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") after
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") after
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar": execCommand("insertparagraph", false, "") return value
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["insertparagraph",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Fail	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") before
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") after
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") after
+Pass	[["bold",""],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") after
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("insertparagraph", false, "") return value
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Fail	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") before
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") after
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") after
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") after
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar": execCommand("insertunorderedlist", false, "") return value
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") before
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandState("insertunorderedlist") before
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("insertunorderedlist") before
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") after
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandState("insertunorderedlist") after
+Pass	[["bold",""],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("insertunorderedlist") after
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("insertunorderedlist", false, "") return value
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") before
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertunorderedlist") before
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertunorderedlist") before
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") after
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertunorderedlist") after
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertunorderedlist") after
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar": execCommand("justifycenter", false, "") return value
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("justifycenter") before
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandState("justifycenter") before
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandValue("justifycenter") before
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("justifycenter") after
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandState("justifycenter") after
+Pass	[["bold",""],["justifycenter",""]] "foo[]bar" queryCommandValue("justifycenter") after
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("justifycenter", false, "") return value
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifycenter") before
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifycenter") before
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifycenter") before
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifycenter") after
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifycenter") after
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifycenter") after
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar": execCommand("justifyfull", false, "") return value
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("justifyfull") before
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandState("justifyfull") before
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandValue("justifyfull") before
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("justifyfull") after
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandState("justifyfull") after
+Pass	[["bold",""],["justifyfull",""]] "foo[]bar" queryCommandValue("justifyfull") after
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("justifyfull", false, "") return value
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyfull") before
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyfull") before
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyfull") before
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyfull") after
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyfull") after
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyfull") after
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar": execCommand("justifyleft", false, "") return value
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("justifyleft") before
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandState("justifyleft") before
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandValue("justifyleft") before
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("justifyleft") after
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandState("justifyleft") after
+Pass	[["bold",""],["justifyleft",""]] "foo[]bar" queryCommandValue("justifyleft") after
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("justifyleft", false, "") return value
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyleft") before
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyleft") before
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyleft") before
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyleft") after
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyleft") after
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyleft") after
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["justifyright",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["justifyright",""]] "foo[]bar": execCommand("justifyright", false, "") return value
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandIndeterm("justifyright") before
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandState("justifyright") before
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandValue("justifyright") before
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandIndeterm("justifyright") after
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandState("justifyright") after
+Pass	[["bold",""],["justifyright",""]] "foo[]bar" queryCommandValue("justifyright") after
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("justifyright", false, "") return value
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyright") before
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyright") before
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyright") before
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyright") after
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyright") after
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyright") after
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["bold",""],["outdent",""]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["outdent",""]] "foo[]bar": execCommand("outdent", false, "") return value
+Pass	[["bold",""],["outdent",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["bold",""],["outdent",""]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandIndeterm("outdent") before
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandState("outdent") before
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandValue("outdent") before
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandIndeterm("outdent") after
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandState("outdent") after
+Pass	[["bold",""],["outdent",""]] "foo[]bar" queryCommandValue("outdent") after
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("bold", false, "") return value
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("outdent", false, "") return value
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") before
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") before
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") before
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("bold") after
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("bold") after
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("bold") after
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("outdent") before
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("outdent") before
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("outdent") before
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("outdent") after
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("outdent") after
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("outdent") after
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["bold",""],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["italic",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["delete",""]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["delete",""]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["italic",""],["delete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["italic",""],["delete",""]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandState("delete") before
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandState("delete") after
+Pass	[["italic",""],["delete",""]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") before
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") after
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["italic",""],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["italic",""],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["italic",""],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["italic",""],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["italic",""],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["indent",""]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["indent",""]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["italic",""],["indent",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["italic",""],["indent",""]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandState("indent") before
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandState("indent") after
+Pass	[["italic",""],["indent",""]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") before
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") after
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["italic",""],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["italic",""],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["italic",""],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["italic",""],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["italic",""],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("italic") after
+Fail	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["italic",""],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Fail	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["italic",""],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") after
+Pass	[["italic",""],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") after
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("italic", false, "") return value
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") before
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") before
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") before
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("italic") after
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("italic") after
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("italic") after
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["italic",""],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") after

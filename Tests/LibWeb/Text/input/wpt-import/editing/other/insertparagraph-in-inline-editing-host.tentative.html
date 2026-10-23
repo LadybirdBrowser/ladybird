@@ -1,0 +1,502 @@
+<!doctype html>
+<meta chareset="utf-8">
+<meta name="timeout" content="long">
+
+<meta name="variant" content="?white-space=normal&display=inline&method=enter">
+<meta name="variant" content="?white-space=normal&display=inline&method=shift-enter">
+<meta name="variant" content="?white-space=normal&display=inline-block&method=enter">
+<meta name="variant" content="?white-space=normal&display=inline-block&method=shift-enter">
+<meta name="variant" content="?white-space=normal&display=block&method=enter">
+<meta name="variant" content="?white-space=normal&display=block&method=shift-enter">
+<meta name="variant" content="?white-space=normal&display=list-item&method=enter">
+<meta name="variant" content="?white-space=normal&display=list-item&method=shift-enter">
+<meta name="variant" content="?white-space=normal&display=table-cell&method=enter">
+<meta name="variant" content="?white-space=normal&display=table-cell&method=shift-enter">
+
+<meta name="variant" content="?white-space=pre&display=inline&method=enter">
+<meta name="variant" content="?white-space=pre&display=inline&method=shift-enter">
+<meta name="variant" content="?white-space=pre&display=inline-block&method=enter">
+<meta name="variant" content="?white-space=pre&display=inline-block&method=shift-enter">
+<meta name="variant" content="?white-space=pre&display=block&method=enter">
+<meta name="variant" content="?white-space=pre&display=block&method=shift-enter">
+<meta name="variant" content="?white-space=pre&display=list-item&method=enter">
+<meta name="variant" content="?white-space=pre&display=list-item&method=shift-enter">
+<meta name="variant" content="?white-space=pre&display=table-cell&method=enter">
+<meta name="variant" content="?white-space=pre&display=table-cell&method=shift-enter">
+
+<meta name="variant" content="?white-space=pre-line&display=inline&method=enter">
+<meta name="variant" content="?white-space=pre-line&display=inline&method=shift-enter">
+<meta name="variant" content="?white-space=pre-line&display=inline-block&method=enter">
+<meta name="variant" content="?white-space=pre-line&display=inline-block&method=shift-enter">
+<meta name="variant" content="?white-space=pre-line&display=block&method=enter">
+<meta name="variant" content="?white-space=pre-line&display=block&method=shift-enter">
+<meta name="variant" content="?white-space=pre-line&display=list-item&method=enter">
+<meta name="variant" content="?white-space=pre-line&display=list-item&method=shift-enter">
+<meta name="variant" content="?white-space=pre-line&display=table-cell&method=enter">
+<meta name="variant" content="?white-space=pre-line&display=table-cell&method=shift-enter">
+
+<meta name="variant" content="?white-space=pre-wrap&display=inline&method=enter">
+<meta name="variant" content="?white-space=pre-wrap&display=inline&method=shift-enter">
+<meta name="variant" content="?white-space=pre-wrap&display=inline-block&method=enter">
+<meta name="variant" content="?white-space=pre-wrap&display=inline-block&method=shift-enter">
+<meta name="variant" content="?white-space=pre-wrap&display=block&method=enter">
+<meta name="variant" content="?white-space=pre-wrap&display=block&method=shift-enter">
+<meta name="variant" content="?white-space=pre-wrap&display=list-item&method=enter">
+<meta name="variant" content="?white-space=pre-wrap&display=list-item&method=shift-enter">
+<meta name="variant" content="?white-space=pre-wrap&display=table-cell&method=enter">
+<meta name="variant" content="?white-space=pre-wrap&display=table-cell&method=shift-enter">
+
+<title>Line breaking in inline editing host</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+<div><span contenteditable></span></div>
+<script>
+"use strict";
+
+const searchParams = new URLSearchParams(document.location.search);
+const testingInsertParagraph = searchParams.get("method") == "enter";
+const whiteSpace = searchParams.get("white-space");
+const display = searchParams.get("display");
+
+const isPreformatted =
+  whiteSpace == "pre" || whiteSpace == "pre-line" || whiteSpace == "pre-wrap";
+
+const editingHost = document.querySelector("span[contenteditable]");
+const container = editingHost.parentElement;
+const utils = new EditorTestUtils(editingHost);
+const modifiers = (() => {
+  if (testingInsertParagraph) {
+    return null;
+  }
+  // Only Safari treats `Ctrl+Enter` as insertLineBreak
+  if (navigator.platform.includes("Mac") &&
+        navigator.userAgent.includes("Safari") &&
+        !navigator.userAgent.includes("Chrom")) {
+    return utils.kControl;
+  }
+  // The others including WebKitGTK treat `Shift+Enter` as it.
+  return utils.kShift;
+})();
+
+for (const defaultParagraphSeparator of ["div", "p"]) {
+  document.execCommand(
+    "defaultParagraphSeparator",
+    false,
+    defaultParagraphSeparator
+  );
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    utils.setupEditingHost("{}");
+    await utils.sendEnterKey(modifiers);
+    editingHost.removeAttribute("style");
+    // In this case, the inserting line break is the last visible thing in the
+    // block.  Therefore, additional <br> or a preformatted linefeed is also
+    // required to make the new line visible.
+    if (!isPreformatted) {
+      assert_equals(
+        container.innerHTML,
+        '<span contenteditable=""><br><br></span>',
+        `A <br> and additional <br> should be inserted when ${t.name}`
+      );
+    } else {
+      assert_in_array(
+        container.innerHTML,
+        [
+          '<span contenteditable="">\n<br></span>',
+          '<span contenteditable="">\n\n</span>',
+        ],
+        `A linefeed and additional line breaker should be inserted when ${t.name}`
+      );
+    }
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${whiteSpace}">{}</span> (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    const brElement = document.createElement("br");
+    try {
+      container.appendChild(brElement);
+      utils.setupEditingHost("{}");
+      await utils.sendEnterKey(modifiers);
+      editingHost.removeAttribute("style");
+      // Even if the <span> element is followed by an invisible <br>, it does
+      // not make the new line in the <span> element visible.  Therefore,
+      // inserting additional line break is required in this case too.
+      if (!isPreformatted) {
+        assert_equals(
+          container.innerHTML,
+          '<span contenteditable=""><br><br></span><br>',
+          `A <br> and additional <br> should be inserted when ${t.name}`
+        );
+      } else {
+        assert_in_array(
+          container.innerHTML,
+          [
+            `<span contenteditable="">\n\n</span><br>`,
+            `<span contenteditable="">\n<br></span><br>`,
+          ],
+          `A linefeed and additional line break should be inserted when ${t.name}`
+        );
+      }
+    } finally {
+      brElement.remove();
+    }
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${
+    whiteSpace
+  }">{}</span> followed by a <br> (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    const divElement = document.createElement("div");
+    divElement.textContent = "efg";
+    try {
+      container.appendChild(divElement);
+      utils.setupEditingHost("{}");
+      await utils.sendEnterKey(modifiers);
+      editingHost.removeAttribute("style");
+      // When the <span> element is followed by a <div>, making empty last
+      // line visible requires an invisible <br> after a line break.
+      if (!isPreformatted) {
+        assert_equals(
+          container.innerHTML,
+          '<span contenteditable=""><br><br></span><div>efg</div>',
+          `A <br> and additional <br> should be inserted when ${t.name}`
+        );
+      } else {
+        assert_in_array(
+          container.innerHTML,
+          [
+            `<span contenteditable="">\n\n</span><div>efg</div>`,
+            `<span contenteditable="">\n<br></span><div>efg</div>`,
+          ],
+          `A linefeed and additional line break should be inserted when ${t.name}`
+        );
+      }
+    } finally {
+      divElement.remove();
+    }
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${
+    whiteSpace
+  }">{}</span> followed by a <div> (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    const text = document.createTextNode("abc");
+    try {
+      container.appendChild(text);
+      utils.setupEditingHost("{}");
+      await utils.sendEnterKey(modifiers);
+      editingHost.removeAttribute("style");
+      // Even if the <span> element is followed by visible text, it does
+      // not make the new line in the <span> element visible.  Therefore,
+      // inserting additional line break is required in this case too.
+      if (!isPreformatted) {
+        assert_equals(
+          container.innerHTML,
+          '<span contenteditable=""><br><br></span>abc',
+          `A <br> and additional <br> should be inserted when ${t.name}`
+        );
+      } else {
+        assert_in_array(
+          container.innerHTML,
+          [
+            `<span contenteditable="">\n\n</span>abc`,
+            `<span contenteditable="">\n<br></span>abc`,
+          ],
+          `A linefeed and additional line break should be inserted when ${t.name}`
+        );
+      }
+    } finally {
+      text.remove();
+    }
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${
+    whiteSpace
+  }">{}</span> followed by text (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    utils.setupEditingHost("{}<br>");
+    await utils.sendEnterKey(modifiers);
+    editingHost.removeAttribute("style");
+    // In this case, there is a <br> element which makes the new line (last
+    // line) visible.  Therefore, only a line break should be inserted.
+    if (!isPreformatted) {
+      assert_equals(
+        container.innerHTML,
+        `<span contenteditable=""><br><br></span>`,
+        `A <br> should be inserted when ${t.name}`
+      );
+    } else {
+      assert_equals(
+        container.innerHTML,
+        `<span contenteditable="">\n<br></span>`,
+        `A <br> should be inserted when ${t.name}`
+      );
+    }
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${whiteSpace}">{}<br></span> (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    utils.setupEditingHost("[]abcd");
+    await utils.sendEnterKey(modifiers);
+    editingHost.removeAttribute("style");
+    assert_equals(
+      container.innerHTML,
+      `<span contenteditable="">${
+        isPreformatted ? "\n" : "<br>"
+      }abcd</span>`,
+      `${
+        isPreformatted ? "A linefeed" : "A <br>"
+      } should be inserted when ${t.name}`
+    );
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${whiteSpace}">[]abcd</span> (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    utils.setupEditingHost("ab[]cd");
+    await utils.sendEnterKey(modifiers);
+    editingHost.removeAttribute("style");
+    assert_equals(
+      container.innerHTML,
+      `<span contenteditable="">ab${
+        isPreformatted ? "\n" : "<br>"
+      }cd</span>`,
+      `${
+        isPreformatted ? "A linefeed" : "A <br>"
+      } should be inserted when ${t.name}`
+    );
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${whiteSpace}">ab[]cd</span> (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    utils.setupEditingHost("abcd[]");
+    await utils.sendEnterKey(modifiers);
+    editingHost.removeAttribute("style");
+    // In this case, the inserting line break is the last visible thing in the
+    // block.  Therefore, additional line break is also required to make the
+    // new line visible.
+    if (!isPreformatted) {
+      assert_equals(
+        container.innerHTML,
+        `<span contenteditable="">abcd<br><br></span>`,
+        `A <br> and additional <br> should be inserted when ${t.name}`
+      );
+    } else {
+      assert_in_array(
+        container.innerHTML,
+        [
+          `<span contenteditable="">abcd\n<br></span>`,
+          `<span contenteditable="">abcd\n\n</span>`,
+        ],
+        `A linefeed and additional line break should be inserted when ${t.name}`
+      );
+    }
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${whiteSpace}">abcd[]</span> (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    const brElement = document.createElement("br");
+    try {
+      container.appendChild(brElement);
+      utils.setupEditingHost("abcd[]");
+      await utils.sendEnterKey(modifiers);
+      editingHost.removeAttribute("style");
+      // Even if the <span> element is followed by an invisible <br>, it does
+      // not make the new line in the <span> element visible.  Therefore,
+      // inserting additional line break is required in this case too.
+      if (!isPreformatted) {
+        assert_equals(
+          container.innerHTML,
+          '<span contenteditable="">abcd<br><br></span><br>',
+          `A <br> and additional <br> should be inserted when ${t.name}`
+        );
+      } else {
+        assert_in_array(
+          container.innerHTML,
+          [
+            `<span contenteditable="">abcd\n<br></span><br>`,
+            `<span contenteditable="">abcd\n\n</span><br>`,
+          ],
+          `A linefeed and additional line break should be inserted when ${t.name}`
+        );
+      }
+    } finally {
+      brElement.remove();
+    }
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${
+    whiteSpace
+  }">abcd[]</span> followed by a <br> element (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    const divElement = document.createElement("div");
+    divElement.textContent = "efg";
+    try {
+      container.appendChild(divElement);
+      utils.setupEditingHost("abcd[]");
+      await utils.sendEnterKey(modifiers);
+      editingHost.removeAttribute("style");
+      // When the <span> element is followed by a <div>, making empty last
+      // line visible requires an invisible <br> after a line break.
+      if (!isPreformatted) {
+        assert_equals(
+          container.innerHTML,
+          '<span contenteditable="">abcd<br><br></span><div>efg</div>',
+          `A <br> and additional <br> should be inserted when ${t.name}`
+        );
+      } else {
+        assert_in_array(
+          container.innerHTML,
+          [
+            `<span contenteditable="">abcd\n<br></span><div>efg</div>`,
+            `<span contenteditable="">abcd\n\n</span><div>efg</div>`,
+          ],
+          `A linefeed and additional line break should be inserted when ${t.name}`
+        );
+      }
+    } finally {
+      divElement.remove();
+    }
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${
+    whiteSpace
+  }">abcd[]</span> followed by a <div> element (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+
+  promise_test(async t => {
+    editingHost.setAttribute(
+      "style",
+      `display:${display};white-space:${whiteSpace}`
+    );
+    const text = document.createTextNode("efg");
+    try {
+      container.appendChild(text);
+      utils.setupEditingHost("abcd[]");
+      await utils.sendEnterKey(modifiers);
+      editingHost.removeAttribute("style");
+      // Even if the <span> element is followed by visible text, it does
+      // not make the new line in the <span> element visible.  Therefore,
+      // inserting additional line break is required in this case too.
+      if (!isPreformatted) {
+        assert_equals(
+          container.innerHTML,
+          '<span contenteditable="">abcd<br><br></span>efg',
+          `A <br> and additional <br> should be inserted when ${t.name}`
+        );
+      } else {
+        assert_in_array(
+          container.innerHTML,
+          [
+            `<span contenteditable="">abcd\n<br></span>efg`,
+            `<span contenteditable="">abcd\n\n</span>efg`,
+          ],
+          `A linefeed and additional line break should be inserted when ${t.name}`
+        );
+      }
+    } finally {
+      text.remove();
+    }
+  }, `${
+    testingInsertParagraph ? "insertParagraph" : "insertLineBreak"
+  } in <span contenteditable style="display:${
+    display
+  };white-space:${
+    whiteSpace
+  }">abcd[]</span> followed by text (defaultParagraphSeparator=${
+    defaultParagraphSeparator
+  })`);
+}
+
+</script>

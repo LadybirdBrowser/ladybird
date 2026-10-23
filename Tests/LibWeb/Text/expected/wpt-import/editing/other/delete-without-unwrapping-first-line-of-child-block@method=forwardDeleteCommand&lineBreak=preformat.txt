@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 25 tests
+
+1 Pass
+24 Fail
+Fail	document.execCommand("forwarddelete") at abc\\n[\\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at abc\n[\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at \\n[abc\\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at \n[abc\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at \\n[\\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at \n[\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at [\\n\\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at [\n\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at [abc\\n\\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at [abc\n\n<div id="child">]def<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at abc\\n[\\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at abc\n[\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at \\n[abc\\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at \n[abc\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at \\n[\\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at \n[\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at [\\n\\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at [\n\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at [abc\\n\\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("insertText", false, "X") at [abc\n\n<div id="child">d]ef<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at abc\\n[]\\n<div id="child">def<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at \\n[]\\n<div id="child">def<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at []\\n<div id="child">def<br>ghi</div>
+Fail	document.execCommand("forwarddelete") at <b>abc\\n[]\\n</b></b><div id="child">def<br>ghi</div>
+Pass	document.execCommand("forwarddelete") at <b>[]\\n</b><div id="child">def<br>ghi</div>

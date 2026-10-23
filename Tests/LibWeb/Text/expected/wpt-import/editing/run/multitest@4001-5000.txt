@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+979 Pass
+21 Fail
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") before
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") after
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("backcolor") after
+Fail	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Fail	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar": execCommand("insertparagraph", false, "") return value
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandState("backcolor") after
+Fail	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("insertparagraph", false, "") return value
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Fail	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar": execCommand("insertunorderedlist", false, "") return value
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("insertunorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("insertunorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("insertunorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("insertunorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("insertunorderedlist", false, "") return value
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertunorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertunorderedlist") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertunorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertunorderedlist") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar": execCommand("justifycenter", false, "") return value
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("justifycenter") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandState("justifycenter") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandValue("justifycenter") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("justifycenter") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandState("justifycenter") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""]] "foo[]bar" queryCommandValue("justifycenter") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("justifycenter", false, "") return value
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifycenter") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifycenter") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifycenter") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifycenter") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifycenter") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifycenter") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar": execCommand("justifyfull", false, "") return value
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("justifyfull") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandState("justifyfull") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandValue("justifyfull") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("justifyfull") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandState("justifyfull") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""]] "foo[]bar" queryCommandValue("justifyfull") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("justifyfull", false, "") return value
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyfull") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyfull") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyfull") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyfull") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyfull") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyfull") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar": execCommand("justifyleft", false, "") return value
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("justifyleft") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandState("justifyleft") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandValue("justifyleft") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("justifyleft") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandState("justifyleft") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""]] "foo[]bar" queryCommandValue("justifyleft") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("justifyleft", false, "") return value
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyleft") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyleft") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyleft") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyleft") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyleft") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyleft") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar": execCommand("justifyright", false, "") return value
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("justifyright") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandState("justifyright") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandValue("justifyright") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("justifyright") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandState("justifyright") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""]] "foo[]bar" queryCommandValue("justifyright") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("justifyright", false, "") return value
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyright") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyright") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyright") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyright") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyright") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyright") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar": execCommand("outdent", false, "") return value
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandIndeterm("outdent") before
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandState("outdent") before
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandValue("outdent") before
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandIndeterm("outdent") after
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandState("outdent") after
+Pass	[["backcolor","#00FFFF"],["outdent",""]] "foo[]bar" queryCommandValue("outdent") after
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("backcolor", false, "#00FFFF") return value
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("outdent", false, "") return value
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") before
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") before
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") before
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("backcolor") after
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("backcolor") after
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("backcolor") after
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("outdent") before
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("outdent") before
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("outdent") before
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("outdent") after
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("outdent") after
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("outdent") after
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["backcolor","#00FFFF"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandState("delete") before
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandState("delete") after
+Pass	[["createlink","http://www.google.com/"],["delete",""]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") before
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") after
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandState("indent") before
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandState("indent") after
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") before
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") after
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar": execCommand("insertparagraph", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("insertparagraph", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar": execCommand("insertunorderedlist", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("insertunorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("insertunorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("insertunorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("insertunorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("insertunorderedlist", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertunorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertunorderedlist") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertunorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertunorderedlist") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar": execCommand("justifycenter", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("justifycenter") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandState("justifycenter") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandValue("justifycenter") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("justifycenter") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandState("justifycenter") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandValue("justifycenter") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("justifycenter", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifycenter") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifycenter") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifycenter") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifycenter") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifycenter") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifycenter") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar": execCommand("justifyfull", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("justifyfull") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandState("justifyfull") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandValue("justifyfull") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("justifyfull") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandState("justifyfull") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandValue("justifyfull") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("justifyfull", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyfull") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyfull") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyfull") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyfull") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyfull") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyfull") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before

@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}</span> (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}</span> followed by a <br> (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}</span> followed by a <div> (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}</span> followed by text (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}<br></span> (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">[]abcd</span> (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">ab[]cd</span> (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">abcd[]</span> (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">abcd[]</span> followed by a <br> element (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">abcd[]</span> followed by a <div> element (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">abcd[]</span> followed by text (defaultParagraphSeparator=div)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}</span> (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}</span> followed by a <br> (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}</span> followed by a <div> (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}</span> followed by text (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">{}<br></span> (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">[]abcd</span> (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">ab[]cd</span> (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">abcd[]</span> (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">abcd[]</span> followed by a <br> element (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">abcd[]</span> followed by a <div> element (defaultParagraphSeparator=p)
+Pass	insertLineBreak in <span contenteditable style="display:inline-block;white-space:normal">abcd[]</span> followed by text (defaultParagraphSeparator=p)
