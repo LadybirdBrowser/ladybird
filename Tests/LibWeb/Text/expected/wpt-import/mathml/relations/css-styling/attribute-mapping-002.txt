@@ -2,137 +2,136 @@ Harness status: OK
 
 Found 132 tests
 
-99 Pass
-33 Fail
+132 Pass
 Pass	mathvariant on the math element is not mapped to CSS text-transform
 Pass	scriptlevel on the math element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the math element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the math element are not mapped to math-depth(...)
 Pass	displaystyle on the math element is mapped to CSS math-style
 Pass	mathvariant on the a element is not mapped to CSS text-transform
 Pass	scriptlevel on the a element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the a element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the a element are not mapped to math-depth(...)
 Pass	displaystyle on the a element is mapped to CSS math-style
 Pass	mathvariant on the annotation element is not mapped to CSS text-transform
 Pass	scriptlevel on the annotation element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the annotation element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the annotation element are not mapped to math-depth(...)
 Pass	displaystyle on the annotation element is mapped to CSS math-style
 Pass	mathvariant on the annotation-xml element is not mapped to CSS text-transform
 Pass	scriptlevel on the annotation-xml element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the annotation-xml element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the annotation-xml element are not mapped to math-depth(...)
 Pass	displaystyle on the annotation-xml element is mapped to CSS math-style
 Pass	mathvariant on the maction element is not mapped to CSS text-transform
 Pass	scriptlevel on the maction element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the maction element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the maction element are not mapped to math-depth(...)
 Pass	displaystyle on the maction element is mapped to CSS math-style
 Pass	mathvariant on the menclose element is not mapped to CSS text-transform
 Pass	scriptlevel on the menclose element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the menclose element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the menclose element are not mapped to math-depth(...)
 Pass	displaystyle on the menclose element is mapped to CSS math-style
 Pass	mathvariant on the merror element is not mapped to CSS text-transform
 Pass	scriptlevel on the merror element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the merror element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the merror element are not mapped to math-depth(...)
 Pass	displaystyle on the merror element is mapped to CSS math-style
 Pass	mathvariant on the mfrac element is not mapped to CSS text-transform
 Pass	scriptlevel on the mfrac element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mfrac element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mfrac element are not mapped to math-depth(...)
 Pass	displaystyle on the mfrac element is mapped to CSS math-style
 Pass	mathvariant on the mi element is  mapped to CSS text-transform
 Pass	scriptlevel on the mi element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mi element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mi element are not mapped to math-depth(...)
 Pass	displaystyle on the mi element is mapped to CSS math-style
 Pass	mathvariant on the mmultiscripts element is not mapped to CSS text-transform
 Pass	scriptlevel on the mmultiscripts element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mmultiscripts element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mmultiscripts element are not mapped to math-depth(...)
 Pass	displaystyle on the mmultiscripts element is mapped to CSS math-style
 Pass	mathvariant on the mn element is not mapped to CSS text-transform
 Pass	scriptlevel on the mn element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mn element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mn element are not mapped to math-depth(...)
 Pass	displaystyle on the mn element is mapped to CSS math-style
 Pass	mathvariant on the mo element is not mapped to CSS text-transform
 Pass	scriptlevel on the mo element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mo element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mo element are not mapped to math-depth(...)
 Pass	displaystyle on the mo element is mapped to CSS math-style
 Pass	mathvariant on the mover element is not mapped to CSS text-transform
 Pass	scriptlevel on the mover element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mover element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mover element are not mapped to math-depth(...)
 Pass	displaystyle on the mover element is mapped to CSS math-style
 Pass	mathvariant on the mpadded element is not mapped to CSS text-transform
 Pass	scriptlevel on the mpadded element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mpadded element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mpadded element are not mapped to math-depth(...)
 Pass	displaystyle on the mpadded element is mapped to CSS math-style
 Pass	mathvariant on the mphantom element is not mapped to CSS text-transform
 Pass	scriptlevel on the mphantom element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mphantom element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mphantom element are not mapped to math-depth(...)
 Pass	displaystyle on the mphantom element is mapped to CSS math-style
 Pass	mathvariant on the mprescripts element is not mapped to CSS text-transform
 Pass	scriptlevel on the mprescripts element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mprescripts element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mprescripts element are not mapped to math-depth(...)
 Pass	displaystyle on the mprescripts element is mapped to CSS math-style
 Pass	mathvariant on the mroot element is not mapped to CSS text-transform
 Pass	scriptlevel on the mroot element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mroot element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mroot element are not mapped to math-depth(...)
 Pass	displaystyle on the mroot element is mapped to CSS math-style
 Pass	mathvariant on the mrow element is not mapped to CSS text-transform
 Pass	scriptlevel on the mrow element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mrow element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mrow element are not mapped to math-depth(...)
 Pass	displaystyle on the mrow element is mapped to CSS math-style
 Pass	mathvariant on the ms element is not mapped to CSS text-transform
 Pass	scriptlevel on the ms element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the ms element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the ms element are not mapped to math-depth(...)
 Pass	displaystyle on the ms element is mapped to CSS math-style
 Pass	mathvariant on the mspace element is not mapped to CSS text-transform
 Pass	scriptlevel on the mspace element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mspace element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mspace element are not mapped to math-depth(...)
 Pass	displaystyle on the mspace element is mapped to CSS math-style
 Pass	mathvariant on the msqrt element is not mapped to CSS text-transform
 Pass	scriptlevel on the msqrt element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the msqrt element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the msqrt element are not mapped to math-depth(...)
 Pass	displaystyle on the msqrt element is mapped to CSS math-style
 Pass	mathvariant on the mstyle element is not mapped to CSS text-transform
 Pass	scriptlevel on the mstyle element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mstyle element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mstyle element are not mapped to math-depth(...)
 Pass	displaystyle on the mstyle element is mapped to CSS math-style
 Pass	mathvariant on the msub element is not mapped to CSS text-transform
 Pass	scriptlevel on the msub element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the msub element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the msub element are not mapped to math-depth(...)
 Pass	displaystyle on the msub element is mapped to CSS math-style
 Pass	mathvariant on the msubsup element is not mapped to CSS text-transform
 Pass	scriptlevel on the msubsup element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the msubsup element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the msubsup element are not mapped to math-depth(...)
 Pass	displaystyle on the msubsup element is mapped to CSS math-style
 Pass	mathvariant on the msup element is not mapped to CSS text-transform
 Pass	scriptlevel on the msup element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the msup element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the msup element are not mapped to math-depth(...)
 Pass	displaystyle on the msup element is mapped to CSS math-style
 Pass	mathvariant on the mtable element is not mapped to CSS text-transform
 Pass	scriptlevel on the mtable element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mtable element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mtable element are not mapped to math-depth(...)
 Pass	displaystyle on the mtable element is mapped to CSS math-style
 Pass	mathvariant on the mtd element is not mapped to CSS text-transform
 Pass	scriptlevel on the mtd element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mtd element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mtd element are not mapped to math-depth(...)
 Pass	displaystyle on the mtd element is mapped to CSS math-style
 Pass	mathvariant on the mtext element is not mapped to CSS text-transform
 Pass	scriptlevel on the mtext element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mtext element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mtext element are not mapped to math-depth(...)
 Pass	displaystyle on the mtext element is mapped to CSS math-style
 Pass	mathvariant on the mtr element is not mapped to CSS text-transform
 Pass	scriptlevel on the mtr element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the mtr element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the mtr element are not mapped to math-depth(...)
 Pass	displaystyle on the mtr element is mapped to CSS math-style
 Pass	mathvariant on the munder element is not mapped to CSS text-transform
 Pass	scriptlevel on the munder element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the munder element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the munder element are not mapped to math-depth(...)
 Pass	displaystyle on the munder element is mapped to CSS math-style
 Pass	mathvariant on the munderover element is not mapped to CSS text-transform
 Pass	scriptlevel on the munderover element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the munderover element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the munderover element are not mapped to math-depth(...)
 Pass	displaystyle on the munderover element is mapped to CSS math-style
 Pass	mathvariant on the none element is not mapped to CSS text-transform
 Pass	scriptlevel on the none element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the none element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the none element are not mapped to math-depth(...)
 Pass	displaystyle on the none element is mapped to CSS math-style
 Pass	mathvariant on the semantics element is not mapped to CSS text-transform
 Pass	scriptlevel on the semantics element is mapped to math-depth(...)
-Fail	invalid scriptlevel values on the semantics element are not mapped to math-depth(...)
+Pass	invalid scriptlevel values on the semantics element are not mapped to math-depth(...)
 Pass	displaystyle on the semantics element is mapped to CSS math-style
