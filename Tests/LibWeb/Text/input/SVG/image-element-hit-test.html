@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+</style>
+<svg id="svg" width="300" height="100">
+    <image id="image" x="10" y="10" width="50" height="30" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 30'><rect width='50' height='30' fill='blue'/></svg>"/>
+    <image id="hidden" x="110" y="10" width="50" height="30" visibility="hidden" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 30'><rect width='50' height='30' fill='blue'/></svg>"/>
+    <image id="hidden-all" x="210" y="10" width="50" height="30" visibility="hidden" pointer-events="all" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 30'><rect width='50' height='30' fill='blue'/></svg>"/>
+</svg>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [x, y] of [[30, 20], [130, 20], [230, 20]]) {
+            const element = document.elementFromPoint(x, y);
+            println(`(${x}, ${y}): ${element.id}`);
+        }
+    });
+</script>
