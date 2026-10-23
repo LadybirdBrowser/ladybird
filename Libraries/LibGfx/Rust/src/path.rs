@@ -11,6 +11,16 @@ use std::ptr::NonNull;
 
 use crate::geometry::{FloatPoint, FloatSize};
 
+mod arcs;
+mod curves;
+mod encoding;
+pub mod ffi;
+mod geometry;
+mod hit_test;
+mod measure;
+mod stroke;
+mod svg_text;
+
 unsafe extern "C" {
     fn ladybird_gfx_process_next_path_identity() -> u64;
     fn ladybird_gfx_path_destroy(path: *mut c_void);
