@@ -495,7 +495,7 @@ bool HTMLVideoElement::take_pending_picture_in_picture_promise(WebIDL::Promise c
 void HTMLVideoElement::run_disable_picture_in_picture_steps()
 {
     // 1. Reject any pending promises returned by the requestPictureInPicture() method with InvalidStateError.
-    auto pending_promises = move(m_pending_picture_in_picture_promises);
+    GC::RootVector pending_promises { move(m_pending_picture_in_picture_promises) };
     for (auto const& promise : pending_promises) {
         auto& realm = WebIDL::promise_realm(promise);
         TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
