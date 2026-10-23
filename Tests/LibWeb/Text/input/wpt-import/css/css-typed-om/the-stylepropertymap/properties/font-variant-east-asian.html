@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'font-variant-east-asian' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('font-variant-east-asian', [
+  { syntax: 'normal' },
+  { syntax: 'jis78' },
+  { syntax: 'jis83' },
+  { syntax: 'jis90' },
+  { syntax: 'jis04' },
+  { syntax: 'simplified' },
+  { syntax: 'traditional' },
+  { syntax: 'full-width' },
+  { syntax: 'proportional-width' },
+  { syntax: 'ruby' },
+]);
+
+runUnsupportedPropertyTests('font-variant-east-asian', [
+  'jis78 full-width',
+  'traditional proportional-width ruby',
+]);
+
+</script>

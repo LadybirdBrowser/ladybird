@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'font-variant-ligatures' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('font-variant-ligatures', [
+  { syntax: 'normal' },
+  { syntax: 'none' },
+  { syntax: 'common-ligatures' },
+  { syntax: 'no-common-ligatures' },
+  { syntax: 'discretionary-ligatures' },
+  { syntax: 'no-discretionary-ligatures' },
+  { syntax: 'historical-ligatures' },
+  { syntax: 'no-historical-ligatures' },
+  { syntax: 'contextual' },
+  { syntax: 'no-contextual' },
+]);
+
+runUnsupportedPropertyTests('font-variant-ligatures', [
+  'common-ligatures contextual',
+  'no-common-ligatures discretionary-ligatures no-historical-ligatures no-contextual',
+]);
+
+</script>

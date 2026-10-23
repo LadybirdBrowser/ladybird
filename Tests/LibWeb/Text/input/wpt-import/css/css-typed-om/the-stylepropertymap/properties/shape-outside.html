@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'shape-outside' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('shape-outside', [
+  { syntax: 'none' },
+  { syntax: 'margin-box' },
+  { syntax: 'border-box' },
+  { syntax: 'padding-box' },
+  { syntax: 'content-box' },
+  { syntax: '<image>' },
+]);
+
+// <basic-shape>s are not supported in level 1
+runUnsupportedPropertyTests('shape-outside', [
+  'inset(22% 12% 15px 35px)',
+  'circle(6rem at 12rem 6rem)',
+  'ellipse(115px 55px at 50% 40%)',
+  'polygon(50% 20%, 90% 80%, 10% 80%)',
+]);
+
+</script>

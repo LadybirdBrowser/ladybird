@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'font-synthesis' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+  for (const suffix of ['weight', 'style', 'small-caps']) {
+  runPropertyTests('font-synthesis-' + suffix, [
+    { syntax: 'auto' },
+    { syntax: 'none' },
+  ]);
+}
+
+runUnsupportedPropertyTests('font-synthesis', [
+  'weight style', 'style small-caps', 'small-caps weight style'
+]);
+
+</script>

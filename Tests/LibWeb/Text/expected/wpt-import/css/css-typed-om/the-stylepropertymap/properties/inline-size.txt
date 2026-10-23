@@ -1,0 +1,101 @@
+Harness status: OK
+
+Found 95 tests
+
+89 Pass
+6 Fail
+Pass	Can set 'inline-size' to CSS-wide keywords: initial
+Pass	Can set 'inline-size' to CSS-wide keywords: inherit
+Pass	Can set 'inline-size' to CSS-wide keywords: unset
+Pass	Can set 'inline-size' to CSS-wide keywords: revert
+Pass	Can set 'inline-size' to var() references:  var(--A)
+Pass	Can set 'inline-size' to the 'auto' keyword: auto
+Pass	Can set 'inline-size' to a percent: 0%
+Fail	Can set 'inline-size' to a percent: -3.14%
+Pass	Can set 'inline-size' to a percent: 3.14%
+Fail	Can set 'inline-size' to a percent: calc(0% + 0%)
+Pass	Can set 'inline-size' to a length: 0px
+Pass	Can set 'inline-size' to a length: -3.14em
+Pass	Can set 'inline-size' to a length: 3.14cm
+Pass	Can set 'inline-size' to a length: calc(0px + 0em)
+Pass	Setting 'inline-size' to a time: 0s throws TypeError
+Pass	Setting 'inline-size' to a time: -3.14ms throws TypeError
+Pass	Setting 'inline-size' to a time: 3.14s throws TypeError
+Pass	Setting 'inline-size' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'inline-size' to an angle: 0deg throws TypeError
+Pass	Setting 'inline-size' to an angle: 3.14rad throws TypeError
+Pass	Setting 'inline-size' to an angle: -3.14deg throws TypeError
+Pass	Setting 'inline-size' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'inline-size' to a flexible length: 0fr throws TypeError
+Pass	Setting 'inline-size' to a flexible length: 1fr throws TypeError
+Pass	Setting 'inline-size' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'inline-size' to a number: 0 throws TypeError
+Pass	Setting 'inline-size' to a number: -3.14 throws TypeError
+Pass	Setting 'inline-size' to a number: 3.14 throws TypeError
+Pass	Setting 'inline-size' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'inline-size' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'inline-size' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'inline-size' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'min-inline-size' to CSS-wide keywords: initial
+Pass	Can set 'min-inline-size' to CSS-wide keywords: inherit
+Pass	Can set 'min-inline-size' to CSS-wide keywords: unset
+Pass	Can set 'min-inline-size' to CSS-wide keywords: revert
+Pass	Can set 'min-inline-size' to var() references:  var(--A)
+Pass	Can set 'min-inline-size' to a percent: 0%
+Fail	Can set 'min-inline-size' to a percent: -3.14%
+Pass	Can set 'min-inline-size' to a percent: 3.14%
+Fail	Can set 'min-inline-size' to a percent: calc(0% + 0%)
+Pass	Can set 'min-inline-size' to a length: 0px
+Pass	Can set 'min-inline-size' to a length: -3.14em
+Pass	Can set 'min-inline-size' to a length: 3.14cm
+Pass	Can set 'min-inline-size' to a length: calc(0px + 0em)
+Pass	Setting 'min-inline-size' to a time: 0s throws TypeError
+Pass	Setting 'min-inline-size' to a time: -3.14ms throws TypeError
+Pass	Setting 'min-inline-size' to a time: 3.14s throws TypeError
+Pass	Setting 'min-inline-size' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'min-inline-size' to an angle: 0deg throws TypeError
+Pass	Setting 'min-inline-size' to an angle: 3.14rad throws TypeError
+Pass	Setting 'min-inline-size' to an angle: -3.14deg throws TypeError
+Pass	Setting 'min-inline-size' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'min-inline-size' to a flexible length: 0fr throws TypeError
+Pass	Setting 'min-inline-size' to a flexible length: 1fr throws TypeError
+Pass	Setting 'min-inline-size' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'min-inline-size' to a number: 0 throws TypeError
+Pass	Setting 'min-inline-size' to a number: -3.14 throws TypeError
+Pass	Setting 'min-inline-size' to a number: 3.14 throws TypeError
+Pass	Setting 'min-inline-size' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'min-inline-size' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'min-inline-size' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'min-inline-size' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'max-inline-size' to CSS-wide keywords: initial
+Pass	Can set 'max-inline-size' to CSS-wide keywords: inherit
+Pass	Can set 'max-inline-size' to CSS-wide keywords: unset
+Pass	Can set 'max-inline-size' to CSS-wide keywords: revert
+Pass	Can set 'max-inline-size' to var() references:  var(--A)
+Pass	Can set 'max-inline-size' to the 'none' keyword: none
+Pass	Can set 'max-inline-size' to a percent: 0%
+Fail	Can set 'max-inline-size' to a percent: -3.14%
+Pass	Can set 'max-inline-size' to a percent: 3.14%
+Fail	Can set 'max-inline-size' to a percent: calc(0% + 0%)
+Pass	Can set 'max-inline-size' to a length: 0px
+Pass	Can set 'max-inline-size' to a length: -3.14em
+Pass	Can set 'max-inline-size' to a length: 3.14cm
+Pass	Can set 'max-inline-size' to a length: calc(0px + 0em)
+Pass	Setting 'max-inline-size' to a time: 0s throws TypeError
+Pass	Setting 'max-inline-size' to a time: -3.14ms throws TypeError
+Pass	Setting 'max-inline-size' to a time: 3.14s throws TypeError
+Pass	Setting 'max-inline-size' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'max-inline-size' to an angle: 0deg throws TypeError
+Pass	Setting 'max-inline-size' to an angle: 3.14rad throws TypeError
+Pass	Setting 'max-inline-size' to an angle: -3.14deg throws TypeError
+Pass	Setting 'max-inline-size' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'max-inline-size' to a flexible length: 0fr throws TypeError
+Pass	Setting 'max-inline-size' to a flexible length: 1fr throws TypeError
+Pass	Setting 'max-inline-size' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'max-inline-size' to a number: 0 throws TypeError
+Pass	Setting 'max-inline-size' to a number: -3.14 throws TypeError
+Pass	Setting 'max-inline-size' to a number: 3.14 throws TypeError
+Pass	Setting 'max-inline-size' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'max-inline-size' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'max-inline-size' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'max-inline-size' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError

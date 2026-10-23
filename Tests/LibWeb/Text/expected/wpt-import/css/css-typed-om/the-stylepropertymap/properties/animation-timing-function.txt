@@ -1,0 +1,46 @@
+Harness status: OK
+
+Found 40 tests
+
+38 Pass
+2 Fail
+Pass	Can set 'animation-timing-function' to CSS-wide keywords: initial
+Pass	Can set 'animation-timing-function' to CSS-wide keywords: inherit
+Pass	Can set 'animation-timing-function' to CSS-wide keywords: unset
+Pass	Can set 'animation-timing-function' to CSS-wide keywords: revert
+Pass	Can set 'animation-timing-function' to var() references:  var(--A)
+Pass	Can set 'animation-timing-function' to the 'linear' keyword: linear
+Pass	Can set 'animation-timing-function' to the 'ease' keyword: ease
+Pass	Can set 'animation-timing-function' to the 'ease-in' keyword: ease-in
+Pass	Can set 'animation-timing-function' to the 'ease-out' keyword: ease-out
+Pass	Can set 'animation-timing-function' to the 'ease-in-out' keyword: ease-in-out
+Fail	Can set 'animation-timing-function' to the 'step-start' keyword: step-start
+Fail	Can set 'animation-timing-function' to the 'step-end' keyword: step-end
+Pass	Setting 'animation-timing-function' to a length: 0px throws TypeError
+Pass	Setting 'animation-timing-function' to a length: -3.14em throws TypeError
+Pass	Setting 'animation-timing-function' to a length: 3.14cm throws TypeError
+Pass	Setting 'animation-timing-function' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'animation-timing-function' to a percent: 0% throws TypeError
+Pass	Setting 'animation-timing-function' to a percent: -3.14% throws TypeError
+Pass	Setting 'animation-timing-function' to a percent: 3.14% throws TypeError
+Pass	Setting 'animation-timing-function' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'animation-timing-function' to a time: 0s throws TypeError
+Pass	Setting 'animation-timing-function' to a time: -3.14ms throws TypeError
+Pass	Setting 'animation-timing-function' to a time: 3.14s throws TypeError
+Pass	Setting 'animation-timing-function' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'animation-timing-function' to an angle: 0deg throws TypeError
+Pass	Setting 'animation-timing-function' to an angle: 3.14rad throws TypeError
+Pass	Setting 'animation-timing-function' to an angle: -3.14deg throws TypeError
+Pass	Setting 'animation-timing-function' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'animation-timing-function' to a flexible length: 0fr throws TypeError
+Pass	Setting 'animation-timing-function' to a flexible length: 1fr throws TypeError
+Pass	Setting 'animation-timing-function' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'animation-timing-function' to a number: 0 throws TypeError
+Pass	Setting 'animation-timing-function' to a number: -3.14 throws TypeError
+Pass	Setting 'animation-timing-function' to a number: 3.14 throws TypeError
+Pass	Setting 'animation-timing-function' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'animation-timing-function' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'animation-timing-function' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'animation-timing-function' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	'animation-timing-function' does not support 'cubic-bezier(0.1, 0.7, 1.0, 0.1)'
+Pass	'animation-timing-function' does not support 'steps(4, end)'

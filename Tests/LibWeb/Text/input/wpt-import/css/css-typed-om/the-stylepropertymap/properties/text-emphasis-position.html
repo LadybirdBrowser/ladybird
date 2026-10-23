@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'text-emphasis-position' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('text-emphasis-position', [
+  { syntax: 'auto' },
+  { syntax: 'over' },
+  { syntax: 'under' },
+]);
+
+// We can not set 'under right' or 'over right' via Typed OM.
+// On the other hand, we might get a CSSKeywordValue instance for them instead
+// of a CSSStyleValue because they can be represented as just 'under' / 'over'
+// in internal representations in some engines.
+for (let value of ['under right', 'over right']) {
+  test(t => {
+    let element = createDivWithStyle(t);
+    element.style.textEmphasisPosition = value;
+    const result = element.attributeStyleMap.get('text-emphasis-position');
+    assert_not_equals(result, null);
+    assert_in_array({}.toString.call(result),
+                    ['[object CSSStyleValue]', '[object CSSKeywordValue]']);
+  }, `'text-emphasis-position' does not support setting '${value}'`);
+}
+
+runUnsupportedPropertyTests('text-emphasis-position', [
+  'over left',
+  'under left',
+]);
+
+</script>

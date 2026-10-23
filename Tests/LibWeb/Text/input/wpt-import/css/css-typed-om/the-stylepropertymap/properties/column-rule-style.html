@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'column-rule-style' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('column-rule-style', [
+  { syntax: 'none',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+   },
+  { syntax: 'hidden',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+   },
+  { syntax: 'dotted',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+   },
+  { syntax: 'dashed',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+   },
+  { syntax: 'solid',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+   },
+  { syntax: 'double',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+   },
+  { syntax: 'groove',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+   },
+  { syntax: 'ridge',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+  },
+  { syntax: 'inset',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+  },
+  { syntax: 'outset',
+  computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+  }
+]);
+
+</script>

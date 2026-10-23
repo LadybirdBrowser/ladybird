@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>scroll-padding related properties</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+function assert_is_equal_with_clamping_percentage(input, result) {
+  const percent = input.to('percent').value;
+
+  if (percent < 0)
+    assert_style_value_equals(result, new CSSUnitValue(0, 'percent'));
+  else
+    assert_style_value_equals(result, new CSSUnitValue(percent, 'percent'));
+}
+
+for (const suffix of ['top', 'left', 'right', 'bottom']) {
+  runPropertyTests('scroll-padding-' + suffix, [
+    {
+      syntax: '<percentage>',
+      specified: assert_is_equal_with_range_handling,
+      computed: assert_is_equal_with_clamping_percentage
+    },
+    {
+      syntax: '<length>',
+      specified: assert_is_equal_with_range_handling
+    },
+  ]);
+}
+
+for (const suffix of ['inline-start', 'block-start', 'inline-end', 'block-end']) {
+  runPropertyTests('scroll-padding-' + suffix, [
+    {
+      syntax: '<percentage>',
+      specified: assert_is_equal_with_range_handling,
+      computed: assert_is_equal_with_clamping_percentage
+    },
+    {
+      syntax: '<length>',
+      specified: assert_is_equal_with_range_handling,
+    },
+  ]);
+}
+
+runUnsupportedPropertyTests('scroll-padding',
+  ['0%', '1px 2px', '3% 4px 5%', '6px 7% 8% 9px']
+);
+
+</script>

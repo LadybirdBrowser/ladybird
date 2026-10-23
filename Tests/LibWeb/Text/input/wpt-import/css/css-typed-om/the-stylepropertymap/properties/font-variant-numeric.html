@@ -1,0 +1,32 @@
+<meta charset="utf-8">
+<title>'font-variant-numeric' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('font-variant-numeric', [
+  { syntax: 'normal' },
+  { syntax: 'lining-nums' },
+  { syntax: 'oldstyle-nums' },
+  { syntax: 'proportional-nums' },
+  { syntax: 'tabular-nums' },
+  { syntax: 'diagonal-fractions' },
+  { syntax: 'stacked-fractions' },
+  { syntax: 'ordinal' },
+  { syntax: 'slashed-zero' },
+]);
+
+runUnsupportedPropertyTests('font-variant-numeric', [
+  'lining-nums ordinal',
+  'oldstyle-nums tabular-nums stacked-fractions ordinal slashed-zero',
+]);
+
+</script>

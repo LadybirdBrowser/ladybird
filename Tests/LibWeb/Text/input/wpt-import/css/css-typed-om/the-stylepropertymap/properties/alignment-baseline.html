@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'alignment-baseline' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('alignment-baseline', [
+  { syntax: 'baseline' },
+  { syntax: 'text-bottom' },
+  { syntax: 'alphabetic' },
+  { syntax: 'ideographic' },
+  { syntax: 'middle' },
+  { syntax: 'central' },
+  { syntax: 'mathematical' },
+  { syntax: 'text-top' },
+]);
+
+</script>

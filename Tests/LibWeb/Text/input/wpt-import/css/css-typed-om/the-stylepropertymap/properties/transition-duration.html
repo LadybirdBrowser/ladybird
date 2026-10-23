@@ -1,0 +1,54 @@
+<meta charset="utf-8">
+<title>'transition-duration' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+function assert_is_equal_with_clamping_time(input, result) {
+  const time = input.to('s');
+
+  if (time.value < 0)
+    assert_style_value_equals(result, new CSSUnitValue(0, 's'));
+  else
+    assert_style_value_equals(result, time);
+}
+
+runListValuedPropertyTests('transition-duration', [
+  {
+    syntax: '<time>',
+    specified: (input, result, alternateExpected) => {
+      // Invalid (out-of-range) numeric values must be wrapped in a CSSMathSum.
+      //
+      // Additionally, when associated with the property, the resulting value
+      // may be canonicalized (e.g. -3.14ms -> -0.0034s), so we account for
+      // both forms.
+      if (input instanceof CSSUnitValue && input.value < 0) {
+        try {
+          assert_style_value_equals(result, new CSSMathSum(input));
+        } catch(e) {
+          assert_style_value_equals(result, new CSSMathSum(input.to('s')));
+        }
+      } else {
+        try {
+          assert_style_value_equals(result, input);
+        } catch(e) {
+          if (alternateExpected === undefined) {
+            throw e;
+          }
+          assert_style_value_equals(result, alternateExpected);
+        }
+      }
+    },
+    computed: assert_is_equal_with_clamping_time
+  },
+]);
+
+</script>

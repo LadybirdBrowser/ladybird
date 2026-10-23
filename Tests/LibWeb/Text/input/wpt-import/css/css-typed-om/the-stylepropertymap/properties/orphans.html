@@ -1,0 +1,37 @@
+<meta charset="utf-8">
+<title>'orphans' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('orphans', [
+  {
+    syntax: '<number>',
+    // orphans needs to be a positive integer
+    specified: (input, result) => {
+      if (input instanceof CSSUnitValue && (!Number.isInteger(input.value) || input.value < 1))
+        assert_style_value_equals(result, new CSSMathSum(input));
+      else
+        assert_style_value_equals(result, input);
+    },
+    computed: (input, result) => {
+      const number = input.to('number');
+      if (number < 1)
+        assert_style_value_equals(result, new CSSUnitValue(1, 'number'));
+      else if (!Number.isInteger(number.value))
+        assert_style_value_equals(result, new CSSUnitValue(Math.round(number.value), 'number'));
+      else
+        assert_style_value_equals(result, number);
+    }
+  },
+]);
+
+</script>
