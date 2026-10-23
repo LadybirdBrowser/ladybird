@@ -14,10 +14,21 @@ if (APPLE)
     list(APPEND ladybird_helper_processes ProcessReaper)
 endif()
 
+function(ladybird_write_entitlements path)
+    set(plist "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n")
+    foreach (entitlement IN LISTS ARGN)
+        string(APPEND plist "\t<key>${entitlement}</key>\n\t<true/>\n")
+    endforeach()
+    string(APPEND plist "</dict>\n</plist>\n")
+    file(WRITE "${path}" "${plist}")
+endfunction()
+
 # On macOS, helpers run with the hardened runtime, so the kernel refuses to run code from memory that was writable, except
 # in the MAP_JIT regions where the renderers put the code that their JIT compilers generate. Library validation stays
 # off, since development builds sign their libraries ad hoc, without a team identifier. Every build of the helper signs
-# it, so that targeted builds keep these protections too.
+# it, so that targeted builds keep these protections too. Release signing uses the .release.entitlements file instead:
+# every library in a release bundle carries the same team identifier, so library validation stays on, and debuggers
+# must not be able to attach.
 function(ladybird_sign_helper_process target)
     if (NOT APPLE)
         return()
@@ -32,13 +43,14 @@ function(ladybird_sign_helper_process target)
         list(APPEND entitlements com.apple.security.get-task-allow)
     endif()
 
-    set(plist "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n")
-    foreach (entitlement IN LISTS entitlements)
-        string(APPEND plist "\t<key>${entitlement}</key>\n\t<true/>\n")
-    endforeach()
-    string(APPEND plist "</dict>\n</plist>\n")
     set(entitlements_file "${CMAKE_CURRENT_BINARY_DIR}/${target}.entitlements")
-    file(WRITE "${entitlements_file}" "${plist}")
+    ladybird_write_entitlements("${entitlements_file}" ${entitlements})
+
+    set(release_entitlements)
+    if (ARG_ALLOW_JIT)
+        list(APPEND release_entitlements com.apple.security.cs.allow-jit)
+    endif()
+    ladybird_write_entitlements("${CMAKE_CURRENT_BINARY_DIR}/${target}.release.entitlements" ${release_entitlements})
 
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND codesign -s - -f -o runtime --entitlements "${entitlements_file}" "$<TARGET_FILE:${target}>"
