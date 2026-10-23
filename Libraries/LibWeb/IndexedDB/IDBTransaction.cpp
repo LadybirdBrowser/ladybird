@@ -33,7 +33,7 @@ IDBTransaction::IDBTransaction(GC::Ref<IDBDatabase> connection, TransactionMode 
     connection->add_transaction(*this);
 }
 
-GC::Ref<IDBTransaction> IDBTransaction::create(GC::Ref<IDBDatabase> connection, TransactionMode mode, TransactionDurability durability, Vector<GC::Ref<ObjectStore>> scopes)
+GC::Ref<IDBTransaction> IDBTransaction::create(GC::Ref<IDBDatabase> connection, TransactionMode mode, TransactionDurability durability, GC::RootVector<GC::Ref<ObjectStore>> scopes)
 {
     return GC::Heap::the().allocate<IDBTransaction>(connection, mode, durability, move(scopes));
 }
