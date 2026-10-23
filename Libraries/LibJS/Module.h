@@ -83,7 +83,7 @@ public:
     ThrowCompletionOr<GC::Ref<PromiseCapability>> evaluate(VM& vm);
 
     // The runtime resolves an export with a resolve set of its own, so a host passes none.
-    ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set = {});
+    ResolvedBinding resolve_export(VM& vm, Utf16FlyString const& export_name);
 
     PromiseCapability& load_requested_modules(GC::Ptr<GC::Cell> host_defined);
 
