@@ -548,7 +548,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
         // and its contiguous exclusive Text nodes, and node’s next sibling exclusive Text node, if any,
         // and its contiguous exclusive Text nodes, avoiding any duplicates.
         // NOTE: The callers of this method require node itself to be excluded.
-        Vector<Text*> nodes;
+        GC::RootVector<Text*> nodes;
 
         auto* current_node = node.previous_sibling();
         while (current_node && current_node->is_exclusive_text()) {
@@ -569,7 +569,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
     };
 
     // The normalize() method steps are to run these steps for each descendant exclusive Text node node of this
-    Vector<Text&> descendant_exclusive_text_nodes;
+    GC::RootVector<GC::Ref<Text>> descendant_exclusive_text_nodes;
     for_each_in_inclusive_subtree_of_type<Text>([&](Text const& node) {
         if (!node.is_cdata_section())
             descendant_exclusive_text_nodes.append(const_cast<Text&>(node));
@@ -577,7 +577,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
         return TraversalDecision::Continue;
     });
 
-    for (auto& node : descendant_exclusive_text_nodes) {
+    for (Text& node : descendant_exclusive_text_nodes) {
         // 1. Let length be node’s length.
         auto& character_data = static_cast<CharacterData&>(node);
         auto length = character_data.length_in_utf16_code_units();
@@ -1562,10 +1562,10 @@ void Node::detach_remaining_layout_nodes_for_removal()
     Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), style_nodes.data(), style_nodes.size());
 }
 
-Vector<GC::Ref<HTML::HTMLSlotElement>> Node::descendant_slots_before_removal(Node& parent_root)
+GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> Node::descendant_slots_before_removal(Node& parent_root)
 {
     // AD-HOC: Assigned nodes are recomputed lazily.
-    Vector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
+    GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
     if (auto* shadow_root = as_if<ShadowRoot>(parent_root)) {
         for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
             descendant_slots.append(slot);
@@ -3179,11 +3179,11 @@ u16 Node::compare_document_position(GC::Ptr<Node> other)
     if ((node1 == nullptr || node2 == nullptr) || (&node1->root() != &node2->root()))
         return DOCUMENT_POSITION_DISCONNECTED | DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC | (node1 > node2 ? DOCUMENT_POSITION_PRECEDING : DOCUMENT_POSITION_FOLLOWING);
 
-    Vector<Node*> node1_ancestors;
+    GC::RootVector<Node*> node1_ancestors;
     for (auto* node = node1; node; node = node->parent())
         node1_ancestors.append(node);
 
-    Vector<Node*> node2_ancestors;
+    GC::RootVector<Node*> node2_ancestors;
     for (auto* node = node2; node; node = node->parent())
         node2_ancestors.append(node);
 
@@ -4053,7 +4053,7 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
 
     // 1. Let interestedObservers be an empty map.
     // mutationObserver -> mappedOldValue
-    OrderedHashMap<MutationObserver*, Optional<Utf16String>> interested_observers;
+    GC::OrderedRootHashMap<MutationObserver*, Optional<Utf16String>> interested_observers;
 
     // 2. Let nodes be the inclusive ancestors of target.
     // 3. For each node of nodes, and then for each registered of node’s registered observer list:
