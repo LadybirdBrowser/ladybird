@@ -673,9 +673,10 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
     // Schedules the present, publishes the scroll updates the event produced and asks for a rendering update, all of
     // which reach WebContent ahead of the event itself on the same connection.
     auto handled = apply_context_update_result(context_id, *context, result);
+    // A wheel event that lets go of a stretched scroller presents nothing itself; the rebound does from here on. A press
+    // beside the thumb of a scrollbar scrolls there in an animation too.
+    schedule_animation_frames_if_needed(*context);
     if (is_wheel_event) {
-        // A wheel event that lets go of a stretched scroller presents nothing itself; the rebound does from here on.
-        schedule_animation_frames_if_needed(*context);
         event.async_scroll_performed_default_action = handled;
     } else if (handled) {
         // The page still sees the events of a drag the compositor scrolls for a scrollbar the display list paints.

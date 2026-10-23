@@ -354,6 +354,8 @@ private:
     RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
     WheelGestureRouting m_wheel_gesture_routing;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
+    // The smooth scroll that a press beside the thumb of the captured scrollbar started.
+    Optional<Compositing::AsyncScrollOperationID> m_scrollbar_press_scroll_operation;
     ScrollFlingController m_scroll_fling_controller;
     ElasticOverscrollController m_elastic_overscroll_controller;
     Gfx::IntRect m_async_scrolling_viewport_rect;

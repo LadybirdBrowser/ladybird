@@ -38,6 +38,8 @@ public:
         size_t scrollbar_index { 0 };
         float primary_position { 0 };
         float thumb_grab_position { 0 };
+        // Whether this is the press that began the drag, beside the thumb rather than on it.
+        bool is_press_beside_thumb { false };
     };
 
     struct ScrollOffset {
