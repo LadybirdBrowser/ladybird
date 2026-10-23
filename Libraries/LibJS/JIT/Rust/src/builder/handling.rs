@@ -134,36 +134,6 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::CallConstructWithArgumentArray
         | O::SuperCallWithArgumentArray => GENERIC_CALL,
         O::CallDirectEval | O::CallDirectEvalWithArgumentArray => GENERIC_CALL_READS_WHOLE_FRAME,
-        // The builtin slow paths call the builtin directly, and any other
-        // callee through the generic call machinery, without leaving the
-        // caller's frame.
-        O::CallBuiltinMathImul
-        | O::CallBuiltinMathRandom
-        | O::CallBuiltinRegExpPrototypeExec
-        | O::CallBuiltinRegExpPrototypeReplace
-        | O::CallBuiltinRegExpPrototypeSplit
-        | O::CallBuiltinOrdinaryHasInstance
-        | O::CallBuiltinArrayIteratorPrototypeNext
-        | O::CallBuiltinMapIteratorPrototypeNext
-        | O::CallBuiltinSetIteratorPrototypeNext
-        | O::CallBuiltinStringIteratorPrototypeNext
-        | O::CallBuiltinStringFromCharCode => GENERIC,
-        // Reading a character of a string, built as IR for strings.
-        O::CallBuiltinStringPrototypeCharCodeAt | O::CallBuiltinStringPrototypeCharAt => EXPANDED,
-        // Math functions of one number, built as IR for numbers.
-        O::CallBuiltinMathAbs
-        | O::CallBuiltinMathFloor
-        | O::CallBuiltinMathCeil
-        | O::CallBuiltinMathRound
-        | O::CallBuiltinMathSqrt => EXPANDED,
-        // Math functions the runtime computes, built as calls of its
-        // functions of doubles for numbers.
-        O::CallBuiltinMathExp
-        | O::CallBuiltinMathLog
-        | O::CallBuiltinMathSin
-        | O::CallBuiltinMathCos
-        | O::CallBuiltinMathTan
-        | O::CallBuiltinMathPow => EXPANDED,
 
         O::CreateArguments | O::CreateRestParams | O::Debugger => GENERIC_READS_WHOLE_FRAME,
 

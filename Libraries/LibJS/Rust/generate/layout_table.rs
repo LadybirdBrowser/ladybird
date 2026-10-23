@@ -25,7 +25,7 @@ use crate::layout::shape::*;
 use crate::layout::value::*;
 use crate::layout::vm::*;
 use crate::layout_forward::Utf16StringDataHeader;
-use libjs_abi::{Builtin, PutKind, register, value as nan_box};
+use libjs_abi::{PutKind, register, value as nan_box};
 
 /// The imports the static assertions need to name the same types as the table.
 const STATIC_ASSERTIONS_PREAMBLE: &str = "\
@@ -469,31 +469,6 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field GlobalVariableCache.environment_serial_number u64 GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL nullable scalar");
     w.line("field GlobalVariableCache.environment_binding_index u32 GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX nullable scalar");
     w.line("field GlobalVariableCache.has_environment_binding_index u8 GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING nullable scalar");
-
-    w.section("Builtin enum values");
-    for (name, builtin) in [
-        ("BUILTIN_MATH_ABS", Builtin::MathAbs),
-        ("BUILTIN_MATH_FLOOR", Builtin::MathFloor),
-        ("BUILTIN_MATH_CEIL", Builtin::MathCeil),
-        ("BUILTIN_MATH_ROUND", Builtin::MathRound),
-        ("BUILTIN_MATH_SQRT", Builtin::MathSqrt),
-        ("BUILTIN_MATH_EXP", Builtin::MathExp),
-        ("BUILTIN_STRING_FROM_CHAR_CODE", Builtin::StringFromCharCode),
-        (
-            "BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT",
-            Builtin::StringPrototypeCharCodeAt,
-        ),
-        ("BUILTIN_STRING_PROTOTYPE_CHAR_AT", Builtin::StringPrototypeCharAt),
-    ] {
-        w.constant(name, builtin as u8);
-    }
-
-    w.section("FunctionObject layout");
-    offset!(w, "FUNCTION_OBJECT_BUILTIN", FunctionObject, builtin);
-    offset!(w, "FUNCTION_OBJECT_BUILTIN_VALUE", FunctionObject, builtin);
-    offset!(w, "FUNCTION_OBJECT_BUILTIN_HAS_VALUE", FunctionObject, has_builtin);
-    w.line("field FunctionObject.builtin u8 FUNCTION_OBJECT_BUILTIN_VALUE nullable scalar");
-    w.line("field FunctionObject.has_builtin bool FUNCTION_OBJECT_BUILTIN_HAS_VALUE nullable scalar");
 
     w.section("RawNativeFunction layout");
     field!(w, "RAW_NATIVE_FUNCTION_NATIVE_FUNCTION_INDEX", "RawNativeFunction.native_function_index", "u32", RawNativeFunction, native_function_index, 4, "nullable", "scalar");

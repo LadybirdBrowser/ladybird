@@ -21,7 +21,7 @@ jit.compile(convert);
 // CHECK-NEXT: [[UNIT:v[0-9]+]]:int32 = Int32BitwiseAnd ([[CODE]], #i32:65535)
 // CHECK-NEXT: BranchInt32LessThan ([[UNIT]], #i32:128)
 // CHECK: SingleCharacterString
-// CHECK: CallSlowPath CallBuiltinStringFromCharCode
+// CHECK: CallSlowPath Call @
 // CHECK: BranchString
 // CHECK: IntegerToString
 // CHECK: PrimitiveToString

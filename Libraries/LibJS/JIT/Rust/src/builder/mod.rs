@@ -1681,18 +1681,6 @@ impl<'a> GraphBuilder<'a> {
                 }
                 return Ok(None);
             }
-            Instruction::CallBuiltinStringFromCharCode {
-                call_feedback,
-                dst,
-                callee,
-                argument,
-                ..
-            } => {
-                if self.holds_virtual_arguments(argument) {
-                    return Ok(None);
-                }
-                return self.try_build_string_from_char_code(call_feedback, dst, callee, argument);
-            }
             Instruction::CreateDataPropertyOrThrow {
                 object,
                 property,

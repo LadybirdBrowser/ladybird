@@ -273,7 +273,7 @@ impl StringConstructor {
 }
 
 // 22.1.2.1 String.fromCharCode ( ...codeUnits ), https://tc39.es/ecma262/#sec-string.fromcharcode
-pub fn from_char_code_impl(vm: &Vm, code_unit: Value) -> ThrowCompletionOr<Value> {
+fn from_char_code_impl(vm: &Vm, code_unit: Value) -> ThrowCompletionOr<Value> {
     let value = code_unit.to_u16(vm)?;
     Ok(Value::from_string(PrimitiveString::create_from_utf16_view(
         vm,

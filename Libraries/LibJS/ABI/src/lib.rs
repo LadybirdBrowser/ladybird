@@ -59,8 +59,8 @@ pub mod register {
 }
 
 macro_rules! define_builtins {
-    ($($name:ident: $base:literal . $property:literal, $argument_count:literal;)*) => {
-        /// Builtin functions the interpreter recognizes at call sites.
+    ($($name:ident,)*) => {
+        /// Builtin functions that the runtime and the JIT recognize, which their function objects record.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         #[repr(u8)]
         pub enum Builtin {
@@ -70,25 +70,6 @@ macro_rules! define_builtins {
         impl Builtin {
             pub const ALL: &[Builtin] = &[$(Builtin::$name,)*];
 
-            /// The name of the intrinsic object the builtin is a property of.
-            pub const fn base(self) -> &'static str {
-                match self {
-                    $(Builtin::$name => $base,)*
-                }
-            }
-
-            pub const fn property(self) -> &'static str {
-                match self {
-                    $(Builtin::$name => $property,)*
-                }
-            }
-
-            pub const fn argument_count(self) -> usize {
-                match self {
-                    $(Builtin::$name => $argument_count,)*
-                }
-            }
-
             pub fn from_u8(value: u8) -> Option<Builtin> {
                 Builtin::ALL.get(usize::from(value)).copied()
             }
@@ -97,30 +78,30 @@ macro_rules! define_builtins {
 }
 
 define_builtins! {
-    MathAbs: "Math"."abs", 1;
-    MathLog: "Math"."log", 1;
-    MathPow: "Math"."pow", 2;
-    MathExp: "Math"."exp", 1;
-    MathCeil: "Math"."ceil", 1;
-    MathFloor: "Math"."floor", 1;
-    MathImul: "Math"."imul", 2;
-    MathRandom: "Math"."random", 0;
-    MathRound: "Math"."round", 1;
-    MathSqrt: "Math"."sqrt", 1;
-    MathSin: "Math"."sin", 1;
-    MathCos: "Math"."cos", 1;
-    MathTan: "Math"."tan", 1;
-    RegExpPrototypeExec: "RegExpPrototype"."exec", 1;
-    RegExpPrototypeReplace: "RegExpPrototype"."replace", 2;
-    RegExpPrototypeSplit: "RegExpPrototype"."split", 2;
-    OrdinaryHasInstance: "InternalBuiltin"."ordinary_has_instance", 1;
-    ArrayIteratorPrototypeNext: "ArrayIteratorPrototype"."next", 0;
-    MapIteratorPrototypeNext: "MapIteratorPrototype"."next", 0;
-    SetIteratorPrototypeNext: "SetIteratorPrototype"."next", 0;
-    StringIteratorPrototypeNext: "StringIteratorPrototype"."next", 0;
-    StringFromCharCode: "String"."fromCharCode", 1;
-    StringPrototypeCharCodeAt: "StringPrototype"."charCodeAt", 1;
-    StringPrototypeCharAt: "StringPrototype"."charAt", 1;
+    MathAbs,
+    MathLog,
+    MathPow,
+    MathExp,
+    MathCeil,
+    MathFloor,
+    MathImul,
+    MathRandom,
+    MathRound,
+    MathSqrt,
+    MathSin,
+    MathCos,
+    MathTan,
+    RegExpPrototypeExec,
+    RegExpPrototypeReplace,
+    RegExpPrototypeSplit,
+    OrdinaryHasInstance,
+    ArrayIteratorPrototypeNext,
+    MapIteratorPrototypeNext,
+    SetIteratorPrototypeNext,
+    StringIteratorPrototypeNext,
+    StringFromCharCode,
+    StringPrototypeCharCodeAt,
+    StringPrototypeCharAt,
 }
 
 /// How a property is being set.

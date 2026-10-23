@@ -46,7 +46,7 @@ jit.compile(floorOf);
 // CHECK-PASS: graph building
 // CHECK: BranchDouble ({{v[0-9]+}}) -> {{b[0-9]+}}, [[COLD:b[0-9]+]]
 // CHECK: [[COLD]] <- {{b[0-9]+}} cold:
-// CHECK-NEXT: CallSlowPath CallBuiltinMathFloor
+// CHECK-NEXT: CallSlowPath Call @
 // CHECK-NOT: Exit SlowPath
 
 function characters(s, i) {
@@ -119,7 +119,7 @@ jit.compile(bias);
 // CHECK-PASS: graph building
 // CHECK: CallFloat64Log
 // CHECK: CallFloat64Pow
-// CHECK-NOT: CallSlowPath CallBuiltinMath
+// CHECK-NOT: CallSlowPath Call @
 // CHECK-PASS: loop invariant code motion
 // CHECK: CallFloat64Log
 // CHECK: loop:
