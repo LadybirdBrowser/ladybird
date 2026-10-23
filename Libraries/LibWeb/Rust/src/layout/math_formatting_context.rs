@@ -866,6 +866,9 @@ impl<'pass> MathFormattingContext<'pass> {
                 self.accents(root),
             ),
             (MathLayoutKind::Mspace, _) => self.layout_space(&root_style),
+            (MathLayoutKind::Mmultiscripts, _) if self.is_valid_multiscripts(&children) => {
+                layout_multiscripts(&children, self.prescripts_separator_index(&children), &constants)
+            }
             (MathLayoutKind::Mroot, 2) => {
                 let radical = RadicalMetrics::new(&root_style, &constants);
                 layout_root(&children[0], &children[1], &radical, &constants)
@@ -932,6 +935,32 @@ impl<'pass> MathFormattingContext<'pass> {
             last: Some(content.ascent),
         };
         self.content = content;
+    }
+
+    fn prescripts_separator_index(&self, children: &[Child]) -> Option<usize> {
+        children
+            .iter()
+            .position(|child| self.kind(child.node) == MathLayoutKind::Mprescripts)
+    }
+
+    // https://w3c.github.io/mathml-core/#prescripts-and-tensor-indices-mmultiscripts
+    fn is_valid_multiscripts(&self, children: &[Child]) -> bool {
+        // A valid <mmultiscripts> element contains the following in-flow children:
+        // - A first in-flow child, called the mmultiscripts base, that is not an <mprescripts> element.
+        // - Followed by an even number of in-flow children called mmultiscripts postscripts, none of them being a
+        //   <mprescripts> element.
+        // - Optionally followed by an <mprescripts> element and an even number of in-flow children called
+        //   mmultiscripts prescripts, none of them being a <mprescripts> element.
+        let separator_count = children
+            .iter()
+            .filter(|child| self.kind(child.node) == MathLayoutKind::Mprescripts)
+            .count();
+        match self.prescripts_separator_index(children) {
+            Option::None => !children.is_empty() && children.len() % 2 == 1,
+            Some(separator) => {
+                separator_count == 1 && separator % 2 == 1 && (children.len() - separator - 1).is_multiple_of(2)
+            }
+        }
     }
 
     fn layout_row_with_operator_spacing(
@@ -1225,15 +1254,15 @@ fn layout_fraction_without_bar(
 }
 
 // https://w3c.github.io/mathml-core/#subscripts-and-superscripts-msub-msup-msubsup
-fn layout_scripts(
+/// The SubShift and SuperShift of a base with a subscript, a superscript or both.
+// https://w3c.github.io/mathml-core/#base-with-subscript-and-superscript
+fn script_shifts(
     base: &Child,
     subscript: Option<&Child>,
     superscript: Option<&Child>,
     constants: &MathConstants,
-) -> MathContent {
+) -> (Option<CssPixels>, Option<CssPixels>) {
     // FIXME: Use the italic correction of the base and the MATH table constants of the font.
-    // spaceAfterScript: MATH.MathConstants.spaceAfterScript or 1/24em if the constant is not available.
-    let space_after_script = constants.em.scaled(1.0 / 24.0);
     // subscriptTopMax: ⅘ × OS/2.sxHeight if the constant is not available.
     let subscript_top_max = constants.x_height.scaled(0.8);
     // superscriptBottomMin: ¼ × OS/2.sxHeight if the constant is not available.
@@ -1286,6 +1315,18 @@ fn layout_scripts(
             }
         }
     }
+    (sub_shift, super_shift)
+}
+
+fn layout_scripts(
+    base: &Child,
+    subscript: Option<&Child>,
+    superscript: Option<&Child>,
+    constants: &MathConstants,
+) -> MathContent {
+    // spaceAfterScript: MATH.MathConstants.spaceAfterScript or 1/24em if the constant is not available.
+    let space_after_script = constants.em.scaled(1.0 / 24.0);
+    let (sub_shift, super_shift) = script_shifts(base, subscript, superscript, constants);
 
     let mut ascent = base.ascent;
     let mut descent = base.descent;
@@ -1311,6 +1352,98 @@ fn layout_scripts(
     }
     MathContent {
         inline_size,
+        ascent,
+        descent,
+        positions,
+    }
+}
+
+// https://w3c.github.io/mathml-core/#base-with-prescripts-and-postscripts
+fn layout_multiscripts(children: &[Child], separator: Option<usize>, constants: &MathConstants) -> MathContent {
+    // FIXME: Use the italic correction of the postscripts' base.
+    let space_after_script = constants.em.scaled(1.0 / 24.0);
+    let base = &children[0];
+    let postscripts = &children[1..separator.unwrap_or(children.len())];
+    let prescripts = separator.map_or(&children[0..0], |separator| &children[separator + 1..]);
+
+    // SubShift (respectively SuperShift) is calculated by taking the maximum of all subshifts (respectively
+    // supershifts) of each subscript/superscript pair as described in <msubsup>.
+    let mut sub_shift = CssPixels::default();
+    let mut super_shift = CssPixels::default();
+    for pair in postscripts.chunks(2).chain(prescripts.chunks(2)) {
+        let (pair_sub_shift, pair_super_shift) = script_shifts(base, Some(&pair[0]), Some(&pair[1]), constants);
+        sub_shift = sub_shift.max(pair_sub_shift.unwrap_or_default());
+        super_shift = super_shift.max(pair_super_shift.unwrap_or_default());
+    }
+
+    // The line-ascent (respectively line-descent) of the math content is calculated by taking the maximum of all the
+    // line-ascent (respectively line-descent) of each subscript/superscript pair as described in <msubsup> but using
+    // the SubShift and SuperShift values calculated above.
+    let mut ascent = base.ascent;
+    let mut descent = base.descent;
+    for pair in postscripts.chunks(2).chain(prescripts.chunks(2)) {
+        ascent = ascent.max(pair[0].ascent - sub_shift).max(pair[1].ascent + super_shift);
+        descent = descent
+            .max(pair[0].descent + sub_shift)
+            .max(pair[1].descent - super_shift);
+    }
+
+    // Finally, the placement of the in-flow children is performed using the following algorithm:
+    let mut positions = vec![ChildPosition::default(); children.len()];
+    // Set inline-offset to 0.
+    let mut inline_offset = CssPixels::default();
+    // For each subscript/superscript pair of mmultiscripts prescripts:
+    if let Some(separator) = separator {
+        for (pair_index, pair) in prescripts.chunks(2).enumerate() {
+            // Increment inline-offset by SpaceAfterScript.
+            inline_offset += space_after_script;
+            // Set pair-inline-size to the maximum of the inline size of the subscript's margin box and the inline size
+            // of the superscript's margin box.
+            let pair_inline_size = pair[0].inline_size.max(pair[1].inline_size);
+            // Place the subscript (respectively superscript) at inline-start position inline-offset +
+            // pair-inline-size − the inline size of the subscript's (respectively superscript's) margin box, so its
+            // alphabetic baseline is shifted away from the alphabetic baseline by SubShift (respectively SuperShift)
+            // towards the line-under (respectively line-over).
+            let index = separator + 1 + pair_index * 2;
+            positions[index] = ChildPosition {
+                line_left_offset: inline_offset + pair_inline_size - pair[0].inline_size,
+                baseline_shift: sub_shift,
+            };
+            positions[index + 1] = ChildPosition {
+                line_left_offset: inline_offset + pair_inline_size - pair[1].inline_size,
+                baseline_shift: -super_shift,
+            };
+            // Increment inline-offset by pair-inline-size.
+            inline_offset += pair_inline_size;
+        }
+        // Place the mmultiscripts base and <mprescripts> boxes at inline offsets inline-offset and with their
+        // alphabetic baselines aligned with the alphabetic baseline.
+        positions[separator].line_left_offset = inline_offset;
+    }
+    positions[0].line_left_offset = inline_offset;
+    // Increment inline-offset by the inline size of the mmultiscripts base's margin box.
+    inline_offset += base.inline_size;
+    // For each subscript/superscript pair of mmultiscripts postscripts:
+    for (pair_index, pair) in postscripts.chunks(2).enumerate() {
+        // Set pair-inline-size to the maximum of the inline size of the subscript's margin box and the inline size of
+        // the superscript's margin box.
+        let pair_inline_size = pair[0].inline_size.max(pair[1].inline_size);
+        // Place the subscript at inline-start position inline-offset − LargeOpItalicCorrection, and the superscript
+        // at inline-start position inline-offset + ItalicCorrection.
+        let index = 1 + pair_index * 2;
+        positions[index] = ChildPosition {
+            line_left_offset: inline_offset,
+            baseline_shift: sub_shift,
+        };
+        positions[index + 1] = ChildPosition {
+            line_left_offset: inline_offset,
+            baseline_shift: -super_shift,
+        };
+        // Increment inline-offset by pair-inline-size and SpaceAfterScript.
+        inline_offset += pair_inline_size + space_after_script;
+    }
+    MathContent {
+        inline_size: inline_offset,
         ascent,
         descent,
         positions,
