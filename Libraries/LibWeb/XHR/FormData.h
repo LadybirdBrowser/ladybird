@@ -35,7 +35,7 @@ public:
     WebIDL::ExceptionOr<void> append(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<Utf16String> const& filename = {});
     void delete_(Utf16String const& name);
     Variant<GC::Ref<FileAPI::File>, Utf16String, Empty> get(Utf16String const& name);
-    WebIDL::ExceptionOr<Vector<FormDataEntryValue>> get_all(Utf16String const& name);
+    WebIDL::ExceptionOr<GC::ConservativeVector<FormDataEntryValue>> get_all(Utf16String const& name);
     bool has(Utf16String const& name);
     WebIDL::ExceptionOr<void> set(Utf16String const& name, Utf16String const& value);
     WebIDL::ExceptionOr<void> set(Utf16String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<Utf16String> const& filename = {});
