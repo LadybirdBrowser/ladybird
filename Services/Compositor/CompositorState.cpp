@@ -195,11 +195,11 @@ void CompositorState::create_context(Web::CompositorContextId context_id, Option
         auto schedule_caret_repaint = [this, context_id](Gfx::IntRect damage_rect) {
             this->schedule_caret_repaint(context_id, damage_rect);
         };
-        auto request_scrollbar_fade_frames = [this, context_id] {
+        auto request_animation_frames = [this, context_id] {
             if (auto* context = context_if_present(context_id))
                 schedule_animation_frames_if_needed(*context);
         };
-        return make<ContextState>(context_id, page_id, web_content_client, Compositing::OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() }, move(schedule_caret_repaint), move(request_scrollbar_fade_frames));
+        return make<ContextState>(context_id, page_id, web_content_client, Compositing::OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() }, move(schedule_caret_repaint), move(request_animation_frames));
     });
     resize_backing_stores_if_needed(context_id, context);
 }

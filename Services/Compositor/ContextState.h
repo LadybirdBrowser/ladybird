@@ -124,7 +124,7 @@ public:
         Optional<Compositing::NestedContextWheelHit> nested_context_hit {};
     };
 
-    ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::OwnedCanvasSurfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint = {}, Function<void()> request_scrollbar_fade_frames = {});
+    ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::OwnedCanvasSurfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint = {}, Function<void()> request_animation_frames = {});
     ~ContextState();
 
     bool is_owned_by(CompositorStateWebContentClient const&) const;
@@ -330,6 +330,11 @@ private:
     // that it settles the gesture then rather than on a clock of its own.
     void end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now);
     Optional<PendingFrame> apply_scrollbar_drag(ScrollbarController::Drag const&);
+    Optional<PendingFrame> start_scrollbar_press_scroll(Compositing::AsyncScrollNode const&, Gfx::FloatPoint old_scroll_offset, Gfx::FloatPoint destination, bool is_absolute_scroll);
+    Optional<PendingFrame> page_captured_scrollbar();
+    void stop_scrollbar_paging();
+    // The smooth scroll that a press beside the thumb started, while it lasts.
+    ActiveSmoothScrollAnimation* running_scrollbar_press_scroll();
     void rebuild_wheel_hit_test_targets();
     ContextPresenter::FrameContent frame_content(Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, CompositedContextResolver const*) const;
     Gfx::IntRect damage_rect_of_blinking_carets();
@@ -356,13 +361,20 @@ private:
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
     // The smooth scroll that a press beside the thumb of the captured scrollbar started.
     Optional<Compositing::AsyncScrollOperationID> m_scrollbar_press_scroll_operation;
+    // A press beside the thumb that pages toward the pointer for as long as it is held.
+    struct ScrollbarPaging {
+        int direction { 0 };
+        float primary_position { 0 };
+    };
+    Optional<ScrollbarPaging> m_scrollbar_paging;
+    RefPtr<Core::Timer> m_scrollbar_paging_timer;
     ScrollFlingController m_scroll_fling_controller;
     ElasticOverscrollController m_elastic_overscroll_controller;
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };
 
     CaretBlinkTimer m_caret_blink_timer;
-    Function<void()> m_request_scrollbar_fade_frames;
+    Function<void()> m_request_animation_frames;
     RefPtr<Core::Timer> m_scrollbar_fade_out_timer;
     Web::InputTraceRecorder m_input_trace;
     Optional<u64> m_display_id;

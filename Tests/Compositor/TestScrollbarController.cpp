@@ -352,3 +352,16 @@ TEST_CASE(scrolling_expanded_scrollbar_the_display_list_paints_thin_damages_it)
     auto damage_rect = controller.update_visibility(&visual_context_tree, scroll_state_snapshot, start);
     EXPECT(damage_rect.contains(Gfx::IntRect { 92, 0, 8, 100 }));
 }
+
+TEST_CASE(press_beside_thumb_pages_toward_pointer_until_thumb_reaches_it)
+{
+    Compositor::ScrollbarController controller;
+    controller.set_scrollbars({ scrollbar_painted_by_display_list() });
+
+    // The thumb spans 20 to 40 at no scroll offset, and moves 0.8 for each unit scrolled.
+    EXPECT_EQ(controller.paging_direction(0, 10, { 0, 0 }), -1);
+    EXPECT_EQ(controller.paging_direction(0, 30, { 0, 0 }), 0);
+    EXPECT_EQ(controller.paging_direction(0, 60, { 0, 0 }), 1);
+    EXPECT_EQ(controller.paging_direction(0, 60, { 0, 30 }), 0);
+    EXPECT_EQ(controller.paging_direction(0, 60, { 0, 60 }), -1);
+}
