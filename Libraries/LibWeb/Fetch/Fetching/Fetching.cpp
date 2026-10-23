@@ -273,6 +273,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         // 3. Let foundPreloadedResource be the result of invoking consume a preloaded resource for request’s
         //    window, given request’s URL, request’s destination, request’s mode, request’s credentials mode,
         //    request’s integrity metadata, and onPreloadedResponseAvailable.
+        bool preload_reports_timing = false;
         auto found_preloaded_resource = HTML::consume_a_preloaded_resource(
             *client_window,
             request.url(),
@@ -281,7 +282,9 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             request.credentials_mode(),
             request.integrity_metadata(),
             on_preloaded_response_available,
-            fetch_params->task_destination());
+            fetch_params->task_destination(),
+            preload_reports_timing);
+        fetch_params->set_preload_reports_timing(preload_reports_timing);
 
         // 4. If foundPreloadedResource is true and fetchParams’s preloaded response candidate is null, then set
         //    fetchParams’s preloaded response candidate to "pending".
@@ -917,9 +920,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             // 3. If fetchParams’s request’s initiator type is non-null and fetchParams’s request’s client’s global
             //    object is fetchParams’s task destination, then run fetchParams’s controller’s report timing steps
             //    given fetchParams’s request’s client’s global object.
+            // AD-HOC: Not when this fetch consumed a preload that reports its own timing. Other engines report a single
+            //         entry for a preloaded resource and its consumer.
             auto client = fetch_params.request()->client();
             auto const* task_destination_global_object = fetch_params.task_destination().get_pointer<GC::Ref<JS::Object>>();
-            if (client != nullptr && task_destination_global_object != nullptr) {
+            if (client != nullptr && task_destination_global_object != nullptr && !fetch_params.preload_reports_timing()) {
                 if (fetch_params.request()->initiator_type().has_value() && &client->global_object() == task_destination_global_object->ptr())
                     fetch_params.controller()->report_timing(client->global_object());
             }

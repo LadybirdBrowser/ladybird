@@ -88,7 +88,8 @@ bool consume_a_preloaded_resource(
     Fetch::Infrastructure::Request::CredentialsMode credentials_mode,
     Utf16View integrity_metadata,
     GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available,
-    Fetch::Infrastructure::TaskDestination const& consumer_task_destination);
+    Fetch::Infrastructure::TaskDestination const& consumer_task_destination,
+    bool& preload_reports_timing);
 
 // AD-HOC: Speculative fetches' responses that the normal parser didn't use must not be handed to a later fetch.
 void discard_speculative_preloads(DOM::Document&);
