@@ -12,6 +12,7 @@
 use std::sync::Arc;
 
 use crate::css::color_conversion;
+use crate::css::color_resolution::make_powerless_hue_missing;
 use crate::css::style_value::{ColorBase, RetainedStyleValueData, StyleValueData};
 use crate::css::value_codes::*;
 
@@ -53,11 +54,13 @@ fn categories_for_color_type(color_type: u8) -> [ComponentCategory; 3] {
 // Carry forward missing components from the input color space to the interpolation color space.
 // A missing component is carried forward if it has an analogous component in the target space.
 // Additionally, if ALL components of an analogous set are missing, they are all carried forward.
-fn carry_forward_missing_components(
+pub(crate) fn carry_forward_missing_components(
     source_missing: [bool; 4],
-    source_categories: [ComponentCategory; 3],
-    target_categories: [ComponentCategory; 3],
+    source_type: u8,
+    target_type: u8,
 ) -> [bool; 4] {
+    let source_categories = categories_for_color_type(source_type);
+    let target_categories = categories_for_color_type(target_type);
     let mut result = [false; 4];
 
     // Same-space: all components map to themselves, including NotAnalogous ones (e.g. HWB W/B).
@@ -367,12 +370,34 @@ fn convert_for_interpolation(color: &ResolvedColor, target_type: u8, is_polar: b
     if !color.has_native_components && !color.missing[3] && color.components[3] == 0.0 {
         source_missing[..3].fill(true);
     }
-    let components = color_conversion::convert(color.color_type, target_type, color.components)?;
-    let mut missing = carry_forward_missing_components(
-        source_missing,
-        categories_for_color_type(color.color_type),
-        categories_for_color_type(target_type),
-    );
+    let mut source_components = color.components;
+    if color.color_type != target_type {
+        // https://drafts.csswg.org/css-color-4/#color-convert-algorithm
+        // To prepare a color col1 for conversion:
+        // 1. Change any powerless components in src to missing components
+        // NB: The powerless rules use percentages for the hsl() and hwb() components other than hue.
+        let scale = if matches!(color.color_type, color_conversion::HSL | color_conversion::HWB) {
+            100.0
+        } else {
+            1.0
+        };
+        let mut components = [
+            f64::from(source_components[0]),
+            f64::from(source_components[1]) * scale,
+            f64::from(source_components[2]) * scale,
+        ];
+        let mut missing = [source_missing[0], source_missing[1], source_missing[2]];
+        make_powerless_hue_missing(color.color_type, &mut components, &mut missing);
+        source_components = [
+            components[0] as f32,
+            (components[1] / scale) as f32,
+            (components[2] / scale) as f32,
+            source_components[3],
+        ];
+        source_missing[..3].copy_from_slice(&missing);
+    }
+    let components = color_conversion::convert(color.color_type, target_type, source_components)?;
+    let mut missing = carry_forward_missing_components(source_missing, color.color_type, target_type);
     if is_polar {
         mark_powerless_hue_after_conversion(color.color_type, target_type, components, &mut missing);
     }
