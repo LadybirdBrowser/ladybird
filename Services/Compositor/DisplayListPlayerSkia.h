@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <Compositor/DisplayListPlayer.h>
 #include <Compositor/Forward.h>
+#include <Compositor/ScrollbarController.h>
 #include <LibCompositing/DisplayList/CompositedContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
@@ -26,8 +27,6 @@ template<typename T>
 class sk_sp;
 
 namespace Compositor {
-
-class ScrollbarController;
 
 // The color filter force-dark runs classified images through: the same Oklab lightness inversion the solid colors
 // take — as a Skia runtime effect. Exposed so a benchmark can time the shipped effect, rather than a copy of it.
@@ -55,7 +54,7 @@ public:
     void flush(Gfx::PaintingSurface&) override;
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
     // A corner clip radius that is not zero shapes the thumb to the corner clip rect with that radius.
-    void paint_scrollbar(Gfx::PaintingSurface&, Compositing::PaintScrollBar const&, float opacity, Gfx::IntRect const& corner_clip_rect = {}, int corner_clip_radius = 0);
+    void paint_scrollbar(Gfx::PaintingSurface&, ScrollbarController::PresentedScrollbar const&, Gfx::IntRect const& corner_clip_rect = {}, int corner_clip_radius = 0);
 
 private:
 #define DECLARE_PLAY_COMMAND(command_type) \

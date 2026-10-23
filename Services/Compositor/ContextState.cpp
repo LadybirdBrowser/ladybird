@@ -1534,27 +1534,35 @@ ContextPresenter::FrameContent ContextState::frame_content(Compositing::ScrollSt
 }
 
 // Each frame shows the scrollbars as of when it is painted. An elastic overscroll moves the presented scroll offsets
-// only, and shows the scrollbars of the stretched scroller as a scroll does.
-void ContextState::update_scrollbar_visibility()
+// only, and shows the scrollbars of the stretched scroller as a scroll does. Returns the damage of the scrollbars that
+// the display list does not damage itself.
+Gfx::IntRect ContextState::update_scrollbar_visibility()
 {
     auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
     auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
-    m_scrollbar_controller.update_visibility(presented_scroll_state_snapshot, MonotonicTime::now());
+    auto const* visual_context_tree = m_scene.visual_context_tree().has_value() ? &m_scene.visual_context_tree_for_compositing() : nullptr;
+    auto now = MonotonicTime::now();
+    auto damage_rect = m_scrollbar_controller.update_visibility(visual_context_tree, presented_scroll_state_snapshot, now);
+
+    // A hovered scrollbar starts to grow here, which needs display ticks before anything else asks for a frame.
+    if (m_request_scrollbar_fade_frames && m_scrollbar_controller.fades_need_frame(now))
+        m_request_scrollbar_fade_frames();
 
     // The fade out runs on display ticks, which the wait before it does not need.
     auto fade_out_time = m_scrollbar_controller.next_fade_out_time();
     if (!fade_out_time.has_value() || !m_request_scrollbar_fade_frames) {
         if (m_scrollbar_fade_out_timer)
             m_scrollbar_fade_out_timer->stop();
-        return;
+        return damage_rect;
     }
     if (!m_scrollbar_fade_out_timer) {
         m_scrollbar_fade_out_timer = Core::Timer::create_single_shot(AK::Duration::zero(), [this] {
             m_request_scrollbar_fade_frames();
         });
     }
-    auto delay = max(AK::Duration::zero(), *fade_out_time - MonotonicTime::now());
+    auto delay = max(AK::Duration::zero(), *fade_out_time - now);
     m_scrollbar_fade_out_timer->restart(delay);
+    return damage_rect;
 }
 
 Optional<PendingFrame> ContextState::advance_scrollbar_fades(MonotonicTime frame_time)
@@ -1572,7 +1580,7 @@ Optional<PendingFrame> ContextState::advance_scrollbar_fades(MonotonicTime frame
 
 Optional<PreparedFrame> ContextState::prepare_frame(DisplayListPlayerSkia& display_list_player, PendingFrame pending_frame, CompositedContextResolver const* composited_context_resolver)
 {
-    update_scrollbar_visibility();
+    pending_frame.forced_damage_rect.unite(update_scrollbar_visibility());
     auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
     auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
     return m_presenter.prepare_frame(display_list_player, pending_frame, frame_content(presented_scroll_state_snapshot, composited_context_resolver));

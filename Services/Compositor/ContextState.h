@@ -333,7 +333,7 @@ private:
     void rebuild_wheel_hit_test_targets();
     ContextPresenter::FrameContent frame_content(Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, CompositedContextResolver const*) const;
     Gfx::IntRect damage_rect_of_blinking_carets();
-    void update_scrollbar_visibility();
+    Gfx::IntRect update_scrollbar_visibility();
 
     CompositorStateWebContentClient& m_web_content_client;
     Web::CompositorContextId m_context_id;
