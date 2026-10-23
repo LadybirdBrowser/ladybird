@@ -11,7 +11,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             SVGTextBox <text> at [20,16.015625] [0+0+0 198.90625 0+0+0] [0+0+0 80 0+0+0] children: inline
               TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-        BlockContainer <math> at [319,127] [0+1+0 102 0+1+0] [0+1+0 102 0+1+0] [BFC] children: not-inline
+        BlockContainer <math> at [319,127] [0+1+0 102 0+1+0] [0+1+0 102 0+1+0] [MathFC] children: not-inline
           BlockContainer <a> at [320,128] [0+1+0 100 0+1+0] [0+1+0 100 0+1+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 5, rect: [320,128 99.484375x40] baseline: 32
                 "Hello"

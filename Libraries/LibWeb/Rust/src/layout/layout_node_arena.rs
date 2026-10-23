@@ -1279,6 +1279,8 @@ pub(crate) struct LayoutNodeArena {
     pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: RefCell<HashMap<NodeSlotId, u32>>,
+    /// The layout kind of each row built for a MathML element, from its tag name.
+    math_layout_kinds: RefCell<HashMap<NodeSlotId, super::math_formatting_context::MathLayoutKind>>,
     replaced_paint_facts: RefCell<Arc<crate::painting::replaced_paint_facts::ReplacedPaintFactsTable>>,
     layer_image_paint_facts: RefCell<Arc<crate::painting::layer_image_paint_facts::LayerImagePaintFactsTable>>,
     svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources,
@@ -1394,6 +1396,7 @@ impl LayoutNodeArena {
             searchable_text: None,
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: RefCell::default(),
+            math_layout_kinds: RefCell::default(),
             replaced_paint_facts: RefCell::default(),
             layer_image_paint_facts: RefCell::default(),
             svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
@@ -1750,6 +1753,7 @@ impl LayoutNodeArena {
         self.in_flow_block_cache_store.remove_entry(index);
         self.remove_layout_update_flag_node(id);
         self.raw_table_column_spans.get_mut().remove(&id);
+        self.math_layout_kinds.get_mut().remove(&id);
         if self.replaced_paint_facts.get_mut().contains_key(&id) {
             Arc::make_mut(self.replaced_paint_facts.get_mut()).remove(&id);
         }
@@ -3944,6 +3948,11 @@ impl LayoutNodeArena {
             self.with_style_store(|engine| engine.element_construction_facts(style_node))
         });
         data.set_flags(super::node_facts::construction_flags(kind, false, construction_facts));
+        let math_layout_kind =
+            super::math_formatting_context::MathLayoutKind::from_construction_facts(construction_facts);
+        if math_layout_kind != super::math_formatting_context::MathLayoutKind::NotMathML {
+            self.math_layout_kinds.borrow_mut().insert(slot, math_layout_kind);
+        }
         if let Some(style_node) = style_node {
             self.stamp_dom_paint_facts(slot, style_node);
             // The name the document knows the row's node by. The mirror publishes one for an
@@ -4576,6 +4585,11 @@ impl LayoutNodeArena {
             if parent_style.is_some_and(|style| super::node_facts::node_lays_out_in_columns(parent_data, style)) {
                 facts |= AncestorFact::ParentLaysOutInColumns as u8;
             }
+            if parent_style.is_some_and(|style| style.display().is_math_inside())
+                && self.math_layout_kind(parent).uses_math_layout()
+            {
+                facts |= AncestorFact::ParentUsesMathLayout as u8;
+            }
             if parent_style.is_none_or(|style| {
                 !style.is_floating() && (style.display().is_flow_inside() || style.display().is_flow_root_inside())
             }) {
@@ -5192,6 +5206,15 @@ impl LayoutNodeArena {
             raw_spans.insert(id, spans.raw_column_span)
         };
         effective_spans_changed || previous_raw_column_span.unwrap_or(1) != spans.raw_column_span
+    }
+
+    /// The layout algorithm the MathML element a row is built for selects by its tag name.
+    pub(crate) fn math_layout_kind(&self, id: NodeSlotId) -> super::math_formatting_context::MathLayoutKind {
+        self.math_layout_kinds
+            .borrow()
+            .get(&id)
+            .copied()
+            .unwrap_or(super::math_formatting_context::MathLayoutKind::NotMathML)
     }
 
     pub(crate) fn raw_table_column_span(&self, id: NodeSlotId) -> u32 {

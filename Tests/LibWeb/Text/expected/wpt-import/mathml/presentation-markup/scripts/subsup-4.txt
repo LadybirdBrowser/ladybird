@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
+1 Pass
+1 Fail
 Fail	Alignment on the baseline for bases of different heights
-Fail	Vertical position of the scripts for bases of different heights
+Pass	Vertical position of the scripts for bases of different heights

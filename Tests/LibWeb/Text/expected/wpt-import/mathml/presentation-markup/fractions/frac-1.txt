@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	Fraction axis is aligned on the math axis
-Fail	Vertical positions of numerator and denominator
-Fail	Horizontal alignments of numerator and denominator
-Fail	Dimension of mfrac elements
-Fail	Preferred width of mfrac elements
+5 Pass
+Pass	Fraction axis is aligned on the math axis
+Pass	Vertical positions of numerator and denominator
+Pass	Horizontal alignments of numerator and denominator
+Pass	Dimension of mfrac elements
+Pass	Preferred width of mfrac elements

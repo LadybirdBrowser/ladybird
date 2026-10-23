@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	width='200%' is interpreted as the default value
-Fail	height='200%' is interpreted as the default value
-Fail	depth='200%' is interpreted as the default value
-Fail	lspace='200%' is interpreted as the default value
-Fail	voffset='200%' is interpreted as the default value
+5 Pass
+Pass	width='200%' is interpreted as the default value
+Pass	height='200%' is interpreted as the default value
+Pass	depth='200%' is interpreted as the default value
+Pass	lspace='200%' is interpreted as the default value
+Pass	voffset='200%' is interpreted as the default value

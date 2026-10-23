@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 14 tests
 
-14 Fail
+1 Pass
+13 Fail
 Fail	baseline alignment inside Mrow
 Fail	baseline alignment inside Sqrt
 Fail	baseline alignment inside Style
@@ -12,7 +13,7 @@ Fail	baseline alignment inside Math
 Fail	baseline alignment inside Menclose
 Fail	baseline alignment inside Mpadded
 Fail	baseline alignment inside Unknown
-Fail	baseline alignment inside Mtd
+Pass	baseline alignment inside Mtd
 Fail	baseline alignment inside None
 Fail	baseline alignment inside Mprescripts
 Fail	baseline alignment inside Mfenced

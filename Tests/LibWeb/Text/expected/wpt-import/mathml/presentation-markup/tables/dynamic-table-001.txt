@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 9 tests
 
-9 Fail
-Fail	Filling an empty mtable element
-Fail	Filling empty mtr elements
-Fail	Filling empty mtd elements
-Fail	Filling an empty mtr element
-Fail	Filling an empty mtd element
-Fail	Adding missing elements
-Fail	Removing a row
-Fail	Removing a column
-Fail	Removing extra elements
+9 Pass
+Pass	Filling an empty mtable element
+Pass	Filling empty mtr elements
+Pass	Filling empty mtd elements
+Pass	Filling an empty mtr element
+Pass	Filling an empty mtd element
+Pass	Adding missing elements
+Pass	Removing a row
+Pass	Removing a column
+Pass	Removing extra elements

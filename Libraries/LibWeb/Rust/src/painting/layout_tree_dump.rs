@@ -284,6 +284,7 @@ fn formatting_context_name(formatting_context_type: FormattingContextType) -> Op
         FormattingContextType::Grid => Some("GFC"),
         FormattingContextType::Table => Some("TFC"),
         FormattingContextType::Svg => Some("SVG"),
+        FormattingContextType::Math => Some("MathFC"),
         _ => None,
     }
 }

@@ -2,18 +2,19 @@ Harness status: OK
 
 Found 15 tests
 
-15 Fail
-Fail	child of non-cramped element
+5 Pass
+10 Fail
+Pass	child of non-cramped element
 Fail	child of cramped element
 Fail	child of msqrt
 Fail	child of mroot
 Fail	child of mfrac
 Fail	child of msub
-Fail	child of msup
+Pass	child of msup
 Fail	child of msubsup
-Fail	child of munder
-Fail	child of mover (non-accent overscript)
-Fail	child of munderover (non-accent overscript)
+Pass	child of munder
+Pass	child of mover (non-accent overscript)
+Pass	child of munderover (non-accent overscript)
 Fail	accent child of mover (accent overscript)
 Fail	accent child of munderover (accent overscript)
 Fail	mmultiscripts

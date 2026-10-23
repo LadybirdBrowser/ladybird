@@ -236,6 +236,8 @@ pub(crate) enum AncestorFact {
     /// An anonymous box whose nearest non-anonymous ancestor puts an ellipsis on overflowing lines.
     InheritsTextOverflowEllipsis = 1 << 5,
     ParentLaysOutInColumns = 1 << 6,
+    /// The parent lays out its children with a MathML layout algorithm.
+    ParentUsesMathLayout = 1 << 7,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -2,9 +2,10 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	Respective horizontal positions
+4 Pass
+1 Fail
+Pass	Respective horizontal positions
 Fail	Alignment of the base on the baseline
-Fail	Vertical position of scripts
-Fail	Width of scripted elements
-Fail	Height of scripted elements
+Pass	Vertical position of scripts
+Pass	Width of scripted elements
+Pass	Height of scripted elements
