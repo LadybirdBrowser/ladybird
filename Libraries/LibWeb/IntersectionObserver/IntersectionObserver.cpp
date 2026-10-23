@@ -38,7 +38,7 @@ GC::Ref<WebIDL::CallbackType> create_lazy_load_intersection_observer_callback(DO
         auto& entries = as<JS::Array>(vm.argument(0).as_object());
         auto entries_length = MUST(MUST(entries.get(vm.names.length)).to_length(vm));
 
-        Vector<GC::Ref<IntersectionObserverEntry>> intersection_observer_entries;
+        GC::RootVector<GC::Ref<IntersectionObserverEntry>> intersection_observer_entries;
         for (size_t i = 0; i < entries_length; ++i) {
             auto property_key = JS::PropertyKey { i };
             auto& entry_object = entries.get_without_side_effects(property_key).as_object();
