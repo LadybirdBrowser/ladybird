@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fonts Test: font-size-adjust - two-value syntax - using 'ch-width' as the basis for adjustment</title>
+<link rel="author" title="Jonathan Kew" href="mailto:jkew@mozilla.com">
+<link rel="help" title="2.6 Relative sizing: the font-size-adjust property"
+      href="https://drafts.csswg.org/css-fonts-4/#font-size-adjust-prop">
+<link rel="help" title="extend font-size-adjust to take a pair of values: <metric> <number>"
+      href="https://github.com/w3c/csswg-drafts/issues/6160">
+<meta name="assert" content="Test checks that font-size-adjust with the 'ch-width' metric works as expected">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-size-adjust-009-ref.html">
+<meta name="fuzzy" content="maxDifference=0-130;totalPixels=0-350">
+<style>
+  @font-face {
+    font-family: test;
+    src: url(../../fonts/noto/noto-sans-v8-latin-regular.woff);
+         /* this font has a 'zero' width (and therefore 'ch' unit) of 1128/2048 units */
+  }
+  div {
+    clear: left;
+    float: left;
+    font: 56px/112px test;
+    color: orange;
+    background: orange;
+  }
+  #test1 {
+    color: green;
+    background: green;
+    font-size-adjust: ch-width calc(1128 / 2048);  /* should cause no change */
+  }
+  #test2 {
+    color: blue;
+    background: blue;
+    font-size-adjust: ch-width calc(1.5 * 1128 / 2048);  /* should be 1.5 times larger */
+  }
+  #test3 {
+    color: magenta;
+    background: magenta;
+    font-size-adjust: ch-width calc(0.75 * 1128 / 2048);  /* should be 0.75 times larger */
+  }
+</style>
+<body>
+  <p>Test passes if the size of the green rectangle matches the orange rectangle,
+     the blue rectangle is longer, and the magenta rectangle is shorter.</p>
+  <div>Filler Text</div>
+  <div id="test1">Filler Text</div>
+  <div id="test2">Filler Text</div>
+  <div id="test3">Filler Text</div>
+</body>

@@ -26,6 +26,7 @@ All properties associated with getComputedStyle(document.body):
     "font-language-override",
     "font-optical-sizing",
     "font-size",
+    "font-size-adjust",
     "font-style",
     "font-variant-alternates",
     "font-variant-caps",

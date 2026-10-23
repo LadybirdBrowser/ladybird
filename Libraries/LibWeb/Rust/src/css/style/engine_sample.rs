@@ -1395,6 +1395,8 @@ pub(super) fn font_resolution_request(
         }
         _ => 0,
     };
+    let (font_size_adjust, font_size_adjust_metric, font_size_adjust_value) =
+        font_size_adjust_of(value_of(prop::FONT_SIZE_ADJUST));
     // Only `font-variant-alternates` reads `@font-feature-values`, so every other request resolves
     // once for all scopes.
     let names_alternates = !font_feature_values[bridge::FontResolutionFeatureInput::FontVariantAlternates as usize]
@@ -1411,8 +1413,74 @@ pub(super) fn font_resolution_request(
         font_weight,
         font_width,
         font_optical_sizing,
+        font_size_adjust,
+        font_size_adjust_metric,
+        font_size_adjust_value,
         font_feature_values_scope: feature_values_scope.0,
         font_environment_generation: inputs.font_environment_generation,
+    }
+}
+
+/// What a font resolution request names for a computed `font-size-adjust`: its kind, its metric
+/// and its number.
+pub(crate) fn font_size_adjust_of(value: Option<&StyleValueData>) -> (bridge::FontSizeAdjustKind, u8, f64) {
+    use crate::css::css_enums::{font_size_adjust_metric, keyword_to_font_size_adjust_metric};
+    use bridge::FontSizeAdjustKind as Kind;
+    let Some(StyleValueData::Tuple { values }) = value else {
+        return (Kind::None, 0, 0.0);
+    };
+    let [metric, value] = values.as_slice() else {
+        return (Kind::None, 0, 0.0);
+    };
+    let metric = match metric.optional_data() {
+        None => font_size_adjust_metric::EX_HEIGHT,
+        Some(StyleValueData::Keyword { keyword }) => match keyword_to_font_size_adjust_metric(*keyword) {
+            Some(metric) => metric,
+            None => return (Kind::None, 0, 0.0),
+        },
+        Some(_) => return (Kind::None, 0, 0.0),
+    };
+    match value.data() {
+        StyleValueData::Number { value } if value.is_finite() => (Kind::Number, metric, value.max(0.0)),
+        StyleValueData::Keyword {
+            keyword: keyword::FROM_FONT,
+        } => (Kind::FromFont, metric, 0.0),
+        _ => (Kind::None, 0, 0.0),
+    }
+}
+
+/// The computed value of a `font-size-adjust: from-font` that `request` names, against the font it
+/// resolved to.
+pub(super) fn computed_font_size_adjust_from_font(
+    request: &bridge::FfiFontResolutionRequest,
+    resolved: &bridge::FfiResolvedFont,
+) -> StyleValueData {
+    use crate::css::css_enums::font_size_adjust_metric as metric_code;
+    // https://drafts.csswg.org/css-fonts-5/#valdef-font-size-adjust-from-font
+    // Computes to the <number> corresponding to the specified metric of the first available font, if it exists.
+    // Otherwise, the same as none.
+    if resolved.font_size_adjust_from_font.is_nan() || resolved.font_size_adjust_from_font <= 0.0 {
+        return StyleValueData::Keyword { keyword: keyword::NONE };
+    }
+    // The default metric, ex-height, serializes as nothing.
+    let metric = match request.font_size_adjust_metric {
+        metric_code::CAP_HEIGHT => Some(keyword::CAP_HEIGHT),
+        metric_code::CH_WIDTH => Some(keyword::CH_WIDTH),
+        metric_code::IC_WIDTH => Some(keyword::IC_WIDTH),
+        metric_code::IC_HEIGHT => Some(keyword::IC_HEIGHT),
+        _ => None,
+    }
+    .map(|keyword| StyleValueData::Keyword { keyword });
+    StyleValueData::Tuple {
+        values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(vec![
+            metric.map_or_else(
+                crate::css::style_value::RetainedStyleValueData::none,
+                crate::css::style_value::RetainedStyleValueData::from_owned,
+            ),
+            crate::css::style_value::RetainedStyleValueData::from_owned(StyleValueData::Number {
+                value: resolved.font_size_adjust_from_font,
+            }),
+        ]),
     }
 }
 

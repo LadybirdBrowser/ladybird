@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Test: font-size-adjust property</title>
+    <link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-size-adjust-014-ref.html">
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-5/#font-size-adjust-prop">
+    <meta name="assert" content="Test whether from-font automatically determines a font-size-adjust value
+                                 based on the primary font of the element (not the font of its parent).">
+    <style>
+        @font-face {
+            font-family: ahem-ex-500;
+            src: url('./resources/ahem-ex-500.otf');
+            unicode-range: U+0020;
+        }
+        @font-face {
+            font-family: ahem-ex-250;
+            src: url('./resources/ahem-ex-250.otf');
+            unicode-range: U+0020;
+        }
+        .outer {
+            font: 50px/1 monospace;
+            height: 100px;
+        }
+        .ahem250 {
+            font-family: ahem-ex-250;
+        }
+        .ahem500 {
+            font-family: ahem-ex-500;
+        }
+        .test {
+            font-family: ahem-ex-500, serif;
+            /* font-size-adjust should be computed according to the ex-height of ahem-ex-500 */
+            font-size-adjust: from-font;
+        }
+        .ref {
+            font-family: serif;
+            font-size-adjust: 0.5;
+        }
+        .tall-inline-block {
+            display: inline-block;
+            height: 100px;
+        }
+        .description {
+            font-family: serif;
+            font-size: 16px;
+            font-size-adjust: from-font;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="description">
+            All four instances of "foobar" should be the same size; the font of the outer div
+            should not affect <tt>font-size-adjust:from-font</tt> on the inner.
+        </div>
+        <div class="outer">
+            <span class="ref">
+                foobar<span class="tall-inline-block"></span>
+            </span>
+        </div>
+        <div class="outer">
+            <span class="test">
+                foobar<span class="tall-inline-block"></span>
+            </span>
+        </div>
+        <div class="outer ahem250">
+            <span class="test">
+                foobar<span class="tall-inline-block"></span>
+            </span>
+        </div>
+        <div class="outer ahem500">
+            <span class="test">
+                foobar<span class="tall-inline-block"></span>
+            </span>
+        </div>
+    </div>
+</html>

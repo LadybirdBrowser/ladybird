@@ -91,7 +91,6 @@ custom
 [font-properties]
 # https://drafts.csswg.org/css-fonts/#property-index
 # FIXME: font-palette
-# FIXME: font-size-adjust
 # FIXME: font-synthesis and longhands
 font
 font-family
@@ -100,6 +99,7 @@ font-kerning
 font-language-override
 font-optical-sizing
 font-size
+font-size-adjust
 font-style
 font-variant
 font-variant-alternates

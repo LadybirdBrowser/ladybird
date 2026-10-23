@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 39 tests
 
-35 Pass
-4 Fail
+37 Pass
+2 Fail
 Pass	Property font-family inherits
 Pass	Property font-feature-settings has initial value normal
 Pass	Property font-feature-settings inherits
@@ -15,8 +15,8 @@ Pass	Property font-optical-sizing has initial value auto
 Pass	Property font-optical-sizing inherits
 Pass	Property font-size has initial value 16px
 Pass	Property font-size inherits
-Fail	Property font-size-adjust has initial value none
-Fail	Property font-size-adjust inherits
+Pass	Property font-size-adjust has initial value none
+Pass	Property font-size-adjust inherits
 Pass	Property font-stretch has initial value 100%
 Pass	Property font-stretch inherits
 Pass	Property font-style has initial value normal

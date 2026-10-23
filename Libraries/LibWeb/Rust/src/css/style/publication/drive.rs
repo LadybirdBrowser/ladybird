@@ -248,6 +248,9 @@ impl RetainedState {
                 font_weight: 400.0,
                 font_width: 100.0,
                 font_optical_sizing: 0,
+                font_size_adjust: bridge::FontSizeAdjustKind::None,
+                font_size_adjust_metric: 0,
+                font_size_adjust_value: 0.0,
                 font_feature_values_scope: TreeScopeID::DOCUMENT.0,
                 font_environment_generation: inputs.font_environment_generation,
             };
@@ -1018,6 +1021,13 @@ impl RetainedState {
             };
             return Err(font_scratch.suspend(target, request, Some(progress)));
         };
+        if request.font_size_adjust == bridge::FontSizeAdjustKind::FromFont {
+            table.set_computed(
+                prop::FONT_SIZE_ADJUST,
+                engine_sample::computed_font_size_adjust_from_font(&request, &resolved),
+                -1,
+            );
+        }
         let own_metrics = |line_height: f64| FfiFontMetrics {
             font_size,
             x_height: drive_font_metric(resolved.x_height),

@@ -5131,7 +5131,12 @@ fn font_resolution_selects_by(property: u16) -> bool {
     use crate::css::property_metadata::property_id as prop;
     matches!(
         property,
-        prop::FONT_FAMILY | prop::FONT_STYLE | prop::FONT_WEIGHT | prop::FONT_WIDTH | prop::FONT_OPTICAL_SIZING
+        prop::FONT_FAMILY
+            | prop::FONT_STYLE
+            | prop::FONT_WEIGHT
+            | prop::FONT_WIDTH
+            | prop::FONT_OPTICAL_SIZING
+            | prop::FONT_SIZE_ADJUST
     )
 }
 

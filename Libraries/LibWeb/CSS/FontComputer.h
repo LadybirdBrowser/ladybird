@@ -33,6 +33,8 @@ enum class FontFeatureValuesRuleKind : uint8_t;
 
 namespace Web::CSS {
 
+enum class FontSizeAdjustMetric : u8;
+
 class FontCascadeMemo;
 class FontFaceSnapshot;
 class RustRuleView;
@@ -87,10 +89,22 @@ using ComputedFontFamily = Variant<GenericFontFamily, ComputedFontFamilyName>;
 static constexpr size_t font_resolution_feature_input_count = 11;
 using FontResolutionFeatureValues = Array<ValueComparingRefPtr<StyleValue const>, font_resolution_feature_input_count>;
 
+// A font-size-adjust that scales the size fonts are selected at: the metric it normalizes, and the proportion of the
+// computed font size that metric of the first available font is scaled to.
+// https://drafts.csswg.org/css-fonts-5/#font-size-adjust-prop
+struct FontSizeAdjust {
+    FontSizeAdjustMetric metric;
+    double value;
+
+    [[nodiscard]] bool operator==(FontSizeAdjust const&) const = default;
+};
+
 struct ComputedFontCacheKey {
     Vector<ComputedFontFamily> font_families;
     FontOpticalSizing font_optical_sizing;
     CSSPixels font_size;
+    // NB: Empty for none, and for the lookup that measures the first available font for from-font.
+    Optional<FontSizeAdjust> font_size_adjust {};
     int font_slope;
     double font_weight;
     Percentage font_width;

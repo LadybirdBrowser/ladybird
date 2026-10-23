@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Test: font-size-adjust property</title>
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-5/#font-size-adjust-prop">
+    <meta name="assert" content="Test whether from-font automatically determines a font-size-adjust value based on the primary font.">
+    <style>
+        @font-face {
+            font-family: 'primary-font-ahem-ex-500';
+            src: url('./resources/ahem-ex-500.otf');
+        }
+        @font-face {
+            font-family: 'secondary-font-ahem-ex-250';
+            src: url('./resources/ahem-ex-250.otf');
+        }
+        .test {
+            font-family: 'primary-font-ahem-ex-500', 'secondary-font-ahem-ex-250';
+            font-size: 100px;
+            color: peru;
+            height: 200px;
+            margin-top: -20px;
+            margin-bottom: -80px;
+            line-height: 1;
+        }
+        .tall-inline-block {
+            display: inline-block;
+            height: 100px;
+        }
+        .description {
+            font-family: serif;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="description">
+            1. Same glyphs, two 'x' in different spans with two different fonts. The primary font (AhemEx500) has a double aspect value (i.e., x-height/size = 0.5) of the secondary font (AhemEx250). The right glyph is adjusted with font-size-adjust: from-font, so it should be the same size as the left one.
+        </div>
+        <div class="test">
+            <span>xx</span>
+        </div>
+    </div>
+    <div>
+        <div class="description">
+            2. Different glyphs 'x' and 'A' in the same span, with two fonts <em>without</em> font-size-adjust. As the primary font does not contain 'A' (U+0041), so the right glyph 'A' falls back to the secondary font. The right glyph should be smaller than the left one.
+        </div>
+        <div class="test"><span>xA</span></div>
+    </div>
+    <div>
+        <div class="description">
+            3. Different glyphs 'x' and 'A' in the same span, with two fonts and font-size-adjust: from-font. The right glyph 'A' cannot be rendered by the primary font, so it individually falls back to the secondary font. However, it should be the same size as the left glyph due to font-size-adjust: from-font.
+        </div>
+        <div class="test">
+            <!-- We are inserting a tall inline-block here to make the position of the baseline independent of the adjusted glyph since on the ref test we don't use font-size-adjust but font-size -->
+            <span>xx<span class="tall-inline-block"></span></span>
+        </div>
+    </div>
+</html>

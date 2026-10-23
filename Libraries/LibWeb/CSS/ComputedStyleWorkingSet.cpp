@@ -529,6 +529,7 @@ ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedStyleWorkingSet:
                 .font_families = computed_font_families(),
                 .font_optical_sizing = font_optical_sizing(),
                 .font_size = font_size(),
+                .font_size_adjust = font_size_adjust(),
                 .font_slope = font_slope(),
                 .font_weight = font_weight(),
                 .font_width = font_width(),
@@ -554,6 +555,15 @@ ValueComparingNonnullRefPtr<Gfx::Font const> ComputedStyleWorkingSet::first_avai
 int ComputedStyleWorkingSet::math_depth() const
 {
     return property(PropertyID::MathDepth).as_integer().integer();
+}
+
+Optional<FontSizeAdjust> ComputedStyleWorkingSet::font_size_adjust() const
+{
+    u8 metric = 0;
+    double value = 0;
+    if (!StyleValueFFI::rust_style_value_computed_font_size_adjust_number(effective_property_data(PropertyID::FontSizeAdjust), &metric, &value))
+        return {};
+    return FontSizeAdjust { static_cast<FontSizeAdjustMetric>(metric), value };
 }
 
 CSSPixels ComputedStyleWorkingSet::font_size() const

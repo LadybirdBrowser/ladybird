@@ -478,6 +478,7 @@ pub(super) fn serialize(
                 property_id::FONT_LANGUAGE_OVERRIDE,
                 property_id::FONT_OPTICAL_SIZING,
                 property_id::FONT_VARIATION_SETTINGS,
+                property_id::FONT_SIZE_ADJUST,
             ] {
                 if !is_initial(get(id), id) {
                     return;

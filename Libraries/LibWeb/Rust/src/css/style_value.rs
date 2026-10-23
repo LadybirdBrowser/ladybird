@@ -2305,6 +2305,24 @@ pub extern "C" fn rust_style_value_computed_percentage(value: &StyleValueData) -
     }
 }
 
+/// Reads a computed `font-size-adjust` that scales the size fonts are selected at: true, with the
+/// metric (a `font_size_adjust_metric` value) and the number, for one naming a number, and false
+/// for `none` and `from-font`.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_value_computed_font_size_adjust_number(
+    value: &StyleValueData,
+    metric: &mut u8,
+    number: &mut f64,
+) -> bool {
+    let (kind, value_metric, value_number) = crate::css::style::engine_sample::font_size_adjust_of(Some(value));
+    if kind != crate::css::style::bridge::FontSizeAdjustKind::Number {
+        return false;
+    }
+    *metric = value_metric;
+    *number = value_number;
+    true
+}
+
 impl StyleValueData {
     pub(crate) fn basic_shape(&self) -> Option<&BasicShapeData> {
         match self {

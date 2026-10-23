@@ -6873,15 +6873,15 @@ mod tests {
             (property_id::FONT_VARIANT, "normal", 7),
             (property_id::FONT_VARIANT, "none", 7),
             (property_id::FONT_VARIANT, "small-caps oldstyle-nums ruby emoji", 7),
-            (property_id::FONT, "16px serif", 12),
+            (property_id::FONT, "16px serif", 13),
             (
                 property_id::FONT,
                 "italic small-caps 700 condensed 12px/1.5 'Example', serif",
-                12,
+                13,
             ),
-            (property_id::FONT, "normal normal 10pt sans-serif", 12),
-            (property_id::FONT, "oblique 45deg 24px Arial", 12),
-            (property_id::FONT, "16px initial simple", 12),
+            (property_id::FONT, "normal normal 10pt sans-serif", 13),
+            (property_id::FONT, "oblique 45deg 24px Arial", 13),
+            (property_id::FONT, "16px initial simple", 13),
         ] {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");

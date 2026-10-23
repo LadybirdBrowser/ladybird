@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fonts Reference: font-size-adjust - two-value syntax</title>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+  @font-face {
+    font-family: test;
+    src: url(../../fonts/noto/noto-sans-v8-latin-regular.woff);
+         /* this font has a cap-height of 1462/2048 units */
+  }
+  div {
+    clear: left;
+    float: left;
+    font: 56px/112px test;
+    color: orange;
+    background: orange;
+  }
+  #test1 {
+    color: green;
+    background: green;
+  }
+  #test2 {
+    color: blue;
+    background: blue;
+    font-size: 84px;
+  }
+  #test3 {
+    color: magenta;
+    background: magenta;
+    font-size: 42px;
+  }
+</style>
+<body>
+  <p>Test passes if the size of the green rectangle matches the orange rectangle,
+     the blue rectangle is longer, and the magenta rectangle is shorter.</p>
+  <div>Filler Text</div>
+  <div id="test1">Filler Text</div>
+  <div id="test2">Filler Text</div>
+  <div id="test3">Filler Text</div>
+</body>

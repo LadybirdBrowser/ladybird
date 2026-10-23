@@ -112,6 +112,7 @@ public:
 
     [[nodiscard]] CSSPixels line_height(FontComputer const&) const;
     [[nodiscard]] CSSPixels font_size() const;
+    [[nodiscard]] Optional<FontSizeAdjust> font_size_adjust() const;
     Vector<ComputedFontFamily> computed_font_families() const;
     FontOpticalSizing font_optical_sizing() const;
 

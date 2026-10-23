@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Test: font-size-adjust property</title>
+    <link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-size-adjust-prop">
+    <style>
+        @font-face {
+            font-family: 'ahem-ex-500';
+            src: url('./resources/ahem-ex-500.otf') format('opentype');
+        }
+        @font-face {
+            font-family: 'ahem-ex-250';
+            src: url('./resources/ahem-ex-250.otf') format('opentype');
+        }
+        .wrapper {
+            --primary-font: 'ahem-ex-500';
+            --secondary-font: 'ahem-ex-250';
+        }
+        .test {
+            font-family: var(--primary-font), var(--secondary-font);
+            font-size: 100px;
+            line-height: 1;
+            color: peru;
+            height: 100px;
+        }
+        .primary-font {
+            font-family: var(--primary-font);
+        }
+        .secondary-font {
+            font-family: var(--secondary-font);
+        }
+        .tall-inline-block {
+            display: inline-block;
+            height: 100px;
+        }
+        .description {
+            font-family: 'Times New Roman';
+            font-size: 14px;
+        }
+        .main {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="description main">For this test we are using two fonts. AhemEx500 has a aspect value (xHeight/size) of 0.5 and AhemEx250 an aspect value of 0.25. On both fonts all glyphs used in the tests look like a square but AhemEx500 doesn't contain 'A' (U+0041).</div>
+    <div class="wrapper">
+        <div class="description">1. Same glyph x in different spans with different fonts. The second one is adjusted with font-size-adjust. They should have the same size for test to pass.</div>
+        <div class="test">
+            <span class="primary-font">xx</span>
+        </div>
+    </div>
+    <div class="wrapper">
+        <div class="description">
+            2. Different glyphs 'x' and 'A' in the same span, with 2 fonts in font-family fallback and <em>without</em> font-size-adjust. The second glyph can't be rendered by primary font so it will individually fallback to the secondary font. Note it is smaller than the first glyph.
+        </div>
+        <div class="test"><span>xA</span></div>
+    </div>
+    <div class="wrapper">
+        <div class="description">
+            3. Different glyphs 'x' and 'A' in the same span, with 2 fonts in font-family fallback and <em>with</em> font-size-adjust. The second glyph can't be rendered by primary font so it will individually fallback to the secondary font. Note that now they have the same size.
+        </div>
+        <div class="test">
+        <!-- We are inserting a tall inline-block here to make the position of the baseline independent of the adjusted glyph since on the ref test we don't use font-size-adjust but font-size -->
+        <span>xx<span class="tall-inline-block"></span></span>
+        </div>
+    </div>
+</html>

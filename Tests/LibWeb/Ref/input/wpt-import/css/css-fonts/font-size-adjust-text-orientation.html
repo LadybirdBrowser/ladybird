@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>font-size-adjust and text-orientation</title>
+<link rel="author" title="ChangSeok Oh" href="mailto:changseok@webkit.org" />
+<link rel="help" href="https://www.w3.org/TR/css-fonts-5/#font-size-adjust-prop" />
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-size-adjust-text-orientation-ref.html" />
+<meta name="assert" content="Test checks whether text-orientation affects font-size-adjust.">
+<style>
+@font-face {
+  font-family: IcTestFullWidth;
+  src: url(../css-values/resources/IcTestFullWidth.woff2);
+}
+div {
+  font-family: IcTestFullWidth;
+  font-size: 40px;
+  font-size-adjust: ic-width 1.0;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+</style>
+<div>あ</div>

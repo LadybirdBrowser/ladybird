@@ -60,6 +60,10 @@ public:
     float point_size() const;
     float pixel_size() const;
     FontPixelMetrics const& pixel_metrics() const { return m_pixel_metrics; }
+    // Metrics that only font-size-adjust reads, measured when asked for rather than with the pixel metrics.
+    float cap_height() const;
+    Optional<float> horizontal_advance_of_code_point(u32 code_point) const;
+    Optional<float> vertical_advance_of_code_point(u32 code_point) const;
     u8 slope() const { return m_style.slope; }
     u16 weight() const { return m_style.weight; }
     u16 width() const { return m_style.width; }

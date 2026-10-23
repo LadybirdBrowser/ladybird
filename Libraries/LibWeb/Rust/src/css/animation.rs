@@ -3439,6 +3439,38 @@ fn composite_individual_transform(
     None
 }
 
+/// Combines two tuples component by component: an absent or keyword component combines only with
+/// an equal one, which it keeps, and every other pair combines through `combine`. None where the
+/// tuples do not match.
+fn combine_tuples(
+    from: &RetainedStyleValueDataList,
+    to: &RetainedStyleValueDataList,
+    combine: impl Fn(&StyleValueData, &StyleValueData) -> AnimationValueResult,
+) -> Option<StyleValueData> {
+    let (from, to) = (from.as_slice(), to.as_slice());
+    if from.len() != to.len() {
+        return None;
+    }
+    let values = from
+        .iter()
+        .zip(to)
+        .map(
+            |(from_value, to_value)| match (from_value.optional_data(), to_value.optional_data()) {
+                (None, None) => Some(RetainedStyleValueData::none()),
+                (Some(StyleValueData::Keyword { keyword: from }), Some(StyleValueData::Keyword { keyword: to })) => {
+                    (from == to).then(|| from_value.clone())
+                }
+                (Some(StyleValueData::Keyword { .. }), _) | (_, Some(StyleValueData::Keyword { .. })) => None,
+                (Some(from), Some(to)) => combine(from, to).into_value(),
+                _ => None,
+            },
+        )
+        .collect::<Option<Vec<_>>>()?;
+    Some(StyleValueData::Tuple {
+        values: RetainedStyleValueDataList::from_retained_values(values),
+    })
+}
+
 fn composite_scalar_value(
     underlying: &StyleValueData,
     animated: &StyleValueData,
@@ -3978,6 +4010,22 @@ fn composite_scalar_value(
             handled_without_value()
         }
         (
+            StyleValueData::Tuple {
+                values: underlying_values,
+            },
+            StyleValueData::Tuple {
+                values: animated_values,
+            },
+        ) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            combine_tuples(underlying_values, animated_values, |underlying, animated| {
+                composite_scalar_value(underlying, animated, operation)
+            })
+            .map_or_else(handled_without_value, owned)
+        }
+        (
             StyleValueData::ValueList {
                 values: underlying_values,
                 separator: underlying_separator,
@@ -4167,6 +4215,15 @@ fn interpolate_scalar_value(
         (from_value @ StyleValueData::Keyword { keyword: from }, StyleValueData::Keyword { keyword: to })
             if from == to =>
         unsafe { handled_borrowed_value(from_value) },
+        (StyleValueData::Tuple { values: from_values }, StyleValueData::Tuple { values: to_values }) => {
+            // https://drafts.csswg.org/web-animations-1/#animating-properties
+            // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
+            // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
+            combine_tuples(from_values, to_values, |from, to| {
+                interpolate_scalar_value(property_id, from, to, delta, range_overrides)
+            })
+            .map_or_else(not_handled, owned)
+        }
         (StyleValueData::Number { value: from }, StyleValueData::Number { value: to }) => {
             owned(StyleValueData::Number {
                 value: interpolate_f64(

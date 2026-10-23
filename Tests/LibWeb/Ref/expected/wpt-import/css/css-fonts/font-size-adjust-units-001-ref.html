@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Fonts reference</title>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+  div {
+    margin: 10px;
+    font: 100px/1 Ahem;
+    font-size-adjust: 0.8;  /* this matches Ahem's ex-height metric */
+    background: orange;
+    width: 2ch;
+    height: 1ex;
+  }
+  #test1 {
+    background: blue;
+  }
+  #test2 {
+    background: blue;
+  }
+</style>
+<body>
+  <p>Test passes if the blue rectangles are both the same size as the orange one.</p>
+  <div id="test1"></div>
+  <div id="test2"></div>
+  <div></div>
+</body>
