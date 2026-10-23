@@ -858,7 +858,7 @@ void AnimationUpdateContext::publish()
         ElementData const& data;
         GC::ConservativeVector<GC::Ref<KeyframeEffect>> effects;
     };
-    Vector<Sample> samples;
+    GC::ConservativeVector<Sample> samples;
     for (auto& it : elements) {
         if (!it.value.target_style)
             continue;
@@ -900,7 +900,7 @@ void AnimationUpdateContext::publish()
         bool may_record_baseline { false };
     };
     Vector<Publication> publications;
-    Vector<CSS::StyleComputer::SampledAnimationOverlay> overlays;
+    GC::ConservativeVector<CSS::StyleComputer::SampledAnimationOverlay> overlays;
     Vector<CSS::StyleEngineFFI::FfiAnimationOverlayPublication> published;
 
     // The render owner samples every element of a document in one call, and publishes what it sampled in another,
@@ -909,7 +909,7 @@ void AnimationUpdateContext::publish()
         auto& document = samples[first].element.document();
         auto& style_computer = document.style_computer();
         Layout::ForcedReadScope read { document };
-        Vector<CSS::StyleComputer::AnimationRefreshRequest> requests;
+        GC::ConservativeVector<CSS::StyleComputer::AnimationRefreshRequest> requests;
         size_t end = first;
         for (; end < samples.size() && &samples[end].element.document() == &document; ++end) {
             auto& sample = samples[end];
