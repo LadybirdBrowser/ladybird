@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .grid {
+        display: grid;
+        width: 100px;
+        height: 100px;
+        grid-template-columns: 100px;
+    }
+    .grid > div {
+        width: 10px;
+        height: 10px;
+    }
+</style>
+<!-- The line-left side of a sideways-lr grid's inline axis is its bottom side. -->
+<div class="grid" style="writing-mode: sideways-lr;">
+    <div id="sideways-lr-left" style="justify-self: left;"></div>
+</div>
+<div class="grid" style="writing-mode: sideways-lr;">
+    <div id="sideways-lr-right" style="justify-self: right;"></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr;">
+    <div id="vertical-lr-left" style="justify-self: left;"></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr;">
+    <div id="vertical-lr-right" style="justify-self: right;"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll(".grid > div")) {
+            const rect = element.getBoundingClientRect();
+            const grid = element.parentElement.getBoundingClientRect();
+            println(`${element.id}: y=${rect.y - grid.y}`);
+        }
+    });
+</script>

@@ -1098,6 +1098,8 @@ pub(crate) struct GridFormattingContext<'pass> {
     // Set once the rows are sized, so that the columns can be resolved again with percentage heights resolved against
     // them.
     use_row_sizes_for_column_percentages: bool,
+    // Whether the grid's columns run vertically and its rows horizontally, as they do in a vertical writing mode.
+    grid_axes_are_transposed: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -1195,6 +1197,8 @@ impl<'pass> GridFormattingContext<'pass> {
             row_alignment_container_size: CssPixels::default(),
             use_row_alignment_container_size: false,
             use_row_sizes_for_column_percentages: false,
+            grid_axes_are_transposed: StyleValues::for_node(&run.callbacks, grid_container).writing_mode()
+                != writing_mode::HORIZONTAL_TB,
         }
     }
 
@@ -1260,6 +1264,30 @@ impl<'pass> GridFormattingContext<'pass> {
         ComputedValuesView::new(&self.run.callbacks.style_payloads(node).groups).grid_values()
     }
 
+    /// Picks whichever of the per-grid-axis values (as in grid-template-columns and grid-template-rows) belongs to the
+    /// given physical axis.
+    // https://drafts.csswg.org/css-grid-2/#grid-concepts
+    // NB: The grid's columns follow the grid container's inline axis and its rows its block axis. This formatting
+    //     context lays out its Column axis horizontally and its Row axis vertically, so in a vertical writing mode
+    //     the grid's columns are laid out along the Row axis and its rows along the Column axis.
+    fn select_grid_axis<T>(&self, axis: Axis, column: T, row: T) -> T {
+        if self.grid_axes_are_transposed {
+            axis.select(row, column)
+        } else {
+            axis.select(column, row)
+        }
+    }
+
+    /// Picks whichever of the per-grid-axis values of a grid item that is itself a grid container belongs to the given
+    /// physical axis, following the item's own writing mode, as select_grid_axis() does for the grid container.
+    fn select_item_grid_axis<T>(&self, item: Node, axis: Axis, column: T, row: T) -> T {
+        if self.style(item).writing_mode() != writing_mode::HORIZONTAL_TB {
+            axis.select(row, column)
+        } else {
+            axis.select(column, row)
+        }
+    }
+
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
         sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
     }
@@ -1280,7 +1308,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // a subgrid.
         // FIXME: Also reject subgrid here when the grid container is forced to
         // establish an independent formatting context.
-        let list = axis.select(grid_style.template_columns, grid_style.template_rows);
+        let list = self.select_grid_axis(axis, grid_style.template_columns, grid_style.template_rows);
         list.is_subgrid && self.parent_grid_placement().is_some()
     }
 
@@ -1300,7 +1328,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn axis_gap_value(&self, axis: Axis) -> &'pass ComputedGap {
         let style = self.style(self.run.box_);
-        axis.select(style.column_gap(), style.row_gap())
+        self.select_grid_axis(axis, style.column_gap(), style.row_gap())
     }
 
     fn parent_gap_size_for_subgrid(&self, axis: Axis) -> CssPixels {
@@ -1565,7 +1593,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn expand_axis(&self, axis: Axis, grid_style: &'pass GridValues) -> ExpandedTrackList<'pass> {
-        let list = axis.select(grid_style.template_columns, grid_style.template_rows);
+        let list = self.select_grid_axis(axis, grid_style.template_columns, grid_style.template_rows);
         let source = TrackListSource::from_grid_style(grid_style);
         if self.is_subgridded(axis, grid_style) {
             let parent_item = self.parent_grid_placement().unwrap();
@@ -1593,9 +1621,14 @@ impl<'pass> GridFormattingContext<'pass> {
             self.is_subgridded(Axis::Column, grid_style),
             self.is_subgridded(Axis::Row, grid_style),
         );
+        let (column_lines, row_lines) = if self.grid_axes_are_transposed {
+            (&mut rows.lines, &mut columns.lines)
+        } else {
+            (&mut columns.lines, &mut rows.lines)
+        };
         add_template_area_lines(
-            &mut columns.lines,
-            &mut rows.lines,
+            column_lines,
+            row_lines,
             grid_style.areas.as_slice(),
             grid_style.names.raws(),
         );
@@ -1683,27 +1716,47 @@ impl<'pass> GridFormattingContext<'pass> {
                         .set_node_flag(child, NodeFlag::IsGridItem, true);
                     let child_grid_style = self.grid_style(child);
                     let source = TrackListSource::from_grid_style(child_grid_style);
-                    let column_subgrid_span = child_grid_style
-                        .template_columns
+                    let child_columns = self.select_item_grid_axis(
+                        child,
+                        Axis::Column,
+                        child_grid_style.template_columns,
+                        child_grid_style.template_rows,
+                    );
+                    let child_rows = self.select_item_grid_axis(
+                        child,
+                        Axis::Row,
+                        child_grid_style.template_columns,
+                        child_grid_style.template_rows,
+                    );
+                    let column_subgrid_span = child_columns
                         .is_subgrid
-                        .then(|| automatic_subgrid_span(source, child_grid_style.template_columns));
-                    let row_subgrid_span = child_grid_style
-                        .template_rows
+                        .then(|| automatic_subgrid_span(source, child_columns));
+                    let row_subgrid_span = child_rows
                         .is_subgrid
-                        .then(|| automatic_subgrid_span(source, child_grid_style.template_rows));
+                        .then(|| automatic_subgrid_span(source, child_rows));
+                    let (row_start, row_end) = self.select_grid_axis(
+                        Axis::Row,
+                        (child_grid_style.column_start, child_grid_style.column_end),
+                        (child_grid_style.row_start, child_grid_style.row_end),
+                    );
+                    let (column_start, column_end) = self.select_grid_axis(
+                        Axis::Column,
+                        (child_grid_style.column_start, child_grid_style.column_end),
+                        (child_grid_style.row_start, child_grid_style.row_end),
+                    );
                     inputs.push(PlacementInput {
                         id: nodes.len(),
                         order: self.style(child).order(),
                         row: self.axis_placements(
-                            child_grid_style.row_start,
-                            child_grid_style.row_end,
+                            row_start,
+                            row_end,
                             Axis::Row,
                             row_subgrid_span,
                             child_grid_style.names.raws(),
                         ),
                         column: self.axis_placements(
-                            child_grid_style.column_start,
-                            child_grid_style.column_end,
+                            column_start,
+                            column_end,
                             Axis::Column,
                             column_subgrid_span,
                             child_grid_style.names.raws(),
@@ -1724,7 +1777,7 @@ impl<'pass> GridFormattingContext<'pass> {
             &inputs,
             self.column_lines.len().saturating_sub(1),
             self.row_lines.len().saturating_sub(1),
-            if style.grid_auto_flow_row() {
+            if style.grid_auto_flow_row() != self.grid_axes_are_transposed {
                 AutoFlowAxis::Row
             } else {
                 AutoFlowAxis::Column
@@ -1763,7 +1816,16 @@ impl<'pass> GridFormattingContext<'pass> {
             let box_ = nodes[placed.id];
             let is_column_only_subgrid = self.facts(box_).display().is_grid_inside() && {
                 let grid_style = self.grid_style(box_);
-                grid_style.template_columns.is_subgrid && !grid_style.template_rows.is_subgrid
+                self.select_item_grid_axis(
+                    box_,
+                    Axis::Column,
+                    grid_style.template_columns,
+                    grid_style.template_rows,
+                )
+                .is_subgrid
+                    && !self
+                        .select_item_grid_axis(box_, Axis::Row, grid_style.template_columns, grid_style.template_rows)
+                        .is_subgrid
             };
             self.items.push(GridItem {
                 box_,
@@ -1789,7 +1851,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn expanded_auto_tracks(&self, grid_style: &'pass GridValues, axis: Axis) -> Vec<TrackDefinition<'pass>> {
-        let list = axis.select(grid_style.auto_columns, grid_style.auto_rows);
+        let list = self.select_grid_axis(axis, grid_style.auto_columns, grid_style.auto_rows);
         expand_standalone(TrackListSource::from_grid_style(grid_style), list, |_index, _entry| 1).tracks
     }
 
@@ -1968,7 +2030,8 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn content_alignment(&self, axis: Axis) -> Alignment {
         let style = self.style(self.run.box_);
-        let alignment = axis.select(
+        let alignment = self.select_grid_axis(
+            axis,
             inline_content_alignment(style.justify_content()),
             block_content_alignment(style.align_content()),
         );
@@ -2753,7 +2816,9 @@ impl<'pass> GridFormattingContext<'pass> {
             return false;
         }
         let grid_style = self.grid_style(item.box_);
-        axis.select(
+        self.select_item_grid_axis(
+            item.box_,
+            axis,
             grid_style.template_columns.is_subgrid,
             grid_style.template_rows.is_subgrid,
         )
@@ -3057,7 +3122,8 @@ impl<'pass> GridFormattingContext<'pass> {
         let mut tracks = self.interleaved_tracks(axis);
         let mut contributions = self.item_contributions_to_track_sizing(axis);
         let style = self.style(self.run.box_);
-        let distribution_stretches = axis.select(
+        let distribution_stretches = self.select_grid_axis(
+            axis,
             matches!(
                 style.justify_content(),
                 justify_content::NORMAL | justify_content::STRETCH
@@ -3115,7 +3181,8 @@ impl<'pass> GridFormattingContext<'pass> {
     fn item_alignment_for_node(&self, node: Node, axis: Axis) -> Alignment {
         let item_style = self.style(node);
         let container_style = self.style(self.run.box_);
-        let alignment = axis.select(
+        let alignment = self.select_grid_axis(
+            axis,
             inline_item_alignment(item_style.justify_self(), container_style.justify_items()),
             block_item_alignment(item_style.align_self(), container_style.align_items()),
         );
@@ -3161,7 +3228,12 @@ impl<'pass> GridFormattingContext<'pass> {
     // right: Aligns the alignment subject to be flush with the alignment container’s line-right or physical right
     // edge, whichever is in the appropriate axis.
     fn resolve_left_or_right(&self, axis: Axis, alignment: Alignment) -> Alignment {
-        if self.axis_start_is_left_or_top(axis) == (alignment == Alignment::Left) {
+        // NB: The Row axis of a grid container in a vertical writing mode is its inline axis, whose line-left side is
+        //     the top, except in sideways-lr, where it is the bottom.
+        let line_left_is_left_or_top =
+            axis.is_column() || self.style(self.run.box_).writing_mode() != writing_mode::SIDEWAYS_LR;
+        let aligns_to_left_or_top = (alignment == Alignment::Left) == line_left_is_left_or_top;
+        if self.axis_start_is_left_or_top(axis) == aligns_to_left_or_top {
             Alignment::Start
         } else {
             Alignment::End
@@ -3170,17 +3242,16 @@ impl<'pass> GridFormattingContext<'pass> {
 
     /// Whether the grid container's start side in the given axis is its left (columns) or top (rows) side.
     fn axis_start_is_left_or_top(&self, axis: Axis) -> bool {
-        // FIXME: Lay out the tracks from the start side given by the grid container's writing mode in vertical writing
-        //        modes too. Until then, the rows run from top to bottom, and only a horizontal grid's direction can
-        //        reverse its columns.
+        // FIXME: Lay out the vertical axis from the bottom when the grid container's writing mode and direction put
+        //        its start side there. Until then, that axis always runs from top to bottom.
         !(axis.is_column() && self.columns_run_right_to_left())
     }
 
-    /// Whether the grid's columns run from right to left, as they do in a horizontal grid container with an rtl
-    /// direction.
+    /// Whether the Column axis runs from right to left, as the inline axis of a horizontal grid container with an rtl
+    /// direction and the block axis of a vertical-rl grid container do.
     fn columns_run_right_to_left(&self) -> bool {
         let style = self.style(self.run.box_);
-        style.writing_mode() == writing_mode::HORIZONTAL_TB && style.direction() == direction::RTL
+        !geometry::start_is_left_or_top(style.writing_mode(), style.direction(), true)
     }
 
     /// Whether the column tracks start at the right side. The grid is laid out from the side its column tracks start
@@ -3825,7 +3896,7 @@ impl<'pass> GridFormattingContext<'pass> {
                         && !facts.is_replaced_box()
                         && !facts.uses_button_layout()
                         && !(self.style(item.box_).display().is_grid_inside()
-                            && self.grid_style(item.box_).template_rows.is_subgrid)
+                            && self.grid_item_is_subgridded(item, Axis::Row))
                 };
                 let used = self.used(item);
                 used.has_definite_inline_size.set(true);
@@ -3971,9 +4042,13 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.track_sum(axis),
             )
         };
+        let column_axis = self.select_grid_axis(Axis::Column, Axis::Column, Axis::Row);
         let tracks = OwnedUsedGridTracks {
-            columns: self.used_track_list_data(Axis::Column, self.is_subgridded(Axis::Column, grid_style)),
-            rows: self.used_track_list_data(Axis::Row, self.is_subgridded(Axis::Row, grid_style)),
+            columns: self.used_track_list_data(column_axis, self.is_subgridded(column_axis, grid_style)),
+            rows: self.used_track_list_data(
+                column_axis.opposite(),
+                self.is_subgridded(column_axis.opposite(), grid_style),
+            ),
             grid_area: CssPixelRect::new(
                 self.physical_column_offset(start(Axis::Column), self.track_sum(Axis::Column)),
                 start(Axis::Row),
@@ -4062,8 +4137,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 tracks: serialized_tracks,
             }
         };
-        let columns = serialize(Axis::Column);
-        let rows = serialize(Axis::Row);
+        let column_axis = self.select_grid_axis(Axis::Column, Axis::Column, Axis::Row);
+        let columns = serialize(column_axis);
+        let rows = serialize(column_axis.opposite());
         let name_raws = grid_style.names.raws();
         let areas = grid_style
             .areas
@@ -4243,10 +4319,13 @@ impl<'pass> GridFormattingContext<'pass> {
     pub(crate) fn abspos_containing_block_info(&self, node: Node) -> abspos_inputs::AbsposContainingBlockInfo {
         let grid_style = self.grid_style(node);
         let name_raws = grid_style.names.raws();
-        let (block_offset, block_size) =
-            self.absolute_axis_grid_area(Axis::Row, grid_style.row_start, grid_style.row_end, name_raws);
+        let columns = (grid_style.column_start, grid_style.column_end);
+        let rows = (grid_style.row_start, grid_style.row_end);
+        let (row_start, row_end) = self.select_grid_axis(Axis::Row, columns, rows);
+        let (column_start, column_end) = self.select_grid_axis(Axis::Column, columns, rows);
+        let (block_offset, block_size) = self.absolute_axis_grid_area(Axis::Row, row_start, row_end, name_raws);
         let (inline_offset, inline_size) =
-            self.absolute_axis_grid_area(Axis::Column, grid_style.column_start, grid_style.column_end, name_raws);
+            self.absolute_axis_grid_area(Axis::Column, column_start, column_end, name_raws);
         abspos_inputs::AbsposContainingBlockInfo {
             rect: geometry::LogicalRect {
                 offset: geometry::LogicalOffset {
