@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'clip-path' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('clip-path', [
+  { syntax: 'none' },
+  { syntax: 'fill-box' },
+  { syntax: 'stroke-box' },
+  { syntax: 'view-box' },
+  { syntax: 'margin-box' },
+  { syntax: 'border-box' },
+  { syntax: 'padding-box' },
+  { syntax: 'content-box' },
+  { syntax: '<url>' },
+]);
+
+runUnsupportedPropertyTests('clip', [
+  'inset(22% 12% 15px 35px)',
+]);
+
+</script>

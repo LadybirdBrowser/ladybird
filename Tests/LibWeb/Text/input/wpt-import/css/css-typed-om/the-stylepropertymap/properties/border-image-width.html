@@ -1,0 +1,44 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'border-image-width' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('border-image-width', [
+  // Computed value is always four values, which are not supported in
+  // Typed OM level 1.
+  {
+    syntax: '<length>',
+    specified: assert_is_equal_with_range_handling,
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+  {
+    syntax: '<percentage>',
+    specified: assert_is_equal_with_range_handling,
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+  {
+    syntax: '<number>',
+    specified: assert_is_equal_with_range_handling,
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+  {
+    syntax: 'auto',
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+]);
+
+runUnsupportedPropertyTests('border-image-width', [
+  '2em 3em', '5% 15% 10%', '5% 2em 10% auto'
+]);
+
+</script>

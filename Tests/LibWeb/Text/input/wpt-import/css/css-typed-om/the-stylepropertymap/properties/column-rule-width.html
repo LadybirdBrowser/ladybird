@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'column-rule-width' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('column-rule-width', [
+  {
+    syntax: 'thin',
+    computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+  },
+  {
+    syntax: 'medium',
+    computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+  },
+  {
+    syntax: 'thick',
+    computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+  },
+  {
+    syntax: '<length>',
+    specified: assert_is_equal_with_range_handling,
+    computed: (_, result) => assert_class_string(result, 'CSSStyleValue')
+  },
+]);
+
+runUnsupportedPropertyTests('column-rule-width', [
+  'thin', 'medium', 'thick', '2px', '3px',
+  '4px, 5px', 'thin, medium, thick',
+]);
+
+</script>

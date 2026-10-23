@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'border-image-outset' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('border-image-outset', [
+  // Computed value is always four values, which are not supported in
+  // Typed OM level 1.
+  {
+    syntax: '<length>',
+    specified: assert_is_equal_with_range_handling,
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+  {
+    syntax: '<number>',
+    specified: assert_is_equal_with_range_handling,
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+]);
+
+runUnsupportedPropertyTests('border-image-outset', [
+  '1 1.2', '30px 2 45px', '7px 12px 14px 5px'
+]);
+
+</script>

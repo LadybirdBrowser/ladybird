@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'border-image-repeat' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('border-image-repeat', [
+  // Computed value is always a pair of values, which are not supported in
+  // Typed OM level 1.
+  {
+    syntax: 'stretch',
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+  {
+    syntax: 'repeat',
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+  {
+    syntax: 'round',
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+  {
+    syntax: 'space',
+    computed: (_, result) => assert_is_unsupported(result)
+  },
+]);
+
+runUnsupportedPropertyTests('border-image-repeat', [
+  'stretch repeat', 'round space'
+]);
+
+</script>

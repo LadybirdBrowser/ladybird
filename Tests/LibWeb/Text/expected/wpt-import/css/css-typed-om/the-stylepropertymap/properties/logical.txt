@@ -1,0 +1,1474 @@
+Harness status: OK
+
+Found 1468 tests
+
+1276 Pass
+192 Fail
+Pass	Can set 'margin-block-start' to CSS-wide keywords: initial
+Pass	Can set 'margin-block-start' to CSS-wide keywords: inherit
+Pass	Can set 'margin-block-start' to CSS-wide keywords: unset
+Pass	Can set 'margin-block-start' to CSS-wide keywords: revert
+Pass	Can set 'margin-block-start' to var() references:  var(--A)
+Pass	Can set 'margin-block-start' to a percent: 0%
+Pass	Can set 'margin-block-start' to a percent: -3.14%
+Pass	Can set 'margin-block-start' to a percent: 3.14%
+Fail	Can set 'margin-block-start' to a percent: calc(0% + 0%)
+Pass	Can set 'margin-block-start' to a length: 0px
+Pass	Can set 'margin-block-start' to a length: -3.14em
+Pass	Can set 'margin-block-start' to a length: 3.14cm
+Pass	Can set 'margin-block-start' to a length: calc(0px + 0em)
+Pass	Setting 'margin-block-start' to a time: 0s throws TypeError
+Pass	Setting 'margin-block-start' to a time: -3.14ms throws TypeError
+Pass	Setting 'margin-block-start' to a time: 3.14s throws TypeError
+Pass	Setting 'margin-block-start' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'margin-block-start' to an angle: 0deg throws TypeError
+Pass	Setting 'margin-block-start' to an angle: 3.14rad throws TypeError
+Pass	Setting 'margin-block-start' to an angle: -3.14deg throws TypeError
+Pass	Setting 'margin-block-start' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'margin-block-start' to a flexible length: 0fr throws TypeError
+Pass	Setting 'margin-block-start' to a flexible length: 1fr throws TypeError
+Pass	Setting 'margin-block-start' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'margin-block-start' to a number: 0 throws TypeError
+Pass	Setting 'margin-block-start' to a number: -3.14 throws TypeError
+Pass	Setting 'margin-block-start' to a number: 3.14 throws TypeError
+Pass	Setting 'margin-block-start' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'margin-block-start' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'margin-block-start' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'margin-block-start' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'margin-block-end' to CSS-wide keywords: initial
+Pass	Can set 'margin-block-end' to CSS-wide keywords: inherit
+Pass	Can set 'margin-block-end' to CSS-wide keywords: unset
+Pass	Can set 'margin-block-end' to CSS-wide keywords: revert
+Pass	Can set 'margin-block-end' to var() references:  var(--A)
+Pass	Can set 'margin-block-end' to a percent: 0%
+Pass	Can set 'margin-block-end' to a percent: -3.14%
+Pass	Can set 'margin-block-end' to a percent: 3.14%
+Fail	Can set 'margin-block-end' to a percent: calc(0% + 0%)
+Pass	Can set 'margin-block-end' to a length: 0px
+Pass	Can set 'margin-block-end' to a length: -3.14em
+Pass	Can set 'margin-block-end' to a length: 3.14cm
+Pass	Can set 'margin-block-end' to a length: calc(0px + 0em)
+Pass	Setting 'margin-block-end' to a time: 0s throws TypeError
+Pass	Setting 'margin-block-end' to a time: -3.14ms throws TypeError
+Pass	Setting 'margin-block-end' to a time: 3.14s throws TypeError
+Pass	Setting 'margin-block-end' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'margin-block-end' to an angle: 0deg throws TypeError
+Pass	Setting 'margin-block-end' to an angle: 3.14rad throws TypeError
+Pass	Setting 'margin-block-end' to an angle: -3.14deg throws TypeError
+Pass	Setting 'margin-block-end' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'margin-block-end' to a flexible length: 0fr throws TypeError
+Pass	Setting 'margin-block-end' to a flexible length: 1fr throws TypeError
+Pass	Setting 'margin-block-end' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'margin-block-end' to a number: 0 throws TypeError
+Pass	Setting 'margin-block-end' to a number: -3.14 throws TypeError
+Pass	Setting 'margin-block-end' to a number: 3.14 throws TypeError
+Pass	Setting 'margin-block-end' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'margin-block-end' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'margin-block-end' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'margin-block-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'margin-inline-start' to CSS-wide keywords: initial
+Pass	Can set 'margin-inline-start' to CSS-wide keywords: inherit
+Pass	Can set 'margin-inline-start' to CSS-wide keywords: unset
+Pass	Can set 'margin-inline-start' to CSS-wide keywords: revert
+Pass	Can set 'margin-inline-start' to var() references:  var(--A)
+Pass	Can set 'margin-inline-start' to a percent: 0%
+Pass	Can set 'margin-inline-start' to a percent: -3.14%
+Pass	Can set 'margin-inline-start' to a percent: 3.14%
+Fail	Can set 'margin-inline-start' to a percent: calc(0% + 0%)
+Pass	Can set 'margin-inline-start' to a length: 0px
+Pass	Can set 'margin-inline-start' to a length: -3.14em
+Pass	Can set 'margin-inline-start' to a length: 3.14cm
+Pass	Can set 'margin-inline-start' to a length: calc(0px + 0em)
+Pass	Setting 'margin-inline-start' to a time: 0s throws TypeError
+Pass	Setting 'margin-inline-start' to a time: -3.14ms throws TypeError
+Pass	Setting 'margin-inline-start' to a time: 3.14s throws TypeError
+Pass	Setting 'margin-inline-start' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'margin-inline-start' to an angle: 0deg throws TypeError
+Pass	Setting 'margin-inline-start' to an angle: 3.14rad throws TypeError
+Pass	Setting 'margin-inline-start' to an angle: -3.14deg throws TypeError
+Pass	Setting 'margin-inline-start' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'margin-inline-start' to a flexible length: 0fr throws TypeError
+Pass	Setting 'margin-inline-start' to a flexible length: 1fr throws TypeError
+Pass	Setting 'margin-inline-start' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'margin-inline-start' to a number: 0 throws TypeError
+Pass	Setting 'margin-inline-start' to a number: -3.14 throws TypeError
+Pass	Setting 'margin-inline-start' to a number: 3.14 throws TypeError
+Pass	Setting 'margin-inline-start' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'margin-inline-start' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'margin-inline-start' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'margin-inline-start' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'margin-inline-end' to CSS-wide keywords: initial
+Pass	Can set 'margin-inline-end' to CSS-wide keywords: inherit
+Pass	Can set 'margin-inline-end' to CSS-wide keywords: unset
+Pass	Can set 'margin-inline-end' to CSS-wide keywords: revert
+Pass	Can set 'margin-inline-end' to var() references:  var(--A)
+Pass	Can set 'margin-inline-end' to a percent: 0%
+Pass	Can set 'margin-inline-end' to a percent: -3.14%
+Pass	Can set 'margin-inline-end' to a percent: 3.14%
+Fail	Can set 'margin-inline-end' to a percent: calc(0% + 0%)
+Pass	Can set 'margin-inline-end' to a length: 0px
+Pass	Can set 'margin-inline-end' to a length: -3.14em
+Pass	Can set 'margin-inline-end' to a length: 3.14cm
+Pass	Can set 'margin-inline-end' to a length: calc(0px + 0em)
+Pass	Setting 'margin-inline-end' to a time: 0s throws TypeError
+Pass	Setting 'margin-inline-end' to a time: -3.14ms throws TypeError
+Pass	Setting 'margin-inline-end' to a time: 3.14s throws TypeError
+Pass	Setting 'margin-inline-end' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'margin-inline-end' to an angle: 0deg throws TypeError
+Pass	Setting 'margin-inline-end' to an angle: 3.14rad throws TypeError
+Pass	Setting 'margin-inline-end' to an angle: -3.14deg throws TypeError
+Pass	Setting 'margin-inline-end' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'margin-inline-end' to a flexible length: 0fr throws TypeError
+Pass	Setting 'margin-inline-end' to a flexible length: 1fr throws TypeError
+Pass	Setting 'margin-inline-end' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'margin-inline-end' to a number: 0 throws TypeError
+Pass	Setting 'margin-inline-end' to a number: -3.14 throws TypeError
+Pass	Setting 'margin-inline-end' to a number: 3.14 throws TypeError
+Pass	Setting 'margin-inline-end' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'margin-inline-end' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'margin-inline-end' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'margin-inline-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'margin-block' to CSS-wide keywords: initial
+Fail	Can set 'margin-block' to CSS-wide keywords: inherit
+Fail	Can set 'margin-block' to CSS-wide keywords: unset
+Fail	Can set 'margin-block' to CSS-wide keywords: revert
+Fail	Can set 'margin-block' to var() references:  var(--A)
+Fail	Can set 'margin-block' to a percent: 0%
+Fail	Can set 'margin-block' to a percent: -3.14%
+Fail	Can set 'margin-block' to a percent: 3.14%
+Fail	Can set 'margin-block' to a percent: calc(0% + 0%)
+Fail	Can set 'margin-block' to a length: 0px
+Fail	Can set 'margin-block' to a length: -3.14em
+Fail	Can set 'margin-block' to a length: 3.14cm
+Fail	Can set 'margin-block' to a length: calc(0px + 0em)
+Pass	Setting 'margin-block' to a time: 0s throws TypeError
+Pass	Setting 'margin-block' to a time: -3.14ms throws TypeError
+Pass	Setting 'margin-block' to a time: 3.14s throws TypeError
+Pass	Setting 'margin-block' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'margin-block' to an angle: 0deg throws TypeError
+Pass	Setting 'margin-block' to an angle: 3.14rad throws TypeError
+Pass	Setting 'margin-block' to an angle: -3.14deg throws TypeError
+Pass	Setting 'margin-block' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'margin-block' to a flexible length: 0fr throws TypeError
+Pass	Setting 'margin-block' to a flexible length: 1fr throws TypeError
+Pass	Setting 'margin-block' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'margin-block' to a number: 0 throws TypeError
+Pass	Setting 'margin-block' to a number: -3.14 throws TypeError
+Pass	Setting 'margin-block' to a number: 3.14 throws TypeError
+Pass	Setting 'margin-block' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'margin-block' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'margin-block' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'margin-block' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'margin-inline' to CSS-wide keywords: initial
+Fail	Can set 'margin-inline' to CSS-wide keywords: inherit
+Fail	Can set 'margin-inline' to CSS-wide keywords: unset
+Fail	Can set 'margin-inline' to CSS-wide keywords: revert
+Fail	Can set 'margin-inline' to var() references:  var(--A)
+Fail	Can set 'margin-inline' to a percent: 0%
+Fail	Can set 'margin-inline' to a percent: -3.14%
+Fail	Can set 'margin-inline' to a percent: 3.14%
+Fail	Can set 'margin-inline' to a percent: calc(0% + 0%)
+Fail	Can set 'margin-inline' to a length: 0px
+Fail	Can set 'margin-inline' to a length: -3.14em
+Fail	Can set 'margin-inline' to a length: 3.14cm
+Fail	Can set 'margin-inline' to a length: calc(0px + 0em)
+Pass	Setting 'margin-inline' to a time: 0s throws TypeError
+Pass	Setting 'margin-inline' to a time: -3.14ms throws TypeError
+Pass	Setting 'margin-inline' to a time: 3.14s throws TypeError
+Pass	Setting 'margin-inline' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'margin-inline' to an angle: 0deg throws TypeError
+Pass	Setting 'margin-inline' to an angle: 3.14rad throws TypeError
+Pass	Setting 'margin-inline' to an angle: -3.14deg throws TypeError
+Pass	Setting 'margin-inline' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'margin-inline' to a flexible length: 0fr throws TypeError
+Pass	Setting 'margin-inline' to a flexible length: 1fr throws TypeError
+Pass	Setting 'margin-inline' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'margin-inline' to a number: 0 throws TypeError
+Pass	Setting 'margin-inline' to a number: -3.14 throws TypeError
+Pass	Setting 'margin-inline' to a number: 3.14 throws TypeError
+Pass	Setting 'margin-inline' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'margin-inline' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'margin-inline' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'margin-inline' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'padding-block-start' to CSS-wide keywords: initial
+Pass	Can set 'padding-block-start' to CSS-wide keywords: inherit
+Pass	Can set 'padding-block-start' to CSS-wide keywords: unset
+Pass	Can set 'padding-block-start' to CSS-wide keywords: revert
+Pass	Can set 'padding-block-start' to var() references:  var(--A)
+Pass	Can set 'padding-block-start' to a percent: 0%
+Fail	Can set 'padding-block-start' to a percent: -3.14%
+Pass	Can set 'padding-block-start' to a percent: 3.14%
+Fail	Can set 'padding-block-start' to a percent: calc(0% + 0%)
+Pass	Can set 'padding-block-start' to a length: 0px
+Pass	Can set 'padding-block-start' to a length: -3.14em
+Pass	Can set 'padding-block-start' to a length: 3.14cm
+Pass	Can set 'padding-block-start' to a length: calc(0px + 0em)
+Pass	Setting 'padding-block-start' to a time: 0s throws TypeError
+Pass	Setting 'padding-block-start' to a time: -3.14ms throws TypeError
+Pass	Setting 'padding-block-start' to a time: 3.14s throws TypeError
+Pass	Setting 'padding-block-start' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'padding-block-start' to an angle: 0deg throws TypeError
+Pass	Setting 'padding-block-start' to an angle: 3.14rad throws TypeError
+Pass	Setting 'padding-block-start' to an angle: -3.14deg throws TypeError
+Pass	Setting 'padding-block-start' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'padding-block-start' to a flexible length: 0fr throws TypeError
+Pass	Setting 'padding-block-start' to a flexible length: 1fr throws TypeError
+Pass	Setting 'padding-block-start' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'padding-block-start' to a number: 0 throws TypeError
+Pass	Setting 'padding-block-start' to a number: -3.14 throws TypeError
+Pass	Setting 'padding-block-start' to a number: 3.14 throws TypeError
+Pass	Setting 'padding-block-start' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'padding-block-start' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'padding-block-start' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'padding-block-start' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'padding-block-end' to CSS-wide keywords: initial
+Pass	Can set 'padding-block-end' to CSS-wide keywords: inherit
+Pass	Can set 'padding-block-end' to CSS-wide keywords: unset
+Pass	Can set 'padding-block-end' to CSS-wide keywords: revert
+Pass	Can set 'padding-block-end' to var() references:  var(--A)
+Pass	Can set 'padding-block-end' to a percent: 0%
+Fail	Can set 'padding-block-end' to a percent: -3.14%
+Pass	Can set 'padding-block-end' to a percent: 3.14%
+Fail	Can set 'padding-block-end' to a percent: calc(0% + 0%)
+Pass	Can set 'padding-block-end' to a length: 0px
+Pass	Can set 'padding-block-end' to a length: -3.14em
+Pass	Can set 'padding-block-end' to a length: 3.14cm
+Pass	Can set 'padding-block-end' to a length: calc(0px + 0em)
+Pass	Setting 'padding-block-end' to a time: 0s throws TypeError
+Pass	Setting 'padding-block-end' to a time: -3.14ms throws TypeError
+Pass	Setting 'padding-block-end' to a time: 3.14s throws TypeError
+Pass	Setting 'padding-block-end' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'padding-block-end' to an angle: 0deg throws TypeError
+Pass	Setting 'padding-block-end' to an angle: 3.14rad throws TypeError
+Pass	Setting 'padding-block-end' to an angle: -3.14deg throws TypeError
+Pass	Setting 'padding-block-end' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'padding-block-end' to a flexible length: 0fr throws TypeError
+Pass	Setting 'padding-block-end' to a flexible length: 1fr throws TypeError
+Pass	Setting 'padding-block-end' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'padding-block-end' to a number: 0 throws TypeError
+Pass	Setting 'padding-block-end' to a number: -3.14 throws TypeError
+Pass	Setting 'padding-block-end' to a number: 3.14 throws TypeError
+Pass	Setting 'padding-block-end' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'padding-block-end' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'padding-block-end' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'padding-block-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'padding-inline-start' to CSS-wide keywords: initial
+Pass	Can set 'padding-inline-start' to CSS-wide keywords: inherit
+Pass	Can set 'padding-inline-start' to CSS-wide keywords: unset
+Pass	Can set 'padding-inline-start' to CSS-wide keywords: revert
+Pass	Can set 'padding-inline-start' to var() references:  var(--A)
+Pass	Can set 'padding-inline-start' to a percent: 0%
+Fail	Can set 'padding-inline-start' to a percent: -3.14%
+Pass	Can set 'padding-inline-start' to a percent: 3.14%
+Fail	Can set 'padding-inline-start' to a percent: calc(0% + 0%)
+Pass	Can set 'padding-inline-start' to a length: 0px
+Pass	Can set 'padding-inline-start' to a length: -3.14em
+Pass	Can set 'padding-inline-start' to a length: 3.14cm
+Pass	Can set 'padding-inline-start' to a length: calc(0px + 0em)
+Pass	Setting 'padding-inline-start' to a time: 0s throws TypeError
+Pass	Setting 'padding-inline-start' to a time: -3.14ms throws TypeError
+Pass	Setting 'padding-inline-start' to a time: 3.14s throws TypeError
+Pass	Setting 'padding-inline-start' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'padding-inline-start' to an angle: 0deg throws TypeError
+Pass	Setting 'padding-inline-start' to an angle: 3.14rad throws TypeError
+Pass	Setting 'padding-inline-start' to an angle: -3.14deg throws TypeError
+Pass	Setting 'padding-inline-start' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'padding-inline-start' to a flexible length: 0fr throws TypeError
+Pass	Setting 'padding-inline-start' to a flexible length: 1fr throws TypeError
+Pass	Setting 'padding-inline-start' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'padding-inline-start' to a number: 0 throws TypeError
+Pass	Setting 'padding-inline-start' to a number: -3.14 throws TypeError
+Pass	Setting 'padding-inline-start' to a number: 3.14 throws TypeError
+Pass	Setting 'padding-inline-start' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'padding-inline-start' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'padding-inline-start' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'padding-inline-start' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'padding-inline-end' to CSS-wide keywords: initial
+Pass	Can set 'padding-inline-end' to CSS-wide keywords: inherit
+Pass	Can set 'padding-inline-end' to CSS-wide keywords: unset
+Pass	Can set 'padding-inline-end' to CSS-wide keywords: revert
+Pass	Can set 'padding-inline-end' to var() references:  var(--A)
+Pass	Can set 'padding-inline-end' to a percent: 0%
+Fail	Can set 'padding-inline-end' to a percent: -3.14%
+Pass	Can set 'padding-inline-end' to a percent: 3.14%
+Fail	Can set 'padding-inline-end' to a percent: calc(0% + 0%)
+Pass	Can set 'padding-inline-end' to a length: 0px
+Pass	Can set 'padding-inline-end' to a length: -3.14em
+Pass	Can set 'padding-inline-end' to a length: 3.14cm
+Pass	Can set 'padding-inline-end' to a length: calc(0px + 0em)
+Pass	Setting 'padding-inline-end' to a time: 0s throws TypeError
+Pass	Setting 'padding-inline-end' to a time: -3.14ms throws TypeError
+Pass	Setting 'padding-inline-end' to a time: 3.14s throws TypeError
+Pass	Setting 'padding-inline-end' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'padding-inline-end' to an angle: 0deg throws TypeError
+Pass	Setting 'padding-inline-end' to an angle: 3.14rad throws TypeError
+Pass	Setting 'padding-inline-end' to an angle: -3.14deg throws TypeError
+Pass	Setting 'padding-inline-end' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'padding-inline-end' to a flexible length: 0fr throws TypeError
+Pass	Setting 'padding-inline-end' to a flexible length: 1fr throws TypeError
+Pass	Setting 'padding-inline-end' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'padding-inline-end' to a number: 0 throws TypeError
+Pass	Setting 'padding-inline-end' to a number: -3.14 throws TypeError
+Pass	Setting 'padding-inline-end' to a number: 3.14 throws TypeError
+Pass	Setting 'padding-inline-end' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'padding-inline-end' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'padding-inline-end' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'padding-inline-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'padding-block' to CSS-wide keywords: initial
+Fail	Can set 'padding-block' to CSS-wide keywords: inherit
+Fail	Can set 'padding-block' to CSS-wide keywords: unset
+Fail	Can set 'padding-block' to CSS-wide keywords: revert
+Fail	Can set 'padding-block' to var() references:  var(--A)
+Fail	Can set 'padding-block' to a percent: 0%
+Fail	Can set 'padding-block' to a percent: -3.14%
+Fail	Can set 'padding-block' to a percent: 3.14%
+Fail	Can set 'padding-block' to a percent: calc(0% + 0%)
+Fail	Can set 'padding-block' to a length: 0px
+Fail	Can set 'padding-block' to a length: -3.14em
+Fail	Can set 'padding-block' to a length: 3.14cm
+Fail	Can set 'padding-block' to a length: calc(0px + 0em)
+Pass	Setting 'padding-block' to a time: 0s throws TypeError
+Pass	Setting 'padding-block' to a time: -3.14ms throws TypeError
+Pass	Setting 'padding-block' to a time: 3.14s throws TypeError
+Pass	Setting 'padding-block' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'padding-block' to an angle: 0deg throws TypeError
+Pass	Setting 'padding-block' to an angle: 3.14rad throws TypeError
+Pass	Setting 'padding-block' to an angle: -3.14deg throws TypeError
+Pass	Setting 'padding-block' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'padding-block' to a flexible length: 0fr throws TypeError
+Pass	Setting 'padding-block' to a flexible length: 1fr throws TypeError
+Pass	Setting 'padding-block' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'padding-block' to a number: 0 throws TypeError
+Pass	Setting 'padding-block' to a number: -3.14 throws TypeError
+Pass	Setting 'padding-block' to a number: 3.14 throws TypeError
+Pass	Setting 'padding-block' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'padding-block' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'padding-block' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'padding-block' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'padding-inline' to CSS-wide keywords: initial
+Fail	Can set 'padding-inline' to CSS-wide keywords: inherit
+Fail	Can set 'padding-inline' to CSS-wide keywords: unset
+Fail	Can set 'padding-inline' to CSS-wide keywords: revert
+Fail	Can set 'padding-inline' to var() references:  var(--A)
+Fail	Can set 'padding-inline' to a percent: 0%
+Fail	Can set 'padding-inline' to a percent: -3.14%
+Fail	Can set 'padding-inline' to a percent: 3.14%
+Fail	Can set 'padding-inline' to a percent: calc(0% + 0%)
+Fail	Can set 'padding-inline' to a length: 0px
+Fail	Can set 'padding-inline' to a length: -3.14em
+Fail	Can set 'padding-inline' to a length: 3.14cm
+Fail	Can set 'padding-inline' to a length: calc(0px + 0em)
+Pass	Setting 'padding-inline' to a time: 0s throws TypeError
+Pass	Setting 'padding-inline' to a time: -3.14ms throws TypeError
+Pass	Setting 'padding-inline' to a time: 3.14s throws TypeError
+Pass	Setting 'padding-inline' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'padding-inline' to an angle: 0deg throws TypeError
+Pass	Setting 'padding-inline' to an angle: 3.14rad throws TypeError
+Pass	Setting 'padding-inline' to an angle: -3.14deg throws TypeError
+Pass	Setting 'padding-inline' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'padding-inline' to a flexible length: 0fr throws TypeError
+Pass	Setting 'padding-inline' to a flexible length: 1fr throws TypeError
+Pass	Setting 'padding-inline' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'padding-inline' to a number: 0 throws TypeError
+Pass	Setting 'padding-inline' to a number: -3.14 throws TypeError
+Pass	Setting 'padding-inline' to a number: 3.14 throws TypeError
+Pass	Setting 'padding-inline' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'padding-inline' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'padding-inline' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'padding-inline' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'inset-block-start' to CSS-wide keywords: initial
+Pass	Can set 'inset-block-start' to CSS-wide keywords: inherit
+Pass	Can set 'inset-block-start' to CSS-wide keywords: unset
+Pass	Can set 'inset-block-start' to CSS-wide keywords: revert
+Pass	Can set 'inset-block-start' to var() references:  var(--A)
+Pass	Can set 'inset-block-start' to a percent: 0%
+Pass	Can set 'inset-block-start' to a percent: -3.14%
+Pass	Can set 'inset-block-start' to a percent: 3.14%
+Fail	Can set 'inset-block-start' to a percent: calc(0% + 0%)
+Pass	Can set 'inset-block-start' to a length: 0px
+Pass	Can set 'inset-block-start' to a length: -3.14em
+Pass	Can set 'inset-block-start' to a length: 3.14cm
+Pass	Can set 'inset-block-start' to a length: calc(0px + 0em)
+Pass	Setting 'inset-block-start' to a time: 0s throws TypeError
+Pass	Setting 'inset-block-start' to a time: -3.14ms throws TypeError
+Pass	Setting 'inset-block-start' to a time: 3.14s throws TypeError
+Pass	Setting 'inset-block-start' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'inset-block-start' to an angle: 0deg throws TypeError
+Pass	Setting 'inset-block-start' to an angle: 3.14rad throws TypeError
+Pass	Setting 'inset-block-start' to an angle: -3.14deg throws TypeError
+Pass	Setting 'inset-block-start' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'inset-block-start' to a flexible length: 0fr throws TypeError
+Pass	Setting 'inset-block-start' to a flexible length: 1fr throws TypeError
+Pass	Setting 'inset-block-start' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'inset-block-start' to a number: 0 throws TypeError
+Pass	Setting 'inset-block-start' to a number: -3.14 throws TypeError
+Pass	Setting 'inset-block-start' to a number: 3.14 throws TypeError
+Pass	Setting 'inset-block-start' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'inset-block-start' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'inset-block-start' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'inset-block-start' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'inset-block-end' to CSS-wide keywords: initial
+Pass	Can set 'inset-block-end' to CSS-wide keywords: inherit
+Pass	Can set 'inset-block-end' to CSS-wide keywords: unset
+Pass	Can set 'inset-block-end' to CSS-wide keywords: revert
+Pass	Can set 'inset-block-end' to var() references:  var(--A)
+Pass	Can set 'inset-block-end' to a percent: 0%
+Pass	Can set 'inset-block-end' to a percent: -3.14%
+Pass	Can set 'inset-block-end' to a percent: 3.14%
+Fail	Can set 'inset-block-end' to a percent: calc(0% + 0%)
+Pass	Can set 'inset-block-end' to a length: 0px
+Pass	Can set 'inset-block-end' to a length: -3.14em
+Pass	Can set 'inset-block-end' to a length: 3.14cm
+Pass	Can set 'inset-block-end' to a length: calc(0px + 0em)
+Pass	Setting 'inset-block-end' to a time: 0s throws TypeError
+Pass	Setting 'inset-block-end' to a time: -3.14ms throws TypeError
+Pass	Setting 'inset-block-end' to a time: 3.14s throws TypeError
+Pass	Setting 'inset-block-end' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'inset-block-end' to an angle: 0deg throws TypeError
+Pass	Setting 'inset-block-end' to an angle: 3.14rad throws TypeError
+Pass	Setting 'inset-block-end' to an angle: -3.14deg throws TypeError
+Pass	Setting 'inset-block-end' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'inset-block-end' to a flexible length: 0fr throws TypeError
+Pass	Setting 'inset-block-end' to a flexible length: 1fr throws TypeError
+Pass	Setting 'inset-block-end' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'inset-block-end' to a number: 0 throws TypeError
+Pass	Setting 'inset-block-end' to a number: -3.14 throws TypeError
+Pass	Setting 'inset-block-end' to a number: 3.14 throws TypeError
+Pass	Setting 'inset-block-end' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'inset-block-end' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'inset-block-end' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'inset-block-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'inset-inline-start' to CSS-wide keywords: initial
+Pass	Can set 'inset-inline-start' to CSS-wide keywords: inherit
+Pass	Can set 'inset-inline-start' to CSS-wide keywords: unset
+Pass	Can set 'inset-inline-start' to CSS-wide keywords: revert
+Pass	Can set 'inset-inline-start' to var() references:  var(--A)
+Pass	Can set 'inset-inline-start' to a percent: 0%
+Pass	Can set 'inset-inline-start' to a percent: -3.14%
+Pass	Can set 'inset-inline-start' to a percent: 3.14%
+Fail	Can set 'inset-inline-start' to a percent: calc(0% + 0%)
+Pass	Can set 'inset-inline-start' to a length: 0px
+Pass	Can set 'inset-inline-start' to a length: -3.14em
+Pass	Can set 'inset-inline-start' to a length: 3.14cm
+Pass	Can set 'inset-inline-start' to a length: calc(0px + 0em)
+Pass	Setting 'inset-inline-start' to a time: 0s throws TypeError
+Pass	Setting 'inset-inline-start' to a time: -3.14ms throws TypeError
+Pass	Setting 'inset-inline-start' to a time: 3.14s throws TypeError
+Pass	Setting 'inset-inline-start' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'inset-inline-start' to an angle: 0deg throws TypeError
+Pass	Setting 'inset-inline-start' to an angle: 3.14rad throws TypeError
+Pass	Setting 'inset-inline-start' to an angle: -3.14deg throws TypeError
+Pass	Setting 'inset-inline-start' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'inset-inline-start' to a flexible length: 0fr throws TypeError
+Pass	Setting 'inset-inline-start' to a flexible length: 1fr throws TypeError
+Pass	Setting 'inset-inline-start' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'inset-inline-start' to a number: 0 throws TypeError
+Pass	Setting 'inset-inline-start' to a number: -3.14 throws TypeError
+Pass	Setting 'inset-inline-start' to a number: 3.14 throws TypeError
+Pass	Setting 'inset-inline-start' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'inset-inline-start' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'inset-inline-start' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'inset-inline-start' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'inset-inline-end' to CSS-wide keywords: initial
+Pass	Can set 'inset-inline-end' to CSS-wide keywords: inherit
+Pass	Can set 'inset-inline-end' to CSS-wide keywords: unset
+Pass	Can set 'inset-inline-end' to CSS-wide keywords: revert
+Pass	Can set 'inset-inline-end' to var() references:  var(--A)
+Pass	Can set 'inset-inline-end' to a percent: 0%
+Pass	Can set 'inset-inline-end' to a percent: -3.14%
+Pass	Can set 'inset-inline-end' to a percent: 3.14%
+Fail	Can set 'inset-inline-end' to a percent: calc(0% + 0%)
+Pass	Can set 'inset-inline-end' to a length: 0px
+Pass	Can set 'inset-inline-end' to a length: -3.14em
+Pass	Can set 'inset-inline-end' to a length: 3.14cm
+Pass	Can set 'inset-inline-end' to a length: calc(0px + 0em)
+Pass	Setting 'inset-inline-end' to a time: 0s throws TypeError
+Pass	Setting 'inset-inline-end' to a time: -3.14ms throws TypeError
+Pass	Setting 'inset-inline-end' to a time: 3.14s throws TypeError
+Pass	Setting 'inset-inline-end' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'inset-inline-end' to an angle: 0deg throws TypeError
+Pass	Setting 'inset-inline-end' to an angle: 3.14rad throws TypeError
+Pass	Setting 'inset-inline-end' to an angle: -3.14deg throws TypeError
+Pass	Setting 'inset-inline-end' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'inset-inline-end' to a flexible length: 0fr throws TypeError
+Pass	Setting 'inset-inline-end' to a flexible length: 1fr throws TypeError
+Pass	Setting 'inset-inline-end' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'inset-inline-end' to a number: 0 throws TypeError
+Pass	Setting 'inset-inline-end' to a number: -3.14 throws TypeError
+Pass	Setting 'inset-inline-end' to a number: 3.14 throws TypeError
+Pass	Setting 'inset-inline-end' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'inset-inline-end' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'inset-inline-end' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'inset-inline-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'inset-block' to CSS-wide keywords: initial
+Fail	Can set 'inset-block' to CSS-wide keywords: inherit
+Fail	Can set 'inset-block' to CSS-wide keywords: unset
+Fail	Can set 'inset-block' to CSS-wide keywords: revert
+Fail	Can set 'inset-block' to var() references:  var(--A)
+Fail	Can set 'inset-block' to a percent: 0%
+Fail	Can set 'inset-block' to a percent: -3.14%
+Fail	Can set 'inset-block' to a percent: 3.14%
+Fail	Can set 'inset-block' to a percent: calc(0% + 0%)
+Fail	Can set 'inset-block' to a length: 0px
+Fail	Can set 'inset-block' to a length: -3.14em
+Fail	Can set 'inset-block' to a length: 3.14cm
+Fail	Can set 'inset-block' to a length: calc(0px + 0em)
+Pass	Setting 'inset-block' to a time: 0s throws TypeError
+Pass	Setting 'inset-block' to a time: -3.14ms throws TypeError
+Pass	Setting 'inset-block' to a time: 3.14s throws TypeError
+Pass	Setting 'inset-block' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'inset-block' to an angle: 0deg throws TypeError
+Pass	Setting 'inset-block' to an angle: 3.14rad throws TypeError
+Pass	Setting 'inset-block' to an angle: -3.14deg throws TypeError
+Pass	Setting 'inset-block' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'inset-block' to a flexible length: 0fr throws TypeError
+Pass	Setting 'inset-block' to a flexible length: 1fr throws TypeError
+Pass	Setting 'inset-block' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'inset-block' to a number: 0 throws TypeError
+Pass	Setting 'inset-block' to a number: -3.14 throws TypeError
+Pass	Setting 'inset-block' to a number: 3.14 throws TypeError
+Pass	Setting 'inset-block' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'inset-block' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'inset-block' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'inset-block' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'inset-inline' to CSS-wide keywords: initial
+Fail	Can set 'inset-inline' to CSS-wide keywords: inherit
+Fail	Can set 'inset-inline' to CSS-wide keywords: unset
+Fail	Can set 'inset-inline' to CSS-wide keywords: revert
+Fail	Can set 'inset-inline' to var() references:  var(--A)
+Fail	Can set 'inset-inline' to a percent: 0%
+Fail	Can set 'inset-inline' to a percent: -3.14%
+Fail	Can set 'inset-inline' to a percent: 3.14%
+Fail	Can set 'inset-inline' to a percent: calc(0% + 0%)
+Fail	Can set 'inset-inline' to a length: 0px
+Fail	Can set 'inset-inline' to a length: -3.14em
+Fail	Can set 'inset-inline' to a length: 3.14cm
+Fail	Can set 'inset-inline' to a length: calc(0px + 0em)
+Pass	Setting 'inset-inline' to a time: 0s throws TypeError
+Pass	Setting 'inset-inline' to a time: -3.14ms throws TypeError
+Pass	Setting 'inset-inline' to a time: 3.14s throws TypeError
+Pass	Setting 'inset-inline' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'inset-inline' to an angle: 0deg throws TypeError
+Pass	Setting 'inset-inline' to an angle: 3.14rad throws TypeError
+Pass	Setting 'inset-inline' to an angle: -3.14deg throws TypeError
+Pass	Setting 'inset-inline' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'inset-inline' to a flexible length: 0fr throws TypeError
+Pass	Setting 'inset-inline' to a flexible length: 1fr throws TypeError
+Pass	Setting 'inset-inline' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'inset-inline' to a number: 0 throws TypeError
+Pass	Setting 'inset-inline' to a number: -3.14 throws TypeError
+Pass	Setting 'inset-inline' to a number: 3.14 throws TypeError
+Pass	Setting 'inset-inline' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'inset-inline' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'inset-inline' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'inset-inline' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-block-start' to CSS-wide keywords: initial
+Fail	Can set 'border-block-start' to CSS-wide keywords: inherit
+Fail	Can set 'border-block-start' to CSS-wide keywords: unset
+Fail	Can set 'border-block-start' to CSS-wide keywords: revert
+Fail	Can set 'border-block-start' to var() references:  var(--A)
+Fail	Can set 'border-block-start' to the 'none' keyword: none
+Pass	Setting 'border-block-start' to a length: 0px throws TypeError
+Pass	Setting 'border-block-start' to a length: -3.14em throws TypeError
+Pass	Setting 'border-block-start' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-block-start' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-block-start' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-start' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-start' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-start' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-start' to a time: 0s throws TypeError
+Pass	Setting 'border-block-start' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-start' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-start' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-start' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-start' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-start' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-start' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-start' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-start' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-start' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-start' to a number: 0 throws TypeError
+Pass	Setting 'border-block-start' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-start' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-start' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-start' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-start' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-start' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-block-start-width' to CSS-wide keywords: initial
+Pass	Can set 'border-block-start-width' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-start-width' to CSS-wide keywords: unset
+Pass	Can set 'border-block-start-width' to CSS-wide keywords: revert
+Pass	Can set 'border-block-start-width' to var() references:  var(--A)
+Pass	Can set 'border-block-start-width' to the 'thin' keyword: thin
+Pass	Can set 'border-block-start-width' to the 'medium' keyword: medium
+Pass	Can set 'border-block-start-width' to the 'thick' keyword: thick
+Pass	Can set 'border-block-start-width' to a length: 0px
+Pass	Can set 'border-block-start-width' to a length: -3.14em
+Pass	Can set 'border-block-start-width' to a length: 3.14cm
+Pass	Can set 'border-block-start-width' to a length: calc(0px + 0em)
+Pass	Setting 'border-block-start-width' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-start-width' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-start-width' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-start-width' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-start-width' to a time: 0s throws TypeError
+Pass	Setting 'border-block-start-width' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-start-width' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-start-width' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-start-width' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-start-width' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-start-width' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-start-width' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-start-width' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-start-width' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-start-width' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-start-width' to a number: 0 throws TypeError
+Pass	Setting 'border-block-start-width' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-start-width' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-start-width' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-start-width' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-start-width' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-start-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-block-start-color' to CSS-wide keywords: initial
+Pass	Can set 'border-block-start-color' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-start-color' to CSS-wide keywords: unset
+Pass	Can set 'border-block-start-color' to CSS-wide keywords: revert
+Pass	Can set 'border-block-start-color' to var() references:  var(--A)
+Fail	Can set 'border-block-start-color' to the 'currentcolor' keyword: currentcolor
+Pass	Setting 'border-block-start-color' to a length: 0px throws TypeError
+Pass	Setting 'border-block-start-color' to a length: -3.14em throws TypeError
+Pass	Setting 'border-block-start-color' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-block-start-color' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-block-start-color' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-start-color' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-start-color' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-start-color' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-start-color' to a time: 0s throws TypeError
+Pass	Setting 'border-block-start-color' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-start-color' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-start-color' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-start-color' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-start-color' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-start-color' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-start-color' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-start-color' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-start-color' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-start-color' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-start-color' to a number: 0 throws TypeError
+Pass	Setting 'border-block-start-color' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-start-color' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-start-color' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-start-color' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-start-color' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-start-color' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-block-start-style' to CSS-wide keywords: initial
+Pass	Can set 'border-block-start-style' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-start-style' to CSS-wide keywords: unset
+Pass	Can set 'border-block-start-style' to CSS-wide keywords: revert
+Pass	Can set 'border-block-start-style' to var() references:  var(--A)
+Pass	Can set 'border-block-start-style' to the 'none' keyword: none
+Pass	Can set 'border-block-start-style' to the 'solid' keyword: solid
+Pass	Setting 'border-block-start-style' to a length: 0px throws TypeError
+Pass	Setting 'border-block-start-style' to a length: -3.14em throws TypeError
+Pass	Setting 'border-block-start-style' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-block-start-style' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-block-start-style' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-start-style' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-start-style' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-start-style' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-start-style' to a time: 0s throws TypeError
+Pass	Setting 'border-block-start-style' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-start-style' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-start-style' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-start-style' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-start-style' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-start-style' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-start-style' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-start-style' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-start-style' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-start-style' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-start-style' to a number: 0 throws TypeError
+Pass	Setting 'border-block-start-style' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-start-style' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-start-style' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-start-style' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-start-style' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-start-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-block-end' to CSS-wide keywords: initial
+Fail	Can set 'border-block-end' to CSS-wide keywords: inherit
+Fail	Can set 'border-block-end' to CSS-wide keywords: unset
+Fail	Can set 'border-block-end' to CSS-wide keywords: revert
+Fail	Can set 'border-block-end' to var() references:  var(--A)
+Fail	Can set 'border-block-end' to the 'none' keyword: none
+Pass	Setting 'border-block-end' to a length: 0px throws TypeError
+Pass	Setting 'border-block-end' to a length: -3.14em throws TypeError
+Pass	Setting 'border-block-end' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-block-end' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-block-end' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-end' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-end' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-end' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-end' to a time: 0s throws TypeError
+Pass	Setting 'border-block-end' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-end' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-end' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-end' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-end' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-end' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-end' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-end' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-end' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-end' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-end' to a number: 0 throws TypeError
+Pass	Setting 'border-block-end' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-end' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-end' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-end' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-end' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-block-end-width' to CSS-wide keywords: initial
+Pass	Can set 'border-block-end-width' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-end-width' to CSS-wide keywords: unset
+Pass	Can set 'border-block-end-width' to CSS-wide keywords: revert
+Pass	Can set 'border-block-end-width' to var() references:  var(--A)
+Pass	Can set 'border-block-end-width' to the 'thin' keyword: thin
+Pass	Can set 'border-block-end-width' to the 'medium' keyword: medium
+Pass	Can set 'border-block-end-width' to the 'thick' keyword: thick
+Pass	Can set 'border-block-end-width' to a length: 0px
+Pass	Can set 'border-block-end-width' to a length: -3.14em
+Pass	Can set 'border-block-end-width' to a length: 3.14cm
+Pass	Can set 'border-block-end-width' to a length: calc(0px + 0em)
+Pass	Setting 'border-block-end-width' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-end-width' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-end-width' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-end-width' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-end-width' to a time: 0s throws TypeError
+Pass	Setting 'border-block-end-width' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-end-width' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-end-width' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-end-width' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-end-width' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-end-width' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-end-width' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-end-width' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-end-width' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-end-width' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-end-width' to a number: 0 throws TypeError
+Pass	Setting 'border-block-end-width' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-end-width' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-end-width' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-end-width' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-end-width' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-end-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-block-end-color' to CSS-wide keywords: initial
+Pass	Can set 'border-block-end-color' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-end-color' to CSS-wide keywords: unset
+Pass	Can set 'border-block-end-color' to CSS-wide keywords: revert
+Pass	Can set 'border-block-end-color' to var() references:  var(--A)
+Fail	Can set 'border-block-end-color' to the 'currentcolor' keyword: currentcolor
+Pass	Setting 'border-block-end-color' to a length: 0px throws TypeError
+Pass	Setting 'border-block-end-color' to a length: -3.14em throws TypeError
+Pass	Setting 'border-block-end-color' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-block-end-color' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-block-end-color' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-end-color' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-end-color' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-end-color' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-end-color' to a time: 0s throws TypeError
+Pass	Setting 'border-block-end-color' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-end-color' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-end-color' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-end-color' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-end-color' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-end-color' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-end-color' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-end-color' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-end-color' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-end-color' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-end-color' to a number: 0 throws TypeError
+Pass	Setting 'border-block-end-color' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-end-color' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-end-color' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-end-color' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-end-color' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-end-color' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-block-end-style' to CSS-wide keywords: initial
+Pass	Can set 'border-block-end-style' to CSS-wide keywords: inherit
+Pass	Can set 'border-block-end-style' to CSS-wide keywords: unset
+Pass	Can set 'border-block-end-style' to CSS-wide keywords: revert
+Pass	Can set 'border-block-end-style' to var() references:  var(--A)
+Pass	Can set 'border-block-end-style' to the 'none' keyword: none
+Pass	Can set 'border-block-end-style' to the 'solid' keyword: solid
+Pass	Setting 'border-block-end-style' to a length: 0px throws TypeError
+Pass	Setting 'border-block-end-style' to a length: -3.14em throws TypeError
+Pass	Setting 'border-block-end-style' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-block-end-style' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-block-end-style' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-end-style' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-end-style' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-end-style' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-end-style' to a time: 0s throws TypeError
+Pass	Setting 'border-block-end-style' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-end-style' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-end-style' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-end-style' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-end-style' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-end-style' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-end-style' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-end-style' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-end-style' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-end-style' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-end-style' to a number: 0 throws TypeError
+Pass	Setting 'border-block-end-style' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-end-style' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-end-style' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-end-style' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-end-style' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-end-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-inline-start' to CSS-wide keywords: initial
+Fail	Can set 'border-inline-start' to CSS-wide keywords: inherit
+Fail	Can set 'border-inline-start' to CSS-wide keywords: unset
+Fail	Can set 'border-inline-start' to CSS-wide keywords: revert
+Fail	Can set 'border-inline-start' to var() references:  var(--A)
+Fail	Can set 'border-inline-start' to the 'none' keyword: none
+Pass	Setting 'border-inline-start' to a length: 0px throws TypeError
+Pass	Setting 'border-inline-start' to a length: -3.14em throws TypeError
+Pass	Setting 'border-inline-start' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-inline-start' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-inline-start' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-start' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-start' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-start' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-start' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-start' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-start' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-start' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-start' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-start' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-start' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-start' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-start' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-start' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-start' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-start' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-start' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-start' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-start' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-start' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-start' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-start' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-inline-start-width' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-start-width' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-start-width' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-start-width' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-start-width' to var() references:  var(--A)
+Pass	Can set 'border-inline-start-width' to the 'thin' keyword: thin
+Pass	Can set 'border-inline-start-width' to the 'medium' keyword: medium
+Pass	Can set 'border-inline-start-width' to the 'thick' keyword: thick
+Pass	Can set 'border-inline-start-width' to a length: 0px
+Pass	Can set 'border-inline-start-width' to a length: -3.14em
+Pass	Can set 'border-inline-start-width' to a length: 3.14cm
+Pass	Can set 'border-inline-start-width' to a length: calc(0px + 0em)
+Pass	Setting 'border-inline-start-width' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-start-width' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-start-width' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-start-width' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-start-width' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-start-width' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-start-width' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-start-width' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-start-width' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-start-width' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-start-width' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-start-width' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-start-width' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-start-width' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-start-width' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-start-width' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-start-width' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-start-width' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-start-width' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-start-width' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-start-width' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-start-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-inline-start-color' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-start-color' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-start-color' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-start-color' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-start-color' to var() references:  var(--A)
+Fail	Can set 'border-inline-start-color' to the 'currentcolor' keyword: currentcolor
+Pass	Setting 'border-inline-start-color' to a length: 0px throws TypeError
+Pass	Setting 'border-inline-start-color' to a length: -3.14em throws TypeError
+Pass	Setting 'border-inline-start-color' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-inline-start-color' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-inline-start-color' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-start-color' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-start-color' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-start-color' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-start-color' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-start-color' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-start-color' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-start-color' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-start-color' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-start-color' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-start-color' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-start-color' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-start-color' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-start-color' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-start-color' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-start-color' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-start-color' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-start-color' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-start-color' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-start-color' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-start-color' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-start-color' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-inline-start-style' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-start-style' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-start-style' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-start-style' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-start-style' to var() references:  var(--A)
+Pass	Can set 'border-inline-start-style' to the 'none' keyword: none
+Pass	Can set 'border-inline-start-style' to the 'solid' keyword: solid
+Pass	Setting 'border-inline-start-style' to a length: 0px throws TypeError
+Pass	Setting 'border-inline-start-style' to a length: -3.14em throws TypeError
+Pass	Setting 'border-inline-start-style' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-inline-start-style' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-inline-start-style' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-start-style' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-start-style' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-start-style' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-start-style' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-start-style' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-start-style' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-start-style' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-start-style' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-start-style' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-start-style' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-start-style' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-start-style' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-start-style' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-start-style' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-start-style' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-start-style' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-start-style' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-start-style' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-start-style' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-start-style' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-start-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-inline-end' to CSS-wide keywords: initial
+Fail	Can set 'border-inline-end' to CSS-wide keywords: inherit
+Fail	Can set 'border-inline-end' to CSS-wide keywords: unset
+Fail	Can set 'border-inline-end' to CSS-wide keywords: revert
+Fail	Can set 'border-inline-end' to var() references:  var(--A)
+Fail	Can set 'border-inline-end' to the 'none' keyword: none
+Pass	Setting 'border-inline-end' to a length: 0px throws TypeError
+Pass	Setting 'border-inline-end' to a length: -3.14em throws TypeError
+Pass	Setting 'border-inline-end' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-inline-end' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-inline-end' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-end' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-end' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-end' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-end' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-end' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-end' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-end' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-end' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-end' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-end' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-end' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-end' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-end' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-end' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-end' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-end' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-end' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-end' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-end' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-end' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-end' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-inline-end-width' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-end-width' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-end-width' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-end-width' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-end-width' to var() references:  var(--A)
+Pass	Can set 'border-inline-end-width' to the 'thin' keyword: thin
+Pass	Can set 'border-inline-end-width' to the 'medium' keyword: medium
+Pass	Can set 'border-inline-end-width' to the 'thick' keyword: thick
+Pass	Can set 'border-inline-end-width' to a length: 0px
+Pass	Can set 'border-inline-end-width' to a length: -3.14em
+Pass	Can set 'border-inline-end-width' to a length: 3.14cm
+Pass	Can set 'border-inline-end-width' to a length: calc(0px + 0em)
+Pass	Setting 'border-inline-end-width' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-end-width' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-end-width' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-end-width' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-end-width' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-end-width' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-end-width' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-end-width' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-end-width' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-end-width' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-end-width' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-end-width' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-end-width' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-end-width' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-end-width' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-end-width' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-end-width' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-end-width' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-end-width' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-end-width' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-end-width' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-end-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-inline-end-color' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-end-color' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-end-color' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-end-color' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-end-color' to var() references:  var(--A)
+Fail	Can set 'border-inline-end-color' to the 'currentcolor' keyword: currentcolor
+Pass	Setting 'border-inline-end-color' to a length: 0px throws TypeError
+Pass	Setting 'border-inline-end-color' to a length: -3.14em throws TypeError
+Pass	Setting 'border-inline-end-color' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-inline-end-color' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-inline-end-color' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-end-color' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-end-color' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-end-color' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-end-color' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-end-color' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-end-color' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-end-color' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-end-color' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-end-color' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-end-color' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-end-color' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-end-color' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-end-color' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-end-color' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-end-color' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-end-color' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-end-color' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-end-color' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-end-color' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-end-color' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-end-color' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-inline-end-style' to CSS-wide keywords: initial
+Pass	Can set 'border-inline-end-style' to CSS-wide keywords: inherit
+Pass	Can set 'border-inline-end-style' to CSS-wide keywords: unset
+Pass	Can set 'border-inline-end-style' to CSS-wide keywords: revert
+Pass	Can set 'border-inline-end-style' to var() references:  var(--A)
+Pass	Can set 'border-inline-end-style' to the 'none' keyword: none
+Pass	Can set 'border-inline-end-style' to the 'solid' keyword: solid
+Pass	Setting 'border-inline-end-style' to a length: 0px throws TypeError
+Pass	Setting 'border-inline-end-style' to a length: -3.14em throws TypeError
+Pass	Setting 'border-inline-end-style' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-inline-end-style' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-inline-end-style' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-end-style' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-end-style' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-end-style' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-end-style' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-end-style' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-end-style' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-end-style' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-end-style' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-end-style' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-end-style' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-end-style' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-end-style' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-end-style' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-end-style' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-end-style' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-end-style' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-end-style' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-end-style' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-end-style' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-end-style' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-end-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-block' to CSS-wide keywords: initial
+Fail	Can set 'border-block' to CSS-wide keywords: inherit
+Fail	Can set 'border-block' to CSS-wide keywords: unset
+Fail	Can set 'border-block' to CSS-wide keywords: revert
+Fail	Can set 'border-block' to var() references:  var(--A)
+Fail	Can set 'border-block' to the 'none' keyword: none
+Pass	Setting 'border-block' to a length: 0px throws TypeError
+Pass	Setting 'border-block' to a length: -3.14em throws TypeError
+Pass	Setting 'border-block' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-block' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-block' to a percent: 0% throws TypeError
+Pass	Setting 'border-block' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block' to a time: 0s throws TypeError
+Pass	Setting 'border-block' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block' to a number: 0 throws TypeError
+Pass	Setting 'border-block' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-block-width' to CSS-wide keywords: initial
+Fail	Can set 'border-block-width' to CSS-wide keywords: inherit
+Fail	Can set 'border-block-width' to CSS-wide keywords: unset
+Fail	Can set 'border-block-width' to CSS-wide keywords: revert
+Fail	Can set 'border-block-width' to var() references:  var(--A)
+Fail	Can set 'border-block-width' to the 'thin' keyword: thin
+Fail	Can set 'border-block-width' to the 'medium' keyword: medium
+Fail	Can set 'border-block-width' to the 'thick' keyword: thick
+Fail	Can set 'border-block-width' to a length: 0px
+Fail	Can set 'border-block-width' to a length: -3.14em
+Fail	Can set 'border-block-width' to a length: 3.14cm
+Fail	Can set 'border-block-width' to a length: calc(0px + 0em)
+Pass	Setting 'border-block-width' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-width' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-width' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-width' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-width' to a time: 0s throws TypeError
+Pass	Setting 'border-block-width' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-width' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-width' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-width' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-width' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-width' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-width' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-width' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-width' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-width' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-width' to a number: 0 throws TypeError
+Pass	Setting 'border-block-width' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-width' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-width' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-width' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-width' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-block-color' to CSS-wide keywords: initial
+Fail	Can set 'border-block-color' to CSS-wide keywords: inherit
+Fail	Can set 'border-block-color' to CSS-wide keywords: unset
+Fail	Can set 'border-block-color' to CSS-wide keywords: revert
+Fail	Can set 'border-block-color' to var() references:  var(--A)
+Fail	Can set 'border-block-color' to the 'currentcolor' keyword: currentcolor
+Pass	Setting 'border-block-color' to a length: 0px throws TypeError
+Pass	Setting 'border-block-color' to a length: -3.14em throws TypeError
+Pass	Setting 'border-block-color' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-block-color' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-block-color' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-color' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-color' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-color' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-color' to a time: 0s throws TypeError
+Pass	Setting 'border-block-color' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-color' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-color' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-color' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-color' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-color' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-color' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-color' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-color' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-color' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-color' to a number: 0 throws TypeError
+Pass	Setting 'border-block-color' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-color' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-color' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-color' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-color' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-color' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-block-style' to CSS-wide keywords: initial
+Fail	Can set 'border-block-style' to CSS-wide keywords: inherit
+Fail	Can set 'border-block-style' to CSS-wide keywords: unset
+Fail	Can set 'border-block-style' to CSS-wide keywords: revert
+Fail	Can set 'border-block-style' to var() references:  var(--A)
+Fail	Can set 'border-block-style' to the 'none' keyword: none
+Fail	Can set 'border-block-style' to the 'solid' keyword: solid
+Pass	Setting 'border-block-style' to a length: 0px throws TypeError
+Pass	Setting 'border-block-style' to a length: -3.14em throws TypeError
+Pass	Setting 'border-block-style' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-block-style' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-block-style' to a percent: 0% throws TypeError
+Pass	Setting 'border-block-style' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-block-style' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-block-style' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-block-style' to a time: 0s throws TypeError
+Pass	Setting 'border-block-style' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-block-style' to a time: 3.14s throws TypeError
+Pass	Setting 'border-block-style' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-block-style' to an angle: 0deg throws TypeError
+Pass	Setting 'border-block-style' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-block-style' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-block-style' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-block-style' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-block-style' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-block-style' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-block-style' to a number: 0 throws TypeError
+Pass	Setting 'border-block-style' to a number: -3.14 throws TypeError
+Pass	Setting 'border-block-style' to a number: 3.14 throws TypeError
+Pass	Setting 'border-block-style' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-block-style' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-block-style' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-block-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-inline' to CSS-wide keywords: initial
+Fail	Can set 'border-inline' to CSS-wide keywords: inherit
+Fail	Can set 'border-inline' to CSS-wide keywords: unset
+Fail	Can set 'border-inline' to CSS-wide keywords: revert
+Fail	Can set 'border-inline' to var() references:  var(--A)
+Fail	Can set 'border-inline' to the 'none' keyword: none
+Pass	Setting 'border-inline' to a length: 0px throws TypeError
+Pass	Setting 'border-inline' to a length: -3.14em throws TypeError
+Pass	Setting 'border-inline' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-inline' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-inline' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline' to a time: 0s throws TypeError
+Pass	Setting 'border-inline' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline' to a number: 0 throws TypeError
+Pass	Setting 'border-inline' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-inline-width' to CSS-wide keywords: initial
+Fail	Can set 'border-inline-width' to CSS-wide keywords: inherit
+Fail	Can set 'border-inline-width' to CSS-wide keywords: unset
+Fail	Can set 'border-inline-width' to CSS-wide keywords: revert
+Fail	Can set 'border-inline-width' to var() references:  var(--A)
+Fail	Can set 'border-inline-width' to the 'thin' keyword: thin
+Fail	Can set 'border-inline-width' to the 'medium' keyword: medium
+Fail	Can set 'border-inline-width' to the 'thick' keyword: thick
+Fail	Can set 'border-inline-width' to a length: 0px
+Fail	Can set 'border-inline-width' to a length: -3.14em
+Fail	Can set 'border-inline-width' to a length: 3.14cm
+Fail	Can set 'border-inline-width' to a length: calc(0px + 0em)
+Pass	Setting 'border-inline-width' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-width' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-width' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-width' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-width' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-width' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-width' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-width' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-width' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-width' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-width' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-width' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-width' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-width' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-width' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-width' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-width' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-width' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-width' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-width' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-width' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-width' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-inline-color' to CSS-wide keywords: initial
+Fail	Can set 'border-inline-color' to CSS-wide keywords: inherit
+Fail	Can set 'border-inline-color' to CSS-wide keywords: unset
+Fail	Can set 'border-inline-color' to CSS-wide keywords: revert
+Fail	Can set 'border-inline-color' to var() references:  var(--A)
+Fail	Can set 'border-inline-color' to the 'currentcolor' keyword: currentcolor
+Pass	Setting 'border-inline-color' to a length: 0px throws TypeError
+Pass	Setting 'border-inline-color' to a length: -3.14em throws TypeError
+Pass	Setting 'border-inline-color' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-inline-color' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-inline-color' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-color' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-color' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-color' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-color' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-color' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-color' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-color' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-color' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-color' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-color' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-color' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-color' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-color' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-color' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-color' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-color' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-color' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-color' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-color' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-color' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-color' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Fail	Can set 'border-inline-style' to CSS-wide keywords: initial
+Fail	Can set 'border-inline-style' to CSS-wide keywords: inherit
+Fail	Can set 'border-inline-style' to CSS-wide keywords: unset
+Fail	Can set 'border-inline-style' to CSS-wide keywords: revert
+Fail	Can set 'border-inline-style' to var() references:  var(--A)
+Fail	Can set 'border-inline-style' to the 'none' keyword: none
+Fail	Can set 'border-inline-style' to the 'solid' keyword: solid
+Pass	Setting 'border-inline-style' to a length: 0px throws TypeError
+Pass	Setting 'border-inline-style' to a length: -3.14em throws TypeError
+Pass	Setting 'border-inline-style' to a length: 3.14cm throws TypeError
+Pass	Setting 'border-inline-style' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'border-inline-style' to a percent: 0% throws TypeError
+Pass	Setting 'border-inline-style' to a percent: -3.14% throws TypeError
+Pass	Setting 'border-inline-style' to a percent: 3.14% throws TypeError
+Pass	Setting 'border-inline-style' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'border-inline-style' to a time: 0s throws TypeError
+Pass	Setting 'border-inline-style' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-inline-style' to a time: 3.14s throws TypeError
+Pass	Setting 'border-inline-style' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-inline-style' to an angle: 0deg throws TypeError
+Pass	Setting 'border-inline-style' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-inline-style' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-inline-style' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-inline-style' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-inline-style' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-inline-style' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-inline-style' to a number: 0 throws TypeError
+Pass	Setting 'border-inline-style' to a number: -3.14 throws TypeError
+Pass	Setting 'border-inline-style' to a number: 3.14 throws TypeError
+Pass	Setting 'border-inline-style' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-inline-style' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-inline-style' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-inline-style' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-start-start-radius' to CSS-wide keywords: initial
+Pass	Can set 'border-start-start-radius' to CSS-wide keywords: inherit
+Pass	Can set 'border-start-start-radius' to CSS-wide keywords: unset
+Pass	Can set 'border-start-start-radius' to CSS-wide keywords: revert
+Pass	Can set 'border-start-start-radius' to var() references:  var(--A)
+Pass	Can set 'border-start-start-radius' to a percent: 0%
+Fail	Can set 'border-start-start-radius' to a percent: -3.14%
+Pass	Can set 'border-start-start-radius' to a percent: 3.14%
+Fail	Can set 'border-start-start-radius' to a percent: calc(0% + 0%)
+Pass	Can set 'border-start-start-radius' to a length: 0px
+Pass	Can set 'border-start-start-radius' to a length: -3.14em
+Pass	Can set 'border-start-start-radius' to a length: 3.14cm
+Pass	Can set 'border-start-start-radius' to a length: calc(0px + 0em)
+Pass	Setting 'border-start-start-radius' to a time: 0s throws TypeError
+Pass	Setting 'border-start-start-radius' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-start-start-radius' to a time: 3.14s throws TypeError
+Pass	Setting 'border-start-start-radius' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-start-start-radius' to an angle: 0deg throws TypeError
+Pass	Setting 'border-start-start-radius' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-start-start-radius' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-start-start-radius' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-start-start-radius' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-start-start-radius' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-start-start-radius' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-start-start-radius' to a number: 0 throws TypeError
+Pass	Setting 'border-start-start-radius' to a number: -3.14 throws TypeError
+Pass	Setting 'border-start-start-radius' to a number: 3.14 throws TypeError
+Pass	Setting 'border-start-start-radius' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-start-start-radius' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-start-start-radius' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-start-start-radius' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-start-end-radius' to CSS-wide keywords: initial
+Pass	Can set 'border-start-end-radius' to CSS-wide keywords: inherit
+Pass	Can set 'border-start-end-radius' to CSS-wide keywords: unset
+Pass	Can set 'border-start-end-radius' to CSS-wide keywords: revert
+Pass	Can set 'border-start-end-radius' to var() references:  var(--A)
+Pass	Can set 'border-start-end-radius' to a percent: 0%
+Fail	Can set 'border-start-end-radius' to a percent: -3.14%
+Pass	Can set 'border-start-end-radius' to a percent: 3.14%
+Fail	Can set 'border-start-end-radius' to a percent: calc(0% + 0%)
+Pass	Can set 'border-start-end-radius' to a length: 0px
+Pass	Can set 'border-start-end-radius' to a length: -3.14em
+Pass	Can set 'border-start-end-radius' to a length: 3.14cm
+Pass	Can set 'border-start-end-radius' to a length: calc(0px + 0em)
+Pass	Setting 'border-start-end-radius' to a time: 0s throws TypeError
+Pass	Setting 'border-start-end-radius' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-start-end-radius' to a time: 3.14s throws TypeError
+Pass	Setting 'border-start-end-radius' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-start-end-radius' to an angle: 0deg throws TypeError
+Pass	Setting 'border-start-end-radius' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-start-end-radius' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-start-end-radius' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-start-end-radius' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-start-end-radius' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-start-end-radius' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-start-end-radius' to a number: 0 throws TypeError
+Pass	Setting 'border-start-end-radius' to a number: -3.14 throws TypeError
+Pass	Setting 'border-start-end-radius' to a number: 3.14 throws TypeError
+Pass	Setting 'border-start-end-radius' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-start-end-radius' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-start-end-radius' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-start-end-radius' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-end-start-radius' to CSS-wide keywords: initial
+Pass	Can set 'border-end-start-radius' to CSS-wide keywords: inherit
+Pass	Can set 'border-end-start-radius' to CSS-wide keywords: unset
+Pass	Can set 'border-end-start-radius' to CSS-wide keywords: revert
+Pass	Can set 'border-end-start-radius' to var() references:  var(--A)
+Pass	Can set 'border-end-start-radius' to a percent: 0%
+Fail	Can set 'border-end-start-radius' to a percent: -3.14%
+Pass	Can set 'border-end-start-radius' to a percent: 3.14%
+Fail	Can set 'border-end-start-radius' to a percent: calc(0% + 0%)
+Pass	Can set 'border-end-start-radius' to a length: 0px
+Pass	Can set 'border-end-start-radius' to a length: -3.14em
+Pass	Can set 'border-end-start-radius' to a length: 3.14cm
+Pass	Can set 'border-end-start-radius' to a length: calc(0px + 0em)
+Pass	Setting 'border-end-start-radius' to a time: 0s throws TypeError
+Pass	Setting 'border-end-start-radius' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-end-start-radius' to a time: 3.14s throws TypeError
+Pass	Setting 'border-end-start-radius' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-end-start-radius' to an angle: 0deg throws TypeError
+Pass	Setting 'border-end-start-radius' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-end-start-radius' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-end-start-radius' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-end-start-radius' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-end-start-radius' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-end-start-radius' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-end-start-radius' to a number: 0 throws TypeError
+Pass	Setting 'border-end-start-radius' to a number: -3.14 throws TypeError
+Pass	Setting 'border-end-start-radius' to a number: 3.14 throws TypeError
+Pass	Setting 'border-end-start-radius' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-end-start-radius' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-end-start-radius' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-end-start-radius' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	Can set 'border-end-end-radius' to CSS-wide keywords: initial
+Pass	Can set 'border-end-end-radius' to CSS-wide keywords: inherit
+Pass	Can set 'border-end-end-radius' to CSS-wide keywords: unset
+Pass	Can set 'border-end-end-radius' to CSS-wide keywords: revert
+Pass	Can set 'border-end-end-radius' to var() references:  var(--A)
+Pass	Can set 'border-end-end-radius' to a percent: 0%
+Fail	Can set 'border-end-end-radius' to a percent: -3.14%
+Pass	Can set 'border-end-end-radius' to a percent: 3.14%
+Fail	Can set 'border-end-end-radius' to a percent: calc(0% + 0%)
+Pass	Can set 'border-end-end-radius' to a length: 0px
+Pass	Can set 'border-end-end-radius' to a length: -3.14em
+Pass	Can set 'border-end-end-radius' to a length: 3.14cm
+Pass	Can set 'border-end-end-radius' to a length: calc(0px + 0em)
+Pass	Setting 'border-end-end-radius' to a time: 0s throws TypeError
+Pass	Setting 'border-end-end-radius' to a time: -3.14ms throws TypeError
+Pass	Setting 'border-end-end-radius' to a time: 3.14s throws TypeError
+Pass	Setting 'border-end-end-radius' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'border-end-end-radius' to an angle: 0deg throws TypeError
+Pass	Setting 'border-end-end-radius' to an angle: 3.14rad throws TypeError
+Pass	Setting 'border-end-end-radius' to an angle: -3.14deg throws TypeError
+Pass	Setting 'border-end-end-radius' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'border-end-end-radius' to a flexible length: 0fr throws TypeError
+Pass	Setting 'border-end-end-radius' to a flexible length: 1fr throws TypeError
+Pass	Setting 'border-end-end-radius' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'border-end-end-radius' to a number: 0 throws TypeError
+Pass	Setting 'border-end-end-radius' to a number: -3.14 throws TypeError
+Pass	Setting 'border-end-end-radius' to a number: 3.14 throws TypeError
+Pass	Setting 'border-end-end-radius' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'border-end-end-radius' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'border-end-end-radius' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'border-end-end-radius' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError

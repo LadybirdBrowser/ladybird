@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'letter-spacing' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+function assert_is_equal_with_zero_special_handling(input, result) {
+  let is_zero_length = true;
+  if (input instanceof CSSMathSum) {
+    for (let operand of input.values)
+      is_zero_length &&= (operand.value == 0);
+  } else
+    is_zero_length = input.value == 0;
+
+  // Per the specification, a computed letter-spacing of zero yields a resolved value (getComputedStyle()
+  // return value) of normal.
+  if (is_zero_length)
+    assert_style_value_equals(result, new CSSKeywordValue("normal"));
+  else
+    assert_is_unit('px', result); // Same check as in testsuite.js
+}
+
+runPropertyTests('letter-spacing', [
+  { syntax: 'normal' },
+  {
+    syntax: '<length>',
+    computed: assert_is_equal_with_zero_special_handling
+  },
+  { syntax: '<percentage>' },
+]);
+
+</script>

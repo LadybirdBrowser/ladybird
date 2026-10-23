@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 32 tests
 
-30 Pass
-2 Fail
+28 Pass
+4 Fail
 Pass	Can set 'line-height' to CSS-wide keywords: initial
 Pass	Can set 'line-height' to CSS-wide keywords: inherit
 Pass	Can set 'line-height' to CSS-wide keywords: unset
@@ -19,9 +19,9 @@ Fail	Can set 'line-height' to a number: -3.14
 Pass	Can set 'line-height' to a number: 3.14
 Pass	Can set 'line-height' to a number: calc(2 + 3)
 Pass	Can set 'line-height' to a percent: 0%
-Pass	Can set 'line-height' to a percent: -3.14%
+Fail	Can set 'line-height' to a percent: -3.14%
 Pass	Can set 'line-height' to a percent: 3.14%
-Pass	Can set 'line-height' to a percent: calc(0% + 0%)
+Fail	Can set 'line-height' to a percent: calc(0% + 0%)
 Pass	Setting 'line-height' to a time: 0s throws TypeError
 Pass	Setting 'line-height' to a time: -3.14ms throws TypeError
 Pass	Setting 'line-height' to a time: 3.14s throws TypeError

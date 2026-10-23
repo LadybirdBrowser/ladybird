@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 161 tests
 
-156 Pass
-5 Fail
+152 Pass
+9 Fail
 Pass	Can set 'margin-top' to CSS-wide keywords: initial
 Pass	Can set 'margin-top' to CSS-wide keywords: inherit
 Pass	Can set 'margin-top' to CSS-wide keywords: unset
@@ -13,7 +13,7 @@ Pass	Can set 'margin-top' to the 'auto' keyword: auto
 Pass	Can set 'margin-top' to a percent: 0%
 Pass	Can set 'margin-top' to a percent: -3.14%
 Pass	Can set 'margin-top' to a percent: 3.14%
-Pass	Can set 'margin-top' to a percent: calc(0% + 0%)
+Fail	Can set 'margin-top' to a percent: calc(0% + 0%)
 Pass	Can set 'margin-top' to a length: 0px
 Pass	Can set 'margin-top' to a length: -3.14em
 Pass	Can set 'margin-top' to a length: 3.14cm
@@ -45,7 +45,7 @@ Pass	Can set 'margin-left' to the 'auto' keyword: auto
 Pass	Can set 'margin-left' to a percent: 0%
 Pass	Can set 'margin-left' to a percent: -3.14%
 Pass	Can set 'margin-left' to a percent: 3.14%
-Pass	Can set 'margin-left' to a percent: calc(0% + 0%)
+Fail	Can set 'margin-left' to a percent: calc(0% + 0%)
 Pass	Can set 'margin-left' to a length: 0px
 Pass	Can set 'margin-left' to a length: -3.14em
 Pass	Can set 'margin-left' to a length: 3.14cm
@@ -77,7 +77,7 @@ Pass	Can set 'margin-right' to the 'auto' keyword: auto
 Pass	Can set 'margin-right' to a percent: 0%
 Pass	Can set 'margin-right' to a percent: -3.14%
 Pass	Can set 'margin-right' to a percent: 3.14%
-Pass	Can set 'margin-right' to a percent: calc(0% + 0%)
+Fail	Can set 'margin-right' to a percent: calc(0% + 0%)
 Pass	Can set 'margin-right' to a length: 0px
 Pass	Can set 'margin-right' to a length: -3.14em
 Pass	Can set 'margin-right' to a length: 3.14cm
@@ -109,7 +109,7 @@ Pass	Can set 'margin-bottom' to the 'auto' keyword: auto
 Pass	Can set 'margin-bottom' to a percent: 0%
 Pass	Can set 'margin-bottom' to a percent: -3.14%
 Pass	Can set 'margin-bottom' to a percent: 3.14%
-Pass	Can set 'margin-bottom' to a percent: calc(0% + 0%)
+Fail	Can set 'margin-bottom' to a percent: calc(0% + 0%)
 Pass	Can set 'margin-bottom' to a length: 0px
 Pass	Can set 'margin-bottom' to a length: -3.14em
 Pass	Can set 'margin-bottom' to a length: 3.14cm

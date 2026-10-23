@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'stop-opacity' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+function assert_is_equal_with_clamping_number(input, result) {
+  const number = input.to('number');
+
+  if (number.value < 0)
+    assert_style_value_equals(result, new CSSUnitValue(0, 'number'));
+  else if (number.value > 1)
+    assert_style_value_equals(result, new CSSUnitValue(1, 'number'));
+  else
+    assert_style_value_equals(result, input);
+}
+
+function assert_is_equal_with_clamping_percentage(input, result) {
+  const number = input.to('percent').value / 100.;
+
+  if (number < 0)
+    assert_style_value_equals(result, new CSSUnitValue(0, 'number'));
+  else if (number > 1)
+    assert_style_value_equals(result, new CSSUnitValue(1, 'number'));
+  else
+    assert_style_value_equals(result, new CSSUnitValue(number, 'number'));
+}
+
+runPropertyTests('stop-opacity', [
+  {
+    syntax: '<number>',
+    computed: assert_is_equal_with_clamping_number
+  },
+  {
+    syntax: '<percentage>',
+    computed: assert_is_equal_with_clamping_percentage
+  },
+]);
+
+</script>

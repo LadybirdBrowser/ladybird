@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'stroke-dasharray' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+function assert_is_equal_with_clamping_percentage(input, result) {
+  const percent = input.to('percent').value;
+
+  if (percent < 0)
+    assert_style_value_equals(result, new CSSUnitValue(0, 'percent'));
+  else
+    assert_style_value_equals(result, new CSSUnitValue(percent, 'percent'));
+}
+
+runPropertyTests('stroke-dasharray', [
+  { syntax: 'none' },
+  {
+    syntax: '<length>',
+    specified: assert_is_equal_with_range_handling,
+  },
+  {
+    syntax: '<percentage>',
+    specified: assert_is_equal_with_range_handling,
+    computed: assert_is_equal_with_clamping_percentage
+  },
+  {
+    syntax: '<number>',
+    specified: assert_is_equal_with_range_handling,
+    computed: (_, result) => assert_is_unit('px', result)
+  },
+]);
+
+runUnsupportedPropertyTests('stroke-dasharray', [
+  '5% 1em 2%',
+]);
+
+</script>

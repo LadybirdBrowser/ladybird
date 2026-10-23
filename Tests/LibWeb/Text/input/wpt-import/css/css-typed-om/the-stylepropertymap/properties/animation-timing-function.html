@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'animation-timing-function' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runListValuedPropertyTests('animation-timing-function', [
+  { syntax: 'linear' },
+  { syntax: 'ease' },
+  { syntax: 'ease-in' },
+  { syntax: 'ease-out' },
+  { syntax: 'ease-in-out' },
+  {
+    syntax: 'step-start',
+    computed: (_, result) => {
+      assert_equals(result.toString(), 'steps(1, start)');
+    }
+  },
+  {
+    syntax: 'step-end',
+    computed: (_, result) => {
+      assert_equals(result.toString(), 'steps(1)');
+    }
+  },
+]);
+
+runUnsupportedPropertyTests('animation-timing-function', [
+  'cubic-bezier(0.1, 0.7, 1.0, 0.1)', 'steps(4, end)'
+]);
+
+</script>

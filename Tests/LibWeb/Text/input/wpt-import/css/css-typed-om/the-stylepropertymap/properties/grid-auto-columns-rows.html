@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'grid-auto-columns' and 'grid-auto-rows' properties</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+function assert_is_equal_with_clamping_percentage(input, result) {
+  const percent = input.to('percent').value;
+
+  if (percent < 0)
+    assert_style_value_equals(result, new CSSUnitValue(0, 'percent'));
+  else
+    assert_style_value_equals(result, new CSSUnitValue(percent, 'percent'));
+}
+
+// grid-auto-columns/rows are list-valued.
+// Run list-valued tests here too.
+for (const suffix of ['columns', 'rows']) {
+  runPropertyTests(`grid-auto-${suffix}`, [
+    { syntax: 'min-content' },
+    { syntax: 'max-content' },
+    { syntax: 'auto' },
+    {
+      syntax: '<length>',
+      specified: assert_is_equal_with_range_handling
+    },
+    {
+      syntax: '<percentage>',
+      specified: assert_is_equal_with_range_handling,
+      computed: assert_is_equal_with_clamping_percentage
+    },
+    { syntax: '<flex>' },
+  ]);
+
+  runUnsupportedPropertyTests(`grid-auto-${suffix}`, [
+    'minmax(100px, auto)', 'fit-content(400px)'
+  ]);
+}
+
+</script>

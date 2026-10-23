@@ -1,0 +1,49 @@
+Harness status: OK
+
+Found 43 tests
+
+34 Pass
+9 Fail
+Pass	Can set 'font-variant-east-asian' to CSS-wide keywords: initial
+Pass	Can set 'font-variant-east-asian' to CSS-wide keywords: inherit
+Pass	Can set 'font-variant-east-asian' to CSS-wide keywords: unset
+Pass	Can set 'font-variant-east-asian' to CSS-wide keywords: revert
+Pass	Can set 'font-variant-east-asian' to var() references:  var(--A)
+Pass	Can set 'font-variant-east-asian' to the 'normal' keyword: normal
+Fail	Can set 'font-variant-east-asian' to the 'jis78' keyword: jis78
+Fail	Can set 'font-variant-east-asian' to the 'jis83' keyword: jis83
+Fail	Can set 'font-variant-east-asian' to the 'jis90' keyword: jis90
+Fail	Can set 'font-variant-east-asian' to the 'jis04' keyword: jis04
+Fail	Can set 'font-variant-east-asian' to the 'simplified' keyword: simplified
+Fail	Can set 'font-variant-east-asian' to the 'traditional' keyword: traditional
+Fail	Can set 'font-variant-east-asian' to the 'full-width' keyword: full-width
+Fail	Can set 'font-variant-east-asian' to the 'proportional-width' keyword: proportional-width
+Fail	Can set 'font-variant-east-asian' to the 'ruby' keyword: ruby
+Pass	Setting 'font-variant-east-asian' to a length: 0px throws TypeError
+Pass	Setting 'font-variant-east-asian' to a length: -3.14em throws TypeError
+Pass	Setting 'font-variant-east-asian' to a length: 3.14cm throws TypeError
+Pass	Setting 'font-variant-east-asian' to a length: calc(0px + 0em) throws TypeError
+Pass	Setting 'font-variant-east-asian' to a percent: 0% throws TypeError
+Pass	Setting 'font-variant-east-asian' to a percent: -3.14% throws TypeError
+Pass	Setting 'font-variant-east-asian' to a percent: 3.14% throws TypeError
+Pass	Setting 'font-variant-east-asian' to a percent: calc(0% + 0%) throws TypeError
+Pass	Setting 'font-variant-east-asian' to a time: 0s throws TypeError
+Pass	Setting 'font-variant-east-asian' to a time: -3.14ms throws TypeError
+Pass	Setting 'font-variant-east-asian' to a time: 3.14s throws TypeError
+Pass	Setting 'font-variant-east-asian' to a time: calc(0s + 0ms) throws TypeError
+Pass	Setting 'font-variant-east-asian' to an angle: 0deg throws TypeError
+Pass	Setting 'font-variant-east-asian' to an angle: 3.14rad throws TypeError
+Pass	Setting 'font-variant-east-asian' to an angle: -3.14deg throws TypeError
+Pass	Setting 'font-variant-east-asian' to an angle: calc(0rad + 0deg) throws TypeError
+Pass	Setting 'font-variant-east-asian' to a flexible length: 0fr throws TypeError
+Pass	Setting 'font-variant-east-asian' to a flexible length: 1fr throws TypeError
+Pass	Setting 'font-variant-east-asian' to a flexible length: -3.14fr throws TypeError
+Pass	Setting 'font-variant-east-asian' to a number: 0 throws TypeError
+Pass	Setting 'font-variant-east-asian' to a number: -3.14 throws TypeError
+Pass	Setting 'font-variant-east-asian' to a number: 3.14 throws TypeError
+Pass	Setting 'font-variant-east-asian' to a number: calc(2 + 3) throws TypeError
+Pass	Setting 'font-variant-east-asian' to a transform: translate(50%, 50%) throws TypeError
+Pass	Setting 'font-variant-east-asian' to a transform: perspective(10em) throws TypeError
+Pass	Setting 'font-variant-east-asian' to a transform: translate3d(0px, 1px, 2px) translate(0px, 1px) rotate3d(1, 2, 3, 45deg) rotate(45deg) scale3d(1, 2, 3) scale(1, 2) skew(1deg, 1deg) skewX(1deg) skewY(45deg) perspective(1px) matrix3d(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16) matrix(1, 2, 3, 4, 5, 6) throws TypeError
+Pass	'font-variant-east-asian' does not support 'jis78 full-width'
+Pass	'font-variant-east-asian' does not support 'traditional proportional-width ruby'

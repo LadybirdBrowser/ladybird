@@ -1,0 +1,120 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>logical margin, inset, padding & border properties</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+function assert_is_keyword_width(result, expected) {
+  assert_style_value_equals(result, new CSSUnitValue(expected, 'px'));
+}
+
+function assert_is_equal_with_clamping_percentage(input, result) {
+  const percent = input.to('percent').value;
+
+  if (percent < 0)
+    assert_style_value_equals(result, new CSSUnitValue(0, 'percent'));
+  else
+    assert_style_value_equals(result, new CSSUnitValue(percent, 'percent'));
+}
+
+const logical = {
+  axes: ['block', 'inline'],
+  sides: ['block-start', 'block-end', 'inline-start', 'inline-end'],
+  corners: ['start-start', 'start-end', 'end-start', 'end-end'],
+};
+
+for (const side of [...logical.sides, ...logical.axes]) {
+  runPropertyTests('margin-' + side, [
+    // TODO: Test 'auto'
+    { syntax: '<percentage>' },
+    { syntax: '<length>' }
+  ]);
+}
+
+for (const side of [...logical.sides, ...logical.axes]) {
+  runPropertyTests('padding-' + side, [
+    // TODO: Test 'auto'
+    {
+      syntax: '<percentage>',
+      specified: assert_is_equal_with_range_handling,
+      computed: assert_is_equal_with_clamping_percentage
+    },
+    {
+      syntax: '<length>',
+      specified: assert_is_equal_with_range_handling
+    },
+  ]);
+}
+
+for (const side of [...logical.sides, ...logical.axes]) {
+  runPropertyTests('inset-' + side, [
+    // TODO: Test 'auto'
+    { syntax: '<percentage>' },
+    { syntax: '<length>' }
+  ]);
+}
+
+// BORDERS
+for (const side of [...logical.sides, ...logical.axes]) {
+  runPropertyTests('border-' + side, [
+    //{ syntax: 'thin solid green' },
+    //{ syntax: 'thin solid' },
+    //{ syntax: 'thick' },
+    { syntax: 'none' },
+  ]);
+
+  runPropertyTests(`border-${side}-width`, [
+    // The keywords compute to a length, as in border-width.html for the
+    // physical properties. Computed value is independent of border-style.
+    {
+      syntax: 'thin',
+      computed: (_, result) => assert_is_keyword_width(result, 1)
+    },
+    {
+      syntax: 'medium',
+      computed: (_, result) => assert_is_keyword_width(result, 3)
+    },
+    {
+      syntax: 'thick',
+      computed: (_, result) => assert_is_keyword_width(result, 5)
+    },
+    {
+      syntax: '<length>',
+      specified: assert_is_equal_with_range_handling
+    },
+  ]);
+
+  runPropertyTests(`border-${side}-color`, [
+    { syntax: 'currentcolor' },
+    //{ syntax: '<color>' },
+  ]);
+
+  runPropertyTests(`border-${side}-style`, [
+    { syntax: 'none' },
+    { syntax: 'solid' },
+  ]);
+}
+
+// border radius
+for (const side of logical.corners) {
+  runPropertyTests(`border-${side}-radius`, [
+    {
+      syntax: '<percentage>',
+      specified: assert_is_equal_with_range_handling
+    },
+    {
+      syntax: '<length>',
+      specified: assert_is_equal_with_range_handling
+    },
+  ]);
+}
+</script>
