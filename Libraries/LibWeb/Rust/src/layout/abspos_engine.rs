@@ -762,6 +762,67 @@ impl AbsposEngine<'_> {
         (Some(resolved), default_scroll_shift)
     }
 
+    /// https://drafts.csswg.org/css-anchor-position-1/#anchor-center
+    /// If the positioned box has a default anchor box, then it is centered (insofar as possible) over the default
+    /// anchor box in the relevant axis.
+    /// NB: This handles an axis whose insets are both auto. A position area handles anchor-center itself.
+    #[allow(clippy::too_many_arguments)]
+    fn apply_anchor_center_alignment(
+        &self,
+        positioned_box: Node,
+        containing_block: Node,
+        containing_block_geometry: &ContainingBlockGeometry,
+        entry_coordinate_space_box: Node,
+        resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
+        static_position_rect: &mut abspos_inputs::StaticPositionRect,
+        containing_block_info: &mut abspos_inputs::AbsposContainingBlockInfo,
+    ) {
+        let style = self.style(positioned_box).with_resolved_insets(resolved_anchor_insets);
+        let centers_inline = style.justify_self() == justify_self::ANCHOR_CENTER
+            && style.inset_left().is_auto()
+            && style.inset_right().is_auto();
+        let centers_block = style.align_self() == align_self::ANCHOR_CENTER
+            && style.inset_top().is_auto()
+            && style.inset_bottom().is_auto();
+        if (!centers_inline && !centers_block)
+            || !style.has_position_anchor()
+            || !self.facts(positioned_box).is_absolutely_positioned()
+        {
+            return;
+        }
+        let Some(anchor_box) = self.anchor_lookup(positioned_box, style.position_anchor_name()) else {
+            return;
+        };
+        let anchor_rect = self.anchor_rect(
+            anchor_box,
+            containing_block,
+            Some(containing_block_geometry),
+            entry_coordinate_space_box,
+        );
+        // NB: The static position rect and containing block rect are relative to the containing block's content box,
+        //     while anchor_rect() is relative to its padding box.
+        if centers_inline {
+            static_position_rect.rect.offset.inline_offset = anchor_rect.left()
+                - containing_block_geometry.padding_left
+                - containing_block_info.rect.offset.inline_offset;
+            static_position_rect.rect.size.inline_size = anchor_rect.width;
+            static_position_rect.inline_alignment = StaticPositionAlignment::Center;
+            containing_block_info.inline_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
+            containing_block_info.inline_alignment = Some(AbsposAlignment::AnchorCenter);
+        }
+        if centers_block {
+            static_position_rect.rect.offset.block_offset = anchor_rect.top()
+                - containing_block_geometry.padding_top
+                - containing_block_info.rect.offset.block_offset;
+            static_position_rect.rect.size.block_size = anchor_rect.height;
+            static_position_rect.block_alignment = StaticPositionAlignment::Center;
+            containing_block_info.block_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
+            containing_block_info.block_alignment = Some(AbsposAlignment::AnchorCenter);
+        }
+        static_position_rect.is_known = true;
+        containing_block_info.derives_from_own_computed_values = true;
+    }
+
     /// https://drafts.csswg.org/css-anchor-position-1/#position-area
     /// The used value of any auto inset properties [...] resolves to 0.
     /// NB: Only a stretched axis needs its auto insets as 0 here: the other alignments size the box to fit its
@@ -911,7 +972,12 @@ impl AbsposEngine<'_> {
             containing_block_style.direction() == direction::LTR,
             style.direction() == direction::LTR,
         );
-        let block_alignment = self_alignment_for_position_area(style.align_self(), tracks.vertical, true, true);
+        let block_alignment = self_alignment_for_position_area(
+            justify_self_value_for_align_self(style.align_self()),
+            tracks.vertical,
+            true,
+            true,
+        );
         let stretches = (
             inline_alignment == AbsposAlignment::Stretch,
             block_alignment == AbsposAlignment::Stretch,
@@ -1173,8 +1239,17 @@ fn resolve_position_area_tracks(
     })
 }
 
+/// The justify-self value with the same meaning as an align-self value.
+fn justify_self_value_for_align_self(value: u8) -> u8 {
+    // NB: align-self and justify-self share their keyword values, except for left, right and anchor-center.
+    match value {
+        align_self::ANCHOR_CENTER => justify_self::ANCHOR_CENTER,
+        value => value,
+    }
+}
+
 /// The used self-alignment of a box with a non-none position-area in one physical axis, where Start and End are
-/// the left/top and right/bottom sides.
+/// the left/top and right/bottom sides. The computed value is a justify-self value.
 fn self_alignment_for_position_area(
     computed: u8,
     tracks: PositionAreaTrackRange,
@@ -1195,8 +1270,8 @@ fn self_alignment_for_position_area(
             AbsposAlignment::Start
         }
     };
-    // NB: align-self and justify-self share their keyword values, except for left and right.
     match computed {
+        justify_self::ANCHOR_CENTER => AbsposAlignment::AnchorCenter,
         justify_self::CENTER => AbsposAlignment::Center,
         justify_self::STRETCH => AbsposAlignment::Stretch,
         justify_self::START | justify_self::FLEX_START | justify_self::BASELINE => {
@@ -1321,6 +1396,15 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
         }
         Some(_) => unreachable!("anchor() fallback must be a length, percentage, calculation or nested anchor()"),
     }
+}
+
+/// https://drafts.csswg.org/css-align-3/#overflow-values
+/// The offset of a box that overflows its containing block on one side, shifted so it stays within it, if it fits.
+fn shift_into_containing_block(offset: CssPixels, maximum_offset: CssPixels) -> CssPixels {
+    if maximum_offset < CssPixels::default() {
+        return offset;
+    }
+    offset.max(CssPixels::default()).min(maximum_offset)
 }
 
 type AutoPx = Option<CssPixels>;
@@ -2472,9 +2556,11 @@ impl<'pass> AbsposEngine<'pass> {
                 let margin_box_size = used.margin_box_inline_size(collapsed);
                 let available = containing_block_size.inline_size - start_inset - end_inset - margin_box_size;
                 let inset = match inline_alignment {
-                    AbsposAlignment::AnchorCenter => {
-                        Some(self.static_offset(node, inputs.static_position_rect).inline_offset)
-                    }
+                    // NB: By default, an anchor-centered box shifts to stay within its containing block.
+                    AbsposAlignment::AnchorCenter => Some(shift_into_containing_block(
+                        self.static_offset(node, inputs.static_position_rect).inline_offset,
+                        containing_block_size.inline_size - margin_box_size,
+                    )),
                     AbsposAlignment::Center => Some(start_inset + available / 2),
                     AbsposAlignment::Start => Some(start_inset),
                     AbsposAlignment::End => Some(start_inset + available),
@@ -2496,9 +2582,10 @@ impl<'pass> AbsposEngine<'pass> {
                 let margin_box_size = used.margin_box_block_size(collapsed);
                 let available = containing_block_size.block_size - start_inset - end_inset - margin_box_size;
                 let inset = match block_alignment {
-                    AbsposAlignment::AnchorCenter => {
-                        Some(self.static_offset(node, inputs.static_position_rect).block_offset)
-                    }
+                    AbsposAlignment::AnchorCenter => Some(shift_into_containing_block(
+                        self.static_offset(node, inputs.static_position_rect).block_offset,
+                        containing_block_size.block_size - margin_box_size,
+                    )),
                     AbsposAlignment::Center => Some(start_inset + available / 2),
                     AbsposAlignment::Start | AbsposAlignment::SelfStart => Some(start_inset),
                     AbsposAlignment::End | AbsposAlignment::SelfEnd => Some(start_inset + available),
@@ -2639,7 +2726,7 @@ impl<'pass> AbsposEngine<'pass> {
                 child.coordinate_space_box,
                 None,
             );
-            let containing_block_info = containing_block_info_override.unwrap_or_else(|| {
+            let mut containing_block_info = containing_block_info_override.unwrap_or_else(|| {
                 self.base_containing_block_info(
                     child_box,
                     inline_containing_block_rect,
@@ -2647,6 +2734,15 @@ impl<'pass> AbsposEngine<'pass> {
                     resolved.as_ref(),
                 )
             });
+            self.apply_anchor_center_alignment(
+                child_box,
+                child.containing_block(),
+                &containing_block_geometry,
+                child.coordinate_space_box,
+                resolved.as_ref(),
+                &mut child.static_position_rect,
+                &mut containing_block_info,
+            );
             (containing_block_info, resolved)
         };
         let inputs = abspos_inputs::AbsposLayoutInputs {
