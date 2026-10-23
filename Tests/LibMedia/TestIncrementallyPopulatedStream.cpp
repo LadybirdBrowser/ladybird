@@ -400,11 +400,11 @@ TEST_CASE(cursor_blocked_change_handler)
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> read_succeeded { false };
 
     cursor->set_blocked_change_handler([&](Media::ReadBlocked blocked) {
+        last_state = blocked == Media::ReadBlocked::Yes;
         if (blocked == Media::ReadBlocked::Yes)
             blocked_count++;
         else
             unblocked_count++;
-        last_state = blocked == Media::ReadBlocked::Yes;
     });
 
     auto thread = Threading::Thread::construct("TestBlockHandler"sv, [&, cursor]() -> intptr_t {
