@@ -123,7 +123,7 @@ void EnvironmentSettingsObject::remove_owned_worker_agent(WorkerAgentParent& wor
 
 void EnvironmentSettingsObject::release_owned_worker_agents()
 {
-    auto owned_worker_agents = move(m_owned_worker_agents);
+    GC::RootVector owned_worker_agents { move(m_owned_worker_agents) };
     for (auto& worker_agent : owned_worker_agents)
         worker_agent->terminate();
 }
