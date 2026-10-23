@@ -28,7 +28,8 @@ use crate::bindings::services::web_bindings_object_implements_interface;
 use crate::bindings::{CallContext, WebIdlResult};
 
 /// A USVString, a string without lone surrogates. Its UTF-16 code units are always well-formed.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Trace)]
+#[gc(crate = libjs_rust)]
 pub(crate) struct UsvString(Utf16String);
 
 impl UsvString {
@@ -100,6 +101,15 @@ impl UsvString {
 
     pub(crate) fn into_utf16_string(self) -> Utf16String {
         self.0
+    }
+
+    pub(crate) fn as_utf16_string(&self) -> &Utf16String {
+        &self.0
+    }
+
+    /// https://infra.spec.whatwg.org/#javascript-string-convert
+    pub(crate) fn from_utf16_string(string: &Utf16String) -> Self {
+        Self(to_well_formed(string))
     }
 
     pub(crate) fn from_utf8(string: &str) -> Self {

@@ -203,7 +203,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     auto encoding = TRY_OR_THROW_OOM(vm, pick_an_encoding());
 
     // 7. Let entry list be the result of constructing the entry list with form, submitter, and encoding.
-    auto entry_list_or_null = TRY(construct_entry_list(relevant_realm(*this), *this, submitter, encoding));
+    auto entry_list_or_null = construct_entry_list(*this, submitter, encoding);
 
     // 8. Assert: entry list is not null.
     VERIFY(entry_list_or_null.has_value());
