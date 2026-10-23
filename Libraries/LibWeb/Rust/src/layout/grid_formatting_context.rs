@@ -901,8 +901,9 @@ fn place_items_in_row_flow(
     // 4. Position the remaining grid items.
     // For each grid item that hasn't been positioned by the previous steps, in order-modified document
     // order:
-    let mut cursor_column = 0;
-    let mut cursor_row = 0;
+    // Initially the auto-placement cursor is set to the start-most row and column lines in the implicit grid.
+    let mut cursor_column = grid.min_column_index;
+    let mut cursor_row = grid.min_row_index;
     for &index in &ordered_indices {
         if !remaining[index] {
             continue;
