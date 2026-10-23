@@ -6,16 +6,16 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-StrokePath@s1/e0 path_bounding_rect=[8,8 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=29.72
-StrokePath@s1/e0 path_bounding_rect=[110.677666,95.322334 17.322334x65.35534] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=14.81 inline_clips=[clip_path=[bounds: [112,96 16x64], curved path: 68 commands]]
-StrokePath@s1/e0 path_bounding_rect=[15.322332,150.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.41 inline_clips=[clip_path=[bounds: [16,152 104x17], curved path: 68 commands]]
-StrokePath@s1/e0 path_bounding_rect=[8,95.322334 17.322332x65.35534] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=14.81 inline_clips=[clip_path=[bounds: [7,96 17x64], curved path: 68 commands]]
-StrokePath@s1/e0 path_bounding_rect=[15.322332,87.99999 105.35533x17.322342] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.41 inline_clips=[clip_path=[bounds: [16,88 104x16], curved path: 68 commands]]
+StrokePath@s1/e0 path_bounding_rect=[8,8 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=29.73
+StrokePath@s1/e0 path_bounding_rect=[110.677666,95.322334 17.322334x65.35534] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=14.82 inline_clips=[clip_path=[bounds: [112,96 16x64], curved path: 68 commands]]
+StrokePath@s1/e0 path_bounding_rect=[15.322332,150.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.41 inline_clips=[clip_path=[bounds: [16,152 104x16], curved path: 68 commands]]
+StrokePath@s1/e0 path_bounding_rect=[7.999999,95.322334 17.322334x65.35534] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=14.82 inline_clips=[clip_path=[bounds: [8,96 16x64], curved path: 68 commands]]
+StrokePath@s1/e0 path_bounding_rect=[15.322332,88 105.35533x17.322334] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=12.41 inline_clips=[clip_path=[bounds: [16,88 104x16], curved path: 68 commands]]
 StrokePath@s1/e0 path_bounding_rect=[8,168 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=30.93
 StrokePath@s1/e0 path_bounding_rect=[8,248 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.91
 StrokePath@s1/e0 path_bounding_rect=[110.677666,335.32233 17.322334x65.35535] thickness=10 color=rgb(0, 0, 255) dash_array_size=2 dash_offset=9.88 inline_clips=[clip_path=[bounds: [112,336 16x64], curved path: 68 commands]]
 StrokePath@s1/e0 path_bounding_rect=[15.322332,390.67767 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.93 inline_clips=[clip_path=[bounds: [16,392 104x16], curved path: 68 commands]]
-StrokePath@s1/e0 path_bounding_rect=[8,335.32233 17.322332x65.35535] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.88 inline_clips=[clip_path=[bounds: [7,336 17x64], curved path: 68 commands]]
-StrokePath@s1/e0 path_bounding_rect=[15.322332,327.99997 105.35533x17.322357] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.93 inline_clips=[clip_path=[bounds: [16,328 104x16], curved path: 68 commands]]
+StrokePath@s1/e0 path_bounding_rect=[7.999999,335.32233 17.322334x65.35535] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.88 inline_clips=[clip_path=[bounds: [8,336 16x64], curved path: 68 commands]]
+StrokePath@s1/e0 path_bounding_rect=[15.322332,328 105.35533x17.322327] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=9.93 inline_clips=[clip_path=[bounds: [16,328 104x16], curved path: 68 commands]]
 StrokePath@s1/e0 path_bounding_rect=[8,408 120x80] thickness=10 color=rgb(255, 0, 0) dash_array_size=2 dash_offset=10.31
 

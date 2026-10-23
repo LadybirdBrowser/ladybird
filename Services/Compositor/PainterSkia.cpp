@@ -17,7 +17,6 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/PathSkia.h>
 
 #include <core/SkCanvas.h>
 #include <core/SkFont.h>

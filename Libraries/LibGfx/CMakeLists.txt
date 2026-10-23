@@ -40,7 +40,6 @@ set(SOURCES
     PaintStyle.cpp
     Palette.cpp
     Path.cpp
-    PathSkia.cpp
     Point.cpp
     Rect.cpp
     SharedImage.cpp
