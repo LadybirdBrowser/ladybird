@@ -77,6 +77,8 @@ public:
 
     void stop_fetch();
     void stop_request();
+    // Stops the delivery of the current response's body without ending the fetch.
+    void stop_body_transport();
     void set_stop_steps(GC::Ref<GC::Function<void()>> stop_steps) { m_stop_steps = stop_steps; }
 
     u64 next_fetch_task_id() { return m_next_fetch_task_id++; }

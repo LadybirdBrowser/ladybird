@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A response the fetch discards leaves no memory-cache entry behind, pending or complete. A later response for the
+    // same request is the one the cache stores.
+    //
+    // The Accept marker rides each fetch (CORS-safelisted, and the response has no Vary). The server records the last
+    // marker it saw, which tells a hit from a miss.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const lastSeenMarker = async url => {
+            const response = await fetch(server.recordedRequestHeadersURL(url));
+            return (await response.json())["Accept"][0];
+        };
+
+        const token = `discarded-${crypto.randomUUID()}`;
+        const url = await server.createEcho("GET", `/cache-discarded-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "max-age=2",
+                "Content-Type": "application/octet-stream",
+                "X-Content-Type-Options": "nosniff",
+            },
+            body: "abcdefghij" + "K".repeat(54),
+        });
+        // The body is held after its first chunk while the script load discards the response.
+        const heldUrl = `${url}?chunks=10,54&chunk_unblock_tokens=${token}`;
+
+        // A nosniff response that is not JavaScript is blocked for a script.
+        const script = document.createElement("script");
+        const blocked = new Promise(resolve => script.addEventListener("error", resolve, { once: true }));
+        script.src = heldUrl;
+        document.body.append(script);
+        await blocked;
+        println("script load was blocked");
+        await fetch(new URL(`/unblock/${token}`, url));
+
+        // Wait past the discarded response's freshness: an entry it left behind is expired by then.
+        await delay(3000);
+
+        const stored = await fetch(heldUrl, { headers: { Accept: "stored" } });
+        println(`stored response arrived whole: ${(await stored.arrayBuffer()).byteLength === 64}`);
+
+        await fetch(heldUrl, { headers: { Accept: "check" } });
+        println(`next fetch served from the cache: ${(await lastSeenMarker(url)) === "stored"}`);
+
+        done();
+    });
+</script>

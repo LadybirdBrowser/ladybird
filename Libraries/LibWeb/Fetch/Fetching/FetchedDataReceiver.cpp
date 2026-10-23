@@ -226,6 +226,19 @@ void FetchedDataReceiver::enqueue_into_stream(JS::Realm& realm, ReadonlyBytes by
     }
 }
 
+void FetchedDataReceiver::abandon_cache_entry()
+{
+    if (!m_http_cache || !m_fetch_params || !m_response)
+        return;
+
+    auto request = m_fetch_params->request();
+    m_http_cache->abandon_entry(request->current_url(), request->method(), request->header_list(), m_response->header_list());
+
+    m_http_cache.clear();
+    m_cache_buffer.clear();
+    m_cache_body.clear();
+}
+
 void FetchedDataReceiver::close_stream(JS::Realm& realm)
 {
     if (m_http_cache && m_fetch_params) {

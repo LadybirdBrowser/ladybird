@@ -38,6 +38,9 @@ public:
     void handle_network_data(JS::Realm&, Requests::ResponseData, NetworkState);
     void set_cached_response_body(Core::ImmutableBytes);
 
+    // Drops the response's pending memory-cache entry, for a body that will not finish arriving.
+    void abandon_cache_entry();
+
 private:
     FetchedDataReceiver(GC::Ptr<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>, RefPtr<HTTP::MemoryCache>);
 
