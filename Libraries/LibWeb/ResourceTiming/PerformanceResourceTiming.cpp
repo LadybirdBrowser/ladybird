@@ -350,11 +350,11 @@ Utf16String const& PerformanceResourceTiming::content_type() const
 }
 
 // https://w3c.github.io/server-timing/#dom-performanceresourcetiming-servertiming
-Vector<GC::Ref<ServerTiming::PerformanceServerTiming>> PerformanceResourceTiming::server_timing() const
+GC::RootVector<GC::Ref<ServerTiming::PerformanceServerTiming>> PerformanceResourceTiming::server_timing() const
 {
     // The serverTiming getter steps are the following:
     // 1. Let entries be a new list.
-    Vector<GC::Ref<ServerTiming::PerformanceServerTiming>> entries;
+    GC::RootVector<GC::Ref<ServerTiming::PerformanceServerTiming>> entries;
 
     // 2. For each field in this’s timing info’s server-timing headers:
     for (auto const& field : m_timing_info->server_timing_headers()) {

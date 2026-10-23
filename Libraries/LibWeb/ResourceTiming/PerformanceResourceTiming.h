@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/PerformanceResourceTiming.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -80,7 +81,7 @@ public:
     bool is_render_blocking() const;
     Utf16String const& content_type() const;
 
-    Vector<GC::Ref<ServerTiming::PerformanceServerTiming>> server_timing() const;
+    GC::RootVector<GC::Ref<ServerTiming::PerformanceServerTiming>> server_timing() const;
 
 protected:
     PerformanceResourceTiming(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
