@@ -26,7 +26,7 @@ IDBObjectStore::IDBObjectStore(GC::Ref<ObjectStore> store, GC::Ref<IDBTransactio
     , m_name(store->name())
 {
     // An object store handle has an index set, which is initialized to the set of indexes that reference the associated object store when the object store handle is created.
-    m_indexes = MUST(store->index_set().clone());
+    m_indexes = store->index_set();
 }
 
 GC::Ref<IDBObjectStore> IDBObjectStore::create(GC::Ref<ObjectStore> store, GC::Ref<IDBTransaction> transaction)
