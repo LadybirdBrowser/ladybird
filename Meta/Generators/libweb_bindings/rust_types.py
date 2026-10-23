@@ -201,6 +201,9 @@ def idl_type_name(idl_type: IDLType, what: str) -> str:
     UnrestrictedDoubleSequence for sequence<unrestricted double>."""
     if isinstance(idl_type, IDLUnionType):
         name = "Or".join(idl_type_name(member_type, what) for member_type in idl_type.member_types)
+    elif isinstance(idl_type, IDLParameterizedType) and idl_type.name == "record":
+        key_type, value_type = idl_type.parameters
+        name = f"{idl_type_name(key_type, what)}{idl_type_name(value_type, what)}Record"
     elif isinstance(idl_type, IDLParameterizedType):
         if idl_type.name != "sequence":
             raise UnsupportedByRustBindings(f"{what} has the type {idl_type}, which the Rust bindings have no name for")
@@ -291,9 +294,12 @@ def is_named_union(idl_type: IDLType, context: GenerationContext) -> bool:
 
 def rust_union_variant(member_type: IDLType) -> str:
     """The variant of a member of a union in the enum of the union, which has the type name of the member, such as
-    DOMString or UnrestrictedDouble. A union has at most one sequence type, whose variant is Sequence."""
+    DOMString or UnrestrictedDouble. A union has at most one sequence type and one record type, whose variants are
+    Sequence and Record."""
     if isinstance(member_type, IDLParameterizedType) and member_type.name == "sequence":
         return "Sequence"
+    if isinstance(member_type, IDLParameterizedType) and member_type.name == "record":
+        return "Record"
     return idl_type_name(member_type, f"the union member {member_type}")
 
 

@@ -17,9 +17,11 @@
 import textwrap
 
 from io import StringIO
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import TextIO
+from typing import Tuple
 
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.includes import GeneratedIncludes
@@ -30,6 +32,7 @@ from Generators.libweb_bindings.rust_members import RustConstructor
 from Generators.libweb_bindings.rust_members import RustMembers
 from Generators.libweb_bindings.rust_members import RustOperation
 from Generators.libweb_bindings.rust_members import RustOperationSet
+from Generators.libweb_bindings.rust_members import RustPairIterator
 from Generators.libweb_bindings.rust_members import rust_members
 from Generators.libweb_bindings.rust_names import rust_identifier
 from Generators.libweb_bindings.rust_names import rust_local_name
@@ -46,6 +49,7 @@ from Generators.libweb_bindings.rust_to_js_value import write_enumeration_to_js
 from Generators.libweb_bindings.rust_to_js_value import write_union_to_js
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
+from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_promise_type
@@ -90,6 +94,10 @@ def rust_entry_point_name(interface: Interface, entry_point: str) -> str:
 
 def wrapper_host_class_symbol(interface: Interface) -> str:
     return f"web_bindings_{wrapper_name(interface)}_host_class"
+
+
+def iterator_host_class_symbol(interface: Interface) -> str:
+    return f"web_bindings_{rust_module_name(interface)}_iterator_host_class"
 
 
 def interface_name_values(intrinsics: List[Interface]) -> Dict[str, int]:
@@ -149,6 +157,18 @@ public:
 
 """
     )
+    if rust_members(interface).pair_iterator is not None:
+        out.write(
+            f"""// The class of the default iterator objects of {interface.name}, whose cells the Rust bindings create.
+extern "C" JSHostClass const {iterator_host_class_symbol(interface)};
+
+struct {interface.name}IteratorPrototype {{
+public:
+    static void initialize(JS::Realm&, JS::Object&);
+}};
+
+"""
+        )
 
 
 def write_cpp_implementation(
@@ -257,6 +277,21 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::constr
             f'    return constructor.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAConstructor, "{interface.name}");\n'
         )
     out.write("}\n\n")
+    if rust_members(interface).pair_iterator is not None:
+        initialize_iterator_prototype = rust_entry_point_name(interface, "initialize_iterator_prototype")
+        out.write(
+            f"""extern "C" void {initialize_iterator_prototype}(JSVM*, void* realm, JSObject* prototype);
+
+constexpr JSHostClass {iterator_host_class_symbol(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}Iterator"sv,
+    nullptr, nullptr, nullptr, 0);
+
+void {interface.name}IteratorPrototype::initialize(JS::Realm& realm, JS::Object& object)
+{{
+    {initialize_iterator_prototype}(JS::HostABI::vm_to_abi(realm.vm()), &realm, JS::HostABI::object_to_abi(&object));
+}}
+
+"""
+        )
 
 
 def write_ensure_web_prototype_declaration(out: TextIO) -> None:
@@ -266,53 +301,57 @@ def write_ensure_web_prototype_declaration(out: TextIO) -> None:
 // Rust bindings.
 extern "C" JSObject* web_bindings_ensure_web_prototype(void* realm, u16 interface_name);
 extern "C" JSObject* web_bindings_ensure_web_constructor(void* realm, u16 interface_name);
+extern "C" JSObject* web_bindings_ensure_web_iterator_prototype(void* realm, u16 interface_name);
 """
     )
 
 
 def write_ensure_web_prototype_implementation(out: TextIO, intrinsics: List[Interface]) -> None:
-    out.write(
-        """
-JSObject* web_bindings_ensure_web_prototype(void* realm, u16 interface_name)
-{
-    [[maybe_unused]] auto& js_realm = *static_cast<JS::Realm*>(realm);
-    switch (static_cast<InterfaceName>(interface_name)) {
-"""
-    )
-    for interface in intrinsics:
-        if not is_implemented_in_rust(interface):
-            continue
-        out.write(
-            f"""    case InterfaceName::{interface.name}:
-        return JS::HostABI::object_to_abi(&ensure_web_prototype<{interface.prototype_class}>(js_realm, "{interface.namespaced_name}"_utf16_fly_string));
-"""
-        )
-    out.write(
-        """    default:
-        VERIFY_NOT_REACHED();
-    }
-}
+    rust_interfaces = [interface for interface in intrinsics if is_implemented_in_rust(interface)]
 
-JSObject* web_bindings_ensure_web_constructor(void* realm, u16 interface_name)
-{
-    [[maybe_unused]] auto& js_realm = *static_cast<JS::Realm*>(realm);
-    switch (static_cast<InterfaceName>(interface_name)) {
-"""
-    )
-    for interface in intrinsics:
-        if not is_implemented_in_rust(interface):
-            continue
+    def write_switch(function: str, interfaces: List[Interface], object_of: Callable[[Interface], str]) -> None:
         out.write(
-            f"""    case InterfaceName::{interface.name}:
-        return JS::HostABI::object_to_abi(&ensure_web_constructor<{interface.prototype_class}>(js_realm, "{interface.namespaced_name}"_utf16_fly_string));
+            f"""
+JSObject* {function}(void* realm, u16 interface_name)
+{{
+    [[maybe_unused]] auto& js_realm = *static_cast<JS::Realm*>(realm);
+    switch (static_cast<InterfaceName>(interface_name)) {{
 """
         )
-    out.write(
-        """    default:
+        for interface in interfaces:
+            out.write(
+                f"""    case InterfaceName::{interface.name}:
+        return JS::HostABI::object_to_abi(&{object_of(interface)});
+"""
+            )
+        out.write(
+            """    default:
         VERIFY_NOT_REACHED();
     }
 }
 """
+        )
+
+    write_switch(
+        "web_bindings_ensure_web_prototype",
+        rust_interfaces,
+        lambda interface: (
+            f'ensure_web_prototype<{interface.prototype_class}>(js_realm, "{interface.namespaced_name}"_utf16_fly_string)'
+        ),
+    )
+    write_switch(
+        "web_bindings_ensure_web_constructor",
+        rust_interfaces,
+        lambda interface: (
+            f'ensure_web_constructor<{interface.prototype_class}>(js_realm, "{interface.namespaced_name}"_utf16_fly_string)'
+        ),
+    )
+    write_switch(
+        "web_bindings_ensure_web_iterator_prototype",
+        [interface for interface in rust_interfaces if rust_members(interface).pair_iterator is not None],
+        lambda interface: (
+            f'ensure_web_prototype<{interface.name}IteratorPrototype>(js_realm, "{interface.name}Iterator"_utf16_fly_string)'
+        ),
     )
 
 
@@ -425,8 +464,14 @@ def implementation_method_signatures(
                 f"fn {overload.method}(&self, cx: &mut CallContext{parameters}) -> "
                 f"WebIdlResult<{rust_result_type(overload.operation.return_type, context, what)}>"
             )
-    if members.stringifier is not None:
+    if members.stringifier is not None and members.stringifier.defines_method:
         signatures.append(f"fn {members.stringifier.method}(&self, cx: &mut CallContext) -> WebIdlResult<Utf16String>")
+    if members.pair_iterator is not None:
+        key_type, value_type = pair_iterator_types(context, interface, members.pair_iterator)
+        signatures.append(
+            f"impl PairIterable with Key = {key_type} and Value = {value_type}: "
+            "fn value_pairs_to_iterate_over(&self) -> impl Deref<Target = [(Self::Key, Self::Value)]> + '_"
+        )
     if members.indexed_property_getter is not None:
         getter = members.indexed_property_getter.operation
         what = f"{interface.name}.{getter.operation.name}()"
@@ -444,6 +489,64 @@ def implementation_method_signatures(
                 f"WebIdlResult<{rust_result_type(overload.operation.return_type, context, what)}>"
             )
     return signatures
+
+
+def pair_iterator_types(
+    context: GenerationContext, interface: Interface, pair_iterator: RustPairIterator
+) -> Tuple[str, str]:
+    what = f"the pair iterator of {interface.name}"
+    for idl_type in (pair_iterator.key_type, pair_iterator.value_type):
+        if holds_cells(idl_type, context):
+            raise UnsupportedByRustBindings(
+                f"{interface.path}: {what} iterates over {idl_type}, a type whose values are or can hold cells, which "
+                "the Rust bindings do not handle yet"
+            )
+    return (
+        rust_type(pair_iterator.key_type, context, what, is_result=True),
+        rust_type(pair_iterator.value_type, context, what, is_result=True),
+    )
+
+
+def write_rust_pair_iterator(out: TextIO, interface: Interface) -> None:
+    """The classes of the default iterator objects of the interface, and the steps of its iterator prototype object,
+    which the bindings runtime implements for every interface with a pair iterator,
+    https://webidl.spec.whatwg.org/#es-iterator-prototype-object"""
+    out.write(
+        f"""
+    /// The class of the cells of the default iterator objects of the interface.
+    static ITERATOR_CELL_CLASS: EmbedderClass<DefaultIterator<Implementation>> = EmbedderClass::new("{interface.name} Iterator");
+
+    unsafe extern "C" {{
+        static {iterator_host_class_symbol(interface)}: JSHostClass;
+    }}
+
+    impl DefaultIteratorClasses for Implementation {{
+        const ITERATOR_CELL_CLASS: &'static EmbedderClass<DefaultIterator<Self>> = &ITERATOR_CELL_CLASS;
+
+        fn iterator_class() -> &'static JSHostClass {{
+            // SAFETY: LibWeb defines the class of the default iterator objects as constant data.
+            unsafe {{ &{iterator_host_class_symbol(interface)} }}
+        }}
+    }}
+
+    /// The steps of {interface.name}IteratorPrototype::initialize() of LibWeb's C++ bindings.
+    ///
+    /// # Safety
+    ///
+    /// The pointers must be the VM, a realm and the iterator prototype object of the realm.
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn {rust_entry_point_name(interface, "initialize_iterator_prototype")}(
+        vm: *mut c_void,
+        realm: *mut c_void,
+        prototype: *mut c_void,
+    ) {{
+        // SAFETY: The caller passes live pointers.
+        let (vm, realm, prototype) = unsafe {{ entry_point_arguments(vm, realm, prototype) }};
+        define_operation(vm, realm, prototype, "next", raw_native!(iterator_next::<Implementation>), 0);
+        define_to_string_tag(vm, prototype, "{interface.name} Iterator");
+    }}
+"""
+    )
 
 
 def write_rust_interface(
@@ -473,8 +576,9 @@ def write_rust_interface(
 
     use crate::bindings::conversions::{{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
-        implements_cpp_interface, record_to_js, rooted_sequence_to_js, sequence_from_js, sequence_to_js,
-        to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface, to_dom_string,
+        implements_cpp_interface, record_from_js, record_to_js, rooted_sequence_to_js, sequence_from_js,
+        sequence_to_js, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
+        to_cpp_interface_in_union, to_dom_string,
         to_dom_string_treating_null_as_empty, to_double, to_float, to_long, to_long_enforcing_range, to_long_long,
         to_long_long_enforcing_range, to_typed_array, to_unrestricted_double, to_unrestricted_float, to_unsigned_long,
         to_unsigned_long_enforcing_range, to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string,
@@ -485,6 +589,10 @@ def write_rust_interface(
         define_operation, define_to_string_tag, define_unimplemented_property, define_value_iterator_properties,
         entry_point_arguments, implementation_if, implementation_of, prototype_from_new_target, realm_is_window,
         rejected_promise, set_dictionary_member, set_interface_prototype_object_prototype, this_object, to_interface,
+    }};
+    use crate::bindings::iterable::{{
+        DefaultIterator, DefaultIteratorClasses, define_pair_iterator_properties, entries, for_each, iterator_next, keys,
+        values,
     }};
     use crate::bindings::structured_data;
     use crate::bindings::{{CallContext, WebIdlResult}};
@@ -577,6 +685,9 @@ def write_rust_interface(
         write_rust_operation(out, context, interface, getter_set.name, getter_set.function, getter)
         write_rust_item_value(out, context, interface, getter)
 
+    if members.pair_iterator is not None:
+        write_rust_pair_iterator(out, interface)
+
     for operation_set in members.static_operation_sets:
         if len(operation_set.overloads) > 1:
             raise UnsupportedByRustBindings(
@@ -646,6 +757,20 @@ def write_rust_interface(
         defined_property_names.append(getter_set.name)
         if members.indexed_property_getter.has_value_iterator:
             out.write("        define_value_iterator_properties(vm, realm, prototype);\n")
+    if members.pair_iterator is not None:
+        out.write(
+            """        define_pair_iterator_properties(
+            vm,
+            realm,
+            prototype,
+            raw_native!(entries::<Implementation>),
+            raw_native!(for_each::<Implementation>),
+            raw_native!(keys::<Implementation>),
+            raw_native!(values::<Implementation>),
+        );
+"""
+        )
+        defined_property_names.extend(members.pair_iterator.function_names)
     if members.constants:
         out.write("        define_constants(vm, prototype, &CONSTANTS);\n")
         defined_property_names.extend(constant.name for constant in members.constants)
@@ -1219,7 +1344,7 @@ pub(crate) mod definitions {
     use crate::bindings::conversions::{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
         dictionary_member, dictionary_object, enumeration_value_to_js, implements_cpp_interface, iterator_method,
-        record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js, sequence_to_js,
+        record_from_js, record_to_js, rooted_sequence_to_js, sequence_from_iterable, sequence_from_js, sequence_to_js,
         throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
         to_dom_string, to_dom_string_treating_null_as_empty, to_double, to_enumeration_value, to_float, to_long,
         to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_typed_array, to_unrestricted_double,

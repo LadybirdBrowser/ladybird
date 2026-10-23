@@ -24,6 +24,7 @@ from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import idl_integer_value
 from Utils.webidl_parser import Attribute
 from Utils.webidl_parser import Constructor
+from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Operation
 
@@ -117,14 +118,24 @@ class RustOperationSet:
 
 @dataclass
 class RustStringifier:
-    """The stringifier of an interface, which the implementation runs through its method to_string,
-    https://webidl.spec.whatwg.org/#es-stringifier"""
+    """The stringifier of an interface, https://webidl.spec.whatwg.org/#es-stringifier: an operation, which the
+    implementation runs through its method to_string, or an attribute, whose getter method it runs."""
 
     # Whether only a Window has the stringifier.
     is_window_only: bool
+    # The getter method of the attribute, for a stringifier that is an attribute.
+    attribute_getter_method: Optional[str] = None
 
-    method = "to_string"
     function = "to_string_function"
+
+    @property
+    def method(self) -> str:
+        return self.attribute_getter_method or "to_string"
+
+    @property
+    def defines_method(self) -> bool:
+        """Whether the implementation has a method for the stringifier of its own, rather than an attribute getter."""
+        return self.attribute_getter_method is None
 
 
 @dataclass
@@ -137,6 +148,18 @@ class RustIndexedPropertyGetter:
     # Whether the interface declares a value iterator, which it implements through the indexed properties,
     # https://webidl.spec.whatwg.org/#dfn-value-iterator
     has_value_iterator: bool
+
+
+@dataclass
+class RustPairIterator:
+    """The pair iterator of an interface, https://webidl.spec.whatwg.org/#dfn-pair-iterator, whose value pairs to
+    iterate over the implementation gives through its implementation of PairIterable."""
+
+    key_type: IDLType
+    value_type: IDLType
+
+    # The names of the functions that the interface prototype object holds, in the order of the C++ bindings.
+    function_names = ["entries", "forEach", "keys", "values"]
 
 
 @dataclass
@@ -169,6 +192,7 @@ class RustMembers:
     static_operation_sets: List[RustOperationSet] = field(default_factory=list)
     stringifier: Optional[RustStringifier] = None
     indexed_property_getter: Optional[RustIndexedPropertyGetter] = None
+    pair_iterator: Optional[RustPairIterator] = None
     constructors: List[RustConstructor] = field(default_factory=list)
     constants: List[RustConstant] = field(default_factory=list)
     # The regular attributes in the order of the IDL, as the prototype defines them: an attribute of `attributes`, or
@@ -192,6 +216,8 @@ class RustMembers:
             names.append("toString")
         if self.indexed_property_getter is not None:
             names.append(self.indexed_property_getter.operation.operation.name)
+        if self.pair_iterator is not None:
+            names.extend(self.pair_iterator.function_names)
         names.extend(constant.name for constant in self.constants)
         return names
 
@@ -233,12 +259,12 @@ def rust_members(interface: Interface) -> RustMembers:
     if interface.async_iterable or interface.maplike or interface.setlike:
         fail("it is async iterable or a maplike or setlike")
     has_value_iterator = interface.iterable is not None and interface.iterable.key_type is None
-    if interface.iterable is not None and not has_value_iterator:
-        fail("it declares a pair iterator, which the Rust bindings do not handle yet")
     if interface.static_attributes:
         fail("it has static attributes")
 
     members = RustMembers()
+    if interface.iterable is not None and interface.iterable.key_type is not None:
+        members.pair_iterator = RustPairIterator(interface.iterable.key_type, interface.iterable.value_type)
 
     getter = interface.indexed_property_getter
     if has_value_iterator and getter is None:
@@ -265,14 +291,15 @@ def rust_members(interface: Interface) -> RustMembers:
 
     if interface.stringifier is not None:
         stringifier = interface.stringifier
-        if stringifier.attribute is not None:
-            fail("its stringifier is an attribute, which the Rust bindings do not handle yet")
         check_extended_attributes(
             "its stringifier", stringifier.extended_attributes, SUPPORTED_STRINGIFIER_EXTENDED_ATTRIBUTES
         )
         check_exposure("its stringifier", stringifier.extended_attributes)
+        attribute_getter_method = None
+        if stringifier.attribute is not None:
+            attribute_getter_method = method_of(stringifier.attribute.name, stringifier.attribute.extended_attributes)
         members.stringifier = RustStringifier(
-            stringifier.extended_attributes.get("Exposed") == SUPPORTED_MEMBER_EXPOSURE
+            stringifier.extended_attributes.get("Exposed") == SUPPORTED_MEMBER_EXPOSURE, attribute_getter_method
         )
 
     constructor_attributes = {"ImplementedAs"} if len(interface.constructors) > 1 else set()
@@ -374,7 +401,7 @@ def rust_members(interface: Interface) -> RustMembers:
         for overload in operation_set.overloads
         if not overload.is_default_to_json
     )
-    if members.stringifier is not None:
+    if members.stringifier is not None and members.stringifier.defines_method:
         methods.append(members.stringifier.method)
     if members.indexed_property_getter is not None:
         methods.append(members.indexed_property_getter.operation.method)

@@ -25,6 +25,7 @@ from Generators.libweb_bindings.rust_types import cpp_interface
 from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
 from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import is_named_union
+from Generators.libweb_bindings.rust_types import is_unnamed_union_of_cpp_interfaces
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
 from Generators.libweb_bindings.rust_types import resolved_dictionary
 from Generators.libweb_bindings.rust_types import runtime_union_type
@@ -89,6 +90,8 @@ def rust_to_idl_value(
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "sequence":
         element = rust_sequence_element_to_idl_value(idl_type, identifier, context, what)
         return f"sequence_from_js(vm, {value}, |value| {element})"
+    if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "record":
+        return rust_record_to_idl_value(idl_type, value, identifier, context, what)
     if isinstance(idl_type, IDLParameterizedType):
         raise UnsupportedByRustBindings(
             f"{what} has the type {idl_type}, which the Rust bindings do not convert to yet"
@@ -101,6 +104,8 @@ def rust_to_idl_value(
         return f"to_usv_string(vm, {value})"
     if name == "boolean":
         return f"to_boolean({value})"
+    if name == "any":
+        return f"ThrowCompletionOr::<Value>::Ok({value})"
     if name in INTEGER_TYPES:
         if "EnforceRange" in attributes:
             return f"to_{name.replace(' ', '_')}_enforcing_range(vm, {value})"
@@ -129,6 +134,12 @@ def rust_to_idl_value(
     interface = cpp_interface(idl_type, context)
     if interface is not None:
         return f'to_cpp_interface(vm, {value}, {cpp_interface_name_constant(interface)}, "{interface.name}")'
+    if is_unnamed_union_of_cpp_interfaces(idl_type, context):
+        interface_names = ", ".join(
+            cpp_interface_name_constant(context.interfaces[member_type.name])
+            for member_type in idl_type.flattened_member_types()
+        )
+        return f"to_cpp_interface_in_union(vm, {value}, &[{interface_names}])"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
         return f"<{rust_dictionary_path(dictionary, context)}>::from_js(vm, {value})"
@@ -159,6 +170,22 @@ def rust_sequence_element_to_idl_value(
     return rust_to_idl_value(element_type, {}, "value", identifier, context, what)
 
 
+def rust_record_to_idl_value(
+    record_type: IDLParameterizedType, value: str, identifier: str, context: GenerationContext, what: str
+) -> str:
+    """The conversion of the JS value to the record type."""
+    key_type, value_type = record_type.parameters
+    if holds_cells(value_type, context):
+        # NB: The entries are gathered in a Vec, which hides cells from the collector while the rest are converted.
+        raise UnsupportedByRustBindings(
+            f"{what} has the type {record_type}, a record of values that are or can hold cells, which the Rust "
+            "bindings do not convert to yet"
+        )
+    key = rust_to_idl_value(key_type, {}, "key", identifier, context, what)
+    record_value = rust_to_idl_value(value_type, {}, "value", identifier, context, what)
+    return f"record_from_js(vm, {value}, |key| {key}, |value| {record_value})"
+
+
 @dataclass
 class UnionMembers:
     """The members of a union by the kinds that the Rust bindings distinguish between when they convert a JS value to
@@ -168,6 +195,7 @@ class UnionMembers:
     string_type: Optional[IDLType] = None
     numeric_type: Optional[IDLType] = None
     sequence_type: Optional[IDLParameterizedType] = None
+    record_type: Optional[IDLParameterizedType] = None
     typed_array_types: List[IDLType] = field(default_factory=list)
     # The interfaces, implemented in either language, in the order of the union.
     interface_types: List[IDLType] = field(default_factory=list)
@@ -194,6 +222,12 @@ def union_members_by_kind(union_type: IDLUnionType, context: GenerationContext, 
             and members.sequence_type is None
         ):
             members.sequence_type = member_type
+        elif (
+            isinstance(member_type, IDLParameterizedType)
+            and member_type.name == "record"
+            and members.record_type is None
+        ):
+            members.record_type = member_type
         else:
             raise UnsupportedByRustBindings(
                 f"{what} has the union type {union_type}, and the Rust bindings do not convert a JS value to a "
@@ -211,19 +245,27 @@ def rust_numeric_literal(literal: Optional[str], idl_type_name: str) -> Optional
     return None
 
 
+def rust_string_literal(default_value: Optional[str], idl_type_name: str, what: str) -> Optional[str]:
+    """The Rust expression of a string of the IDL, if the default value is one, as a value of the string type."""
+    if idl_type_name not in STRING_TYPES or default_value is None or not default_value.startswith('"'):
+        return None
+    string = default_value[1:-1]
+    if not string.isascii() or "\\" in string:
+        raise UnsupportedByRustBindings(f"{what} has the default value {default_value}")
+    if idl_type_name == "USVString":
+        return f'UsvString::from_ascii(b"{string}")'
+    return f'Utf16String::from_ascii(b"{string}")'
+
+
 def rust_default_value(
     member: Union[OperationParameter, DictionaryMember], context: GenerationContext, what: str
 ) -> str:
     """An expression of the default value of the parameter or of the dictionary member."""
     name = member.type.name
     default_value = member.default_value
-    if name in ("DOMString", "USVString") and default_value is not None and default_value.startswith('"'):
-        string = default_value[1:-1]
-        if not string.isascii() or "\\" in string:
-            raise UnsupportedByRustBindings(f"{what} has the default value {default_value}")
-        if name == "USVString":
-            return f'UsvString::from_ascii(b"{string}")'
-        return f'Utf16String::from_ascii(b"{string}")'
+    string_literal = rust_string_literal(default_value, name, what)
+    if string_literal is not None:
+        return string_literal
     if name == "boolean" and default_value in ("true", "false"):
         return default_value
     numeric_literal = rust_numeric_literal(default_value, name)
@@ -248,6 +290,10 @@ def rust_default_value(
                 f"{union_path}::{rust_union_variant(dictionary_type)}"
                 f"(<{rust_dictionary_path(dictionary, context)}>::empty())"
             )
+        string_type = union_members.string_type
+        string_literal = None if string_type is None else rust_string_literal(default_value, string_type.name, what)
+        if string_type is not None and string_literal is not None:
+            return f"{union_path}::{rust_union_variant(string_type)}({string_literal})"
         # NB: A number is a value of the numeric member that the conversion to the union takes, as the C++ bindings
         #     take the default value of such a union to be.
         numeric_type = union_members.numeric_type
@@ -381,7 +427,12 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
         dictionary_conversion = (
             f"Ok(Self::{rust_union_variant(dictionary_type)}(<{dictionary_path}>::from_js(vm, value)?))"
         )
-    if members.typed_array_types or members.sequence_type is not None or members.interface_types:
+    if (
+        members.typed_array_types
+        or members.sequence_type is not None
+        or members.record_type is not None
+        or members.interface_types
+    ):
         if dictionary_conversion is not None:
             steps.append(
                 f"""            // 4. If V is null or undefined, then:
@@ -449,6 +500,14 @@ def write_union_from_js(out: TextIO, context: GenerationContext, union_type: IDL
                 f"""                //     4. If types includes a dictionary type, then return the result of converting V to that
                 //        dictionary type.
                 return {dictionary_conversion};
+"""
+            )
+        elif members.record_type is not None:
+            conversion = rust_record_to_idl_value(members.record_type, "value", "value", context, what)
+            steps.append(
+                f"""                //     5. If types includes a record type, then return the result of converting V to that record
+                //        type.
+                return Ok(Self::{rust_union_variant(members.record_type)}({conversion}?));
 """
             )
         steps.append("            }\n")
