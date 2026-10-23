@@ -38,6 +38,7 @@
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
+#include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableRowElement.h>
 #include <LibWeb/HTML/HTMLTableSectionElement.h>
@@ -3340,8 +3341,11 @@ Optional<DOM::BoundaryPoint> next_equivalent_point(DOM::BoundaryPoint boundary_p
 
     // 5. If node has a child with index offset, and that child's length is not zero, and that child is an inline node,
     //    return (that child, 0).
+    // INTEROP: Positions in a select element, whose content is not editable, are not equivalent to positions outside
+    //          of it.
     auto child_at_offset = node->child_at_index(boundary_point.offset);
-    if (child_at_offset && child_at_offset->length() != 0 && is_inline_node(*child_at_offset))
+    if (child_at_offset && child_at_offset->length() != 0 && is_inline_node(*child_at_offset)
+        && !is<HTML::HTMLSelectElement>(*child_at_offset))
         return DOM::BoundaryPoint { *child_at_offset, 0 };
 
     // 7. Return null.
@@ -3609,8 +3613,11 @@ Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint bounda
 
     // 3. If node has a child with index offset − 1, and that child's length is not zero, and that child is an inline
     //    node, return (that child, that child's length).
+    // INTEROP: Positions in a select element, whose content is not editable, are not equivalent to positions outside
+    //          of it.
     auto child_at_offset = node->child_at_index(boundary_point.offset - 1);
-    if (child_at_offset && child_at_offset->length() != 0 && is_inline_node(*child_at_offset))
+    if (child_at_offset && child_at_offset->length() != 0 && is_inline_node(*child_at_offset)
+        && !is<HTML::HTMLSelectElement>(*child_at_offset))
         return DOM::BoundaryPoint { *child_at_offset, static_cast<WebIDL::UnsignedLong>(child_at_offset->length()) };
 
     // 4. Return null.

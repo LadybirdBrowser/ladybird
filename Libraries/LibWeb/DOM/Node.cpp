@@ -2409,6 +2409,10 @@ bool Node::recompute_editable_subtree_flag()
     bool new_value;
     if (is_document()) {
         new_value = as<Document>(*this).design_mode_enabled_state();
+    } else if (is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this)) {
+        // INTEROP: Browsers do not let editing modify the content of select, optgroup and option elements, even if
+        //          they are in an editing host or have a contenteditable attribute. Their descendants are not editable.
+        new_value = false;
     } else if (auto const* html_element = as_if<HTML::HTMLElement>(*this)) {
         auto state = html_element->content_editable_state();
         if (state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
@@ -2499,6 +2503,11 @@ bool Node::is_editing_host() const
     // NOTE: Both conditions below require this to be an HTML element.
     auto const* html_element = as_if<HTML::HTMLElement>(*this);
     if (!html_element)
+        return false;
+
+    // INTEROP: See recompute_editable_subtree_flag(). Select, optgroup and option elements are not editing hosts
+    //          either.
+    if (is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this))
         return false;
 
     // An editing host is either an HTML element with its contenteditable attribute in the true state or
