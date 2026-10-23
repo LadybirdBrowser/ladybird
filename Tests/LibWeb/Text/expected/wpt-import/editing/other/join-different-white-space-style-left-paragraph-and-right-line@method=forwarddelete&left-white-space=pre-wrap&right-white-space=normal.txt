@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-14 Fail
-Fail	forwarddelete at <div style="white-space:pre-wrap">abc[]</div>def
-Fail	forwarddelete at <div class="preWrap">abc[]</div>def
-Fail	forwarddelete at <div style="white-space:pre-wrap">abc[]</div>def<br>ghi
-Fail	forwarddelete at <div class="preWrap">abc[]</div>def<br>ghi
-Fail	forwarddelete at <div style="white-space:pre-wrap">abc[]</div>def<div>ghi</div>
-Fail	forwarddelete at <div class="preWrap">abc[]</div>def<div>ghi</div>
-Fail	forwarddelete at <div style="white-space:pre-wrap">abc[]</div><b>def</b>
-Fail	forwarddelete at <div class="preWrap">abc[]</div><b>def</b>
-Fail	forwarddelete at <div style="white-space:pre-wrap">abc[]</div><b>def<br>ghi</b>
-Fail	forwarddelete at <div class="preWrap">abc[]</div><b>def<br>ghi</b>
-Fail	forwarddelete at <div style="white-space:pre-wrap">abc[]</div><b>def</b><br>ghi
-Fail	forwarddelete at <div class="preWrap">abc[]</div><b>def</b><br>ghi
-Fail	forwarddelete at <div style="white-space:pre-wrap">abc[]</div><b>def<br></b>ghi
-Fail	forwarddelete at <div class="preWrap">abc[]</div><b>def<br></b>ghi
+14 Pass
+Pass	forwarddelete at <div style="white-space:pre-wrap">abc[]</div>def
+Pass	forwarddelete at <div class="preWrap">abc[]</div>def
+Pass	forwarddelete at <div style="white-space:pre-wrap">abc[]</div>def<br>ghi
+Pass	forwarddelete at <div class="preWrap">abc[]</div>def<br>ghi
+Pass	forwarddelete at <div style="white-space:pre-wrap">abc[]</div>def<div>ghi</div>
+Pass	forwarddelete at <div class="preWrap">abc[]</div>def<div>ghi</div>
+Pass	forwarddelete at <div style="white-space:pre-wrap">abc[]</div><b>def</b>
+Pass	forwarddelete at <div class="preWrap">abc[]</div><b>def</b>
+Pass	forwarddelete at <div style="white-space:pre-wrap">abc[]</div><b>def<br>ghi</b>
+Pass	forwarddelete at <div class="preWrap">abc[]</div><b>def<br>ghi</b>
+Pass	forwarddelete at <div style="white-space:pre-wrap">abc[]</div><b>def</b><br>ghi
+Pass	forwarddelete at <div class="preWrap">abc[]</div><b>def</b><br>ghi
+Pass	forwarddelete at <div style="white-space:pre-wrap">abc[]</div><b>def<br></b>ghi
+Pass	forwarddelete at <div class="preWrap">abc[]</div><b>def<br></b>ghi

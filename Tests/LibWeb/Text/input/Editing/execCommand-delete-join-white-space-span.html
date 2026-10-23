@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .pre {
+        white-space: pre;
+    }
+    .pre-red {
+        white-space: pre;
+        color: red;
+    }
+    .pre-bold {
+        white-space: pre;
+        font-weight: bold;
+    }
+</style>
+<div id="a" contenteditable><div>abc</div><div><span class="pre">def</span></div></div>
+<div id="b" contenteditable><div>abc</div><div><span class="pre-red">def</span></div></div>
+<div id="c" contenteditable><div>abc</div><div><span class="pre-bold">def</span></div></div>
+<div id="d" contenteditable><div>abc</div><div><span class="pre" style="color: red">def</span></div></div>
+<script>
+    test(() => {
+        for (const id of ["a", "b", "c", "d"]) {
+            const editingHost = document.getElementById(id);
+            println(`Before: ${editingHost.innerHTML}`);
+
+            // Put the cursor before "def", and press backspace.
+            const text = editingHost.querySelector("span").firstChild;
+            getSelection().collapse(text, 0);
+            document.execCommand("delete");
+
+            println(`After: ${editingHost.innerHTML}`);
+        }
+    });
+</script>

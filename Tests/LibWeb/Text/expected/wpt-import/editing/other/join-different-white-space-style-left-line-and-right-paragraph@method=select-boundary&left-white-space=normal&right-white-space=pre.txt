@@ -2,45 +2,44 @@ Harness status: OK
 
 Found 40 tests
 
-18 Pass
-22 Fail
+40 Pass
 Pass	delete at abc[<div style="white-space:pre">]def\nghi</div>
-Fail	delete at abc[<div class="pre">]def\nghi</div>
+Pass	delete at abc[<div class="pre">]def\nghi</div>
 Pass	delete at abc[<div style="white-space:pre">]def<br>ghi</div>
-Fail	delete at abc[<div class="pre">]def<br>ghi</div>
+Pass	delete at abc[<div class="pre">]def<br>ghi</div>
 Pass	delete at abc[<div style="white-space:pre"><b>]def\nghi</b></div>
-Fail	delete at abc[<div class="pre"><b>]def\nghi</b></div>
+Pass	delete at abc[<div class="pre"><b>]def\nghi</b></div>
 Pass	delete at abc[<div style="white-space:pre"><b>]def<br>ghi</b></div>
-Fail	delete at abc[<div class="pre"><b>]def<br>ghi</b></div>
-Fail	delete at abc[<div style="white-space:pre"><b>]def</b>ghi\njkl</div>
-Fail	delete at abc[<div class="pre"><b>]def</b>ghi\njkl</div>
-Fail	delete at abc[<div style="white-space:pre"><b>]def</b>ghi<br>jkl</div>
-Fail	delete at abc[<div class="pre"><b>]def</b>ghi<br>jkl</div>
+Pass	delete at abc[<div class="pre"><b>]def<br>ghi</b></div>
+Pass	delete at abc[<div style="white-space:pre"><b>]def</b>ghi\njkl</div>
+Pass	delete at abc[<div class="pre"><b>]def</b>ghi\njkl</div>
+Pass	delete at abc[<div style="white-space:pre"><b>]def</b>ghi<br>jkl</div>
+Pass	delete at abc[<div class="pre"><b>]def</b>ghi<br>jkl</div>
 Pass	delete at abc[<div style="white-space:pre"><b>]def</b>\nghi</div>
-Fail	delete at abc[<div class="pre"><b>]def</b>\nghi</div>
+Pass	delete at abc[<div class="pre"><b>]def</b>\nghi</div>
 Pass	delete at abc[<div style="white-space:pre"><b>]def</b><br>ghi</div>
-Fail	delete at abc[<div class="pre"><b>]def</b><br>ghi</div>
+Pass	delete at abc[<div class="pre"><b>]def</b><br>ghi</div>
 Pass	delete at abc[<div style="white-space:pre"><b>]def\n</b>ghi</div>
-Fail	delete at abc[<div class="pre"><b>]def\n</b>ghi</div>
+Pass	delete at abc[<div class="pre"><b>]def\n</b>ghi</div>
 Pass	delete at abc[<div style="white-space:pre"><b>]def<br></b>ghi</div>
-Fail	delete at abc[<div class="pre"><b>]def<br></b>ghi</div>
+Pass	delete at abc[<div class="pre"><b>]def<br></b>ghi</div>
 Pass	delete at abc[<div style="white-space:pre"><div>]def</div>ghi</div>
-Fail	delete at abc[<div class="pre"><div>]def</div>ghi</div>
+Pass	delete at abc[<div class="pre"><div>]def</div>ghi</div>
 Pass	delete at abc[<div style="white-space:pre">]def<div>ghi</div></div>
-Fail	delete at abc[<div class="pre">]def<div>ghi</div></div>
+Pass	delete at abc[<div class="pre">]def<div>ghi</div></div>
 Pass	delete at abc[<div style="white-space:pre"><div>]def</div>ghi\njkl</div>
-Fail	delete at abc[<div class="pre"><div>]def</div>ghi\njkl</div>
+Pass	delete at abc[<div class="pre"><div>]def</div>ghi\njkl</div>
 Pass	delete at abc[<div style="white-space:pre"><div>]def</div>ghi<br>jkl</div>
-Fail	delete at abc[<div class="pre"><div>]def</div>ghi<br>jkl</div>
+Pass	delete at abc[<div class="pre"><div>]def</div>ghi<br>jkl</div>
 Pass	delete at abc[<div style="white-space:pre">]def<div>ghi</div>\njkl</div>
-Fail	delete at abc[<div class="pre">]def<div>ghi</div>\njkl</div>
+Pass	delete at abc[<div class="pre">]def<div>ghi</div>\njkl</div>
 Pass	delete at abc[<div style="white-space:pre">]def<div>ghi</div><br>jkl</div>
-Fail	delete at abc[<div class="pre">]def<div>ghi</div><br>jkl</div>
+Pass	delete at abc[<div class="pre">]def<div>ghi</div><br>jkl</div>
 Pass	delete at abc[<div style="white-space:pre"><div>]def\nghi</div>jkl\nmno</div>
-Fail	delete at abc[<div class="pre"><div>]def\nghi</div>jkl\nmno</div>
+Pass	delete at abc[<div class="pre"><div>]def\nghi</div>jkl\nmno</div>
 Pass	delete at abc[<div style="white-space:pre"><div>]def<br>ghi</div>jkl<br>mno</div>
-Fail	delete at abc[<div class="pre"><div>]def<br>ghi</div>jkl<br>mno</div>
+Pass	delete at abc[<div class="pre"><div>]def<br>ghi</div>jkl<br>mno</div>
 Pass	delete at abc[<div style="white-space:pre">]def<div>ghi</div>jkl\nmno</div>
-Fail	delete at abc[<div class="pre">]def<div>ghi</div>jkl\nmno</div>
+Pass	delete at abc[<div class="pre">]def<div>ghi</div>jkl\nmno</div>
 Pass	delete at abc[<div style="white-space:pre">]def<div>ghi</div>jkl<br>mno</div>
-Fail	delete at abc[<div class="pre">]def<div>ghi</div>jkl<br>mno</div>
+Pass	delete at abc[<div class="pre">]def<div>ghi</div>jkl<br>mno</div>

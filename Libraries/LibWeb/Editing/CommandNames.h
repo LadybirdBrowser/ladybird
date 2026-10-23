@@ -40,7 +40,6 @@ namespace Web::Editing::CommandNames {
     __ENUMERATE_COMMAND_NAME(justifyRight, "justifyRight")                           \
     __ENUMERATE_COMMAND_NAME(outdent, "outdent")                                     \
     __ENUMERATE_COMMAND_NAME(paste, "paste")                                         \
-    __ENUMERATE_COMMAND_NAME(preserveWhitespace, "preserveWhitespace")               \
     __ENUMERATE_COMMAND_NAME(redo, "redo")                                           \
     __ENUMERATE_COMMAND_NAME(removeFormat, "removeFormat")                           \
     __ENUMERATE_COMMAND_NAME(selectAll, "selectAll")                                 \
