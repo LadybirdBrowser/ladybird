@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 11 tests
 
-7 Pass
-4 Fail
+11 Pass
 Pass	Test display math lowercase
-Fail	Test inline math lowercase
+Pass	Test inline math lowercase
 Pass	Test width on display=block math lowercase
 Pass	Test display math uppercase
-Fail	Test inline math uppercase
+Pass	Test inline math uppercase
 Pass	Test width on display=block math uppercase
 Pass	Test display math alternate_case
-Fail	Test inline math alternate_case
+Pass	Test inline math alternate_case
 Pass	Test width on display=block math alternate_case
 Pass	Test dynamically setting display=block
-Fail	Test dynamically setting display=inline
+Pass	Test dynamically setting display=inline

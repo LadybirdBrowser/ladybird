@@ -2,19 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-1 Pass
-13 Fail
-Fail	baseline alignment inside Mrow
-Fail	baseline alignment inside Sqrt
-Fail	baseline alignment inside Style
-Fail	baseline alignment inside Error
-Fail	baseline alignment inside Phantom
-Fail	baseline alignment inside Math
-Fail	baseline alignment inside Menclose
-Fail	baseline alignment inside Mpadded
-Fail	baseline alignment inside Unknown
+14 Pass
+Pass	baseline alignment inside Mrow
+Pass	baseline alignment inside Sqrt
+Pass	baseline alignment inside Style
+Pass	baseline alignment inside Error
+Pass	baseline alignment inside Phantom
+Pass	baseline alignment inside Math
+Pass	baseline alignment inside Menclose
+Pass	baseline alignment inside Mpadded
+Pass	baseline alignment inside Unknown
 Pass	baseline alignment inside Mtd
-Fail	baseline alignment inside None
-Fail	baseline alignment inside Mprescripts
-Fail	baseline alignment inside Mfenced
-Fail	baseline alignment inside A
+Pass	baseline alignment inside None
+Pass	baseline alignment inside Mprescripts
+Pass	baseline alignment inside Mfenced
+Pass	baseline alignment inside A

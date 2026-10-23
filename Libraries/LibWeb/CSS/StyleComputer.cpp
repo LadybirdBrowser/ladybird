@@ -99,6 +99,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
@@ -263,6 +264,8 @@ void StyleComputer::register_style_node(StyleNodeID style_node_id, DOM::Node& no
     // had one published nothing.
     if (auto* svg_element = as_if<SVG::SVGElement>(node))
         Layout::publish_svg_attribute_facts(*svg_element);
+    else if (auto* mathml_element = as_if<MathML::MathMLElement>(node))
+        Layout::publish_math_attribute_facts(*mathml_element);
 }
 
 static void ensure_slot(auto& nodes, u32 index)

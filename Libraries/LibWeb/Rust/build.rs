@@ -2889,6 +2889,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/layout/flex_formatting_context.rs"),
             manifest_dir.join("src/layout/grid_formatting_context.rs"),
             manifest_dir.join("src/layout/svg_formatting_context.rs"),
+            manifest_dir.join("src/layout/math_formatting_context.rs"),
             manifest_dir.join("src/layout/table_formatting_context.rs"),
             manifest_dir.join("src/layout/inline_formatting_context.rs"),
             manifest_dir.join("src/layout/inline_level_iterator.rs"),

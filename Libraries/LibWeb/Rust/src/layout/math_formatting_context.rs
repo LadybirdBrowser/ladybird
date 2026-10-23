@@ -33,6 +33,7 @@ pub(crate) enum MathLayoutKind {
     Mprescripts,
     None,
     Mpadded,
+    Mtext,
 }
 
 impl MathLayoutKind {
@@ -57,6 +58,7 @@ impl MathLayoutKind {
             16 => Self::Mprescripts,
             17 => Self::None,
             18 => Self::Mpadded,
+            19 => Self::Mtext,
             _ => Self::NotMathML,
         }
     }
@@ -64,8 +66,74 @@ impl MathLayoutKind {
     /// Whether boxes of this kind lay out their children with a MathML layout algorithm. Token elements lay out their
     /// text as a block box.
     pub(crate) fn uses_math_layout(self) -> bool {
-        !matches!(self, Self::NotMathML | Self::Token | Self::Mo)
+        !matches!(self, Self::NotMathML | Self::Token | Self::Mo | Self::Mtext)
     }
+}
+
+/// The unit of a MathML attribute value that is a `<length-percentage>`. Mirrors the C++ `MathLengthUnit`, where 0
+/// stands for an attribute that is absent or invalid.
+pub(crate) mod math_length_unit {
+    pub(crate) const PX: u8 = 1;
+    pub(crate) const EM: u8 = 2;
+    pub(crate) const EX: u8 = 3;
+    pub(crate) const PERCENTAGE: u8 = 4;
+}
+
+/// A MathML attribute value that is a `<length-percentage>`, as the host parsed it. Font-relative lengths are kept
+/// in their unit, as they resolve against the font of the box that reads them.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct FfiMathLength {
+    pub unit: u8,
+    pub value: f32,
+}
+
+impl FfiMathLength {
+    fn is_percentage(self) -> bool {
+        self.unit == math_length_unit::PERCENTAGE
+    }
+
+    /// Resolves the length against the font of `style`, and a percentage against `percentage_basis`.
+    fn resolve(self, style: &StyleValues<'_>, percentage_basis: CssPixels) -> Option<CssPixels> {
+        let value = f64::from(self.value);
+        match self.unit {
+            math_length_unit::PX => Some(CssPixels::nearest_value_for(value)),
+            math_length_unit::EM => Some(style.font_size().scaled(value)),
+            math_length_unit::EX => Some(CssPixels::nearest_value_for(f64::from(style.font_x_height()) * value)),
+            math_length_unit::PERCENTAGE => Some(percentage_basis.scaled(value / 100.0)),
+            _ => None,
+        }
+    }
+}
+
+/// The value of a MathML attribute that is a boolean. Mirrors the C++ `MathBoolean`, where 0 stands for an attribute
+/// that is absent or invalid and 2 for false.
+pub(crate) mod math_boolean {
+    pub(crate) const TRUE: u8 = 1;
+}
+
+/// The MathML attributes of an element that its layout reads, as the host parsed them. Every element publishes all
+/// of them; the layout of its box reads those its tag name gives a meaning to.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct FfiMathAttributeFacts {
+    pub width: FfiMathLength,
+    pub height: FfiMathLength,
+    pub depth: FfiMathLength,
+    pub lspace: FfiMathLength,
+    pub rspace: FfiMathLength,
+    pub voffset: FfiMathLength,
+    pub linethickness: FfiMathLength,
+    pub minsize: FfiMathLength,
+    pub maxsize: FfiMathLength,
+    /// The form attribute: 1 for infix, 2 for prefix and 3 for postfix, or 0 if it is absent or invalid.
+    pub form: u8,
+    pub stretchy: u8,
+    pub symmetric: u8,
+    pub largeop: u8,
+    pub movablelimits: u8,
+    pub accent: u8,
+    pub accentunder: u8,
 }
 
 /// An in-flow child box after its layout. The ascent and descent are measured from the alphabetic baseline to the
@@ -223,11 +291,20 @@ impl<'pass> MathFormattingContext<'pass> {
             (MathLayoutKind::Msubsup, 3) => {
                 layout_scripts(&children[0], Some(&children[1]), Some(&children[2]), &constants)
             }
-            (MathLayoutKind::Munder, 2) => layout_underover(&children[0], Some(&children[1]), None, &constants),
-            (MathLayoutKind::Mover, 2) => layout_underover(&children[0], None, Some(&children[1]), &constants),
-            (MathLayoutKind::Munderover, 3) => {
-                layout_underover(&children[0], Some(&children[1]), Some(&children[2]), &constants)
+            (MathLayoutKind::Munder, 2) => {
+                layout_underover(&children[0], Some(&children[1]), None, &constants, self.accents(root))
             }
+            (MathLayoutKind::Mover, 2) => {
+                layout_underover(&children[0], None, Some(&children[1]), &constants, self.accents(root))
+            }
+            (MathLayoutKind::Munderover, 3) => layout_underover(
+                &children[0],
+                Some(&children[1]),
+                Some(&children[2]),
+                &constants,
+                self.accents(root),
+            ),
+            (MathLayoutKind::Mspace, _) => self.layout_space(&root_style),
             _ => layout_row(&children),
         };
 
@@ -280,13 +357,58 @@ impl<'pass> MathFormattingContext<'pass> {
         self.content = content;
     }
 
+    /// Whether the accentunder and accent attributes of an <munder>, <mover> or <munderover> are a match to true.
+    // https://w3c.github.io/mathml-core/#dfn-accent
+    fn accents(&self, node: Node) -> (bool, bool) {
+        let attributes = self.run.callbacks.arena().math_attribute_facts(node);
+        (
+            attributes.accentunder == math_boolean::TRUE,
+            attributes.accent == math_boolean::TRUE,
+        )
+    }
+
+    // https://w3c.github.io/mathml-core/#space-mspace
+    fn layout_space(&self, style: &StyleValues<'_>) -> MathContent {
+        // If the height attribute is absent, invalid or a percentage then the requested line-ascent is 0. Otherwise
+        // the requested line-ascent is the resolved value of the height attribute, clamping negative values to 0.
+        let height = self.run.callbacks.arena().math_attribute_facts(self.run.box_).height;
+        let requested_line_ascent = if height.is_percentage() {
+            CssPixels::default()
+        } else {
+            height
+                .resolve(style, CssPixels::default())
+                .unwrap_or_default()
+                .max(CssPixels::default())
+        };
+        // The line-ascent of the math content is equal to the requested line-ascent determined above.
+        MathContent {
+            ascent: requested_line_ascent,
+            ..MathContent::default()
+        }
+    }
+
     // https://w3c.github.io/mathml-core/#fraction-with-nonzero-line-thickness
     fn layout_fraction(&self, children: &[Child], constants: &MathConstants, style: &StyleValues<'_>) -> MathContent {
         let numerator = &children[0];
         let denominator = &children[1];
         let is_display_style = style.math_style() == math_style::NORMAL;
-        // FIXME: Support the linethickness attribute.
-        let line_thickness = constants.default_rule_thickness;
+        // https://w3c.github.io/mathml-core/#dfn-linethickness
+        // The linethickness attribute indicates the fraction line thickness to use for the fraction bar. If present,
+        // it must have a value that is a valid <length-percentage>. If the attribute is absent or has an invalid value,
+        // FractionRuleThickness is used as the default value. A percentage is interpreted relative to that default
+        // value. A negative value is interpreted as 0.
+        let line_thickness = self
+            .run
+            .callbacks
+            .arena()
+            .math_attribute_facts(self.run.box_)
+            .linethickness
+            .resolve(style, constants.default_rule_thickness)
+            .unwrap_or(constants.default_rule_thickness)
+            .max(CssPixels::default());
+        if line_thickness == CssPixels::default() {
+            return layout_fraction_without_bar(numerator, denominator, constants, is_display_style);
+        }
         let half_thickness = line_thickness / 2;
         let axis_height = constants.axis_height;
         // NB: FractionNumeratorShiftUp and FractionDenominatorShiftDown fall back to 0.
@@ -312,6 +434,16 @@ impl<'pass> MathFormattingContext<'pass> {
         let denominator_shift =
             CssPixels::default().max(half_thickness + denominator_gap_min + denominator.ascent - axis_height);
 
+        // The line-ascent of the math content is the maximum between:
+        // - Numerator Shift + the line-ascent of the numerator's margin box.
+        // - Denominator Shift + the line-ascent of the denominator's margin box
+        // - AxisHeight plus half the fraction line thickness.
+        // The line-descent of the math content is the maximum between:
+        // - Numerator Shift + the line-descent of the numerator's margin box.
+        // - Denominator Shift + the line-descent of the denominator's margin box.
+        // - AxisHeight plus half the fraction line thickness.
+        // NB: The shifts are applied in the directions the numerator and denominator are moved in, and the fraction
+        //     bar extends below the alphabetic baseline by half the fraction line thickness minus the AxisHeight.
         let ascent = (numerator_shift + numerator.ascent)
             .max(denominator.ascent - denominator_shift)
             .max(axis_height + half_thickness);
@@ -410,6 +542,73 @@ fn layout_row(children: &[Child]) -> MathContent {
         ascent,
         descent,
         positions,
+    }
+}
+
+// https://w3c.github.io/mathml-core/#fraction-with-zero-line-thickness
+fn layout_fraction_without_bar(
+    numerator: &Child,
+    denominator: &Child,
+    constants: &MathConstants,
+    is_display_style: bool,
+) -> MathContent {
+    // The min-content inline size, max-content inline size and inline size of the math content are calculated the
+    // same as in Fraction with nonzero line thickness.
+    let inline_size = numerator.inline_size.max(denominator.inline_size);
+
+    // If the math-style is compact then TopShift and BottomShift are respectively set to StackTopShiftUp and
+    // StackBottomShiftDown. Otherwise math-style is normal and they are respectively set to
+    // StackTopDisplayStyleShiftUp and StackBottomDisplayStyleShiftDown.
+    // NB: These constants fall back to the Default fallback constant, which is 0.
+    let mut top_shift = CssPixels::default();
+    let mut bottom_shift = CssPixels::default();
+
+    // Gap is defined to be (BottomShift − the ink line-ascent of the denominator's margin box) + (TopShift − the ink
+    // line-descent of the numerator's margin box). If math-style is compact then GapMin is StackGapMin, otherwise
+    // math-style is normal and it is StackDisplayStyleGapMin.
+    // NB: stackGapMin falls back to 3 × default rule thickness, and stackDisplayStyleGapMin to 7 × default rule
+    //     thickness.
+    let gap = (bottom_shift - denominator.ascent) + (top_shift - numerator.descent);
+    let gap_min = if is_display_style {
+        constants.default_rule_thickness * 7usize
+    } else {
+        constants.default_rule_thickness * 3usize
+    };
+    // If Δ = GapMin − Gap is positive then TopShift and BottomShift are respectively increased by Δ/2 and Δ − Δ/2.
+    let delta = gap_min - gap;
+    if delta > CssPixels::default() {
+        top_shift += delta / 2;
+        bottom_shift += delta - delta / 2;
+    }
+
+    // The line-ascent of the math content is the maximum between:
+    // - TopShift + the line-ascent of the numerator's margin box.
+    // - BottomShift + the line-ascent of the denominator's margin box.
+    // The line-descent of the math content is the maximum between:
+    // - TopShift + the line-descent of the numerator's margin box.
+    // - BottomShift + the line-descent of the denominator's margin box.
+    // NB: The shifts are applied in the directions the numerator and denominator are moved in.
+    let ascent = (top_shift + numerator.ascent).max(denominator.ascent - bottom_shift);
+    let descent = (numerator.descent - top_shift).max(bottom_shift + denominator.descent);
+
+    // The inline offsets of the numerator and denominator are calculated the same as in Fraction with nonzero line
+    // thickness.
+    // The alphabetic baseline of the numerator (respectively denominator) is shifted away from the alphabetic baseline
+    // by a distance of TopShift (respectively − BottomShift) towards the line-over (respectively line-under).
+    MathContent {
+        inline_size,
+        ascent,
+        descent,
+        positions: vec![
+            ChildPosition {
+                line_left_offset: (inline_size - numerator.inline_size) / 2,
+                baseline_shift: -top_shift,
+            },
+            ChildPosition {
+                line_left_offset: (inline_size - denominator.inline_size) / 2,
+                baseline_shift: bottom_shift,
+            },
+        ],
     }
 }
 
@@ -512,11 +711,27 @@ fn layout_underover(
     underscript: Option<&Child>,
     overscript: Option<&Child>,
     constants: &MathConstants,
+    (accentunder, accent): (bool, bool),
 ) -> MathContent {
-    // FIXME: Handle accents, large operators and operators stretchy along the inline axis.
-    // underbarVerticalGap and overbarVerticalGap: 3 × default rule thickness if the constant is not available.
-    let under_shift = constants.default_rule_thickness * 3usize;
-    let over_shift = constants.default_rule_thickness * 3usize;
+    // FIXME: Handle large operators, operators stretchy along the inline axis, and bases that are embellished
+    //        operators with the movablelimits property when the math-style is compact, which are laid out as scripts.
+    // UnderShift is equal to UnderbarVerticalGap if the accentunder attribute is not an ASCII case-insensitive match
+    // to true and to zero otherwise.
+    // NB: underbarVerticalGap and overbarVerticalGap fall back to 3 × default rule thickness, and accentBaseHeight
+    //     to OS/2.sxHeight.
+    let under_shift = if accentunder {
+        CssPixels::default()
+    } else {
+        constants.default_rule_thickness * 3usize
+    };
+    // Otherwise, OverShift is equal to OverbarVerticalGap if the accent attribute is not an ASCII case-insensitive
+    // match to true. Or AccentBaseHeight minus the line-ascent of the mover base's margin box if this difference is
+    // nonnegative. Or 0 otherwise.
+    let over_shift = if accent {
+        (constants.x_height - base.ascent).max(CssPixels::default())
+    } else {
+        constants.default_rule_thickness * 3usize
+    };
     // underbarExtraDescender and overbarExtraAscender: default rule thickness if the constant is not available.
     let under_extra_descender = constants.default_rule_thickness;
     let over_extra_ascender = constants.default_rule_thickness;
