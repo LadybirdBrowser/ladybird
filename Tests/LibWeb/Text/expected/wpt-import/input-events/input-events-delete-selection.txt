@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-4 Pass
-2 Fail
+6 Pass
 Pass	Ctrl+Backspace with non-collapsed selection should report deleteContentBackward
-Fail	Ctrl+Backspace with caret should report deleteWordBackward
+Pass	Ctrl+Backspace with caret should report deleteWordBackward
 Pass	Ctrl+Delete with non-collapsed selection should report deleteContentForward
-Fail	Ctrl+Delete with caret should report deleteWordForward
+Pass	Ctrl+Delete with caret should report deleteWordForward
 Pass	Regular Backspace with non-collapsed selection should report deleteContentBackward
 Pass	Regular Delete with non-collapsed selection should report deleteContentForward

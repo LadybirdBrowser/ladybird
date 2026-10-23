@@ -1875,6 +1875,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return cancel_drag_and_drop_event(m_last_known_mouse_visual_viewport_position.value_or({}), m_last_known_mouse_screen_position, UIEvents::MouseButton::Primary, m_last_known_mouse_buttons, modifiers);
 
     auto handle_delete_key = [&](InputEventsTarget& target) -> Optional<EventResult> {
+        // Backspace and Delete with the platform's word modifier delete a word.
+        if ((modifiers & UIEvents::Mod_PlatformWordJump) && (key == UIEvents::KeyCode::Key_Backspace || key == UIEvents::KeyCode::Key_Delete)) {
+            auto type = key == UIEvents::KeyCode::Key_Backspace ? TextEditingCommand::Type::DeleteWordBackward : TextEditingCommand::Type::DeleteWordForward;
+            return handle_text_editing_command({ .type = type });
+        }
+
         auto input_type = input_type_for_delete_key(key);
         if (!input_type.has_value())
             return {};
