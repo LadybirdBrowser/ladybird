@@ -279,7 +279,7 @@ bool fire_a_version_change_event(JS::Realm& realm, Utf16FlyString const& event_n
 }
 
 // https://w3c.github.io/IndexedDB/#convert-value-to-key
-WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
+WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, GC::RootVector<JS::Value> seen)
 {
     // 1. If seen was not given, then let seen be a new empty set.
     // NOTE: This is handled by the caller.
