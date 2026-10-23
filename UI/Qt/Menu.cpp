@@ -111,7 +111,7 @@ private:
                     action->set_checked(checked);
                 action->activate();
 
-                if (action->id() == WebView::ActionID::BookmarkItem) {
+                if (first_is_one_of(action->id(), WebView::ActionID::BookmarkItem, WebView::ActionID::Reload)) {
                     if (auto* active_tab = Application::the().active_tab())
                         active_tab->view().setFocus();
                 }
