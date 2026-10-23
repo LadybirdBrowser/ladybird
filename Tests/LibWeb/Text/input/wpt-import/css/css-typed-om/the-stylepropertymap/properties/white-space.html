@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>'white-space' property</title>
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-get">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymap-set">
+<link rel="help" href="https://drafts.css-houdini.org/css-typed-om-1/#property-stle-value-normalization">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../resources/testhelper.js"></script>
+<script src="resources/testsuite.js"></script>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+runPropertyTests('white-space-collapse', [
+  { syntax: 'collapse'},
+  { syntax: 'discard' },
+  { syntax: 'preserve' },
+  { syntax: 'preserve-breaks' },
+  { syntax: 'preserve-spaces' },
+  { syntax: 'break-spaces' },
+]);
+
+runPropertyTests('text-wrap-mode', [
+  { syntax: 'wrap'},
+  { syntax: 'nowrap' },
+]);
+
+runPropertyTests('text-wrap-style', [
+  { syntax: 'auto' },
+  { syntax: 'balance' },
+  { syntax: 'stable' },
+  { syntax: 'pretty' },
+]);
+
+runPropertyTests('white-space-trim', [
+  { syntax: 'none'},
+  { syntax: 'discard-before' },
+  { syntax: 'discard-after' },
+  { syntax: 'discard-inner' },
+]);
+
+runUnsupportedPropertyTests('white-space-trim', [
+  'discard-before discard-after',
+  'discard-before discard-inner',
+  'discard-after discard-inner',
+  'discard-before discard-after discard-inner'
+]);
+
+</script>
