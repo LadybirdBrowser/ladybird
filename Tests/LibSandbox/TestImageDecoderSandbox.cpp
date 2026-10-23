@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -22,6 +23,8 @@ static int run_in_image_decoder_sandbox(Function<void()> const& body)
     auto child = fork();
     VERIFY(child >= 0);
     if (child == 0) {
+        rlimit limit { 0, 0 };
+        setrlimit(RLIMIT_CORE, &limit);
         if (ImageDecoder::apply_sandbox({}).is_error())
             _exit(2);
         body();
@@ -40,9 +43,9 @@ TEST_CASE(image_decoder_cannot_pair_sockets)
         (void)socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
     });
 
-    EXPECT(WIFEXITED(status));
-    if (WIFEXITED(status))
-        EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+    EXPECT(WIFSIGNALED(status));
+    if (WIFSIGNALED(status))
+        EXPECT_EQ(WTERMSIG(status), SIGSYS);
 }
 
 TEST_CASE(image_decoder_cannot_create_sockets)
