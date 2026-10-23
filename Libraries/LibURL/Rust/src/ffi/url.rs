@@ -57,7 +57,7 @@ impl RustUrlByteSlice {
 
     /// # Safety
     /// A non-null data pointer must borrow length bytes of valid UTF-8.
-    unsafe fn borrow<'a>(self) -> Option<&'a str> {
+    pub(crate) unsafe fn borrow<'a>(self) -> Option<&'a str> {
         if self.data.is_null() {
             return None;
         }

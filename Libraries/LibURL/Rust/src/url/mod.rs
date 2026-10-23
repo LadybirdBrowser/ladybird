@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub mod form_urlencoded;
 mod host;
 mod input;
 mod parser;
