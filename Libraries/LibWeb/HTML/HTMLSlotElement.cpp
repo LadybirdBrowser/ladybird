@@ -122,7 +122,7 @@ void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
     }
 
     // 2. Let nodesSet be a new ordered set.
-    Vector<DOM::Slottable> nodes_set;
+    GC::ConservativeVector<DOM::Slottable> nodes_set;
 
     // 3. For each node of nodes:
     for (auto& node_handle : nodes) {
