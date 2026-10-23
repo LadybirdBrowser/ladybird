@@ -174,8 +174,8 @@ public:
     // https://html.spec.whatwg.org/multipage/interaction.html#history-action-activation
     bool has_history_action_activation() const;
 
-    Vector<GC::Ref<Plugin>> pdf_viewer_plugin_objects();
-    Vector<GC::Ref<MimeType>> pdf_viewer_mime_type_objects();
+    ReadonlySpan<GC::Ref<Plugin>> pdf_viewer_plugin_objects();
+    ReadonlySpan<GC::Ref<MimeType>> pdf_viewer_mime_type_objects();
 
     // JS API functions
     GC::Ref<WindowProxy> window() const;

@@ -1079,7 +1079,7 @@ GC::Ptr<LocalNavigable> Window::navigable() const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-objects
-Vector<GC::Ref<Plugin>> Window::pdf_viewer_plugin_objects()
+ReadonlySpan<GC::Ref<Plugin>> Window::pdf_viewer_plugin_objects()
 {
     // Each Window object has a PDF viewer plugin objects list. If the user agent's PDF viewer supported is false, then it is the empty list.
     // Otherwise, it is a list containing five Plugin objects, whose names are, respectively:
@@ -1105,7 +1105,7 @@ Vector<GC::Ref<Plugin>> Window::pdf_viewer_plugin_objects()
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-type-objects
-Vector<GC::Ref<MimeType>> Window::pdf_viewer_mime_type_objects()
+ReadonlySpan<GC::Ref<MimeType>> Window::pdf_viewer_mime_type_objects()
 {
     // Each Window object has a PDF viewer mime type objects list. If the user agent's PDF viewer supported is false, then it is the empty list.
     // Otherwise, it is a list containing two MimeType objects, whose types are, respectively:
