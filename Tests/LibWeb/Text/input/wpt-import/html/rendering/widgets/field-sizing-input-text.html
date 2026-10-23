@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-ui-4/#field-sizing">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+.disable-default {
+  field-sizing: content;
+}
+
+.small-placeholder {
+  font-size: 32px;
+}
+.small-placeholder::placeholder {
+  font-size: 16px;
+}
+
+.large-placeholder {
+  font-size: 20px;
+}
+.large-placeholder::placeholder {
+  font-size: 40px;
+}
+</style>
+<body>
+<div id="container"></div>
+<script>
+const DISABLE = 'class="disable-default"';
+const LONG_TEXT = 'The quick brown fox jumps over the lazy dog.';
+
+function addElements(source) {
+  const container = document.querySelector('#container');
+  container.innerHTML = source + source;
+  container.lastElementChild.classList.add('disable-default');
+  return {
+    fixed: container.firstElementChild,
+    content: container.lastElementChild
+  };
+}
+
+function addTwoElements(source1, source2) {
+  const container = document.querySelector('#container');
+  container.innerHTML = source1 + source2;
+  return {
+    e1: container.firstElementChild,
+    e2: container.lastElementChild
+  };
+}
+
+['text', 'search', 'tel', 'url', 'email', 'password'].forEach(type => {
+  test(() => {
+    let pair = addElements(`<input type=${type}>`);
+    // A text <input> has approximately 20ch width by default.
+    // A text <input> with field-sizing:content must be shorter than the default.
+    assert_less_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+    pair = addTwoElements(`<input type=${type} ${DISABLE}>`,
+                          `<input type=${type} ${DISABLE} value="foo">`);
+    assert_less_than(pair.e1.offsetWidth, pair.e2.offsetWidth);
+    assert_equals(pair.e1.offsetHeight, pair.e2.offsetHeight);
+  }, `${type}: Empty value`);
+
+  test(() => {
+    let pair = addElements(`<input type=${type} size="10">`);
+    assert_less_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+  }, `${type}: Empty value with a size atttribute`);
+
+  test(() => {
+    let pair = addElements(`<input type=${type} value="${LONG_TEXT}">`);
+    assert_greater_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    pair = addElements(`<input type=${type} placeholder="${LONG_TEXT}">`);
+    assert_greater_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  }, `${type}: Auto width and auto height with a long text`);
+
+  test(() => {
+    let pair = addElements(`<input type=${type} style="width:20ch; height:2lh">`);
+    assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+    pair = addElements(`<input type=${type} style="width:20ch; height:2lh" value="${LONG_TEXT}">`);
+    assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+    pair = addElements(`<input type=${type} style="width:20ch; height:2lh" placeholder="${LONG_TEXT}">`);
+    assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+  }, `${type}: Explicit width and heigth`);
+
+  test(() => {
+    let pair = addElements(`<input type=${type} style="width:20ch">`);
+    assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+    pair = addElements(`<input type=${type} style="width:20ch" value="${LONG_TEXT}">`);
+    assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+    pair = addElements(`<input type=${type} style="width:20ch" placeholder="${LONG_TEXT}">`);
+    assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+  }, `${type}: Explicit width and auto height`);
+
+  test(() => {
+    let pair = addElements(`<input type=${type} style="height:2lh">`);
+    assert_less_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+    pair = addElements(`<input type=${type} style="height:2lh" value="${LONG_TEXT}">`);
+    assert_greater_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+    pair = addElements(`<input type=${type} style="height:2lh" placeholder="${LONG_TEXT}">`);
+    assert_greater_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+    assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+  }, `${type}: Explicit height and auto width`);
+
+  test(() => {
+    let pair = addTwoElements(
+        `<input type=${type} class="disable-default small-placeholder">`,
+        `<input type=${type} class="disable-default small-placeholder" placeholder="foo bar">`);
+    assert_less_than(pair.e1.offsetWidth, pair.e2.offsetWidth);
+    assert_equals(pair.e1.offsetHeight, pair.e2.offsetHeight);
+  }, `${type}: Text caret is taller than the placeholder`);
+
+  test(() => {
+    let pair = addTwoElements(
+        `<input type=${type} class="disable-default large-placeholder">`,
+        `<input type=${type} class="disable-default large-placeholder" placeholder="foo bar">`);
+    assert_less_than(pair.e1.offsetWidth, pair.e2.offsetWidth);
+    assert_less_than(pair.e1.offsetHeight, pair.e2.offsetHeight);
+
+    pair = addTwoElements(
+        `<input type=${type} class="disable-default" style="font-size:40px; padding:16px">`,
+        `<input type=${type} class="disable-default large-placeholder"
+                placeholder="foo bar" style="font-size:40px; padding:16px">`);
+    assert_equals(pair.e1.offsetHeight, pair.e2.offsetHeight);
+    assert_equals(pair.e1.offsetTop, pair.e2.offsetTop);
+  }, `${type}: Text caret is shorter than the placeholder`);
+
+  test(() => {
+     const container = document.querySelector('#container');
+     container.innerHTML = `<input type=${type}>`;
+     const element = container.firstChild;
+     const w = element.offsetWidth;
+     const h = element.offsetHeight;
+     element.classList.add('disable-default');
+     assert_less_than(element.offsetWidth, w);
+     assert_equals(element.offsetHeight, h);
+  }, `${type}: Update field-sizing property dynamically`);
+
+});
+</script>
+</body>

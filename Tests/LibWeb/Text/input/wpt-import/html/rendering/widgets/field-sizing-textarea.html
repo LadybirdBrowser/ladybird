@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-ui-4/#field-sizing">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+textarea {
+  font-family: monospace;
+}
+
+.disable-default {
+  field-sizing: content;
+}
+
+.small-placeholder {
+  font-size: 32px;
+}
+.small-placeholder::placeholder {
+  font-size: 16px;
+}
+
+.large-placeholder {
+  font-size: 20px;
+}
+.large-placeholder::placeholder {
+  font-size: 40px;
+}
+</style>
+<body>
+<div id="container"></div>
+<script>
+const DISABLE = 'class="disable-default"';
+const LONG_TEXT = 'The quick brown fox jumps over the lazy dog.';
+
+function addElements(source) {
+  const container = document.querySelector('#container');
+  container.innerHTML = source + source;
+  container.lastElementChild.classList.add('disable-default');
+  return {
+    fixed: container.firstElementChild,
+    content: container.lastElementChild
+  };
+}
+
+function addTwoElements(source1, source2) {
+  const container = document.querySelector('#container');
+  container.innerHTML = source1 + source2;
+  return {
+    e1: container.firstElementChild,
+    e2: container.lastElementChild
+  };
+}
+
+test(() => {
+  let pair = addElements('<textarea></textarea>');
+  // Historically a <textarea> has approximately 20ch x 2lh size by default.
+  // A <textarea> with field-sizing:content must be samller than the default.
+  assert_less_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_less_than(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+  pair = addTwoElements(`<textarea ${DISABLE}></textarea>`, `<textarea ${DISABLE}>foo</textarea>`);
+  assert_less_than(pair.e1.offsetWidth, pair.e2.offsetWidth);
+  assert_equals(pair.e1.offsetHeight, pair.e2.offsetHeight);
+}, 'Empty value');
+
+test(() => {
+  let pair = addElements('<textarea cols="10" rows="3"></textarea>');
+  assert_less_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_less_than(pair.content.offsetHeight, pair.fixed.offsetHeight);
+}, 'Empty value with cols/rows');
+
+test(() => {
+  let pair = addTwoElements(`<textarea ${DISABLE} disabled></textarea>`,
+                            `<textarea ${DISABLE}></textarea>`);
+  assert_equals(pair.e1.offsetWidth, pair.e2.offsetWidth, 'width');
+  assert_equals(pair.e1.offsetHeight, pair.e2.offsetHeight, 'height');
+}, 'Disabled textarea with an empty value should have one-line height');
+
+test(() => {
+  let pair = addElements(`<textarea>${LONG_TEXT}</textarea>`);
+  assert_greater_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  pair = addElements(`<textarea placeholder="${LONG_TEXT}"></textarea>`);
+  assert_greater_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+}, 'Auto width and auto height with a long text');
+
+test(() => {
+  let pair = addElements('<textarea style="width:20ch; height:2lh"></textarea>');
+  assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+  pair = addElements(`<textarea style="width:20ch; height:2lh">${LONG_TEXT}</textarea>`);
+  assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+  pair = addElements(`<textarea style="width:20ch; height:2lh" placeholder="${LONG_TEXT}"></textarea>`);
+  assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+}, 'Explicit width and heigth');
+
+test(() => {
+  let pair = addElements('<textarea style="width:20ch"></textarea>');
+  assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_less_than(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+  pair = addElements(`<textarea style="width:20ch">${LONG_TEXT}</textarea>`);
+  assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_greater_than(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+  pair = addElements(`<textarea style="width:20ch" placeholder="${LONG_TEXT}"></textarea>`);
+  assert_equals(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_greater_than(pair.content.offsetHeight, pair.fixed.offsetHeight);
+}, 'Explicit width and auto height');
+
+test(() => {
+  let pair = addElements('<textarea style="height:2lh"></textarea>');
+  assert_less_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+  pair = addElements(`<textarea style="height:2lh">${LONG_TEXT}</textarea>`);
+  assert_greater_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+
+  pair = addElements(`<textarea style="height:2lh" placeholder="${LONG_TEXT}"></textarea>`);
+  assert_greater_than(pair.content.offsetWidth, pair.fixed.offsetWidth);
+  assert_equals(pair.content.offsetHeight, pair.fixed.offsetHeight);
+}, 'Explicit height and auto width');
+
+test(() => {
+  let pair = addTwoElements(`<textarea class="disable-default small-placeholder"></textarea>`,
+                            `<textarea class="disable-default small-placeholder" placeholder="foo"></textarea>`);
+  assert_less_than(pair.e1.offsetWidth, pair.e2.offsetWidth);
+  assert_equals(pair.e1.offsetHeight, pair.e2.offsetHeight);
+}, 'Text caret is taller than the placeholder');
+
+test(() => {
+  let pair = addTwoElements(`<textarea class="disable-default large-placeholder"></textarea>`,
+                            `<textarea class="disable-default large-placeholder" placeholder="foo"></textarea>`);
+  assert_less_than(pair.e1.offsetWidth, pair.e2.offsetWidth, 'width');
+  assert_less_than(pair.e1.offsetHeight, pair.e2.offsetHeight, 'height');
+}, 'Text caret is shorter than the placeholder');
+
+test(() => {
+   const container = document.querySelector('#container');
+   container.innerHTML = '<textarea></textarea>';
+   const element = container.firstChild;
+   const w = element.offsetWidth;
+   const h = element.offsetHeight;
+   element.classList.add('disable-default');
+   assert_less_than(element.offsetWidth, w);
+   assert_less_than(element.offsetHeight, h);
+}, 'Update field-sizing property dynamically');
+</script>
+</body>

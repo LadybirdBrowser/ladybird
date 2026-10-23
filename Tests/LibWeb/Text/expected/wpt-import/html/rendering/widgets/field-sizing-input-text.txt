@@ -1,0 +1,59 @@
+Harness status: OK
+
+Found 54 tests
+
+54 Pass
+Pass	text: Empty value
+Pass	text: Empty value with a size atttribute
+Pass	text: Auto width and auto height with a long text
+Pass	text: Explicit width and heigth
+Pass	text: Explicit width and auto height
+Pass	text: Explicit height and auto width
+Pass	text: Text caret is taller than the placeholder
+Pass	text: Text caret is shorter than the placeholder
+Pass	text: Update field-sizing property dynamically
+Pass	search: Empty value
+Pass	search: Empty value with a size atttribute
+Pass	search: Auto width and auto height with a long text
+Pass	search: Explicit width and heigth
+Pass	search: Explicit width and auto height
+Pass	search: Explicit height and auto width
+Pass	search: Text caret is taller than the placeholder
+Pass	search: Text caret is shorter than the placeholder
+Pass	search: Update field-sizing property dynamically
+Pass	tel: Empty value
+Pass	tel: Empty value with a size atttribute
+Pass	tel: Auto width and auto height with a long text
+Pass	tel: Explicit width and heigth
+Pass	tel: Explicit width and auto height
+Pass	tel: Explicit height and auto width
+Pass	tel: Text caret is taller than the placeholder
+Pass	tel: Text caret is shorter than the placeholder
+Pass	tel: Update field-sizing property dynamically
+Pass	url: Empty value
+Pass	url: Empty value with a size atttribute
+Pass	url: Auto width and auto height with a long text
+Pass	url: Explicit width and heigth
+Pass	url: Explicit width and auto height
+Pass	url: Explicit height and auto width
+Pass	url: Text caret is taller than the placeholder
+Pass	url: Text caret is shorter than the placeholder
+Pass	url: Update field-sizing property dynamically
+Pass	email: Empty value
+Pass	email: Empty value with a size atttribute
+Pass	email: Auto width and auto height with a long text
+Pass	email: Explicit width and heigth
+Pass	email: Explicit width and auto height
+Pass	email: Explicit height and auto width
+Pass	email: Text caret is taller than the placeholder
+Pass	email: Text caret is shorter than the placeholder
+Pass	email: Update field-sizing property dynamically
+Pass	password: Empty value
+Pass	password: Empty value with a size atttribute
+Pass	password: Auto width and auto height with a long text
+Pass	password: Explicit width and heigth
+Pass	password: Explicit width and auto height
+Pass	password: Explicit height and auto width
+Pass	password: Text caret is taller than the placeholder
+Pass	password: Text caret is shorter than the placeholder
+Pass	password: Update field-sizing property dynamically

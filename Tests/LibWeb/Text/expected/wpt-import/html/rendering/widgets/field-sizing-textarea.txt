@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Empty value
+Pass	Empty value with cols/rows
+Pass	Disabled textarea with an empty value should have one-line height
+Pass	Auto width and auto height with a long text
+Pass	Explicit width and heigth
+Pass	Explicit width and auto height
+Pass	Explicit height and auto width
+Pass	Text caret is taller than the placeholder
+Pass	Text caret is shorter than the placeholder
+Pass	Update field-sizing property dynamically

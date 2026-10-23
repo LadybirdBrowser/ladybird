@@ -1496,7 +1496,9 @@ fn dimension_block_level_root(
 /// min-height only clamps its block size once its content is laid out, so measuring first would just lay out the
 /// whole subtree an extra time — on every layout. Form controls center their content within the clamped size, though.
 fn lays_out_content_against_min_block_size(facts: NodeFacts<'_>, fc_type: FormattingContextType) -> bool {
-    fc_type != FormattingContextType::Block || facts.uses_button_layout() || facts.is_primitive_text_input()
+    fc_type != FormattingContextType::Block
+        || facts.uses_button_layout()
+        || facts.lays_out_text_input_content_as_ordinary_box()
 }
 
 /// The content block size of a laid out box, for growing a block size transferred through its aspect ratio. Chrome

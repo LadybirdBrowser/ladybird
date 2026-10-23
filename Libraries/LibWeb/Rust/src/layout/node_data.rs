@@ -69,6 +69,7 @@ pub struct FfiReplacedContentFacts {
     pub default_preferred_width: CssPixels,
     pub has_default_preferred_height: bool,
     pub default_preferred_height: CssPixels,
+    pub text_entry_content_is_ordinary_box: bool,
 }
 
 impl From<crate::painting::host::FfiNaturalSize> for crate::css::style::NaturalSize {
