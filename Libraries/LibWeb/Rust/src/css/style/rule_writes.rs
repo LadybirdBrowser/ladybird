@@ -313,9 +313,15 @@ impl RuleWrite {
         match self {
             Self::AddSheet { sheet, object, origin } => {
                 let added = engine.add_sheet(StyleSheetObjectID(object), origin.decode());
+                // UADBG
+                if added.0 == 0 {
+                    super::user_agent_selectors::uadbg::engine_starts(&engine.counters);
+                }
+                super::user_agent_selectors::uadbg::sheet_added(&engine.counters, sheet, origin as u8);
                 assert_eq!(added.0 + 1, sheet, "the engine numbers a sheet as its host did");
             }
             Self::BeginSheetRulesReplacement(sheet) => {
+                super::user_agent_selectors::uadbg::event(&engine.counters, format!("begin-replacement {sheet}")); // UADBG
                 if let Some(sheet) = sheet.checked_sub(1) {
                     engine.begin_sheet_rules_replacement(SheetID(sheet));
                 }

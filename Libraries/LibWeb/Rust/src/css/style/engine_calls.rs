@@ -1595,6 +1595,14 @@ pub unsafe extern "C" fn style_engine_counter(
     out_name_length: *mut usize,
 ) -> *const u8 {
     let counter = with_engine(read, host, |engine| {
+        // UADBG
+        if index == 0 {
+            super::user_agent_selectors::uadbg::dump(
+                &engine.counters,
+                engine.fold_id_and_class_name_case,
+                engine.html_element_namespace.0,
+            );
+        }
         let retired = engine.computed_group_sets.retired_animation_overlay_records();
         engine
             .counters

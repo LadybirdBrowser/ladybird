@@ -255,12 +255,14 @@ impl RetainedState {
     /// every sheet by the time it resets it - so no rule compiled against the other folding and no
     /// fact published under it can outlive the change.
     pub fn set_fold_id_and_class_name_case(&mut self, fold: bool) {
+        super::user_agent_selectors::uadbg::event(&self.counters, format!("set-fold {fold}")); // UADBG
         self.fold_id_and_class_name_case = fold;
     }
 
     /// The HTML namespace, for an HTML document, or none for any other kind. It is what decides
     /// whether an attribute name from the legacy list compares its value case-insensitively.
     pub fn set_html_element_namespace(&mut self, namespace: StyleAtomID) {
+        super::user_agent_selectors::uadbg::event(&self.counters, format!("set-ns {}", namespace.0)); // UADBG
         self.html_element_namespace = namespace;
     }
 
@@ -2793,6 +2795,20 @@ impl StyleEngine {
         namespaces: NamespaceScope,
         scope: &ScopeChain<'_>,
     ) -> RuleID {
+        // UADBG
+        let origin = self.program.sheet_origin(sheet);
+        super::user_agent_selectors::uadbg::compile(
+            &self.retained.counters,
+            origin == crate::css::cascaded_properties::CascadeOrigin::Author,
+            format!(
+                "add-style-rule origin={} sheet={} selectors={} scoped={} first={:.300}",
+                origin as u8,
+                sheet.0,
+                selectors.len(),
+                !scope.levels.is_empty(),
+                format!("{:?}", selectors.first())
+            ),
+        );
         self.add_style_rule_with(sheet, before, |engine, previous_program| {
             engine.compile_selectors(selectors, namespaces, scope, previous_program)
         })
@@ -2868,6 +2884,17 @@ impl StyleEngine {
         namespaces: NamespaceScope,
         scope: &ScopeChain<'_>,
     ) {
+        // UADBG
+        super::user_agent_selectors::uadbg::compile(
+            &self.retained.counters,
+            false,
+            format!(
+                "replace-selectors rule={} selectors={} first={:.300}",
+                rule.0,
+                selectors.len(),
+                format!("{:?}", selectors.first())
+            ),
+        );
         let program = self.compile_selectors(selectors, namespaces, scope, None);
         self.add_routing_rule(rule, program);
 

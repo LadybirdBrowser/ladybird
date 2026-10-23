@@ -12,6 +12,9 @@
             const counters = iframe.contentWindow.internals.styleEngineCounters();
             println(`style rules added: ${counters.styleRulesCompiled > 100}`);
             println(`selector entries compiled: ${counters.exactSelectorEntries}`);
+            // UADBG: Show everything the frame's engine counted when it compiled anything.
+            if (counters.exactSelectorEntries !== 0)
+                println(JSON.stringify(counters));
             done();
         };
     });
