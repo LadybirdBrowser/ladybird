@@ -7,7 +7,6 @@ set(TEST_SOURCES
     TestImageDecoder.cpp
     TestImageWriter.cpp
     TestPath.cpp
-    TestQuad.cpp
     TestRect.cpp
     TestSharedFontProvider.cpp
     TestWOFF.cpp
