@@ -262,9 +262,9 @@ QPixmap create_chrome_icon_pixmap(ChromeIcon icon, QColor color, qreal device_pi
         draw_reload_icon(painter, color);
         break;
     case ChromeIcon::Stop:
-        painter.setPen(chrome_icon_pen(color, 1.75));
-        painter.drawLine(QPointF(6.0, 6.0), QPointF(14.0, 14.0));
-        painter.drawLine(QPointF(14.0, 6.0), QPointF(6.0, 14.0));
+        painter.setPen(chrome_icon_pen(color, 2.0));
+        painter.drawLine(QPointF(4.5, 4.5), QPointF(15.5, 15.5));
+        painter.drawLine(QPointF(15.5, 4.5), QPointF(4.5, 15.5));
         break;
     case ChromeIcon::NewTab:
         painter.setPen(chrome_icon_pen(color, 1.9));

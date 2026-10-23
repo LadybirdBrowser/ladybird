@@ -34,6 +34,7 @@
 #include <UI/Qt/WindowControlButton.h>
 
 #include <LibWebView/TabPerformanceMonitor.h>
+#include <QApplication>
 #include <QColorDialog>
 #include <QCursor>
 #include <QDynamicPropertyChangeEvent>
@@ -102,6 +103,98 @@ protected:
             QToolButton::mouseReleaseEvent(event);
         }
     }
+};
+
+// The reload button becomes a stop button while the page loads. So that one click does not do what the user did not aim
+// at, the button does not change at the wrong moment while under the pointer: a stop button stays until the pointer
+// leaves or a short delay passes, and a reload click does not become a stop button until the double-click interval
+// passes, so a double-click does not stop the reload it started. The reload action stays attached to the button while
+// it shows stop, so its shortcuts still work during a load.
+class ReloadButton final : public ToolbarButton {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit ReloadButton(QWidget* parent)
+        : ToolbarButton(parent)
+    {
+        m_double_click_timer.setSingleShot(true);
+        m_double_click_timer.setInterval(QApplication::doubleClickInterval());
+        QObject::connect(&m_double_click_timer, &QTimer::timeout, this, [this] {
+            change_mode(m_intended_mode, ForceChange::No);
+        });
+
+        m_stop_to_reload_timer.setSingleShot(true);
+        m_stop_to_reload_timer.setInterval(STOP_TO_RELOAD_DELAY_MS);
+        QObject::connect(&m_stop_to_reload_timer, &QTimer::timeout, this, [this] {
+            change_mode(m_intended_mode, ForceChange::Yes);
+        });
+
+        QObject::connect(this, &QToolButton::pressed, this, [this] {
+            if (m_visible_mode == Mode::Reload)
+                m_double_click_timer.start();
+        });
+
+        // NB: A stop click that arrives after the load ended has nothing to stop, so show the reload button right away.
+        QObject::connect(this, &QToolButton::clicked, this, [this] {
+            if (m_visible_mode == Mode::Stop)
+                change_mode(m_intended_mode, ForceChange::Yes);
+        });
+    }
+
+    void set_actions(QAction& reload_action, QAction& stop_action)
+    {
+        m_reload_action = &reload_action;
+        m_stop_action = &stop_action;
+    }
+
+    void set_loading(bool is_loading)
+    {
+        change_mode(is_loading ? Mode::Stop : Mode::Reload, ForceChange::No);
+    }
+
+protected:
+    virtual void leaveEvent(QEvent* event) override
+    {
+        ToolbarButton::leaveEvent(event);
+        change_mode(m_intended_mode, ForceChange::Yes);
+    }
+
+private:
+    static constexpr int STOP_TO_RELOAD_DELAY_MS = 1000;
+
+    enum class Mode {
+        Reload,
+        Stop,
+    };
+
+    enum class ForceChange {
+        No,
+        Yes,
+    };
+
+    void change_mode(Mode mode, ForceChange force_change)
+    {
+        m_intended_mode = mode;
+
+        auto change_is_safe = mode == Mode::Stop ? !m_double_click_timer.isActive() : m_visible_mode != Mode::Stop;
+        if (force_change == ForceChange::Yes || !underMouse() || change_is_safe) {
+            m_double_click_timer.stop();
+            m_stop_to_reload_timer.stop();
+            m_visible_mode = mode;
+            setDefaultAction(mode == Mode::Stop ? m_stop_action : m_reload_action);
+            return;
+        }
+
+        if (m_visible_mode == Mode::Stop && !m_stop_to_reload_timer.isActive())
+            m_stop_to_reload_timer.start();
+    }
+
+    QAction* m_reload_action { nullptr };
+    QAction* m_stop_action { nullptr };
+    Mode m_visible_mode { Mode::Reload };
+    Mode m_intended_mode { Mode::Reload };
+    QTimer m_double_click_timer;
+    QTimer m_stop_to_reload_timer;
 };
 
 class HamburgerButton final : public ToolbarButton {
@@ -214,9 +307,10 @@ private:
 
 static constexpr int TOOLBAR_BUTTON_SIZE = 34;
 
-static ToolbarButton* create_toolbar_button(QWidget& parent, QAction& action)
+template<typename ButtonType = ToolbarButton>
+static ButtonType* create_toolbar_button(QWidget& parent, QAction& action)
 {
-    auto* button = new ToolbarButton(&parent);
+    auto* button = new ButtonType(&parent);
     button->setDefaultAction(&action);
     button->setAutoRaise(true);
     button->setFocusPolicy(Qt::NoFocus);
@@ -679,6 +773,11 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     m_navigate_back_action = create_application_action(*this, view().navigate_back_action());
     m_navigate_forward_action = create_application_action(*this, view().navigate_forward_action());
     m_reload_action = create_application_action(*this, application.reload_action());
+    m_stop_action = new QAction("Stop", this);
+    m_stop_action->setToolTip("Stop loading this page");
+    QObject::connect(m_stop_action, &QAction::triggered, this, [this] {
+        view().stop_loading();
+    });
     m_toggle_vertical_tabs_expanded_action = create_application_action(*this, application.toggle_vertical_tabs_expanded_action());
     m_open_downloads_page_action = create_application_action(*this, application.open_downloads_page_action());
 
@@ -774,7 +873,9 @@ Tab::Tab(BrowserWindow* window, Optional<WebView::CanonicalTraversable&> travers
     navigation_button_layout->addItem(m_sidebar_toggle_navigation_spacer);
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_back_action, -1));
     navigation_button_layout->addWidget(create_navigation_history_toolbar_button(*navigation_button_cluster, *m_navigate_forward_action, 1));
-    navigation_button_layout->addWidget(create_toolbar_button(*navigation_button_cluster, *m_reload_action));
+    m_reload_button = create_toolbar_button<ReloadButton>(*navigation_button_cluster, *m_reload_action);
+    m_reload_button->set_actions(*m_reload_action, *m_stop_action);
+    navigation_button_layout->addWidget(m_reload_button);
 
     auto* location_edit_container = new QWidget(m_toolbar);
     location_edit_container->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
@@ -1566,6 +1667,8 @@ void Tab::set_loading(bool is_loading)
 
     update_tab_icon();
 
+    m_reload_button->set_loading(m_is_loading);
+
     // Only mark the end of loads that finished, rather than being stopped. The browser's own about: pages are not
     // marked.
     if (!m_is_loading && view().last_load_finished() && view().url().scheme() != "about"sv)
@@ -1728,6 +1831,7 @@ void Tab::recreate_toolbar_icons()
     m_navigate_back_action->setIcon(create_chrome_icon(ChromeIcon::Back, palette()));
     m_navigate_forward_action->setIcon(create_chrome_icon(ChromeIcon::Forward, palette()));
     m_reload_action->setIcon(create_chrome_icon(ChromeIcon::Reload, palette()));
+    m_stop_action->setIcon(create_chrome_icon(ChromeIcon::Stop, palette()));
     m_downloads_button_icon = {};
     update_downloads_button();
     m_hamburger_button->setIcon(create_chrome_icon(ChromeIcon::Menu, palette()));
