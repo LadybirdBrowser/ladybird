@@ -20,7 +20,7 @@ use ak::{ScopeGuard, Utf16FlyString};
 use crate::css::calc::CanonicalNumericType;
 use crate::css::cascaded_properties::parse_substituted_value;
 use crate::css::css_enums::keyword_from_ascii_case_insensitive;
-use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser};
+use crate::css::css_tokenizer::{CssNumberType, ParserString, ParserTokenKind, TokenizerInput, tokenize_for_parser};
 use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::function_signature::FunctionSignature;
 use crate::css::parser::arbitrary_substitution::{
@@ -235,9 +235,9 @@ struct FunctionLocalValue<'a> {
 
 struct FunctionLocalScope<'a> {
     function_identity: CustomFunctionIdentity,
-    resolved_value_cache: Rc<RefCell<HashMap<Vec<u16>, ComponentValueList>>>,
-    values: HashMap<Vec<u16>, FunctionLocalValue<'a>>,
-    registrations: Rc<HashMap<Vec<u16>, FunctionLocalRegistration<'a>>>,
+    resolved_value_cache: Rc<RefCell<HashMap<Utf16FlyString, ComponentValueList>>>,
+    values: HashMap<Utf16FlyString, FunctionLocalValue<'a>>,
+    registrations: Rc<HashMap<Utf16FlyString, FunctionLocalRegistration<'a>>>,
 }
 
 #[repr(C)]
@@ -267,7 +267,7 @@ pub(crate) struct SubstitutionAttribute<'a> {
 
 /// One declaration in the body of a custom function, as its conditions select it.
 pub(crate) struct SubstitutionFunctionDeclaration {
-    name: Vec<u16>,
+    name: Utf16FlyString,
     tokens: ComponentValueList,
     includes_substitution: bool,
 }
@@ -946,7 +946,7 @@ impl TokenResolution {
 // https://drafts.csswg.org/css-values-5/#substitution-context
 #[derive(PartialEq, Eq)]
 enum SubstitutionContextDependency {
-    Property(Vec<u16>, Option<CustomFunctionIdentity>),
+    Property(Utf16FlyString, Option<CustomFunctionIdentity>),
     // FIXME: Attribute substitution context equality should compare names ASCII-case-insensitively, as attribute lookup
     // does.
     Attribute(Vec<u16>),
@@ -1248,7 +1248,7 @@ pub(crate) fn prepare_function_declarations(
         reads_attributes |= value_reads_attributes;
 
         declarations.push(SubstitutionFunctionDeclaration {
-            name: declaration.name.units().to_vec(),
+            name: Utf16FlyString::from_utf16(declaration.name.units()),
             tokens,
             includes_substitution,
         });
@@ -1352,10 +1352,7 @@ fn compute_element_custom_property(
             tokens,
             &mut property_context,
             recursion_depth,
-            Some(SubstitutionContextDependency::Property(
-                name.to_utf16().into_owned(),
-                None,
-            )),
+            Some(SubstitutionContextDependency::Property(name.clone(), None)),
         );
 
         context.substitution_limit_hits = property_context.substitution_limit_hits;
@@ -1480,7 +1477,7 @@ fn registered_property_fallback(
     inheritance_store: Option<&CustomPropertyStore>,
     registry: &CustomPropertyRegistry,
     registration: &RegisteredCustomProperty,
-    name: &[u16],
+    name: &Utf16FlyString,
     recursion_depth: u32,
 ) -> TokenResolution {
     if registration.inherits
@@ -1504,13 +1501,13 @@ fn registered_property_fallback(
 fn resolve_css_wide_keyword(
     owner: &CustomPropertyStore,
     registry: Option<&CustomPropertyRegistry>,
-    name: &[u16],
+    name: &Utf16FlyString,
     keyword: &[u16],
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
     lookup: CustomPropertyLookup,
 ) -> TokenResolution {
-    let registration = registry.and_then(|registry| registry.registration(name));
+    let registration = registry.and_then(|registry| registry.registrations.get(name));
     // Mirror StyleComputer::resolve_css_wide_keyword_for_custom_property().
     if keyword.eq_ignore_ascii_case("initial") {
         return registration
@@ -1572,7 +1569,7 @@ fn normalize_function_tokens(
 fn resolve_function_local_property(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    name: &[u16],
+    name: &Utf16FlyString,
     function_identity: CustomFunctionIdentity,
     value: Option<FunctionLocalValue<'_>>,
     registration: FunctionLocalRegistration<'_>,
@@ -1592,7 +1589,7 @@ fn resolve_function_local_property(
             context,
             recursion_depth + 1,
             Some(SubstitutionContextDependency::Property(
-                name.to_owned(),
+                name.clone(),
                 Some(function_identity),
             )),
         )
@@ -1636,7 +1633,7 @@ enum CustomPropertyLookup {
 fn resolve_custom_property(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    name: &[u16],
+    name: &Utf16FlyString,
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
 ) -> TokenResolution {
@@ -1653,7 +1650,7 @@ fn resolve_custom_property(
 fn resolve_custom_property_with_lookup(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    name: &[u16],
+    name: &Utf16FlyString,
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
     lookup: CustomPropertyLookup,
@@ -1693,7 +1690,7 @@ fn resolve_custom_property_with_lookup(
             context.function_local_scopes[local_scope_index]
                 .resolved_value_cache
                 .borrow_mut()
-                .insert(name.to_owned(), tokens.clone());
+                .insert(name.clone(), tokens.clone());
         }
 
         return result;
@@ -1705,7 +1702,7 @@ fn resolve_custom_property_with_lookup(
     let _guard = ScopeGuard::new(|| context_ref.borrow_mut().function_local_scopes = std::mem::take(&mut local_scopes));
     let context = &mut **context_ref.borrow_mut();
 
-    let substitution_context = SubstitutionContextDependency::Property(name.to_owned(), None);
+    let substitution_context = SubstitutionContextDependency::Property(name.clone(), None);
     // AD-HOC: The root custom property's unresolved value is passed directly to `resolve_vars()` rather than read
     //         through this lookup. If it contains a `var()` that refers back to itself, this function is entered while
     //         the caller's root context is already guarded, so mark that context cyclic before consulting stored or
@@ -1713,15 +1710,14 @@ fn resolve_custom_property_with_lookup(
     if lookup == CustomPropertyLookup::Normal && context.guarded_contexts.mark_cycle_if_guarded(&substitution_context) {
         return TokenResolution::Cyclic;
     }
-    let registration = registry.and_then(|registry| registry.registration(name));
+    let registration = registry.and_then(|registry| registry.registrations.get(name));
     let entry_and_owner = store.and_then(|store| {
-        let name = Utf16FlyString::from_utf16(name);
         if lookup == CustomPropertyLookup::ExplicitInheritance {
-            return store.get_by_name_with_owner(&name);
+            return store.get_by_name_with_owner(name);
         }
         match registration {
-            Some(registration) if !registration.inherits => store.get_own_by_name(&name).map(|entry| (entry, store)),
-            _ => store.get_by_name_with_owner(&name),
+            Some(registration) if !registration.inherits => store.get_own_by_name(name).map(|entry| (entry, store)),
+            _ => store.get_by_name_with_owner(name),
         }
     });
     let Some((entry, owner)) = entry_and_owner else {
@@ -1731,13 +1727,13 @@ fn resolve_custom_property_with_lookup(
     };
     if lookup == CustomPropertyLookup::Normal
         && context.element_store.is_some_and(|store| std::ptr::eq(store, owner))
-        && owner.declared_names.contains(&entry.name.raw_identity())
+        && owner.declared_names.contains(&name.raw_identity())
         && store.is_some_and(|store| std::ptr::eq(store, owner))
     {
         let computed_value = compute_element_custom_property(
             owner,
             registry.unwrap_or_else(|| CustomPropertyRegistry::shared_empty()),
-            &entry.name,
+            name,
             context,
             recursion_depth + 1,
         );
@@ -1824,11 +1820,12 @@ fn replace_var_function(
         TokenResolution::NotHandled => return TokenResolution::NotHandled,
     };
     let name = match trim_whitespace(&substituted_first) {
-        [value] => value.ident().filter(|name| name.starts_with_ascii("--")),
+        [value] => value.ident_string().filter(|name| name.starts_with_ascii("--")),
         _ => None,
     };
     if let Some(name) = name {
-        match resolve_custom_property(store, registry, name, context, recursion_depth) {
+        let name = name.fly_string();
+        match resolve_custom_property(store, registry, &name, context, recursion_depth) {
             TokenResolution::Cyclic if comma.is_none() => return TokenResolution::Cyclic,
             TokenResolution::Invalid | TokenResolution::Cyclic => {}
             result => return result,
@@ -1858,10 +1855,11 @@ fn replace_inherit_function(
         TokenResolution::NotHandled => return TokenResolution::NotHandled,
     };
     let name = match trim_whitespace(&substituted_first) {
-        [value] => value.ident().filter(|name| name.starts_with_ascii("--")),
+        [value] => value.ident_string().filter(|name| name.starts_with_ascii("--")),
         _ => None,
     };
     if let Some(name) = name {
+        let name = name.fly_string();
         let local_scope = context.function_local_scopes.pop();
         let inherited_store = if local_scope.is_some() {
             store
@@ -1871,7 +1869,7 @@ fn replace_inherit_function(
         let result = resolve_custom_property_with_lookup(
             inherited_store,
             registry,
-            name,
+            &name,
             context,
             recursion_depth + 1,
             if local_scope.is_some() {
@@ -2218,7 +2216,8 @@ fn evaluate_style_range_value(
     let resolution = match operand {
         ParsedStyleRangeValue::Property(name) => {
             context.note_style_query_dependency(name);
-            resolve_custom_property(store, registry, name, context, recursion_depth + 1)
+            let name = name.fly_string();
+            resolve_custom_property(store, registry, &name, context, recursion_depth + 1)
         }
         ParsedStyleRangeValue::Components(values) => {
             let values = values.as_slice();
@@ -2337,7 +2336,7 @@ fn evaluate_style_feature(
     let [name] = name_tokens else {
         return ConditionEvaluation::Invalid;
     };
-    let Some(name) = name.ident() else {
+    let Some(name) = name.ident_string() else {
         return ConditionEvaluation::Invalid;
     };
     let query = colon.map(|colon| &tokens[colon + 1..]);
@@ -2348,7 +2347,7 @@ fn evaluate_style_feature(
 fn evaluate_named_style_feature(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
-    name: &[u16],
+    name: &ParserString,
     query: Option<&[ComponentValue]>,
     context: &mut ASFResolutionContext,
     recursion_depth: u32,
@@ -2357,6 +2356,9 @@ fn evaluate_named_style_feature(
         return ConditionEvaluation::Match(false);
     }
 
+    context.note_style_query_dependency(name);
+    let name = name.fly_string();
+    let name = name.as_ref();
     let local_registration = context
         .function_local_scopes
         .last()
@@ -2365,9 +2367,8 @@ fn evaluate_named_style_feature(
     let registration = context
         .function_local_scopes
         .is_empty()
-        .then(|| registry.and_then(|registry| registry.registration(name)))
+        .then(|| registry.and_then(|registry| registry.registrations.get(name)))
         .flatten();
-    context.note_style_query_dependency(name);
     let computed = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
     let computed = match computed {
         TokenResolution::Resolved(tokens) => Some(tokens),
@@ -2582,14 +2583,14 @@ fn split_function_arguments(tokens: &[ComponentValue]) -> Vec<&[ComponentValue]>
 }
 
 // https://drafts.csswg.org/css-mixins/#resolve-function-styles
-fn resolve_function_styles<'a>(
+fn resolve_function_styles<'a, 'names>(
     store: Option<&CustomPropertyStore>,
     registry: Option<&CustomPropertyRegistry>,
     local_scope: FunctionLocalScope<'a>,
-    property_names: impl IntoIterator<Item = impl AsRef<[u16]>>,
+    property_names: impl IntoIterator<Item = &'names Utf16FlyString>,
     context: &mut ASFResolutionContext<'a>,
     recursion_depth: u32,
-) -> HashMap<Vec<u16>, TokenResolution> {
+) -> HashMap<Utf16FlyString, TokenResolution> {
     // 1. Create a "hypothetical element" el that acts as a child of calling context's element. el is featureless, and
     //    only custom properties and the result descriptor apply to it.
 
@@ -2622,7 +2623,6 @@ fn resolve_function_styles<'a>(
     let mut computed_values = HashMap::new();
 
     for name in property_names {
-        let name = name.as_ref();
         let value = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
         // FIXME: Duplicate parameter names make an @function rule invalid, but the parser currently accepts them. Keep
         //        the pre-refactor behavior where a later failed resolution does not replace an earlier successful one.
@@ -2632,7 +2632,7 @@ fn resolve_function_styles<'a>(
                 .get(name)
                 .is_some_and(|value| matches!(value, TokenResolution::Resolved(_)))
         {
-            computed_values.insert(name.to_vec(), value);
+            computed_values.insert(name.clone(), value);
         }
     }
 
@@ -2678,7 +2678,7 @@ fn evaluate_a_custom_function<'a>(
     //    registrations.
     for parameter in &custom_function.signature.parameters {
         registrations.insert(
-            parameter.name.to_utf16().into_owned(),
+            parameter.name.clone(),
             FunctionLocalRegistration {
                 syntax: &parameter.syntax,
                 initial_tokens: None,
@@ -2690,7 +2690,7 @@ fn evaluate_a_custom_function<'a>(
     // 6. If custom function has a return type, create a custom property registration with the name "result", a syntax
     //    of the return type, an inherit flag of "false", and no initial value. Add the registration to registrations.
     // NB: Custom functions always have a return type, defaulting to the universal syntax.
-    let result_name: Vec<u16> = b"result".iter().copied().map(u16::from).collect();
+    let result_name = Utf16FlyString::from_utf16(&b"result".map(u16::from));
     registrations.insert(
         result_name.clone(),
         FunctionLocalRegistration {
@@ -2745,7 +2745,7 @@ fn evaluate_a_custom_function<'a>(
         // NB: If neither value is valid, the missing declaration represents the guaranteed-invalid value: the
         //     parameter's registration has no initial value, so resolve_function_local_property() returns Invalid.
         if let Some(value) = value {
-            argument_rule.insert(parameter.name.to_utf16().into_owned(), value);
+            argument_rule.insert(parameter.name.clone(), value);
         }
     }
 
@@ -2765,7 +2765,7 @@ fn evaluate_a_custom_function<'a>(
             .signature
             .parameters
             .iter()
-            .map(|parameter| parameter.name.to_utf16()),
+            .map(|parameter| &parameter.name),
         context,
         recursion_depth,
     );
@@ -2827,9 +2827,9 @@ fn evaluate_a_custom_function<'a>(
         custom_function
             .declarations
             .iter()
-            .map(|declaration| declaration.name.as_slice())
-            .filter(|name| *name != result_name.as_slice())
-            .chain(std::iter::once(result_name.as_slice())),
+            .map(|declaration| &declaration.name)
+            .filter(|name| *name != &result_name)
+            .chain(std::iter::once(&result_name)),
         context,
         recursion_depth,
     );
@@ -3447,7 +3447,10 @@ pub(crate) fn resolve_vars(
             .encode_utf16()
             .collect()
     });
-    let substitution_context = Some(SubstitutionContextDependency::Property(root_property_name, None));
+    let substitution_context = Some(SubstitutionContextDependency::Property(
+        Utf16FlyString::from_utf16(&root_property_name),
+        None,
+    ));
     let VarResolutionEnvironment {
         attributes,
         custom_functions,
@@ -3621,7 +3624,10 @@ mod tests {
                 &parse_substitution_values(b"var(--root, fallback)").unwrap(),
                 &mut context,
                 0,
-                Some(SubstitutionContextDependency::Property(utf16("--root"), None)),
+                Some(SubstitutionContextDependency::Property(
+                    Utf16FlyString::from_utf16(&utf16("--root")),
+                    None
+                )),
             ),
             TokenResolution::Cyclic
         ));
@@ -3635,7 +3641,10 @@ mod tests {
             let guard = guarded_contexts.guard(&context).unwrap();
             (context, guard)
         };
-        let (root_context, _root_guard) = guard(SubstitutionContextDependency::Property(utf16("--root"), None));
+        let (root_context, _root_guard) = guard(SubstitutionContextDependency::Property(
+            Utf16FlyString::from_utf16(&utf16("--root")),
+            None,
+        ));
         let (attribute_context, _attribute_guard) =
             guard(SubstitutionContextDependency::Attribute(utf16("data-value")));
         let (function_context, _function_guard) = guard(SubstitutionContextDependency::Function(1));

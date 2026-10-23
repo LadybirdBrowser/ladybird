@@ -6,6 +6,7 @@
 
 use ak::Utf16FlyString;
 use smallvec::SmallVec;
+use std::borrow::Cow;
 use std::ffi::c_void;
 use std::ops::Range;
 #[cfg(test)]
@@ -347,6 +348,13 @@ impl ParserString {
             string => (string.as_ref().into(), 0..string.len()),
         };
         *self = Self::Interned { storage, range, value };
+    }
+
+    pub(crate) fn fly_string(&self) -> Cow<'_, Utf16FlyString> {
+        match self {
+            Self::Interned { value, .. } => Cow::Borrowed(value),
+            _ => Cow::Owned(Utf16FlyString::from_utf16(self)),
+        }
     }
 
     /// Moves the string out of the storage it shares with the other strings of its tokens (see `TextDetacher`).
