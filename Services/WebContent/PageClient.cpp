@@ -557,7 +557,10 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
     if (m_pending_device_pixel_ratio_for_testing == device_pixel_ratio)
         m_pending_device_pixel_ratio_for_testing.clear();
 
-    page().local_traversable()->set_viewport_size(page().device_to_css_size(size), invalidate);
+    // A viewport can arrive after the tab's document moved to another process, which leaves this page's traversable
+    // remote. The page takes the viewport again once it displays the tab anew.
+    if (page().has_local_traversable())
+        page().local_traversable()->set_viewport_size(page().device_to_css_size(size), invalidate);
     if (invalidate == Web::InvalidateDisplayList::PaintCommandsAndHitTestList)
         device_pixels_per_css_pixel_did_change();
     hurry_outstanding_rendering_opportunity();
