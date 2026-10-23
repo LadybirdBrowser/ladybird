@@ -15,9 +15,11 @@
 #include <LibWebView/Settings.h>
 #include <UI/Qt/Tab.h>
 
+#include <QHash>
 #include <QPointer>
 #include <QPushButton>
 #include <QStackedWidget>
+#include <QStaticText>
 #include <QTabBar>
 #include <QWidget>
 
@@ -163,6 +165,8 @@ private:
     Vector<LoadSheen> m_load_sheens;
     QVariantAnimation* m_loading_swirl_animation { nullptr };
     QIcon m_fallback_tab_icon;
+    QHash<QString, QStaticText> m_tab_title_texts;
+    QFont m_tab_title_texts_font;
     QPointer<Tab> m_pressed_tab;
     QPoint m_position_in_selected_tab_while_dragging;
     QPoint m_drag_start_position;
