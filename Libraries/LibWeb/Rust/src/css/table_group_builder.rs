@@ -2653,7 +2653,7 @@ fn build_anchor_group(
     let mut append_fallback = |data: &StyleValueData| {
         let mut fallback = ComputedPositionTryFallback {
             name: RetainedUtf16FlyString::none(),
-            tactics: [0; 3],
+            tactics: [0; 5],
             tactic_count: 0,
             has_position_area: false,
             position_area: RetainedPositionAreaList::from_vec(Vec::new()),
@@ -2663,8 +2663,8 @@ fn build_anchor_group(
                 fallback.name = custom_ident.to_fly_string();
             } else if let Some(tactic) = keyword_of(data).and_then(crate::css::css_enums::keyword_to_try_tactic) {
                 assert!(
-                    fallback.tactic_count < 3,
-                    "a try tactic list holds at most three tactics"
+                    fallback.tactic_count < 5,
+                    "a try tactic list holds at most five tactics"
                 );
                 fallback.tactics[fallback.tactic_count] = tactic;
                 fallback.tactic_count += 1;

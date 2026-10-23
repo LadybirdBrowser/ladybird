@@ -249,6 +249,8 @@
   "flip-block",
   "flip-inline",
   "flip-start",
+  "flip-x",
+  "flip-y",
   "flow",
   "flow-root",
   "forwards",

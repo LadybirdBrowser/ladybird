@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 57 tests
 
-45 Pass
-12 Fail
+57 Pass
 Pass	e.style['position-try-fallbacks'] = "initial" should set the property value
 Pass	e.style['position-try-fallbacks'] = "inherit" should set the property value
 Pass	e.style['position-try-fallbacks'] = "unset" should set the property value
@@ -31,18 +30,18 @@ Pass	e.style['position-try-fallbacks'] = "--foo, left, --bar" should set the pro
 Pass	e.style['position-try-fallbacks'] = "--foo, flip-start, left" should set the property value
 Pass	e.style['position-try-fallbacks'] = "--foo flip-start, left" should set the property value
 Pass	e.style['position-try-fallbacks'] = "left, --bar flip-start" should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-x" should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-x " should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-start, flip-x" should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-start flip-y, flip-x" should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-start flip-y flip-x" should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-x, --foo" should set the property value
-Fail	e.style['position-try-fallbacks'] = "--bar, flip-x flip-start" should set the property value
-Fail	e.style['position-try-fallbacks'] = "--bar flip-x" should set the property value
-Fail	e.style['position-try-fallbacks'] = "--bar flip-y flip-x" should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-y --foo" should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-y flip-start --foo" should set the property value
-Fail	e.style['position-try-fallbacks'] = "flip-start flip-inline flip-y flip-block flip-x" should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-x" should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-x " should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-start, flip-x" should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-start flip-y, flip-x" should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-start flip-y flip-x" should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-x, --foo" should set the property value
+Pass	e.style['position-try-fallbacks'] = "--bar, flip-x flip-start" should set the property value
+Pass	e.style['position-try-fallbacks'] = "--bar flip-x" should set the property value
+Pass	e.style['position-try-fallbacks'] = "--bar flip-y flip-x" should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-y --foo" should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-y flip-start --foo" should set the property value
+Pass	e.style['position-try-fallbacks'] = "flip-start flip-inline flip-y flip-block flip-x" should set the property value
 Pass	e.style['position-try-fallbacks'] = "none, flip-start" should not set the property value
 Pass	e.style['position-try-fallbacks'] = "flip-block flip-block" should not set the property value
 Pass	e.style['position-try-fallbacks'] = "flip-block flip-inline flip-inline" should not set the property value
