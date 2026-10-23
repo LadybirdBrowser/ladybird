@@ -500,6 +500,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'dominant-baseline': 'auto'
 'emptyCells': 'show'
 'empty-cells': 'show'
+'fieldSizing': 'fixed'
+'field-sizing': 'fixed'
 'fill': 'rgb(0, 0, 0)'
 'fillOpacity': '1'
 'fill-opacity': '1'

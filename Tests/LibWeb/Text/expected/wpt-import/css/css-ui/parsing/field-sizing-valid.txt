@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['field-sizing'] = "fixed" should set the property value
+Pass	e.style['field-sizing'] = "content" should set the property value

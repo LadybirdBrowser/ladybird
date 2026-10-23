@@ -197,6 +197,7 @@ All properties associated with getComputedStyle(document.body):
     "cy",
     "d",
     "display",
+    "field-sizing",
     "filter",
     "flex-basis",
     "flex-direction",

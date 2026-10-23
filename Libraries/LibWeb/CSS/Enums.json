@@ -578,6 +578,10 @@
     "show",
     "hide"
   ],
+  "field-sizing": [
+    "fixed",
+    "content"
+  ],
   "fill-rule": [
     "nonzero",
     "evenodd"

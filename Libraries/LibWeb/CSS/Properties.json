@@ -2218,6 +2218,16 @@
       "empty-cells"
     ]
   },
+  "field-sizing": {
+    "style-group": "BoxValues",
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "fixed",
+    "requires-computation": "never",
+    "valid-types": [
+      "field-sizing"
+    ]
+  },
   "fill": {
     "affects-hit-testing": true,
     "style-group": "InheritedSVGValues",

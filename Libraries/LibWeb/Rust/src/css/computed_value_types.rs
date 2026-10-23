@@ -180,6 +180,7 @@ pub struct BoxValues {
     pub overflow_x: u8,
     pub overflow_y: u8,
     pub box_sizing: u8,
+    pub field_sizing: u8,
     pub resize: u8,
     pub text_overflow: u8,
     pub unicode_bidi: u8,
