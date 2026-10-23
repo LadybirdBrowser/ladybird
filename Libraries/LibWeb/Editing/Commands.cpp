@@ -2924,15 +2924,6 @@ static auto const& command_definitions()
             .preserves_overrides = true,
             .mapped_value = "formatOutdent"_utf16_fly_string,
         },
-        // AD-HOC: This is a Ladybird-specific formatting command that is not part of the spec. It has no action and as
-        //         such, it's not supported in userland (yet). The relevant CSS property `white-space` is used to indicate
-        //         that if this style value is found during editing commands, it is recorded and restored where necessary.
-        //         This is used to keep things like <div style="white-space: pre">..</div> intact when a selection is
-        //         deleted, for example.
-        CommandDefinition {
-            .command = CommandNames::preserveWhitespace,
-            .relevant_css_property = CSS::PropertyID::WhiteSpace,
-        },
         // https://w3c.github.io/editing/docs/execCommand/#the-redo-command
         CommandDefinition {
             .command = CommandNames::redo,

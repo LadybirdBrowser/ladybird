@@ -1,0 +1,8 @@
+Before: <div>abc</div><div><span class="pre">def</span></div>
+After: <div>abc<span style="white-space: pre;">def</span></div>
+Before: <div>abc</div><div><span class="pre-red">def</span></div>
+After: <div>abc<span class="pre-red">def</span></div>
+Before: <div>abc</div><div><span class="pre-bold">def</span></div>
+After: <div>abc<span class="pre-bold">def</span></div>
+Before: <div>abc</div><div><span class="pre" style="color: red">def</span></div>
+After: <div>abc<span class="pre" style="color: red">def</span></div>

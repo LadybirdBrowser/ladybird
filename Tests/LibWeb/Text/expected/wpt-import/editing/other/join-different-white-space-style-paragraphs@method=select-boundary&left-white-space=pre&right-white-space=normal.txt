@@ -2,20 +2,19 @@ Harness status: OK
 
 Found 33 tests
 
-27 Pass
-6 Fail
+33 Pass
 Pass	delete at <div style="white-space:pre">abc[</div><div style="white-space:normal">]def</div>
 Pass	delete at <div style="white-space:pre">abc[</div>\n<div style="white-space:normal">]def</div>
 Pass	delete at <div class="pre">abc[</div><div style="white-space:normal">]def</div>
 Pass	delete at <div style="white-space:pre">abc[</div><div style="white-space:normal">]def<br>ghi</div>
 Pass	delete at <div style="white-space:pre">abc[</div>\n<div style="white-space:normal">]def<br>ghi</div>
 Pass	delete at <div class="pre">abc[</div><div style="white-space:normal">]def<br>ghi</div>
-Fail	delete at <div style="white-space:pre">abc[</div><div style="white-space:normal"><b>]def<br>ghi</b></div>
-Fail	delete at <div style="white-space:pre">abc[</div>\n<div style="white-space:normal"><b>]def<br>ghi</b></div>
-Fail	delete at <div class="pre">abc[</div><div style="white-space:normal"><b>]def<br>ghi</b></div>
-Fail	delete at <div style="white-space:pre">abc[</div><div style="white-space:normal"><b>]def</b>ghi<br>jkl</div>
-Fail	delete at <div style="white-space:pre">abc[</div>\n<div style="white-space:normal"><b>]def</b>ghi<br>jkl</div>
-Fail	delete at <div class="pre">abc[</div><div style="white-space:normal"><b>]def</b>ghi<br>jkl</div>
+Pass	delete at <div style="white-space:pre">abc[</div><div style="white-space:normal"><b>]def<br>ghi</b></div>
+Pass	delete at <div style="white-space:pre">abc[</div>\n<div style="white-space:normal"><b>]def<br>ghi</b></div>
+Pass	delete at <div class="pre">abc[</div><div style="white-space:normal"><b>]def<br>ghi</b></div>
+Pass	delete at <div style="white-space:pre">abc[</div><div style="white-space:normal"><b>]def</b>ghi<br>jkl</div>
+Pass	delete at <div style="white-space:pre">abc[</div>\n<div style="white-space:normal"><b>]def</b>ghi<br>jkl</div>
+Pass	delete at <div class="pre">abc[</div><div style="white-space:normal"><b>]def</b>ghi<br>jkl</div>
 Pass	delete at <div style="white-space:pre">abc[</div><div style="white-space:normal"><b>]def</b><br>ghi</div>
 Pass	delete at <div style="white-space:pre">abc[</div>\n<div style="white-space:normal"><b>]def</b><br>ghi</div>
 Pass	delete at <div class="pre">abc[</div><div style="white-space:normal"><b>]def</b><br>ghi</div>

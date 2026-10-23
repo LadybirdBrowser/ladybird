@@ -2,23 +2,22 @@ Harness status: OK
 
 Found 18 tests
 
-12 Pass
-6 Fail
+18 Pass
 Pass	delete at <div style="white-space:pre-wrap">abc</div><span style="white-space:nowrap">[]def</span>
-Fail	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap">[]def</span>
+Pass	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap">[]def</span>
 Pass	delete at <div class="preWrap">abc</div><span style="white-space:nowrap">[]def</span>
 Pass	delete at <div style="white-space:pre-wrap">abc</div><span style="white-space:nowrap">[]def<br>ghi</span>
-Fail	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap">[]def<br>ghi</span>
+Pass	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap">[]def<br>ghi</span>
 Pass	delete at <div class="preWrap">abc</div><span style="white-space:nowrap">[]def<br>ghi</span>
 Pass	delete at <div style="white-space:pre-wrap">abc</div><span style="white-space:nowrap"><b>[]def<br>ghi</b></span>
-Fail	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap"><b>[]def<br>ghi</b></span>
+Pass	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap"><b>[]def<br>ghi</b></span>
 Pass	delete at <div class="preWrap">abc</div><span style="white-space:nowrap"><b>[]def<br>ghi</b></span>
 Pass	delete at <div style="white-space:pre-wrap">abc</div><span style="white-space:nowrap"><b>[]def</b><br>ghi</span>
-Fail	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap"><b>[]def</b><br>ghi</span>
+Pass	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap"><b>[]def</b><br>ghi</span>
 Pass	delete at <div class="preWrap">abc</div><span style="white-space:nowrap"><b>[]def</b><br>ghi</span>
 Pass	delete at <div style="white-space:pre-wrap">abc</div><span style="white-space:nowrap"><b>[]def<br></b>ghi</span>
-Fail	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap"><b>[]def<br></b>ghi</span>
+Pass	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap"><b>[]def<br></b>ghi</span>
 Pass	delete at <div class="preWrap">abc</div><span style="white-space:nowrap"><b>[]def<br></b>ghi</span>
 Pass	delete at <div style="white-space:pre-wrap">abc</div><span style="white-space:nowrap"><b>[]def<br>ghi</b>jkl</span>
-Fail	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap"><b>[]def<br>ghi</b>jkl</span>
+Pass	delete at <div style="white-space:pre-wrap">abc</div><span class="nowrap"><b>[]def<br>ghi</b>jkl</span>
 Pass	delete at <div class="preWrap">abc</div><span style="white-space:nowrap"><b>[]def<br>ghi</b>jkl</span>

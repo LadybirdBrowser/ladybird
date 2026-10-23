@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-14 Fail
-Fail	delete at <div style="white-space:pre">abc[</div>]def
-Fail	delete at <div class="pre">abc[</div>]def
-Fail	delete at <div style="white-space:pre">abc[</div>]def<br>ghi
-Fail	delete at <div class="pre">abc[</div>]def<br>ghi
-Fail	delete at <div style="white-space:pre">abc[</div>]def<div>ghi</div>
-Fail	delete at <div class="pre">abc[</div>]def<div>ghi</div>
-Fail	delete at <div style="white-space:pre">abc[</div><b>]def</b>
-Fail	delete at <div class="pre">abc[</div><b>]def</b>
-Fail	delete at <div style="white-space:pre">abc[</div><b>]def<br>ghi</b>
-Fail	delete at <div class="pre">abc[</div><b>]def<br>ghi</b>
-Fail	delete at <div style="white-space:pre">abc[</div><b>]def</b><br>ghi
-Fail	delete at <div class="pre">abc[</div><b>]def</b><br>ghi
-Fail	delete at <div style="white-space:pre">abc[</div><b>]def<br></b>ghi
-Fail	delete at <div class="pre">abc[</div><b>]def<br></b>ghi
+14 Pass
+Pass	delete at <div style="white-space:pre">abc[</div>]def
+Pass	delete at <div class="pre">abc[</div>]def
+Pass	delete at <div style="white-space:pre">abc[</div>]def<br>ghi
+Pass	delete at <div class="pre">abc[</div>]def<br>ghi
+Pass	delete at <div style="white-space:pre">abc[</div>]def<div>ghi</div>
+Pass	delete at <div class="pre">abc[</div>]def<div>ghi</div>
+Pass	delete at <div style="white-space:pre">abc[</div><b>]def</b>
+Pass	delete at <div class="pre">abc[</div><b>]def</b>
+Pass	delete at <div style="white-space:pre">abc[</div><b>]def<br>ghi</b>
+Pass	delete at <div class="pre">abc[</div><b>]def<br>ghi</b>
+Pass	delete at <div style="white-space:pre">abc[</div><b>]def</b><br>ghi
+Pass	delete at <div class="pre">abc[</div><b>]def</b><br>ghi
+Pass	delete at <div style="white-space:pre">abc[</div><b>]def<br></b>ghi
+Pass	delete at <div class="pre">abc[</div><b>]def<br></b>ghi

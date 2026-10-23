@@ -511,9 +511,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_supported(Utf16FlyString const
 
     // When the queryCommandSupported(command) method on the Document interface is invoked, the user agent must return
     // true if command is supported and available within the current script on the current site, and false otherwise.
-    // AD-HOC: Supported commands should have an action defined. Currently, ::preserveWhitespace does not have one.
-    auto command_definition = Editing::find_command_definition(command);
-    return command_definition.has_value() && command_definition->action;
+    return Editing::find_command_definition(command).has_value();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandvalue()

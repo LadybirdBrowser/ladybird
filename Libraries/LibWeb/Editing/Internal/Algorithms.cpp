@@ -822,6 +822,28 @@ struct ResolvedWhiteSpace {
         return collapse.has_value()
             && first_is_one_of(*collapse, CSS::Keyword::Preserve, CSS::Keyword::PreserveBreaks, CSS::Keyword::BreakSpaces);
     }
+
+    Optional<StringView> white_space_value() const
+    {
+        if (!collapse.has_value() || !wrap_mode.has_value())
+            return {};
+        auto nowrap = *wrap_mode == CSS::Keyword::Nowrap;
+        switch (*collapse) {
+        case CSS::Keyword::Collapse:
+            return nowrap ? "nowrap"sv : "normal"sv;
+        case CSS::Keyword::Preserve:
+            return nowrap ? "pre"sv : "pre-wrap"sv;
+        case CSS::Keyword::PreserveBreaks:
+            return nowrap ? OptionalNone {} : Optional<StringView> { "pre-line"sv };
+        default:
+            return {};
+        }
+    }
+};
+
+struct RecordedWhiteSpace {
+    GC::Ref<DOM::Node> node;
+    ResolvedWhiteSpace white_space;
 };
 
 }
@@ -901,6 +923,127 @@ static GC::RootVector<GC::Ref<DOM::Node>> isolate_first_line_of_inline_run(GC::R
         line.append(*node);
     }
     return line;
+}
+
+static bool sets_white_space_in_style_attribute(DOM::Node& node)
+{
+    auto* element = as_if<DOM::Element>(node);
+    return element && property_in_style_attribute(*element, CSS::PropertyID::WhiteSpaceCollapse);
+}
+
+// Find the element that establishes the white-space style of node: its furthest inclusive ancestor element with the
+// same white-space style, without crossing an element whose style attribute sets white-space.
+static GC::Ptr<DOM::Element> element_establishing_white_space(GC::Ref<DOM::Node> node)
+{
+    auto white_space = resolved_white_space(node);
+    GC::Ptr<DOM::Node> establishing_node = is<DOM::Element>(*node) ? node.ptr() : node->parent();
+    while (establishing_node && !sets_white_space_in_style_attribute(*establishing_node)
+        && is<DOM::Element>(establishing_node->parent()) && resolved_white_space(*establishing_node->parent()) == white_space)
+        establishing_node = establishing_node->parent();
+    return as_if<DOM::Element>(establishing_node.ptr());
+}
+
+// INTEROP: Browsers do not keep white-space styles that come from the default style of elements such as pre, and do not
+//          add white-space styles to content that is joined into such an element.
+// FIXME: Distinguish these from white-space styles that author style sheets set on such elements.
+static bool white_space_is_from_default_style(GC::Ref<DOM::Node> node)
+{
+    auto element = element_establishing_white_space(node);
+    return element
+        && element->local_name().is_one_of(HTML::TagNames::pre, HTML::TagNames::listing, HTML::TagNames::xmp, HTML::TagNames::plaintext)
+        && !sets_white_space_in_style_attribute(*element);
+}
+
+// Whether element gives its children formatting that its parent does not, as one of the command values that are
+// recorded by "record the values of nodes".
+static bool element_changes_formatting(DOM::Element& element)
+{
+    Array const commands = { CommandNames::subscript, CommandNames::bold, CommandNames::fontName,
+        CommandNames::fontSize, CommandNames::foreColor, CommandNames::hiliteColor, CommandNames::italic,
+        CommandNames::strikethrough, CommandNames::underline };
+    return any_of(commands, [&](auto const& command) {
+        return !values_are_equivalent(command, optional_utf16_view(effective_command_value(element, command)),
+            optional_utf16_view(effective_command_value(element.parent(), command)));
+    });
+}
+
+// Record the white-space style of nodes, which are about to be joined into another block.
+static GC::ConservativeVector<RecordedWhiteSpace> record_white_space_of_nodes(GC::RootVector<GC::Ref<DOM::Node>>& nodes)
+{
+    GC::ConservativeVector<RecordedWhiteSpace> recorded;
+    GC::RootVector<GC::Ref<DOM::Node>> new_nodes;
+    for (auto node : nodes) {
+        auto white_space = resolved_white_space(node);
+
+        if (white_space_is_from_default_style(node)) {
+            new_nodes.append(node);
+            continue;
+        }
+
+        // INTEROP: A span that gets its white-space style from a style sheet is not moved itself. Browsers move its
+        //          children, and keep their white-space style in a style attribute. A span that also changes other
+        //          formatting, such as the color, is moved instead, so that its children keep that formatting.
+        auto* span = as_if<HTML::HTMLElement>(*node);
+        if (span && element_establishing_white_space(*span).ptr() == span && span->local_name() == HTML::TagNames::span && span->is_editable()
+            && span->has_children() && !property_in_style_attribute(*span, CSS::PropertyID::WhiteSpaceCollapse)) {
+            bool has_only_style_attributes = true;
+            span->for_each_attribute([&](DOM::Attr const& attribute) {
+                if (attribute.namespace_uri().has_value() || !attribute.local_name().is_one_of(HTML::AttributeNames::class_, HTML::AttributeNames::style))
+                    has_only_style_attributes = false;
+            });
+            if (has_only_style_attributes && !element_changes_formatting(*span)) {
+                for (auto* child = span->first_child(); child; child = child->next_sibling()) {
+                    recorded.append({ *child, resolved_white_space(*child) });
+                    new_nodes.append(*child);
+                }
+                unwrap_node_preserving_ranges(*span);
+                continue;
+            }
+        }
+
+        recorded.append({ node, white_space });
+        new_nodes.append(node);
+    }
+    nodes = move(new_nodes);
+    return recorded;
+}
+
+// INTEROP: Browsers keep the white-space style of content that is joined into a block with another white-space style,
+//          by setting it on the moved inline element, or on a new span that wraps the moved nodes.
+static void restore_white_space_of_nodes(Vector<RecordedWhiteSpace> const& recorded)
+{
+    auto& document = recorded.first().node->document();
+    for (size_t index = 0; index < recorded.size();) {
+        auto const& first = recorded[index];
+        auto value = first.white_space.white_space_value();
+        if (!first.node->parent() || !value.has_value() || !first.node->is_editable() || resolved_white_space(first.node) == first.white_space
+            || white_space_is_from_default_style(*first.node->parent())) {
+            ++index;
+            continue;
+        }
+
+        // Collect the following siblings which need the same white-space style.
+        GC::RootVector<GC::Ref<DOM::Node>> group;
+        group.append(first.node);
+        for (++index; index < recorded.size(); ++index) {
+            auto const& next = recorded[index];
+            if (next.node.ptr() != group.last()->next_sibling() || next.white_space != first.white_space
+                || resolved_white_space(next.node) == next.white_space)
+                break;
+            group.append(next.node);
+        }
+
+        if (group.size() == 1 && is<HTML::HTMLElement>(*first.node) && !is<HTML::HTMLBRElement>(*first.node)) {
+            MUST(static_cast<HTML::HTMLElement&>(*first.node).style()->set_property(CSS::PropertyID::WhiteSpace, *value));
+            continue;
+        }
+
+        auto span = MUST(DOM::create_element(document, HTML::TagNames::span, Namespace::HTML));
+        insert_node_before(span, *first.node->parent(), first.node);
+        MUST(static_cast<HTML::HTMLElement&>(*span).style()->set_property(CSS::PropertyID::WhiteSpace, *value));
+        for (auto node : group)
+            move_node_preserving_ranges(node, span, span->child_count());
+    }
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#delete-the-selection
@@ -1150,6 +1293,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
     // 32. If start block is an ancestor of end block:
     Vector<RecordedNodeValue> values;
+    GC::ConservativeVector<RecordedWhiteSpace> recorded_white_space;
     if (start_block->is_ancestor_of(*end_block)) {
         // 1. Let reference node be end block.
         auto reference_node = end_block;
@@ -1216,6 +1360,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         }
 
         // 9. Record the values of children, and let values be the result.
+        recorded_white_space = record_white_space_of_nodes(children);
         values = record_the_values_of_nodes(children);
 
         // 10. While children's first member's parent is not start block, split the parent of children.
@@ -1258,6 +1403,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
             nodes_to_move = isolate_first_line_of_inline_run(*end_block, *reference_node->next_sibling());
 
         // 8. Record the values of nodes to move, and let values be the result.
+        recorded_white_space = record_white_space_of_nodes(nodes_to_move);
         values = record_the_values_of_nodes(nodes_to_move);
 
         // 9. For each node in nodes to move, append node as the last child of start block, preserving ranges.
@@ -1293,6 +1439,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
                 return IterationDecision::Continue;
             });
         }
+        recorded_white_space = record_white_space_of_nodes(end_block_children);
         values = record_the_values_of_nodes(end_block_children);
 
         // 4. While end block has children, append the first child of end block to start block, preserving ranges.
@@ -1354,6 +1501,8 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
     // 38. Restore the values from values.
     restore_the_values_of_nodes(values);
+    if (!recorded_white_space.is_empty())
+        restore_white_space_of_nodes(recorded_white_space);
 
     // 39. If start block has no children, call createElement("br") on the context object and append the result as the
     //     last child of start block.
@@ -3640,10 +3789,9 @@ GC::ConservativeVector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::
     // 2. For each node in node list, for each command in the list "subscript", "bold", "fontName",
     //    "fontSize", "foreColor", "hiliteColor", "italic", "strikethrough", and "underline" in that
     //    order:
-    // AD-HOC: We include "preserveWhitespace" as well.
     Array const commands = { CommandNames::subscript, CommandNames::bold, CommandNames::fontName,
         CommandNames::fontSize, CommandNames::foreColor, CommandNames::hiliteColor, CommandNames::italic,
-        CommandNames::strikethrough, CommandNames::underline, CommandNames::preserveWhitespace };
+        CommandNames::strikethrough, CommandNames::underline };
     for (auto node : node_list) {
         for (auto command : commands) {
             // 1. Let ancestor equal node.
