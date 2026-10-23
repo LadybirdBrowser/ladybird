@@ -478,7 +478,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_state(Utf16FlyString const& co
         if (!range)
             return false;
 
-        Vector<GC::Ref<Node>> formattable_nodes;
+        GC::RootVector<GC::Ref<Node>> formattable_nodes;
         Editing::for_each_node_effectively_contained_in_range(range, [&](GC::Ref<Node> descendant) {
             if (Editing::is_formattable_node(descendant))
                 formattable_nodes.append(descendant);
