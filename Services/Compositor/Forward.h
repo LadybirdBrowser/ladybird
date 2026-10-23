@@ -8,11 +8,13 @@
 
 namespace Compositor {
 
+class CanvasSurfaceRegistry;
 class ConnectionFromClient;
 class ConnectionFromPresentation;
 class ConnectionFromWebContent;
 class CompositorState;
 class DisplayListPlayerSkia;
 class DisplayListRasterCache;
+class OwnedCanvasSurfaces;
 
 }

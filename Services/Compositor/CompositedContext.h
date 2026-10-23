@@ -13,7 +13,7 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Rect.h>
 
-namespace Compositing {
+namespace Compositor {
 
 struct CompositedContextSurface {
     RefPtr<Gfx::PaintingSurface> surface;

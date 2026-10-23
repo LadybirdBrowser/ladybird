@@ -10,10 +10,10 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <Compositor/CompositedContext.h>
 #include <Compositor/DisplayListPlayer.h>
 #include <Compositor/Forward.h>
 #include <Compositor/ScrollbarController.h>
-#include <LibCompositing/DisplayList/CompositedContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibGfx/Forward.h>
@@ -47,8 +47,8 @@ public:
         DisplayListRasterCache&,
         Compositing::ScrollStateSnapshot const&,
         RefPtr<Gfx::PaintingSurface>,
-        Compositing::OwnedCanvasSurfaces const*,
-        Compositing::CompositedContextResolver const*,
+        OwnedCanvasSurfaces const*,
+        CompositedContextResolver const*,
         ScrollbarController const* = nullptr);
 
     void flush(Gfx::PaintingSurface&) override;
@@ -86,7 +86,7 @@ private:
     ReadonlySpan<float> gradient_positions(Compositing::DisplayListGradientColorStops) const;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-    Compositing::CompositedContextResolver const* m_composited_context_resolver { nullptr };
+    CompositedContextResolver const* m_composited_context_resolver { nullptr };
     // Says how opaque the scrollbars that the display list paints are.
     ScrollbarController const* m_scrollbar_controller { nullptr };
     DisplayListRasterCache* m_raster_cache { nullptr };

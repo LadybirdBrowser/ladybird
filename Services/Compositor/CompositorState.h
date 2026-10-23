@@ -12,11 +12,11 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
+#include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/ContextState.h>
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/VSyncScheduler.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
-#include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
@@ -104,8 +104,8 @@ public:
     void destroy_contexts_for_web_content_client(CompositorStateWebContentClient&);
 
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const { return m_skia_backend_context; }
-    Compositing::CanvasSurfaceRegistry& canvas_surface_registry() { return m_canvas_surface_registry; }
-    Compositing::CanvasSurfaceRegistry const& canvas_surface_registry() const { return m_canvas_surface_registry; }
+    CanvasSurfaceRegistry& canvas_surface_registry() { return m_canvas_surface_registry; }
+    CanvasSurfaceRegistry const& canvas_surface_registry() const { return m_canvas_surface_registry; }
 
     void create_context(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&);
     void destroy_context(Web::CompositorContextId);
@@ -209,7 +209,7 @@ private:
     double display_refresh_rate_for_context(ContextState const&) const;
     void clear_parent_context(ContextState&);
     CompositedContextResolver resolver_for(Web::CompositorContextId parent_context_id);
-    Compositing::CompositedContextSurface resolve_composited_context(Web::CompositorContextId parent_context_id, Web::CompositorContextId child_context_id, Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
+    CompositedContextSurface resolve_composited_context(Web::CompositorContextId parent_context_id, Web::CompositorContextId child_context_id, Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
     void schedule_backing_store_shrink(Web::CompositorContextId, ContextState&);
     void shrink_backing_stores_after_resize(Web::CompositorContextId);
     void resize_backing_stores_if_needed(Web::CompositorContextId, ContextState&);
@@ -283,7 +283,7 @@ private:
 
     DoublyLinkedList<PendingAsyncPresent> m_pending_async_presents;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-    Compositing::CanvasSurfaceRegistry m_canvas_surface_registry;
+    CanvasSurfaceRegistry m_canvas_surface_registry;
     OwnPtr<DisplayListPlayerSkia> m_display_list_player;
     HashMap<Optional<u64>, OwnPtr<VSyncScheduler>> m_vsync_schedulers_by_display;
     RefPtr<Core::Timer> m_gpu_completion_timer;
