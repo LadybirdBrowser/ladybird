@@ -977,6 +977,11 @@ GC::Ptr<Fetch::Infrastructure::FetchController> HTMLLinkElement::preload(LinkPro
     // 8. If options's document is null, then set request's initiator type to "early hint".
     if (!options.document)
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::EarlyHint);
+    // AD-HOC: Otherwise, set request's initiator type to "link", as the default fetch and process the linked resource
+    //         steps do. Without an initiator type, the preload is never reported to Resource Timing, but other engines
+    //         report it with an initiatorType of "link". Fetch then reports the timing itself once the body is read.
+    else
+        request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Link);
 
     // 9. Let controller be null.
     auto controller_holder = Fetch::Infrastructure::FetchControllerHolder::create();
@@ -1004,7 +1009,10 @@ GC::Ptr<Fetch::Infrastructure::FetchController> HTMLLinkElement::preload(LinkPro
         // FIXME: 3. Set unsafeEndTime to the unsafe shared current time.
 
         // 4. If options's document is not null, then call reportTiming given options's document.
-        if (options->document)
+        // AD-HOC: Only when reading the body failed. A preload with a document has the "link" initiator type (see
+        //         above), so fetch has already reported its timing once the body was read, and reporting it again would
+        //         add a second entry. Fetch does not report a failed body read.
+        if (options->document && body_bytes.has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>())
             report_timing->function()(*options->document);
 
         // 5. If entry's on response available is null, then set entry's response to response; otherwise call entry's

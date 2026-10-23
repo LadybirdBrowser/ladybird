@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>The preload's referrerpolicy attribute should be respected</title>
+<meta name="timeout" content="long">
+<script src="resources/dummy.js?link-header-preload2"></script>
+<script src="../common/get-host-info.sub.js"></script>
+<script src="../common/utils.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../preload/resources/preload_helper.js"></script>
+<body>
+    <p>The preload's referrerpolicy attribute should be respected,
+    and consumed regardless of consumer referrer policy</p>
+<script>
+window.referrers = {};
+const {REMOTE_ORIGIN} = get_host_info();
+const loaders = {
+    header: async (t, {preloadPolicy, resourcePolicy, href, id}) => {
+        const iframe = document.createElement('iframe');
+        const params = new URLSearchParams();
+        params.set('href', href);
+        params.set('resource-policy', resourcePolicy);
+        if (preloadPolicy === '')
+            params.set('preload-policy', '');
+        else
+            params.set('preload-policy', `referrerpolicy=${preloadPolicy}`);
+        params.set('resource-name', 'link-header-referrer-policy.html');
+        iframe.src = `resources/link-header-referrer-policy.py?${params.toString()}`;
+        t.add_cleanup(() => iframe.remove());
+        const done = new Promise(resolve => {
+            window.addEventListener('message', ({data}) => {
+                if (id in data.referrers)
+                    resolve({actualReferrer: data.referrers[id], entries: data.entries});
+            })
+        });
+        document.body.appendChild(iframe);
+        const {actualReferrer, entries} = await done;
+        return {actualReferrer, unsafe: iframe.src, entries};
+    },
+    element: async (t, {preloadPolicy, resourcePolicy, href, id}) => {
+        const link = document.createElement('link');
+        link.href = href;
+        link.as = 'script';
+        link.rel = 'preload';
+        link.referrerPolicy = preloadPolicy;
+        const preloaded = new Promise(resolve => link.addEventListener('load', resolve));
+        t.add_cleanup(() => link.remove());
+        document.head.appendChild(link);
+        await preloaded;
+        const script = document.createElement('script');
+        script.src = href;
+        script.referrerPolicy = resourcePolicy;
+        const loaded = new Promise(resolve => script.addEventListener('load', resolve));
+        document.body.appendChild(script);
+        await loaded;
+        return {unsafe: location.href, actualReferrer: window.referrers[id], entries: performance.getEntriesByName(script.src).length}
+    },
+};
+
+function test_referrer_policy(preloadPolicy, resourcePolicy, crossOrigin, type) {
+    promise_test(async t => {
+        const id = token();
+        const href = `${crossOrigin ? REMOTE_ORIGIN : ''}/preload/resources/echo-referrer.py?uid=${id}`;
+        const {actualReferrer, unsafe, entries} = await loaders[type](t, {preloadPolicy, resourcePolicy, href, id})
+        assert_equals(entries, 1);
+        const origin = window.origin + '/';
+        switch (preloadPolicy) {
+            case '':
+                assert_equals(actualReferrer, crossOrigin ? origin : unsafe);
+                break;
+
+            case 'no-referrer':
+                assert_equals(actualReferrer, '');
+                break;
+
+            case 'same-origin':
+                assert_equals(actualReferrer, crossOrigin ? '' : unsafe);
+                break;
+
+            case 'origin-when-cross-origin':
+            case 'strict-origin-when-cross-origin':
+                assert_equals(actualReferrer, crossOrigin ? origin : unsafe);
+                break;
+
+            case 'origin':
+                assert_equals(actualReferrer, origin);
+                break;
+
+            case 'unsafe-url':
+                assert_equals(actualReferrer, unsafe);
+                break;
+
+            default:
+                assert_equals(actualReferrer, '');
+                break;
+
+        }
+    }, `referrer policy (${preloadPolicy} -> ${resourcePolicy}, ${type}, ${crossOrigin ? 'cross-origin' : 'same-origin'})`)
+}
+const policies = [
+"",
+"no-referrer",
+"same-origin",
+"origin",
+"origin-when-cross-origin",
+"strict-origin-when-cross-origin",
+"unsafe-url"]
+
+for (const preloadPolicy of policies) {
+    for (const resourcePolicy of policies) {
+        for (const type of ['element', 'header']) {
+            for (const crossOrigin of [true, false]) {
+                test_referrer_policy(preloadPolicy, resourcePolicy, crossOrigin, type);
+            }
+        }
+    }
+}
+
+</script>
+</body>

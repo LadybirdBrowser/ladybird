@@ -62,7 +62,8 @@ bool consume_a_preloaded_resource(
     Fetch::Infrastructure::Request::CredentialsMode credentials_mode,
     Utf16View integrity_metadata,
     GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available,
-    Fetch::Infrastructure::TaskDestination const& consumer_task_destination)
+    Fetch::Infrastructure::TaskDestination const& consumer_task_destination,
+    bool& preload_reports_timing)
 {
     // 1. Let key be a preload key whose URL is url, destination is destination, mode is mode, and credentials mode is
     //    credentialsMode.
@@ -104,6 +105,10 @@ bool consume_a_preloaded_resource(
 
     // 8. Remove preloads[key].
     preloads.remove(it);
+
+    // AD-HOC: A preload reports its own timing to Resource Timing, but a speculative fetch does not. Let the consumer
+    //         know, so that it only reports timing when the preload does not.
+    preload_reports_timing = !entry->is_speculative;
 
     // 9. If entry's response is null, then set entry's on response available to onResponseAvailable.
     if (!entry->response) {
