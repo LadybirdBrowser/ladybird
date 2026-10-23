@@ -1413,7 +1413,8 @@ void Page::notify_spell_check_progress()
 {
     if (m_spell_checking_settled_callbacks.is_empty() || !spell_checking_is_settled(*this))
         return;
-    for (auto& callback : exchange(m_spell_checking_settled_callbacks, {}))
+    GC::RootVector callbacks { exchange(m_spell_checking_settled_callbacks, {}) };
+    for (auto& callback : callbacks)
         callback->function()();
 }
 
