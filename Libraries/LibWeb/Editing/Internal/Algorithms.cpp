@@ -697,7 +697,7 @@ void canonicalize_whitespace_after_node_insertion(DOM::BoundaryPoint boundary)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#clear-the-value
-Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Ref<DOM::Element> element)
+GC::RootVector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const& command, GC::Ref<DOM::Element> element)
 {
     // 1. Let command be the current command.
 
