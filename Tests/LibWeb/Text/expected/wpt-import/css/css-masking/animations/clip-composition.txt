@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 72 tests
 
-66 Pass
-6 Fail
+72 Pass
 Pass	Compositing CSS Animations: property <clip> underlying [rect(0px 10px 20px 30px)] from add [rect(40px 50px 60px 70px)] to add [rect(140px 150px 160px 170px)] at (-1) should be [rect(-60px -40px -20px 0px)]
 Pass	Compositing CSS Animations: property <clip> underlying [rect(0px 10px 20px 30px)] from add [rect(40px 50px 60px 70px)] to add [rect(140px 150px 160px 170px)] at (0) should be [rect(40px 60px 80px 100px)]
 Pass	Compositing CSS Animations: property <clip> underlying [rect(0px 10px 20px 30px)] from add [rect(40px 50px 60px 70px)] to add [rect(140px 150px 160px 170px)] at (0.25) should be [rect(65px 85px 105px 125px)]
@@ -28,15 +27,15 @@ Pass	Compositing Web Animations: property <clip> underlying [auto] from add [rec
 Pass	Compositing Web Animations: property <clip> underlying [auto] from add [rect(0px 0px 0px 0px)] to add [rect(100px 100px 100px 100px)] at (0.75) should be [rect(75px 75px 75px 75px)]
 Pass	Compositing Web Animations: property <clip> underlying [auto] from add [rect(0px 0px 0px 0px)] to add [rect(100px 100px 100px 100px)] at (1) should be [rect(100px 100px 100px 100px)]
 Pass	Compositing Web Animations: property <clip> underlying [auto] from add [rect(0px 0px 0px 0px)] to add [rect(100px 100px 100px 100px)] at (2) should be [rect(200px 200px 200px 200px)]
-Fail	Compositing CSS Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (-1) should be [rect(100px auto auto 100px)]
-Fail	Compositing CSS Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0) should be [rect(100px auto auto 100px)]
-Fail	Compositing CSS Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0.25) should be [rect(100px auto auto 100px)]
+Pass	Compositing CSS Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (-1) should be [rect(100px auto auto 100px)]
+Pass	Compositing CSS Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0) should be [rect(100px auto auto 100px)]
+Pass	Compositing CSS Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0.25) should be [rect(100px auto auto 100px)]
 Pass	Compositing CSS Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0.75) should be [rect(100px 100px 100px 100px)]
 Pass	Compositing CSS Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (1) should be [rect(100px 100px 100px 100px)]
 Pass	Compositing CSS Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (2) should be [rect(100px 100px 100px 100px)]
-Fail	Compositing Web Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (-1) should be [rect(100px auto auto 100px)]
-Fail	Compositing Web Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0) should be [rect(100px auto auto 100px)]
-Fail	Compositing Web Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0.25) should be [rect(100px auto auto 100px)]
+Pass	Compositing Web Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (-1) should be [rect(100px auto auto 100px)]
+Pass	Compositing Web Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0) should be [rect(100px auto auto 100px)]
+Pass	Compositing Web Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0.25) should be [rect(100px auto auto 100px)]
 Pass	Compositing Web Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (0.75) should be [rect(100px 100px 100px 100px)]
 Pass	Compositing Web Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (1) should be [rect(100px 100px 100px 100px)]
 Pass	Compositing Web Animations: property <clip> underlying [rect(50px auto auto 50px)] from add [rect(50px auto auto 50px)] to add [rect(100px 100px 100px 100px)] at (2) should be [rect(100px 100px 100px 100px)]

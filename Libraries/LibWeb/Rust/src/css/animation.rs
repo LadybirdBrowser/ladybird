@@ -3750,6 +3750,19 @@ fn composite_scalar_value(
             },
         ) => {
             let combine = |underlying: &RetainedStyleValueData, animated: &RetainedStyleValueData| {
+                // NB: An auto offset has no amount to add, so combining it with another auto keeps it auto.
+                if let (
+                    StyleValueData::Keyword {
+                        keyword: underlying_keyword,
+                    },
+                    StyleValueData::Keyword {
+                        keyword: animated_keyword,
+                    },
+                ) = (underlying.data(), animated.data())
+                    && underlying_keyword == animated_keyword
+                {
+                    return Ok(Some(animated.clone_retained()));
+                }
                 let result = composite_scalar_value(underlying.data(), animated.data(), operation);
                 if !result.handled {
                     return Err(());
