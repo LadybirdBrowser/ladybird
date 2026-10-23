@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Underscripts and Overscripts parameters</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#underscripts-and-overscripts-munder-mover-munderover">
+<meta name="assert" content="Elements munder, mover, munderover correctly use the limit parameters from the MATH table.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math, mspace, mo {
+    font-size: 10px;
+  }
+  @font-face {
+    font-family: lowerlimitbaselinedropmin3000;
+    src: url("../../../fonts/math/limits-lowerlimitbaselinedropmin3000.woff");
+  }
+  @font-face {
+    font-family: lowerlimitgapmin11000;
+    src: url("../../../fonts/math/limits-lowerlimitgapmin11000.woff");
+  }
+  @font-face {
+    font-family: upperlimitbaselinerisemin5000;
+    src: url("../../../fonts/math/limits-upperlimitbaselinerisemin5000.woff");
+  }
+  @font-face {
+    font-family: upperlimitgapmin7000;
+    src: url("../../../fonts/math/limits-upperlimitgapmin7000.woff");
+  }
+</style>
+<script>
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  var epsilon = 1;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 3000 * emToPx;
+      assert_approx_equals(getBox("under00011").top - getBox("ref0001").bottom,
+                           v, epsilon, "munder: under shift");
+      assert_approx_equals(getBox("under00012").top - getBox("ref0001").bottom,
+                           v, epsilon, "munderover: under shift");
+    }, "LowerLimitBaselineDropMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 11000 * emToPx;
+      assert_approx_equals(getBox("under00021").top - getBox("ref0002").bottom,
+                           v, epsilon, "munder: under gap");
+      assert_approx_equals(getBox("under00022").top - getBox("ref0002").bottom,
+                           v, epsilon, "munderover: under gap");
+    }, "LowerLimitGapMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 5000 * emToPx;
+      assert_approx_equals(getBox("ref0003").top - getBox("over00031").bottom,
+                           v, epsilon, "mover: over shift");
+      assert_approx_equals(getBox("ref0003").top - getBox("over00032").bottom,
+                           v, epsilon, "munderover: over shift");
+    }, "UpperLimitBaselineRiseMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 7000 * emToPx;
+      assert_approx_equals(getBox("ref0004").top - getBox("over00041").bottom,
+                           v, epsilon, "mover: over shift");
+      assert_approx_equals(getBox("ref0004").top - getBox("over00042").bottom,
+                           v, epsilon, "munderover: over shift");
+    }, "UpperLimitGapMin");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+    <p>
+      <math style="font-family: lowerlimitbaselinedropmin3000;">
+        <mspace id="ref0001" height="1em" width="3em" style="background: green"/>
+        <munder>
+          <mo movablelimits="false">&#x2211;</mo>
+          <mspace id="under00011" depth="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munderover>
+          <mo movablelimits="false">&#x2211;</mo>
+          <mspace id="under00012" depth="1em" width="3em" style="background: blue"/>
+          <mspace height="1em" width="3em" style="background: black"/>
+        </munderover>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: lowerlimitgapmin11000;">
+        <mspace id="ref0002" height="1em" width="3em" style="background: green"/>
+        <munder>
+          <mo movablelimits="false">&#x2211;</mo>
+          <mspace id="under00021" depth="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munderover>
+          <mo movablelimits="false">&#x2211;</mo>
+          <mspace id="under00022" depth="1em" width="3em" style="background: blue"/>
+          <mspace height="1em" width="3em" style="background: black"/>
+        </munderover>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: upperlimitbaselinerisemin5000;">
+        <mspace id="ref0003" height="1em" width="3em" style="background: green"/>
+        <mover>
+          <mo movablelimits="false">&#x2211;</mo>
+          <mspace id="over00031" height="1em" width="3em" style="background: blue"/>
+        </mover>
+        <munderover>
+          <mo movablelimits="false">&#x2211;</mo>
+          <mspace height="1em" width="3em" style="background: black"/>
+          <mspace id="over00032" height="1em" width="3em" style="background: blue"/>
+        </munderover>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: upperlimitgapmin7000;">
+        <mspace id="ref0004" height="1em" width="3em" style="background: green"/>
+        <mover>
+          <mo movablelimits="false">&#x2211;</mo>
+          <mspace id="over00041" depth="1em" width="3em" style="background: blue"/>
+        </mover>
+        <munderover>
+          <mo movablelimits="false">&#x2211;</mo>
+          <mspace height="1em" width="3em" style="background: black"/>
+          <mspace id="over00042" depth="1em" width="3em" style="background: blue"/>
+        </munderover>
+      </math>
+    </p>
+</body>
+</html>

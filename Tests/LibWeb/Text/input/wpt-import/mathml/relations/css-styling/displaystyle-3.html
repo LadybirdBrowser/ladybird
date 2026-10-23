@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>displaystyle</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#css-styling">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-displaystyle-and-scriptlevel-attributes">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-math-style-property">
+<meta name="assert" content="Verify the displaystyle of the underover element is considered (not the one of its base) to determine whether to move limits.">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+  math, math *  {
+    font-family: Ahem;
+    font-size: 20px;
+  }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+  function runTests() {
+      ["munder", "mover", "munderover"].forEach((tag) => {
+          Array.from(document.getElementsByTagName(tag)).forEach(e => {
+              var displaystyle = e.getAttribute('displaystyle') === "true";
+              test(function() {
+                  assert_true(MathMLFeatureDetection.has_movablelimits());
+                  var elementRight = e.getBoundingClientRect().right;
+                  var baseRight = e.firstElementChild.getBoundingClientRect().right;
+                  if (displaystyle)
+                      assert_approx_equals(elementRight, baseRight, 1);
+                  else
+                      assert_greater_than(elementRight, baseRight + 10);
+              }, `movablelimits for ${tag} element (displaystyle=${displaystyle})`);
+          });
+      });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <math>
+    <munder displaystyle="false">
+      <mo displaystyle="true" movablelimits="true">XX</mo>
+      <mtext>X</mtext>
+    </munder>
+  </math>
+  <math>
+    <mover displaystyle="false">
+      <mo displaystyle="true" movablelimits="true">XX</mo>
+      <mtext>X</mtext>
+    </mover>
+  </math>
+  <math>
+    <munderover displaystyle="false">
+      <mo displaystyle="true" movablelimits="true">XX</mo>
+      <mtext>X</mtext>
+      <mtext>X</mtext>
+    </munderover>
+  </math>
+  <math>
+    <munder displaystyle="true">
+      <mo displaystyle="false" movablelimits="true">XX</mo>
+      <mtext>X</mtext>
+    </munder>
+  </math>
+  <math>
+    <mover displaystyle="true">
+      <mo displaystyle="false" movablelimits="true">XX</mo>
+      <mtext>X</mtext>
+    </mover>
+  </math>
+  <math>
+    <munderover displaystyle="true">
+      <mo displaystyle="false" movablelimits="true">XX</mo>
+      <mtext>X</mtext>
+      <mtext>X</mtext>
+    </munderover>
+  </math>
+</body>
+</html>

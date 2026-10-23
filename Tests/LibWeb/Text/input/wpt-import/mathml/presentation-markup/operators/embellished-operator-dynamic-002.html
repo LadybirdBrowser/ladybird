@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Embellished operators - tree change and relayout</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#embellished-operators">
+<link rel="help" href="https://w3c.github.io/mathml-core/#definition-of-space-like-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-of-mrow">
+<link rel="help" href="https://chromium-review.googlesource.com/c/chromium/src/+/3059456">
+<meta name="assert" content="Verify relayout of an mrow with a child that has a deeply nested <mo> element.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math, math * {
+      font: 25px/1 Ahem;
+  }
+  mn {
+      color: black;
+  }
+  .relative_positioned_and_fixed_size {
+      position: relative;
+      height: 0px;
+      width: 0px;
+      overflow: scroll;
+  }
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+      var epsilon = 1;
+      var emToPx = 25;
+
+      function assertCorrectSpacing(container,
+                                    zero_size_mrow_is_embellished_op) {
+          // The container should add lspace/rspace around the zero size mrow
+          // if and only if that mrow is an embellished operator.
+          let mnBefore = container.children[0].getBoundingClientRect();
+          let zeroSizeMrow = container.children[1].getBoundingClientRect();
+          let mnAfter = container.children[2].getBoundingClientRect();
+          assert_approx_equals(zeroSizeMrow.left - mnBefore.right,
+                               zero_size_mrow_is_embellished_op ?
+                               emToPx * 1 : 0, epsilon,
+                               "lspace");
+          assert_approx_equals(mnAfter.left - zeroSizeMrow.right,
+                               zero_size_mrow_is_embellished_op ?
+                               emToPx * 2 : 0, epsilon,
+                               "rspace");
+      }
+
+      let container1 = document.getElementById("container1");
+      test(function() {
+          assertCorrectSpacing(container1, true);
+      }, "container1: Initially an embellished operator");
+
+      let container2 = document.getElementById("container2");
+      test(function() {
+          assertCorrectSpacing(container2, false);
+      }, "container2: Initially not an embellished operator");
+
+      test(function() {
+          let mrow1 = document.getElementById("change_to_not_embellished_operator");
+          mrow1.appendChild(FragmentHelper.createElement("mn"));
+          assertCorrectSpacing(container1, false);
+      }, " container1: No longer an embellished operator");
+
+      test(function() {
+          let mrow2 = document.getElementById("change_to_embellished_operator");
+          mrow2.removeChild(mrow2.lastElementChild);
+          assertCorrectSpacing(container2, true);
+      }, "container2: Became an embellished operator");
+
+      let container3 = document.getElementById("container3");
+      test(function() {
+          assertCorrectSpacing(container3, true);
+      }, "container3: Initially an embellished operator (testing space-like)");
+
+      let container4 = document.getElementById("container4");
+      test(function() {
+          assertCorrectSpacing(container4, false);
+      }, "container4/space-like: Initially not an embellished operator (testing space-like)");
+
+      test(function() {
+          let mrow = document.getElementById("change_to_not_space_like");
+          mrow.appendChild(FragmentHelper.createElement("mn"));
+          assertCorrectSpacing(container3, false);
+      }, " container3: No longer an embellished operator (testing space-like)");
+
+      test(function() {
+          let mrow = document.getElementById("change_to_space_like");
+          mrow.removeChild(mrow.lastElementChild);
+          assertCorrectSpacing(container4, true);
+      }, "container4: Became an embellished operator (testing space-like)");
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+
+  <div>
+    <math display="block">
+      <mrow id="container1">
+        <mn>1</mn>
+        <mrow class="relative_positioned_and_fixed_size">
+          <mrow id="change_to_not_embellished_operator">
+            <mrow>
+              <mo lspace="1em" rspace="2em"></mo>
+            </mrow>
+          </mrow>
+        </mrow>
+        <mn>2</mn>
+      </mrow>
+    </math>
+  </div>
+
+  <div>
+    <math display="block">
+      <mrow id="container2">
+        <mn>3</mn>
+        <mrow class="relative_positioned_and_fixed_size">
+          <mrow id="change_to_embellished_operator">
+            <mrow>
+              <mo lspace="1em" rspace="2em"></mo>
+            </mrow>
+            <mn></mn>
+          </mrow>
+        </mrow>
+        <mn>4</mn>
+      </mrow>
+    </math>
+  </div>
+
+  <div>
+    <math display="block">
+      <mrow id="container3">
+        <mn>5</mn>
+        <mrow>
+          <mrow>
+            <mrow>
+              <mo lspace="1em" rspace="2em"></mo>
+            </mrow>
+            <mrow class="relative_positioned_and_fixed_size">
+              <mrow id="change_to_not_space_like">
+                <mspace></mspace>
+                <mtext></mtext>
+              </mrow>
+            </mrow>
+          </mrow>
+        </mrow>
+        <mn>6</mn>
+      </mrow>
+    </math>
+  </div>
+
+  <div>
+    <math display="block">
+      <mrow id="container4">
+        <mn>7</mn>
+        <mrow>
+          <mrow>
+            <mrow>
+              <mo lspace="1em" rspace="2em"></mo>
+            </mrow>
+            <mrow class="relative_positioned_and_fixed_size">
+              <mrow id="change_to_space_like">
+                <mspace></mspace>
+                <mtext></mtext>
+                <mn></mn>
+              </mrow>
+            </mrow>
+          </mrow>
+        </mrow>
+        <mn>8</mn>
+      </mrow>
+    </math>
+  </div>
+
+</body>
+</html>

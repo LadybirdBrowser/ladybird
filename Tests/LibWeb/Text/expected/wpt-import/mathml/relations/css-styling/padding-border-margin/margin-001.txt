@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Margin properties on mrow
+Fail	Margin properties on mrow (rtl)
+Fail	Margin properties on mrow (shorthand)
+Fail	Margin properties on mrow (logical)
+Fail	Margin properties on mrow (logical, rtl)
+Fail	Margin properties on mrow (logical, shorthand)

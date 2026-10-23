@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<title>clipboard event handlers for MathML</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript"/>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/webappapis.html#globaleventhandlers"/>
+<link rel="help" href="https://w3c.github.io/clipboard-apis/#clipboard-event-copy"/>
+<link rel="help" href="https://w3c.github.io/clipboard-apis/#clipboard-event-cut"/>
+<link rel="help" href="https://w3c.github.io/clipboard-apis/#clipboard-event-paste"/>
+<meta
+  name="assert"
+  content="MathMLElements incorporates oncopy / oncut / onpaste event handlers"
+/>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<math
+  oncopy="window.copyHappened1 = true"
+  oncut="window.cutHappened1 = true"
+  onpaste="window.pasteHappened1 = true"
+>
+  <mi>E</mi>
+</math>
+<script>
+  const EVENTS = ["copy", "cut", "paste"];
+  const el = document.querySelector("math");
+
+  function dispatchEventTest(name) {
+    const mathEl = document.createElementNS(
+        "http://www.w3.org/1998/Math/MathML",
+        "math"
+    );
+    test(() => {
+      let target = undefined;
+      mathEl[`on${name}`] = (e) => { target = e.currentTarget; }
+      const event = new ClipboardEvent(name, {
+        bubbles: true,
+        cancellable: true
+      });
+      mathEl.dispatchEvent(event);
+      assert_equals(target, mathEl, "The event must be fired at the <math> element");
+    }, `${name}: dispatching an Event at a <math> element must trigger element.on${name}`);
+  }
+
+  function evaluatedHandlerTest(name) {
+    const handlerName = "on" + name;
+
+    test(() => {
+      const compiledHandler = el[handlerName];
+
+      assert_equals(
+        typeof compiledHandler,
+        "function",
+        `The ${handlerName} property must be a function`
+      );
+      compiledHandler();
+      assert_true(
+        window[`${name}Happened1`],
+        "Calling the handler must run the code"
+      );
+    }, `${handlerName}: the content attribute must be compiled into a function as the corresponding property`);
+
+    test(() => {
+        const mathEl = document.createElementNS(
+            "http://www.w3.org/1998/Math/MathML",
+            "math"
+        );
+        assert_equals(mathEl[handlerName], null, `The ${handlerName} property must be null (no attribute)`);
+
+        mathEl.setAttribute(handlerName, `window.${handlerName}Happened2 = true;`);
+        const compiledHandler = mathEl[handlerName];
+        assert_equals(
+            typeof compiledHandler,
+            "function",
+            `The ${handlerName} property must be a function (set attribute)`
+        );
+        compiledHandler();
+        assert_true(
+            window[`${handlerName}Happened2`],
+            "Calling the handler must run the code (set attribute)"
+        );
+
+        window[`${handlerName}Happened2`] = false;
+        const clonedMathEl = mathEl.cloneNode(true);
+        const clonedCompiledHandler = clonedMathEl[handlerName];
+        assert_equals(
+            typeof clonedCompiledHandler,
+            "function",
+            `The ${handlerName} property must be a function (clone node)`
+        );
+        clonedCompiledHandler();
+        assert_true(
+            window[`${handlerName}Happened2`],
+            "Calling the handler must run the code (clone node)"
+        );
+
+        mathEl.setAttribute(handlerName, `window.${handlerName}Happened3 = true;`);
+        const newCompiledHandler = mathEl[handlerName];
+        assert_equals(
+            typeof newCompiledHandler,
+            "function",
+            `The ${handlerName} property must be a function (modify attribute)`
+        );
+        newCompiledHandler();
+        assert_true(
+            window[`${handlerName}Happened3`],
+            "Calling the handler must run the code (modify attribute)"
+        );
+
+        mathEl.removeAttribute(handlerName);
+        assert_equals(mathEl[handlerName], null, `The ${handlerName} property must be null (remove attribute)`);
+    }, `${handlerName}: dynamic changes on the attribute`);
+
+  }
+
+  EVENTS.forEach(name => {
+    dispatchEventTest(name);
+    evaluatedHandlerTest(name);
+  });
+</script>

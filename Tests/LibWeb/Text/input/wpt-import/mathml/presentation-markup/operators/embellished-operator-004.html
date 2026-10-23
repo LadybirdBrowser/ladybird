@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stretching of core operator with various levels of nested mrows</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=236963">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=2020658">
+<link rel="help" href="https://w3c.github.io/mathml-core/#embellished-operators">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-of-mrow">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-top-level-math-element">
+<link rel="help" href="https://w3c.github.io/mathml-core/#algorithm-for-stretching-operators-along-the-block-axis">
+<meta name="assert" content="Operators stretch with various levels of nested mrow.">
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  mo {
+    font-size: 10px;
+    font-family: axisheight5000-verticalarrow14000;
+  }
+  @font-face {
+    font-family: axisheight5000-verticalarrow14000;
+    src: url("../../../fonts/math/axisheight5000-verticalarrow14000.woff");
+  }
+</style>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+  function runTests()
+  {
+      Array.from(document.querySelectorAll("[data-title]")).forEach(mo => {
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              assert_greater_than_equal(mo.getBoundingClientRect().height, 100);
+          }, `Vertical stretching performed for ${mo.dataset.title}.`);
+      });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <!-- The <math> element uses mrow layout. The <mo> child should stretch to
+         at least the size of the <mspace> sibling.
+      -->
+    <math><mo data-title="math > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></math>
+    <math display="block"><mo data-title="Stretching for math[display=block] > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></math>
+
+    <!-- The <mrow> child of the <math> element is an embellished operator. Per
+         the "algorithm for stretching operators along the block axis", it
+         should first be laid out with block stretch constraint (ascent=0,
+         descent=0) and then laid out again with a stretch constraint that
+         includes at least the size of the <mspace> descendant. So again the
+         <mo> descendant should stretch at least to the size of the <mspace>.
+      -->
+    <math><mrow><mo data-title="math > mrow > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></mrow></math>
+    <math display="block"><mrow><mo data-title="Stretching for math[display=block] > mrow > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></mrow></math>
+
+    <!-- Same with two nested <mrow>. -->
+    <math><mrow><mrow><mo data-title="math > mrow > mrow > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></mrow></mrow></math>
+    <math display="block"><mrow><mrow><mo data-title="Stretching for math[display=block] > mrow > mrow > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></mrow></mrow></math>
+
+    <!-- Same with three nested <mrow>. -->
+    <math><mrow><mrow><mrow><mo data-title="math > mrow > mrow > mrow > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></mrow></mrow></mrow></math>
+    <math display="block"><mrow><mrow><mrow><mo data-title="Stretching for math[display=block] > mrow > mrow > mrow > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></mrow></mrow></mrow></math>
+
+    <!-- Same with four nested <mrow>. -->
+    <math><mrow><mrow><mrow><mrow><mo data-title="math > mrow > mrow > mrow > mrow > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></mrow></mrow></mrow></mrow></math>
+    <math display="block"><mrow><mrow><mrow><mrow><mo data-title="Stretching for math[display=block] > mrow > mrow > mrow > mrow > mo">&#x21A8;</mo><mspace width="1px" height="100px" style="background: lightblue"></mspace></mrow></mrow></mrow></mrow></math>
+  </p>
+</body>
+</html>

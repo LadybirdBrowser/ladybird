@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>MathML display attribute</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#css-styling">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-top-level-math-element">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript">
+<meta name="assert" content="Verify that the display attribute on the math element is supported and impacts centering and line breaking with surrounding content.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/attribute-values.js"></script>
+<script>
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+  window.addEventListener("DOMContentLoaded", function() {
+      for (transform in AttributeValueTransforms) {
+          TransformAttributeValues(transform, ["display"]);
+          var content = getBox("content");
+
+          var before_block = getBox("before_block");
+          var mspace_block = getBox("mspace_block");
+          var after_block = getBox("after_block");
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              assert_approx_equals(before_block.left, content.left, 1,
+                                   "content before must be left aligned");
+              assert_approx_equals((mspace_block.left + mspace_block.right) / 2,
+                                   (content.left + content.right) / 2,
+                                   1,
+                                   "math must be centered.");
+              assert_approx_equals(after_block.left, content.left, 1,
+                                   "content after must be left aligned");
+              assert_less_than_equal(before_block.bottom, mspace_block.top,
+                                     "new line before math");
+              assert_less_than_equal(mspace_block.bottom, after_block.top,
+                                     "new line after math");
+          }, `Test display math ${transform}`);
+
+          var before_inline = getBox("before_inline");
+          var mspace_inline = getBox("mspace_inline");
+          var after_inline = getBox("after_inline");
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              assert_approx_equals((before_inline.top + before_inline.bottom) / 2,
+                                   (mspace_inline.top + mspace_inline.bottom) / 2,
+                                   1,
+                                   "content before must be horizontally aligned with math");
+              assert_approx_equals((after_inline.top + after_inline.bottom) / 2,
+                                   (mspace_inline.top + mspace_inline.bottom) / 2,
+                                   1,
+                                   "content after must be horizontally aligned with math");
+              assert_less_than_equal(before_inline.right, mspace_inline.left,
+                                     "content before must be on the left of math");
+              assert_less_than_equal(mspace_inline.right, after_inline.left,
+                                     "content after must be on the right of math");
+          }, `Test inline math ${transform}`);
+
+          var before_block_and_specified_width = getBox("before_block_and_specified_width");
+          var mspace_width = getBox("mspace_width");
+          var after_block_and_specified_width = getBox("after_block_and_specified_width");
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              let math = getBox("math_with_specified_width");
+              assert_approx_equals(before_block_and_specified_width.left, math.left, 1,
+                                   "content before must be left aligned");
+              assert_approx_equals(math.width, 100, 1,
+                                   "math uses specified width.");
+              assert_approx_equals((mspace_width.left + mspace_width.right) / 2,
+                                   (math.left + math.right) / 2,
+                                   1,
+                                   "math must be centered.");
+              assert_approx_equals(after_block_and_specified_width.left, math.left, 1,
+                                   "content after must be left aligned");
+              assert_less_than_equal(before_block_and_specified_width.bottom, mspace_width.top,
+                                     "new line before math");
+              assert_less_than_equal(mspace_width.bottom, after_block_and_specified_width.top,
+                                     "new line after math");
+          }, `Test width on display=block math ${transform}`);
+      }
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          document.getElementById("mspace_dynamic_block").parentNode.
+              setAttribute("display", "block");
+          var before_block = getBox("before_dynamic_block");
+          var mspace_block = getBox("mspace_dynamic_block");
+          var after_block = getBox("after_dynamic_block");
+
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals(before_block.left, content.left, 1,
+                               "content before must be left aligned");
+          assert_approx_equals((mspace_block.left + mspace_block.right) / 2,
+                               (content.left + content.right) / 2,
+                               1,
+                               "math must be centered.");
+          assert_approx_equals(after_block.left, content.left, 1,
+                               "content after must be left aligned");
+          assert_less_than_equal(before_block.bottom, mspace_block.top,
+                                 "new line before math");
+          assert_less_than_equal(mspace_block.bottom, after_block.top,
+                                 "new line after math");
+      }, "Test dynamically setting display=block");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          document.getElementById("mspace_dynamic_inline").parentNode.
+              removeAttribute("display");
+          var before_inline = getBox("before_dynamic_inline");
+          var mspace_inline = getBox("mspace_dynamic_inline");
+          var after_inline = getBox("after_dynamic_inline");
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals((before_inline.top + before_inline.bottom) / 2,
+                               (mspace_inline.top + mspace_inline.bottom) / 2,
+                               1,
+                               "content before must be horizontally aligned with math");
+          assert_approx_equals((after_inline.top + after_inline.bottom) / 2,
+                               (mspace_inline.top + mspace_inline.bottom) / 2,
+                               1,
+                               "content after must be horizontally aligned with math");
+          assert_less_than_equal(before_inline.right, mspace_inline.left,
+                                 "content before must be on the left of math");
+          assert_less_than_equal(mspace_inline.right, after_inline.left,
+                                 "content after must be on the right of math");
+      }, "Test dynamically setting display=inline");
+
+      done();
+  });
+</script>
+<style>
+  #content {
+    width: 600px;
+    background: #ccc;
+  }
+  span.square {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    background: black;
+  }
+  mspace {
+    background: blue;
+  }
+</style>
+</head>
+<body>
+  <div id="log"></div>
+  <div id="content">
+    <span id="before_block" class="square"></span>
+    <math display="block"><mspace id="mspace_block" width="50px" height="50px"/></math>
+    <span id="after_block" class="square"></span>
+    <br/>
+    <span id="before_inline" class="square"></span>
+    <math display="inline"><mspace id="mspace_inline" width="50px" height="50px"/></math>
+    <span id="after_inline" class="square"></span>
+    <br/>
+    <span id="before_block_and_specified_width" class="square"></span>
+    <math display="block" id="math_with_specified_width" style="background: pink; width:100px"><mspace id="mspace_width" width="50px" height="50px"/></math>
+    <span id="after_block_and_specified_width" class="square"></span>
+    <br/>
+    <div>
+      <span id="before_dynamic_block" class="square"></span>
+      <math><mspace id="mspace_dynamic_block" width="50px" height="50px"/></math>
+      <span id="after_dynamic_block" class="square"></span>
+    </div>
+    <div>
+      <span id="before_dynamic_inline" class="square"></span>
+      <math display="block"><mspace id="mspace_dynamic_inline" width="50px" height="50px"/></math>
+      <span id="after_dynamic_inline" class="square"></span>
+    </div>
+  </div>
+</body>
+</html>

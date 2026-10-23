@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Spacing in mrows</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#horizontally-group-sub-expressions-mrow">
+<link rel="help" href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot">
+<link rel="help" href="https://w3c.github.io/mathml-core/#style-change-mstyle">
+<link rel="help" href="https://w3c.github.io/mathml-core/#error-message-merror">
+<link rel="help" href="https://w3c.github.io/mathml-core/#making-sub-expressions-invisible-mphantom">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-top-level-math-element">
+<link rel="help" href="https://www.w3.org/TR/MathML3/chapter3.html#presm.menclose">
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<meta name="assert" content="Spacing is added around operators inside mrow-like elements.">
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+  function runTests()
+  {
+      ["Mrow", "Sqrt", "Style", "Error", "Phantom", "Math", "Menclose", "Mpadded", "Unknown", "Fenced", "A", "Mtd"].forEach((tag) => {
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_operator_spacing());
+              var mrow = document.getElementById(tag);
+              var mn1 = mrow.firstElementChild.getBoundingClientRect();
+              var mn2 = mrow.lastElementChild.getBoundingClientRect();
+              assert_greater_than_equal(mn2.left - mn1.right, 50);
+          }, `operator spacing inside ${tag}`);
+      });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math><mrow id="Mrow"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></mrow></math>
+    <math><msqrt id="Sqrt"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></msqrt></math>
+    <math><mstyle id="Style"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></mstyle></math>
+    <math><merror id="Error"><mn>1</mn><mo lspace="50px"></mo><mn>2</mn></merror></math>
+    <math><mphantom id="Phantom"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></mphantom></math>
+    <math id="Math"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></math>
+    <!-- menclose is treated as <unknown> in MathML Core -->
+    <math><menclose id="Menclose" notation="box"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></menclose></math>
+    <math><mpadded id="Mpadded" lspace="10px"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></mpadded></math>
+    <math><unknown id="Unknown"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></unknown></math>
+    <math><mfenced id="Fenced"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></mfenced></math>
+    <math><a id="A"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></a></math>
+    <math><mtable><mtr><mtd id="Mtd"><mn>1</mn><mo lspace="50px">|</mo><mn>2</mn></mtd></mtr></mtable></math>
+  </p>
+</body>
+</html>

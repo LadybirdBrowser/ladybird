@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	mspace layout in sibling of SVG foreignObject[overflow=visible]
+Fail	mfrac layout in sibling of SVG with foreignObject[overflow=visible]

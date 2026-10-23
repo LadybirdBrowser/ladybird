@@ -1,0 +1,10 @@
+@font-face {
+    font-family: operators;
+    src: url("/fonts/math/operators.woff");
+}
+math, math * {
+    font-family: operators;
+    /* Use large enough font-size so that 1/18em = 2.77px > epsilon and
+       one can really distinguish lspace/rspace values. */
+    font-size: 50px;
+}

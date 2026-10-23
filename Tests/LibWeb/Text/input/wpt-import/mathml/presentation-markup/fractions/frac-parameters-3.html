@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fraction/Stack parameters (fallback)</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+<meta name="assert" content="Element mfrac correctly uses the fraction fallback parameters.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  /* Testing fallback values is tricky as we don't have a lot of flexibility to
+     make sure one parameter is not shadowed by another one. We also use the
+     Ahem font here, so can't really play with the fallback values involved. */
+  math, mspace {
+    font-size: 200px; /* Large value because underlineThickness is small */
+  }
+  math {
+      /* OS/2.sxHeight = 800 */
+      /* post.underlineThickness == 20 */
+      font-family: Ahem;
+  }
+</style>
+<script>
+  const emToPx = 200 / 1000; // font-size: 200px, font.em = 1000
+  const epsilon = 1;
+  const xHeight = 800;
+  const underlineThickness = 20;
+
+  // NB: This test assumes the fallback shifts are all equal to zero.
+  const axisHeight = xHeight / 2;
+  const fractionRuleThickness = underlineThickness;
+  const fractionNumeratorGapMin = underlineThickness;
+  const fractionDenominatorGapMin = underlineThickness;
+  const fractionNumeratorDisplayStyleGapMin = 3 * underlineThickness;
+  const fractionDenominatorDisplayStyleGapMin = 3 * underlineThickness;
+  const stackGapMin = 3 * underlineThickness;
+  const stackDisplayStyleGapMin = 7 * underlineThickness;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals(axisHeight * emToPx,
+                               (getBox("ref0001").top -
+                                getBox("num0001").bottom) -
+                               (fractionRuleThickness/2 +
+                               fractionNumeratorGapMin) * emToPx,
+                               epsilon);
+          assert_approx_equals((getBox("den0002").top -
+                                getBox("num0002").bottom),
+                               (fractionNumeratorGapMin +
+                                fractionRuleThickness +
+                                fractionDenominatorGapMin) * emToPx,
+                               epsilon);
+      }, "nonzero linethickness, displaystyle=false");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals(axisHeight * emToPx,
+                               (getBox("ref0003").top -
+                                getBox("num0003").bottom) -
+                               (fractionRuleThickness/2 +
+                                fractionNumeratorDisplayStyleGapMin) * emToPx,
+                               epsilon, "mfrac: thickness, axis height");
+          assert_approx_equals((getBox("den0004").top -
+                                getBox("num0004").bottom),
+                               (fractionNumeratorDisplayStyleGapMin +
+                                fractionRuleThickness +
+                                fractionDenominatorDisplayStyleGapMin) * emToPx,
+                               epsilon);
+      }, "nonzero linethickness, displaystyle=true");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals((getBox("ref1001").top -
+                                getBox("num1001").bottom),
+                               stackGapMin/2 * emToPx,
+                               epsilon);
+          assert_approx_equals((getBox("den1001").top) -
+                               getBox("ref1001").top,
+                               stackGapMin/2 * emToPx,
+                               epsilon);
+      }, "linethickness=0, displaystyle=false");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals((getBox("ref1002").top -
+                                getBox("num1002").bottom),
+                               stackDisplayStyleGapMin/2 * emToPx,
+                               epsilon);
+          assert_approx_equals((getBox("den1002").top) -
+                               getBox("ref1002").top,
+                               stackDisplayStyleGapMin/2 * emToPx,
+                               epsilon);
+      }, "linethickness=0, displaystyle=true");
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mspace id="ref0001" height="0em" depth="1em" width="1em" style="background: green"/>
+      <mfrac>
+        <mspace width="1em" height="2em" depth="0em" id="num0001" style="background: blue"/>
+        <mspace width="1em" height="0em" depth="2em" id="den0001" style="background: purple"/>
+      </mfrac>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mfrac>
+        <mspace width="1em" height="2em" depth="4em" id="num0002" style="background: blue"/>
+        <mspace width="1em" height="4em" depth="2em" id="den0002" style="background: purple"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true">
+      <mspace id="ref0003" height="0em" depth="1em" width="1em" style="background: green"/>
+      <mfrac>
+        <mspace width="1em" height="2em" depth="0em" id="num0003" style="background: blue"/>
+        <mspace width="1em" height="0em" depth="2em" id="den0003" style="background: purple"/>
+      </mfrac>
+    </math>
+  </p>
+  <p>
+    <math displaystyle="true">
+      <mfrac>
+        <mspace width="1em" height="2em" depth="4em" id="num0004" style="background: blue"/>
+        <mspace width="1em" height="4em" depth="2em" id="den0004" style="background: purple"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <mspace id="ref1001" height="0em" depth="1em" width="1em" style="background: green"/>
+      <mfrac linethickness="0">
+        <mspace width="1em" height="2em" depth="0em" id="num1001" style="background: blue"/>
+        <mspace width="1em" height="0em" depth="2em" id="den1001" style="background: purple"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true">
+      <mspace id="ref1002" height="0em" depth="1em" width="1em" style="background: green"/>
+      <mfrac linethickness="0">
+        <mspace width="1em" height="2em" depth="0em" id="num1002" style="background: blue"/>
+        <mspace width="1em" height="0em" depth="2em" id="den1002" style="background: purple"/>
+      </mfrac>
+    </math>
+  </p>
+</body>
+</html>

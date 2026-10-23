@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Subscripts and Superscripts metrics</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#subscripts-and-superscripts-msub-msup-msubsup">
+<meta name="assert" content="Verify metrics of scripted elements for bases of different heights.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<style>
+  math, mspace {
+    font-size: 10px;
+  }
+</style>
+<script>
+  /* This test does not use any specific fonts and so the exact rules are not
+  specified precisely. We assume reasonable values for script shifts and
+  spacing. */
+
+  function getBox(aId) {
+    var box = document.getElementById(aId).getBoundingClientRect();
+    box.middle = (box.bottom + box.top) / 2;
+    return box;
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  var sizeArray = [50, 75, 100];
+
+  function runTests() {
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var e = 1;
+      sizeArray.forEach(function(size) {
+         assert_approx_equals(getBox("msub" + size + "base").middle, getBox("baseline").bottom, e, "msub base " + size + "is placed on the baseline");
+         assert_approx_equals(getBox("msup" + size + "base").middle, getBox("baseline").bottom, e, "msup base " + size + "is placed on the baseline");
+         assert_approx_equals(getBox("msubsup" + size + "base").middle, getBox("baseline").bottom, e, "msubsup base " + size + "is placed on the baseline");
+         assert_approx_equals(getBox("multi" + size + "base").middle, getBox("baseline").bottom, e, "mmultiscripts base " + size + "is placed on the baseline");
+      });
+    }, "Alignment on the baseline for bases of different heights");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var e = 5;
+      sizeArray.forEach(function(size) {
+         assert_approx_equals(getBox("msub" + size + "sub").middle, getBox("msub" + size + "base").bottom, e, "msub script " + size + "is placed at the top of of the base");
+      });
+    }, "Vertical position of the scripts for bases of different heights");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mspace id="baseline" width="30px" height="2px" depth="0px" style="background: blue"/>
+      <msub id="msub50">
+        <mspace id="msub50base" width="30px" height="50px" depth="50px" style="background: black"/>
+        <mspace id="msub50sub" width="10px" height="5px" depth="5px" style="background: black"/>
+      </msub>
+      <msup id="msup50">
+        <mspace id="msup50base" width="30px" height="50px" depth="50px" style="background: black"/>
+        <mspace id="msup50sup" width="10px" height="5px" depth="5px" style="background: black"/>
+      </msup>
+      <msubsup id="msubsup50">
+        <mspace id="msubsup50base" width="30px" height="50px" depth="50px" style="background: black"/>
+        <mspace id="msubsup50sub" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mspace id="msubsup50sup" width="10px" height="5px" depth="5px" style="background: black"/>
+      </msubsup>
+      <mmultiscripts id="multi50">
+        <mspace id="multi50base" width="30px" height="50px" depth="50px" style="background: black"/>
+        <mspace id="multi50postsub" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mspace id="multi50postsup" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mprescripts/>
+        <mspace id="multi50presub" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mspace id="multi50presup" width="10px" height="5px" depth="5px" style="background: black"/>
+      </mmultiscripts>
+      <msub id="msub75">
+        <mspace id="msub75base" width="30px" height="75px" depth="75px" style="background: black"/>
+        <mspace id="msub75sub" width="10px" height="5px" depth="5px" style="background: black"/>
+      </msub>
+      <msup id="msup75">
+        <mspace id="msup75base" width="30px" height="75px" depth="75px" style="background: black"/>
+        <mspace id="msup75sup" width="10px" height="5px" depth="5px" style="background: black"/>
+      </msup>
+      <msubsup id="msubsup75">
+        <mspace id="msubsup75base" width="30px" height="75px" depth="75px" style="background: black"/>
+        <mspace id="msubsup75sub" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mspace id="msubsup75sup" width="10px" height="5px" depth="5px" style="background: black"/>
+      </msubsup>
+      <mmultiscripts id="multi75">
+        <mspace id="multi75base" width="30px" height="75px" depth="75px" style="background: black"/>
+        <mspace id="multi75postsub" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mspace id="multi75postsup" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mprescripts/>
+        <mspace id="multi75presub" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mspace id="multi75presub" width="10px" height="5px" depth="5px" style="background: black"/>
+      </mmultiscripts>
+      <msub id="msub100">
+        <mspace id="msub100base" width="30px" height="100px" depth="100px" style="background: black"/>
+        <mspace id="msub100sub" width="10px" height="5px" depth="5px" style="background: black"/>
+      </msub>
+      <msup id="msup100">
+        <mspace id="msup100base" width="30px" height="100px" depth="100px" style="background: black"/>
+        <mspace id="msup100sup" width="10px" height="5px" depth="5px" style="background: black"/>
+      </msup>
+      <msubsup id="msubsup100">
+        <mspace id="msubsup100base" width="30px" height="100px" depth="100px" style="background: black"/>
+        <mspace id="msubsup100sub" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mspace id="msubsup100sup" width="10px" height="5px" depth="5px" style="background: black"/>
+      </msubsup>
+      <mmultiscripts id="multi100">
+        <mspace id="multi100base" width="30px" height="100px" depth="100px" style="background: black"/>
+        <mspace id="multi100postsub" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mspace id="multi100postsup" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mprescripts/>
+        <mspace id="multi100presub" width="10px" height="5px" depth="5px" style="background: black"/>
+        <mspace id="multi100presup" width="10px" height="5px" depth="5px" style="background: black"/>
+      </mmultiscripts>
+    </math>
+  </p>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Stack parameters</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+<meta name="assert" content="Element mfrac correctly uses the stack parameters from the MATH table.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math, mspace {
+    font-size: 10px;
+  }
+  @font-face {
+    font-family: bottomdisplaystyleshiftdown5000-axisheight1000;
+    src: url("../../../fonts/math/stack-bottomdisplaystyleshiftdown5000-axisheight1000.woff");
+  }
+  @font-face {
+    font-family: bottomshiftdown6000-axisheight1000;
+    src: url("../../../fonts/math/stack-bottomshiftdown6000-axisheight1000.woff");
+  }
+  @font-face {
+    font-family: displaystylegapmin4000;
+    src: url("../../../fonts/math/stack-displaystylegapmin4000.woff");
+  }
+  @font-face {
+    font-family: gapmin8000;
+    src: url("../../../fonts/math/stack-gapmin8000.woff");
+  }
+  @font-face {
+    font-family: topdisplaystyleshiftup3000-axisheight1000;
+    src: url("../../../fonts/math/stack-topdisplaystyleshiftup3000-axisheight1000.woff");
+  }
+  @font-face {
+    font-family: topshiftup9000-axisheight1000;
+    src: url("../../../fonts/math/stack-topshiftup9000-axisheight1000.woff");
+  }
+</style>
+<script>
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  var epsilon = 1;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 5000 * emToPx;
+      assert_approx_equals(getBox("den0002").top - getBox("ref0002").bottom,
+                           v, epsilon, "mfrac: denominator shift");
+    }, "BottomDisplayStyleShiftDown");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 5000 * emToPx;
+      assert_approx_equals(getBox("den0002b").top - getBox("ref0002b").bottom,
+                           v, epsilon, "mfrac: denominator shift");
+    }, "BottomDisplayStyleShiftDown Displaystyle");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 5000 * emToPx;
+      assert_approx_equals(getBox("den0002c").top - getBox("ref0002c").bottom,
+                           v, epsilon, "mfrac: denominator shift");
+    }, "BottomDisplayStyleShiftDown Displaystyle om fraction");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 6000 * emToPx;
+      assert_approx_equals(getBox("den0003").top - getBox("ref0003").bottom,
+                           v, epsilon, "mfrac: denominator shift");
+    }, "BottomShiftDown");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 4000 * emToPx;
+      assert_approx_equals(getBox("den0004").top - getBox("num0004").bottom,
+                           v, epsilon, "mfrac: gap");
+    }, "DisplayStyleGapMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 4000 * emToPx;
+      assert_approx_equals(getBox("den0004b").top - getBox("num0004b").bottom,
+                           v, epsilon, "mfrac: gap");
+    }, "DisplayStyleGapMin Dsiplaystyle");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 4000 * emToPx;
+      assert_approx_equals(getBox("den0004c").top - getBox("num0004c").bottom,
+                           v, epsilon, "mfrac: gap");
+    }, "DisplayStyleGapMin Dsiplaystyle on fraction");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 8000 * emToPx;
+      assert_approx_equals(getBox("den0005").top - getBox("num0005").bottom,
+                           v, epsilon, "mfrac: gap");
+    }, "GapMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 3000 * emToPx;
+      assert_approx_equals(getBox("ref0006").top - getBox("num0006").bottom,
+                           v, epsilon, "mfrac: numerator shift");
+    }, "TopDisplayStyleShiftUp");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 3000 * emToPx;
+      assert_approx_equals(getBox("ref0006b").top - getBox("num0006b").bottom,
+                           v, epsilon, "mfrac: numerator shift");
+    }, "TopDisplayStyleShiftUp Displaystyle");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 3000 * emToPx;
+      assert_approx_equals(getBox("ref0006c").top - getBox("num0006c").bottom,
+                           v, epsilon, "mfrac: numerator shift");
+    }, "TopDisplayStyleShiftUp Displaystyle on fraction");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 9000 * emToPx;
+      assert_approx_equals(getBox("ref0007").top - getBox("num0007").bottom,
+                           v, epsilon, "mfrac: numerator shift");
+    }, "ToShiftUp");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 9000 * emToPx;
+      assert_approx_equals(getBox("ref0007b").top - getBox("num0007b").bottom,
+                           v, epsilon, "mfrac: numerator shift");
+    }, "ToShiftUp with Displaystyle on fraction");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math display="block" style="font-family: bottomdisplaystyleshiftdown5000-axisheight1000;">
+      <mspace id="ref0002" width="3em" height="1em" style="background: green"/>
+      <mfrac linethickness="0px">
+        <mspace width="3em"/>
+        <mspace width="3em" depth="1em" id="den0002" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: bottomdisplaystyleshiftdown5000-axisheight1000;">
+      <mspace id="ref0002b" width="3em" height="1em" style="background: green"/>
+      <mfrac linethickness="0px">
+        <mspace width="3em"/>
+        <mspace width="3em" depth="1em" id="den0002b" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: bottomdisplaystyleshiftdown5000-axisheight1000;">
+      <mspace id="ref0002c" width="3em" height="1em" style="background: green"/>
+      <mfrac displaystyle="true" linethickness="0px">
+        <mspace width="3em"/>
+        <mspace width="3em" depth="1em" id="den0002c" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: bottomshiftdown6000-axisheight1000;">
+      <mspace id="ref0003" width="3em" height="1em" style="background: green"/>
+      <mfrac linethickness="0px">
+        <mspace width="3em"/>
+        <mspace width="3em" depth="1em" id="den0003" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math display="block" style="font-family: displaystylegapmin4000;">
+      <mfrac linethickness="0px">
+        <mspace width="3em" height="1em" id="num0004" style="background: blue"/>
+        <mspace width="3em" depth="1em" id="den0004" style="background: green"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: displaystylegapmin4000;">
+      <mfrac linethickness="0px">
+        <mspace width="3em" height="1em" id="num0004b" style="background: blue"/>
+        <mspace width="3em" depth="1em" id="den0004b" style="background: green"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: displaystylegapmin4000;">
+      <mfrac displaystyle="true" linethickness="0px">
+        <mspace width="3em" height="1em" id="num0004c" style="background: blue"/>
+        <mspace width="3em" depth="1em" id="den0004c" style="background: green"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: gapmin8000;">
+      <mfrac linethickness="0px">
+        <mspace width="3em" height="1em" id="num0005" style="background: blue"/>
+        <mspace width="3em" depth="1em" id="den0005" style="background: green"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math display="block" style="font-family: topdisplaystyleshiftup3000-axisheight1000;">
+      <mspace id="ref0006" width="3em" depth="1em" style="background: green"/>
+      <mfrac linethickness="0px">
+        <mspace width="3em" height="1em" id="num0006" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: topdisplaystyleshiftup3000-axisheight1000;">
+      <mspace id="ref0006b" width="3em" depth="1em" style="background: green"/>
+      <mfrac linethickness="0px">
+        <mspace width="3em" height="1em" id="num0006b" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: topdisplaystyleshiftup3000-axisheight1000;">
+      <mspace id="ref0006c" width="3em" depth="1em" style="background: green"/>
+      <mfrac displaystyle="true" linethickness="0px">
+        <mspace width="3em" height="1em" id="num0006c" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: topshiftup9000-axisheight1000;">
+      <mspace id="ref0007" width="3em" depth="1em" style="background: green"/>
+      <mfrac linethickness="0px">
+        <mspace width="3em" height="1em" id="num0007" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: topshiftup9000-axisheight1000;">
+      <mspace id="ref0007b" width="3em" depth="1em" style="background: green"/>
+      <mfrac displaystyle="false" linethickness="0px">
+        <mspace width="3em" height="1em" id="num0007b" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+</body>
+</html>

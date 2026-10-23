@@ -1,0 +1,57 @@
+Harness status: OK
+
+Found 51 tests
+
+2 Pass
+49 Fail
+Fail	Padding properties on a
+Fail	Padding properties on a (rtl)
+Fail	Padding properties on maction
+Fail	Padding properties on maction (rtl)
+Fail	Padding properties on menclose
+Fail	Padding properties on menclose (rtl)
+Fail	Padding properties on merror
+Fail	Padding properties on merror (rtl)
+Pass	Padding properties on mfrac
+Pass	Padding properties on mfrac (rtl)
+Fail	Padding properties on mi
+Fail	Padding properties on mi (rtl)
+Fail	Padding properties on mmultiscripts
+Fail	Padding properties on mmultiscripts (rtl)
+Fail	Padding properties on mn
+Fail	Padding properties on mn (rtl)
+Fail	Padding properties on mo
+Fail	Padding properties on mo (rtl)
+Fail	Padding properties on mover
+Fail	Padding properties on mover (rtl)
+Fail	Padding properties on mpadded
+Fail	Padding properties on mpadded (rtl)
+Fail	Padding properties on mphantom
+Fail	Padding properties on mphantom (rtl)
+Fail	Padding properties on mroot
+Fail	Padding properties on mroot (rtl)
+Fail	Padding properties on mrow
+Fail	Padding properties on mrow (rtl)
+Fail	Padding properties on ms
+Fail	Padding properties on ms (rtl)
+Fail	Padding properties on mspace
+Fail	Padding properties on msqrt
+Fail	Padding properties on msqrt (rtl)
+Fail	Padding properties on mstyle
+Fail	Padding properties on mstyle (rtl)
+Fail	Padding properties on msub
+Fail	Padding properties on msub (rtl)
+Fail	Padding properties on msubsup
+Fail	Padding properties on msubsup (rtl)
+Fail	Padding properties on msup
+Fail	Padding properties on msup (rtl)
+Fail	Padding properties on mtable
+Fail	Padding properties on mtable (rtl)
+Fail	Padding properties on mtext
+Fail	Padding properties on mtext (rtl)
+Fail	Padding properties on munder
+Fail	Padding properties on munder (rtl)
+Fail	Padding properties on munderover
+Fail	Padding properties on munderover (rtl)
+Fail	Padding properties on semantics
+Fail	Padding properties on semantics (rtl)

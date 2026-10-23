@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<title>Spacing in mrows</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#horizontally-group-sub-expressions-mrow">
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<meta name="assert" content="Spacing properly set around operators inside mrow-like elements, testing various positions.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+  math {
+      font: 25px/1 Ahem;
+      background: lightblue;
+  }
+</style>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script type="text/javascript">
+  promise_setup(_ => new Promise(resolve =>
+    window.addEventListener("load", _ => loadAllFonts().then(resolve))
+  ));
+
+  const lspace = 100;
+  const rspace = 200;
+  const epsilon = 1;
+
+  promise_test(async function() {
+    assert_true(MathMLFeatureDetection.has_operator_spacing());
+    let math = document.getElementById("previousAndNextSibling");
+    let mo = math.getElementsByTagName("mo")[0];
+    let moBox = mo.getBoundingClientRect();
+    let previousSiblingBox = mo.previousElementSibling.getBoundingClientRect();
+    let nextSiblingBox = mo.nextElementSibling.getBoundingClientRect();
+    assert_approx_equals(moBox.left - previousSiblingBox.right, lspace, epsilon);
+    assert_approx_equals(nextSiblingBox.left - moBox.right, rspace, epsilon);
+  }, `Spacing properly set for <mo> with a previous sibling and a next sibling..`);
+
+  promise_test(async function() {
+    assert_true(MathMLFeatureDetection.has_operator_spacing());
+    let math = document.getElementById("nextSiblingOnly");
+    let mo = math.getElementsByTagName("mo")[0];
+    let moBox = mo.getBoundingClientRect();
+    let mrowBox = mo.parentNode.getBoundingClientRect();
+    let nextSiblingBox = mo.nextElementSibling.getBoundingClientRect();
+    assert_approx_equals(moBox.left - mrowBox.left, lspace, epsilon);
+    assert_approx_equals(nextSiblingBox.left - moBox.right, rspace, epsilon);
+  }, `Spacing properly set for <mo> with only a next sibling.`);
+
+  promise_test(async function() {
+    assert_true(MathMLFeatureDetection.has_operator_spacing());
+    let math = document.getElementById("previousSiblingOnly");
+    let mo = math.getElementsByTagName("mo")[0];
+    let moBox = mo.getBoundingClientRect();
+    let mrowBox = mo.parentNode.getBoundingClientRect();
+    let previousSiblingBox = mo.previousElementSibling.getBoundingClientRect();
+    assert_approx_equals(moBox.left - previousSiblingBox.right, lspace, epsilon);
+    assert_approx_equals(mrowBox.right - moBox.right, rspace, epsilon);
+  }, `Spacing properly set for <mo> with only a previous sibling.`);
+
+  promise_test(async function() {
+    assert_true(MathMLFeatureDetection.has_operator_spacing());
+    let math = document.getElementById("noPreviousOrNextSiblings");
+    let mo = math.getElementsByTagName("mo")[0];
+    let moBox = mo.getBoundingClientRect();
+    let mrow = mo.parentNode;
+    let mrowBox = mrow.getBoundingClientRect();
+    let previousSiblingBox = mrow.previousElementSibling.getBoundingClientRect();
+    let nextSiblingBox = mrow.nextElementSibling.getBoundingClientRect();
+    assert_approx_equals(moBox.left - mrowBox.left, 0, epsilon);
+    assert_approx_equals(mrowBox.right - moBox.right, 0, epsilon);
+    assert_approx_equals(mrowBox.left - previousSiblingBox.right, lspace, epsilon);
+    assert_approx_equals(nextSiblingBox.left - mrowBox.right, rspace, epsilon);
+  }, `Spacing properly set for <mo> with no previous/next siblings (aka embellished operator).`);
+</script>
+<div id="log"></div>
+<p>
+  <math id="previousAndNextSibling">
+    <mrow>
+      <mn>1</mn>
+      <mo lspace="100px" rspace="200px">X</mo>
+      <mn>2</mn>
+    </mrow>
+  </math>
+</p>
+<p>
+  <math id="nextSiblingOnly">
+    <mrow>
+      <mo lspace="100px" rspace="200px">X</mo>
+      <mn>2</mn>
+    </mrow>
+  </math>
+</p>
+<p>
+  <math id="previousSiblingOnly">
+    <mrow>
+      <mn>1</mn>
+      <mo lspace="100px" rspace="200px">X</mo>
+    </mrow>
+  </math>
+</p>
+<p>
+  <math id="noPreviousOrNextSiblings">
+    <mrow>
+      <mn>1</mn>
+      <mrow>
+        <mo lspace="100px" rspace="200px">X</mo>
+      </mrow>
+      <mn>2</mn>
+    </mrow>
+  </math>
+</p>

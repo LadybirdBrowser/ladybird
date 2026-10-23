@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>MathML inside multi-column</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#html-and-svg">
+<meta name="assert" content="Verify that putting MathML inside a multi-column list shouldn't affect its layout.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("DOMContentLoaded", function() {
+      var epsilon = 1;
+      var mfrac = document.getElementById("mfrac");
+      var num = mfrac.firstElementChild.getBoundingClientRect();
+      var denom = mfrac.lastElementChild.getBoundingClientRect();
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals(num.width, 30, epsilon, "numerator width");
+          assert_approx_equals(num.height, 40, epsilon, "numerator height");
+          assert_approx_equals(denom.width, 50, epsilon, "numerator width");
+          assert_approx_equals(denom.height, 60, epsilon, "numerator height");
+      }, "mspace layout in multicol");
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mfrac());
+          assert_greater_than_equal(denom.bottom - num.top,
+                                    (40 + 60),
+                                    "numerator is above the denominator");
+          assert_approx_equals((num.left + num.right) / 2,
+                               (denom.left + denom.right) / 2,
+                               epsilon, "numerator and denominator are horizontally aligned");
+      }, "mfrac layout in multicol");
+      done();
+  });
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <div style="column-width: 10em; list-style-type: decimal;">
+    <ol>
+      <li>blah</li>
+      <li>
+        <math>
+          <mfrac id="mfrac">
+            <mspace width="30px" height="40px" style="background: cyan"></mspace>
+            <mspace width="50px" height="60px" style="background: yellow"></mspace>
+          </mfrac>
+      </li>
+      <li>blah</li>
+      <li>blah</li>
+      <li>blah</li>
+    </ol>
+  </div>
+</body>
+</html>

@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Cramped elements</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#subscripts-and-superscripts-msub-msup-msubsup">
+<link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+<link rel="help" href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot">
+<link rel="help" href="https://w3c.github.io/mathml-core/#displaystyle-and-scriptlevel-in-scripts">
+<link rel="help" href="https://w3c.github.io/mathml-core/#user-agent-stylesheet">
+<meta name="assert" content="Verify default calculation of math-shift on MathML elements">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script src="../../../mathml/support/box-navigation.js"></script>
+<style>
+  math {
+      font-family: superscriptshiftupcramped5000;
+  }
+  math, math * {
+      font-size: 10px;
+      background: lightyellow;
+  }
+  @font-face {
+    font-family: superscriptshiftupcramped5000;
+    src: url("../../../fonts/math/scripts-superscriptshiftupcramped5000.woff");
+  }
+  .testedElement *:first-child {
+      background: lightblue;
+  }
+  .testedElement *:last-child {
+      background: pink;
+  }
+</style>
+<script>
+  function assert_cramped(id, expected, name) {
+      const emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+      const superscriptshiftupcramped = 5000 * emToPx;
+      var container = document.getElementById(id);
+      var msup = container.getElementsByClassName("testedElement")[0];
+      var base = firstInFlowChild(msup);
+      var script = nextInFlowSibling(base);
+      var shift = base.getBoundingClientRect().bottom - script.getBoundingClientRect().bottom;
+      if (expected)
+          assert_greater_than(shift, superscriptshiftupcramped / 2, `${name || id} should be cramped`);
+      else
+          assert_less_than(shift, superscriptshiftupcramped / 2, `${name || id} should not be cramped`);
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("math-001", false);
+          assert_cramped("mrow-001", false, "mrow");
+      }, "child of non-cramped element");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("mrow-002", true);
+      }, "child of cramped element");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("msqrt-001", true);
+      }, "child of msqrt");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("mroot-001", true);
+      }, "child of mroot");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("mfrac-001", false, "numerator");
+          assert_cramped("mfrac-002", true, "denominator");
+      }, "child of mfrac");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("msub-001", false, "base");
+          assert_cramped("msub-002", true, "subscript");
+      }, "child of msub");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("msup-001", false, "base");
+          assert_cramped("msup-002", false, "superscript");
+      }, "child of msup");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("msubsup-001", false, "base");
+          assert_cramped("msubsup-002", true, "subscript");
+          assert_cramped("msubsup-003", false, "superscript");
+      }, "child of msubsup");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("munder-001", false, "base");
+          assert_cramped("munder-002", false, "underscript");
+      }, "child of munder");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("mover-001", false, "base");
+          assert_cramped("mover-002", false, "overscript");
+      }, "child of mover (non-accent overscript)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("munderover-001", false, "base");
+          assert_cramped("munderover-002", false, "underscript");
+          assert_cramped("munderover-003", false, "overscript");
+      }, "child of munderover (non-accent overscript)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("mover-003", true, "base");
+          assert_cramped("mover-004", false, "overscript");
+      }, "accent child of mover (accent overscript)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("munderover-004", true, "base");
+          assert_cramped("munderover-005", false, "underscript");
+          assert_cramped("munderover-006", false, "overscript");
+      }, "accent child of munderover (accent overscript)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("mmultiscripts-001", false, "base");
+          assert_cramped("mmultiscripts-002", true, "post-subscript");
+          assert_cramped("mmultiscripts-003", false, "post-superscript");
+          assert_cramped("mmultiscripts-004", true, "pre-subscript");
+          assert_cramped("mmultiscripts-005", false, "post-superscript");
+      }, "mmultiscripts");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_cramped("css-001", false);
+          assert_cramped("css-002", true);
+          assert_cramped("css-003", true);
+          assert_cramped("css-004", false);
+      }, "element with specified CSS math-shift");
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math id="math-001">
+      <msup class="testedElement">
+        <mspace height="2em" width="2em"/>
+        <mspace height="1em" width="1em"/>
+      </msup>
+    </math>
+    <math>
+      <mrow id="mrow-001">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msqrt>
+        <!-- This is a child of a msqrt so it is cramped. As a consequence,
+             all its descendants are cramped too. -->
+        <munderover>
+          <mover>
+            <munder>
+              <msubsup>
+                <msup>
+                  <msub>
+                    <mfrac>
+                      <mrow id="mrow-002">
+                        <msup class="testedElement">
+                          <mspace height="2em" width="2em"/>
+                          <mspace height="1em" width="1em"/>
+                        </msup>
+                      </mrow>
+                      <mspace/>
+                    </mfrac>
+                    <mspace/>
+                  </msub>
+                  <mspace/>
+                </msup>
+                <mspace/>
+                <mspace/>
+              </msubsup>
+              <mspace/>
+            </munder>
+            <mspace/>
+          </mover>
+          <mspace/>
+          <mspace/>
+        </munderover>
+      </msqrt>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msqrt id="msqrt-001">
+        <mn>0</mn>
+        <mn>1</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>3</mn>
+        <mn>4</mn>
+      </msqrt>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mroot id="mroot-001">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </mroot>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mroot id="mroot-002">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+      </mroot>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mfrac id="mfrac-001">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+      </mfrac>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mfrac id="mfrac-002">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </mfrac>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msub id="msub-001">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+      </msub>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msub id="msub-002">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </msub>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msup id="msup-001">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+      </msup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msup id="msup-002">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </msup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msubsup id="msubsup-001">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+        <mn>2</mn>
+      </msubsup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msubsup id="msubsup-002">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>2</mn>
+      </msubsup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msubsup id="msubsup-003">
+        <mn>0</mn>
+        <mn>1</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </msubsup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munder id="munder-001">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+      </munder>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munder id="munder-002">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </munder>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mover id="mover-001">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+      </mover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mover id="mover-002">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </mover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mover accent="true" id="mover-003">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+      </mover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mover accent="true" id="mover-004">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </mover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover id="munderover-001">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+        <mn>2</mn>
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover id="munderover-002">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>2</mn>
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover id="munderover-003">
+        <mn>0</mn>
+        <mn>1</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover accent="true" id="munderover-004">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+        <mn>2</mn>
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover accent="true" id="munderover-005">
+        <mn>0</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>2</mn>
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover accent="true" id="munderover-006">
+        <mn>0</mn>
+        <mn>1</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts id="mmultiscripts-001">
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>1</mn>
+        <mn>2</mn>
+        <mn>3</mn>
+        <mn>4</mn>
+        <mn>5</mn>
+        <mn>6</mn>
+        <mprescripts/>
+        <mn>7</mn>
+        <mn>8</mn>
+        <mn>9</mn>
+        <mn>10</mn>
+        <mn>11</mn>
+        <mn>12</mn>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts id="mmultiscripts-002">
+        <mn>0</mn>
+        <mn>1</mn>
+        <mn>2</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>4</mn>
+        <mn>5</mn>
+        <mn>6</mn>
+        <mprescripts/>
+        <mn>7</mn>
+        <mn>8</mn>
+        <mn>9</mn>
+        <mn>10</mn>
+        <mn>11</mn>
+        <mn>12</mn>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts id="mmultiscripts-003">
+        <mn>0</mn>
+        <mn>1</mn>
+        <mn>2</mn>
+        <mn>3</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>5</mn>
+        <mn>6</mn>
+        <mprescripts/>
+        <mn>7</mn>
+        <mn>8</mn>
+        <mn>9</mn>
+        <mn>10</mn>
+        <mn>11</mn>
+        <mn>12</mn>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts id="mmultiscripts-004">
+        <mn>0</mn>
+        <mn>1</mn>
+        <mn>2</mn>
+        <mn>3</mn>
+        <mn>4</mn>
+        <mn>5</mn>
+        <mn>6</mn>
+        <mprescripts/>
+        <mn>7</mn>
+        <mn>8</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>10</mn>
+        <mn>11</mn>
+        <mn>12</mn>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts id="mmultiscripts-005">
+        <mn>0</mn>
+        <mn>1</mn>
+        <mn>2</mn>
+        <mn>3</mn>
+        <mn>4</mn>
+        <mn>5</mn>
+        <mn>6</mn>
+        <mprescripts/>
+        <mn>7</mn>
+        <mn>8</mn>
+        <mn>9</mn>
+        <msup class="testedElement">
+          <mspace height="2em" width="2em"/>
+          <mspace height="1em" width="1em"/>
+        </msup>
+        <mn>11</mn>
+        <mn>12</mn>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math id="css-001" style="math-shift: normal">
+      <msup class="testedElement">
+        <mspace height="2em" width="2em"/>
+        <mspace height="1em" width="1em"/>
+      </msup>
+    </math>
+    <math id="css-002" style="math-shift: compact">
+      <msup class="testedElement">
+        <mspace height="2em" width="2em"/>
+        <mspace height="1em" width="1em"/>
+      </msup>
+    </math>
+    <math id="css-003" style="math-shift: normal">
+      <msup class="testedElement" style="math-shift: compact">
+        <mspace height="2em" width="2em"/>
+        <mspace height="1em" width="1em"/>
+      </msup>
+    </math>
+    <math id="css-004" style="math-shift: compact">
+      <msup class="testedElement" style="math-shift: normal">
+        <mspace height="2em" width="2em"/>
+        <mspace height="1em" width="1em"/>
+      </msup>
+    </math>
+  </p>
+</body>
+</html>

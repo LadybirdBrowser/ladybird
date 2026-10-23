@@ -1,0 +1,78 @@
+Harness status: OK
+
+Found 72 tests
+
+40 Pass
+32 Fail
+Fail	style-src-attr 'none' blocks inline style on <mmultiscripts>
+Pass	CSP absent allows inline style on <mmultiscripts>
+Pass	style-src-attr 'unsafe-inline' allows inline style on <mmultiscripts>
+Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mmultiscripts>
+Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mmultiscripts>
+Fail	style-src 'none' fallback blocks inline style on <mmultiscripts>
+Pass	style-src 'unsafe-inline' fallback allows inline style on <mmultiscripts>
+Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mmultiscripts>
+Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mmultiscripts>
+Fail	style-src-attr 'none' blocks inline style on <mn>
+Pass	CSP absent allows inline style on <mn>
+Pass	style-src-attr 'unsafe-inline' allows inline style on <mn>
+Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mn>
+Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mn>
+Fail	style-src 'none' fallback blocks inline style on <mn>
+Pass	style-src 'unsafe-inline' fallback allows inline style on <mn>
+Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mn>
+Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mn>
+Fail	style-src-attr 'none' blocks inline style on <mo>
+Pass	CSP absent allows inline style on <mo>
+Pass	style-src-attr 'unsafe-inline' allows inline style on <mo>
+Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mo>
+Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mo>
+Fail	style-src 'none' fallback blocks inline style on <mo>
+Pass	style-src 'unsafe-inline' fallback allows inline style on <mo>
+Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mo>
+Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mo>
+Fail	style-src-attr 'none' blocks inline style on <mover>
+Pass	CSP absent allows inline style on <mover>
+Pass	style-src-attr 'unsafe-inline' allows inline style on <mover>
+Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mover>
+Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mover>
+Fail	style-src 'none' fallback blocks inline style on <mover>
+Pass	style-src 'unsafe-inline' fallback allows inline style on <mover>
+Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mover>
+Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mover>
+Fail	style-src-attr 'none' blocks inline style on <mpadded>
+Pass	CSP absent allows inline style on <mpadded>
+Pass	style-src-attr 'unsafe-inline' allows inline style on <mpadded>
+Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mpadded>
+Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mpadded>
+Fail	style-src 'none' fallback blocks inline style on <mpadded>
+Pass	style-src 'unsafe-inline' fallback allows inline style on <mpadded>
+Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mpadded>
+Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mpadded>
+Fail	style-src-attr 'none' blocks inline style on <mphantom>
+Pass	CSP absent allows inline style on <mphantom>
+Pass	style-src-attr 'unsafe-inline' allows inline style on <mphantom>
+Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mphantom>
+Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mphantom>
+Fail	style-src 'none' fallback blocks inline style on <mphantom>
+Pass	style-src 'unsafe-inline' fallback allows inline style on <mphantom>
+Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mphantom>
+Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mphantom>
+Fail	style-src-attr 'none' blocks inline style on <mprescripts>
+Pass	CSP absent allows inline style on <mprescripts>
+Pass	style-src-attr 'unsafe-inline' allows inline style on <mprescripts>
+Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mprescripts>
+Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mprescripts>
+Fail	style-src 'none' fallback blocks inline style on <mprescripts>
+Pass	style-src 'unsafe-inline' fallback allows inline style on <mprescripts>
+Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mprescripts>
+Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mprescripts>
+Fail	style-src-attr 'none' blocks inline style on <mroot>
+Pass	CSP absent allows inline style on <mroot>
+Pass	style-src-attr 'unsafe-inline' allows inline style on <mroot>
+Pass	style-src-attr 'unsafe-hashes' with matching hash allows inline style on <mroot>
+Fail	style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <mroot>
+Fail	style-src 'none' fallback blocks inline style on <mroot>
+Pass	style-src 'unsafe-inline' fallback allows inline style on <mroot>
+Pass	style-src-attr 'unsafe-inline' overrides style-src 'none' on <mroot>
+Fail	style-src-attr 'none' overrides style-src 'unsafe-inline' on <mroot>

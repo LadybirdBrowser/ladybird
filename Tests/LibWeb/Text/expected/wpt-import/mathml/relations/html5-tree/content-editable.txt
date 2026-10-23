@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	mspace layout in content-editable div
+Fail	mfrac layout in content-editable div

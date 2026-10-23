@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Fail
+Fail	Baseline alignment
+Fail	Heights of bases
+Fail	AccentBaseHeight, UnderbarExtraDescender
+Fail	AccentBaseHeight, UnderbarVerticalGap
+Fail	AccentBaseHeight, OverbarExtraAscender
+Fail	AccentBaseHeight, OverbarVerticalGap
+Fail	Dynamic change of accentunder attribute
+Fail	Dynamic change of accent attribute

@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Fail
+Fail	Vertical stretching performed for math > mo.
+Fail	Vertical stretching performed for Stretching for math[display=block] > mo.
+Fail	Vertical stretching performed for math > mrow > mo.
+Fail	Vertical stretching performed for Stretching for math[display=block] > mrow > mo.
+Fail	Vertical stretching performed for math > mrow > mrow > mo.
+Fail	Vertical stretching performed for Stretching for math[display=block] > mrow > mrow > mo.
+Fail	Vertical stretching performed for math > mrow > mrow > mrow > mo.
+Fail	Vertical stretching performed for Stretching for math[display=block] > mrow > mrow > mrow > mo.
+Fail	Vertical stretching performed for math > mrow > mrow > mrow > mrow > mo.
+Fail	Vertical stretching performed for Stretching for math[display=block] > mrow > mrow > mrow > mrow > mo.

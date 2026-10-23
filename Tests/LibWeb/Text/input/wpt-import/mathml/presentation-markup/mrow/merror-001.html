@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test the merror element</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#error-message-merror">
+<link rel="help" href="https://w3c.github.io/mathml-core/#user-agent-stylesheet">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<meta name="assert" content="Verify default merror style and size.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  math {
+      font: 25px/1 Ahem;
+  }
+</style>
+</head>
+<body>
+  <div id="log"></div>
+  <div>
+    <math>
+      <mrow id="reference"><mtext>AN ERROR</mtext></mrow>
+      <merror id="merror"><mtext>AN ERROR</mtext></merror>
+    </math>
+  </div>
+  <script>
+    setup({ explicit_done: true });
+    document.fonts.ready.then(() => {
+      test(function () {
+        var style = window.getComputedStyle(document.getElementById("merror"));
+        assert_equals(style.borderWidth, "1px");
+        assert_equals(style.borderColor, "rgb(255, 0, 0)");
+        assert_equals(style.borderStyle, "solid");
+        assert_equals(style.backgroundColor, "rgb(255, 255, 224)");
+      }, "Default CSS properties on merror");
+
+      test(function () {
+        var merrorBox = document.getElementById("merror").getBoundingClientRect();
+        var referenceBox = document.getElementById("reference").getBoundingClientRect();
+        assert_equals(merrorBox.width, referenceBox.width + 2);
+        assert_equals(merrorBox.height, referenceBox.height + 2);
+      }, "Bounding box is the same as mrow + 1px border");
+
+      done();
+    });
+</script>
+</body>
+</html>

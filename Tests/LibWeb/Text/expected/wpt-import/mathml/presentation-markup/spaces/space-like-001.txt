@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Fail
+Fail	mtext is space-like
+Fail	mspace is space-like
+Fail	space-like mrow
+Fail	non-space-like mrow
+Fail	space-like mstyle
+Fail	non-space-like mstyle
+Fail	space-like mphantom
+Fail	non-space-like mphantom
+Fail	space-like mpadded
+Fail	non-space-like mpadded
+Fail	space-like merror
+Fail	non-space-like merror
+Fail	space-like menclose
+Fail	non-space-like menclose

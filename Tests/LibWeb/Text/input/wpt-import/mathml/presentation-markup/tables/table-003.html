@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Basic table alignment</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#table-or-matrix-mtable">
+<meta name="assert" content="Verify alignment of cells with block elements in basic 2x2, 4x3 and 3x4 math tables.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+  function runTests() {
+      var epsilon = 1;
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          const ascents = [40, 0, 20, 30, 10, 80, 0, 40, 70, 30];
+          const row = document.getElementById("vertical").firstElementChild;
+          const cells = Array.from(row.getElementsByTagName("mtd"));
+          for (var i = 0; i < cells.length - 1; i++) {
+              var space1 = cells[i].firstElementChild.firstElementChild.getBoundingClientRect();
+              var space2 = cells[i + 1].firstElementChild.firstElementChild.getBoundingClientRect();
+              assert_approx_equals(space1.top + ascents[i],
+                                   space2.top + ascents[i + 1],
+                                   epsilon,
+                                   `Baselines of cells ${i} and ${i + 1} should be aligned.`);
+          }
+      }, `Vertical alignment of cells`);
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          const table = document.getElementById("horizontal");
+          const rows = Array.from(table.getElementsByTagName("mtr"));
+          for (var j = 0; j < rows.length - 1; j++) {
+              var space1 = rows[j].firstElementChild.firstElementChild.firstElementChild.getBoundingClientRect();
+              var space2 = rows[j + 1].firstElementChild.firstElementChild.firstElementChild.getBoundingClientRect();
+              assert_approx_equals((space1.left + space1.right) / 2,
+                                   (space2.left + space2.right) / 2,
+                                   epsilon,
+                                   `Baselines of cells ${j} and ${j + 1} should be aligned.`);
+          }
+      }, `Horizontal alignment of cells`);
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mtable id="vertical">
+        <mtr>
+          <mtd>
+            <mrow><mspace width="10px" height="40px" depth="0px" style="background: lightblue;"></mspace></mrow>
+          </mtd>
+          <mtd>
+            <mrow><mspace width="10px" height="0px" depth="40px" style="background: lightgreen;"></mspace></mrow>
+          </mtd>
+          <mtd>
+            <mrow><mspace width="10px" height="20px" depth="20px" style="background: cyan;"></mspace></mrow>
+          </mtd>
+          <mtd>
+            <mrow><mspace width="10px" height="30px" depth="10px" style="background: purple;"></mspace></mrow>
+          </mtd>
+          <mtd>
+            <mrow><mspace width="10px" height="10px" depth="30px" style="background: orange;"></mspace></mrow>
+          </mtd>
+          <mtd>
+            <mrow><mspace width="10px" height="80px" depth="0px" style="background: blue;"></mspace></mrow>
+          </mtd>
+          <mtd>
+            <mrow><mspace width="10px" height="0px" depth="80px" style="background: green;"></mspace></mrow>
+          </mtd>
+          <mtd>
+            <mrow><mspace width="10px" height="40px" depth="40px" style="background: yellow;"></mspace></mrow>
+          </mtd>
+          <mtd>
+            <mrow><mspace width="10px" height="70px" depth="30px" style="background: red;"></mspace></mrow>
+          </mtd>
+          <mtd>
+            <mrow><mspace width="10px" height="30px" depth="70px" style="background: black;"></mspace></mrow>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable id="horizontal">
+        <mtr>
+          <mtd>
+            <mrow><mspace width="10px" height="10px" style="background: lightblue;"></mspace></mrow>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mrow><mspace width="40px" height="10px" style="background: lightgreen;"></mspace></mrow>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mrow><mspace width="30px" height="10px" style="background: cyan;"></mspace></mrow>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mrow><mspace width="20px" height="10px" style="background: purple;"></mspace></mrow>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mrow><mspace width="50px" height="10px" style="background: orange;"></mspace></mrow>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mrow><mspace width="100px" height="10px" style="background: blue;"></mspace></mrow>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mrow><mspace width="90px" height="10px" style="background: green;"></mspace></mrow>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mrow><mspace width="70px" height="10px" style="background: yellow;"></mspace></mrow>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mrow><mspace width="80px" height="10px" style="background: red;"></mspace></mrow>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mrow><mspace width="40px" height="10px" style="background: black;"></mspace></mrow>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+</body>
+</html>

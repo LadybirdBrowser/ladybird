@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	200%height is not allowed on width
+Fail	200%depth is not allowed on width
+Fail	200%height is not allowed on lspace
+Fail	200%depth is not allowed on lspace
+Fail	200%width is not allowed on height
+Fail	200%width is not allowed on depth
+Fail	200%width is not allowed on voffset

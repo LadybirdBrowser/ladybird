@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Underscripts and Overscripts parameters</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#underscripts-and-overscripts-munder-mover-munderover">
+<meta name="assert" content="Elements munder, mover, munderover correctly use underbar/overbar and AccentBaseHeight parameters from the MATH table.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math, mspace, mo {
+    font-size: 10px;
+  }
+  @font-face {
+    font-family: accentbaseheight4000underbarextradescender5000;
+    src: url("../../../fonts/math/underover-accentbaseheight4000-underbarextradescender5000.woff");
+  }
+  @font-face {
+    font-family: accentbaseheight4000underbarverticalgap7000;
+    src: url("../../../fonts/math/underover-accentbaseheight4000-underbarverticalgap7000.woff");
+  }
+  @font-face {
+    font-family: accentbaseheight4000overbarextraascender3000;
+    src: url("../../../fonts/math/underover-accentbaseheight4000-overbarextraascender3000.woff");
+  }
+  @font-face {
+    font-family: accentbaseheight4000overbarverticalgap11000;
+    src: url("../../../fonts/math/underover-accentbaseheight4000-overbarverticalgap11000.woff");
+  }
+</style>
+<script>
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  var epsilon = 2;
+  var axisBaseHeight = 4000 *  emToPx;
+  var shortBaseHeight = 3000 * emToPx; // shortBaseHeight < axisBaseHeight
+  var tallBaseHeight = 5000 * emToPx; // tallBaseHeight > axisBaseHeight
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function getBooleanValue(element, name) {
+      return (element.getAttribute(name) || "").toLowerCase() === "true";
+  }
+  let dynamicBooleanAttributeChanges = {
+      "Invert boolean value using absent attribute": function(element, name) {
+          if (getBooleanValue(element, name)) {
+              element.removeAttribute(name);
+          } else {
+              element.setAttribute(name, "true");
+          }
+      },
+
+      "Invert boolean value using invalid attribute": function(element, name) {
+          if (getBooleanValue(element, name)) {
+              element.setAttribute(name, "invalid");
+          } else {
+              element.setAttribute(name, "true");
+          }
+      },
+
+      "Change case of boolean attribute": function(element, name) {
+          if (getBooleanValue(element, name)) {
+              element.setAttribute(name, "TrUe");
+          } else {
+              element.setAttribute(name, "FaLsE");
+          }
+      }
+  };
+
+  function runTests() {
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      for (var i = 1; i <= 4; i++) {
+        for (var j = 1; j <= 6; j++) {
+           var baseId = ("base00" + i) + j;
+           assert_approx_equals(getBox("ref00" + i).bottom,
+                                getBox(baseId).bottom,
+                                epsilon,
+                                "alignment of " + baseId);
+        }
+      }
+    }, "Baseline alignment");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      for (var i = 1; i <= 4; i++) {
+        for (var j = 1; j <= 6; j++) {
+           var baseId = ("base00" + i) + j;
+           assert_approx_equals(getBox(baseId).height,
+                                j == 2 || j == 5 ?
+                                tallBaseHeight :shortBaseHeight,
+                                epsilon,
+                                "height of " + baseId);
+        }
+      }
+    }, "Heights of bases");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 5000 * emToPx;
+      assert_approx_equals(getBox("ref001").bottom - getBox("over0014").bottom,
+                           shortBaseHeight, epsilon,
+                           "munderover: nonaccent over short base");
+      assert_approx_equals(getBox("ref001").bottom - getBox("over0015").bottom,
+                           tallBaseHeight, epsilon,
+                           "munderover: accent over tall base");
+      assert_approx_equals(getBox("ref001").bottom - getBox("over0016").bottom,
+                           axisBaseHeight, epsilon,
+                           "munderover: accent over short base");
+      for (var j = 1; j <= 6; j++) {
+        var elId = "el001" + j;
+        var baseId = "base001" + j;
+        var underId = "under001" + j;
+        assert_approx_equals(getBox(underId).top - getBox(baseId).bottom,
+                             0, epsilon,
+                             "gap between " + baseId + " and " + underId);
+        assert_approx_equals(getBox(elId).bottom - getBox(underId).bottom,
+                             v, epsilon,
+                             "extra descender below " + underId);
+      }
+    }, "AccentBaseHeight, UnderbarExtraDescender");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 7000 * emToPx;
+      assert_approx_equals(getBox("ref002").bottom - getBox("over0024").bottom,
+                           shortBaseHeight, epsilon,
+                           "munderover: nonaccent over short base");
+      assert_approx_equals(getBox("ref002").bottom - getBox("over0025").bottom,
+                           tallBaseHeight, epsilon,
+                           "munderover: accent over tall base");
+      assert_approx_equals(getBox("ref002").bottom - getBox("over0026").bottom,
+                           axisBaseHeight, epsilon,
+                           "munderover: accent over short base");
+      for (var j = 1; j <= 6; j++) {
+        var elId = "el002" + j;
+        var baseId = "base002" + j;
+        var underId = "under002" + j;
+        var gap = (j == 2 || j == 3 ? 0 : v);
+        assert_approx_equals(getBox(underId).top - getBox(baseId).bottom,
+                             gap, epsilon,
+                             "gap between " + baseId + " and " + underId);
+      }
+    }, "AccentBaseHeight, UnderbarVerticalGap");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 3000 * emToPx;
+      assert_approx_equals(getBox("ref003").bottom - getBox("over0031").bottom,
+                           shortBaseHeight, epsilon,
+                           "mover: nonaccent over short base");
+      assert_approx_equals(getBox("ref003").bottom - getBox("over0032").bottom,
+                           tallBaseHeight, epsilon,
+                           "mover: accent over tall base");
+      assert_approx_equals(getBox("ref003").bottom - getBox("over0033").bottom,
+                           axisBaseHeight, epsilon,
+                           "mover: accent over short base");
+      assert_approx_equals(getBox("ref003").bottom - getBox("over0034").bottom,
+                           shortBaseHeight, epsilon,
+                           "munderover: nonaccent over short base");
+      assert_approx_equals(getBox("ref003").bottom - getBox("over0035").bottom,
+                           tallBaseHeight, epsilon,
+                           "munderover: accent over tall base");
+      assert_approx_equals(getBox("ref003").bottom - getBox("over0036").bottom,
+                           axisBaseHeight, epsilon,
+                           "munderover: accent over short base");
+      for (var j = 1; j <= 6; j++) {
+        var elId = "el003" + j;
+        var baseId = "base003" + j;
+        if (j >= 4) {
+          var underId = "under003" + j;
+          assert_approx_equals(getBox(underId).top - getBox(baseId).bottom,
+                               0, epsilon,
+                               "gap between " + baseId + " and " + underId);
+        }
+        var overId = "over003" + j;
+        assert_approx_equals(getBox(overId).top - getBox(elId).top,
+                             v, epsilon,
+                             "extra ascender below " + overId);
+      }
+    }, "AccentBaseHeight, OverbarExtraAscender");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      v = 11000 * emToPx;
+      assert_approx_equals(getBox("ref004").bottom - getBox("over0041").bottom,
+                           shortBaseHeight + v, epsilon,
+                           "mover: nonaccent over short base");
+      assert_approx_equals(getBox("ref004").bottom - getBox("over0042").bottom,
+                           tallBaseHeight, epsilon,
+                           "mover: accent over tall base");
+      assert_approx_equals(getBox("ref004").bottom - getBox("over0043").bottom,
+                           axisBaseHeight, epsilon,
+                           "mover: accent over short base");
+      assert_approx_equals(getBox("ref004").bottom - getBox("over0044").bottom,
+                           shortBaseHeight + v, epsilon,
+                           "munderover: nonaccent over short base");
+      assert_approx_equals(getBox("ref004").bottom - getBox("over0045").bottom,
+                           tallBaseHeight, epsilon,
+                           "munderover: accent over tall base");
+      assert_approx_equals(getBox("ref004").bottom - getBox("over0046").bottom,
+                           axisBaseHeight, epsilon,
+                           "munderover: accent over short base");
+      for (var j = 4; j <= 6; j++) {
+        var baseId = "base004" + j;
+        var underId = "under004" + j;
+        assert_approx_equals(getBox(underId).top - getBox(baseId).bottom,
+                             0, epsilon,
+                             "gap between " + baseId + " and " + underId);
+      }
+    }, "AccentBaseHeight, OverbarVerticalGap");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      var v = 7000 * emToPx;
+
+      for (var j = 1; j <= 4; j++) {
+        var elId = `el005${j}`;
+        var baseId = `base005${j}`;
+        var underId = `under005${j}`;
+
+        for (name in dynamicBooleanAttributeChanges) {
+            let element = document.getElementById(elId);
+            dynamicBooleanAttributeChanges[name](element, "accentunder");
+            var value =  getBooleanValue(element, "accentunder");
+            var gap = value ? 0 : v;
+            assert_approx_equals(getBox(underId).top - getBox(baseId).bottom,
+                                 gap, epsilon,
+                                 `${elId}: gap between base and underscript ; ${name}`);
+        };
+      }
+    }, "Dynamic change of accentunder attribute");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      v = 11000 * emToPx;
+      for (var j = 1; j <= 4; j++) {
+        var elId = `el006${j}`;
+        var refId = `base006${j}`;
+        var overId = `over006${j}`;
+        for (name in dynamicBooleanAttributeChanges) {
+            let element = document.getElementById(elId);
+            dynamicBooleanAttributeChanges[name](element, "accent");
+            var value =  getBooleanValue(element, "accent");
+            assert_approx_equals(getBox(refId).bottom - getBox(overId).bottom,
+                                 value ? axisBaseHeight : shortBaseHeight + v,
+                                 epsilon,
+                                 `${elId}: accent=${value} ; short base ; ${name}`);
+        }
+      }
+    }, "Dynamic change of accent attribute");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+    <p>
+      <math style="font-family: accentbaseheight4000underbarextradescender5000;">
+        <mspace id="ref001" height="1em" width="3em" style="background: green"/>
+        <munder style="background: cyan" id="el0011">
+          <mspace id="base0011" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0011" height="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munder style="background: cyan" id="el0012" accentunder="true">
+          <mspace id="base0012" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0012" height="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munder style="background: cyan" id="el0013" accentunder="true">
+          <mspace id="base0013" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0013" height="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munderover style="background: cyan" id="el0014">
+          <mspace id="base0014" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0014" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0014" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0015" accent="true">
+          <mspace id="base0015" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0015" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0015" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0016" accent="true">
+          <mspace id="base0016" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0016" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0016" height="1em" width="3em" style="background: red"/>
+        </munderover>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: accentbaseheight4000underbarverticalgap7000;">
+        <mspace id="ref002" height="1em" width="3em" style="background: green"/>
+        <munder style="background: cyan" id="el0021">
+          <mspace id="base0021" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0021" height="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munder style="background: cyan" id="el0022" accentunder="true">
+          <mspace id="base0022" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0022" height="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munder style="background: cyan" id="el0023" accentunder="true">
+          <mspace id="base0023" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0023" height="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munderover style="background: cyan" id="el0024">
+          <mspace id="base0024" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0024" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0024" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0025" accent="true">
+          <mspace id="base0025" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0025" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0025" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0026" accent="true">
+          <mspace id="base0026" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0026" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0026" height="1em" width="3em" style="background: red"/>
+        </munderover>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: accentbaseheight4000overbarextraascender3000;">
+        <mspace id="ref003" height="1em" width="3em" style="background: green"/>
+        <mover style="background: cyan" id="el0031">
+          <mspace id="base0031" height="3em" width="1em" style="background: black"/>
+          <mspace id="over0031" height="1em" width="3em" style="background: red"/>
+        </mover>
+        <mover style="background: cyan" id="el0032" accent="true">
+          <mspace id="base0032" height="5em" width="1em" style="background: black"/>
+          <mspace id="over0032" height="1em" width="3em" style="background: red"/>
+        </mover>
+        <mover style="background: cyan" id="el0033" accent="true">
+          <mspace id="base0033" height="3em" width="1em" style="background: black"/>
+          <mspace id="over0033" height="1em" width="3em" style="background: red"/>
+        </mover>
+        <munderover style="background: cyan" id="el0034">
+          <mspace id="base0034" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0034" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0034" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0035" accent="true">
+          <mspace id="base0035" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0035" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0035" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0036" accent="true">
+          <mspace id="base0036" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0036" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0036" height="1em" width="3em" style="background: red"/>
+        </munderover>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: accentbaseheight4000overbarverticalgap11000;">
+        <mspace id="ref004" height="1em" width="3em" style="background: green"/>
+        <mover style="background: cyan" id="el0041">
+          <mspace id="base0041" height="3em" width="1em" style="background: black"/>
+          <mspace id="over0041" height="1em" width="3em" style="background: red"/>
+        </mover>
+        <mover style="background: cyan" id="el0042" accent="true">
+          <mspace id="base0042" height="5em" width="1em" style="background: black"/>
+          <mspace id="over0042" height="1em" width="3em" style="background: red"/>
+        </mover>
+        <mover style="background: cyan" id="el0043" accent="true">
+          <mspace id="base0043" height="3em" width="1em" style="background: black"/>
+          <mspace id="over0043" height="1em" width="3em" style="background: red"/>
+        </mover>
+        <munderover style="background: cyan" id="el0044">
+          <mspace id="base0044" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0044" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0044" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0045" accent="true">
+          <mspace id="base0045" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0045" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0045" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0046" accent="true">
+          <mspace id="base0046" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0046" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0046" height="1em" width="3em" style="background: red"/>
+        </munderover>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: accentbaseheight4000underbarverticalgap7000;">
+        <mspace id="ref005" height="1em" width="3em" style="background: green"/>
+        <munder style="background: cyan" id="el0051">
+          <mspace id="base0051" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0051" height="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munder style="background: cyan" id="el0052" accentunder="true">
+          <mspace id="base0052" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0052" height="1em" width="3em" style="background: blue"/>
+        </munder>
+        <munderover style="background: cyan" id="el0053">
+          <mspace id="base0053" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0053" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0053" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0054" accentunder="true">
+          <mspace id="base0054" height="5em" width="1em" style="background: black"/>
+          <mspace id="under0054" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0054" height="1em" width="3em" style="background: red"/>
+        </munderover>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: accentbaseheight4000overbarverticalgap11000;">
+        <mspace id="ref006" height="1em" width="3em" style="background: green"/>
+        <mover style="background: cyan" id="el0061">
+          <mspace id="base0061" height="3em" width="1em" style="background: black"/>
+          <mspace id="over0061" height="1em" width="3em" style="background: red"/>
+        </mover>
+        <mover style="background: cyan" id="el0062" accent="true">
+          <mspace id="base0062" height="3em" width="1em" style="background: black"/>
+          <mspace id="over0062" height="1em" width="3em" style="background: red"/>
+        </mover>
+        <munderover style="background: cyan" id="el0063">
+          <mspace id="base0063" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0063" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0063" height="1em" width="3em" style="background: red"/>
+        </munderover>
+        <munderover style="background: cyan" id="el0064" accent="true">
+          <mspace id="base0064" height="3em" width="1em" style="background: black"/>
+          <mspace id="under0064" height="1em" width="3em" style="background: blue"/>
+          <mspace id="over0064" height="1em" width="3em" style="background: red"/>
+        </munderover>
+      </math>
+    </p>
+
+</body>
+</html>

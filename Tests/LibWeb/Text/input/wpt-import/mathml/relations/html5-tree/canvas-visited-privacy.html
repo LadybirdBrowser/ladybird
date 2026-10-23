@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+
+<meta charset="utf-8">
+<title>MathML 'a' element inside SVG to Canvas: :visited pixel leak enforcement</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#privacy-considerations">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<canvas id="canvas" width="200" height="50"></canvas>
+
+<script>
+  promise_test(async t => {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const svgString = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="200" height="50">
+    <foreignObject width="100%" height="100%">
+      <div xmlns="http://www.w3.org/1999/xhtml">
+        <style>
+          a:any-link > mspace { background: rgb(0, 255, 0); }
+          a:visited > mspace { background: rgb(255, 0, 0); }
+        </style>
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <!-- The empty string means the current page, so it's :visited -->
+          <a href=""><mspace width="200px" height="50px"/></a>
+        </math>
+      </div>
+    </foreignObject>
+  </svg>
+`;
+
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error("SVG image failed to load."));
+      img.src = url;
+    });
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+
+    function tryGetImgData(sx, sy, sw, sh) {
+      try {
+        return ctx.getImageData(sx, sy, sw, sh).data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    let imgData = tryGetImgData(100, 25, 1, 1);
+    if (imgData) {
+      // For browsers returning the data, check pixel color does not reveal :visited.
+      const expectedRGBA = [0, 255, 0, 255];
+      assert_array_equals(imgData, expectedRGBA, "Background color should apply style from :any-link but not from :visited.");
+    } else {
+      // For browsers throwing, verify this is a security error.
+      assert_throws_dom("SecurityError", _ => ctx.getImageData(100, 25, 1, 1)
+        , "If an exception is thrown, it must be a SecurityError due to a tainted canvas.");
+    }
+  }, "Ensure MathML 'a' elements inside SVG drawn to canvas do not leak :visited styles via getImageData");
+</script>

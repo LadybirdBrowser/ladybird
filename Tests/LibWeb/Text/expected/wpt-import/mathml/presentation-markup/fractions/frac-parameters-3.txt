@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	nonzero linethickness, displaystyle=false
+Fail	nonzero linethickness, displaystyle=true
+Fail	linethickness=0, displaystyle=false
+Fail	linethickness=0, displaystyle=true

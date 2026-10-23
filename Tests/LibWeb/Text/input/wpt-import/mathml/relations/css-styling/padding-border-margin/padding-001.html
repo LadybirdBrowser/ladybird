@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>padding</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<meta name="assert" content="Verify that padding is taken into account.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../mathml/support/feature-detection.js"></script>
+<script src="../../../../mathml/support/box-comparison.js"></script>
+<script>
+  var epsilon = 1;
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          var s = measureSpaceAround("mrow-padding")
+          assert_approx_equals(s.left, 20, epsilon, "left padding");
+          assert_approx_equals(s.right, 30, epsilon, "right padding");
+          assert_approx_equals(s.top, 40, epsilon, "top padding");
+          assert_approx_equals(s.bottom, 50, epsilon, "bottom padding");
+          var b = document.getElementById("mrow-padding").
+              getBoundingClientRect();
+          assert_approx_equals(b.width, 20 + 50 + 30, epsilon, "element width");
+          assert_approx_equals(b.height, 40 + 50 + 50, epsilon, "element height");
+      }, "Padding properties on mrow");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_true(MathMLFeatureDetection.has_dir());
+          var s = measureSpaceAround("mrow-padding-rtl")
+          assert_approx_equals(s.left, 20, epsilon, "left padding");
+          assert_approx_equals(s.right, 30, epsilon, "right padding");
+          assert_approx_equals(s.top, 40, epsilon, "top padding");
+          assert_approx_equals(s.bottom, 50, epsilon, "bottom padding");
+          var b = document.getElementById("mrow-padding-rtl").
+              getBoundingClientRect();
+          assert_approx_equals(b.width, 20 + 50 + 30, epsilon, "element width");
+          assert_approx_equals(b.height, 40 + 50 + 50, epsilon, "element height");
+      }, "Padding properties on mrow (rtl)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          var s = measureSpaceAround("mrow-padding-shorthand")
+          assert_approx_equals(s.left, 20, epsilon, "left padding");
+          assert_approx_equals(s.right, 20, epsilon, "right padding");
+          assert_approx_equals(s.top, 20, epsilon, "top padding");
+          assert_approx_equals(s.bottom, 20, epsilon, "bottom padding");
+          var b = document.getElementById("mrow-padding-shorthand").
+              getBoundingClientRect();
+          assert_approx_equals(b.width, 20 + 50 + 20, epsilon, "element width");
+          assert_approx_equals(b.height, 20 + 50 + 20, epsilon, "element height");
+      }, "Padding properties on mrow (shorthand)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          var s = measureSpaceAround("mrow-padding-logical")
+          assert_approx_equals(s.left, 20, epsilon, "left padding");
+          assert_approx_equals(s.right, 30, epsilon, "right padding");
+          assert_approx_equals(s.top, 40, epsilon, "top padding");
+          assert_approx_equals(s.bottom, 50, epsilon, "bottom padding");
+          var b = document.getElementById("mrow-padding-logical").
+              getBoundingClientRect();
+          assert_approx_equals(b.width, 20 + 50 + 30, epsilon, "element width");
+          assert_approx_equals(b.height, 40 + 50 + 50, epsilon, "element height");
+      }, "Padding properties on mrow (logical)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_true(MathMLFeatureDetection.has_dir());
+          var s = measureSpaceAround("mrow-padding-logical-rtl")
+          assert_approx_equals(s.left, 30, epsilon, "left padding");
+          assert_approx_equals(s.right, 20, epsilon, "right padding");
+          assert_approx_equals(s.top, 40, epsilon, "top padding");
+          assert_approx_equals(s.bottom, 50, epsilon, "bottom padding");
+          var b = document.getElementById("mrow-padding-logical-rtl").
+              getBoundingClientRect();
+          assert_approx_equals(b.width, 20 + 50 + 30, epsilon, "element width");
+          assert_approx_equals(b.height, 40 + 50 + 50, epsilon, "element height");
+      }, "Padding properties on mrow (logical, rtl)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          var s = measureSpaceAround("mrow-padding-logical-shorthand")
+          assert_approx_equals(s.left, 20, epsilon, "left padding");
+          assert_approx_equals(s.right, 20, epsilon, "right padding");
+          assert_approx_equals(s.top, 30, epsilon, "top padding");
+          assert_approx_equals(s.bottom, 30, epsilon, "bottom padding");
+          var b = document.getElementById("mrow-padding-logical-shorthand").
+              getBoundingClientRect();
+          assert_approx_equals(b.width, 20 + 50 + 20, epsilon, "element width");
+          assert_approx_equals(b.height, 30 + 50 + 30, epsilon, "element height");
+      }, "Padding properties on mrow (logical, shorthand)");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mrow>
+        <mrow id="mrow-padding"
+              style="padding-left: 20px;
+                     padding-right: 30px;
+                     padding-top: 40px;
+                     padding-bottom: 50px;">
+          <mspace width="50px" height="50px"></mspace>
+        </mrow>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math dir="rtl">
+      <mrow>
+        <mrow id="mrow-padding-rtl"
+              style="padding-left: 20px;
+                     padding-right: 30px;
+                     padding-top: 40px;
+                     padding-bottom: 50px;">
+          <mspace width="50px" height="50px"></mspace>
+        </mrow>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <mrow id="mrow-padding-shorthand"
+              style="padding: 20px;">
+          <mspace width="50px" height="50px"></mspace>
+        </mrow>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <mrow id="mrow-padding-logical"
+              style="padding-inline-start: 20px;
+                     padding-inline-end: 30px;
+                     padding-block-start: 40px;
+                     padding-block-end: 50px;">
+          <mspace width="50px" height="50px"></mspace>
+        </mrow>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math dir="rtl">
+      <mrow>
+        <mrow id="mrow-padding-logical-rtl"
+              style="padding-inline-start: 20px;
+                     padding-inline-end: 30px;
+                     padding-block-start: 40px;
+                     padding-block-end: 50px;">
+          <mspace width="50px" height="50px"></mspace>
+        </mrow>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <mrow id="mrow-padding-logical-shorthand"
+              style="padding-inline: 20px;
+                     padding-block: 30px;">
+          <mspace width="50px" height="50px"></mspace>
+        </mrow>
+      </mrow>
+    </math>
+  </p>
+</body>
+</html>

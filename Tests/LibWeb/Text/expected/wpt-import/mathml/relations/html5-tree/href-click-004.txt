@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+26 Pass
+2 Fail
+Fail	annotation with href attribute does not react to click.
+Fail	annotation-xml with href attribute does not react to click.
+Pass	maction with href attribute does not react to click.
+Pass	menclose with href attribute does not react to click.
+Pass	merror with href attribute does not react to click.
+Pass	mfrac with href attribute does not react to click.
+Pass	mi with href attribute does not react to click.
+Pass	mmultiscripts with href attribute does not react to click.
+Pass	mn with href attribute does not react to click.
+Pass	mo with href attribute does not react to click.
+Pass	mover with href attribute does not react to click.
+Pass	mpadded with href attribute does not react to click.
+Pass	mphantom with href attribute does not react to click.
+Pass	mroot with href attribute does not react to click.
+Pass	mrow with href attribute does not react to click.
+Pass	ms with href attribute does not react to click.
+Pass	msqrt with href attribute does not react to click.
+Pass	mstyle with href attribute does not react to click.
+Pass	msub with href attribute does not react to click.
+Pass	msubsup with href attribute does not react to click.
+Pass	msup with href attribute does not react to click.
+Pass	mtable with href attribute does not react to click.
+Pass	mtd with href attribute does not react to click.
+Pass	mtext with href attribute does not react to click.
+Pass	mtr with href attribute does not react to click.
+Pass	munder with href attribute does not react to click.
+Pass	munderover with href attribute does not react to click.
+Pass	semantics with href attribute does not react to click.

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fraction</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+<link rel="help" href="https://w3c.github.io/mathml-core/#fraction-with-nonzero-line-thickness">
+<link rel="help" href="https://w3c.github.io/mathml-core/#fraction-with-zero-line-thickness">
+<meta name="assert" content="Verify fraction metrics for different sizes of numerator and denominator.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+  math, mspace {
+    /* OS/2.sxHeight = 800 */
+    /* post.underlineThickness == 20 */
+    font-family: Ahem, math;
+    font-size: 10px;
+  }
+  div.shrink-wrap {
+    background: yellow;
+    display: inline-block;
+    margin-top: 5px;
+    padding-top: 5px;
+  }
+</style>
+<script>
+  const xHeight = 800;
+  const underlineThickness = 800;
+  const emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+
+  function getBox(aId) {
+    var box = document.getElementById(aId).getBoundingClientRect();
+    box.middle = (box.bottom + box.top) / 2;
+    box.center = (box.left + box.right) / 2;
+    return box;
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var e = 4;
+      var mathAxis = getBox("baseline").top - (xHeight/2) * emToPx;
+      for (var i = 0; i <= 4; i++) {
+        var frac = getBox("frac" + i);
+        var num = getBox("frac" + i + "num");
+        var den = getBox("frac" + i + "den");
+        // To estimate the fraction axis, we calculate barycenter between the
+        // top and bottom of the fraction, using the heights of numerator and
+        // denominator as weights.
+        var fracAxis = (frac.top * den.height + frac.bottom * num.height) / (num.height + den.height);
+        assert_approx_equals(fracAxis, mathAxis, e, "frac" + i + " fraction bar");
+      }
+    }, "Fraction axis is aligned on the math axis");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      for (var i = 0; i < 10; i++) {
+        assert_less_than_equal(getBox("frac" + i + "num").bottom, getBox("frac" + i + "den").top, "numerator is above denominator");
+        assert_less_than(getBox("frac" + i + "den").top - getBox("frac" + i + "num").bottom, 5, "The gap between numerator and denominator is not too large");
+      }
+    }, "Vertical positions of numerator and denominator");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var e = 3;
+      for (var i = 0; i < 10; i++)
+        assert_approx_equals(getBox("frac" + i + "num").center, getBox("frac" + i + "den").center, e, "numerator and denominator are horizontally centered");
+    }, "Horizontal alignments of numerator and denominator");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var e = 5;
+      for (var i = 0; i < 10; i++) {
+        var frac = getBox("frac" + i);
+        var num = getBox("frac" + i + "num");
+        var den = getBox("frac" + i + "den");
+        assert_approx_equals(frac.height, den.bottom - num.top, e, "height of frac " + i + " is determined by the bottom/top sides of the denominator/numerator");
+        assert_approx_equals(frac.width, Math.max(num.right, den.right) - Math.min(num.left, den.left), e, "width of frac " + i + " is determined by the left/right sides of the denominator/numerator (plus some spacing)");
+      }
+    }, "Dimension of mfrac elements");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      assert_true(MathMLFeatureDetection.has_mfrac());
+
+      Array.from(document.getElementsByClassName("shrink-wrap")).forEach((container) => {
+        var marginPx = 2; // By default fractions have 1px margin on each side.
+        var epsilon = 1;
+        var containerWidth = container.getBoundingClientRect().width;
+        var children = container.getElementsByTagName("mspace");
+        var numWidth = children[0].getBoundingClientRect().width;
+        var denWidth = children[1].getBoundingClientRect().width;
+        assert_approx_equals(containerWidth, marginPx + Math.max(numWidth, denWidth), epsilon, "Should be the maximum preferred width of numerator/denominator.");
+      });
+    }, "Preferred width of mfrac elements");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mspace id="baseline" width="1em" height="0em" depth="1em" style="background: black"/>
+      <mfrac id="frac0">
+        <mspace id="frac0num" width="15px" height="15px" style="background: blue"/>
+        <mspace id="frac0den" width="15px" height="15px" style="background: green"/>
+      </mfrac>
+      <mfrac id="frac1">
+        <mspace id="frac1num" width="30px" height="15px" style="background: blue"/>
+        <mspace id="frac1den" width="15px" height="15px" style="background: green"/>
+      </mfrac>
+      <mfrac id="frac2">
+        <mspace id="frac2num" width="15px" height="15px" style="background: blue"/>
+        <mspace id="frac2den" width="30px" height="15px" style="background: green"/>
+      </mfrac>
+      <mfrac id="frac3">
+        <mspace id="frac3num" width="15px" height="30px" style="background: blue"/>
+        <mspace id="frac3den" width="15px" height="15px" style="background: green"/>
+      </mfrac>
+      <mfrac id="frac4">
+        <mspace id="frac4num" width="15px" height="15px" style="background: blue"/>
+        <mspace id="frac4den" width="15px" height="30px" style="background: green"/>
+      </mfrac>
+      <mfrac id="frac5" linethickness="0px">
+        <mspace id="frac5num" width="15px" height="15px" style="background: blue"/>
+        <mspace id="frac5den" width="15px" height="15px" style="background: green"/>
+      </mfrac>
+      <mfrac id="frac6" linethickness="0px">
+        <mspace id="frac6num" width="30px" height="15px" style="background: blue"/>
+        <mspace id="frac6den" width="15px" height="15px" style="background: green"/>
+      </mfrac>
+      <mfrac id="frac7" linethickness="0px">
+        <mspace id="frac7num" width="15px" height="15px" style="background: blue"/>
+        <mspace id="frac7den" width="30px" height="15px" style="background: green"/>
+      </mfrac>
+      <mfrac id="frac8" linethickness="0px">
+        <mspace id="frac8num" width="15px" height="30px" style="background: blue"/>
+        <mspace id="frac8den" width="15px" height="15px" style="background: green"/>
+      </mfrac>
+      <mfrac id="frac9" linethickness="0px">
+        <mspace id="frac9num" width="15px" height="15px" style="background: blue"/>
+        <mspace id="frac9den" width="15px" height="30px" style="background: green"/>
+      </mfrac>
+    </math>
+  </p>
+  <div class="shrink-wrap">
+    <math>
+      <mfrac>
+        <mspace width="30px" height="15px" style="background: blue"/>
+        <mspace width="15px" height="15px" style="background: green"/>
+      </mfrac>
+    </math>
+  </div>
+  <div class="shrink-wrap">
+    <math>
+      <mfrac>
+        <mspace width="15px" height="15px" style="background: blue"/>
+        <mspace width="30px" height="15px" style="background: green"/>
+      </mfrac>
+    </math>
+  </div>
+  <div class="shrink-wrap">
+    <math>
+      <mfrac linethickness="0px">
+        <mspace width="30px" height="15px" style="background: blue"/>
+        <mspace width="15px" height="15px" style="background: green"/>
+      </mfrac>
+    </math>
+  </div>
+  <div class="shrink-wrap">
+    <math>
+      <mfrac linethickness="0px">
+        <mspace width="15px" height="15px" style="background: blue"/>
+        <mspace width="30px" height="15px" style="background: green"/>
+      </mfrac>
+    </math>
+  </div>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Operator dictionary</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dictionary-based-attributes">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-dictionary">
+<link rel="help" href="https://w3c.github.io/mathml-core/#stretchy-operator-axis">
+<meta name="assert" content="Verify default properties for characters that are in the operator dictionary, as well as for U+00A0 NO-BREAK SPACE">
+<meta name="timeout" content="long">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/feature-detection-operators.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script src="../../../mathml/support/operator-dictionary.js"></script>
+<script src="./support/operator-dictionary-tests.js"></script>
+<link rel="stylesheet" href="./support/operator-dictionary-tests.css"/>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+  async function runTests() {
+      let json = await fetchOperatorDictionary();
+      await OperatorDictionaryTests.run(json, "lspace/rspace", 3);
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>

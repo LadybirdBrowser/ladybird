@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Space</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#space-mspace">
+<meta name="assert" content="Verify mspace metrics for different values of height, depth and width">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  var epsilon = 1;
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function getMetrics(aId) {
+      let baseline = document.getElementById("baseline").getBoundingClientRect();
+      let mspace = document.getElementById(aId).getBoundingClientRect();
+      return {
+          width: mspace.width,
+          height: mspace.height,
+          line_ascent: (baseline.top + baseline.bottom)/2 - mspace.top
+      };
+  }
+
+  function runTests() {
+      test(function() {
+          let metrics = getMetrics("widthAttributePlusWidthProperty");
+          assert_approx_equals(metrics.width, 200, epsilon,
+                               "mspace width overridden by inline style");
+          assert_approx_equals(metrics.height, 200, epsilon,
+                               "mspace height as specified by height attribute");
+          assert_approx_equals(metrics.line_ascent, 200, epsilon,
+                               "mspace line-ascent as specified by height attribute");
+      }, "width attribute + width property");
+
+      test(function() {
+          let metrics = getMetrics("heightAndDepthAttributesPlusHeightProperty");
+          assert_approx_equals(metrics.width, 200, epsilon,
+                               "mspace width as specified by attribute");
+          assert_approx_equals(metrics.height, 200, epsilon,
+                               "mspace height overridden by inline style");
+          assert_approx_equals(metrics.line_ascent, 100, epsilon,
+                               "mspace line-ascent as specified by height attribute");
+      }, "height/depth attributes + height property");
+
+      test(function() {
+          let metrics = getMetrics("heightAttributePlusHeightProperty");
+          assert_approx_equals(metrics.width, 200, epsilon,
+                               "mspace width as specified by attribute");
+          assert_approx_equals(metrics.height, 200, epsilon,
+                               "mspace height overridden by inline style");
+          assert_approx_equals(metrics.line_ascent, 300, epsilon,
+                               "mspace line-ascent as specified by height attribute");
+      }, "height attribute + height property");
+
+      test(function() {
+          let metrics = getMetrics("depthAttributePlusHeightProperty");
+          assert_approx_equals(metrics.width, 200, epsilon,
+                               "mspace width as specified by attribute");
+          assert_approx_equals(metrics.height, 200, epsilon,
+                               "mspace height overridden by inline style");
+          assert_approx_equals(metrics.line_ascent, 0, epsilon,
+                               "mspace line-ascent defaults to 0");
+      }, "depth attribute + height property");
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+
+    <math>
+      <!-- Reference baseline -->
+      <mspace id="baseline" style="background: black"
+              width="10px" height="100px" depth="100px"/>
+
+      <!-- width="500px" is a presentational hint
+           setting the element's width property to the corresponding value,
+           overridden by the inline style width: 200px.
+           height="200px" sets the height/line-ascent to 200px. -->
+      <mspace id="widthAttributePlusWidthProperty"
+              width="500px" height="200px"
+              style="width: 200px; background: green"/>
+
+      <!-- height="100px" + depth="200px" are used as a presentational hint
+           setting the element's height property to calc(100px + 200px),
+           overridden by inline style height: 200px.
+           height="100px" sets the line-ascent to 100px. -->
+      <mspace id="heightAndDepthAttributesPlusHeightProperty"
+              width="200px" height="100px" depth="200px"
+              style="height: 200px; background: blue"/>
+
+      <!-- height="300px" is used as a presentational hint
+           setting the element's height property to the corresponding value,
+           overridden by inline style height: 200px.
+           height="300px" sets the line-ascent to 300px. -->
+      <mspace id="heightAttributePlusHeightProperty"
+              width="200px" height="300px"
+              style="height: 200px; background: magenta"/>
+
+      <!-- depth="300px" is used as a presentational hint
+           setting the element's height property to the corresponding value,
+           overridden by inline style height: 200px.
+           The line-ascent defaults to 0. -->
+      <mspace id="depthAttributePlusHeightProperty"
+              width="200px" depth="300px"
+              style="height: 200px; background: yellow"/>
+    </math>
+
+  </body>
+</html>

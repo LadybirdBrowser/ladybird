@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dynamic childlist of MathML elements</title>
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript">
+<meta name="assert" content="Dynamically modify DOM tree of some MathML elements by adding or removing children.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<script>
+  function generateMathForTag(tag, childCount) {
+      let math = FragmentHelper.createElement("math");
+      let element = FragmentHelper.createElement(tag);
+      // Add the children with different sizes at odd positions and OOF
+      // mrow at even position.
+      for (let i = 0; i < childCount; i++) {
+          if (i % 2) {
+              let mspace = FragmentHelper.createElement("mspace");
+              mspace.setAttribute("width", `10px`);
+              mspace.setAttribute("height", `${10*(i+1)}px`);
+              mspace.setAttribute("style", `background: black;`);
+              element.appendChild(mspace);
+          } else {
+              let mrow = FragmentHelper.createElement("mrow");
+              mrow.setAttribute("style", "position: absolute");
+              element.appendChild(mrow);
+          }
+      }
+      if (FragmentHelper.isValidChildOfMrow(tag)) {
+          math.appendChild(element);
+      } else if (tag === "mtd") {
+          let mtr = FragmentHelper.createElement("mtr");
+          mtr.appendChild(element);
+          let mtable = FragmentHelper.createElement("mtable");
+          mtable.appendChild(mtr);
+          math.appendChild(mtable);
+      } else {
+          throw `Invalid argument: ${tag}`;
+      }
+      return math;
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", function() {
+
+      for (tag in MathMLFragments) {
+          if (!FragmentHelper.isValidChildOfMrow(tag) || tag === "mtd")
+              continue;
+
+          document.body.insertAdjacentHTML("beforeend", `<div style='display: none; background: pink;'>${tag}: <div></div><div></div><div></div></div>`);
+
+          let container = document.body.lastElementChild;
+          let referenceDiv = container.children[0];
+          const maxChild = 10;
+          const epsilon = 1;
+
+          // Create the references for different number of children as well
+          // as the element that will get the children added / removed.
+          for (let i = 0; i <= maxChild; i++)
+              referenceDiv.append(generateMathForTag(tag, i));
+          let fullReferenceMath = referenceDiv.lastElementChild;
+          let fullReferenceTag = fullReferenceMath.firstElementChild;
+
+          let removeChildrenMath = generateMathForTag(tag, maxChild);
+          container.children[1].append(removeChildrenMath);
+          let removeChildrenTag = removeChildrenMath.firstElementChild;
+
+          let appendChildrenMath = generateMathForTag(tag, 0);
+          container.children[2].append(appendChildrenMath);
+          let appendChildrenTag = appendChildrenMath.firstElementChild;
+
+          // Make content visible after the DOM is ready so that the layout
+          // only happens now.
+          container.style.display = "block";
+
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              assert_true(MathMLFeatureDetection[`has_${tag}`]());
+
+              for (let i = 0; i < maxChild; i++) {
+                  // append and remove children.
+                  appendChildrenTag.append(fullReferenceTag.children[i].cloneNode(true));
+                  removeChildrenTag.removeChild(removeChildrenTag.lastElementChild);
+
+                  // force layout so we're sure what we're testing against
+                  container.getBoundingClientRect();
+
+                  let appendCount = appendChildrenTag.children.length;
+                  let removeCount = removeChildrenTag.children.length;
+                  if (tag == "mspace") {
+                      compareSize(appendChildrenTag, referenceDiv.children[appendCount].firstElementChild, epsilon);
+                      childrenHaveEmptyBoundingClientRects(appendChildrenTag);
+                      childrenHaveEmptyBoundingClientRects(referenceDiv.children[appendCount].firstElementChild);
+                      childrenHaveEmptyBoundingClientRects(removeChildrenTag);
+                      childrenHaveEmptyBoundingClientRects(referenceDiv.children[removeCount].firstElementChild);
+                  } else {
+                      compareLayout(appendChildrenTag, referenceDiv.children[appendCount].firstElementChild, epsilon, `appending ${appendCount}-th child`);
+                      compareLayout(removeChildrenTag, referenceDiv.children[removeCount].firstElementChild, epsilon, `removing ${appendCount + 1}-th child`);
+                  }
+              }
+
+              // Hide back the div after successful testing.
+              container.style.display = "none";
+
+          }, `Appending and removing children to ${tag}`);
+      }
+
+      done();
+  });
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>

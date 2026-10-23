@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	StretchStackBottomShiftDown
+Fail	StretchStackGapBelowMin
+Fail	StretchStackTopShiftUp
+Fail	StretchStackGapAboveMin

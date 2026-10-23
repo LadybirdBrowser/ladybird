@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Fail
+Fail	Operator dictionary spacing for "!!" (postfix)
+Fail	Operator dictionary spacing for "!=" (infix)
+Fail	Operator dictionary spacing for "&&" (infix)
+Fail	Operator dictionary spacing for "**" (infix)
+Fail	Operator dictionary spacing for "*=" (infix)
+Fail	Operator dictionary spacing for "++" (postfix)
+Fail	Operator dictionary spacing for "+=" (infix)
+Fail	Operator dictionary spacing for "--" (postfix)
+Fail	Operator dictionary spacing for "-=" (infix)
+Fail	Operator dictionary spacing for "->" (infix)
+Fail	Operator dictionary spacing for "//" (infix)
+Fail	Operator dictionary spacing for "/=" (infix)
+Fail	Operator dictionary spacing for ":=" (infix)
+Fail	Operator dictionary spacing for "<=" (infix)
+Fail	Operator dictionary spacing for "<>" (infix)
+Fail	Operator dictionary spacing for "==" (infix)
+Fail	Operator dictionary spacing for ">=" (infix)
+Fail	Operator dictionary spacing for "||" (infix)
+Fail	Operator dictionary spacing for "||" (postfix)
+Fail	Operator dictionary spacing for "||" (prefix)

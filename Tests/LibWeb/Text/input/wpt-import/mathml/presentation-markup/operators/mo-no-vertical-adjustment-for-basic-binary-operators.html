@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>No vertical adjustment for basic binary operators</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1890531" />
+<meta name="assert" content="Verify vertical alignement of basic binary operators is not adjusted to align their centers with the math axis.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  @font-face {
+    font-family: operators;
+    /* AxisHeight == 0, so the math axis matches the baseline */
+    src: url("../../../fonts/math/operators.woff");
+  }
+  math {
+    font: 25px operators;
+  }
+</style>
+<math>
+  <mn id="ref">↯</mn>
+  <mo>+</mo><mo>=</mo><mo>*</mo><mo>−</mo><mo>≤</mo><mo>≥</mo><mo>×</mo>
+</math>
+<script>
+  promise_test(async () => {
+    await new Promise(r => { window.addEventListener("DOMContentLoaded", r) });
+    await loadAllFonts();
+    function centerOf(element) {
+      const box = element.getBoundingClientRect();
+      return (box.top + box.bottom) / 2;
+    }
+    const ref = centerOf(document.getElementById("ref"));
+    const epsilon = 1;
+    Array.from(document.getElementsByTagName("mo")).forEach(mo => {
+      assert_approx_equals(centerOf(mo), ref, epsilon,
+                           `Position of "${mo.textContent}"`);
+    });
+  }, "Vertical alignment of basic binary operators is not adjusted.");
+</script>

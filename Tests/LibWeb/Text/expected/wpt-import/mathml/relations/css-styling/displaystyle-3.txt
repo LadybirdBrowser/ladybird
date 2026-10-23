@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	movablelimits for munder element (displaystyle=false)
+Fail	movablelimits for munder element (displaystyle=true)
+Fail	movablelimits for mover element (displaystyle=false)
+Fail	movablelimits for mover element (displaystyle=true)
+Fail	movablelimits for munderover element (displaystyle=false)
+Fail	movablelimits for munderover element (displaystyle=true)

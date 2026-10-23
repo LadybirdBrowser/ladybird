@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>displaystyle</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#css-styling">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-displaystyle-and-scriptlevel-attributes">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-math-style-property">
+<meta name="assert" content="Verify that the correct inheritance of the displaystyle value by measuring the size of large operators.">
+<style>
+  @font-face {
+    font-family: TestFont;
+    src: url("../../../fonts/math/largeop-displayoperatorminheight5000.woff");
+  }
+  math  {
+    font-family: TestFont;
+    font-size: 10px;
+  }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/attribute-values.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script>
+  setup({ explicit_done: true });
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  var epsilon = 5;
+  function verify_displaystyle(elementId, displaystyle, description) {
+      var expectedSize = (displaystyle ? 5000 : 1000) * emToPx;
+      var elementSize = document.getElementById(elementId).
+          getBoundingClientRect().height;
+      assert_approx_equals(elementSize, expectedSize, epsilon, description);
+  }
+
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+      for (transform in AttributeValueTransforms) {
+          TransformAttributeValues(transform, ["display", "displaystyle"]);
+          test(function() {
+              verify_displaystyle("math_default", false, "default");
+              verify_displaystyle("math_false", false, "explicit displaystyle false");
+              verify_displaystyle("math_true", true, "explicit displaystyle true");
+          }, `math element (${transform})`);
+          test(function() {
+              verify_displaystyle("math_inline", false, "explicit display inline");
+              verify_displaystyle("math_block", true, "explicit display block");
+              verify_displaystyle("math_block_false", false, "explicit display block and displaystyle false");
+              verify_displaystyle("math_block_true", true, "explicit display block and displaystyle true");
+              verify_displaystyle("math_inline_false", false, "explicit display inline and displaystyle false");
+              verify_displaystyle("math_inline_true", true, "explicit display inline and displaystyle true");
+          }, `math element (explicit display, ${transform})`);
+          test(function() {
+              verify_displaystyle("mstyle_false", false, "explicit displaystyle false");
+              verify_displaystyle("mstyle_true", true, "explicit displaystyle true");
+          }, `mstyle element (${transform})`);
+          test(function() {
+              verify_displaystyle("mtable_default", false, "default");
+              verify_displaystyle("mtable_false", false, "explicit displaystyle false");
+              verify_displaystyle("mtable_true", true, "explicit displaystyle true");
+          }, `mtable element (${transform})`);
+          test(function() {
+              verify_displaystyle("mfrac_sibling", true, "sibling");
+              verify_displaystyle("mfrac_numerator", false, "numerator");
+              verify_displaystyle("mfrac_denominator", false, "denominator");
+          }, `mfrac element (${transform})`);
+          test(function() {
+              verify_displaystyle("mroot_base", true, "base");
+              verify_displaystyle("mroot_index", false, "index");
+          }, `mroot element (${transform})`);
+          test(function() {
+              verify_displaystyle("msub_base", true, "base");
+              verify_displaystyle("msub_subscript", false, "subscript");
+          }, `msub element (${transform})`);
+          test(function() {
+              verify_displaystyle("msup_base", true, "base");
+              verify_displaystyle("msup_supscript", false, "supscript");
+          }, `msup element (${transform})`);
+          test(function() {
+              verify_displaystyle("msubsup_base", true, "base");
+              verify_displaystyle("msubsup_subscript", false, "subscript");
+              verify_displaystyle("msubsup_supscript", false, "supscript");
+          }, `msubsup element (${transform})`);
+          test(function() {
+              verify_displaystyle("munder_base", true, "base");
+              verify_displaystyle("munder_underscript", false, "underscript");
+          }, `munder element (${transform})`);
+          test(function() {
+              verify_displaystyle("mover_base", true, "base");
+              verify_displaystyle("mover_overscript", false, "overscript");
+          }, `mover element (${transform})`);
+          test(function() {
+              verify_displaystyle("munderover_base", true, "base");
+              verify_displaystyle("munderover_underscript", false, "underscript");
+              verify_displaystyle("munderover_overscript", false, "overscript");
+          }, `munderover element (${transform})`);
+      }
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <math><mo id="math_default">&#x2AFF;</mo></math>
+  <math display="inline"><mo id="math_inline">&#x2AFF;</mo></math>
+  <math display="block"><mo id="math_block">&#x2AFF;</mo></math>
+  <math displaystyle="false"><mo id="math_false">&#x2AFF;</mo></math>
+  <math displaystyle="true"><mo id="math_true">&#x2AFF;</mo></math>
+  <math display="block" displaystyle="false">
+    <mo id="math_block_false">&#x2AFF;</mo>
+  </math>
+  <math display="block" displaystyle="true">
+    <mo id="math_block_true">&#x2AFF;</mo>
+  </math>
+  <math display="inline" displaystyle="false">
+    <mo id="math_inline_false">&#x2AFF;</mo>
+  </math>
+  <math display="inline" displaystyle="true">
+    <mo id="math_inline_true">&#x2AFF;</mo>
+  </math>
+  <math><mstyle displaystyle="false"><mo id="mstyle_false">&#x2AFF;</mo></mstyle></math>
+  <math><mstyle displaystyle="true"><mo id="mstyle_true">&#x2AFF;</mo></mstyle></math>
+  <math displaystyle="true"><mtable><mtr><mtd><mo id="mtable_default">&#x2AFF;</mo></mtd></mtr></mtable></math>
+  <math><mtable displaystyle="true"><mtr><mtd><mo id="mtable_true">&#x2AFF;</mo></mtd></mtr></mtable></math>
+  <math displaystyle="true"><mtable displaystyle="false"><mtr><mtd><mo id="mtable_false">&#x2AFF;</mo></mtd></mtr></mtable></math>
+  <math displaystyle="true"><mo id="mfrac_sibling">&#x2AFF;</mo><mfrac><mo id="mfrac_numerator">&#x2AFF;</mo><mo id="mfrac_denominator">&#x2AFF;</mo></mfrac></math>
+  <math displaystyle="true"><mroot><mo id="mroot_base">&#x2AFF;</mo><mo id="mroot_index">&#x2AFF;</mo></mroot></math>
+  <math displaystyle="true"><msub><mo id="msub_base">&#x2AFF;</mo><mo id="msub_subscript">&#x2AFF;</mo></msub></math>
+  <math displaystyle="true"><msup><mo id="msup_base">&#x2AFF;</mo><mo id="msup_supscript">&#x2AFF;</mo></msup></math>
+  <math displaystyle="true"><msubsup><mo id="msubsup_base">&#x2AFF;</mo><mo id="msubsup_subscript">&#x2AFF;</mo><mo id="msubsup_supscript">&#x2AFF;</mo></msubsup></math>
+  <math displaystyle="true"><mmultiscripts><mo id="mmultiscripts_base">&#x2AFF;</mo><mo id="mmultiscripts_subscript">&#x2AFF;</mo><mo id="mmultiscripts_supscript">&#x2AFF;</mo><mprescripts/><mo id="mmultiscripts_presubscript">&#x2AFF;</mo><mo id="mmultiscripts_presupscript">&#x2AFF;</mo></mmultiscripts></math>
+  <math displaystyle="true"><munder><mo id="munder_base">&#x2AFF;</mo><mo id="munder_underscript">&#x2AFF;</mo></munder></math>
+  <math displaystyle="true"><mover><mo id="mover_base">&#x2AFF;</mo><mo id="mover_overscript">&#x2AFF;</mo></mover></math>
+  <math displaystyle="true"><munderover><mo id="munderover_base">&#x2AFF;</mo><mo id="munderover_underscript">&#x2AFF;</mo><mo id="munderover_overscript">&#x2AFF;</mo></munderover></math>
+</body>
+</html>

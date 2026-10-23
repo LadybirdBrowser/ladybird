@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Default spacing for = + unsupported combining char U+0303
+Fail	Default spacing for = + U+0338 + U+20D2 (too many characters)

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>MathML inside foreignObject</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#html-and-svg">
+<meta name="assert" content="Verify that MathML can be used inside a foreignObject element.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("DOMContentLoaded", function() {
+      var scale = 2;
+      var epsilon = 1;
+      var mfrac = document.getElementById("mfrac");
+      var num = mfrac.firstElementChild.getBoundingClientRect();
+      var denom = mfrac.lastElementChild.getBoundingClientRect();
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          // The values of width and height are inverted (because of the
+          // rotation) and multiplied by the scale factor.
+          assert_approx_equals(num.height, 30 * scale, epsilon, "numerator width");
+          assert_approx_equals(num.width, 40 * scale, epsilon, "numerator height");
+          assert_approx_equals(denom.height, 50 * scale, epsilon, "numerator width");
+          assert_approx_equals(denom.width, 60 * scale, epsilon, "numerator height");
+      }, "mspace layout in SVG foreignObject");
+      test(function() {
+          // The horizontal/vertical metrics are inverted (because of the
+          // rotation) and multiplied by the scale factor.
+          assert_true(MathMLFeatureDetection.has_mfrac());
+          assert_greater_than_equal(num.right - denom.left,
+                                    (40 + 60) * scale,
+                                    "numerator is on the right of denominator");
+          assert_approx_equals((num.top + num.bottom) / 2,
+                               (denom.top + denom.bottom) / 2,
+                               epsilon, "numerator and denominator are vertically aligned");
+      }, "mfrac layout in SVG foreignObject");
+      done();
+  });
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <svg width="400px" height="400px">
+    <g transform="rotate(90, 200, 200) scale(2)">
+      <foreignObject width="400px" height="400px"
+                     requiredExtensions="http://www.w3.org/1998/Math/MathML">
+        <math>
+          <mfrac id="mfrac">
+            <mspace width="30px" height="40px" style="background: cyan"></mspace>
+            <mspace width="50px" height="60px" style="background: yellow"></mspace>
+          </mfrac>
+        </math>
+      </foreignObject>
+    </g>
+  </svg>
+</body>
+</html>

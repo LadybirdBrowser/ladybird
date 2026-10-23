@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test mrow fallback for some MathML elements</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#script-and-limit-schemata">
+<meta name="assert" content="Verify that invalid markup fallbacks to row layout.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../mathml/support/invalid-markup.js"></script>
+<style>
+  /* Revert style specified in the UA style sheet that changes box size. */
+  mfrac { padding-inline: 0; }
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+    let container = document.getElementById("container");
+    let invalidMarkup = generateInvalidMarkup();
+    container.appendChild(invalidMarkup);
+    const epsilon = 1;
+
+    for (let math of invalidMarkup.children) {
+      let element = math.firstElementChild;
+      let reference = element.nextElementSibling;
+      let description = element.dataset.description;
+      test(function() {
+        compareLayout(element, reference, epsilon);
+        assert_approx_equals(element.getBoundingClientRect().top, reference.getBoundingClientRect().top, epsilon);
+      }, `Invalid <${element.tagName}> should lay out as an mrow (${description})`);
+    }
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <div id="container"></div>
+</body>
+</html>

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>content position with width/height</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<meta name="assert" content="Verify the inline-start of the children of the misc layout algorithms."/>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  mn, .text {
+      font: 25px/1 Ahem;
+      color: black;
+  }
+  .test {
+      margin: .5em;
+  }
+  .reference, [data-name] {
+      border: 1px solid blue;
+      margin: 1em;
+  }
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+      Array.from(document.getElementsByClassName("test")).forEach(div => {
+          const reference = div.getElementsByClassName("reference")[0];
+          Array.from(div.querySelectorAll("[data-name]")).forEach(element => {
+              test(() => {
+                  const rtl = getComputedStyle(element).direction == 'ltr';
+                  const referenceBox = reference.getBoundingClientRect();
+                  const elementBox = element.getBoundingClientRect();
+                  const epsilon = 1;
+                  assert_greater_than(Math.abs(elementBox.width - referenceBox.width), epsilon, `width is modified`);
+                  assert_approx_equals(elementBox.height, referenceBox.height, epsilon, `height is preserved`);
+                  for (let i = 0; i < element.children.length; i++) {
+                      const referenceChildBox = reference.children[i].getBoundingClientRect();
+                      const childBox = element.children[i].getBoundingClientRect();
+                      const description = `horizontal position of child ${i}`;
+                      if (rtl) {
+                          assert_approx_equals(childBox.left - elementBox.left, referenceChildBox.left - referenceBox.left, epsilon, description);
+                      } else {
+                          assert_approx_equals(childBox.right - elementBox.right, referenceChildBox.right - referenceBox.right, epsilon, description);
+                      }
+                  }
+              }, element.dataset.name);
+          });
+      });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+
+  <div class="test">
+    <math>
+      <mrow class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mrow>
+    </math>
+    <math>
+      <mrow data-name="mrow" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mrow>
+    </math>
+    <math>
+      <mrow data-name="mrow (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mrow>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <mrow class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mrow>
+    </math>
+    <math dir="rtl">
+      <mrow data-name="RTL mrow" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mrow>
+    </math>
+    <math dir="rtl">
+      <mrow data-name="RTL mrow (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mrow>
+    </math>
+  </div>
+
+  <div class="test">
+    <math>
+      <mpadded lspace=".5em" voffset="-1em" class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mpadded>
+    </math>
+    <math>
+      <mpadded lspace=".5em" voffset="-1em" data-name="mpadded" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mpadded>
+    </math>
+    <math>
+      <mpadded lspace=".5em" voffset="-1em" data-name="mpadded (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mpadded>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <mpadded lspace=".5em" voffset="-1em" class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mpadded>
+    </math>
+    <math dir="rtl">
+      <mpadded lspace=".5em" voffset="-1em" data-name="RTL mpadded" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mpadded>
+    </math>
+    <math dir="rtl">
+      <mpadded lspace=".5em" voffset="-1em" data-name="RTL mpadded (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mpadded>
+    </math>
+  </div>
+
+  <div class="test">
+    <math>
+      <msqrt class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msqrt>
+    </math>
+    <math>
+      <msqrt data-name="msqrt" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msqrt>
+    </math>
+    <math>
+      <msqrt data-name="msqrt (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msqrt>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <msqrt class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msqrt>
+    </math>
+    <math dir="rtl">
+      <msqrt data-name="RTL msqrt" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msqrt>
+    </math>
+    <math dir="rtl">
+      <msqrt data-name="RTL msqrt (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msqrt>
+    </math>
+  </div>
+
+  <div class="test">
+    <math>
+      <mroot class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+      </mroot>
+    </math>
+    <math>
+      <mroot data-name="mroot" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </mroot>
+    </math>
+    <math>
+      <mroot data-name="mroot (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </mroot>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <mroot class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+      </mroot>
+    </math>
+    <math dir="rtl">
+      <mroot data-name="RTL mroot" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </mroot>
+    </math>
+    <math dir="rtl">
+      <mroot data-name="RTL mroot (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </mroot>
+    </math>
+  </div>
+
+  <div class="test">
+    <math>
+      <msub class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msub>
+    </math>
+    <math>
+      <msub data-name="msub" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msub>
+    </math>
+    <math>
+      <msub data-name="msub (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msub>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <msub class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msub>
+    </math>
+    <math dir="rtl">
+      <msub data-name="RTL msub" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msub>
+    </math>
+    <math dir="rtl">
+      <msub data-name="RTL msub (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msub>
+    </math>
+  </div>
+
+  <div class="test">
+    <math>
+      <msup class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msup>
+    </math>
+    <math>
+      <msup data-name="msup" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msup>
+    </math>
+    <math>
+      <msup data-name="msup (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msup>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <msup class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msup>
+    </math>
+    <math dir="rtl">
+      <msup data-name="RTL msup" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msup>
+    </math>
+    <math dir="rtl">
+      <msup data-name="RTL msup (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+      </msup>
+    </math>
+  </div>
+
+  <div class="test">
+    <math>
+      <msubsup class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msubsup>
+    </math>
+    <math>
+      <msubsup data-name="msubsup" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msubsup>
+    </math>
+    <math>
+      <msubsup data-name="msubsup (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msubsup>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <msubsup class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msubsup>
+    </math>
+    <math dir="rtl">
+      <msubsup data-name="RTL msubsup" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msubsup>
+    </math>
+    <math dir="rtl">
+      <msubsup data-name="RTL msubsup (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </msubsup>
+    </math>
+  </div>
+
+  <div class="test">
+    <math>
+      <mmultiscripts class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+        <mprescripts/>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mmultiscripts>
+    </math>
+    <math>
+      <mmultiscripts data-name="mmultiscripts" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+        <mprescripts/>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mmultiscripts>
+    </math>
+    <math>
+      <mmultiscripts data-name="mmultiscripts (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+        <mprescripts/>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mmultiscripts>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <mmultiscripts class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+        <mprescripts/>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mmultiscripts>
+    </math>
+    <math dir="rtl">
+      <mmultiscripts data-name="RTL mmultiscripts" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+        <mprescripts/>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mmultiscripts>
+    </math>
+    <math dir="rtl">
+      <mmultiscripts data-name="RTL mmultiscripts (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+        <mprescripts/>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mmultiscripts>
+    </math>
+  </div>
+
+  <div class="test">
+    <math>
+      <mtext class="reference">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+      </mtext>
+    </math>
+    <math>
+      <mtext data-name="mtext" style="width: 10em">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+      </mtext>
+    </math>
+    <math>
+      <mtext data-name="mtext (horizontal overflow)" style="width: 1em">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+      </mtext>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <mtext class="reference">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+      </mtext>
+    </math>
+    <math dir="rtl">
+      <mtext data-name="RTL mtext" style="width: 10em">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+      </mtext>
+    </math>
+    <math dir="rtl">
+      <mtext data-name="RTL mtext (horizontal overflow)" style="width: 1em">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+        <span class="text">X</span class="text">
+      </mtext>
+    </math>
+  </div>
+
+  <div class="test">
+    <math>
+      <menclose class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </menclose>
+    </math>
+    <math>
+      <menclose data-name="legacy menclose" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </menclose>
+    </math>
+    <math>
+      <menclose data-name="legacy menclose (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </menclose>
+    </math>
+  </div>
+
+  <div class="test" dir="rtl">
+    <math dir="rtl">
+      <menclose class="reference">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </menclose>
+    </math>
+    <math dir="rtl">
+      <menclose data-name="RTL legacy menclose" style="width: 10em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </menclose>
+    </math>
+    <math dir="rtl">
+      <menclose data-name="RTL legacy menclose (horizontal overflow)" style="width: 1em">
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </menclose>
+    </math>
+  </div>
+
+</body>
+</html>

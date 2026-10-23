@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Fail
+Fail	BottomDisplayStyleShiftDown
+Fail	BottomDisplayStyleShiftDown Displaystyle
+Fail	BottomDisplayStyleShiftDown Displaystyle om fraction
+Fail	BottomShiftDown
+Fail	DisplayStyleGapMin
+Fail	DisplayStyleGapMin Dsiplaystyle
+Fail	DisplayStyleGapMin Dsiplaystyle on fraction
+Fail	GapMin
+Fail	TopDisplayStyleShiftUp
+Fail	TopDisplayStyleShiftUp Displaystyle
+Fail	TopDisplayStyleShiftUp Displaystyle on fraction
+Fail	ToShiftUp
+Fail	ToShiftUp with Displaystyle on fraction

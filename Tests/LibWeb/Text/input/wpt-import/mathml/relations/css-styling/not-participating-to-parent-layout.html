@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Elements not participating to the layout of their parent</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<meta name="assert" content="Verify that display: none and out-of-flow positioned elements do not participate to layout of their parent.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<script>
+  var epsilon = 1;
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+
+    for (tag in MathMLFragments) {
+        if (!FragmentHelper.isValidChildOfMrow(tag) ||
+            FragmentHelper.isEmpty(tag))
+            continue;
+        ["display: none",
+         "display: contents",
+         "position: absolute",
+         "position: fixed"
+        ].forEach(style => {
+            document.body.insertAdjacentHTML("beforeend", `<div style="position: absolute;">\
+<div style="display: inline-block"><math>${MathMLFragments[tag]}</math></div>\
+<div style="display: inline-block"><math>${MathMLFragments[tag]}</math></div>\
+</div>`);
+            var div = document.body.lastElementChild;
+
+            var elementContainer = div.firstElementChild;
+            var elementContainerWidth = elementContainer.getBoundingClientRect().width;
+            var element = FragmentHelper.element(elementContainer);
+            if (style === "display: contents" &&
+                !element.classList.contains("mathml-container")) {
+                // A "display: contents" MathML child is not participating to
+                // parent layout because its computed style is "display: none".
+                // If we cannot append a MathML child then skip that test.
+                return;
+            }
+            FragmentHelper.forceNonEmptyElement(element);
+            var allowInvalid = true;
+            var child = FragmentHelper.appendChild(element, allowInvalid);
+            child.setAttribute("style", style);
+
+            var referenceContainer = div.lastElementChild;
+            var referenceContainerWidth = referenceContainer.getBoundingClientRect().width;
+            var reference = FragmentHelper.element(referenceContainer);
+            FragmentHelper.forceNonEmptyElement(reference);
+
+            test(function() {
+                assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+                assert_approx_equals(elementContainerWidth, referenceContainerWidth, epsilon);
+            }, `${tag} preferred width calculation is not affected by children with "${style}" style`);
+
+            test(function() {
+                assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+                compareLayout(element, reference, epsilon);
+            }, `${tag} layout is not affected by children with "${style}" style`);
+
+            div.style = "display: none;"; // Hide the div after measurement.
+        });
+    }
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>

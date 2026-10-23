@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Operator dictionary (combining char, default category)</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dictionary-based-attributes">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-dictionary">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-of-mrow">
+<link rel="stylesheet" href="./support/operator-dictionary-tests.css"/>
+<meta name="assert" content="Operators with unsupported combining characters or three or more characters fall back to Default category (lspace=rspace=0.2777777777777778em)">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<style>
+  mo {
+      color: blue;
+  }
+  mn {
+      background: black;
+  }
+</style>
+<script>
+  function spaceBetween(element, i, j) {
+      return element.children[j].getBoundingClientRect().left -
+          element.children[i].getBoundingClientRect().right;
+  }
+  window.addEventListener("load", () => {
+      var epsilon = 1;
+      // Default category spacing per https://w3c.github.io/mathml-core/#operator-dictionary-categories-values
+      var defaultSpaceEm = 0.2777777777777778;
+
+      Array.from(document.getElementsByClassName("test-group")).forEach(group => {
+          var ref = group.getElementsByClassName("reference")[0];
+          var def = group.getElementsByClassName("default")[0];
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_operator_spacing());
+              var fontSize = parseFloat(getComputedStyle(def).fontSize);
+              var expected = 2 * defaultSpaceEm * fontSize;
+              var actual = spaceBetween(def, 0, 2) - spaceBetween(ref, 0, 2);
+              assert_approx_equals(actual, expected, epsilon, "lspace + rspace");
+          }, `Default spacing for ${group.dataset.description}`);
+      });
+  });
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <!-- U+0303 COMBINING TILDE is not a recognized combining overlay -->
+  <div class="test-group" data-description="= + unsupported combining char U+0303">
+    <p>
+      <math class="reference">
+        <mn>&nbsp;</mn>
+        <mo lspace="0" rspace="0">=&#x303;</mo>
+        <mn>&nbsp;</mn>
+      </math>
+    </p>
+    <p>
+      <math class="default">
+        <mn>&nbsp;</mn>
+        <mo>=&#x303;</mo>
+        <mn>&nbsp;</mn>
+      </math>
+    </p>
+  </div>
+  <!-- Three characters: base + two combining overlays -->
+  <div class="test-group" data-description="= + U+0338 + U+20D2 (too many characters)">
+    <p>
+      <math class="reference">
+        <mn>&nbsp;</mn>
+        <mo lspace="0" rspace="0">=&#x338;&#x20D2;</mo>
+        <mn>&nbsp;</mn>
+      </math>
+    </p>
+    <p>
+      <math class="default">
+        <mn>&nbsp;</mn>
+        <mo>=&#x338;&#x20D2;</mo>
+        <mn>&nbsp;</mn>
+      </math>
+    </p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Subscripts and Superscripts parameters</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#subscripts-and-superscripts-msub-msup-msubsup">
+<meta name="assert" content="Elements msub, msup, subsup and msubsup correctly use the italic correction from the MATH table.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math, mspace {
+    font-size: 10px;
+  }
+  @font-face {
+    font-family: largeop-displayoperatorminheight5000;
+    src: url("../../../fonts/math/largeop-displayoperatorminheight5000.woff");
+  }
+  @font-face {
+    font-family: largeop-displayoperatorminheight2000-2AFF-italiccorrection3000;
+    src: url("../../../fonts/math/largeop-displayoperatorminheight2000-2AFF-italiccorrection3000.woff");
+  }
+  @font-face {
+    font-family: largeop-displayoperatorminheight7000-2AFF-italiccorrection5000;
+    src: url("../../../fonts/math/largeop-displayoperatorminheight7000-2AFF-italiccorrection5000.woff");
+  }
+</style>
+<script>
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  /*
+    These two tests verify that:
+    - In msub, the script is at the right of the base minus the italic correction.
+    - In msup, the script is just at the right of the base.
+    - In msubsup, the scripts are shifted by the italic correction.
+    - In mmultiscripts, postscript pairs are shifted by the italic correction.
+    - In mmultiscripts, prescript pairs are vertically aligned.
+  */
+  var epsilon = 1;
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  function runTests() {
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      let w = 1000 * emToPx;
+      assert_approx_equals(getBox("base001").width, w, epsilon, "msub base width");
+      assert_approx_equals(getBox("base002").width, w, epsilon, "msup base width");
+      assert_approx_equals(getBox("base003").width, w, epsilon, "msubsup base width");
+      assert_approx_equals(getBox("base004").width, w, epsilon, "mmultiscripts base width")
+
+      var v = 0;
+      assert_approx_equals(getBox("base001").right - getBox("sub001").left, v, epsilon, "msub");
+      assert_approx_equals(getBox("sup002").left, getBox("base002").right, epsilon, "msup");
+      assert_approx_equals(getBox("sup003").left - getBox("sub003").left, v, epsilon, "msubsup");
+      assert_approx_equals(getBox("sup004").left - getBox("sub004").left, v, epsilon, "mmultiscripts postscripts");
+      assert_approx_equals(getBox("sup005").left - getBox("sub005").left, 0, epsilon, "mmultiscripts prescripts");
+    }, "Null Italic Correction");
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      let w = 4000 * emToPx;
+      assert_approx_equals(getBox("base011").width, w, epsilon, "msub base width");
+      assert_approx_equals(getBox("base012").width, w, epsilon, "msup base width");
+      assert_approx_equals(getBox("base013").width, w, epsilon, "msubsup base width");
+      assert_approx_equals(getBox("base014").width, w, epsilon, "mmultiscripts base width")
+
+      var v = 3000 * emToPx;
+      assert_approx_equals(getBox("base011").right - getBox("sub011").left, v, epsilon, "msub");
+      assert_approx_equals(getBox("sup012").left, getBox("base012").right, epsilon, "msup");
+      assert_approx_equals(getBox("sup013").left - getBox("sub013").left, v, epsilon, "msubsup");
+      assert_approx_equals(getBox("sup014").left - getBox("sub014").left, v, epsilon, "mmultiscripts postscripts");
+      assert_approx_equals(getBox("sup015").left - getBox("sub015").left, 0, epsilon, "mmultiscripts prescripts");
+    }, "NonNull Italic Correction (MathGlyphVariantRecord)");
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      let w = 7000 * emToPx;
+      assert_approx_equals(getBox("base021").width, w, epsilon, "msub base width");
+      assert_approx_equals(getBox("base022").width, w, epsilon, "msup base width");
+      assert_approx_equals(getBox("base023").width, w, epsilon, "msubsup base width");
+      assert_approx_equals(getBox("base024").width, w, epsilon, "mmultiscripts base width")
+
+      var v = 5000 * emToPx;
+      assert_approx_equals(getBox("base021").right - getBox("sub021").left, v, epsilon, "msub");
+      assert_approx_equals(getBox("sup022").left, getBox("base022").right, epsilon, "msup");
+      assert_approx_equals(getBox("sup023").left - getBox("sub023").left, v, epsilon, "msubsup");
+      assert_approx_equals(getBox("sup024").left - getBox("sub024").left, v, epsilon, "mmultiscripts postscripts");
+      assert_approx_equals(getBox("sup025").left - getBox("sub025").left, 0, epsilon, "mmultiscripts prescripts");
+    }, "NonNull Italic Correction (GlyphAssembly)");
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <h2>Null Italic Correction</h2>
+  <p>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight5000;">
+      <msub>
+        <mo id="base001" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sub001" height="1em" width="1em" style="background: blue"/>
+      </msub>
+    </math>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight5000;">
+      <msup>
+        <mo id="base002" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sup002" height="1em" width="1em" style="background: blue"/>
+      </msup>
+    </math>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight5000;">
+      <msubsup>
+        <mo id="base003" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sub003" height="1em" width="1em" style="background: blue"/>
+        <mspace id="sup003" height="1em" width="1em" style="background: green"/>
+      </msubsup>
+    </math>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight5000;">
+      <mmultiscripts>
+        <mo id="base004" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sub004" height="1em" width="1em" style="background: blue"/>
+        <mspace id="sup004" height="1em" width="1em" style="background: green"/>
+        <mprescripts/>
+        <mspace id="sub005" height="1em" width="1em" style="background: magenta"/>
+        <mspace id="sup005" height="1em" width="1em" style="background: cyan"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <h2>NonNull Italic Correction (MathGlyphVariantRecord)</h2>
+  <p>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight2000-2AFF-italiccorrection3000;">
+      <msub>
+        <mo id="base011" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sub011" height="1em" width="1em" style="background: blue"/>
+      </msub>
+    </math>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight2000-2AFF-italiccorrection3000;">
+      <msup>
+        <mo id="base012" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sup012" height="1em" width="1em" style="background: blue"/>
+      </msup>
+    </math>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight2000-2AFF-italiccorrection3000;">
+      <msubsup>
+        <mo id="base013" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sub013" height="1em" width="1em" style="background: blue"/>
+        <mspace id="sup013" height="1em" width="1em" style="background: green"/>
+      </msubsup>
+    </math>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight2000-2AFF-italiccorrection3000;">
+      <mmultiscripts>
+        <mo id="base014" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sub014" height="1em" width="1em" style="background: blue"/>
+        <mspace id="sup014" height="1em" width="1em" style="background: green"/>
+        <mprescripts/>
+        <mspace id="sub015" height="1em" width="1em" style="background: magenta"/>
+        <mspace id="sup015" height="1em" width="1em" style="background: cyan"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <h2>NonNull Italic Correction (GlyphAssembly)</h2>
+  <p>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight7000-2AFF-italiccorrection5000;">
+      <msub>
+        <mo id="base021" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sub021" height="1em" width="1em" style="background: blue"/>
+      </msub>
+    </math>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight7000-2AFF-italiccorrection5000;">
+      <msup>
+        <mo id="base022" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sup022" height="1em" width="1em" style="background: blue"/>
+      </msup>
+    </math>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight7000-2AFF-italiccorrection5000;">
+      <msubsup>
+        <mo id="base023" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sub023" height="1em" width="1em" style="background: blue"/>
+        <mspace id="sup023" height="1em" width="1em" style="background: green"/>
+      </msubsup>
+    </math>
+    <math displaystyle="true" style="font-family: largeop-displayoperatorminheight7000-2AFF-italiccorrection5000;">
+      <mmultiscripts>
+        <mo id="base024" lspace="0px" rspace="0px">&#x2AFF;</mo>
+        <mspace id="sub024" height="1em" width="1em" style="background: blue"/>
+        <mspace id="sup024" height="1em" width="1em" style="background: green"/>
+        <mprescripts/>
+        <mspace id="sub025" height="1em" width="1em" style="background: magenta"/>
+        <mspace id="sup025" height="1em" width="1em" style="background: cyan"/>
+      </mmultiscripts>
+    </math>
+  </p>
+</body>
+</html>

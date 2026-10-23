@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>float property in math layout</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#user-agent-stylesheet">
+<meta name="assert" content="Assert that float property is ignored for most math layout">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../../mathml/support/layout-comparison.js"></script>
+<style>
+  /* .element class defined in mathml-fragments.js */
+  .element > * {
+    padding: 10px;
+    background: black;
+  }
+  /* override display: none on children of maction/semantics */
+  maction > *, semantics > * {
+    display: math;
+  }
+</style>
+</head>
+<body>
+  <div id="log"></div>
+  <div id="container"></div>
+
+  <script>
+    let container = document.getElementById("container");
+    for (tag in MathMLFragments) {
+        if (!FragmentHelper.isValidChildOfMrow(tag) ||
+            FragmentHelper.isEmpty(tag))
+            continue;
+
+        // Skip mtable since it does not use display: math.
+        if (tag == "mtable")
+            continue;
+
+        document.body.insertAdjacentHTML("beforeend", `<div style="position: absolute;">\
+<div style="display: inline-block"><math>${MathMLFragments[tag]}</math></div>\
+<div style="display: inline-block"><math>${MathMLFragments[tag]}</math></div>\
+</div>`);
+        let div = document.body.lastElementChild;
+        let element =
+            FragmentHelper.element(div.firstElementChild);
+        let reference =
+            FragmentHelper.element(div.lastElementChild);
+        [element, reference].forEach(parent => {
+            if (parent.classList.contains("mathml-container") ||
+                parent.classList.contains("foreign-container")) {
+                FragmentHelper.appendChild(parent);
+                FragmentHelper.appendChild(parent);
+                FragmentHelper.appendChild(parent);
+            }
+        });
+
+        // Try to use float to invert the order in which children are normally
+        // laid out.
+        function layoutChildrenFromLeftToRight(tag) { tag != 'mroot'; }
+        element.firstElementChild.style =
+            `float: ${layoutChildrenFromLeftToRight(tag) ? 'right' : 'left'};`;
+        element.lastElementChild.style =
+            `float: ${layoutChildrenFromLeftToRight(tag) ? 'left' : 'right'};`;
+
+        test(function () {
+            let epsilon = 1;
+            compareLayout(element, reference, epsilon);
+        }, `float child ignored in ${tag}`);
+
+        div.style = "display: none;"; // Hide the div after measurement.
+    }
+  </script>
+</body>
+</html>

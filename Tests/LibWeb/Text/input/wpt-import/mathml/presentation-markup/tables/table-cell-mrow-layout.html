@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Table cell mrow layout</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#table-or-matrix-mtable">
+<meta name="assert" content="Table cell relies on the mrow layout for their children.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<style>
+  /* Remove default padding, since there is none on reference mrow element. */
+  mtd { padding: 0; }
+</style>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mtable id="mtable">
+        <mtr>
+          <mtd id="mtd">
+            <mspace width="10px" depth="20px" height="20px" style="background: blue"/>
+            <mspace width="10px" depth="10px" height="30px" style="background: lightblue"/>
+            <mspace width="10px" depth="30px" height="10px" style="background: black"/>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow id="mtd-reference">
+        <mspace width="10px" depth="20px" height="20px" style="background: blue"/>
+        <mspace width="10px" depth="10px" height="30px" style="background: lightblue"/>
+        <mspace width="10px" depth="30px" height="10px" style="background: black"/>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable id="mtable-reference">
+        <mtr>
+          <mtd>
+            <mrow>
+              <mspace width="10px" depth="20px" height="20px" style="background: blue"/>
+              <mspace width="10px" depth="10px" height="30px" style="background: lightblue"/>
+              <mspace width="10px" depth="30px" height="10px" style="background: black"/>
+            </mrow>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <script>
+    const epsilon = 1;
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      let mtd = document.getElementById("mtd");
+      let reference = document.getElementById("mtd-reference");
+      compareLayout(mtd, reference, epsilon);
+    }, "<mtd> relies on mrow algorithm to layout its children");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      let mtable = document.getElementById("mtable");
+      let reference = document.getElementById("mtable-reference");
+      compareLayout(mtable, reference, epsilon);
+    }, "<mtable> layout does not change if children of <mtd> elements are wrapped in an explicit <mrow>");
+  </script>
+</body>
+</html>

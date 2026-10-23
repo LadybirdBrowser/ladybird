@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<title>MathML tabindex attribute</title>
+<meta name="timeout" content="long">
+<link rel="help" href="https://w3c.github.io/mathml-core/#attributes-common-to-html-and-mathml-elements">
+<meta assert="flag" content="interact">
+<meta assert="assert" content="Check the sequential focus navigation order for MathML">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<div id="log"></div>
+<a href="#link">tabindex(html,href)</a>
+<math>
+  <mtext id="text1">tabindex(omitted)</mtext>
+  <mtext id="text2" tabindex="">tabindex(empty)</mtext>
+  <mtext id="text3" tabindex="a">tabindex(a)</mtext>
+  <mtext id="text4" tabindex="-1">tabindex(-1)</mtext>
+  <mtext id="text5" tabindex="0">tabindex(0)</mtext>
+  <mtext id="text6" href="#link"><mtext>tabindex(mtext href)</mtext>
+  <a id="text7" href="#link"><mtext>tabindex(a href)</mtext></a>
+  <mtext id="text8" tabindex="3">tabindex(3)</mtext>
+  <mtext id="text9" tabindex="2">tabindex(2)</mtext>
+  <mtext id="text10" tabindex="2">tabindex(2)</mtext>
+  <mtext id="text11" tabindex="2">tabindex(2)</mtext>
+  <mtext id="text12" tabindex="1">tabindex(1)</mtext>
+</math>
+<script>
+
+var i = 0,
+    expectation = ["text12", "text9", "text10", "text11", "text8", "text5"],
+    results = [],
+    t = async_test("Elements with different tabindex must be focused sequentially when pressing 'Tab' keys");
+
+setup(function () {
+  document.body.focus();
+});
+
+document.querySelector("a").addEventListener("focus", function (evt) {
+    // Links are tab-navigable on that platform.
+    expectation.push("text7");
+    // TAB = '\ue004'
+    test_driver.send_keys(document.body, "\ue004");
+}, true);
+
+document.querySelector("math").addEventListener("focus", function (evt) {
+  results.push(evt.target.id);
+  i++;
+  if (i >= expectation.length) {
+    t.step(function () {
+      assert_array_equals(results, expectation);
+    });
+    t.done();
+  } else {
+    t.step(function () {
+      // TAB = '\ue004'
+      test_driver.send_keys(document.body, "\ue004");
+    });
+  }
+}, true);
+
+document.addEventListener("keydown", function (evt) {
+  t.step(function () {
+    assert_equals(evt.keyCode, 9, "Please press 'Tab' key.");
+  });
+}, true);
+
+t.step(function () {
+  // TAB = '\ue004'
+  test_driver.send_keys(document.body, "\ue004");
+});
+</script>

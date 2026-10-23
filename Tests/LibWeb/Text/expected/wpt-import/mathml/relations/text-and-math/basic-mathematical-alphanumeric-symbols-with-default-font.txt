@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Bold mathematical alphanumeric symbol with the default font
+Fail	Italic mathematical alphanumeric symbol with the default font
+Fail	Bold-italic mathematical alphanumeric symbol with the default font

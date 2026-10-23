@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test Script and Limit Schemata</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#script-and-limit-schemata">
+<meta name="assert" content="Script and Limit Schemata should not render anything when empty.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script>
+  var epsilon = 1;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+    test(function() {
+      ["over", "under", "underover", "sub", "sup", "subsup", "multiscripts"].forEach(function(name) {
+        assert_true(MathMLFeatureDetection.has_mspace());
+        assert_approx_equals(getBox(name).width, 0, epsilon, "width of empty " + name);
+        assert_approx_equals(getBox(name).height, 0, epsilon, "height of empty " + name);
+      });
+    }, "Size of empty script elements");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+    <p>
+      <math>
+        <munderover id="underover">
+        </munderover>
+      </math>
+      <math>
+        <munder id="under">
+        </munder>
+      </math>
+      <math>
+        <mover id="over">
+        </mover>
+      </math>
+      <math>
+        <msub id="sub">
+        </msub>
+      </math>
+      <math>
+        <msup id="sup">
+        </msup>
+      </math>
+      <math>
+        <msubsup id="subsup">
+        </msubsup>
+      </math>
+      <math>
+        <mmultiscripts id="multiscripts">
+        </mmultiscripts>
+      </math>
+    </p>
+</body>
+</html>

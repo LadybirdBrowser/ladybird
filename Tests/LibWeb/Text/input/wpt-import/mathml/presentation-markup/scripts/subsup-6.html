@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mprescripts</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#subscripts-and-superscripts-msub-msup-msubsup">
+<meta name="assert" content="Position and size of mprescripts in mmultiscript element.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+  math, mspace {
+    font: 25px/1 Ahem, math;
+  }
+</style>
+<script>
+  /* This test does not use a font with a MATH table and does not verify layout
+     rules in a very strict way. */
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+      Array.from(document.getElementsByTagName("mprescripts")).
+          forEach(prescript => {
+              let mmultiscripts = prescript.parentNode;
+              let name = mmultiscripts.getAttribute("data-name");
+              test(function() {
+                  assert_true(MathMLFeatureDetection.has_mspace());
+                  var e = 1;
+                  let base_box = mmultiscripts.firstElementChild.getBoundingClientRect();
+                  let prescript_box = prescript.getBoundingClientRect();
+                  assert_approx_equals(prescript_box.left, base_box.left, e, `${name}, left`);
+                  assert_approx_equals((prescript_box.top + prescript_box.bottom) / 2, (base_box.top + base_box.bottom) / 2, e, `${name}, top`);
+
+                  if (name == "prescripts with padding/border/margin") {
+                      assert_approx_equals(prescript_box.width, 2*(15 + 25), e, `${name}, width`);
+                      assert_approx_equals(prescript_box.height, 2*(10 + 20), e, `${name}, height`);
+                  } else {
+                      assert_approx_equals(prescript_box.width, 0, e, `${name}, width`);
+                      assert_approx_equals(prescript_box.height, 0, e, `${name}, height`);
+                  }
+              }, `mprescripts coordinates and sizes (${name})`);
+          });
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mmultiscripts data-name="2 postscripts">
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mprescripts/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-name="2 prescripts">
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mprescripts/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-name="2 prescripts, 4 postscripts">
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mprescripts/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-name="4 prescripts, 2 postscripts">
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mprescripts/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-name="prescripts with padding/border/margin">
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mprescripts style="background: blue;
+                            padding-top: 10px; border-top: 20px solid green;
+                            padding-bottom: 10px; border-bottom: 20px solid green;
+                            padding-left: 15px; border-left: 25px solid green;
+                            padding-right: 15px; border-right: 25px solid green;
+                            margin-top: 50px;"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+        <mspace width="30px" height="15px" depth="15px" style="background: black"/>
+      </mmultiscripts>
+    </math>
+  </p>
+</body>
+</html>

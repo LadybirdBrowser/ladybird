@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Fail
+Fail	container1: Initially an embellished operator
+Fail	container2: Initially not an embellished operator
+Fail	 container1: No longer an embellished operator
+Fail	container2: Became an embellished operator
+Fail	container3: Initially an embellished operator (testing space-like)
+Fail	container4/space-like: Initially not an embellished operator (testing space-like)
+Fail	 container3: No longer an embellished operator (testing space-like)
+Fail	container4: Became an embellished operator (testing space-like)
