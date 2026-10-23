@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+    <metadata>
+        <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/interact.html#Focus"/>
+    </metadata>
+    <g id="default-samples">
+        <!-- non-default focusable renderable element -->
+        <rect></rect>
+        <svg></svg>
+        <!-- anchors need a href to be focusable -->
+        <a></a>
+        <a href=""></a>
+        <!-- iframe, and audio/video with controls are default focusable -->
+        <h:iframe src="resources/blank.htm"></h:iframe>
+        <h:audio controls="controls"></h:audio>
+        <h:video controls="controls"></h:video>
+        <!-- non-default focusable renderable element with valid tabindex -->
+        <h:canvas tabindex="0"></h:canvas>
+        <circle tabindex="0"></circle>
+        <ellipse tabindex="0"></ellipse>
+        <foreignObject tabindex="0"></foreignObject>
+        <g tabindex="0"></g>
+        <image tabindex="0"></image>
+        <line tabindex="0"></line>
+        <mesh tabindex="0"></mesh>
+        <path tabindex="0"></path>
+        <polygon tabindex="0"></polygon>
+        <rect tabindex="0"></rect>
+        <svg tabindex="0"></svg>
+        <switch tabindex="0"></switch>
+        <text tabindex="0">
+            <textPath tabindex="0"></textPath>
+            <tspan tabindex="0"></tspan>
+        </text>
+        <unknown tabindex="0"></unknown>
+        <use tabindex="0"></use>
+        <!-- never-rendered element with valid tabindex -->
+        <clipPath tabindex="0"></clipPath>
+        <defs tabindex="0"></defs>
+        <desc tabindex="0"></desc>
+        <linearGradient tabindex="0"></linearGradient>
+        <marker tabindex="0"></marker>
+        <mask tabindex="0"></mask>
+        <metadata tabindex="0"></metadata>
+        <pattern tabindex="0"></pattern>
+        <radialGradient tabindex="0"></radialGradient>
+        <script tabindex="0"></script>
+        <style tabindex="0"></style>
+        <title tabindex="0"></title>
+        <symbol tabindex="0"></symbol>
+    </g>
+    <h:script src="../../../resources/testharness.js"/>
+    <h:script src="../../../resources/testharnessreport.js"/>
+    <script><![CDATA[
+    var root = document.querySelector("svg");
+
+    test(() => {
+        root.focus();
+        assert_equals(document.activeElement, root);
+    }, 'The document root element should be focusable.');
+
+    const defaultList = [
+        ['rect', false],
+        ['svg', false],
+        ['a', false],
+        ['a[href]', true],
+        ['iframe', true],
+        ['audio[controls]', true],
+        ['video[controls]', true],
+        ['canvas[tabindex]', true],
+        ['circle[tabindex]', true],
+        ['ellipse[tabindex]', true],
+        ['foreignObject[tabindex]', true],
+        ['g[tabindex]', true],
+        ['image[tabindex]', true],
+        ['line[tabindex]', true],
+        ['mesh[tabindex]', true],
+        ['path[tabindex]', true],
+        ['polygon[tabindex]', true],
+        ['rect[tabindex]', true],
+        ['svg[tabindex]', true],
+        ['switch[tabindex]', true],
+        ['text[tabindex]', true],
+        ['textPath[tabindex]', true],
+        ['tspan[tabindex]', true],
+        ['unknown[tabindex]', true],
+        ['use[tabindex]', true],
+        ['clipPath[tabindex]', false],
+        ['defs[tabindex]', false],
+        ['desc[tabindex]', false],
+        ['linearGradient[tabindex]', false],
+        ['marker[tabindex]', false],
+        ['mask[tabindex]', false],
+        ['metadata[tabindex]', false],
+        ['pattern[tabindex]', false],
+        ['radialGradient[tabindex]', false],
+        ['script[tabindex]', false],
+        ['style[tabindex]', false],
+        ['title[tabindex]', false],
+        ['symbol[tabindex]', false],
+    ];
+
+    for (entry of defaultList) {
+        test(() => {
+            var element = document.querySelector('#default-samples ' + entry[0]);
+            element.focus();
+            if (entry[1])
+            assert_equals(document.activeElement, element);
+            else
+            assert_not_equals(document.activeElement, element);
+        }, entry[0] + ' should ' + (entry[1] ? '' : 'not ') + 'be focusable.');
+    }
+    ]]></script>
+</svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml"
+     width="800px" height="8000px">
+  <title>SVG Scripting and Interactivity: getComputedStyle().pointerEvents</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/interact.html#PointerEventsProperty"/>
+    <h:meta name="assert" content="pointer-events computed value is as specified."/>
+  </metadata>
+  <g id="target"></g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="../../../css/support/computed-testcommon.js"/>
+  <script><![CDATA[
+
+test_computed_value("pointer-events", "auto");
+test_computed_value("pointer-events", "bounding-box");
+test_computed_value("pointer-events", "visiblepainted");
+test_computed_value("pointer-events", "visiblefill");
+test_computed_value("pointer-events", "visiblestroke");
+test_computed_value("pointer-events", "visible");
+test_computed_value("pointer-events", "painted");
+test_computed_value("pointer-events", "fill");
+test_computed_value("pointer-events", "stroke");
+test_computed_value("pointer-events", "all");
+test_computed_value("pointer-events", "none");
+
+  ]]></script>
+</svg>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<title>elementFromPoint(...) on &lt;rect>s with simple strokes</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/interact.html#hit-testing">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#rect1:hover,
+#rect2:hover,
+#rect3:hover,
+#rect4:hover,
+#rect5:hover,
+#rect6:hover {
+    stroke: #00f;
+}
+</style>
+<svg id="svg" width="420" height="300" version="1.1">
+  <rect id="border" x="0.5" y="0.5" width="419" height="299" stroke="#000" stroke-width="1" fill="none"/>
+
+  <rect id="rect1" x="70" y="30" width="100" height="80" stroke="#000" stroke-width="20" fill="none"/>
+  <rect id="rect2" x="40" y="150" width="50" height="120" stroke="#000" stroke-width="20" fill="none" transform="rotate(20 65 210)"/>
+  <rect id="rect3" x="140" y="200" width="150" height="70" stroke="#000" stroke-width="20" fill="none"/>
+  <rect id="rect4" x="220" y="50" width="60" height="10" stroke="#000" stroke-width="20" fill="none"/>
+  <rect id="rect5" x="230" y="100" width="10" height="60" stroke="#000" stroke-width="20" fill="none" transform="rotate(-45 235 130)"/>
+  <rect id="rect6" x="310" y="130" width="10" height="10" stroke="#000" stroke-width="20" fill="none"/>
+</svg>
+<script>
+// Points are relative to the client rect of the <svg> root.
+const tests = [
+  { x: 30, y: 12, expectedElemId: "svg" },
+  { x: 118, y: 10, expectedElemId: "svg" },
+  { x: 197, y: 12, expectedElemId: "svg" },
+  { x: 201, y: 28, expectedElemId: "svg" },
+  { x: 15, y: 70, expectedElemId: "svg" },
+  { x: 97, y: 52, expectedElemId: "svg" },
+  { x: 149, y: 49, expectedElemId: "svg" },
+  { x: 85, y: 82, expectedElemId: "svg" },
+  { x: 122, y: 98, expectedElemId: "svg" },
+  { x: 154, y: 75, expectedElemId: "svg" },
+  { x: 72, y: 130, expectedElemId: "svg" },
+  { x: 48, y: 145, expectedElemId: "svg" },
+  { x: 31, y: 279, expectedElemId: "svg" },
+  { x: 28, y: 201, expectedElemId: "svg" },
+  { x: 71, y: 179, expectedElemId: "svg" },
+  { x: 43, y: 244, expectedElemId: "svg" },
+  { x: 74, y: 219, expectedElemId: "svg" },
+  { x: 94, y: 261, expectedElemId: "svg" },
+  { x: 126, y: 231, expectedElemId: "svg" },
+  { x: 146, y: 185, expectedElemId: "svg" },
+  { x: 173, y: 216, expectedElemId: "svg" },
+  { x: 225, y: 258, expectedElemId: "svg" },
+  { x: 247, y: 284, expectedElemId: "svg" },
+  { x: 286, y: 174, expectedElemId: "svg" },
+  { x: 254, y: 120, expectedElemId: "svg" },
+  { x: 203, y: 96, expectedElemId: "svg" },
+  { x: 244, y: 163, expectedElemId: "svg" },
+  { x: 300, y: 37, expectedElemId: "svg" },
+  { x: 335, y: 136, expectedElemId: "svg" },
+
+  // Test all four outer corner points of #rect1
+  { x: 60, y: 20, expectedElemId: "rect1" },
+  { x: 180, y: 20, expectedElemId: "rect1" },
+  { x: 180, y: 120, expectedElemId: "rect1" },
+  { x: 60, y: 120, expectedElemId: "rect1" },
+  // Test all four interior corner points of #rect1
+  { x: 80, y: 40, expectedElemId: "rect1" },
+  { x: 160, y: 40, expectedElemId: "rect1" },
+  { x: 160, y: 100, expectedElemId: "rect1" },
+  { x: 80, y: 100, expectedElemId: "rect1" },
+
+  { x: 67, y: 56, expectedElemId: "rect1" },
+  { x: 146, y: 27, expectedElemId: "rect1" },
+  { x: 173, y: 111, expectedElemId: "rect1" },
+
+  { x: 28, y: 242, expectedElemId: "rect2" },
+  { x: 51, y: 182, expectedElemId: "rect2" },
+  { x: 89, y: 155, expectedElemId: "rect2" },
+
+  { x: 136, y: 198, expectedElemId: "rect3" },
+  { x: 177, y: 270, expectedElemId: "rect3" },
+  { x: 275, y: 197, expectedElemId: "rect3" },
+  { x: 297, y: 233, expectedElemId: "rect3" },
+
+  { x: 235, y: 47, expectedElemId: "rect4" },
+  { x: 272, y: 61, expectedElemId: "rect4" },
+  { x: 290, y: 70, expectedElemId: "rect4" },
+
+  { x: 233, y: 140, expectedElemId: "rect5" },
+
+  { x: 312, y: 128, expectedElemId: "rect6" },
+  { x: 330, y: 150, expectedElemId: "rect6" }
+];
+
+setup(() => {
+  const svg = document.getElementById("svg");
+  const svgBounds = svg.getBoundingClientRect();
+  window.svgOrigin = {
+    x: svgBounds.left << 0,
+    y: svgBounds.top << 0,
+  };
+});
+
+tests.forEach(testcase => {
+  test(t => {
+    const expectedElem = document.getElementById(testcase.expectedElemId);
+    const hitElem = document.elementFromPoint(svgOrigin.x + testcase.x, svgOrigin.y + testcase.y);
+    assert_equals(hitElem, expectedElem);
+  }, `${document.title}, element at (${testcase.x}, ${testcase.y})`);
+});
+</script>

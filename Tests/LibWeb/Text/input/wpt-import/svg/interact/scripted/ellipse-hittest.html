@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<title>elementFromPoint(...) on &lt;ellipse>s with continuous strokes</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/interact.html#hit-testing">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#ell1:hover,
+#ell2:hover,
+#ell3:hover {
+    stroke: #9f9;
+}
+</style>
+<svg id="svg" width="450" height="300">
+  <rect id="border" x="0.5" y="0.5" width="449" height="299" stroke="#000" stroke-width="1" fill="none"/>
+
+  <ellipse id="ell1" cx="130" cy="30" rx="100" ry="15" stroke="#ccf" fill="none" stroke-width="20"/>
+  <ellipse pointer-events="none" cx="130" cy="30" rx="110" ry="25" stroke="gray" fill="none"/>
+  <ellipse pointer-events="none" cx="130" cy="30" rx="90" ry="5" stroke="gray" fill="none"/>
+
+  <ellipse id="ell2" cx="130" cy="180" rx="100" ry="100" stroke="#ccf" fill="none" stroke-width="30"/>
+  <ellipse pointer-events="none" cx="130" cy="180" rx="115" ry="115" stroke="gray" fill="none"/>
+  <ellipse pointer-events="none" cx="130" cy="180" rx="85" ry="85" stroke="gray" fill="none"/>
+
+  <ellipse id="ell3" cx="340" cy="155" rx="15" ry="100" stroke="#ccf" fill="none" stroke-width="20" transform="rotate(30 340 155)"/>
+  <ellipse pointer-events="none" cx="340" cy="155" rx="25" ry="110" stroke="gray" fill="none" transform="rotate(30 340 155)"/>
+  <ellipse pointer-events="none" cx="340" cy="155" rx="5" ry="90" stroke="gray" fill="none" transform="rotate(30 340 155)"/>
+</svg>
+<script>
+// Points are relative to the client rect of the <svg> root.
+const tests = [
+  { x: 27, y: 46, expectedElemId: "svg" },
+  { x: 98, y: 33, expectedElemId: "svg" },
+  { x: 202, y: 53, expectedElemId: "svg" },
+  { x: 98, y: 142, expectedElemId: "svg" },
+  { x: 130, y: 180, expectedElemId: "svg" },
+  { x: 91, y: 247, expectedElemId: "svg" },
+  { x: 27, y: 240, expectedElemId: "svg" },
+  { x: 336, y: 166, expectedElemId: "svg" },
+  { x: 337, y: 214, expectedElemId: "svg" },
+
+  { x: 31, y: 18, expectedElemId: "ell1" },
+  { x: 209, y: 31, expectedElemId: "ell1" },
+  { x: 132, y: 47, expectedElemId: "ell1" },
+  { x: 229, y: 43, expectedElemId: "ell1" },
+
+  { x: 245, y: 180, expectedElemId: "ell2" },
+  { x: 45, y: 180, expectedElemId: "ell2" },
+  { x: 130, y: 95, expectedElemId: "ell2" },
+  { x: 130, y: 295, expectedElemId: "ell2" },
+  { x: 212, y: 255, expectedElemId: "ell2" },
+
+  { x: 280, y: 235, expectedElemId: "ell3" },
+  { x: 301, y: 247, expectedElemId: "ell3" },
+  { x: 378, y: 88, expectedElemId: "ell3" },
+  { x: 335, y: 122, expectedElemId: "ell3" },
+  { x: 333, y: 190, expectedElemId: "ell3" },
+  { x: 377, y: 66, expectedElemId: "ell3" }
+];
+
+setup(() => {
+  const svg = document.getElementById("svg");
+  const svgBounds = svg.getBoundingClientRect();
+  window.svgOrigin = {
+    x: svgBounds.left << 0,
+    y: svgBounds.top << 0,
+  };
+});
+
+tests.forEach(testcase => {
+  test(t => {
+    const expectedElem = document.getElementById(testcase.expectedElemId);
+    const hitElem = document.elementFromPoint(svgOrigin.x + testcase.x, svgOrigin.y + testcase.y);
+    assert_equals(hitElem, expectedElem);
+  }, `${document.title}, element at (${testcase.x}, ${testcase.y})`);
+});
+</script>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>pointer-events hit-testing of the fill and stroke areas of SVG graphics elements</title>
+<link rel="help" href="https://svgwg.org/svg2-draft/interact.html#PointerEventsProperty">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=619959">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg id="svg" width="300" height="100" font-family="Ahem">
+  <rect id="rect" x="10" y="10" width="40" height="40" stroke-width="20"/>
+  <text id="text" x="190" y="50" font-size="40px" stroke-width="20">X</text>
+</svg>
+<script>
+const pointer_events_values = [
+  "auto", "visiblePainted", "visibleFill", "visibleStroke", "visible",
+  "painted", "fill", "stroke", "all", "none",
+];
+const paint_values = ["blue", "transparent", "none"];
+const opacity_values = ["1", "0.5", "0"];
+const visibility_values = ["visible", "hidden", "collapse"];
+
+const inputs = {
+  fill: [
+    { name: "pointer-events", values: pointer_events_values },
+    { name: "fill", values: paint_values },
+    { name: "fill-opacity", values: opacity_values },
+    { name: "opacity", values: opacity_values },
+    { name: "visibility", values: visibility_values },
+  ],
+  stroke: [
+    { name: "pointer-events", values: pointer_events_values },
+    { name: "stroke", values: paint_values },
+    { name: "stroke-opacity", values: opacity_values },
+    { name: "opacity", values: opacity_values },
+    { name: "visibility", values: visibility_values },
+  ],
+  both: [
+    { name: "pointer-events", values: pointer_events_values },
+    { name: "fill", values: paint_values },
+    { name: "fill-opacity", values: opacity_values },
+    { name: "stroke", values: paint_values },
+    { name: "stroke-opacity", values: opacity_values },
+    { name: "opacity", values: opacity_values },
+    { name: "visibility", values: visibility_values },
+  ],
+};
+
+// For each 'pointer-events' value, the conditions under which the fill and
+// the stroke intercept pointer events. A missing key means that area never
+// intercepts; an empty object means it always does. A "!" suffix negates the
+// match.
+const hit_conditions = {
+  auto: {
+    fill: { visibility: ["visible"], "fill!": ["none"] },
+    stroke: { visibility: ["visible"], "stroke!": ["none"] },
+  },
+  visiblePainted: {
+    fill: { visibility: ["visible"], "fill!": ["none"] },
+    stroke: { visibility: ["visible"], "stroke!": ["none"] },
+  },
+  visibleFill: {
+    fill: { visibility: ["visible"] },
+  },
+  visibleStroke: {
+    stroke: { visibility: ["visible"] },
+  },
+  visible: {
+    fill: { visibility: ["visible"] },
+    stroke: { visibility: ["visible"] },
+  },
+  painted: {
+    fill: { "fill!": ["none"] },
+    stroke: { "stroke!": ["none"] },
+  },
+  fill: {
+    fill: {},
+  },
+  stroke: {
+    stroke: {},
+  },
+  all: {
+    fill: {},
+    stroke: {},
+  },
+  none: {},
+};
+
+function area_hit_expected(attrs, area) {
+  const conditions = hit_conditions[attrs["pointer-events"]][area];
+  if (!conditions) {
+    return false;
+  }
+  for (let attr in conditions) {
+    const values = conditions[attr];
+    let invert = false;
+    if (attr.endsWith("!")) {
+      invert = true;
+      attr = attr.slice(0, -1);
+    }
+    if (values.includes(attrs[attr]) == invert) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function hit_expected(attrs, over) {
+  return over.some(area => area_hit_expected(attrs, area));
+}
+
+function for_all_permutations(inputs, callback, current = {}, index = 0) {
+  if (index == inputs.length) {
+    callback(current);
+    return;
+  }
+  const { name, values } = inputs[index];
+  for (const value of values) {
+    current[name] = value;
+    for_all_permutations(inputs, callback, current, index + 1);
+  }
+}
+
+function test_element(id, x, y, over) {
+  const element = document.getElementById(id);
+  const svgBounds = document.getElementById("svg").getBoundingClientRect();
+  const clientX = svgBounds.left + x;
+  const clientY = svgBounds.top + y;
+  const area = over.join(" and ");
+  for_all_permutations(inputs[over.length == 2 ? "both" : over[0]], attrs => {
+    for (const attr in attrs) {
+      element.setAttribute(attr, attrs[attr]);
+    }
+    let description = `<${element.localName}> over ${area}:`;
+    for (const attr in attrs) {
+      description += ` ${attr}=${attrs[attr]}`;
+    }
+    test(() => {
+      const hit = document.elementFromPoint(clientX, clientY) == element;
+      assert_equals(hit, hit_expected(attrs, over));
+    }, description);
+  });
+  element.setAttribute("fill", "none");
+  element.setAttribute("stroke", "none");
+}
+
+setup({ explicit_done: true });
+
+document.fonts.ready.then(() => {
+  test_element("rect", 30, 30, ["fill"]);
+  test_element("rect", 5, 5, ["stroke"]);
+  // For text, hit-testing is done against the character cells, so a point
+  // over a glyph is over both the fill and the stroke at the same time.
+  test_element("text", 210, 30, ["fill", "stroke"]);
+  done();
+});
+</script>

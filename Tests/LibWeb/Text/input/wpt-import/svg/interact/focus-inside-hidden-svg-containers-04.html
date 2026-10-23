@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Non-rendered SVG containers cannot receive focus</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/interact.html#Focus">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<svg xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs" tabindex="0"></defs>
+  <symbol id="symbol" tabindex="0"></symbol>
+  <clipPath id="clipPath" tabindex="0"></clipPath>
+  <mask id="mask" tabindex="0"></mask>
+  <marker id="marker" tabindex="0"></marker>
+  <pattern id="pattern" tabindex="0"></pattern>
+  <linearGradient id="linearGradient" tabindex="0"></linearGradient>
+  <radialGradient id="radialGradient" tabindex="0"></radialGradient>
+</svg>
+
+<script>
+  for (const id of ["defs", "symbol", "clipPath", "mask", "marker", "pattern", "linearGradient", "radialGradient"]) {
+    test(() => {
+      const element = document.getElementById(id);
+      element.focus();
+      assert_not_equals(document.activeElement, element, `<${element.localName} tabindex="0"> should not be focusable`);
+    }, `Non-rendered <${id}> is not focusable`);
+  }
+</script>
