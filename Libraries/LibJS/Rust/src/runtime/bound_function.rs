@@ -159,7 +159,7 @@ impl BoundFunction {
         self.bound_arguments()[index]
     }
 
-    fn bound_arguments(&self) -> &[Value] {
+    pub fn bound_arguments(&self) -> &[Value] {
         self.bound_arguments
             .get()
             .expect("a bound function has its bound arguments")

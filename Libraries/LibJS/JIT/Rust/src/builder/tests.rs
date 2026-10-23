@@ -2296,7 +2296,7 @@ pub(crate) mod inlining {
             argument_count: 1,
             inline_executable: Some(1),
             bound_this: value::UNDEFINED,
-            bound_arguments: [value::int32(7), 0, 0, 0],
+            bound_arguments_start: 0,
             bound_argument_count: 1,
         };
 
@@ -2336,11 +2336,34 @@ pub(crate) mod inlining {
         snapshot.executables[0].feedback.call[0].target = Some(CellId(0x9100));
         snapshot.executables[0].feedback.call[0].inline_executable = None;
         snapshot.executables[0].feedback.call[0].forwarded = Some(forwarded(Forwarding::Bound));
+        snapshot.executables[0].feedback.bound_arguments = vec![value::int32(7)];
         let graph = optimized_graph(&snapshot);
         let text = dump(&graph, &test_layout());
         assert!(text.contains("CheckValue 0xfff9000000009100"), "{text}");
         assert!(text.contains("Return (#7)"), "{text}");
         assert!(graph.embedded_cells.contains(&CellId(0x9100)));
+
+        // Five bound arguments from the middle of the table: the callee gets the last.
+        let fifth_argument = Operand::from_raw(test_layout().arguments_base() + 4);
+        let fifth = assemble(|_| vec![Instruction::Enter, Instruction::Return { value: fifth_argument }]);
+        let mut snapshot = snapshot_with_callee(&caller, &fifth, function(true, false));
+        snapshot.executables[1].layout.number_of_arguments = 5;
+        snapshot.executables[0].feedback.call[0].target = Some(CellId(0x9100));
+        snapshot.executables[0].feedback.call[0].inline_executable = None;
+        let mut five = forwarded(Forwarding::Bound);
+        five.bound_arguments_start = 2;
+        five.bound_argument_count = 5;
+        snapshot.executables[0].feedback.call[0].forwarded = Some(five);
+        snapshot.executables[0].feedback.bound_arguments = (1..=8).map(value::int32).collect();
+        let text = dump(&optimized_graph(&snapshot), &test_layout());
+        assert!(text.contains("CheckValue 0xfff9000000009100"), "{text}");
+        assert!(text.contains("Return (#7)"), "{text}");
+
+        // Bound arguments past the end of the table are not inlined.
+        five.bound_arguments_start = 4;
+        snapshot.executables[0].feedback.call[0].forwarded = Some(five);
+        let text = dump(&optimized_graph(&snapshot), &test_layout());
+        assert!(!text.contains("CheckValue 0xfff9000000009100"), "{text}");
     }
 
     #[test]

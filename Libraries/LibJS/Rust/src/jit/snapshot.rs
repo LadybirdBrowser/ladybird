@@ -111,6 +111,8 @@ struct SnapshotBuilder<'vm> {
     lexical_environment_templates: Vec<Option<LexicalEnvironmentTemplateSnapshot>>,
     /// The environment templates of the direct calls of the executable whose snapshot is being made.
     environment_templates: Vec<EnvironmentTemplateSnapshot>,
+    /// The bound arguments of the call feedback of the executable whose snapshot is being made.
+    bound_arguments: Vec<u64>,
     /// For the constructors among the inlining candidates, by index: the shape of the `this` value their inlined
     /// constructs create, whose entries their megamorphic caches describe.
     construct_this_shapes: HashMap<u32, Gc<Shape>>,
@@ -714,37 +716,44 @@ impl SnapshotBuilder<'_> {
     /// Describes how the single callee of a call site forwarded its calls, if the snapshot can describe it.
     fn forwarded_call(&mut self, call: &CallFeedback, caller: &Entry) -> Option<ForwardedCallSnapshot> {
         let target = call.forwarded_target()?;
+        let forwarding = match call.forwarding.get() {
+            forwarding if forwarding == CallFeedbackForwarding::Apply as u8 => Forwarding::Apply,
+            forwarding if forwarding == CallFeedbackForwarding::Call as u8 => Forwarding::Call,
+            forwarding if forwarding == CallFeedbackForwarding::Bound as u8 => Forwarding::Bound,
+            forwarding if forwarding == CallFeedbackForwarding::Callback as u8 => Forwarding::Callback,
+            _ => return None,
+        };
+        let bound = match forwarding {
+            Forwarding::Bound => Some(call.target()?.downcast::<BoundFunction>()?),
+            _ => None,
+        };
         let mut snapshot = ForwardedCallSnapshot {
-            forwarding: match call.forwarding.get() {
-                forwarding if forwarding == CallFeedbackForwarding::Apply as u8 => Forwarding::Apply,
-                forwarding if forwarding == CallFeedbackForwarding::Call as u8 => Forwarding::Call,
-                forwarding if forwarding == CallFeedbackForwarding::Bound as u8 => Forwarding::Bound,
-                forwarding if forwarding == CallFeedbackForwarding::Callback as u8 => Forwarding::Callback,
-                _ => return None,
-            },
+            forwarding,
             target: self.cell(target),
             target_intrinsic: intrinsic_of(self.vm, Some(target)),
             argument_count: u32::from(call.forwarded_argument_count.get()),
-            inline_executable: None,
+            inline_executable: match bound {
+                Some(bound) if bound.bound_arguments().len() > ForwardedCallSnapshot::MAX_INLINED_BOUND_ARGUMENTS => {
+                    None
+                }
+                _ => self.inline_executable_index(Some(target), caller),
+            },
             bound_this: 0,
-            bound_arguments: [0; 4],
+            bound_arguments_start: 0,
             bound_argument_count: 0,
         };
-        if snapshot.forwarding == Forwarding::Bound {
-            let bound = call.target()?.downcast::<BoundFunction>()?;
-            let bound_argument_count = bound.bound_arguments_count();
-            if bound_argument_count > snapshot.bound_arguments.len() {
-                return None;
-            }
+        // NB: Only calls of inlining candidates use the bound values.
+        if let Some(bound) = bound
+            && snapshot.inline_executable.is_some()
+        {
             // NB: The bound function, which the code checks the callee against and so embeds, keeps its bound values
             //     alive.
+            let bound_arguments = bound.bound_arguments();
             snapshot.bound_this = bound.bound_this().0;
-            for index in 0..bound_argument_count {
-                snapshot.bound_arguments[index] = bound.bound_argument(index).0;
-            }
-            snapshot.bound_argument_count = bound_argument_count as u8;
+            snapshot.bound_arguments_start = u32::try_from(self.bound_arguments.len()).ok()?;
+            snapshot.bound_argument_count = u32::try_from(bound_arguments.len()).ok()?;
+            self.bound_arguments.extend(bound_arguments.iter().map(|value| value.0));
         }
-        snapshot.inline_executable = self.inline_executable_index(Some(target), caller);
         Some(snapshot)
     }
 
@@ -943,6 +952,7 @@ impl SnapshotBuilder<'_> {
             value: feedback.value.iter().map(core::cell::Cell::get).collect(),
             call,
             keyed,
+            bound_arguments: core::mem::take(&mut self.bound_arguments),
         };
 
         let construct_this_shape = entry
@@ -1232,6 +1242,7 @@ pub fn capture_snapshot(
         compiled_function_fields,
         closure_templates: Vec::new(),
         environment_templates: Vec::new(),
+        bound_arguments: Vec::new(),
         lexical_environment_templates: Vec::new(),
         construct_this_shapes: HashMap::new(),
     };
