@@ -28,6 +28,16 @@ unsafe extern "C" {
         context: *mut c_void,
     );
     fn ladybird_gfx_path_contains(path: *const c_void, x: f32, y: f32, winding_rule: i32) -> bool;
+    fn ladybird_gfx_path_stroke_to_fill(
+        path: *const c_void,
+        thickness: f32,
+        cap_style: i32,
+        join_style: i32,
+        miter_limit: f32,
+        dash_array: *const f32,
+        dash_count: usize,
+        dash_offset: f32,
+    ) -> *mut c_void;
     fn ladybird_gfx_path_length(path: *const c_void) -> f32;
     fn ladybird_gfx_path_create_from_ops(kinds: *const u8, values: *const f32, count: usize) -> *mut c_void;
     fn ladybird_gfx_path_append_ops(path: *mut c_void, kinds: *const u8, values: *const f32, count: usize);
@@ -311,6 +321,17 @@ unsafe extern "C" fn append_to_string(context: *mut c_void, bytes: *const u8, le
     }
 }
 
+/// How a path is stroked, as `OwnedPath::stroke_to_fill()` takes it.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct StrokeStyle {
+    pub thickness: f32,
+    pub cap_style: crate::CapStyle,
+    pub join_style: crate::JoinStyle,
+    pub miter_limit: f32,
+    pub dash_array: Vec<f32>,
+    pub dash_offset: f32,
+}
+
 /// The sole owner of a heap-allocated `Gfx::Path`, destroying it on drop.
 pub struct OwnedPath {
     raw: NonNull<c_void>,
@@ -468,6 +489,25 @@ impl OwnedPath {
     pub fn contains(&self, x: f32, y: f32, winding_rule: i32) -> bool {
         // SAFETY: The path is live for the duration of the call.
         unsafe { ladybird_gfx_path_contains(self.raw.as_ptr(), x, y, winding_rule) }
+    }
+
+    /// The outline of the area that stroking this path with the given style covers, as a path to fill with the
+    /// nonzero winding rule.
+    pub fn stroke_to_fill(&self, style: &StrokeStyle) -> OwnedPath {
+        // SAFETY: The path and the dash array are live for the synchronous call, which returns a fresh heap-allocated
+        //         Gfx::Path.
+        unsafe {
+            OwnedPath::adopt(ladybird_gfx_path_stroke_to_fill(
+                self.raw.as_ptr(),
+                style.thickness,
+                style.cap_style as i32,
+                style.join_style as i32,
+                style.miter_limit,
+                style.dash_array.as_ptr(),
+                style.dash_array.len(),
+                style.dash_offset,
+            ))
+        }
     }
 
     pub fn to_svg_string(&self) -> String {
