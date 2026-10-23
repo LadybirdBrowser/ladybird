@@ -8,6 +8,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/StaticRange.h>
@@ -19,7 +20,10 @@
 #include <LibWeb/Editing/SpellCheckController.h>
 #include <LibWeb/Editing/VisiblePosition.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Selection/Selection.h>
@@ -35,9 +39,98 @@ GC::Ref<Editing::EditingHistory> Document::editing_history()
     return *m_editing_history;
 }
 
+static bool command_is_enabled(Document&, Utf16FlyString const& command);
+
+// INTEROP: The editing commands act on the selection, but when a text control has focus, browsers apply the commands
+//          that make sense for plain text to that text control instead, and disable the other commands.
+static HTML::FormAssociatedTextControlElement* focused_text_control(Document& document)
+{
+    auto focused_area = document.focused_area();
+    if (!focused_area)
+        return nullptr;
+    if (auto* input = as_if<HTML::HTMLInputElement>(*focused_area); input && input->has_selectable_text())
+        return input;
+    return as_if<HTML::HTMLTextAreaElement>(*focused_area);
+}
+
+static bool command_applies_to_text_control(Utf16FlyString const& command, HTML::FormAssociatedTextControlElement& control)
+{
+    if (command.is_one_of(Editing::CommandNames::insertLineBreak, Editing::CommandNames::insertParagraph))
+        return is<HTML::HTMLTextAreaElement>(control.text_control_to_html_element());
+    return command.is_one_of(Editing::CommandNames::delete_, Editing::CommandNames::forwardDelete,
+        Editing::CommandNames::insertHTML, Editing::CommandNames::insertText, Editing::CommandNames::redo,
+        Editing::CommandNames::selectAll, Editing::CommandNames::undo);
+}
+
+static Optional<bool> query_command_enabled_in_text_control(Document& document, Utf16FlyString const& command)
+{
+    auto* control = focused_text_control(document);
+    if (!control)
+        return {};
+    auto& element = control->text_control_to_html_element();
+
+    // NB: These commands only change editing state, which only makes sense if the text control is in editable
+    //     content.
+    if (command.is_one_of(Editing::CommandNames::defaultParagraphSeparator, Editing::CommandNames::styleWithCSS,
+            Editing::CommandNames::useCSS))
+        return element.is_editable_or_editing_host();
+
+    if (!command_applies_to_text_control(command, *control))
+        return false;
+
+    // NB: Undo and redo use the editing history, which also records the edits in text controls.
+    if (command.is_one_of(Editing::CommandNames::undo, Editing::CommandNames::redo))
+        return {};
+
+    if (command == Editing::CommandNames::selectAll)
+        return true;
+    return as<HTML::FormAssociatedElement>(element).is_mutable();
+}
+
+static bool exec_command_in_text_control(HTML::FormAssociatedTextControlElement& control, Utf16FlyString const& command, Utf16View value)
+{
+    if (command == Editing::CommandNames::delete_) {
+        control.handle_delete(UIEvents::InputTypes::deleteContentBackward);
+    } else if (command == Editing::CommandNames::forwardDelete) {
+        control.handle_delete(UIEvents::InputTypes::deleteContentForward);
+    } else if (command == Editing::CommandNames::insertText) {
+        control.handle_insert(UIEvents::InputTypes::insertText, value);
+    } else if (command == Editing::CommandNames::insertHTML) {
+        // NB: A text control can only contain text, so insert the text of the HTML. Parse it with a div as the
+        //     context element, since a textarea as the context element would parse it as text.
+        auto context = MUST(DOM::create_element(control.text_control_to_html_element().document(), HTML::TagNames::div, Namespace::HTML));
+        auto fragment = HTML::HTMLParser::parse_html_fragment(context, value);
+        auto text = fragment.is_error() ? Utf16String {} : fragment.value()->text_content().value_or({});
+        control.handle_insert(UIEvents::InputTypes::insertText, text);
+    } else if (command == Editing::CommandNames::insertLineBreak) {
+        control.handle_insert(UIEvents::InputTypes::insertLineBreak, u"\n"sv);
+    } else if (command == Editing::CommandNames::insertParagraph) {
+        control.handle_insert(UIEvents::InputTypes::insertParagraph, u"\n"sv);
+    } else if (command == Editing::CommandNames::selectAll) {
+        control.select_all();
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
 WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value)
 {
+    // NB: See the INTEROP note at focused_text_control(). exec_command_internal() checks whether the command is
+    //     enabled for the active range only, so check whether it is enabled for the text control here.
+    if (auto* control = focused_text_control(*this); control && is_html_document() && !m_inside_exec_command) {
+        if (!MUST(query_command_enabled(command)))
+            return false;
+        auto command_definition = Editing::find_command_definition(command);
+        if (command_definition.has_value() && command_definition->command != Editing::CommandNames::undo
+            && command_definition->command != Editing::CommandNames::redo
+            && command_applies_to_text_control(command_definition->command, *control)) {
+            TemporaryChange guard_recursion { m_inside_exec_command, true };
+            return exec_command_in_text_control(*control, command_definition->command, value);
+        }
+    }
+
     return exec_command_internal(command, show_ui, value, DispatchInputEvent::Yes);
 }
 
@@ -57,8 +150,9 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     // NOTE: these steps are dealt by the default values for both show_ui and value
 
     // 3. If command is not supported or not enabled, return false.
-    // NOTE: query_command_enabled() also checks if command is supported
-    if (!MUST(query_command_enabled(command)))
+    // NB: This does not use query_command_enabled(), which reports whether a command is enabled in a focused text
+    //     control. The commands below act on the active range, and rely on it being checked here.
+    if (!MUST(query_command_supported(command)) || !command_is_enabled(*this, command))
         return false;
 
     // 4. If command is not in the Miscellaneous commands section:
@@ -83,7 +177,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         //
         // NOTE: Because either the start or end node of the range could be inside an editing host that is part of the
         //       other node's editing host, we can probe both and see if either one is the other's ancestor.
-        // NOTE: We can reuse ->editing_host() here since query_command_enabled() above already checked that both the
+        // NOTE: We can reuse ->editing_host() here since command_is_enabled() above already checked that both the
         //       start and end nodes are either editable or an editing host.
         auto range = Editing::active_range(*this);
         auto& start_node_editing_host = *range->start_container()->editing_host();
@@ -312,7 +406,18 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(Utf16FlyString const& 
     if (!MUST(query_command_supported(command)))
         return false;
 
-    // https://w3c.github.io/editing/docs/execCommand/#enabled
+    // NB: See the INTEROP note at focused_text_control().
+    if (auto command_definition = Editing::find_command_definition(command); command_definition.has_value()) {
+        if (auto enabled = query_command_enabled_in_text_control(*this, command_definition->command); enabled.has_value())
+            return *enabled;
+    }
+
+    return command_is_enabled(*this, command);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#enabled
+static bool command_is_enabled(Document& document, Utf16FlyString const& command)
+{
     // Among commands defined in this specification, those listed in Miscellaneous commands are always enabled, except
     // for the cut command and the paste command.
     // NOTE: cut and paste are actually in the Clipboard commands section
@@ -326,20 +431,20 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(Utf16FlyString const& 
     //          queryCommandEnabled("undo") is true only when there is a step to undo, and execCommand("undo") on an
     //          empty history returns false. Redo behaves symmetrically.
     if (command.equals_ignoring_ascii_case(Editing::CommandNames::undo)) {
-        auto history = editing_history_if_exists();
+        auto history = document.editing_history_if_exists();
         return history && history->can_undo();
     }
     if (command.equals_ignoring_ascii_case(Editing::CommandNames::redo)) {
-        auto history = editing_history_if_exists();
+        auto history = document.editing_history_if_exists();
         return history && history->can_redo();
     }
 
     // AD-HOC: selectAll requires a selection object to exist.
     if (command.equals_ignoring_ascii_case(Editing::CommandNames::selectAll))
-        return get_selection() != nullptr;
+        return document.get_selection() != nullptr;
 
     // The other commands defined here are enabled if the active range is not null,
-    auto active_range = Editing::active_range(*this);
+    auto active_range = Editing::active_range(document);
     if (!active_range)
         return false;
 

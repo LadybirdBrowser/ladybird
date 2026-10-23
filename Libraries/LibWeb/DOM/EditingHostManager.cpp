@@ -315,7 +315,9 @@ EventResult EditingHostManager::handle_return_key(Utf16FlyString const& ui_input
     auto command = ui_input_type == UIEvents::InputTypes::insertParagraph
         ? Editing::CommandNames::insertParagraph
         : Editing::CommandNames::insertLineBreak;
-    auto editing_result = m_document->exec_command(command, false, {});
+    // NB: Use the internal entry point like the other user edits, so that a script that focuses a text control
+    //     during the key press does not redirect this edit to that text control.
+    auto editing_result = m_document->exec_command_internal(command, false, {}, Document::DispatchInputEvent::Yes);
     if (editing_result.is_exception()) {
         dbgln("handle_return_key(): editing resulted in exception: {}", editing_result.exception());
         return EventResult::Dropped;

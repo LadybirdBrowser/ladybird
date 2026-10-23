@@ -1,0 +1,12 @@
+range: insertText enabled: false
+range: delete enabled: false
+range: execCommand insertText: false
+range: value: 50
+checkbox: insertText enabled: false
+checkbox: delete enabled: false
+checkbox: execCommand insertText: false
+checkbox: value: on
+text: insertText enabled: true
+text: delete enabled: true
+text: execCommand insertText: true
+text: value: xfoo

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="range" type="range" />
+<input id="checkbox" type="checkbox" />
+<input id="text" value="foo" />
+<script>
+    test(() => {
+        for (const id of ["range", "checkbox", "text"]) {
+            const input = document.getElementById(id);
+            input.focus();
+            println(`${id}: insertText enabled: ${document.queryCommandEnabled("insertText")}`);
+            println(`${id}: delete enabled: ${document.queryCommandEnabled("delete")}`);
+            println(`${id}: execCommand insertText: ${document.execCommand("insertText", false, "x")}`);
+            println(`${id}: value: ${input.value}`);
+        }
+    });
+</script>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host" contenteditable>foo</div>
+<textarea id="textarea"></textarea>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const textarea = document.getElementById("textarea");
+        host.focus();
+        getSelection().collapse(host.firstChild, 3);
+        host.addEventListener("beforeinput", () => textarea.focus(), { once: true });
+        internals.sendKey(host, "Return");
+        println(`Editing host: ${host.innerHTML}`);
+        println(`Text control: ${JSON.stringify(textarea.value)}`);
+
+        host.focus();
+        getSelection().collapse(host.firstChild, 3);
+        host.addEventListener("beforeinput", () => textarea.focus(), { once: true });
+        internals.sendText(host, "x");
+        println(`Editing host: ${host.innerHTML}`);
+        println(`Text control: ${JSON.stringify(textarea.value)}`);
+    });
+</script>
