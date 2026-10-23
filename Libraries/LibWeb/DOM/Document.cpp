@@ -1294,7 +1294,7 @@ void Document::remove_find_in_page_highlighted_matches_whose_text_changed()
     m_find_in_page_highlighted_matches_dom_tree_version = dom_tree_version();
     m_find_in_page_highlighted_matches_character_data_version = character_data_version();
 
-    Vector<GC::Ref<Range>> matches;
+    GC::RootVector<GC::Ref<Range>> matches;
     for (size_t i = 0; i < m_find_in_page_highlighted_matches.size(); ++i) {
         auto const& match = m_find_in_page_highlighted_matches[i];
         if (realign_find_in_page_match_to_its_text(*match, m_find_in_page_highlighted_match_texts[i]))
@@ -2400,7 +2400,7 @@ void Document::process_pending_list_item_renumbers()
 {
     if (m_list_owners_pending_item_renumber.is_empty())
         return;
-    auto pending = move(m_list_owners_pending_item_renumber);
+    GC::RootHashTable<GC::Ref<Element>> pending { move(m_list_owners_pending_item_renumber) };
     for (auto const& list_owner : pending) {
         if (!list_owner->is_connected()) {
             m_list_owners_with_stale_item_counters.remove(list_owner);
@@ -2436,7 +2436,7 @@ bool Document::reconcile_stale_list_item_counters_after_tree_build(ReadonlySpan<
 
     // A rebuilt subtree has re-resolved the counters sets of any stale owner inside it, and an owner that has left
     // the document renders nothing.
-    HashTable<GC::Ptr<Node const>> rebuilt_dom_roots;
+    GC::RootHashTable<GC::Ptr<Node const>> rebuilt_dom_roots;
     for (auto root : rebuilt_roots) {
         if (auto dom_node = Painting::node_identity_of(root).resolve(*this))
             rebuilt_dom_roots.set(dom_node);
@@ -3200,7 +3200,7 @@ static Node* find_common_flat_tree_ancestor(Node* a, Node* b)
     if (a == b)
         return a;
 
-    HashTable<Node*> ancestors;
+    GC::RootHashTable<Node*> ancestors;
     for (auto* node = a; node; node = node->flat_tree_parent())
         ancestors.set(node);
 
@@ -3322,11 +3322,11 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     if (node)
         hovered_node_offset = hover_event_offset_for_target(read, hover_event_data, *node);
 
-    Vector<HoverEventTarget> left_ancestors;
+    GC::ConservativeVector<HoverEventTarget> left_ancestors;
     for (auto* target = old_hovered_node.ptr(); target && target != common_ancestor; target = target->flat_tree_parent())
         left_ancestors.append(make_hover_event_target(*target));
 
-    Vector<HoverEventTarget> entered_ancestors;
+    GC::ConservativeVector<HoverEventTarget> entered_ancestors;
     for (auto* target = node.ptr(); target && target != common_ancestor; target = target->flat_tree_parent())
         entered_ancestors.append(make_hover_event_target(*target));
 
@@ -3915,7 +3915,7 @@ void Document::adopt_node_steps(Node& node)
         if (old_document.may_have_blocking_wheel_event_listener())
             set_may_have_blocking_wheel_event_listener();
 
-        Vector<GC::Ref<ShadowRoot>> shadow_roots_with_adopted_sheets;
+        GC::RootVector<GC::Ref<ShadowRoot>> shadow_roots_with_adopted_sheets;
 
         // A sheet adopted into a shadow root travels with it, and its identity in the style engine
         // belongs to the document it is leaving. Give it up here, while that document is still the
@@ -4001,13 +4001,13 @@ void Document::adopt_node_steps(Node& node)
         }
 
         // AD-HOC: Transfer NodeIterators rooted in `node`'s subtree from old_document to this document.
-        Vector<NodeIterator&> node_iterators_to_transfer;
+        GC::RootVector<GC::Ref<NodeIterator>> node_iterators_to_transfer;
         for (auto node_iterator : old_document.m_node_iterators) {
             if (node_iterator->root()->is_shadow_including_inclusive_descendant_of(node))
                 node_iterators_to_transfer.append(*node_iterator);
         }
 
-        for (auto& node_iterator : node_iterators_to_transfer) {
+        for (NodeIterator& node_iterator : node_iterators_to_transfer) {
             old_document.m_node_iterators.remove(&node_iterator);
             m_node_iterators.set(&node_iterator);
         }
@@ -4016,7 +4016,7 @@ void Document::adopt_node_steps(Node& node)
         //         only clamps ranges anchored in node's own tree, so ranges anchored in a parentless node's tree cross
         //         into this document with their boundaries intact and must be re-registered here.
         if (!old_document.live_ranges().is_empty()) {
-            Vector<GC::Ref<Range>> ranges_to_transfer;
+            GC::RootVector<GC::Ref<Range>> ranges_to_transfer;
             for (auto& range : old_document.live_ranges()) {
                 if (&range.start_container()->document() == this)
                     ranges_to_transfer.append(range);
@@ -7276,7 +7276,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
     update_paint_and_hit_testing_properties_if_needed();
 
-    HashMap<Document*, Compositing::AccumulatedVisualContextTree> observation_visual_context_trees;
+    GC::RootHashMap<Document*, Compositing::AccumulatedVisualContextTree> observation_visual_context_trees;
     auto sample_time_ns = MonotonicTime::now().nanoseconds();
     auto sampled_visual_context_tree = [&](Document& document) -> Optional<Compositing::AccumulatedVisualContextTree> {
         if (!document.m_paint_state)
@@ -8096,7 +8096,7 @@ static bool is_transform_family_property(CSS::PropertyID property_id)
         CSS::PropertyID::Transform);
 }
 
-using CompositorAnimationKeyframesByEffect = HashMap<Animations::KeyframeEffect const*, NonnullOwnPtr<Painting::CompositorAnimationKeyframes>>;
+using CompositorAnimationKeyframesByEffect = GC::RootHashMap<Animations::KeyframeEffect const*, NonnullOwnPtr<Painting::CompositorAnimationKeyframes>>;
 
 // The keyframes of an effect as the compositor animation builder reads them, built once for the
 // update pass however many animations and questions the pass takes from them.
@@ -8355,12 +8355,12 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_replaced_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_published_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_offscreen_throttled_effects;
-    HashMap<DOM::AbstractElement, CompetingEffects> competing_effects;
+    GC::ConservativeHashMap<DOM::AbstractElement, CompetingEffects> competing_effects;
     CompositorAnimationKeyframesByEffect keyframes_by_effect;
-    HashMap<GC::Ptr<Animations::KeyframeEffect>, bool> only_translates_horizontally_cache;
-    HashMap<GC::Ptr<Animations::KeyframeEffect>, bool> animated_transform_preserves_axes_cache;
-    HashMap<Element const*, Vector<GC::Ptr<Animations::KeyframeEffect>>> in_effect_transform_effects_by_target;
-    HashMap<GC::Ptr<Element>, CSSPixelRect> observation_target_rect_cache;
+    GC::RootHashMap<GC::Ptr<Animations::KeyframeEffect>, bool> only_translates_horizontally_cache;
+    GC::RootHashMap<GC::Ptr<Animations::KeyframeEffect>, bool> animated_transform_preserves_axes_cache;
+    GC::RootHashMap<Element const*, GC::RootVector<GC::Ptr<Animations::KeyframeEffect>>> in_effect_transform_effects_by_target;
+    GC::RootHashMap<GC::Ptr<Element>, CSSPixelRect> observation_target_rect_cache;
     GC::RootHashTable<GC::Ref<Element>> elements_with_intersection_observation_descendants;
     GC::RootHashTable<GC::Ref<Element>> elements_with_visibility_observation_descendants;
     auto layout_nodes_with_stale_forced_effects_layer = move(m_layout_nodes_with_forced_compositor_effects_layer);
@@ -9232,7 +9232,7 @@ void Document::remove_replaced_animations()
     //   animation effect associated with a replaceable animation with a higher composite order than animation that
     //   includes the same target property
 
-    Vector<GC::Ref<Animations::Animation>> replaceable_animations;
+    GC::RootVector<GC::Ref<Animations::Animation>> replaceable_animations;
     for (auto const& timeline : m_associated_animation_timelines) {
         for (auto& animation : timeline->associated_animations()) {
             if (!animation.effect() || !animation.effect()->target() || &animation.effect()->target()->document() != this)
@@ -9778,9 +9778,9 @@ bool Document::is_named_element_with_name(Element const& element, Utf16FlyString
     return false;
 }
 
-Vector<GC::Ref<DOM::Element>> Document::named_elements_with_name(Utf16FlyString const& name) const
+GC::RootVector<GC::Ref<DOM::Element>> Document::named_elements_with_name(Utf16FlyString const& name) const
 {
-    Vector<GC::Ref<DOM::Element>> named_elements;
+    GC::RootVector<GC::Ref<DOM::Element>> named_elements;
 
     for (auto const& element : potentially_named_elements()) {
         if (is_named_element_with_name(element, name))
@@ -10178,7 +10178,7 @@ void Document::process_pending_top_layer_layout_changes(Layout::BegunRead const&
     if (m_elements_with_pending_top_layer_membership_change.is_empty() && !m_top_layer_needs_layout_zone_rebuild)
         return;
 
-    auto elements_with_membership_change = move(m_elements_with_pending_top_layer_membership_change);
+    GC::RootVector<GC::Ref<Element>> elements_with_membership_change { move(m_elements_with_pending_top_layer_membership_change) };
     m_top_layer_needs_layout_zone_rebuild = false;
 
     // An already pending full build recreates every box anyway.
@@ -10963,7 +10963,7 @@ void Document::unregister_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG
 // pattern along that chain carries, changes them. Republish the patterns whose chain passes through `id`.
 void Document::republish_svg_patterns_inheriting_from(Utf16FlyString const& id)
 {
-    HashTable<SVG::SVGPatternElement const*> republished;
+    GC::RootHashTable<SVG::SVGPatternElement const*> republished;
     republish_svg_patterns_inheriting_from(id, republished);
 }
 
