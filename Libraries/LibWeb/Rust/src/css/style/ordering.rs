@@ -2249,6 +2249,7 @@ impl StyleEngine {
         }
         for node in departed {
             self.retained.facts.forget(node);
+            self.retained.shadow_host_backing_pseudo_matches.remove(&node);
             self.retained
                 .retained_match_answers
                 .forget(&mut self.retained.match_answers, node);
