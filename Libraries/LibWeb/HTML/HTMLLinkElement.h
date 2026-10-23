@@ -195,6 +195,7 @@ private:
     void associate_empty_style_sheet(Fetch::Infrastructure::Response const&, CSS::StyleScope::OriginClean);
     void finish_processing_stylesheet_resource(u64 fetch_generation);
     void cancel_pending_stylesheet_processing();
+    void stop_blocking_on_style_sheet();
 
     bool should_fetch_and_process_resource_type() const;
 

@@ -557,6 +557,16 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
     };
 
     m_fetch_controller = Fetch::Fetching::fetch(HTML::relevant_realm(*this), *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
+
+    // AD-HOC: A stopped fetch, such as one of a document that was stopped, never processes its response. Stop blocking
+    //         scripts, rendering and the load event on it then, as if the user agent had given up on loading it.
+    m_fetch_controller->set_stop_steps(GC::create_function(GC::Heap::the(), [weak_this = GC::Weak { *this }, fetch_generation] {
+        auto link_element = weak_this.ptr();
+        if (!link_element || fetch_generation != link_element->m_current_fetch_generation)
+            return;
+        link_element->m_fetch_controller = nullptr;
+        link_element->stop_blocking_on_style_sheet();
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-dns-prefetch:fetch-and-process-the-linked-resource-2
@@ -1536,6 +1546,11 @@ void HTMLLinkElement::cancel_pending_stylesheet_processing()
     if (!m_stylesheet_processing_pending)
         return;
     m_stylesheet_processing_pending = false;
+    stop_blocking_on_style_sheet();
+}
+
+void HTMLLinkElement::stop_blocking_on_style_sheet()
+{
     document().remove_from_script_blocking_style_sheet_set(*this);
     unblock_rendering();
     m_document_load_event_delayer.clear();
