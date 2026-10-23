@@ -524,10 +524,10 @@ fn hwb_to_absolutized_rgb(
     )
 }
 
-/// The computed form of an absolute rgb(), hsl() or hwb() function with missing components: the same
+/// The computed form of an absolute rgb(), hsl() or hwb() function that keeps its color function: the same
 /// function with every present component resolved to a number (hues in degrees, other hsl() and hwb()
 /// components in percent, rgb() components from 0 to 255) and alpha clamped to [0, 1].
-fn resolved_srgb_function_with_missing_components(value: &StyleValueData) -> Option<StyleValueData> {
+fn resolved_srgb_function_components(value: &StyleValueData) -> Option<StyleValueData> {
     let StyleValueData::ColorFunction {
         color_base,
         channel_0,
@@ -584,6 +584,46 @@ fn resolved_srgb_function_with_missing_components(value: &StyleValueData) -> Opt
     })
 }
 
+/// Whether a value is an rgb(), hsl() or hwb() function that is not a relative color.
+fn is_absolute_srgb_function(value: &StyleValueData) -> bool {
+    matches!(value, StyleValueData::ColorFunction { color_base, origin_color, .. }
+        if color_base.has_color_type
+            && matches!(
+                color_base.color_type,
+                crate::css::color_conversion::RGB | crate::css::color_conversion::HSL | crate::css::color_conversion::HWB
+            )
+            && origin_color.optional_data().is_none())
+}
+
+/// Absolutizes an absolute rgb(), hsl() or hwb() function into the same function with resolved components.
+fn absolutize_srgb_function_keeping_form(
+    value: &StyleValueData,
+    context: &AbsolutizationContext,
+) -> Option<StyleValueData> {
+    let StyleValueData::ColorFunction {
+        color_base,
+        channel_0,
+        channel_1,
+        channel_2,
+        alpha,
+        ..
+    } = value
+    else {
+        return None;
+    };
+    let mut changed = false;
+    resolved_srgb_function_components(&StyleValueData::ColorFunction {
+        color_base: *color_base,
+        channel_0: absolutize_child(channel_0, context, &mut changed)?,
+        channel_1: absolutize_child(channel_1, context, &mut changed)?,
+        channel_2: absolutize_child(channel_2, context, &mut changed)?,
+        alpha: absolutize_child(alpha, context, &mut changed)?,
+        has_name: false,
+        name: CssString::none(),
+        origin_color: retained_null(),
+    })
+}
+
 /// Port of ColorFunctionStyleValue::absolutized: relative forms recurse their channels, alpha
 /// and origin; HSL and HWB resolve and convert to a legacy rgb() form; every other color
 /// function recurses its channels and alpha.
@@ -612,8 +652,15 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
     let absolutized_alpha = absolutize_child(alpha, context, &mut changed)?;
 
     // https://drafts.csswg.org/css-color-5/#relative-color
-    if origin_color.optional_data().is_some() {
-        let absolutized_origin = absolutize_child(origin_color, context, &mut changed)?;
+    if let Some(origin) = origin_color.optional_data() {
+        // NB: An rgb(), hsl() or hwb() origin color keeps its color function and full precision, rather than
+        //     computing to an 8-bit rgb() value, so that the relative color sees its exact components.
+        let absolutized_origin = if is_absolute_srgb_function(origin) {
+            changed = true;
+            retain_new(absolutize_srgb_function_keeping_form(origin, context)?)
+        } else {
+            absolutize_child(origin_color, context, &mut changed)?
+        };
         if !changed {
             return Some(Absolutized::Unchanged);
         }
@@ -649,9 +696,9 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
         crate::css::color_conversion::RGB | crate::css::color_conversion::HSL | crate::css::color_conversion::HWB
     ) && color_function_has_missing_component(&rebuilt)
     {
-        return Some(Absolutized::Changed(retain_new(
-            resolved_srgb_function_with_missing_components(&rebuilt)?,
-        )));
+        return Some(Absolutized::Changed(retain_new(resolved_srgb_function_components(
+            &rebuilt,
+        )?)));
     }
     let StyleValueData::ColorFunction {
         channel_0: absolutized_c1,
