@@ -136,6 +136,45 @@ pub(super) fn percent_decode_input(input: super::UrlInput<'_>) -> Vec<u8> {
     output
 }
 
+// https://url.spec.whatwg.org/#percent-decode
+pub(super) fn percent_decode_bytes(input: &[u8]) -> Vec<u8> {
+    // 1. Let output be an empty byte sequence.
+    let mut output = Vec::with_capacity(input.len());
+
+    // 2. For each byte byte in input:
+    let mut index = 0;
+    while index < input.len() {
+        let byte = input[index];
+        let hex_digits = input.get(index + 1..index + 3);
+
+        // 1. If byte is not 0x25 (%), then append byte to output.
+        // 2. Otherwise, if byte is 0x25 (%) and the next two bytes after byte in input are not in the ranges 0x30 (0)
+        //    to 0x39 (9), 0x41 (A) to 0x46 (F), and 0x61 (a) to 0x66 (f), all inclusive, append byte to output.
+        let Some(&[high, low]) = hex_digits.filter(|_| byte == b'%') else {
+            output.push(byte);
+            index += 1;
+            continue;
+        };
+        if !high.is_ascii_hexdigit() || !low.is_ascii_hexdigit() {
+            output.push(byte);
+            index += 1;
+            continue;
+        }
+
+        // 3. Otherwise:
+        //     1. Let bytePoint be the two bytes after byte in input, decoded, and then interpreted as a hexadecimal
+        //        number.
+        //     2. Append a byte whose value is bytePoint to output.
+        //     3. Skip the next two bytes in input.
+        let hex_value = |digit: u8| (digit as char).to_digit(16).expect("the digit is a hex digit") as u8;
+        output.push((hex_value(high) << 4) | hex_value(low));
+        index += 3;
+    }
+
+    // 3. Return output.
+    output
+}
+
 // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
 pub(super) fn percent_encode_after_encoding_into(
     encoding: &'static Encoding,

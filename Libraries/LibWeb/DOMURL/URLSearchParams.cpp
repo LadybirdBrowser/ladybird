@@ -9,9 +9,9 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibGC/Heap.h>
-#include <LibTextCodec/Decoder.h>
-#include <LibTextCodec/Encoder.h>
 #include <LibURL/Parser.h>
+#include <LibURL/RustFFI.h>
+#include <LibURL/RustIntegration.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 
@@ -33,83 +33,30 @@ void URLSearchParams::visit_edges(GC::Cell::Visitor& visitor)
 }
 
 // https://url.spec.whatwg.org/#concept-urlencoded-serializer
-// The application/x-www-form-urlencoded serializer takes a list of name-value tuples tuples, with an optional encoding encoding (default UTF-8), and then runs these steps. They return an ASCII string.
 String url_encode(Vector<QueryParam> const& tuples, StringView encoding)
 {
-    // 1. Set encoding to the result of getting an output encoding from encoding.
-    encoding = TextCodec::get_output_encoding(encoding);
+    Vector<URL::FFI::FfiFormTuple> ffi_tuples;
+    ffi_tuples.ensure_capacity(tuples.size());
+    for (auto const& tuple : tuples)
+        ffi_tuples.unchecked_append({ URL::RustIntegration::rust_url_input(tuple.name.utf16_view()), URL::RustIntegration::rust_url_input(tuple.value.utf16_view()) });
 
-    auto encoder = TextCodec::encoder_for(encoding);
-    VERIFY(encoder.has_value());
-
-    // 2. Let output be the empty string.
-    StringBuilder output;
-
-    // 3. For each tuple of tuples:
-    for (auto const& tuple : tuples) {
-        // 1. Assert: tuple’s name and tuple’s value are scalar value strings.
-
-        // 2. Let name be the result of running percent-encode after encoding with encoding, tuple’s name, the application/x-www-form-urlencoded percent-encode set, and true.
-        auto name = URL::Parser::percent_encode_after_encoding(*encoder, tuple.name.to_utf8(), URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true);
-
-        // 3. Let value be the result of running percent-encode after encoding with encoding, tuple’s value, the application/x-www-form-urlencoded percent-encode set, and true.
-        auto value = URL::Parser::percent_encode_after_encoding(*encoder, tuple.value.to_utf8(), URL::PercentEncodeSet::ApplicationXWWWFormUrlencoded, true);
-
-        // 4. If output is not the empty string, then append U+0026 (&) to output.
-        if (!output.is_empty())
-            output.append('&');
-
-        // 5. Append name, followed by U+003D (=), followed by value, to output.
-        output.append(name);
-        output.append('=');
-        output.append(value);
-    }
-
-    // 4. Return output.
-    return MUST(output.to_string());
+    String output;
+    URL::FFI::rust_url_form_urlencoded_serialize(ffi_tuples.data(), ffi_tuples.size(), { reinterpret_cast<u8 const*>(encoding.characters_without_null_termination()), encoding.length() }, &output, [](void* ctx, URL::FFI::RustUrlByteSlice serialization) {
+        *static_cast<String*>(ctx) = String::from_ascii_without_validation({ serialization.data, serialization.length });
+    });
+    return output;
 }
 
 // https://url.spec.whatwg.org/#concept-urlencoded-parser
-// The application/x-www-form-urlencoded parser takes a byte sequence input, and then runs these steps:
 Vector<QueryParam> url_decode(StringView input)
 {
-    // 1. Let sequences be the result of splitting input on 0x26 (&).
-    auto sequences = input.split_view('&');
-
-    // 2. Let output be an initially empty list of name-value tuples where both name and value hold a string.
     Vector<QueryParam> output;
-
-    // 3. For each byte sequence bytes in sequences:
-    for (auto bytes : sequences) {
-        // 1. If bytes is the empty byte sequence, then continue.
-        if (bytes.is_empty())
-            continue;
-
-        StringView name;
-        StringView value;
-
-        // 2. If bytes contains a 0x3D (=), then let name be the bytes from the start of bytes up to but excluding its first 0x3D (=), and let value be the bytes, if any, after the first 0x3D (=) up to the end of bytes. If 0x3D (=) is the first byte, then name will be the empty byte sequence. If it is the last, then value will be the empty byte sequence.
-        if (auto index = bytes.find('='); index.has_value()) {
-            name = bytes.substring_view(0, *index);
-            value = bytes.substring_view(*index + 1);
-        }
-        // 3. Otherwise, let name have the value of bytes and let value be the empty byte sequence.
-        else {
-            name = bytes;
-            value = ""sv;
-        }
-
-        // 4. Replace any 0x2B (+) in name and value with 0x20 (SP).
-        auto space_decoded_name = name.replace("+"sv, " "sv, ReplaceMode::All);
-        auto space_decoded_value = value.replace("+"sv, " "sv, ReplaceMode::All);
-
-        // 5. Let nameString and valueString be the result of running UTF-8 decode without BOM on the percent-decoding of name and value, respectively.
-        auto name_string = Utf16String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_name), Utf16String::WithBOMHandling::No);
-        auto value_string = Utf16String::from_utf8_with_replacement_character(URL::percent_decode(space_decoded_value), Utf16String::WithBOMHandling::No);
-
-        output.empend(move(name_string), move(value_string));
-    }
-
+    URL::FFI::rust_url_form_urlencoded_parse({ reinterpret_cast<u8 const*>(input.characters_without_null_termination()), input.length() }, &output, [](void* ctx, URL::FFI::RustUrlByteSlice name, URL::FFI::RustUrlByteSlice value) {
+        auto utf16_from_ffi = [](URL::FFI::RustUrlByteSlice string) {
+            return Utf16String::from_utf8({ reinterpret_cast<char const*>(string.data), string.length });
+        };
+        static_cast<Vector<QueryParam>*>(ctx)->empend(utf16_from_ffi(name), utf16_from_ffi(value));
+    });
     return output;
 }
 
