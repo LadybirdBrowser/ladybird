@@ -22,6 +22,21 @@ pub(crate) fn to_logical<T>(writing_mode: u8, horizontal: T, vertical: T) -> (T,
     }
 }
 
+/// Whether the start side, in the given writing mode and direction, of the axis that runs along the given physical
+/// axis is its left (horizontal) or top (vertical) side.
+pub(crate) fn start_is_left_or_top(writing_mode: u8, direction: u8, horizontal: bool) -> bool {
+    let is_ltr = direction == direction::LTR;
+    match (writing_mode, horizontal) {
+        (writing_mode::HORIZONTAL_TB, true) => is_ltr,
+        (writing_mode::HORIZONTAL_TB, false) => true,
+        (writing_mode::VERTICAL_RL | writing_mode::SIDEWAYS_RL, true) => false,
+        (writing_mode::VERTICAL_LR | writing_mode::SIDEWAYS_LR, true) => true,
+        (writing_mode::SIDEWAYS_LR, false) => !is_ltr,
+        (_, false) => is_ltr,
+        _ => true,
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum AvailableSize {
     Definite(CssPixels),
