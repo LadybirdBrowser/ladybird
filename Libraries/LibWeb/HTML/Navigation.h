@@ -87,7 +87,7 @@ public:
     [[nodiscard]] static GC::Ref<Navigation> create(Window&);
 
     // IDL properties and methods
-    Vector<GC::Ref<NavigationHistoryEntry>> entries() const;
+    ReadonlySpan<GC::Ref<NavigationHistoryEntry>> entries() const;
     GC::Ptr<NavigationHistoryEntry> current_entry() const;
     WebIDL::ExceptionOr<void> update_current_entry(NavigationUpdateCurrentEntryOptions);
 

@@ -120,7 +120,7 @@ void Navigation::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-entries
-Vector<GC::Ref<NavigationHistoryEntry>> Navigation::entries() const
+ReadonlySpan<GC::Ref<NavigationHistoryEntry>> Navigation::entries() const
 {
     // The entries() method steps are:
 
