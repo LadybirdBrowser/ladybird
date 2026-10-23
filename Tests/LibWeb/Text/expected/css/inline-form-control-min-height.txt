@@ -1,0 +1,5 @@
+inline-input: 40px
+inline-textarea: 40px
+block-input: 40px
+floating-input: 40px
+min-content-min-height: 12px

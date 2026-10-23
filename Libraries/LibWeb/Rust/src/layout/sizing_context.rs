@@ -582,11 +582,18 @@ impl<'pass> SizingContext<'pass> {
         // an intrinsic height, then that intrinsic height is the used value of 'height'.
         // NB: The automatic height a calc-size() height resolves against is the intrinsic one, not one that follows
         //     the width, which itself follows the resolved height.
+        // NB: A min-height or max-height can stand in for 'height' here, so a length of theirs is not taken as 'auto'
+        //     although the box's own height is. An intrinsic sizing keyword of theirs is the intrinsic height.
+        let block_size_takes_intrinsic_height = || match computed_block_size.calc_size() {
+            Some(_) => computed_block_size.is_auto(),
+            None => {
+                (computed_block_size.is_auto() || computed_block_size.is_intrinsic_sizing_constraint())
+                    && self.should_treat_block_size_as_auto(node, available_space, constraints)
+            }
+        };
         if self.should_treat_inline_size_as_auto(node, available_space)
             && self.style(node).width().calc_size().is_none()
-            && ((self.should_treat_block_size_as_auto(node, available_space, constraints)
-                && computed_block_size.calc_size().is_none())
-                || (computed_block_size.is_auto() && computed_block_size.calc_size().is_some()))
+            && block_size_takes_intrinsic_height()
             && let Some(height) = intrinsic.height
         {
             return height;
