@@ -30,10 +30,10 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Layout/RenderDocument.h>
-#include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWebCommon/MimeSniff/Resource.h>
 
 namespace Web::CSS {
 

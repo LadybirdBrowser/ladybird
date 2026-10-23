@@ -44,6 +44,7 @@ set(SOURCES
     Loader/DownloadFilename.cpp
     Loader/SiteCompatibility.cpp
     MimeSniff/MimeType.cpp
+    MimeSniff/Resource.cpp
     Page/AsyncScrollNodeStableID.cpp
     Page/DragEvent.cpp
     Page/InputEvent.cpp
@@ -143,6 +144,12 @@ ladybird_lib(LibWebCommon webcommon EXPLICIT_SYMBOL_EXPORT)
 # NB: The enumerations of LibWeb's IDL modules are generated into LibWebCommon along with LibWeb's bindings.
 add_dependencies(LibWebCommon generate_bindings)
 target_link_libraries(LibWebCommon PRIVATE LibCore LibCrypto LibFileSystem LibGfx LibHTTP LibIPC LibRequests LibURL)
+
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebcommon_rust FEATURES allocator FFI_HEADER RustFFI.h)
+target_link_libraries(LibWebCommon PRIVATE libwebcommon_rust)
+get_target_property(_libwebcommon_rust_lib libwebcommon_rust IMPORTED_LOCATION)
+set_property(SOURCE MimeSniff/MimeType.cpp MimeSniff/Resource.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libwebcommon_rust_lib})
+test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebcommon_rust)
 
 if (ENABLE_INSTALL_HEADERS)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/CSS/PropertyList.h" "${CMAKE_CURRENT_BINARY_DIR}/CSS/PseudoElement.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWebCommon/CSS")

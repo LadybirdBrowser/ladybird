@@ -38,11 +38,11 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
-#include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
+#include <LibWebCommon/MimeSniff/Resource.h>
 #include <LibXML/Parser/Parser.h>
 
 namespace Web {

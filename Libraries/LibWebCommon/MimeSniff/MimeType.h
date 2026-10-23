@@ -7,36 +7,22 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWebCommon/Export.h>
 
+namespace Web::FFI {
+
+struct FfiMimeType;
+
+}
+
 namespace Web::MimeSniff {
 
 WEBCOMMON_API bool is_javascript_mime_type_essence_match(Utf16View);
-
-// https://mimesniff.spec.whatwg.org/#javascript-mime-type
-// A JavaScript MIME type is any MIME type whose essence is one of the following:
-static constexpr Array s_javascript_mime_type_essence_strings = {
-    "application/ecmascript"sv,
-    "application/javascript"sv,
-    "application/x-ecmascript"sv,
-    "application/x-javascript"sv,
-    "text/ecmascript"sv,
-    "text/javascript"sv,
-    "text/javascript1.0"sv,
-    "text/javascript1.1"sv,
-    "text/javascript1.2"sv,
-    "text/javascript1.3"sv,
-    "text/javascript1.4"sv,
-    "text/javascript1.5"sv,
-    "text/jscript"sv,
-    "text/livescript"sv,
-    "text/x-ecmascript"sv,
-    "text/x-javascript"sv
-};
 
 // https://mimesniff.spec.whatwg.org/#mime-type
 class WEBCOMMON_API MimeType {
@@ -70,6 +56,9 @@ public:
     String const& essence() const;
     [[nodiscard]] String serialized() const;
     [[nodiscard]] Utf16String serialized_as_utf16() const;
+
+    static MimeType from_ffi(FFI::FfiMimeType const&);
+    void lend_to_ffi(Function<void(FFI::FfiMimeType const&)> const&) const;
 
 private:
     MimeType(String type, String subtype);
