@@ -64,7 +64,7 @@ void canonicalize_collapsed_selection_for_editing(Selection&);
 void canonicalize_whitespace(DOM::BoundaryPoint, bool fix_collapsed_space = true);
 void canonicalize_whitespace_after_selection_replacement(DOM::BoundaryPoint);
 void canonicalize_whitespace_after_node_insertion(DOM::BoundaryPoint);
-Vector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const&, GC::Ref<DOM::Element>);
+GC::RootVector<GC::Ref<DOM::Node>> clear_the_value(Utf16FlyString const&, GC::Ref<DOM::Element>);
 void delete_the_selection(Selection&, bool block_merging = true, bool strip_wrappers = true, Selection::Direction = Selection::Direction::Forwards);
 Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node>, Utf16FlyString const& command);
 DOM::BoundaryPoint first_equivalent_point(DOM::BoundaryPoint);
