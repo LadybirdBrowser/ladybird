@@ -844,7 +844,7 @@ GC::Ref<WebIDL::Promise> readable_stream_cancel(JS::Realm& realm, ReadableStream
         if (auto* byob_reader = reader->get_pointer<GC::Ref<ReadableStreamBYOBReader>>()) {
             // 1. Let readIntoRequests be reader.[[readIntoRequests]].
             // 2. Set reader.[[readIntoRequests]] to an empty list.
-            auto read_into_requests = move((*byob_reader)->read_into_requests());
+            GC::RootVector read_into_requests { move((*byob_reader)->read_into_requests()) };
 
             // 3. For each readIntoRequest of readIntoRequests,
             for (auto read_into_request : read_into_requests) {
@@ -891,7 +891,10 @@ void readable_stream_close(ReadableStream& stream)
     if (auto* default_reader = reader->get_pointer<GC::Ref<ReadableStreamDefaultReader>>()) {
         // 1. Let readRequests be reader.[[readRequests]].
         // 2. Set reader.[[readRequests]] to an empty list.
-        auto read_requests = move((*default_reader)->read_requests());
+        GC::RootVector<GC::Ref<ReadRequest>> read_requests;
+        for (auto read_request : (*default_reader)->read_requests())
+            read_requests.append(read_request);
+        (*default_reader)->read_requests().clear();
 
         // 3. For each readRequest of readRequests,
         for (auto read_request : read_requests) {
@@ -1139,7 +1142,7 @@ void readable_stream_byob_reader_error_read_into_requests(ReadableStreamBYOBRead
 {
     // 1. Let readIntoRequests be reader.[[readIntoRequests]].
     // 2. Set reader.[[readIntoRequests]] to a new empty list.
-    auto read_into_requests = move(reader.read_into_requests());
+    GC::RootVector read_into_requests { move(reader.read_into_requests()) };
 
     // 3. For each readIntoRequest of readIntoRequests,
     for (auto read_into_request : read_into_requests) {
@@ -1192,7 +1195,10 @@ void readable_stream_default_reader_error_read_requests(ReadableStreamDefaultRea
 {
     // 1. Let readRequests be reader.[[readRequests]].
     // 2. Set reader.[[readRequests]] to a new empty list.
-    auto read_requests = move(reader.read_requests());
+    GC::RootVector<GC::Ref<ReadRequest>> read_requests;
+    for (auto read_request : reader.read_requests())
+        read_requests.append(read_request);
+    reader.read_requests().clear();
 
     // 3. For each readRequest of readRequests,
     for (auto read_request : read_requests) {
