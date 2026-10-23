@@ -56,6 +56,7 @@ void autolink(DOM::BoundaryPoint);
 GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range>);
 GC::Ptr<DOM::Node> block_node_of_node(GC::Ref<DOM::Node>);
 bool editing_ignores_content(DOM::Node const&);
+bool element_changes_formatting(DOM::Element&);
 DOM::BoundaryPoint end_boundary_of_node(GC::Ref<DOM::Node>);
 Utf16String canonical_space_sequence(size_t length, bool non_breaking_start, bool non_breaking_end);
 void canonicalize_collapsed_selection_for_editing(Selection&);
