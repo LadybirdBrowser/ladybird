@@ -1792,7 +1792,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     // 17. Let end of line be true if new line range contains either nothing or a single br, and false otherwise.
     auto end_of_line = new_line_range->collapsed()
         || ((new_line_range->start_container() == new_line_range->end_container() && new_line_range->start_offset() == new_line_range->end_offset() - 1)
-            && is<HTML::HTMLBRElement>(*new_line_range->start_container()));
+            && is<HTML::HTMLBRElement>(new_line_range->start_container()->child_at_index(new_line_range->start_offset())));
 
     auto& container_element = as<DOM::Element>(*container);
     auto new_container_name = [&] -> Utf16FlyString {
