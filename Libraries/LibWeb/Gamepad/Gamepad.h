@@ -45,7 +45,7 @@ public:
     GamepadMappingType mapping() const { return m_mapping; }
 
     Vector<double> const& axes() const { return m_axes; }
-    Vector<GC::Ref<GamepadButton>> const& buttons() const { return m_buttons; }
+    ReadonlySpan<GC::Ref<GamepadButton>> buttons() const { return m_buttons; }
 
     GC::Ref<GamepadHapticActuator> vibration_actuator() const;
 
