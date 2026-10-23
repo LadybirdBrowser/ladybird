@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const utf8AsLatin1 = string => unescape(encodeURIComponent(string));
+        const xhtml = `<html xmlns="http://www.w3.org/1999/xhtml"><body><p id="p">é</p><script>parent.postMessage(document.getElementById("p").textContent, "*");</` + `script></body></html>`;
+
+        const url = await httpTestServer().createEcho("GET", "/byte-order-mark-overrides-charset.xhtml", {
+            status: 200,
+            headers: { "Content-Type": "application/xhtml+xml; charset=windows-1252" },
+            body: btoa("\xEF\xBB\xBF" + utf8AsLatin1(xhtml)),
+            body_encoding: "base64",
+        });
+
+        window.addEventListener("message", event => {
+            println(`Text: ${event.data}`);
+            done();
+        }, { once: true });
+
+        const frame = document.createElement("iframe");
+        frame.src = url;
+        document.body.appendChild(frame);
+    });
+</script>
