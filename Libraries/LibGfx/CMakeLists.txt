@@ -6,7 +6,6 @@ set(SOURCES
     Color.cpp
     ColorConversion.cpp
     ColorSpace.cpp
-    ColorSpaceSkia.cpp
     CornerRadii.cpp
     Cursor.cpp
     Filter.cpp

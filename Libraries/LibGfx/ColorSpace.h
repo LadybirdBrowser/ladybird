@@ -6,15 +6,17 @@
 
 #pragma once
 
-#include <AK/Array.h>
+#include <AK/AtomicRefCounted.h>
+#include <AK/ByteBuffer.h>
 #include <AK/Error.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Variant.h>
 #include <LibIPC/Forward.h>
 #include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>
 
 namespace Gfx {
 
-// The color space of an image, as plain data. The painter builds its own color space object from it when it draws.
+// The color space of an image, as data. The compositor builds its own color space object from it when it draws.
 class ColorSpace {
 public:
     // The parts of a coding-independent code point that set the color space of RGB pixels.
@@ -23,20 +25,30 @@ public:
         Media::TransferCharacteristics transfer_characteristics { Media::TransferCharacteristics::Unspecified };
     };
 
-    // A transfer function with the parameters g, a, b, c, d, e and f, and a row-major matrix from linear RGB to XYZ
-    // with a D50 white point.
-    struct Parametric {
-        Array<float, 7> transfer_function {};
-        Array<float, 9> to_xyz_d50 {};
+    // The bytes of an ICC profile, as the image carries them. Only the compositor parses them, so that no other
+    // process needs an ICC parser. A profile that it cannot parse gives sRGB.
+    class ICCProfile final : public AtomicRefCounted<ICCProfile> {
+    public:
+        static NonnullRefPtr<ICCProfile const> create(ByteBuffer bytes) { return adopt_ref(*new ICCProfile(move(bytes))); }
+
+        ReadonlyBytes bytes() const { return m_bytes; }
+
+    private:
+        explicit ICCProfile(ByteBuffer bytes)
+            : m_bytes(move(bytes))
+        {
+        }
+
+        ByteBuffer m_bytes;
     };
 
     // Without data, the color space is sRGB.
-    using Data = Variant<Empty, CICP, Parametric>;
+    using Data = Variant<Empty, CICP, NonnullRefPtr<ICCProfile const>>;
 
     ColorSpace() = default;
 
     static ErrorOr<ColorSpace> from_cicp(Media::CodingIndependentCodePoints);
-    static ErrorOr<ColorSpace> load_from_icc_bytes(ReadonlyBytes);
+    static ErrorOr<ColorSpace> from_icc_bytes(ReadonlyBytes);
 
     Data const& data() const { return m_data; }
 

@@ -101,19 +101,26 @@ static sk_sp<SkColorSpace> create_skia_color_space(ColorSpace::Data const& data)
         [](ColorSpace::CICP const& cicp) -> sk_sp<SkColorSpace> {
             return SkColorSpace::MakeRGB(transfer_function_for_transfer_characteristics(cicp.transfer_characteristics), to_xyz_d50_for_color_primaries(cicp.color_primaries));
         },
-        [](ColorSpace::Parametric const& parametric) -> sk_sp<SkColorSpace> {
-            auto const& values = parametric.transfer_function;
-            skcms_TransferFunction transfer_function { values[0], values[1], values[2], values[3], values[4], values[5], values[6] };
-            skcms_Matrix3x3 to_xyz_d50;
-            for (size_t row = 0; row < 3; ++row) {
-                for (size_t column = 0; column < 3; ++column)
-                    to_xyz_d50.vals[row][column] = parametric.to_xyz_d50[row * 3 + column];
+        [](NonnullRefPtr<ColorSpace::ICCProfile const> const& icc_profile) -> sk_sp<SkColorSpace> {
+            auto icc_bytes = icc_profile->bytes();
+            skcms_ICCProfile parsed_icc_profile {};
+            if (!skcms_Parse(icc_bytes.data(), icc_bytes.size(), &parsed_icc_profile)) {
+                dbgln("Failed to parse an ICC profile, drawing as sRGB");
+                return nullptr;
             }
-            return SkColorSpace::MakeRGB(transfer_function, to_xyz_d50);
+
+            auto color_space = SkColorSpace::Make(parsed_icc_profile);
+            if (!color_space && parsed_icc_profile.has_trc && parsed_icc_profile.has_toXYZD50) {
+                skcms_TransferFunction transfer_function;
+                float max_error;
+                if (skcms_ApproximateCurve(&parsed_icc_profile.trc[0], &transfer_function, &max_error))
+                    color_space = SkColorSpace::MakeRGB(transfer_function, parsed_icc_profile.toXYZD50);
+            }
+            return color_space;
         });
 }
 
-static bool have_same_bits(ColorSpace::Data const& a, ColorSpace::Data const& b)
+static bool have_same_data(ColorSpace::Data const& a, ColorSpace::Data const& b)
 {
     if (a.index() != b.index())
         return false;
@@ -123,10 +130,9 @@ static bool have_same_bits(ColorSpace::Data const& a, ColorSpace::Data const& b)
             auto const& other = b.get<ColorSpace::CICP>();
             return cicp.color_primaries == other.color_primaries && cicp.transfer_characteristics == other.transfer_characteristics;
         },
-        [&](ColorSpace::Parametric const& parametric) {
-            auto const& other = b.get<ColorSpace::Parametric>();
-            return __builtin_memcmp(parametric.transfer_function.data(), other.transfer_function.data(), sizeof(parametric.transfer_function)) == 0
-                && __builtin_memcmp(parametric.to_xyz_d50.data(), other.to_xyz_d50.data(), sizeof(parametric.to_xyz_d50)) == 0;
+        [&](NonnullRefPtr<ColorSpace::ICCProfile const> const& icc_profile) {
+            auto const& other = b.get<NonnullRefPtr<ColorSpace::ICCProfile const>>();
+            return icc_profile->bytes() == other->bytes();
         });
 }
 
@@ -135,8 +141,8 @@ sk_sp<SkColorSpace> to_skia_color_space(ColorSpace const& color_space)
     if (color_space.data().has<Empty>())
         return nullptr;
 
-    // Images in one color space are drawn many times, and Skia makes a new color space object for each request that
-    // is not sRGB. So keep the color spaces that were made last.
+    // Images in one color space are drawn many times, and each request would parse the ICC profile again, or make a
+    // new Skia color space object for anything but sRGB. So keep the color spaces that were made last.
     struct CachedColorSpace {
         ColorSpace::Data data;
         sk_sp<SkColorSpace> skia_color_space;
@@ -150,7 +156,7 @@ sk_sp<SkColorSpace> to_skia_color_space(ColorSpace const& color_space)
 
     MutexLocker locker(cache->mutex);
     for (auto const& entry : cache->entries) {
-        if (have_same_bits(entry.data, color_space.data()))
+        if (have_same_data(entry.data, color_space.data()))
             return entry.skia_color_space;
     }
     if (cache->entries.size() >= max_cached_color_spaces)
