@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-979 Pass
-21 Fail
+988 Pass
+12 Fail
 Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") before
 Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") before
 Pass	[["backcolor","#00FFFF"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") before
@@ -548,7 +548,7 @@ Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar
 Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") before
 Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") before
 Pass	[["createlink","http://www.google.com/"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") before
@@ -626,7 +626,7 @@ Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCom
 Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") before
 Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandState("indent") before
 Pass	[["createlink","http://www.google.com/"],["indent",""]] "foo[]bar" queryCommandValue("indent") before
@@ -665,7 +665,7 @@ Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[
 Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
 Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") before
 Pass	[["createlink","http://www.google.com/"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
@@ -704,7 +704,7 @@ Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo
 Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
 Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") before
 Pass	[["createlink","http://www.google.com/"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") before
@@ -743,7 +743,7 @@ Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "
 Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") before
 Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") before
 Pass	[["createlink","http://www.google.com/"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") before
@@ -821,7 +821,7 @@ Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]ba
 Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
 Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") before
 Pass	[["createlink","http://www.google.com/"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") before
@@ -899,7 +899,7 @@ Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]
 Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") before
 Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("insertunorderedlist") before
 Pass	[["createlink","http://www.google.com/"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("insertunorderedlist") before
@@ -938,7 +938,7 @@ Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" q
 Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("justifycenter") before
 Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandState("justifycenter") before
 Pass	[["createlink","http://www.google.com/"],["justifycenter",""]] "foo[]bar" queryCommandValue("justifycenter") before
@@ -977,7 +977,7 @@ Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" que
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("justifyfull") before
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandState("justifyfull") before
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""]] "foo[]bar" queryCommandValue("justifyfull") before

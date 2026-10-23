@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-968 Pass
-32 Fail
+971 Pass
+29 Fail
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
 Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
@@ -16,7 +16,7 @@ Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" que
 Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("justifyleft") before
 Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandState("justifyleft") before
 Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandValue("justifyleft") before
@@ -55,7 +55,7 @@ Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" qu
 Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("justifyright") before
 Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandState("justifyright") before
 Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandValue("justifyright") before
@@ -94,7 +94,7 @@ Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCo
 Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandValue("createlink") before
 Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandIndeterm("createlink") after
 Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandState("createlink") after
-Fail	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandValue("createlink") after
 Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandIndeterm("outdent") before
 Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandState("outdent") before
 Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandValue("outdent") before
