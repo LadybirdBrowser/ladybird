@@ -51,6 +51,8 @@ public:
 
     virtual String to_svg_string() const override;
 
+    [[nodiscard]] NonnullOwnPtr<PathImplSkia> stroke_to_fill(Path::StrokeStyle const&) const;
+
     SkPath const& sk_path() const;
     SkPathBuilder& sk_path_builder();
     void update_state_from_builder();

@@ -34,6 +34,7 @@ void* ladybird_gfx_path_clone(void const*);
 void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count);
 void* ladybird_gfx_path_copy_transformed(void const*, float const* affine_values);
 bool ladybird_gfx_path_contains(void const*, float, float, int);
+void* ladybird_gfx_path_stroke_to_fill(void const*, float thickness, int cap_style, int join_style, float miter_limit, float const* dash_array, size_t dash_count, float dash_offset);
 void ladybird_gfx_path_set_fill_type(void*, int);
 void* ladybird_gfx_path_create_from_glyph_runs(LadybirdGfxGlyphRun const* runs, size_t run_count);
 void* ladybird_gfx_path_place_glyph_runs_along(void const* path, LadybirdGfxGlyphRun const* runs, size_t run_count, float offset);
@@ -224,6 +225,19 @@ extern "C" void* ladybird_gfx_path_copy_transformed(void const* path, float cons
 extern "C" bool ladybird_gfx_path_contains(void const* path, float x, float y, int winding_rule)
 {
     return static_cast<Gfx::Path const*>(path)->contains({ x, y }, static_cast<Gfx::WindingRule>(winding_rule));
+}
+
+extern "C" void* ladybird_gfx_path_stroke_to_fill(void const* path, float thickness, int cap_style, int join_style, float miter_limit, float const* dash_array, size_t dash_count, float dash_offset)
+{
+    Gfx::Path::StrokeStyle style {
+        .thickness = thickness,
+        .cap_style = static_cast<Gfx::Path::CapStyle>(cap_style),
+        .join_style = static_cast<Gfx::Path::JoinStyle>(join_style),
+        .miter_limit = miter_limit,
+        .dash_array = { dash_array, dash_count },
+        .dash_offset = dash_offset,
+    };
+    return new Gfx::Path(static_cast<Gfx::Path const*>(path)->stroke_to_fill(style));
 }
 
 extern "C" bool ladybird_gfx_path_equals(void const* a, void const* b)

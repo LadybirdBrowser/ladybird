@@ -112,6 +112,19 @@ public:
         Bevel,
     };
 
+    struct StrokeStyle {
+        float thickness { 1 };
+        CapStyle cap_style { CapStyle::Butt };
+        JoinStyle join_style { JoinStyle::Miter };
+        float miter_limit { 4 };
+        ReadonlySpan<float> dash_array;
+        float dash_offset { 0 };
+    };
+
+    // The outline of the area that stroking this path with the given style covers, as a path to fill with the
+    // nonzero winding rule.
+    [[nodiscard]] Gfx::Path stroke_to_fill(StrokeStyle const&) const;
+
     void elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rotation, bool large_arc, bool sweep) { impl().elliptical_arc_to(point, radii, x_axis_rotation, large_arc, sweep); }
     void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep) { impl().arc_to(point, radius, large_arc, sweep); }
     void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point) { impl().quadratic_bezier_curve_to(through, point); }

@@ -20,7 +20,9 @@
 #include <core/SkPath.h>
 #include <core/SkPathBuilder.h>
 #include <core/SkPathMeasure.h>
+#include <core/SkPathUtils.h>
 #include <core/SkString.h>
+#include <effects/SkDashPathEffect.h>
 #include <utils/SkParsePath.h>
 
 #include <harfbuzz/hb.h>
@@ -693,6 +695,32 @@ void PathImplSkia::set_fill_type(Gfx::WindingRule winding_rule)
 NonnullOwnPtr<PathImpl> PathImplSkia::clone() const
 {
     return adopt_own(*new PathImplSkia(*this));
+}
+
+NonnullOwnPtr<PathImplSkia> PathImplSkia::stroke_to_fill(Path::StrokeStyle const& style) const
+{
+    auto outline = PathImplSkia::create();
+    // NB: Skia treats zero thickness as a hairline, which covers no area.
+    if (!(style.thickness > 0))
+        return outline;
+
+    SkPaint paint;
+    paint.setStyle(SkPaint::kStroke_Style);
+    paint.setStrokeWidth(style.thickness);
+    paint.setStrokeCap(to_skia_cap(style.cap_style));
+    paint.setStrokeJoin(to_skia_join(style.join_style));
+    paint.setStrokeMiter(style.miter_limit);
+    if (!style.dash_array.is_empty())
+        paint.setPathEffect(SkDashPathEffect::Make({ style.dash_array.data(), style.dash_array.size() }, style.dash_offset));
+    skpathutils::FillPathWithPaint(sk_path(), paint, &outline->sk_path_builder());
+    outline->sk_path_builder().setFillType(SkPathFillType::kWinding);
+    outline->update_state_from_builder();
+    return outline;
+}
+
+Gfx::Path Path::stroke_to_fill(StrokeStyle const& style) const
+{
+    return Gfx::Path { static_cast<PathImplSkia const&>(impl()).stroke_to_fill(style) };
 }
 
 NonnullOwnPtr<PathImpl> PathImplSkia::copy_transformed(Gfx::AffineTransform const& transform) const
