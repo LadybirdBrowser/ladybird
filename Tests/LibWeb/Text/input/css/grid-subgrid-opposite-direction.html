@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .grid {
+        display: grid;
+        width: 200px;
+        grid-template-columns: 10px 20px 30px;
+    }
+    .subgrid {
+        display: grid;
+        grid-column: 1 / 4;
+        grid-template-columns: subgrid;
+        direction: rtl;
+    }
+    .subgrid > div {
+        height: 10px;
+    }
+</style>
+<!-- The rtl subgrid's tracks line up with the tracks of its ltr parent. -->
+<div class="grid">
+    <div class="subgrid">
+        <div id="a1"></div>
+        <div id="a2"></div>
+        <div id="a3"></div>
+    </div>
+</div>
+<!-- Items in the subgrid are aligned to their area's start side in the subgrid's direction. -->
+<div class="grid">
+    <div class="subgrid">
+        <div id="b1" style="justify-self: start; width: 5px;"></div>
+        <div id="b2" style="justify-self: end; width: 5px;"></div>
+    </div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll(".subgrid > div")) {
+            const rect = element.getBoundingClientRect();
+            println(`${element.id}: x=${rect.x} width=${rect.width}`);
+        }
+    });
+</script>

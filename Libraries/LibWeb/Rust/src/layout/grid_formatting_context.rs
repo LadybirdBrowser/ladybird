@@ -1052,6 +1052,7 @@ struct ParentGridData<'pass> {
     rows: Vec<Track<'pass>>,
     column_gaps: Vec<Track<'pass>>,
     row_gaps: Vec<Track<'pass>>,
+    column_tracks_run_right_to_left: bool,
 }
 
 impl<'pass> ParentGridData<'pass> {
@@ -1068,6 +1069,7 @@ impl<'pass> ParentGridData<'pass> {
             rows: parent.rows.clone(),
             column_gaps: parent.column_gaps.clone(),
             row_gaps: parent.row_gaps.clone(),
+            column_tracks_run_right_to_left: parent.column_tracks_run_right_to_left(),
         }
     }
 }
@@ -1884,11 +1886,17 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn container_padding_start(&self, axis: Axis) -> CssPixels {
         let used = self.container_used();
+        if axis.is_column() && self.column_tracks_run_right_to_left() {
+            return used.padding_right.get();
+        }
         axis.select(used.padding_left.get(), used.padding_top.get())
     }
 
     fn container_padding_end(&self, axis: Axis) -> CssPixels {
         let used = self.container_used();
+        if axis.is_column() && self.column_tracks_run_right_to_left() {
+            return used.padding_left.get();
+        }
         axis.select(used.padding_right.get(), used.padding_bottom.get())
     }
 
@@ -2678,25 +2686,33 @@ impl<'pass> GridFormattingContext<'pass> {
         // NB: Scrollbar gutters are not represented in UsedValues yet.
         let used = self.container_used();
         let (start, end) = if axis.is_column() {
-            (
-                used.margin_left.get() + used.border_left.get() + used.padding_left.get(),
-                used.padding_right.get() + used.border_right.get() + used.margin_right.get(),
-            )
+            let left = used.margin_left.get() + used.border_left.get() + used.padding_left.get();
+            let right = used.padding_right.get() + used.border_right.get() + used.margin_right.get();
+            if self.column_tracks_run_right_to_left() {
+                (right, left)
+            } else {
+                (left, right)
+            }
         } else {
             (
                 used.margin_top.get() + used.border_top.get() + used.padding_top.get(),
                 used.padding_bottom.get() + used.border_bottom.get() + used.margin_bottom.get(),
             )
         };
+        let reversed = axis.is_column() && self.column_tracks_run_right_to_left();
         if item.position(axis) == 0 {
-            if axis.is_column() {
+            if reversed {
+                item.extra_margin_right += start + container_as_parent_grid_item.extra_margin_right;
+            } else if axis.is_column() {
                 item.extra_margin_left += start + container_as_parent_grid_item.extra_margin_left;
             } else {
                 item.extra_margin_top += start + container_as_parent_grid_item.extra_margin_top;
             }
         }
         if item.position(axis) + item.span(axis) as i32 == self.axis_tracks(axis).len() as i32 {
-            if axis.is_column() {
+            if reversed {
+                item.extra_margin_left += end + container_as_parent_grid_item.extra_margin_left;
+            } else if axis.is_column() {
                 item.extra_margin_right += end + container_as_parent_grid_item.extra_margin_right;
             } else {
                 item.extra_margin_bottom += end + container_as_parent_grid_item.extra_margin_bottom;
@@ -2979,11 +2995,16 @@ impl<'pass> GridFormattingContext<'pass> {
             let used = self.used(item);
             if axis.is_column() {
                 used.resolve_horizontal_box_model(&style, inline_basis);
+                let (start_margin, end_margin) = if self.column_tracks_run_right_to_left() {
+                    (&used.margin_right, &used.margin_left)
+                } else {
+                    (&used.margin_left, &used.margin_right)
+                };
                 if item_start > 0 {
-                    used.margin_left.set(used.margin_left.get() + extra_margin);
+                    start_margin.set(start_margin.get() + extra_margin);
                 }
                 if item_end < track_count {
-                    used.margin_right.set(used.margin_right.get() + extra_margin);
+                    end_margin.set(end_margin.get() + extra_margin);
                 }
             } else {
                 used.resolve_vertical_box_model(&style, inline_basis);
@@ -3026,6 +3047,20 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
+    /// The item's alignment in the given axis, where Start and End are the left/top and right/bottom sides of its grid
+    /// area, as the item's margins, borders and padding are laid out.
+    fn item_physical_alignment_for_node(&self, node: Node, axis: Axis) -> Alignment {
+        let alignment = self.item_alignment_for_node(node, axis);
+        if !axis.is_column() || !self.columns_run_right_to_left() {
+            return alignment;
+        }
+        match alignment {
+            Alignment::Start | Alignment::Baseline => Alignment::End,
+            Alignment::End => Alignment::Start,
+            _ => alignment,
+        }
+    }
+
     // https://drafts.csswg.org/css-align-3/#valdef-justify-self-left
     // left: Aligns the alignment subject to be flush with the alignment container’s line-left or physical left edge,
     // whichever is in the appropriate axis.
@@ -3040,10 +3075,41 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     /// Whether the grid container's start side in the given axis is its left (columns) or top (rows) side.
-    fn axis_start_is_left_or_top(&self, _axis: Axis) -> bool {
-        // FIXME: Lay out the tracks from the start side given by the grid container's writing mode and direction.
-        //        Until then, the columns run from left to right and the rows from top to bottom.
-        true
+    fn axis_start_is_left_or_top(&self, axis: Axis) -> bool {
+        // FIXME: Lay out the tracks from the start side given by the grid container's writing mode in vertical writing
+        //        modes too. Until then, the rows run from top to bottom, and only a horizontal grid's direction can
+        //        reverse its columns.
+        !(axis.is_column() && self.columns_run_right_to_left())
+    }
+
+    /// Whether the grid's columns run from right to left, as they do in a horizontal grid container with an rtl
+    /// direction.
+    fn columns_run_right_to_left(&self) -> bool {
+        let style = self.style(self.run.box_);
+        style.writing_mode() == writing_mode::HORIZONTAL_TB && style.direction() == direction::RTL
+    }
+
+    /// Whether the column tracks start at the right side. The grid is laid out from the side its column tracks start
+    /// at, and its column positions are mirrored at the end. This is the case when the columns run from right to
+    /// left, except that subgridded columns keep the track order of the parent grid.
+    // FIXME: A subgrid whose columns run in the opposite direction of its parent grid's should number its lines in its
+    //        own direction, from the other end of the parent's tracks.
+    fn column_tracks_run_right_to_left(&self) -> bool {
+        if self.container_is_subgridded(Axis::Column)
+            && let Some(parent) = self.parent_grid()
+        {
+            return parent.column_tracks_run_right_to_left;
+        }
+        self.columns_run_right_to_left()
+    }
+
+    /// Maps an offset and size along the column axis, measured from the content edge the grid container's column
+    /// tracks start at, to a physical offset from its left content edge.
+    fn physical_column_offset(&self, offset: CssPixels, size: CssPixels) -> CssPixels {
+        if !self.column_tracks_run_right_to_left() {
+            return offset;
+        }
+        self.container_used().content_inline_size.get() - offset - size
     }
 
     // https://drafts.csswg.org/css-grid-2/#grid-items
@@ -3071,7 +3137,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn item_alignment(&self, item: GridItem, axis: Axis) -> Alignment {
-        self.item_alignment_for_node(item.box_, axis)
+        self.item_physical_alignment_for_node(item.box_, axis)
     }
 
     fn item_margin_box_start(&self, item: GridItem, axis: Axis) -> CssPixels {
@@ -3517,7 +3583,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let (block_offset, block_size) = self.axis_grid_area(Axis::Row, Some((item.row, item.row_span)));
         geometry::LogicalRect {
             offset: geometry::LogicalOffset {
-                inline_offset,
+                inline_offset: self.physical_column_offset(inline_offset, inline_size),
                 block_offset,
             },
             size: geometry::LogicalSize {
@@ -3819,7 +3885,7 @@ impl<'pass> GridFormattingContext<'pass> {
             columns: self.used_track_list_data(Axis::Column, self.is_subgridded(Axis::Column, grid_style)),
             rows: self.used_track_list_data(Axis::Row, self.is_subgridded(Axis::Row, grid_style)),
             grid_area: CssPixelRect::new(
-                start(Axis::Column),
+                self.physical_column_offset(start(Axis::Column), self.track_sum(Axis::Column)),
                 start(Axis::Row),
                 self.track_sum(Axis::Column),
                 self.track_sum(Axis::Row),
@@ -4094,7 +4160,7 @@ impl<'pass> GridFormattingContext<'pass> {
         abspos_inputs::AbsposContainingBlockInfo {
             rect: geometry::LogicalRect {
                 offset: geometry::LogicalOffset {
-                    inline_offset,
+                    inline_offset: self.physical_column_offset(inline_offset, inline_size),
                     block_offset,
                 },
                 size: geometry::LogicalSize {
@@ -4104,8 +4170,10 @@ impl<'pass> GridFormattingContext<'pass> {
             },
             inline_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
             block_axis_mode: abspos_inputs::AbsposAxisMode::InsetFromRect,
-            inline_alignment: Some(abspos_alignment(self.item_alignment_for_node(node, Axis::Column))),
-            block_alignment: Some(abspos_alignment(self.item_alignment_for_node(node, Axis::Row))),
+            inline_alignment: Some(abspos_alignment(
+                self.item_physical_alignment_for_node(node, Axis::Column),
+            )),
+            block_alignment: Some(abspos_alignment(self.item_physical_alignment_for_node(node, Axis::Row))),
             derives_from_own_computed_values: true,
         }
     }
