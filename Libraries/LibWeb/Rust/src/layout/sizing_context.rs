@@ -1849,8 +1849,7 @@ impl<'pass> SizingContext<'pass> {
         constraints: ContainingBlockConstraints,
         layout_mode: LayoutMode,
     ) -> Option<std::sync::Arc<fragment_tree::Fragment>> {
-        if layout_mode == LayoutMode::Normal
-            && !self.purpose.is_measurement()
+        if formatting_context::run_builds_fragments(self.purpose, layout_mode)
             && let Some(fragment) = self.try_reuse_empty_atomic_root_metrics(node)
         {
             return Some(fragment);

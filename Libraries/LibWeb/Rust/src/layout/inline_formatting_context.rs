@@ -1025,10 +1025,7 @@ impl<'context> InlineFormattingContext<'context> {
         if state_at_clamp_point.is_some() || !self.parent.line_clamp_reached() {
             return false;
         }
-        if !self.parent.clamped_content_is_scrollable_overflow()
-            || self.layout_mode != LayoutMode::Normal
-            || self.run.purpose.is_measurement()
-        {
+        if !self.parent.clamped_content_is_scrollable_overflow() || self.run.fragments.is_none() {
             return true;
         }
         let data = self.line_data();
@@ -2323,7 +2320,7 @@ impl<'context> InlineFormattingContext<'context> {
             iterator.stash_for_reuse(self);
         } else {
             self.generate_line_boxes(iterator);
-            if self.layout_mode == LayoutMode::Normal && !self.run.purpose.is_measurement() {
+            if self.run.fragments.is_some() {
                 self.compute_inline_box_pieces();
                 self.fold_inline_ancestor_relative_insets_into_line_data();
             }

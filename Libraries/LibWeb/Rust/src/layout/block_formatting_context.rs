@@ -359,7 +359,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             clamped_content_is_scrollable_overflow,
             // NB: Measurements at a definite inline size need the clamped block size, just like committed layout.
             max_lines: Cell::new(
-                ((!run.purpose.is_measurement() || run.records.used_values(run.box_).has_definite_inline_size())
+                ((run.fragments.is_some() || run.records.used_values(run.box_).has_definite_inline_size())
                     && is_line_clamp_container
                     && style.max_lines() > 0)
                     .then_some(style.max_lines() as usize),
@@ -4032,7 +4032,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .set(self.clamped_content_is_scrollable_overflow);
         if self.is_line_clamp_container && self.style(self.run.box_).max_lines() == 0 {
             let automatic_block_size = self.resolve_automatic_line_clamp_block_size(input);
-            if run.purpose.is_measurement() {
+            if input.sizing.finds_automatic_line_clamp_lines || run.fragments.is_none() {
                 self.automatic_line_clamp_block_size.set(automatic_block_size);
             } else if automatic_block_size.is_some() {
                 let measurement = formatting_context::MeasurementState::create(self.run.callbacks);
@@ -4043,6 +4043,10 @@ impl<'pass> BlockFormattingContext<'pass> {
                     &measurement_root,
                     self.run.layout_mode,
                     LayoutInput {
+                        sizing: RootSizingDirectives {
+                            finds_automatic_line_clamp_lines: true,
+                            ..input.sizing
+                        },
                         participation: ParticipationInParentFormattingContext::Root,
                         ..input
                     },

@@ -125,6 +125,10 @@ impl LayoutPurpose {
     }
 }
 
+pub(crate) fn run_builds_fragments(purpose: LayoutPurpose, layout_mode: LayoutMode) -> bool {
+    layout_mode == LayoutMode::Normal && !purpose.is_measurement()
+}
+
 pub(crate) struct MeasurementState<'pass> {
     callbacks: LayoutPass<'pass>,
 }
@@ -431,7 +435,7 @@ pub(crate) fn place_child_in_containing_block(
             resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
             point_add(
                 offset,
-                committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
+                committed_offset_delta_at_placement(records, callbacks, node, containing_block, used),
             ),
             callbacks.frame,
         );
@@ -467,7 +471,7 @@ pub(crate) fn place_child_in_containing_block(
         resolve_containing_line_box_index(records, callbacks, node, containing_block, containing_line_box_fragment),
         point_add(
             offset,
-            committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
+            committed_offset_delta_at_placement(records, callbacks, node, containing_block, used),
         ),
         own_anchor_candidate_border_box_rect,
     ))
@@ -500,7 +504,7 @@ pub(crate) fn place_reused_child(
         None,
         point_add(
             offset,
-            committed_offset_delta_at_placement(run.purpose, records, callbacks, node, containing_block, used),
+            committed_offset_delta_at_placement(records, callbacks, node, containing_block, used),
         ),
         callbacks.frame,
     );
@@ -551,7 +555,6 @@ fn resolve_containing_line_box_index(
 }
 
 fn committed_offset_delta_at_placement(
-    purpose: LayoutPurpose,
     records: &RunRecords,
     callbacks: &LayoutPass<'_>,
     node: Node,
@@ -559,9 +562,6 @@ fn committed_offset_delta_at_placement(
     used: &UsedValues,
 ) -> FfiCssPixelPoint {
     let mut delta = FfiCssPixelPoint::default();
-    if purpose.is_measurement() {
-        return delta;
-    }
     let facts = NodeFacts::new(callbacks, node);
     if !facts.is_non_fragmented_box() {
         return delta;
@@ -1580,9 +1580,8 @@ fn apply_root_sizing_directives(
         ParticipationInParentFormattingContext::BlockLevel => dimension_block_level_root(run, input, fc_type),
         ParticipationInParentFormattingContext::Float => body_input_with_inner_available_space(run, input),
         ParticipationInParentFormattingContext::AtomicInline => {
-            let run_cache_may_reuse_this_run_at_other_available_inline_sizes = fc_type == FormattingContextType::Block
-                && run.layout_mode == LayoutMode::Normal
-                && !run.purpose.is_measurement();
+            let run_cache_may_reuse_this_run_at_other_available_inline_sizes =
+                fc_type == FormattingContextType::Block && run.fragments.is_some();
             atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = run.sizing().dimension_atomic_root(
                 run.box_,
                 input.available_space,
@@ -1613,7 +1612,7 @@ fn apply_root_sizing_directives(
             body_input_with_inner_available_space(run, input)
         }
         ParticipationInParentFormattingContext::Item => {
-            if cfg!(debug_assertions) && run.layout_mode == LayoutMode::Normal && !run.purpose.is_measurement() {
+            if cfg!(debug_assertions) && run.fragments.is_some() {
                 debug_assert!(
                     run.records.used_values(run.box_).has_definite_inline_size.get(),
                     "container-internal run root must arrive with a container-assigned inline size"
@@ -2110,7 +2109,7 @@ fn execute_formatting_context_run(
                 treat_block_axis_percentage_insets_as_auto_beyond_root: input
                     .sizing
                     .treat_block_axis_percentage_insets_as_auto_beyond_root,
-                fragments: (layout_mode == LayoutMode::Normal && !purpose.is_measurement()).then(|| {
+                fragments: run_builds_fragments(purpose, layout_mode).then(|| {
                     std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new(
                         box_,
                         (!root_containing_block.is_invalid()).then_some(root_containing_block),
@@ -2149,8 +2148,7 @@ fn execute_formatting_context_run(
 
             let mut implementation = None;
             let mut result = if !changes_frame
-                && layout_mode == LayoutMode::Normal
-                && !purpose.is_measurement()
+                && run.fragments.is_some()
                 && matches!(
                     input.participation,
                     ParticipationInParentFormattingContext::AtomicInline
@@ -2644,6 +2642,7 @@ pub(crate) fn layout_inside_child(
 ) -> ChildLayoutOutcome {
     let facts = NodeFacts::new(&run.callbacks, child);
     let used = run.records.used_values(child);
+    let child_run_builds_fragments = run_builds_fragments(run.purpose, layout_mode);
     if let Some((padding_top, padding_bottom)) = input.sizing.table_cell_intrinsic_block_padding {
         debug_assert!(facts.is_table_cell());
         debug_assert!(matches!(
@@ -2743,12 +2742,8 @@ pub(crate) fn layout_inside_child(
             run.treat_block_axis_percentage_insets_as_auto_beyond_root,
         ),
     };
-    input.sizing.flex_self_block_size_resolution_space = dimension_root_in_parent_scope(
-        parent_block,
-        child,
-        &input,
-        layout_mode == LayoutMode::Normal && !run.purpose.is_measurement(),
-    );
+    input.sizing.flex_self_block_size_resolution_space =
+        dimension_root_in_parent_scope(parent_block, child, &input, child_run_builds_fragments);
     let result = run_formatting_context(
         run.purpose,
         run.fragments.as_deref(),
