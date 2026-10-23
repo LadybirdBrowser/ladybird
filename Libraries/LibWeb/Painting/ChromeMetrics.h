@@ -14,9 +14,9 @@ struct ChromeMetrics {
     // Chrome sizing constants independent of page zoom.
     static constexpr CSSPixels ZOOM_INVARIANT_SCROLL_THUMB_MIN_LENGTH { 24 };
     static constexpr CSSPixels ZOOM_INVARIANT_SCROLL_THUMB_PADDING_THIN { 2 };
-    static constexpr CSSPixels ZOOM_INVARIANT_SCROLL_THUMB_THICKNESS_THIN { 6 };
-    static constexpr CSSPixels ZOOM_INVARIANT_SCROLL_THUMB_THICKNESS { 8 };
-    static constexpr CSSPixels ZOOM_INVARIANT_SCROLL_GUTTER_THICKNESS { 12 };
+    static constexpr CSSPixels ZOOM_INVARIANT_SCROLL_THUMB_THICKNESS_THIN { 7 };
+    static constexpr CSSPixels ZOOM_INVARIANT_SCROLL_THUMB_THICKNESS { 11 };
+    static constexpr CSSPixels ZOOM_INVARIANT_SCROLL_GUTTER_THICKNESS { 15 };
     static constexpr CSSPixels ZOOM_INVARIANT_RESIZE_GRIPPER_SIZE { 12 };
     static constexpr CSSPixels ZOOM_INVARIANT_RESIZE_GRIPPER_PADDING { 2 };
 
