@@ -69,7 +69,7 @@ void ObjectStore::remove_records_in_range(GC::Ref<IDBKeyRange> range)
 
     if (record_range.start < record_range.end) {
         if (m_mutation_log) {
-            Vector<ObjectStoreRecord> deleted;
+            GC::ConservativeVector<ObjectStoreRecord> deleted;
             deleted.ensure_capacity(record_range.end - record_range.start);
             for (size_t i = record_range.start; i < record_range.end; ++i)
                 deleted.append(move(m_records[i]));
@@ -126,7 +126,7 @@ Optional<ObjectStoreRecord&> ObjectStore::first_in_range(GC::Ref<IDBKeyRange> ra
 
 void ObjectStore::clear_records()
 {
-    auto deleted_records = move(m_records);
+    GC::ConservativeVector deleted_records { move(m_records) };
     if (m_mutation_log && !deleted_records.is_empty())
         m_mutation_log->note_records_deleted(deleted_records);
 }
