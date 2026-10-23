@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    div {
+        width: 100px;
+        overflow: hidden;
+        white-space: pre;
+        font: 16px SerenitySans;
+    }
+    span {
+        position: relative;
+        left: 50px;
+    }
+    .shifted {
+        left: 80px;
+    }
+    .unshifted {
+        position: static;
+    }
+</style>
+<div id="clip" style="text-overflow: clip">hello <span>this is a long line of text</span></div>
+<div id="ellipsis" style="text-overflow: ellipsis">hello <span>this is a long line of text</span></div>
+<div id="clip-unshifted" style="text-overflow: clip">hello this is a long line of text</div>
+<div id="clip-shifted-first" style="text-overflow: clip"><span class="shifted">this is a long line of text</span><span class="unshifted">x</span></div>
+<div id="ellipsis-shifted-first" style="text-overflow: ellipsis"><span class="shifted">this is a long line of text</span><span class="unshifted">x</span></div>
+<div id="clip-shifted-last" style="text-overflow: clip"><span class="unshifted">this is a long line of text</span><span class="shifted">x</span></div>
+<div id="ellipsis-shifted-last" style="text-overflow: ellipsis"><span class="unshifted">this is a long line of text</span><span class="shifted">x</span></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const width = id => document.getElementById(id).scrollWidth;
+        println(`clip includes the relative shift: ${width("clip") === width("clip-unshifted") + 50}`);
+        println(`ellipsis: scrollWidth matches clip: ${width("ellipsis") === width("clip")}`);
+        for (const variant of ["shifted-first", "shifted-last"]) {
+            println(`${variant}: ellipsis scrollWidth matches clip: ${width(`ellipsis-${variant}`) === width(`clip-${variant}`)}`);
+        }
+    });
+</script>

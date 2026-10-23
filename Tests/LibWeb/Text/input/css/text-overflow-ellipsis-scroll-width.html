@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    div {
+        width: 100px;
+        overflow: hidden;
+        white-space: pre;
+        font: 16px SerenitySans;
+    }
+</style>
+<div id="clip" style="text-overflow: clip">hello this is a long line of text</div>
+<div id="ellipsis" style="text-overflow: ellipsis">hello this is a long line of text</div>
+<div id="ellipsis-rtl" style="text-overflow: ellipsis" dir="rtl">hello this is a long line of text</div>
+<div id="fits" style="text-overflow: ellipsis">short</div>
+<div id="clip-after-float" style="text-overflow: clip"><span style="float: left; width: 40px; height: 10px"></span>hello this is a long line of text</div>
+<div id="ellipsis-after-float" style="text-overflow: ellipsis"><span style="float: left; width: 40px; height: 10px"></span>hello this is a long line of text</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const clipWidth = document.getElementById("clip").scrollWidth;
+        println(`clip overflows: ${clipWidth > 100}`);
+        for (const id of ["ellipsis", "ellipsis-rtl"]) {
+            const element = document.getElementById(id);
+            println(`${id}: scrollWidth matches clip: ${element.scrollWidth === clipWidth}`);
+        }
+        const clipAfterFloat = document.getElementById("clip-after-float").scrollWidth;
+        println(`ellipsis-after-float: scrollWidth matches clip: ${document.getElementById("ellipsis-after-float").scrollWidth === clipAfterFloat}`);
+        const fits = document.getElementById("fits");
+        println(`fits: scrollWidth matches clientWidth: ${fits.scrollWidth === fits.clientWidth}`);
+        const rtl = document.getElementById("ellipsis-rtl");
+        rtl.scrollLeft = -1000;
+        println(`ellipsis-rtl scrolls to the left: ${rtl.scrollLeft < 0}`);
+    });
+</script>

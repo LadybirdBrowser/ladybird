@@ -1,0 +1,6 @@
+clip overflows: true
+ellipsis: scrollWidth matches clip: true
+ellipsis-rtl: scrollWidth matches clip: true
+ellipsis-after-float: scrollWidth matches clip: true
+fits: scrollWidth matches clientWidth: true
+ellipsis-rtl scrolls to the left: true
