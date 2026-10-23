@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Basic table layout</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#table-or-matrix-mtable">
+<meta name="assert" content="Verify position of cells in basic 2x2, 4x3 and 3x4 math tables.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+  function runTests() {
+      Array.from(document.getElementsByTagName("mtable")).forEach(table => {
+          const id = table.getAttribute("id");
+          const rtl = window.getComputedStyle(table).direction === "rtl";
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              const rows = Array.from(table.getElementsByTagName("mtr"));
+              for (var j = 0; j < rows.length; j++) {
+                  var cells = Array.from(rows[j].getElementsByTagName("mtd"));
+                  for (var i = 0; i < cells.length - 1; i++) {
+                      var space1 = cells[i].firstElementChild.getBoundingClientRect();
+                      var space2 = cells[i + 1].firstElementChild.getBoundingClientRect();
+                      assert_equals(space1.top, space2.top,
+                                    `Cells (${i},${j}) and (${i + 1},${j}) should have same vertical position`);
+                      if (rtl) {
+                          assert_greater_than(space1.left, space2.right,
+                                              `Cell (${i},${j}) should be on the right of (${i + 1},${j})`);
+                      } else {
+                          assert_less_than(space1.right, space2.left,
+                                           `Cell (${i},${j}) should be on the left of (${i + 1},${j})`);
+                      }
+                  }
+              }
+
+              for (var j = 0; j < rows.length - 1; j++) {
+                  var cells1 = Array.from(rows[j].getElementsByTagName("mtd"));
+                  var cells2 = Array.from(rows[j + 1].getElementsByTagName("mtd"));
+                  for (var i = 0; i < cells1.length; i++) {
+                      var space1 = cells1[i].firstElementChild.getBoundingClientRect();
+                      var space2 = cells2[i].firstElementChild.getBoundingClientRect();
+                      assert_equals(space1.left, space2.left,
+                                    `Cells (${i},${j}) and (${i},${j + 1}) should have same horizontal position`);
+                      assert_less_than(space1.bottom, space2.top,
+                                       `Cell (${i},${j}) should be above (${i},${j + 1})`);
+                  }
+              }
+          }, `Layout of ${id}`);
+
+      });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mtable id="table-001">
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightblue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightgreen;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: blue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: green;"></mspace>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mtable id="table-002">
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightblue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightgreen;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: cyan;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: purple;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: blue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: green;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: yellow;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: orange;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: black;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: red;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: gray;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: maroon;"></mspace>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mtable id="table-003">
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightblue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightgreen;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: cyan;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: blue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: green;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: orange;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: black;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: maroon;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: gray;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: red;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: purple;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: yellow;"></mspace>
+          </mtd>
+
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math dir="rtl">
+      <mtable id="table-011">
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightblue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightgreen;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: blue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: green;"></mspace>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mtable id="table-012">
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightblue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightgreen;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: cyan;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: purple;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: blue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: green;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: yellow;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: orange;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: black;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: red;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: gray;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: maroon;"></mspace>
+          </mtd>
+        </mtr>
+      </mtable>
+      <mtable id="table-013">
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightblue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: lightgreen;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: cyan;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: blue;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: green;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: orange;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: black;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: maroon;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: gray;"></mspace>
+          </mtd>
+        </mtr>
+        <mtr>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: red;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: purple;"></mspace>
+          </mtd>
+          <mtd>
+            <mspace width="20px" height="10px" style="background: yellow;"></mspace>
+          </mtd>
+
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+</body>
+</html>

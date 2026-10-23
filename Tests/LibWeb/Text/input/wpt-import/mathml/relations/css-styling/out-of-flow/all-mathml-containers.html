@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>absolutely positioned in all MathML elements</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<meta name="assert" content="Verify that absolutely positioned node works in all MathML elements.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../mathml/support/feature-detection.js"></script>
+<script src="../../../../mathml/support/mathml-fragments.js"></script>
+<style>
+  /* override display: none on children of maction/semantics */
+  maction > *, semantics > * {
+    display: math;
+  }
+</style>
+<script>
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+      ["absolute", "fixed"].forEach(positionValue => {
+          for (tag in MathMLFragments) {
+              if (!FragmentHelper.isValidChildOfMrow(tag) ||
+                  FragmentHelper.isEmpty(tag))
+                  continue;
+              document.body.insertAdjacentHTML("beforeend", `<div style="position: absolute;">\
+<math>${MathMLFragments[tag]}</math>\
+</div>`);
+              let div = document.body.lastElementChild;
+              let element = FragmentHelper.element(div.firstElementChild);
+              FragmentHelper.forceNonEmptyElement(element);
+              if (element.classList.contains("mathml-container") ||
+                  element.classList.contains("foreign-container")) {
+                  for (let i = 0; i < 5; i++) {
+                      FragmentHelper.appendChild(element);
+                  }
+              }
+
+              let middleChild;
+              if (element.children.length >= 2) {
+                  middleChild = FragmentHelper.appendChild(element, true /*allowInvalid*/);
+                  middleChild.setAttribute("style", `position: ${positionValue}; left: 300px; top: 400px`);
+                  let middlePosition = Math.floor(element.children.length/2);
+                  element.insertBefore(middleChild, element.children[middlePosition]);
+              }
+
+              let firstChild = FragmentHelper.appendChild(element, true /*allowInvalid*/);
+              firstChild.setAttribute("style", `position: ${positionValue}; left: 100px; top: 200px`);
+              element.insertBefore(firstChild, element.firstElementChild);
+
+              let lastChild = FragmentHelper.appendChild(element, true /*allowInvalid*/);
+              lastChild.setAttribute("style", `position: ${positionValue}; left: 500px; top: 600px`);
+
+              let referenceBox;
+              switch (positionValue) {
+              case "absolute":
+                  // Use the absolutely positioned div ancestor.
+                  referenceBox = div.getBoundingClientRect();
+                  break
+              case "fixed":
+                  // Use the viewport.
+                  referenceBox = {left: 0, top: 0};
+                  break;
+              default:
+                  throw "reference box not defined";
+              }
+
+              let firstChildBox = firstChild.getBoundingClientRect();
+              let lastChildBox = lastChild.getBoundingClientRect();
+              let middleChildBox;
+              if (middleChild) {
+                  middleChildBox = middleChild.getBoundingClientRect();
+              }
+
+              let epsilon = 1;
+
+              test(function() {
+                  assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+                  assert_approx_equals(firstChildBox.left - referenceBox.left, 100, epsilon);
+                  assert_approx_equals(firstChildBox.top - referenceBox.top, 200, epsilon);
+                  if (middleChildBox) {
+                      assert_approx_equals(middleChildBox.left - referenceBox.left, 300, epsilon);
+                      assert_approx_equals(middleChildBox.top - referenceBox.top, 400, epsilon);
+                  }
+                  assert_approx_equals(lastChildBox.left - referenceBox.left, 500, epsilon);
+                  assert_approx_equals(lastChildBox.top - referenceBox.top, 600, epsilon);
+              }, `position: ${positionValue}; children in ${tag}`);
+
+              div.style = "display: none;"; // Hide the div after measurement.
+          }
+      });
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>

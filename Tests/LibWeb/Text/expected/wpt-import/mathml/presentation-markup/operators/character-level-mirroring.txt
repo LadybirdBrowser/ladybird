@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Base glyph (0.5em)
+Fail	Size variant (1em)
+Fail	Glyph assembly (4em)

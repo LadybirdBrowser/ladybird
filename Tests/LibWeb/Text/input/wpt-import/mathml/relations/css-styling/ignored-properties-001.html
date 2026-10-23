@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ignored CSS properties</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#css-styling">
+<meta name="assert" content="Verify style with ignored properties does not affect MathML layout.">
+<meta name="timeout" content="long">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<script>
+  var epsilon = 1;
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+
+      for (tag in MathMLFragments) {
+          if (!FragmentHelper.isValidChildOfMrow(tag))
+              continue;
+
+          var ignoredProperties = [
+              "writing-mode: vertical-rl;",
+              "white-space: normal;",
+              "float: right;",
+              "align-content: end; justify-content: end;",
+              "align-self: end; justify-self: end;",
+          ];
+
+          ignoredProperties.forEach(ignoredStyle => {
+              document.body.insertAdjacentHTML("beforeend", `<div style="position: absolute;">\
+<div style="display: inline-block"><math>${MathMLFragments[tag]}</math></div>\
+<div style="display: inline-block"><math>${MathMLFragments[tag]}</math></div>\
+</div>`);
+              var div = document.body.lastElementChild;
+
+              // Create MathML structure with ignored style properties.
+              var elementContainer = div.firstElementChild;
+              var elementContainerWidth = elementContainer.getBoundingClientRect().width;
+              var element = FragmentHelper.element(elementContainer);
+              if (!FragmentHelper.isEmpty(tag))
+                  FragmentHelper.forceNonEmptyDescendants(element);
+              element.setAttribute("style", ignoredStyle);
+              Array.from(element.getElementsByTagNameNS("*", FragmentHelper.mathml_namespace)).forEach(descendant => {
+                  descendant.setAttribute("style", ignoredStyle);
+              });
+
+              var referenceContainer = div.lastElementChild;
+              var referenceContainerWidth = referenceContainer.getBoundingClientRect().width;
+              var reference = FragmentHelper.element(referenceContainer);
+              if (!FragmentHelper.isEmpty(tag))
+                  FragmentHelper.forceNonEmptyDescendants(reference);
+
+              test(function() {
+                  assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+                  assert_approx_equals(elementContainerWidth, referenceContainerWidth, epsilon);
+              }, `${tag} preferred width calculation is not affected by ${ignoredStyle}`);
+
+              test(function() {
+                  assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+                  compareLayout(element, reference, epsilon);
+              }, `${tag} layout is not affected by ${ignoredStyle}`);
+
+              div.style = "display: none;"; // Hide the div after measurement.
+          });
+      }
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>

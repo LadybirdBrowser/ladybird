@@ -1,0 +1,82 @@
+Harness status: OK
+
+Found 76 tests
+
+3 Pass
+73 Fail
+Fail	Margin properties on a
+Fail	Margin properties on a (rtl)
+Fail	Margin properties on a (no margin-collapsing)
+Fail	Margin properties on maction
+Fail	Margin properties on maction (rtl)
+Fail	Margin properties on maction (no margin-collapsing)
+Fail	Margin properties on menclose
+Fail	Margin properties on menclose (rtl)
+Fail	Margin properties on menclose (no margin-collapsing)
+Fail	Margin properties on merror
+Fail	Margin properties on merror (rtl)
+Fail	Margin properties on merror (no margin-collapsing)
+Pass	Margin properties on mfrac
+Pass	Margin properties on mfrac (rtl)
+Pass	Margin properties on mfrac (no margin-collapsing)
+Fail	Margin properties on mi
+Fail	Margin properties on mi (rtl)
+Fail	Margin properties on mi (no margin-collapsing)
+Fail	Margin properties on mmultiscripts
+Fail	Margin properties on mmultiscripts (rtl)
+Fail	Margin properties on mmultiscripts (no margin-collapsing)
+Fail	Margin properties on mn
+Fail	Margin properties on mn (rtl)
+Fail	Margin properties on mn (no margin-collapsing)
+Fail	Margin properties on mo
+Fail	Margin properties on mo (rtl)
+Fail	Margin properties on mo (no margin-collapsing)
+Fail	Margin properties on mover
+Fail	Margin properties on mover (rtl)
+Fail	Margin properties on mover (no margin-collapsing)
+Fail	Margin properties on mpadded
+Fail	Margin properties on mpadded (rtl)
+Fail	Margin properties on mpadded (no margin-collapsing)
+Fail	Margin properties on mphantom
+Fail	Margin properties on mphantom (rtl)
+Fail	Margin properties on mphantom (no margin-collapsing)
+Fail	Margin properties on mroot
+Fail	Margin properties on mroot (rtl)
+Fail	Margin properties on mroot (no margin-collapsing)
+Fail	Margin properties on mrow
+Fail	Margin properties on mrow (rtl)
+Fail	Margin properties on mrow (no margin-collapsing)
+Fail	Margin properties on ms
+Fail	Margin properties on ms (rtl)
+Fail	Margin properties on ms (no margin-collapsing)
+Fail	Margin properties on mspace
+Fail	Margin properties on msqrt
+Fail	Margin properties on msqrt (rtl)
+Fail	Margin properties on msqrt (no margin-collapsing)
+Fail	Margin properties on mstyle
+Fail	Margin properties on mstyle (rtl)
+Fail	Margin properties on mstyle (no margin-collapsing)
+Fail	Margin properties on msub
+Fail	Margin properties on msub (rtl)
+Fail	Margin properties on msub (no margin-collapsing)
+Fail	Margin properties on msubsup
+Fail	Margin properties on msubsup (rtl)
+Fail	Margin properties on msubsup (no margin-collapsing)
+Fail	Margin properties on msup
+Fail	Margin properties on msup (rtl)
+Fail	Margin properties on msup (no margin-collapsing)
+Fail	Margin properties on mtable
+Fail	Margin properties on mtable (rtl)
+Fail	Margin properties on mtable (no margin-collapsing)
+Fail	Margin properties on mtext
+Fail	Margin properties on mtext (rtl)
+Fail	Margin properties on mtext (no margin-collapsing)
+Fail	Margin properties on munder
+Fail	Margin properties on munder (rtl)
+Fail	Margin properties on munder (no margin-collapsing)
+Fail	Margin properties on munderover
+Fail	Margin properties on munderover (rtl)
+Fail	Margin properties on munderover (no margin-collapsing)
+Fail	Margin properties on semantics
+Fail	Margin properties on semantics (rtl)
+Fail	Margin properties on semantics (no margin-collapsing)

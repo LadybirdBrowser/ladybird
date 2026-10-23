@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mo axis height</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<meta name="assert" content="Element mo correctly uses the axis height parameter from the MATH table.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math, mspace {
+    font-size: 10px;
+  }
+  @font-face {
+    font-family: axisheight5000-verticalarrow14000;
+    src: url("../../../fonts/math/axisheight5000-verticalarrow14000.woff");
+  }
+</style>
+<script>
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  var epsilon = 5;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+    const AxisHeight = 5000 * emToPx;
+
+    test(function() {
+      var moMiddle = (getBox("mo1").bottom + getBox("mo1").top) / 2;
+      assert_approx_equals(getBox("mo1").height,
+                           14000 * emToPx, epsilon, "mo: size");
+      assert_approx_equals(getBox("baseline1").bottom - moMiddle,
+                           AxisHeight, epsilon, "mo: axis height");
+    }, "symmetric stretching with respect to the math axis (size variant)");
+
+    test(function() {
+      var moMiddle = (getBox("mo2").bottom + getBox("mo2").top) / 2;
+      assert_approx_equals(getBox("mo2").height,
+                           2 * (getBox("target2").height - AxisHeight),
+                           epsilon, "mo: size");
+      assert_approx_equals(getBox("baseline2").bottom - moMiddle,
+                           AxisHeight, epsilon, "mo: axis height");
+    }, "symmetric stretching with respect to the math axis (glyph assembly)");
+
+    test(function() {
+      const minsize = 14000 * emToPx;
+      const Tascent = minsize / 2 + AxisHeight;
+      const Tdescent = minsize - Tascent;
+      assert_approx_equals(getBox("baseline3").bottom - getBox("mo3").top, Tascent, epsilon, "mo ascent");
+      assert_approx_equals(getBox("mo3").bottom - getBox("baseline3").bottom, Tdescent, epsilon, "mo descent");
+    }, "Tascent = Tdescent = 0, minsize = 14em");
+
+    test(function() {
+      const minsize = 14000 * emToPx;
+      var Tascent = getBox("baseline4").bottom - getBox("target4").top;
+      assert_greater_than(Tascent, AxisHeight);
+      var Tdescent = getBox("target4").bottom - getBox("baseline4").bottom;
+      const T = Tascent + Tdescent;
+      Tascent = Math.max(0, Tascent - AxisHeight) * minsize / T + AxisHeight;
+      Tdescent = minsize - Tascent;
+      assert_approx_equals(getBox("baseline4").bottom - getBox("mo4").top, Tascent, epsilon, "mo ascent");
+      assert_approx_equals(getBox("mo4").bottom - getBox("baseline4").bottom, Tdescent, epsilon, "mo descent");
+    }, "Tascent = 6em > AxisHeight, Tdescent = 1em, symmetric = false, minsize = 14em");
+
+    test(function() {
+      const minsize = 14000 * emToPx;
+      var Tascent = getBox("baseline5").bottom - getBox("target5").top;
+      assert_less_than(Tascent, AxisHeight);
+      var Tdescent = getBox("target5").bottom - getBox("baseline5").bottom;
+      const T = Tascent + Tdescent;
+      Tascent = Math.max(0, Tascent - AxisHeight) * minsize / T + AxisHeight;
+      Tdescent = minsize - Tascent;
+      assert_approx_equals(getBox("baseline5").bottom - getBox("mo5").top, Tascent, epsilon, "mo ascent");
+      assert_approx_equals(getBox("mo5").bottom - getBox("baseline5").bottom, Tdescent, epsilon, "mo descent");
+    }, "Tascent = 4em < AxisHeight, Tdescent = 3em, symmetric = false, minsize = 14em");
+
+    test(function() {
+      const maxsize = 14000 * emToPx;
+      var Tascent = getBox("baseline6").bottom - getBox("target6").top;
+      assert_greater_than(Tascent, AxisHeight);
+      var Tdescent = getBox("target6").bottom - getBox("baseline6").bottom;
+      const T = Tascent + Tdescent;
+      Tascent = Math.max(0, Tascent - AxisHeight) * maxsize / T + AxisHeight;
+      Tdescent = maxsize - Tascent;
+      assert_approx_equals(getBox("baseline6").bottom - getBox("mo6").top, Tascent, epsilon, "mo ascent");
+      assert_approx_equals(getBox("mo6").bottom - getBox("baseline6").bottom, Tdescent, epsilon, "mo descent");
+    }, "Tascent = 6em > AxisHeight, Tdescent = 22em, symmetric = false, maxsize = 14em");
+
+    test(function() {
+      const maxsize = 14000 * emToPx;
+      var Tascent = getBox("baseline7").bottom - getBox("target7").top;
+      assert_less_than(Tascent, AxisHeight);
+      var Tdescent = getBox("target7").bottom - getBox("baseline7").bottom;
+      var T = Tascent + Tdescent;
+      Tascent = Math.max(0, Tascent - AxisHeight) * maxsize / T + AxisHeight;
+      Tdescent = maxsize - Tascent;
+      assert_approx_equals(getBox("baseline7").bottom - getBox("mo7").top, Tascent, epsilon, "mo ascent");
+      assert_approx_equals(getBox("mo7").bottom - getBox("baseline7").bottom, Tdescent, epsilon, "mo descent");
+    }, "Tascent = 4em < AxisHeight, Tdescent = 24em, symmetric = false, maxsize = 14em");
+
+    test(function() {
+      const minsize = 14000 * emToPx;
+      const Uascent = getBox("baseline8").bottom - getBox("target8").top;
+      const Udescent = getBox("target8").bottom - getBox("baseline8").bottom;
+      assert_less_than(2 * Math.max(Uascent - AxisHeight, Udescent + AxisHeight), minsize, "Sascent + Sdescent < minsize");
+      assert_approx_equals(getBox("mo8").height, minsize, epsilon, "mo size");
+      const MathAxis = getBox("baseline8").bottom - AxisHeight;
+      assert_approx_equals(MathAxis - getBox("mo8").top, getBox("mo8").bottom - MathAxis, epsilon, "mo is symmetric");
+    }, "symmetric stretching with respect to the math axis (minsize = 14em)");
+
+    test(function() {
+      const maxsize = 14000 * emToPx;
+      const Uascent = getBox("baseline9").bottom - getBox("target9").top;
+      const Udescent = getBox("target9").bottom - getBox("baseline9").bottom;
+      assert_greater_than(2 * Math.max(Uascent - AxisHeight, Udescent + AxisHeight), maxsize, "Sascent + Sdescent > maxsize");
+      assert_approx_equals(getBox("mo9").height, maxsize, epsilon, "mo size");
+      const MathAxis = getBox("baseline9").bottom - AxisHeight;
+      assert_approx_equals(MathAxis - getBox("mo9").top, getBox("mo9").bottom - MathAxis, epsilon, "mo is symmetric");
+    }, "symmetric stretching with respect to the math axis (maxsize = 14em)");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math style="font-family: axisheight5000-verticalarrow14000;">
+      <mspace id="baseline1" style="background: blue" width="50px" height="1px"/>
+      <mpadded voffset="50px"><mspace style="background: cyan" width="50px" height="1px"/></mpadded>
+      <mrow>
+        <mo id="mo1" symmetric="true" style="color: green">&#x21A8;</mo>
+        <mpadded style="background: gray" width="10px" height="50px"><mn>1</mn></mpadded>
+      </mrow>
+    </math>
+    <math style="font-family: axisheight5000-verticalarrow14000;">
+      <mspace id="baseline2" style="background: blue" width="50px" height="1px"/>
+      <mpadded voffset="50px"><mspace style="background: cyan" width="50px" height="1px"/></mpadded>
+      <mrow>
+        <mo id="mo2" symmetric="true" style="color: green">&#x21A8;</mo>
+        <mpadded id="target2" style="background: gray" width="10px" height="200px"><mn>2</mn></mpadded>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math style="font-family: axisheight5000-verticalarrow14000;">
+      <mspace id="baseline3" style="background: blue" width="50px" height="1px"/>
+      <mpadded voffset="50px"><mspace style="background: cyan" width="50px" height="1px"/></mpadded>
+      <mrow>
+        <mo id="mo3" minsize="14em" style="color: green">&#x21A8;</mo>
+        <mpadded id="target3" style="background: gray" width="10px" height="0px" depth="0px"><mn>3</mn></mpadded>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math style="font-family: axisheight5000-verticalarrow14000;">
+      <mspace id="baseline4" style="background: blue" width="50px" height="1px"/>
+      <mpadded voffset="50px"><mspace style="background: cyan" width="50px" height="1px"/></mpadded>
+      <mrow>
+        <mo id="mo4" minsize="14em" style="color: green">&#x21A8;</mo>
+        <mpadded id="target4" style="background: gray" width="10px" height="6em" depth="1em"><mn>4</mn></mpadded>
+      </mrow>
+    </math>
+    <math style="font-family: axisheight5000-verticalarrow14000;">
+      <mspace id="baseline5" style="background: blue" width="50px" height="1px"/>
+      <mpadded voffset="50px"><mspace style="background: cyan" width="50px" height="1px"/></mpadded>
+      <mrow>
+        <mo id="mo5" minsize="14em" style="color: green">&#x21A8;</mo>
+        <mpadded id="target5" style="background: gray" width="10px" height="4em" depth="3em"><mn>5</mn></mpadded>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math style="font-family: axisheight5000-verticalarrow14000;">
+      <mspace id="baseline6" style="background: blue" width="50px" height="1px"/>
+      <mpadded voffset="50px"><mspace style="background: cyan" width="50px" height="1px"/></mpadded>
+      <mrow>
+        <mo id="mo6" maxsize="14em" style="color: green">&#x21A8;</mo>
+        <mpadded id="target6" style="background: gray" width="10px" height="6em" depth="22em"><mn>6</mn></mpadded>
+      </mrow>
+    </math>
+    <math style="font-family: axisheight5000-verticalarrow14000;">
+      <mspace id="baseline7" style="background: blue" width="50px" height="1px"/>
+      <mpadded voffset="50px"><mspace style="background: cyan" width="50px" height="1px"/></mpadded>
+      <mrow>
+        <mo id="mo7" maxsize="14em" style="color: green">&#x21A8;</mo>
+        <mpadded id="target7" style="background: gray" width="10px" height="4em" depth="24em"><mn>7</mn></mpadded>
+      </mrow>
+    </math>
+  </p>
+
+
+  <p>
+    <math style="font-family: axisheight5000-verticalarrow14000;">
+      <mspace id="baseline8" style="background: blue" width="50px" height="1px"/>
+      <mpadded voffset="50px"><mspace style="background: cyan" width="50px" height="1px"/></mpadded>
+      <mrow>
+        <mo id="mo8" symmetric="true" minsize="14em" style="color: green">&#x21A8;</mo>
+        <mpadded id="target8" style="background: gray" width="10px" height="6em" depth="1em"><mn>8</mn></mpadded>
+      </mrow>
+    </math>
+    <math style="font-family: axisheight5000-verticalarrow14000;">
+      <mspace id="baseline9" style="background: blue" width="50px" height="1px"/>
+      <mpadded voffset="50px"><mspace style="background: cyan" width="50px" height="1px"/></mpadded>
+      <mrow>
+        <mo id="mo9" symmetric="true" maxsize="14em" style="color: green">&#x21A8;</mo>
+        <mpadded id="target9" style="background: gray" width="10px" height="6em" depth="24em"><mn>9</mn></mpadded>
+      </mrow>
+    </math>
+  </p>
+</body>
+</html>

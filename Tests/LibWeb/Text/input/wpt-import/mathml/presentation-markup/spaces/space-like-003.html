@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Non space-like elements</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#definition-of-space-like-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-of-mrow">
+<meta name="assert" content="Verify definition of space-like elements">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<style>
+  /* Default spacing of operator 'X' is 0.2777777777777778em so quite different
+     from the measured/specified 0em and 1em. */
+  math, math * {
+      font: 25px/1 Ahem;
+  }
+  mn {
+      color: black;
+  }
+  mo {
+      color: yellow;
+  }
+  .testedElement, .testedElement * {
+      color: blue !important;
+      background: blue !important;
+  }
+</style>
+<script>
+  function spaceBefore(element) {
+      var mnBeforeParent = element.parentNode.previousElementSibling;
+      return element.getBoundingClientRect().left - mnBeforeParent.getBoundingClientRect().right;
+  }
+
+  function spaceAfter(element) {
+      var mnAfterParent = element.parentNode.nextElementSibling;
+      return mnAfterParent.getBoundingClientRect().left - element.getBoundingClientRect().right;
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+      var epsilon = 1;
+      var emToPx = 25;
+
+      Array.from(document.querySelectorAll(".testedElement")).forEach(el => {
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_operator_spacing());
+              assert_approx_equals(spaceBefore(el), 0, epsilon);
+              assert_approx_equals(spaceAfter(el), 2 * emToPx, epsilon);
+          }, `${el.tagName} is not space-like`);
+      });
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <mroot class="testedElement">
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+        </mroot>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <mfrac class="testedElement">
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+        </mfrac>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <mi class="testedElement" mathvariant="normal">X</mi>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <mmultiscripts class="testedElement">
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+        </mmultiscripts>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <mn class="testedElement">X</mn>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <mo class="testedElement" lspace="0" rspace="0">X</mo>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <mover class="testedElement">
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+        </mover>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <munder class="testedElement">
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+        </munder>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <ms class="testedElement">X</ms>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <munderover class="testedElement">
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+        </munderover>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <msup class="testedElement">
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+        </msup>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <msub class="testedElement">
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+        </msub>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <msubsup class="testedElement">
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+          <mtext>X</mtext>
+        </msubsup>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <msqrt class="testedElement">
+          <mtext>X</mtext>
+        </msqrt>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <mtable class="testedElement">
+          <mtr>
+            <mtd>
+              <mtext>X</mtext>
+            </mtd>
+          </mtr>
+        </mtable>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+</body>
+</html>

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>No spacing in elements</title>
+<meta name="assert" content="Spacing is not added around operators when an element does not use mrow layout. However, when the element is embellished, spacing of the core mo is added around it.">
+<link rel="help" href="https://w3c.github.io/mathml-core/#embellished-operators">
+<link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+<link rel="help" href="https://w3c.github.io/mathml-core/#horizontally-group-sub-expressions-mrow">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="help" href="https://w3c.github.io/mathml-core/#prescripts-and-tensor-indices-mmultiscripts">
+<link rel="help" href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot">
+<link rel="help" href="https://w3c.github.io/mathml-core/#subscripts-and-superscripts-msub-msup-msubsup">
+<link rel="help" href="https://w3c.github.io/mathml-core/#underscripts-and-overscripts-munder-mover-munderover">
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<script type="text/javascript">
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+  function runTests()
+  {
+      Array.from(document.getElementsByClassName("testedElement")).forEach((e) => {
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_operator_spacing());
+              let box = e.getBoundingClientRect();
+              let spacing = 100;
+              assert_less_than_equal(box.width, spacing);
+          }, `Spacing inside an <${e.tagName}> child of <${e.parentNode.tagName}>.`);
+
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_operator_spacing());
+              let box = e.parentNode.getBoundingClientRect();
+              let spacing = 100;
+              if (e.classList.contains("embellished"))
+                  assert_greater_than_equal(box.width, spacing * 2);
+              else
+                  assert_less_than_equal(box.width, spacing);
+          }, `Spacing around an <${e.tagName}> child of an <${e.parentNode.tagName}>.`);
+      });
+      done();
+  }
+</script>
+<style>
+  .testedElement {
+      background: lightgreen;
+  }
+  math {
+      background: lightblue;
+  }
+  math, math * {
+      font: 25px/1 Ahem;
+  }
+</style>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mfrac class="testedElement embellished">
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+      </mfrac>
+    </math>
+    <math>
+      <mrow>
+        <mn><!-- make sure parent mrow is not an embellished operator --></mn>
+        <mfrac class="testedElement embellished">
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+        </mfrac>
+      </mrow>
+    </math>
+    <math>
+      <mtable>
+        <mtr>
+          <mtd>
+            <mfrac class="testedElement embellished">
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+            </mfrac>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msub class="testedElement embellished">
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+      </msub>
+    </math>
+    <math>
+      <mrow>
+        <mn><!-- make sure parent mrow is not an embellished operator --></mn>
+        <msub class="testedElement embellished">
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+        </msub>
+      </mrow>
+    </math>
+    <math>
+      <mtable>
+        <mtr>
+          <mtd>
+            <msub class="testedElement embellished">
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+            </msub>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msup class="testedElement embellished">
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+      </msup>
+    </math>
+    <math>
+      <mrow>
+        <mn><!-- make sure parent mrow is not an embellished operator --></mn>
+        <msup class="testedElement embellished">
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+        </msup>
+      </mrow>
+    </math>
+    <math>
+      <mtable>
+        <mtr>
+          <mtd>
+            <msup class="testedElement embellished">
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+            </msup>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msubsup class="testedElement embellished">
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+      </msubsup>
+    </math>
+    <math>
+      <mrow>
+        <mn><!-- make sure parent mrow is not an embellished operator --></mn>
+        <msubsup class="testedElement embellished">
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+        </msubsup>
+      </mrow>
+    </math>
+    <math>
+      <mtable>
+        <mtr>
+          <mtd>
+            <msubsup class="testedElement embellished">
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+            </msubsup>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts class="testedElement embellished">
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mprescripts/>
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+      </mmultiscripts>
+    </math>
+    <math>
+      <mrow>
+        <mn><!-- make sure parent mrow is not an embellished operator --></mn>
+        <mmultiscripts class="testedElement embellished">
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mprescripts/>
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+        </mmultiscripts>
+      </mrow>
+    </math>
+    <math>
+      <mtable>
+        <mtr>
+          <mtd>
+            <mmultiscripts class="testedElement embellished">
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mprescripts/>
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+            </mmultiscripts>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munder class="testedElement embellished">
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+      </munder>
+    </math>
+    <math>
+      <mrow>
+        <mn><!-- make sure parent mrow is not an embellished operator --></mn>
+        <munder class="testedElement embellished">
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+        </munder>
+      </mrow>
+    </math>
+    <math>
+      <mtable>
+        <mtr>
+          <mtd>
+            <munder class="testedElement embellished">
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+            </munder>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mover class="testedElement embellished">
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+      </mover>
+    </math>
+    <math>
+      <mrow>
+        <mn><!-- make sure parent mrow is not an embellished operator --></mn>
+        <mover class="testedElement embellished">
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+        </mover>
+      </mrow>
+    </math>
+    <math>
+      <mtable>
+        <mtr>
+          <mtd>
+            <mover class="testedElement embellished">
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+            </mover>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover class="testedElement embellished">
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+      </munderover>
+    </math>
+    <math>
+      <mrow>
+        <mn><!-- make sure parent mrow is not an embellished operator --></mn>
+        <munderover class="testedElement embellished">
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+        </munderover>
+      </mrow>
+    </math>
+    <math>
+      <mtable>
+        <mtr>
+          <mtd>
+            <munderover class="testedElement embellished">
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+            </munderover>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mroot class="testedElement">
+        <mo lspace="100px" rspace="100px">X</mo>
+        <mo lspace="100px" rspace="100px">X</mo>
+      </mroot>
+    </math>
+    <math>
+      <mrow>
+        <mroot class="testedElement">
+          <mo lspace="100px" rspace="100px">X</mo>
+          <mo lspace="100px" rspace="100px">X</mo>
+        </mroot>
+      </mrow>
+    </math>
+    <math>
+      <mtable>
+        <mtr>
+          <mtd>
+            <mroot class="testedElement">
+              <mo lspace="100px" rspace="100px">X</mo>
+              <mo lspace="100px" rspace="100px">X</mo>
+            </mroot>
+          </mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+</body>
+</html>

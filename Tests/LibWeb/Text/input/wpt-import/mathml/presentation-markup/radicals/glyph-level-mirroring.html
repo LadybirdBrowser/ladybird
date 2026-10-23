@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Glyph-level mirroring</title>
+    <link
+      rel="help"
+      href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot"
+    >
+    <meta
+      name="assert"
+      content="Radicals should be mirrored when using RTL text direction"
+    >
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../mathml/support/feature-detection.js"></script>
+    <script src="../../../mathml/support/fonts.js"></script>
+
+    <style>
+      /* This font contains the 0x221A character (radical), and a mirrored
+         version using the rtlm font feature (radical.rtlm). The base,
+         variant and assembly widths of the original character are 4em,
+         while the ones from the rtlm version are 1em. */
+      @font-face {
+        font-family: rtlm;
+        src: url("../../../fonts/math/radical-rtlm.woff");
+      }
+      math {
+        font-family: rtlm;
+        font-size: 16px;
+      }
+      mspace {
+        width: 1em;
+        background: cornflowerblue;
+      }
+    </style>
+
+    <script>
+      const epsilon = 1;
+      const font_size = 16;
+      const test_cases = [
+        "Base glyph",
+        "Size variant",
+        "Glyph assembly",
+      ];
+
+      setup({ explicit_done: true });
+      window.addEventListener("load", () => {
+        loadAllFonts().then(runTests);
+      });
+
+      function runTests() {
+        test(function () {
+          document.querySelectorAll("math:not([dir='rtl'])").forEach(
+            (math, i) => {
+              msqrt = math.firstElementChild;
+              box = msqrt.getBoundingClientRect();
+              // The box size should be the width of the mspace (1em)
+              // plus the expected glyph width (4em in this case).
+              mspace_width =
+                msqrt.firstElementChild.getBoundingClientRect().width;
+              const glyph_width = 4 * font_size;
+              assert_approx_equals(
+                box.width,
+                glyph_width + mspace_width,
+                epsilon,
+                test_cases[i],
+              );
+            },
+          );
+        }, "LTR Direction");
+
+        test(function () {
+          document.querySelectorAll("math[dir='rtl']").forEach(
+            (math, i) => {
+              msqrt = math.firstElementChild;
+              box = msqrt.getBoundingClientRect();
+              // In this case the expected glyph width is 1em, as it
+              // should be using the rtlm version.
+              mspace_width =
+                msqrt.firstElementChild.getBoundingClientRect().width;
+              const glyph_width = 1 * font_size;
+              assert_approx_equals(
+                box.width,
+                glyph_width + mspace_width,
+                epsilon,
+                test_cases[i],
+              );
+            },
+          );
+        }, "RTL Direction");
+
+        done();
+      }
+    </script>
+  </head>
+
+  <body>
+    <div id="log"></div>
+    <p>
+      <math>
+        <msqrt>
+          <mspace height="0.5em" />
+        </msqrt>
+      </math>
+      <math dir="rtl">
+        <msqrt>
+          <mspace height="0.5em" />
+        </msqrt>
+      </math>
+    </p>
+    <hr />
+    <p>
+      <math>
+        <msqrt>
+          <mspace height="1em" />
+        </msqrt>
+      </math>
+      <math dir="rtl">
+        <msqrt>
+          <mspace height="1em" />
+        </msqrt>
+      </math>
+    </p>
+    <hr />
+    <p>
+      <math>
+        <msqrt>
+          <mspace height="4em" />
+        </msqrt>
+      </math>
+      <math dir="rtl">
+        <msqrt>
+          <mspace height="4em" />
+        </msqrt>
+      </math>
+    </p>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Alignment on the baseline with different and large script heights
+Fail	Tall subscripts/superscripts are not placed too high/low
+Fail	No collisions for tall subscripts and superscripts

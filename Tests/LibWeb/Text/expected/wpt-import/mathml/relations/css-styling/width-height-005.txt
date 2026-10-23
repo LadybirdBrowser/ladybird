@@ -1,0 +1,46 @@
+Harness status: OK
+
+Found 40 tests
+
+38 Pass
+2 Fail
+Pass	mrow
+Pass	mrow (horizontal overflow)
+Pass	RTL mrow
+Pass	RTL mrow (horizontal overflow)
+Pass	mpadded
+Pass	mpadded (horizontal overflow)
+Pass	RTL mpadded
+Pass	RTL mpadded (horizontal overflow)
+Pass	msqrt
+Pass	msqrt (horizontal overflow)
+Pass	RTL msqrt
+Pass	RTL msqrt (horizontal overflow)
+Pass	mroot
+Pass	mroot (horizontal overflow)
+Pass	RTL mroot
+Pass	RTL mroot (horizontal overflow)
+Pass	msub
+Pass	msub (horizontal overflow)
+Pass	RTL msub
+Pass	RTL msub (horizontal overflow)
+Pass	msup
+Pass	msup (horizontal overflow)
+Pass	RTL msup
+Pass	RTL msup (horizontal overflow)
+Pass	msubsup
+Pass	msubsup (horizontal overflow)
+Pass	RTL msubsup
+Pass	RTL msubsup (horizontal overflow)
+Pass	mmultiscripts
+Pass	mmultiscripts (horizontal overflow)
+Pass	RTL mmultiscripts
+Pass	RTL mmultiscripts (horizontal overflow)
+Pass	mtext
+Fail	mtext (horizontal overflow)
+Pass	RTL mtext
+Fail	RTL mtext (horizontal overflow)
+Pass	legacy menclose
+Pass	legacy menclose (horizontal overflow)
+Pass	RTL legacy menclose
+Pass	RTL legacy menclose (horizontal overflow)

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Baseline of inferred mrows</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#horizontally-group-sub-expressions-mrow">
+<link rel="help" href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot">
+<link rel="help" href="https://w3c.github.io/mathml-core/#style-change-mstyle">
+<link rel="help" href="https://w3c.github.io/mathml-core/#error-message-merror">
+<link rel="help" href="https://w3c.github.io/mathml-core/#making-sub-expressions-invisible-mphantom">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-top-level-math-element">
+<link rel="help" href="https://www.w3.org/TR/MathML3/chapter3.html#presm.menclose">
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<meta name="assert" content="Baseline for mrow-like elements is correct.">
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+  function runTests()
+  {
+      ["Mrow", "Sqrt", "Style", "Error", "Phantom", "Math", "Menclose", "Mpadded", "Unknown", "Mtd", "None", "Mprescripts", "Mfenced", "A"].forEach((tag) => {
+          var x = document.getElementById(`above${tag}`).getBoundingClientRect();
+          var y = document.getElementById(`below${tag}`).getBoundingClientRect();
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              assert_equals(x.bottom, y.top);
+          }, `baseline alignment inside ${tag}`);
+      });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math><mrow><mspace id="aboveMrow" width="10px" height="30px" style="background: purple"></mspace><mspace id="belowMrow" width="10px" depth="30px" style="background: blue"></mspace></mrow></math>
+    <math><msqrt><mspace id="aboveSqrt" width="10px" height="30px" style="background: purple"></mspace><mspace id="belowSqrt" width="10px" depth="30px" style="background: blue"></mspace></msqrt></math>
+    <math><mstyle><mspace id="aboveStyle" width="10px" height="30px" style="background: purple"></mspace><mspace id="belowStyle" width="10px" depth="30px" style="background: blue"></mspace></mstyle></math>
+    <math><merror><mspace id="aboveError" width="10px" height="30px" style="background: purple"></mspace><mspace id="belowError" width="10px" depth="30px" style="background: blue"></mspace></merror></math>
+    <math><mphantom><mspace style="visibility: visible; background: purple" id="abovePhantom" width="10px" height="30px"></mspace><mspace style="visibility: visible; background: blue" id="belowPhantom" width="10px" depth="30px"></mspace></mphantom></math>
+    <math><mspace id="aboveMath" width="10px" height="30px" style="background: purple"></mspace><mspace id="belowMath" width="10px" depth="30px" style="background: blue"></mspace></math>
+    <!-- menclose is treated as <unknown> in MathML Core -->
+    <math><menclose notation="box"><mspace id="aboveMenclose" width="10px" height="30px" style="background: purple"
+></mspace><mspace id="belowMenclose" width="10px" depth="30px" style="background: blue"></mspace></menclose></math>
+    <math><mpadded lspace="10px"><mspace id="aboveMpadded" width="10px" height="30px" style="background: purple"
+></mspace><mspace id="belowMpadded" width="10px" depth="30px" style="background: blue"></mspace></mpadded></math>
+    <math><unknown><mspace id="aboveUnknown" width="10px" height="30px" style="background: purple"
+></mspace><mspace id="belowUnknown" width="10px" depth="30px" style="background: blue"></mspace></unknown></math>
+    <math><mtable><mtr><mtd><mspace id="aboveMtd" width="10px" height="30px" style="background: purple"
+></mspace><mspace id="belowMtd" width="10px" depth="30px" style="background: blue"></mspace></mtd></mtr></mtable></math>
+    <math><none><mspace id="aboveNone" width="10px" height="30px" style="background: purple"></mspace><mspace id="belowNone" width="10px" depth="30px" style="background: blue"></mspace></none></math>
+    <math><mprescripts><mspace id="aboveMprescripts" width="10px" height="30px" style="background: purple"></mspace><mspace id="belowMprescripts" width="10px" depth="30px" style="background: blue"></mspace></none></math>
+    <math><mfenced><mspace id="aboveMfenced" width="10px" height="30px" style="background: purple"></mspace><mspace id="belowMfenced" width="10px" depth="30px" style="background: blue"></mspace></none></math>
+    <math><a><mspace id="aboveA" width="10px" height="30px" style="background: purple"></mspace><mspace id="belowA" width="10px" depth="30px" style="background: blue"></mspace></none></math>
+  </p>
+</body>
+</html>

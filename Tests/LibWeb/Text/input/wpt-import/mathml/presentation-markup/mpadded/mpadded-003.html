@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mpadded</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<meta name="assert" content="Verify metrics of mpadded element with voffset and lspace">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+      const contentWidth = 10;
+      const contentDepth = 15;
+      const contentHeight = 20;
+      const epsilon = 1;
+
+      test(function() {
+          Array.from(document.getElementsByClassName("shrink-wrap")).forEach(container => {
+              assert_approx_equals(container.getBoundingClientRect().width, contentWidth, epsilon);
+          });
+      }, "lspace/voffset shifts don't affect mpadded preferred width");
+
+      function GetShifts(mpadded) {
+          let mpadded_box = mpadded.getBoundingClientRect();
+          let mspace_box = mpadded.firstElementChild.getBoundingClientRect();
+          return { lspace: mspace_box.left - mpadded_box.left,
+                   voffset: mpadded_box.top - mspace_box.top };
+      }
+
+      let mpaddeds = document.getElementById("static_tests").getElementsByTagName("mpadded");
+      test(function() {
+          let baseline = document.getElementById("baseline").getBoundingClientRect().bottom;
+          Array.from(mpaddeds).forEach(e => {
+              let mpadded = e.getBoundingClientRect();
+              assert_approx_equals(mpadded.width, contentWidth, epsilon);
+              assert_approx_equals(baseline - mpadded.top, contentHeight, epsilon);
+              assert_approx_equals(mpadded.bottom - baseline, contentDepth, epsilon);
+
+          });
+      }, "lspace/voffset shifts don't affect mpadded size");
+
+
+      test(function() {
+          let shifts = GetShifts(mpaddeds[0]);
+          assert_approx_equals(shifts.lspace, 5, epsilon, "positive lspace");
+          assert_approx_equals(shifts.voffset, 0, epsilon);
+
+          shifts = GetShifts(mpaddeds[1]);
+          assert_approx_equals(shifts.lspace, 0, epsilon, "negative lspace is clmaped to zero");
+          assert_approx_equals(shifts.voffset, 0, epsilon);
+
+          shifts = GetShifts(mpaddeds[2]);
+          assert_approx_equals(shifts.lspace, 0, epsilon, "positive lspace percentage");
+          assert_approx_equals(shifts.voffset, 0, epsilon);
+
+          shifts = GetShifts(mpaddeds[3]);
+          assert_approx_equals(shifts.lspace, 0, epsilon, "negative lspace percentage");
+          assert_approx_equals(shifts.voffset, 0, epsilon);
+
+          shifts = GetShifts(mpaddeds[4]);
+          assert_approx_equals(shifts.lspace, 0, epsilon);
+          assert_approx_equals(shifts.voffset, 10, epsilon, "positive voffset");
+
+          shifts = GetShifts(mpaddeds[5]);
+          assert_approx_equals(shifts.lspace, 0, epsilon);
+          assert_approx_equals(shifts.voffset, -10, epsilon, "negative voffset");
+
+          shifts = GetShifts(mpaddeds[6]);
+          assert_approx_equals(shifts.lspace, 0, epsilon);
+          assert_approx_equals(shifts.voffset, 0, epsilon, "positive voffset percentage");
+
+          shifts = GetShifts(mpaddeds[7]);
+          assert_approx_equals(shifts.lspace, 0, epsilon);
+          assert_approx_equals(shifts.voffset, 0, epsilon, "negative voffset percentage");
+
+          shifts = GetShifts(mpaddeds[8]);
+          assert_approx_equals(shifts.lspace, 5, epsilon);
+          assert_approx_equals(shifts.voffset, 10, epsilon);
+
+          shifts = GetShifts(mpaddeds[9]);
+          assert_approx_equals(shifts.lspace, 5, epsilon);
+          assert_approx_equals(shifts.voffset, -10, epsilon);
+      }, "content is shifted by the specified lspace/voffset");
+
+      mpaddeds = document.getElementById("static_tests_rtl").getElementsByTagName("mpadded");
+      test(function() {
+          let shifts = GetShifts(mpaddeds[0]);
+          assert_approx_equals(shifts.lspace, -5, epsilon, "positive lspace");
+          assert_approx_equals(shifts.voffset, 0, epsilon);
+
+          shifts = GetShifts(mpaddeds[1]);
+          assert_approx_equals(shifts.lspace, 0, epsilon, "negative lspace is clmaped to zero");
+          assert_approx_equals(shifts.voffset, 0, epsilon);
+
+          shifts = GetShifts(mpaddeds[2]);
+          assert_approx_equals(shifts.lspace, 0, epsilon);
+          assert_approx_equals(shifts.voffset, 10, epsilon, "positive voffset");
+
+          shifts = GetShifts(mpaddeds[3]);
+          assert_approx_equals(shifts.lspace, 0, epsilon);
+          assert_approx_equals(shifts.voffset, -10, epsilon, "negative voffset");
+
+          shifts = GetShifts(mpaddeds[4]);
+          assert_approx_equals(shifts.lspace, -5, epsilon);
+          assert_approx_equals(shifts.voffset, 10, epsilon);
+
+          shifts = GetShifts(mpaddeds[5]);
+          assert_approx_equals(shifts.lspace, -5, epsilon);
+          assert_approx_equals(shifts.voffset, -10, epsilon);
+      }, "content is shifted by the specified lspace/voffset (RTL)");
+
+      mpaddeds = document.getElementById("dynamic_tests").getElementsByTagName("mpadded");
+      test(function() {
+          mpaddeds[0].setAttribute("lspace", "5px")
+          let shifts = GetShifts(mpaddeds[0]);
+          assert_approx_equals(shifts.lspace, 5, epsilon, "attach lspace");
+          assert_approx_equals(shifts.voffset, 0, epsilon);
+
+          mpaddeds[1].setAttribute("voffset", "10px")
+          shifts = GetShifts(mpaddeds[1]);
+          assert_approx_equals(shifts.lspace, 0, epsilon);
+          assert_approx_equals(shifts.voffset, 10, epsilon, "attach voffset");
+
+          mpaddeds[2].removeAttribute("lspace")
+          shifts = GetShifts(mpaddeds[2]);
+          assert_approx_equals(shifts.lspace, 0, epsilon, "remove lspace");
+          assert_approx_equals(shifts.voffset, 10, epsilon);
+
+          mpaddeds[3].removeAttribute("voffset")
+          shifts = GetShifts(mpaddeds[3]);
+          assert_approx_equals(shifts.lspace, 5, epsilon);
+          assert_approx_equals(shifts.voffset, 0, epsilon, "remove voffset");
+
+          mpaddeds[4].setAttribute("lspace", "15px")
+          shifts = GetShifts(mpaddeds[4]);
+          assert_approx_equals(shifts.lspace, 15, epsilon, "modify lspace");
+          assert_approx_equals(shifts.voffset, 10, epsilon);
+
+          mpaddeds[5].setAttribute("voffset", "-10px")
+          shifts = GetShifts(mpaddeds[5]);
+          assert_approx_equals(shifts.lspace, 5, epsilon);
+          assert_approx_equals(shifts.voffset, -10, epsilon, "modify voffset");
+      }, "dynamic changes of lspace/voffset");
+
+    done();
+  }
+</script>
+<style>
+div.shrink-wrap {
+  background: yellow;
+  display: inline-block;
+  margin-top: 5px;
+  padding-top: 5px;
+}
+</style>
+</head>
+<body>
+  <div id="log"></div>
+  <div id="static_tests">
+    <span id="baseline" style="display: inline-block; width: 30px; height: 5px; background: blue"></span>
+    <math>
+      <mpadded lspace="5px"  style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="-5px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="5%"  style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="-5%"  style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded voffset="-10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded voffset="10%" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded voffset="-10%" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="5px" voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="5px" voffset="-10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+    </math>
+  </div>
+  <div id="static_tests_rtl">
+    <math dir="rtl">
+      <mpadded lspace="5px"  style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="-5px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded voffset="-10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="5px" voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="5px" voffset="-10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+    </math>
+  </div>
+  <div id="dynamic_tests">
+    <math>
+      <mpadded style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="5px" voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="5px" voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="5px" voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      <mpadded lspace="5px" voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+    </math>
+  </div>
+  <div>
+    <div class="shrink-wrap">
+      <math>
+        <mpadded lspace="5px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      </math>
+    </div>
+    <div class="shrink-wrap">
+      <math>
+        <mpadded lspace="-5px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      </math>
+    </div>
+    <div class="shrink-wrap">
+      <math>
+        <mpadded voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      </math>
+    </div>
+    <div class="shrink-wrap">
+      <math>
+        <mpadded voffset="-10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      </math>
+    </div>
+    <div class="shrink-wrap">
+      <math>
+        <mpadded lspace="5px" voffset="10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      </math>
+    </div>
+    <div class="shrink-wrap">
+      <math>
+        <mpadded lspace="5px" voffset="-10px" style="background: black"><mspace width="10px" depth="15px" height="20px" style="background: green; opacity: .5"/></mpadded>
+      </math>
+    </div>
+  </div>
+</body>
+</html>

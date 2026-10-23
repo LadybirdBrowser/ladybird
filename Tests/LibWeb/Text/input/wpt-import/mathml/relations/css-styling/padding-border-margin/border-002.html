@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>border</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<meta name="assert" content="Verify that border is taken into account.">
+<link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+<style>
+  math {
+    font: 25px/1 Ahem;
+  }
+</style>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../mathml/support/feature-detection.js"></script>
+<script src="../../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../../mathml/support/box-comparison.js"></script>
+<script src="../../../../mathml/support/fonts.js"></script>
+<script>
+  var epsilon = 2;
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+
+    for (tag in MathMLFragments) {
+        if (!FragmentHelper.isValidChildOfMrow(tag))
+            continue;
+
+        var style = "border-left: 30px solid; border-right: 40px solid; border-top: 50px solid; border-bottom: 60px solid;";
+
+        if (FragmentHelper.isEmpty(tag)) {
+            test(function() {
+                assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+                var s = compareSizeWithAndWithoutStyle(tag, style);
+                assert_approx_equals(s.element_width_delta, 30 + 40, epsilon, "left/right border");
+                assert_approx_equals(s.element_height_delta, 50 + 60, epsilon, "top/bottom border");
+                assert_approx_equals(s.preferred_width_delta, 30 + 40, epsilon, "preferred width");
+            }, `Border properties on ${tag}`);
+            continue;
+        }
+
+        var default_border = tag === "merror" ? 1 : 0;
+
+        test(function() {
+            assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+            var s = compareSpaceWithAndWithoutStyle(tag, style);
+            assert_approx_equals(s.left_delta + default_border, 30, epsilon, "left border");
+            assert_approx_equals(s.right_delta + default_border, 40, epsilon, "right border");
+            assert_approx_equals(s.top_delta + default_border, 50, epsilon, "top border");
+            assert_approx_equals(s.bottom_delta + default_border, 60, epsilon, "bottom border");
+            assert_approx_equals(s.element_width_delta + 2 * default_border, 30 + 40, epsilon, "element width");
+            assert_approx_equals(s.element_height_delta + 2 * default_border, 50 + 60, epsilon, "element height");
+            assert_approx_equals(s.preferred_width_delta + 2 * default_border, 30 + 40, epsilon, "element preferred width");
+        }, `Border properties on ${tag}`);
+
+        test(function() {
+            assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+            var s = compareSpaceWithAndWithoutStyle(tag, style, null, "rtl");
+            assert_approx_equals(s.left_delta + default_border, 30, epsilon, "left border");
+            assert_approx_equals(s.right_delta + default_border, 40, epsilon, "right border");
+            assert_approx_equals(s.top_delta + default_border, 50, epsilon, "top border");
+            assert_approx_equals(s.bottom_delta + default_border, 60, epsilon, "bottom border");
+            assert_approx_equals(s.element_width_delta + 2 * default_border, 30 + 40, epsilon, "element width");
+            assert_approx_equals(s.element_height_delta + 2 * default_border, 50 + 60, epsilon, "element height");
+            assert_approx_equals(s.preferred_width_delta + 2 * default_border, 30 + 40, epsilon, "element preferred width");
+        }, `Border properties on ${tag} (rtl)`);
+    }
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>

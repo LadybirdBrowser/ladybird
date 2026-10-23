@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>padding</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<meta name="assert" content="Verify that padding is taken into account.">
+<link rel="stylesheet" type="text/css" href="../../../../fonts/ahem.css" />
+<style>
+  math {
+    font: 25px/1 Ahem;
+  }
+</style>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../mathml/support/feature-detection.js"></script>
+<script src="../../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../../mathml/support/box-comparison.js"></script>
+<script src="../../../../mathml/support/fonts.js"></script>
+<script>
+  var epsilon = 2;
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+
+    for (tag in MathMLFragments) {
+        if (!FragmentHelper.isValidChildOfMrow(tag))
+            continue;
+
+        var defaultInlinePadding = (tag === "mfrac" ? 1 : 0);
+        var style = `padding-left: ${defaultInlinePadding + 30}px; padding-right: ${defaultInlinePadding + 40}px;  padding-top: 50px; padding-bottom: 60px;`;
+
+        if (FragmentHelper.isEmpty(tag)) {
+            test(function() {
+                assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+                var s = compareSizeWithAndWithoutStyle(tag, style);
+                assert_approx_equals(s.element_width_delta, 30 + 40, epsilon, "left/right padding");
+                assert_approx_equals(s.element_height_delta, 50 + 60, epsilon, "top/bottom padding");
+                assert_approx_equals(s.preferred_width_delta, 30 + 40, epsilon, "preferred width");
+            }, `Padding properties on ${tag}`);
+            continue;
+        }
+
+        test(function() {
+            assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+            var s = compareSpaceWithAndWithoutStyle(tag, style);
+            assert_approx_equals(s.left_delta, 30, epsilon, "left padding");
+            assert_approx_equals(s.right_delta, 40, epsilon, "right padding");
+            assert_approx_equals(s.top_delta, 50, epsilon, "top padding");
+            assert_approx_equals(s.bottom_delta, 60, epsilon, "bottom padding");
+            assert_approx_equals(s.element_width_delta, 30 + 40, epsilon, "element width");
+            assert_approx_equals(s.element_height_delta, 50 + 60, epsilon, "element height");
+            assert_approx_equals(s.preferred_width_delta, 30 + 40, epsilon, "preferred width");
+        }, `Padding properties on ${tag}`);
+
+        test(function() {
+            assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+            var s = compareSpaceWithAndWithoutStyle(tag, style, "rtl");
+            assert_approx_equals(s.left_delta, 30, epsilon, "left padding");
+            assert_approx_equals(s.right_delta, 40, epsilon, "right padding");
+            assert_approx_equals(s.top_delta, 50, epsilon, "top padding");
+            assert_approx_equals(s.bottom_delta, 60, epsilon, "bottom padding");
+            assert_approx_equals(s.element_width_delta, 30 + 40, epsilon, "element width");
+            assert_approx_equals(s.element_height_delta, 50 + 60, epsilon, "element height");
+            assert_approx_equals(s.preferred_width_delta, 30 + 40, epsilon, "preferred width");
+        }, `Padding properties on ${tag} (rtl)`);
+    }
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>

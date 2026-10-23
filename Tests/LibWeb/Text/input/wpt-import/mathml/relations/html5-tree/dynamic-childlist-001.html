@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dynamic childlist of MathML elements</title>
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript">
+<link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+<link rel="help" href="https://w3c.github.io/mathml-core/#prescripts-and-tensor-indices-mmultiscripts">
+<link rel="help" href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot">
+<link rel="help" href="https://w3c.github.io/mathml-core/#space-mspace">
+<link rel="help" href="https://w3c.github.io/mathml-core/#subscripts-and-superscripts-msub-msup-msubsup">
+<link rel="help" href="https://w3c.github.io/mathml-core/#underscripts-and-overscripts-munder-mover-munderover">
+<meta name="assert" content="Dynamically modify DOM tree of some MathML elements by adding or removing children.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<script>
+  function forceNumberOfChildren(element, count) {
+      while (element.children.length > count)
+          element.removeChild(element.lastElementChild);
+      for (let i = element.children.length; i < count; i++) {
+          if (element.tagName === "mmultiscripts" && i === 5) {
+              element.appendChild(FragmentHelper.createElement("mprescripts"));
+          } else {
+              let mspace = FragmentHelper.createElement("mspace");
+              mspace.setAttribute("width", `10px`);
+              mspace.setAttribute("height", `${10*(i+1)}px`);
+              mspace.setAttribute("style", `background: black;`);
+              element.appendChild(mspace);
+          }
+      }
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", function() {
+      // force initial layout so we're sure what we're testing against
+      document.documentElement.getBoundingClientRect();
+
+      let reference = document.getElementById("reference");
+
+      Array.from(document.querySelectorAll("[data-title]")).forEach(element => {
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              let reference = document.getElementById(`${element.getAttribute("data-reference")}`);
+              forceNumberOfChildren(element, reference.children.length);
+              const epsilon = 1;
+              if (element.tagName == "mspace") {
+                  compareSize(element, reference, epsilon);
+                  childrenHaveEmptyBoundingClientRects(element);
+                  childrenHaveEmptyBoundingClientRects(reference);
+              } else {
+                  compareLayout(element, reference, epsilon);
+              }
+          }, `${element.getAttribute("data-title")}`);
+      });
+      done();
+  });
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mfrac id="mfrac-reference-1">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </mfrac>
+      <mfrac id="mfrac-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mfrac>
+      <mfrac id="mfrac-reference-3">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mfrac>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mfrac data-reference="mfrac-reference-2" data-title="Adding missing children to mfrac">
+      </mfrac>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mfrac data-reference="mfrac-reference-1" data-title="Removing child from valid mfrac">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mfrac>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mfrac data-reference="mfrac-reference-3" data-title="Adding child to valid mfrac">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mfrac>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mfrac data-reference="mfrac-reference-2" data-title="Removing extra child from mfrac">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <munder id="munder-reference-1">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </munder>
+      <munder id="munder-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </munder>
+      <munder id="munder-reference-3">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </munder>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munder data-reference="munder-reference-2" data-title="Adding missing children to munder">
+      </munder>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munder data-reference="munder-reference-1" data-title="Removing child from valid munder">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </munder>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munder data-reference="munder-reference-3" data-title="Adding child to valid munder">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </munder>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munder data-reference="munder-reference-2" data-title="Removing extra child from munder">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </munder>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <mover id="mover-reference-1">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </mover>
+      <mover id="mover-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mover>
+      <mover id="mover-reference-3">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mover data-reference="mover-reference-2" data-title="Adding missing children to mover">
+      </mover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mover data-reference="mover-reference-1" data-title="Removing child from valid mover">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mover data-reference="mover-reference-3" data-title="Adding child to valid mover">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mover data-reference="mover-reference-2" data-title="Removing extra child from mover">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mover>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <munderover id="munderover-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </munderover>
+      <munderover id="munderover-reference-3">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </munderover>
+      <munderover id="munderover-reference-4">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+        <mspace width="10px" height="40px" style="background: black;"/>
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover data-reference="munderover-reference-3" data-title="Adding missing children to munderover">
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover data-reference="munderover-reference-2" data-title="Removing child from valid munderover">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover data-reference="munderover-reference-4" data-title="Adding child to valid munderover">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </munderover>
+    </math>
+  </p>
+  <p>
+    <math>
+      <munderover data-reference="munderover-reference-3" data-title="Removing extra child from munderover">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+        <mspace width="10px" height="40px" style="background: black;"/>
+      </munderover>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <msub id="msub-reference-1">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </msub>
+      <msub id="msub-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </msub>
+      <msub id="msub-reference-3">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </msub>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msub data-reference="msub-reference-2" data-title="Adding missing children to msub">
+      </msub>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msub data-reference="msub-reference-1" data-title="Removing child from valid msub">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </msub>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msub data-reference="msub-reference-3" data-title="Adding child to valid msub">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </msub>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msub data-reference="msub-reference-2" data-title="Removing extra child from msub">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </msub>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <msup id="msup-reference-1">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </msup>
+      <msup id="msup-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </msup>
+      <msup id="msup-reference-3">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </msup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msup data-reference="msup-reference-2" data-title="Adding missing children to msup">
+      </msup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msup data-reference="msup-reference-1" data-title="Removing child from valid msup">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </msup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msup data-reference="msup-reference-3" data-title="Adding child to valid msup">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </msup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msup data-reference="msup-reference-2" data-title="Removing extra child from msup">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </msup>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <msubsup id="msubsup-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </msubsup>
+      <msubsup id="msubsup-reference-3">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </msubsup>
+      <msubsup id="msubsup-reference-4">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+        <mspace width="10px" height="40px" style="background: black;"/>
+      </msubsup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msubsup data-reference="msubsup-reference-3" data-title="Adding missing children to msubsup">
+      </msubsup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msubsup data-reference="msubsup-reference-2" data-title="Removing child from valid msubsup">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </msubsup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msubsup data-reference="msubsup-reference-4" data-title="Adding child to valid msubsup">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </msubsup>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msubsup data-reference="msubsup-reference-3" data-title="Removing extra child from msubsup">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+        <mspace width="10px" height="40px" style="background: black;"/>
+      </msubsup>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <mroot id="mroot-reference-1">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </mroot>
+      <mroot id="mroot-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mroot>
+      <mroot id="mroot-reference-3">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mroot>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mroot data-reference="mroot-reference-2" data-title="Adding missing children to mroot">
+      </mroot>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mroot data-reference="mroot-reference-1" data-title="Removing child from valid mroot">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mroot>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mroot data-reference="mroot-reference-3" data-title="Adding child to valid mroot">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mroot>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mroot data-reference="mroot-reference-2" data-title="Removing extra child from mroot">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mroot>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <msqrt id="msqrt-reference-0">
+      </msqrt>
+      <msqrt id="msqrt-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+       </msqrt>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msqrt data-reference="msqrt-reference-0" data-title="Removing children from msqrt">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </msqrt>
+    </math>
+  </p>
+  <p>
+    <math>
+      <msqrt data-reference="msqrt-reference-2" data-title="Adding children to msqrt">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </msqrt>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <mpadded id="mpadded-reference-0">
+      </mpadded>
+      <mpadded id="mpadded-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+       </mpadded>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mpadded data-reference="mpadded-reference-0" data-title="Removing children from mpadded">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mpadded>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mpadded data-reference="mpadded-reference-2" data-title="Adding children to mpadded">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </mpadded>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <mspace id="mspace-reference-0" width="30px" height="70px" style="background: blue">
+      </mspace>
+      <mspace id="mspace-reference-2" width="30px" height="70px" style="background: green">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+       </mspace>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mspace data-reference="mspace-reference-0" data-title="Removing children from mspace" width="30px" height="70px" style="background: lightblue">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mspace>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mspace data-reference="mspace-reference-2" data-title="Adding children to mspace" width="30px" height="70px" style="background: lightgreen">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </mspace>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math>
+      <mmultiscripts id="mmultiscripts-reference-0">
+      </mmultiscripts>
+      <mmultiscripts id="mmultiscripts-reference-1">
+        <mspace width="10px" height="10px" style="background: black;"/>
+      </mmultiscripts>
+      <mmultiscripts id="mmultiscripts-reference-2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+      </mmultiscripts>
+      <mmultiscripts id="mmultiscripts-reference-3">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mmultiscripts>
+      <mmultiscripts id="mmultiscripts-reference-6">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+        <mspace width="10px" height="40px" style="background: black;"/>
+        <mspace width="10px" height="50px" style="background: black;"/>
+        <mprescripts/>
+      </mmultiscripts>
+      <mmultiscripts id="mmultiscripts-reference-8">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+        <mspace width="10px" height="40px" style="background: black;"/>
+        <mspace width="10px" height="50px" style="background: black;"/>
+        <mprescripts/>
+        <mspace width="10px" height="70px" style="background: black;"/>
+        <mspace width="10px" height="80px" style="background: black;"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-reference="mmultiscripts-reference-0" data-title="multiscripts child count from 3 to 0">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-reference="mmultiscripts-reference-1" data-title="multiscripts child count from 3 to 1">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-reference="mmultiscripts-reference-2" data-title="multiscripts child count from 3 to 2">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-reference="mmultiscripts-reference-3" data-title="multiscripts child count from 0 to 3">
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-reference="mmultiscripts-reference-6" data-title="multiscripts child count from 3 to 6">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mmultiscripts>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mmultiscripts data-reference="mmultiscripts-reference-8" data-title="multiscripts child count from 3 to 8">
+        <mspace width="10px" height="10px" style="background: black;"/>
+        <mspace width="10px" height="20px" style="background: black;"/>
+        <mspace width="10px" height="30px" style="background: black;"/>
+      </mmultiscripts>
+    </math>
+  </p>
+</body>
+</html>

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dynamic tabular elements</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<link rel="help" href="https://w3c.github.io/mathml-core/#table-or-matrix-mtable">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript">
+<meta name="assert" content="Dynamically modify DOM tree of mtables">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<script>
+  function forceCells(mtable, rows, cols) {
+      while (mtable.children.length > rows)
+          mtable.removeChild(mtable.lastElementChild);
+      while (mtable.children.length < rows)
+          mtable.appendChild(FragmentHelper.createElement("mtr"));
+      for (let i = 0; i < rows; i++) {
+          let mtr = mtable.children[i];
+          while (mtr.children.length > cols)
+              mtr.removeChild(mtr.lastElementChild);
+          while (mtr.children.length < cols)
+              mtr.appendChild(FragmentHelper.createElement("mtd"));
+
+          for (let j = 0; j < cols; j++) {
+              let mtd = mtr.children[j];
+              while (mtd.children.length > 0)
+                  mtd.removeChild(mtd.lastElementChild);
+              let mspace = FragmentHelper.createElement("mspace");
+              mspace.setAttribute("height", `${10*(i+1)}px`);
+              mspace.setAttribute("width", `${10*(j+1)}px`);
+              mspace.setAttribute("style", `background: black;`);
+              mtd.appendChild(mspace);
+          }
+      }
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", function() {
+      // force initial layout so we're sure what we're testing against
+      document.documentElement.getBoundingClientRect();
+
+      let reference = document.getElementById("reference");
+
+      Array.from(document.querySelectorAll("[data-title]")).forEach(mtable => {
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              forceCells(mtable, 4, 3);
+              const epsilon = 1;
+              compareLayout(mtable, reference, epsilon);
+          }, `${mtable.getAttribute("data-title")}`);
+      });
+      done();
+  });
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mtable id="reference">
+        <mtr>
+          <mtd><mspace height="10px" width="10px" style="background: blue;"/></mtd>
+          <mtd><mspace height="10px" width="20px" style="background: blue;"/></mtd>
+          <mtd><mspace height="10px" width="30px" style="background: blue;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="20px" width="10px" style="background: blue;"/></mtd>
+          <mtd><mspace height="20px" width="20px" style="background: blue;"/></mtd>
+          <mtd><mspace height="20px" width="30px" style="background: blue;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="30px" width="10px" style="background: blue;"/></mtd>
+          <mtd><mspace height="30px" width="20px" style="background: blue;"/></mtd>
+          <mtd><mspace height="30px" width="30px" style="background: blue;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="40px" width="10px" style="background: blue;"/></mtd>
+          <mtd><mspace height="40px" width="20px" style="background: blue;"/></mtd>
+          <mtd><mspace height="40px" width="30px" style="background: blue;"/></mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable data-title="Filling an empty mtable element"></mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable data-title="Filling empty mtr elements">
+        <mtr></mtr>
+        <mtr></mtr>
+        <mtr></mtr>
+        <mtr></mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable data-title="Filling empty mtd elements">
+        <mtr>
+          <mtd></mtd>
+          <mtd></mtd>
+          <mtd></mtd>
+        </mtr>
+        <mtr>
+          <mtd></mtd>
+          <mtd></mtd>
+          <mtd></mtd>
+        </mtr>
+        <mtr>
+          <mtd></mtd>
+          <mtd></mtd>
+          <mtd></mtd>
+        </mtr>
+        <mtr>
+          <mtd></mtd>
+          <mtd></mtd>
+          <mtd></mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable data-title="Filling an empty mtr element">
+        <mtr>
+          <mtd><mspace height="10px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <!-- Empty mtr -->
+        </mtr>
+        <mtr>
+          <mtd><mspace height="30px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="40px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable data-title="Filling an empty mtd element">
+        <mtr>
+          <mtd><mspace height="10px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="20px" width="10px" style="background: black;"/></mtd>
+          <mtd><!-- Empty --></mtd>
+          <mtd><mspace height="20px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="30px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="40px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable data-title="Adding missing elements">
+        <mtr>
+          <mtd><mspace height="10px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="20px" style="background: black;"/></mtd>
+          <!-- Cell missing -->
+        </mtr>
+        <mtr>
+          <mtd><mspace height="20px" width="10px" style="background: black;"/></mtd>
+          <mtd><!-- Empty --></mtd>
+          <mtd><mspace height="20px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="30px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <!-- Row missing -->
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable data-title="Removing a row">
+        <mtr>
+          <mtd><mspace height="10px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="20px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="20px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="20px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="30px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="40px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="30px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="50px" width="10px" style="background: red;"/></mtd>
+          <mtd><mspace height="50px" width="20px" style="background: red;"/></mtd>
+          <mtd><mspace height="50px" width="30px" style="background: red;"/></mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable data-title="Removing a column">
+        <mtr>
+          <mtd><mspace height="10px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="30px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="40px" style="background: red;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="20px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="20px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="20px" width="30px" style="background: black;"/></mtd>
+          <mtd><mspace height="20px" width="40px" style="background: red;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="30px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="30px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="40px" style="background: red;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="40px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="30px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="40px" style="background: red;"/></mtd>
+        </mtr>
+      </mtable>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mtable data-title="Removing extra elements">
+        <mtr>
+          <mtd><mspace height="10px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="30px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="40px" style="background: black;"/></mtd>
+          <mtd><mspace height="10px" width="50px" style="background: red;"/></mtd><!-- extra mtd -->
+        </mtr>
+        <mtr>
+          <mtd><mspace height="20px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="20px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="20px" width="30px" style="background: black;"/></mtd>
+          <mtd><mspace height="20px" width="40px" style="background: black;"/><mspace height="20px" width="40px" style="background: red;"/><!-- extra child--></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="30px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="30px" style="background: black;"/></mtd>
+          <mtd><mspace height="30px" width="40px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="40px" width="10px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="20px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="30px" style="background: black;"/></mtd>
+          <mtd><mspace height="40px" width="40px" style="background: black;"/></mtd>
+        </mtr>
+        <mtr>
+          <mtd><mspace height="50px" width="10px" style="background: red;"/></mtd>
+          <mtd><mspace height="50px" width="20px" style="background: red;"/></mtd>
+          <mtd><mspace height="50px" width="30px" style="background: red;"/></mtd>
+          <mtd><mspace height="50px" width="40px" style="background: red;"/></mtd>
+        </mtr> <!-- extra row -->
+      </mtable>
+    </math>
+  </p>
+
+</body>
+</html>

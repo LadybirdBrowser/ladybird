@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Legacy mstyle attributes</title>
+<link rel="help" href="https://www.w3.org/TR/MathML3/chapter3.html#presm.mstyle">
+<link rel="help" href="https://w3c.github.io/mathml-core/#style-change-mstyle">
+<link rel="help" href="https://w3c.github.io/mathml-core/#space-mspace">
+<link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="help" href="https://w3c.github.io/mathml-core/#string-literal-ms">
+<link rel="help" href="https://www.w3.org/TR/MathML3/chapter3.html#presm.menclose">
+<meta name="assert" content="Legacy mstyle attributes are ignored">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+  function runTests()
+  {
+      Array.from(document.getElementsByClassName("TestContainer")).forEach(container => {
+          const tag = container.id;
+          test(function() {
+              assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+              const epsilon = 1;
+              const math = container.getElementsByTagName("math");
+              compareLayout(math[0], math[1], epsilon);
+          }, `Legacy mstyle attributes do not apply to ${tag}`);
+      });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <!-- Note: In earlier versions of MathML, putting some attributes on the
+       mstyle element was supposed to produce the same rendering as putting them
+       on the all descendants (with some exceptions). In MathML Core, relevant
+       style attributes are implemented as CSS properties and are no longer
+       specific to the mstyle element. The tests below verify that attributes
+       on mstyle that are not mapped to CSS have no effect.
+    -->
+  <p class="TestContainer" id="mspace">
+    <math>
+      <mstyle width="50px" height="50px" depth="50px">
+        <mspace style="background: lightblue"></mspace>
+      </mstyle>
+    </math>
+    <math>
+      <mstyle>
+        <mspace style="background: lightblue"></mspace>
+      </mstyle>
+    </math>
+  </p>
+  <p class="TestContainer" id="mfrac">
+    <math>
+      <mstyle linethickness="50px">
+        <mfrac>
+          <mn>1</mn>
+          <mn>2</mn>
+        </mfrac>
+      </mstyle>
+    </math>
+    <math>
+      <mstyle>
+        <mfrac>
+          <mn>1</mn>
+          <mn>2</mn>
+        </mfrac>
+      </mstyle>
+    </math>
+  </p>
+  <p class="TestContainer" id="mo">
+    <math displaystyle="true">
+      <mstyle lspace="50px" rspace="50px">
+        <mn>1</mn>
+        <mo>A</mo>
+        <mn>2</mn>
+      </mstyle>
+      <mstyle movablelimits="false" largeop="false">
+        <munder>
+          <mo>∑</mo>
+          <mn>3</mn>
+        </munder>
+      </mstyle>
+      <!-- Note: accent was a shared attribute name for mover and mo, so
+           make mstyle an ancestor of mo but not of mover. -->
+      <mover>
+        <mn>4</mn>
+        <mstyle accent="false"><mo>⇀</mo></mstyle>
+      </mover>
+      <mstyle stretchy="false" symmetric="false" maxsize="20px">
+        <mrow>
+          <mo>|</mo>
+          <mspace height="100px"></mspace>
+        </mrow>
+      </mstyle>
+      <mstyle minsize="100px">
+        <mrow>
+          <mo>|</mo>
+          <mn>4</mn>
+        </mrow>
+      </mstyle>
+      <mstyle form="prefix">
+        <mrow>
+          <mn>1</mn>
+          <!-- Infix and prefix forms of − do not have the same lspace/rspace
+               values in the operator dictionary -->
+          <mo>−</mo>
+          <mn>2</mn>
+        </mrow>
+      </mstyle>
+    </math>
+    <math displaystyle="true">
+      <mstyle>
+        <mn>1</mn>
+        <mo>A</mo>
+        <mn>2</mn>
+      </mstyle>
+      <mstyle>
+        <munder>
+          <mo>∑</mo>
+          <mn>3</mn>
+        </munder>
+      </mstyle>
+      <mover>
+        <mn>4</mn>
+        <mstyle><mo>⇀</mo></mstyle>
+      </mover>
+      <mstyle>
+        <mrow>
+          <mo>|</mo>
+          <mspace height="100px"></mspace>
+        </mrow>
+      </mstyle>
+      <mstyle>
+        <mrow>
+          <mo>|</mo>
+          <mn>4</mn>
+        </mrow>
+      </mstyle>
+      <mstyle>
+        <mrow>
+          <mn>1</mn>
+          <mo>−</mo>
+          <mn>2</mn>
+        </mrow>
+      </mstyle>
+    </math>
+  </p>
+  <!-- notation attribute is from MathML3's menclose element -->
+  <p class="TestContainer" id="menclose">
+    <math>
+      <mstyle notation="box">
+        <mn>1</mn>
+      </mstyle>
+    </math>
+    <math>
+      <mstyle>
+        <mn>1</mn>
+      </mstyle>
+    </math>
+  </p>
+  <p class="TestContainer" id="ms">
+    <math>
+      <mstyle lquote="AAAA" rquote="BBBB">
+        <ms>1</ms>
+      </mstyle>
+    </math>
+    <math>
+      <mstyle>
+        <ms>1</ms>
+      </mstyle>
+    </math>
+  </p>
+  <p class="TestContainer" id="mpadded">
+    <math>
+      <mstyle width="100px" height="50px" depth="50px"
+              lspace="10px" voffset="15px">
+        <mpadded style="background: lightblue">
+          <mspace width="10px" height="10px" style="background: black"></mspace>
+        </mpadded>
+      </mstyle>
+    </math>
+    <math>
+      <mstyle>
+        <mpadded style="background: lightblue">
+          <mspace width="10px" height="10px" style="background: black"></mspace>
+        </mpadded>
+      </mstyle>
+    </math>
+  </p>
+  <p class="TestContainer" id="mover">
+    <math>
+      <mstyle accent="true">
+        <mover>
+          <mn>1</mn>
+          <mn>2</mn>
+        </mover>
+      </mstyle>
+    </math>
+    <math>
+      <mstyle>
+        <mover>
+          <mn>1</mn>
+          <mn>2</mn>
+        </mover>
+      </mstyle>
+    </math>
+  </p>
+  <p class="TestContainer" id="munder">
+    <math>
+      <mstyle accentunder="true">
+        <munder>
+          <mn>1</mn>
+          <mn>2</mn>
+        </munder>
+      </mstyle>
+    </math>
+    <math>
+      <mstyle>
+        <munder>
+          <mn>1</mn>
+          <mn>2</mn>
+        </munder>
+      </mstyle>
+    </math>
+  </p>
+  <p class="TestContainer" id="munderover">
+    <math>
+      <mstyle accent="true">
+        <munderover>
+          <mn>1</mn>
+          <mn>2</mn>
+          <mn>3</mn>
+        </munderover>
+      </mstyle>
+      <mstyle accentunder="true">
+        <munderover>
+          <mn>1</mn>
+          <mn>2</mn>
+          <mn>3</mn>
+        </munderover>
+      </mstyle>
+    </math>
+    <math>
+      <mstyle>
+        <munderover>
+          <mn>1</mn>
+          <mn>2</mn>
+          <mn>3</mn>
+        </munderover>
+      </mstyle>
+      <mstyle>
+        <munderover>
+          <mn>1</mn>
+          <mn>2</mn>
+          <mn>3</mn>
+        </munderover>
+      </mstyle>
+    </math>
+  </p>
+</body>
+</html>

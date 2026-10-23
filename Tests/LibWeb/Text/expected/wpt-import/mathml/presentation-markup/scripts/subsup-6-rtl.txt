@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	mprescripts RTL coordinates and sizes (rtl 2 postscripts)
+Fail	mprescripts RTL coordinates and sizes (rtl 2 prescripts)
+Fail	mprescripts RTL coordinates and sizes (rtl 2 prescripts, 4 postscripts)
+Fail	mprescripts RTL coordinates and sizes (rtl 4 prescripts, 2 postscripts)
+Fail	mprescripts RTL coordinates and sizes (rtl prescripts with padding/border/margin)

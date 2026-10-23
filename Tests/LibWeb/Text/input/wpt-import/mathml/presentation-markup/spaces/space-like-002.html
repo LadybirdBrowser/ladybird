@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Space-like elements</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#definition-of-space-like-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-of-mrow">
+<meta name="assert" content="Verify definition of space-like elements">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<style>
+  /* Default spacing of operator 'X' is 0.2777777777777778em so quite different
+     from the measured/specified 0em and 1em. */
+  math, math * {
+      font: 25px/1 Ahem;
+  }
+  mn {
+      color: black;
+  }
+  mo {
+      color: yellow;
+  }
+  .testedElement, .testedElement * {
+      color: blue !important;
+      background: blue !important;
+  }
+</style>
+<script>
+  function spaceBefore(id) {
+      var element = document.getElementById(id);
+      var mnBeforeParent = element.parentNode.previousElementSibling;
+      return element.getBoundingClientRect().left - mnBeforeParent.getBoundingClientRect().right;
+  }
+
+  function spaceAfter(id) {
+      var element = document.getElementById(id);
+      var mnAfterParent = element.parentNode.nextElementSibling;
+      return mnAfterParent.getBoundingClientRect().left - element.getBoundingClientRect().right;
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+      var epsilon = 1;
+      var emToPx = 25;
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("maction1"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("maction1"), emToPx, epsilon);
+      }, "space-like maction");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("maction2"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("maction2"), emToPx, epsilon);
+      }, "space-like maction (no first child)");
+
+      test(function() {
+          assert_approx_equals(spaceBefore("maction3"), 0, epsilon);
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceAfter("maction3"), 2 * emToPx, epsilon);
+      }, "non-space like maction (first child not space-like)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("semantics1"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("semantics1"), emToPx, epsilon);
+      }, "space-like semantics");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("semantics2"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("semantics2"), emToPx, epsilon);
+      }, "space-like semantics (no first child)");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("semantics3"), 0, epsilon);
+          assert_approx_equals(spaceAfter("semantics3"), 2 * emToPx, epsilon);
+      }, "non-space like semantics (first child not space-like)");
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- maction is space-like when its first child exists and is space-like -->
+        <maction id="maction1" class="testedElement" actiontype="statusline">
+          <mtext>X</mtext>
+          <mtext>STATUS MESSAGE</mtext>
+        </maction>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- maction is not space-like when its first does not exist-like -->
+        <maction id="maction2" class="testedElement" actiontype="statusline">
+        </maction>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- maction is not space-like when its first is not space-like -->
+        <maction id="maction3" class="testedElement" actiontype="statusline">
+          <mn>1</mn>
+          <mtext>STATUS MESSAGE</mtext>
+        </maction>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- semantics is space-like when its first child exists and is space-like -->
+        <semantics id="semantics1" class="testedElement" actiontype="statusline">
+          <mtext>X</mtext>
+          <annotation>TEXT ANNOTATION</annotation>
+        </semantics>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- semantics is not space-like when its first does not exist-like -->
+        <semantics id="semantics2" class="testedElement" actiontype="statusline">
+        </semantics>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- semantics is not space-like when its first is not space-like -->
+        <semantics id="semantics3" class="testedElement" actiontype="statusline">
+          <mn>1</mn>
+          <annotation>TEXT ANNOTATION</annotation>
+        </semantics>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+</body>
+</html>

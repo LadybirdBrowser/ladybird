@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fraction parameters</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+<meta name="assert" content="Element mfrac correctly uses the fraction parameters from the MATH table.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math, mspace {
+    font-size: 10px;
+  }
+  @font-face {
+    font-family: axisheight7000-rulethickness1000;
+    src: url("../../../fonts/math/fraction-axisheight7000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: denominatordisplaystylegapmin5000-rulethickness1000;
+    src: url("../../../fonts/math/fraction-denominatordisplaystylegapmin5000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: denominatordisplaystyleshiftdown6000-axisheight1000-rulethickness1000;
+    src: url("../../../fonts/math/fraction-denominatordisplaystyleshiftdown6000-axisheight1000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: denominatorgapmin4000-rulethickness1000;
+    src: url("../../../fonts/math/fraction-denominatorgapmin4000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: denominatorshiftdown3000-axisheight1000-rulethickness1000;
+    src: url("../../../fonts/math/fraction-denominatorshiftdown3000-axisheight1000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: numeratordisplaystylegapmin8000-rulethickness1000;
+    src: url("../../../fonts/math/fraction-numeratordisplaystylegapmin8000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: numeratordisplaystyleshiftup2000-axisheight1000-rulethickness1000;
+    src: url("../../../fonts/math/fraction-numeratordisplaystyleshiftup2000-axisheight1000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: numeratorgapmin9000-rulethickness1000;
+    src: url("../../../fonts/math/fraction-numeratorgapmin9000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: numeratorshiftup11000-axisheight1000-rulethickness1000;
+    src: url("../../../fonts/math/fraction-numeratorshiftup11000-axisheight1000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: rulethickness10000;
+    src: url("../../../fonts/math/fraction-rulethickness10000.woff");
+  }
+</style>
+<script>
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  var epsilon = 1;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 7000 * emToPx;
+      var v2 = 1000 * emToPx;
+      assert_approx_equals(getBox("ref0001").top - getBox("num0001").bottom,
+                           v1 + v2 / 2, epsilon, "mfrac: axis height");
+    }, "AxisHeight");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 5000 * emToPx;
+      assert_approx_equals(getBox("den0002").top - getBox("ref0002").bottom,
+                           v1, epsilon, "mfrac: denominator gap");
+    }, "DenominatorDisplayStyleGapMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 6000 * emToPx;
+      assert_approx_equals(getBox("den0003").top - getBox("ref0003").bottom,
+                           v1, epsilon, "mfrac: denominator shift");
+    }, "DenominatorDisplayStyleShiftDown");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 5000 * emToPx;
+      assert_approx_equals(getBox("den0002b").top - getBox("ref0002b").bottom,
+                           v1, epsilon, "mfrac: denominator gap");
+    }, "DenominatorDisplayStyleGapMin Displaystyle");
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      var v1 = 6000 * emToPx;
+      assert_approx_equals(getBox("den0003b").top - getBox("ref0003b").bottom,
+                           v1, epsilon, "mfrac: denominator shift");
+    }, "DenominatorDisplayStyleShiftDown Displaystyle");
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      var v1 = 5000 * emToPx;
+      assert_approx_equals(getBox("den0002c").top - getBox("ref0002c").bottom,
+                           v1, epsilon, "mfrac: denominator gap");
+    }, "DenominatorDisplayStyleGapMin Displaystyle on fraction");
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      var v1 = 6000 * emToPx;
+      assert_approx_equals(getBox("den0003c").top - getBox("ref0003c").bottom,
+                           v1, epsilon, "mfrac: denominator shift");
+    }, "DenominatorDisplayStyleShiftDown Displaystyle on fraction");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      var v1 = 4000 * emToPx;
+      assert_approx_equals(getBox("den0004").top - getBox("ref0004").bottom,
+                           v1, epsilon, "mfrac: denominator gap");
+    }, "DenominatorGapMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 3000 * emToPx;
+      assert_approx_equals(getBox("den0005").top - getBox("ref0005").bottom,
+                           v1, epsilon, "mfrac: denominator shift");
+    }, "DenominatorShiftDown");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      var v1 = 4000 * emToPx;
+      assert_approx_equals(getBox("den0004b").top - getBox("ref0004b").bottom,
+                           v1, epsilon, "mfrac: denominator gap");
+    }, "DenominatorGapMin Displaystyle on fraction");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 3000 * emToPx;
+      assert_approx_equals(getBox("den0005b").top - getBox("ref0005b").bottom,
+                           v1, epsilon, "mfrac: denominator shift");
+    }, "DenominatorShiftDown Displaystyle on fraction");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 8000 * emToPx;
+      assert_approx_equals(getBox("ref0006").top - getBox("num0006").bottom,
+                           v1, epsilon, "mfrac: numerator gap");
+    }, "NumeratorDisplayStyleGapMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 2000 * emToPx;
+      assert_approx_equals(getBox("ref0007").top - getBox("num0007").bottom,
+                           v1, epsilon, "mfrac: numerator shift");
+    }, "NumeratorDisplayStyleShiftDown");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 8000 * emToPx;
+      assert_approx_equals(getBox("ref0006b").top - getBox("num0006b").bottom,
+                           v1, epsilon, "mfrac: numerator gap");
+    }, "NumeratorDisplayStyleGapMin Displaystyle");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 2000 * emToPx;
+      assert_approx_equals(getBox("ref0007b").top - getBox("num0007b").bottom,
+                           v1, epsilon, "mfrac: numerator shift");
+    }, "NumeratorDisplayStyleShiftDown Displaystyle");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 8000 * emToPx;
+      assert_approx_equals(getBox("ref0006c").top - getBox("num0006c").bottom,
+                           v1, epsilon, "mfrac: numerator gap");
+    }, "NumeratorDisplayStyleGapMin Displaystyle on fraction");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 2000 * emToPx;
+      assert_approx_equals(getBox("ref0007c").top - getBox("num0007c").bottom,
+                           v1, epsilon, "mfrac: numerator shift");
+    }, "NumeratorDisplayStyleShiftDown Displaystyle on fraction");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 9000 * emToPx;
+      assert_approx_equals(getBox("ref0008").top - getBox("num0008").bottom,
+                           v1, epsilon, "mfrac: numerator gap");
+    }, "NumeratorGapMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 11000 * emToPx;
+      assert_approx_equals(getBox("ref0009").top - getBox("num0009").bottom,
+                           v1, epsilon, "mfrac: numerator shift");
+    }, "NumeratorShiftDown");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 10000 * emToPx;
+      assert_approx_equals(getBox("den0010").top - getBox("num0010").bottom,
+                           v1, epsilon, "mfrac: rule thickness");
+    }, "FractionRuleThickness");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math style="font-family: axisheight7000-rulethickness1000;">
+      <mspace id="ref0001" depth="1em" width="3em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em" height="1em" id="num0001" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math display="block" style="font-family: denominatordisplaystylegapmin5000-rulethickness1000;">
+      <mspace id="ref0002" width="3em"
+              height=".5em" depth=".5em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em"/>
+        <mspace width="3em" height="1em" id="den0002" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math display="block" style="font-family: denominatordisplaystyleshiftdown6000-axisheight1000-rulethickness1000;">
+      <mspace id="ref0003" width="3em" height="1em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em"/>
+        <mspace width="3em" depth="1em" id="den0003" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: denominatordisplaystylegapmin5000-rulethickness1000;">
+      <mspace id="ref0002b" width="3em"
+              height=".5em" depth=".5em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em"/>
+        <mspace width="3em" height="1em" id="den0002b" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: denominatordisplaystyleshiftdown6000-axisheight1000-rulethickness1000;">
+      <mspace id="ref0003b" width="3em" height="1em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em"/>
+        <mspace width="3em" depth="1em" id="den0003b" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: denominatordisplaystylegapmin5000-rulethickness1000;">
+      <mspace id="ref0002c" width="3em"
+              height=".5em" depth=".5em" style="background: green"/>
+      <mfrac displaystyle="true">
+        <mspace width="3em"/>
+        <mspace width="3em" height="1em" id="den0002c" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: denominatordisplaystyleshiftdown6000-axisheight1000-rulethickness1000;">
+      <mspace id="ref0003c" width="3em" height="1em" style="background: green"/>
+      <mfrac displaystyle="true">
+        <mspace width="3em"/>
+        <mspace width="3em" depth="1em" id="den0003c" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: denominatorgapmin4000-rulethickness1000;">
+      <mspace id="ref0004" width="3em"
+              height=".5em" depth=".5em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em"/>
+        <mspace width="3em" height="1em" id="den0004" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: denominatorshiftdown3000-axisheight1000-rulethickness1000;">
+      <mspace id="ref0005" width="3em" height="1em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em"/>
+        <mspace width="3em" depth="1em" id="den0005" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: denominatorgapmin4000-rulethickness1000;">
+      <mspace id="ref0004b" width="3em"
+              height=".5em" depth=".5em" style="background: green"/>
+      <mfrac displaystyle="false">
+        <mspace width="3em"/>
+        <mspace width="3em" height="1em" id="den0004b" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: denominatorshiftdown3000-axisheight1000-rulethickness1000;">
+      <mspace id="ref0005b" width="3em" height="1em" style="background: green"/>
+      <mfrac displaystyle="false">
+        <mspace width="3em"/>
+        <mspace width="3em" depth="1em" id="den0005b" style="background: blue"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math display="block" style="font-family: numeratordisplaystylegapmin8000-rulethickness1000;">
+      <mspace id="ref0006" width="3em"
+              height=".5em" depth=".5em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em" depth="1em" id="num0006" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math display="block" style="font-family: numeratordisplaystyleshiftup2000-axisheight1000-rulethickness1000;">
+      <mspace id="ref0007" width="3em"
+              depth="1em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em" height="1em" id="num0007" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: numeratordisplaystylegapmin8000-rulethickness1000;">
+      <mspace id="ref0006b" width="3em"
+              height=".5em" depth=".5em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em" depth="1em" id="num0006b" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math displaystyle="true" style="font-family: numeratordisplaystyleshiftup2000-axisheight1000-rulethickness1000;">
+      <mspace id="ref0007b" width="3em"
+              depth="1em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em" height="1em" id="num0007b" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: numeratordisplaystylegapmin8000-rulethickness1000;">
+      <mspace id="ref0006c" width="3em"
+              height=".5em" depth=".5em" style="background: green"/>
+      <mfrac displaystyle="true">
+        <mspace width="3em" depth="1em" id="num0006c" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: numeratordisplaystyleshiftup2000-axisheight1000-rulethickness1000;">
+      <mspace id="ref0007c" width="3em"
+              depth="1em" style="background: green"/>
+      <mfrac displaystyle="true">
+        <mspace width="3em" height="1em" id="num0007c" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: numeratorgapmin9000-rulethickness1000;">
+      <mspace id="ref0008" width="3em"
+              height=".5em" depth=".5em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em" depth="1em" id="num0008" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: numeratorshiftup11000-axisheight1000-rulethickness1000;">
+      <mspace id="ref0009" width="3em"
+              depth="1em" style="background: green"/>
+      <mfrac>
+        <mspace width="3em" height="1em" id="num0009" style="background: blue"/>
+        <mspace width="3em"/>
+      </mfrac>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: rulethickness10000">
+      <mfrac>
+        <mspace width="3em" height="1em" id="num0010" style="background: blue"/>
+        <mspace width="3em" depth="1em" id="den0010" style="background: green"/>
+      </mfrac>
+    </math>
+  </p>
+</body>
+</html>

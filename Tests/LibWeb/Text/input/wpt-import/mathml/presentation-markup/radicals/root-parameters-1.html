@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Radical parameters</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot">
+<meta name="assert" content="Elements msqrt and mroot correctly use the radical parameters from the MATH table.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math, mspace {
+    font-size: 10px;
+  }
+  @font-face {
+    font-family: degreebottomraisepercent25-rulethickness1000;
+    src: url("../../../fonts/math/radical-degreebottomraisepercent25-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: displaystyleverticalgap7000-rulethickness1000;
+    src: url("../../../fonts/math/radical-displaystyleverticalgap7000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: extraascender3000-rulethickness1000;
+    src: url("../../../fonts/math/radical-extraascender3000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: kernafterdegreeminus5000-rulethickness1000;
+    src: url("../../../fonts/math/radical-kernafterdegreeminus5000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: kernbeforedegree4000-rulethickness1000;
+    src: url("../../../fonts/math/radical-kernbeforedegree4000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: verticalgap6000-rulethickness1000;
+    src: url("../../../fonts/math/radical-verticalgap6000-rulethickness1000.woff");
+  }
+  @font-face {
+    font-family: rulethickness8000;
+    src: url("../../../fonts/math/radical-rulethickness8000.woff");
+  }
+</style>
+<script>
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  var epsilon = 1;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 25;
+      var v2 = 1000 * emToPx;
+      var radicalHeight = getBox("base001").height + v2;
+      assert_approx_equals(getBox("ref001").top - getBox("index001").bottom,
+                           v1 * radicalHeight / 100, epsilon,
+                           "mroot: vertical position of index");
+    }, "RadicalDegreeBottomRaisePercent");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 7000 * emToPx;
+      var v2 = 1000 * emToPx;
+      assert_approx_equals(getBox("base0021").top - getBox("radical0021").top,
+                           v1 + v2, epsilon,
+                           "msqrt: vertical gap");
+      assert_approx_equals(getBox("base0022").top - getBox("radical0022").top,
+                           v1 + v2, epsilon,
+                           "mroot: vertical gap");
+    }, "RadicalDisplayStyleVerticalGap");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 3000 * emToPx;
+      var v2 = 1000 * emToPx;
+      assert_approx_equals(getBox("base0031").top - getBox("radical0031").top,
+                           v1 + v2, epsilon,
+                           "msqrt: vertical gap");
+      assert_approx_equals(getBox("base0032").top - getBox("radical0032").top,
+                           v1 + v2, epsilon,
+                           "mroot: vertical gap");
+    }, "RadicalExtraAscender");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      // Note: the size variants of U+221A in this font have width 1000.
+      var v1 = 5000 * emToPx;
+      var radicalSymbolWidth = 1000 * emToPx;
+      var radicalLeft = getBox("base004").left - radicalSymbolWidth;
+      assert_approx_equals(getBox("index004").right - radicalLeft,
+                           v1, epsilon,
+                           "mroot: kern after degree");
+    }, "RadicalKernAfterDegree");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 4000 * emToPx;
+      assert_approx_equals(getBox("index005").left - getBox("radical005").left,
+                           v1, epsilon,
+                           "mroot: kern before degree");
+    }, "RadicalKernBeforeDegree");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 8000 * emToPx;
+      assert_approx_equals(getBox("base0061").top - getBox("radical0061").top,
+                           v, epsilon,
+                           "msqrt: vertical gap");
+      assert_approx_equals(getBox("base0062").top - getBox("radical0062").top,
+                           v, epsilon,
+                           "msqrt: vertical gap");
+    }, "RadicalRuleThickness");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 6000 * emToPx;
+      var v2 = 1000 * emToPx;
+      assert_approx_equals(getBox("base0071").top - getBox("radical0071").top,
+                           v1 + v2, epsilon,
+                           "msqrt: vertical gap");
+      assert_approx_equals(getBox("base0072").top - getBox("radical0072").top,
+                           v1 + v2, epsilon,
+                           "msqrt: vertical gap");
+    }, "RadicalVerticalGap");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math style="font-family: degreebottomraisepercent25-rulethickness1000;">
+      <mspace id="ref001" width="3em" depth="1em" style="background: green"/>
+      <mroot>
+        <mspace id="base001" width="3em" height="10em" style="background: green"/>
+        <mspace id="index001" width="3em" height="1em" style="background: blue"/>
+      </mroot>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math display="block"
+          style="font-family: displaystyleverticalgap7000-rulethickness1000;">
+      <msqrt style="background: green" id="radical0021">
+        <mspace id="base0021" width="3em" height="1em" style="background: blue"/>
+      </msqrt>
+      <mroot style="background: green" id="radical0022">
+        <mspace id="base0022" width="3em" height="1em" style="background: blue"/>
+        <mspace width="3em" height="1em" style="background: black"/>
+      </mroot>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: extraascender3000-rulethickness1000;">
+      <msqrt style="background: green" id="radical0031">
+        <mspace id="base0031" width="3em" height="1em" style="background: blue"/>
+      </msqrt>
+      <mroot style="background: green" id="radical0032">
+        <mspace id="base0032" width="3em" height="1em" style="background: blue"/>
+        <mspace width="3em" height="1em" style="background: black"/>
+      </mroot>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: kernafterdegreeminus5000-rulethickness1000;">
+      <mroot>
+        <mspace id="base004" width="3em" height="2em"  style="background: blue"/>
+        <mspace id="index004" width="7em" height="1em" style="background: green"/>
+      </mroot>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: kernbeforedegree4000-rulethickness1000;">
+      <mroot id="radical005" style="background: blue">
+        <mspace width="3em" height="1em"/>
+        <mspace id="index005" width="3em" height="1em" style="background: green"/>
+      </mroot>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: rulethickness8000;">
+      <msqrt style="background: green" id="radical0061">
+        <mspace id="base0061" width="3em" height="1em" style="background: blue"/>
+      </msqrt>
+      <mroot style="background: green" id="radical0062">
+        <mspace id="base0062" width="3em" height="1em" style="background: blue"/>
+        <mspace width="3em" height="1em" style="background: black"/>
+      </mroot>
+    </math>
+  </p>
+  <p>
+    <math style="font-family: verticalgap6000-rulethickness1000;">
+      <msqrt style="background: green" id="radical0071">
+        <mspace id="base0071" width="3em" height="1em" style="background: blue"/>
+      </msqrt>
+      <mroot style="background: green" id="radical0072">
+        <mspace id="base0072" width="3em" height="1em" style="background: blue"/>
+        <mspace width="3em" height="1em" style="background: black"/>
+      </mroot>
+    </math>
+  </p>
+</body>
+</html>

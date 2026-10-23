@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mpadded</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<meta name="assert" content="Verify metrics of empty mpadded element for different values of height, depth and width">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  var epsilon = 1;
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+    test(function() {
+      var none = getBox("none");
+      assert_equals(none.width, 0, "zero width");
+      assert_approx_equals(getBox("baseline").bottom - none.top, 0, epsilon, "zero depth");
+      assert_approx_equals(none.bottom - getBox("baseline").bottom, 0, epsilon, "zero depth");
+    }, "mpadded (no attributes)");
+
+    test(function() {
+      for (var i = 0; i <= 2; i++) {
+        var mpadded = getBox("width" + i);
+        assert_approx_equals(mpadded.width, 25*(i+1), epsilon, "width " + i);
+        assert_approx_equals(getBox("baseline").bottom - mpadded.top, 0, epsilon, "height" + i);
+        assert_approx_equals(mpadded.bottom - getBox("baseline").bottom, 0, epsilon, "depth" + i);
+      }
+    }, "Different widths");
+
+    test(function() {
+      for (var i = 0; i <= 2; i++) {
+        var mpadded = getBox("height" + i);
+        assert_equals(mpadded.width, 0, "width" + i);
+        assert_approx_equals(getBox("baseline").bottom - mpadded.top, 25*(i+1), epsilon, "height" + i);
+        assert_approx_equals(mpadded.bottom - getBox("baseline").bottom, 0, epsilon, "depth" + i);
+      }
+    }, "Different heights");
+
+    test(function() {
+      for (var i = 0; i <= 2; i++) {
+        var mpadded = getBox("depth" + i);
+        assert_equals(mpadded.width, 0, "width" + i);
+        assert_approx_equals(getBox("baseline").bottom - mpadded.top, 0, epsilon, "height" + i);
+        assert_approx_equals(mpadded.bottom - getBox("baseline").bottom, 25*(i+1), epsilon, "depth" + i);
+      }
+    }, "Different depths");
+
+    test(function() {
+      for (var i = 0; i <= 2; i++) {
+        var mpadded = getBox("mpadded" + i);
+        assert_approx_equals(mpadded.width, 25*(1+i%3), epsilon, "width" + i);
+        assert_approx_equals(getBox("baseline").bottom - mpadded.top, 25*(1+(i+1)%3), epsilon, "height" + i);
+        assert_approx_equals(mpadded.bottom - getBox("baseline").bottom, 25*(1+(i+2)%3), epsilon, "depth" + i);
+      }
+    }, "Various combinations of height, depth and width.");
+
+    test(function() {
+      var container = document.getElementById("containerForPreferredWidth");
+      var mpadded = container.getElementsByTagName("mpadded")[0];
+      var containerWidth = container.getBoundingClientRect().width;
+      var mpaddedWidth = mpadded.getBoundingClientRect().width;
+      assert_approx_equals(containerWidth, mpaddedWidth, epsilon);
+    }, "Preferred width");
+
+    // Dynamically set attributes.
+    ["width", "height", "depth"].forEach(function (name, index) {
+        document.getElementById("dynamic-remove").removeAttribute(name);
+        let length = `${50 + index * 10}px`;
+        document.getElementById("dynamic-attach").setAttribute(name, length);
+        document.getElementById("dynamic-modify").setAttribute(name, length);
+    });
+    let baseline = getBox("baseline2").bottom;
+
+    test(function() {
+        let remove = getBox("dynamic-remove");
+        assert_approx_equals(remove.width, 0, epsilon);
+        assert_approx_equals(remove.height, 0, epsilon);
+        assert_approx_equals(remove.top, baseline, epsilon);
+    }, "dynamic attributes (remove)");
+
+    test(function() {
+        let attach = getBox("dynamic-attach");
+        assert_approx_equals(attach.width, 50, epsilon);
+        assert_approx_equals(attach.height, 60 + 70, epsilon);
+        assert_approx_equals(baseline - attach.top, 60, epsilon);
+    }, "dynamic attributes (attach)");
+
+    test(function() {
+        let modify = getBox("dynamic-modify");
+        assert_approx_equals(modify.width, 50, epsilon);
+        assert_approx_equals(modify.height, 60 + 70, epsilon);
+        assert_approx_equals(baseline - modify.top, 60, epsilon);
+    }, "dynamic attributes (modify)");
+
+    done();
+  }
+</script>
+<style>
+div.shrink-wrap {
+  background: yellow;
+  display: inline-block;
+  margin-top: 5px;
+  padding-top: 5px;
+}
+</style>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <span id="baseline" style="display: inline-block; width: 30px; height: 5px; background: blue"></span>
+    <math>
+      <mpadded id="none"/>
+      <mpadded id="width0" width="25px"/>
+      <mpadded id="width1" width="50px"/>
+      <mpadded id="width2" width="75px"/>
+      <mpadded id="height0" height="25px"/>
+      <mpadded id="height1" height="50px"/>
+      <mpadded id="height2" height="75px"/>
+      <mpadded id="depth0" depth="25px"/>
+      <mpadded id="depth1" depth="50px"/>
+      <mpadded id="depth2" depth="75px"/>
+      <mpadded id="mpadded0" width="25px" height="50px" depth="75px" style="background: green"/>
+      <mpadded id="mpadded1" width="50px" height="75px" depth="25px" style="background: blue"/>
+      <mpadded id="mpadded2" width="75px" height="25px" depth="50px" style="background: green"/>
+    </math>
+  </p>
+  <div>
+    <div id="containerForPreferredWidth" class="shrink-wrap">
+      <math><mpadded width="75px" height="25px" depth="50px" style="background: green"/></math>
+    </div>
+  </div>
+  <p>
+    <span id="baseline2" style="display: inline-block; width: 30px; height: 5px; background: blue"></span>
+    <math>
+      <mpadded id="dynamic-attach" style="background: lightgreen"/>
+      <mpadded id="dynamic-remove" width="10px" height="20px" depth="30px" style="background: lightyellow"/>
+      <mpadded id="dynamic-modify" width="100px" height="200px" depth="300px" style="background: pink"/>
+    </math>
+  </p>
+</body>
+</html>

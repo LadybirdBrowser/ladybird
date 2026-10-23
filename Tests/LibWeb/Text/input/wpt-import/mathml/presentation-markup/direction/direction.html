@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<title>Verify computed direction</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#attributes-common-to-html-and-mathml-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#the-top-level-math-element">
+<meta name="assert" content="Verify computed direction value.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+  function runTests() {
+    test(function() {
+      assert_equals(window.getComputedStyle(document.getElementById('x1')).direction, "ltr");
+      assert_equals(window.getComputedStyle(document.getElementById('x2')).direction, "ltr");
+      assert_equals(window.getComputedStyle(document.getElementById('x3')).direction, "ltr");
+      assert_equals(window.getComputedStyle(document.getElementById('x4')).direction, "rtl");
+    }, "Check direction");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <!-- Test the CSS direction and dir attribute on the <math> element. It
+       should be "ltr", except if an explicit dir="rtl" is used. -->
+
+    <p>שורשי משוואה מודגשת זו <math id="x1"> <mrow> <msup> <mi>y</mi> <mn>3</mn> </msup> <mo>+</mo> <mi>p</mi> <mi>y</mi> <mo>+</mo> <mi>q</mi> <mo>=</mo> <mn>0</mn> </mrow> </math> מודגשים גם הם</p>
+
+    <p>שורשי משוואה מודגשת זו <math id="x2" dir="ltr"> <mrow> <msup> <mi>y</mi> <mn>3</mn> </msup> <mo>+</mo> <mi>p</mi> <mi>y</mi> <mo>+</mo> <mi>q</mi> <mo>=</mo> <mn>0</mn> </mrow> </math> מודגשים גם הם</p>
+
+    <p>שורשי משוואה מודגשת זו <math id="x3" dir="invalid"> <mrow> <msup> <mi>y</mi> <mn>3</mn> </msup> <mo>+</mo> <mi>p</mi> <mi>y</mi> <mo>+</mo> <mi>q</mi> <mo>=</mo> <mn>0</mn> </mrow> </math> מודגשים גם הם</p>
+
+    <p>שורשי משוואה מודגשת זו <math id="x4" dir="rtl"> <mrow> <msup> <mi>y</mi> <mn>3</mn> </msup> <mo>+</mo> <mi>p</mi> <mi>y</mi> <mo>+</mo> <mi>q</mi> <mo>=</mo> <mn>0</mn> </mrow> </math> מודגשים גם הם</p>
+
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<title>MathMLElement GlobalEventHandlers</title>
+<link rel="author" title="Brian Kardell" href="mailto:bkardell@igalia.com" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript"/>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#event-handler-idl-attributes"/>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#event-handler-content-attributes"/>
+<meta name="timeout" content="long">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/WebIDLParser.js"></script>
+
+<script>
+  "use strict";
+
+  // The prefixed animation events are special; their event types are
+  // camel-case.
+  const prefixedAnimationAttributeToEventType = new Map([
+    ["webkitanimationend", "webkitAnimationEnd"],
+    ["webkitanimationiteration", "webkitAnimationIteration"],
+    ["webkitanimationstart", "webkitAnimationStart"],
+    ["webkittransitionend", "webkitTransitionEnd"],
+  ]);
+
+  // basic pattern lifted from /html/webappapis/scripting/events/event-handler-all-global-events.html
+  promise_setup(async function() {
+    const res = await fetch("../../../interfaces/html.idl");
+    const htmlIDL = await res.text();
+    // Parsing the whole IDL file is slow, so use a small regexp to extract only
+    // the part that is relevant for this test.
+    const parsedHTMLIDL = WebIDL2.parse(htmlIDL.
+      match(/^interface mixin GlobalEventHandlers {[^{}]*};$/m)[0]);
+    const globalEventHandlers = parsedHTMLIDL.find(
+      idl => idl.name === "GlobalEventHandlers"
+    );
+
+    // onerror is too special
+    const names = globalEventHandlers.members
+      .map(member => member.name)
+      .filter(name => name !== "onerror");
+
+    for (const name of names) {
+      const withoutOn = name.substring(2);
+
+      promise_test(async () => {
+        const location = MathMLElement.prototype;
+        assert_true(
+          location.hasOwnProperty(name),
+          `${location.constructor.name} has an own property named "${name}"`
+        );
+
+        assert_false(
+          name in Element.prototype,
+          `Element.prototype must not contain a "${name}" property`
+        );
+      }, `${name}: must be on the appropriate locations for GlobalEventHandlers`);
+
+      promise_test(async () => {
+        const location = document.createElementNS(
+          "http://www.w3.org/1998/Math/MathML",
+          "math"
+        );
+
+        assert_equals(
+          location[name],
+          null,
+          `The default value of the property is null for a ${
+            location.constructor.name
+          } instance`
+        );
+      }, `${name}: the default value must be null`);
+
+      promise_test(async () => {
+        const div = document.createElement("div");
+        div.insertAdjacentHTML("beforeend", `<math ${name}="window.${name}Happened1 = true;"></math>`);
+        const compiledHandler = div.firstElementChild[name];
+        assert_equals(
+          typeof compiledHandler,
+          "function",
+          `The ${name} property must be a function`
+        );
+        compiledHandler();
+        assert_true(
+          window[`${name}Happened1`],
+          "Calling the handler must run the code"
+        );
+      }, `${name}: the content attribute must be compiled into a function as the corresponding property`);
+
+      promise_test(async () => {
+        const el = document.createElementNS(
+          "http://www.w3.org/1998/Math/MathML",
+          "math"
+        );
+        assert_equals(el[name], null, `The ${name} property must be null (no attribute)`);
+
+        el.setAttribute(name, `window.${name}Happened2 = true;`);
+        const compiledHandler = el[name];
+        assert_equals(
+          typeof compiledHandler,
+          "function",
+          `The ${name} property must be a function (set attribute)`
+        );
+        compiledHandler();
+        assert_true(
+          window[`${name}Happened2`],
+          "Calling the handler must run the code (set attribute)"
+        );
+
+        window[`${name}Happened2`] = false;
+        const clonedEl = el.cloneNode(true);
+        const clonedCompiledHandler = clonedEl[name];
+        assert_equals(
+          typeof clonedCompiledHandler,
+          "function",
+          `The ${name} property must be a function (clone node)`
+        );
+        clonedCompiledHandler();
+        assert_true(
+          window[`${name}Happened2`],
+          "Calling the handler must run the code (clone node)"
+        );
+
+        el.setAttribute(name, `window.${name}Happened3 = true;`);
+        const newCompiledHandler = el[name];
+        assert_equals(
+          typeof newCompiledHandler,
+          "function",
+          `The ${name} property must be a function (modify attribute)`
+        );
+        newCompiledHandler();
+        assert_true(
+          window[`${name}Happened3`],
+          "Calling the handler must run the code (modify attribute)"
+        );
+
+        el.removeAttribute(name);
+        assert_equals(el[name], null, `The ${name} property must be null (remove attribute)`);
+      }, `${name}: dynamic changes on the attribute`);
+
+      promise_test(async () => {
+        const element = document.createElementNS(
+          "http://www.w3.org/1998/Math/MathML",
+          "math"
+        );
+        let target = undefined;
+        element[name] = (e) => { target = e.currentTarget; }
+        let eventType = withoutOn;
+        if (prefixedAnimationAttributeToEventType.has(eventType)) {
+          eventType = prefixedAnimationAttributeToEventType.get(eventType);
+        }
+        element.dispatchEvent(new Event(eventType));
+        assert_equals(target, element, "The event must be fired at the <math> element");
+      }, `${name}: dispatching an Event at a <math> element must trigger element.${name}`);
+    }
+  });
+</script>

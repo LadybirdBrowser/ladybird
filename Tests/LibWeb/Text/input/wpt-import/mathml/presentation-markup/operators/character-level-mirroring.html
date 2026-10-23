@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Character-level mirroring</title>
+    <meta
+      name="assert"
+      content="Operators should be mirrored when using RTL text direction"
+    >
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../mathml/support/feature-detection.js"></script>
+    <script src="../../../mathml/support/fonts.js"></script>
+
+    <style>
+      /* This font contains the characters 0x007B, 0x0029, 0x007D and 0x0028
+         (left and right parentheses and brackets), which respectively have
+         widths of 1em, 2em, 3em and 4em for any stretch size (base glyph,
+         size variants and glyph assemblies). */
+      @font-face {
+        font-family: operators;
+        src: url("../../../fonts/math/stretchy-text-direction-asymetrical.woff");
+      }
+      math {
+        font-family: operators;
+        font-size: 16px;
+      }
+      mspace {
+        width: 1em;
+        background: cornflowerblue;
+      }
+    </style>
+
+    <script>
+      const epsilon = 1;
+      const font_size = 16;
+      const test_cases = [
+        "Base glyph",
+        "Size variant",
+        "Glyph assembly",
+      ];
+
+      setup({ explicit_done: true });
+      window.addEventListener("load", () => {
+        loadAllFonts().then(runTests);
+      });
+
+      function runTests() {
+        // Test base glyph, size variant and glyph assembly.
+        document.querySelectorAll("p").forEach(
+          (paragraph, i) => {
+            mspace = paragraph.querySelector("mspace");
+            test(function () {
+              paragraph.querySelectorAll("mo").forEach((mo, j) => {
+                box = mo.getBoundingClientRect();
+                // Measure the width of the characters { and ), then the
+                // mirrored } and (.
+                assert_approx_equals(
+                  box.width,
+                  font_size * (j + 1),
+                  epsilon,
+                  `operator ${mo.textContent} ${
+                    window.getComputedStyle(mo).direction
+                  }`,
+                );
+              });
+            }, `${test_cases[i]} (${mspace.getAttribute("height")})`);
+          },
+        );
+
+        done();
+      }
+    </script>
+  </head>
+
+  <body>
+    <div id="log"></div>
+    <p>
+      <math>
+        <mrow>
+          <mo>{</mo>
+          <mspace height="0.5em" />
+          <mo>)</mo>
+        </mrow>
+      </math>
+      <math dir="rtl">
+        <mrow>
+          <mo>{</mo>
+          <mspace height="0.5em" />
+          <mo>)</mo>
+        </mrow>
+      </math>
+    </p>
+    <hr />
+    <p>
+      <math>
+        <mrow>
+          <mo>{</mo>
+          <mspace height="1em" />
+          <mo>)</mo>
+        </mrow>
+      </math>
+      <math dir="rtl">
+        <mrow>
+          <mo>{</mo>
+          <mspace height="1em" />
+          <mo>)</mo>
+        </mrow>
+      </math>
+    </p>
+    <hr />
+    <p>
+      <math>
+        <mrow>
+          <mo>{</mo>
+          <mspace height="4em" />
+          <mo>)</mo>
+        </mrow>
+      </math>
+      <math dir="rtl">
+        <mrow>
+          <mo>{</mo>
+          <mspace height="4em" />
+          <mo>)</mo>
+        </mrow>
+      </math>
+    </p>
+  </body>
+</html>

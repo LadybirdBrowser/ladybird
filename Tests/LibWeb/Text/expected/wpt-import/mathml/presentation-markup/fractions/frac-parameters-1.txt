@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Fail
+Fail	AxisHeight
+Fail	DenominatorDisplayStyleGapMin
+Fail	DenominatorDisplayStyleShiftDown
+Fail	DenominatorDisplayStyleGapMin Displaystyle
+Fail	DenominatorDisplayStyleShiftDown Displaystyle
+Fail	DenominatorDisplayStyleGapMin Displaystyle on fraction
+Fail	DenominatorDisplayStyleShiftDown Displaystyle on fraction
+Fail	DenominatorGapMin
+Fail	DenominatorShiftDown
+Fail	DenominatorGapMin Displaystyle on fraction
+Fail	DenominatorShiftDown Displaystyle on fraction
+Fail	NumeratorDisplayStyleGapMin
+Fail	NumeratorDisplayStyleShiftDown
+Fail	NumeratorDisplayStyleGapMin Displaystyle
+Fail	NumeratorDisplayStyleShiftDown Displaystyle
+Fail	NumeratorDisplayStyleGapMin Displaystyle on fraction
+Fail	NumeratorDisplayStyleShiftDown Displaystyle on fraction
+Fail	NumeratorGapMin
+Fail	NumeratorShiftDown
+Fail	FractionRuleThickness

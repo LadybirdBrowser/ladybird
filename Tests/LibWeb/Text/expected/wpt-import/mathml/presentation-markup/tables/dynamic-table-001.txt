@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Fail
+Fail	Filling an empty mtable element
+Fail	Filling empty mtr elements
+Fail	Filling empty mtd elements
+Fail	Filling an empty mtr element
+Fail	Filling an empty mtd element
+Fail	Adding missing elements
+Fail	Removing a row
+Fail	Removing a column
+Fail	Removing extra elements

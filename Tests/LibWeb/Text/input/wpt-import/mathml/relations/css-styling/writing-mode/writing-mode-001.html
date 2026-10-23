@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>writing mode</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<meta name="assert" content="Verify CSS writing mode (writing-mode and directionproperties) for mrow.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../mathml/support/feature-detection.js"></script>
+<script src="../../../../mathml/support/layout-comparison.js"></script>
+<script>
+  var epsilon = 1;
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+      var reference = document.getElementById("horizontal-tb_ltr");
+
+      ["horizontal-tb_rtl"].forEach(id => {
+           var element = document.getElementById(id);
+
+           test(function() {
+               var style = window.getComputedStyle(element);
+               var writingMode = id.split("_");
+               assert_equals(style.getPropertyValue("writing-mode"),
+                             writingMode[0], "writing-mode");
+               assert_equals(style.getPropertyValue("direction"),
+                             writingMode[1], "direction");
+           }, `Inheritance of CSS writing-mode and direction (id='${id}')`);
+
+           test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              compareLayout(element, reference, epsilon);
+           }, `Layout of mrow (id='${id}')`);
+      });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mrow id="horizontal-tb_ltr">
+        <mspace style="background: blue"
+                width="20px" height="30px" depth="40px"></mspace>
+        <mspace style="background: black"
+                width="50px" depth="60px"></mspace>
+        <mspace style="background: yellow"
+                width="70px" height="80px"></mspace>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math style="direction: rtl;">
+      <mrow id="horizontal-tb_rtl">
+        <mspace style="background: blue"
+                width="20px" height="30px" depth="40px"></mspace>
+        <mspace style="background: black"
+                width="50px" depth="60px"></mspace>
+        <mspace style="background: yellow"
+                width="70px" height="80px"></mspace>
+      </mrow>
+    </math>
+  </p>
+</body>
+</html>

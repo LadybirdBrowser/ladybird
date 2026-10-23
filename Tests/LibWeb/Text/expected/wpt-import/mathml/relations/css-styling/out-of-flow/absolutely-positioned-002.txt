@@ -1,0 +1,32 @@
+Harness status: OK
+
+Found 26 tests
+
+1 Pass
+25 Fail
+Fail	position: absolute on <a> element itself
+Fail	position: absolute on <maction> element itself
+Fail	position: absolute on <menclose> element itself
+Fail	position: absolute on <merror> element itself
+Pass	position: absolute on <mfrac> element itself
+Fail	position: absolute on <mi> element itself
+Fail	position: absolute on <mmultiscripts> element itself
+Fail	position: absolute on <mn> element itself
+Fail	position: absolute on <mo> element itself
+Fail	position: absolute on <mover> element itself
+Fail	position: absolute on <mpadded> element itself
+Fail	position: absolute on <mphantom> element itself
+Fail	position: absolute on <mroot> element itself
+Fail	position: absolute on <mrow> element itself
+Fail	position: absolute on <ms> element itself
+Fail	position: absolute on <mspace> element itself
+Fail	position: absolute on <msqrt> element itself
+Fail	position: absolute on <mstyle> element itself
+Fail	position: absolute on <msub> element itself
+Fail	position: absolute on <msubsup> element itself
+Fail	position: absolute on <msup> element itself
+Fail	position: absolute on <mtable> element itself
+Fail	position: absolute on <mtext> element itself
+Fail	position: absolute on <munder> element itself
+Fail	position: absolute on <munderover> element itself
+Fail	position: absolute on <semantics> element itself

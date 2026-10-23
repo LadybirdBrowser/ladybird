@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Embellished operators</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#embellished-operators">
+<link rel="help" href="https://w3c.github.io/mathml-core/#definition-of-space-like-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-of-mrow">
+<meta name="assert" content="Verify definition of embellished operators">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/box-navigation.js"></script>
+<style>
+  /* Default spacing of operator 'X' is 0.2777777777777778em so quite different
+     from the measured/specified 0em and 1em. */
+  math, math * {
+      font: 25px/1 Ahem;
+  }
+  mn {
+      color: black;
+  }
+  mtext.space-like {
+      color: lightblue !important;
+  }
+  .testedElement mo {
+      color: yellow !important;
+  }
+  .testedElement, .testedElement * {
+      color: blue !important;
+      background: blue !important;
+  }
+  .oof1 {
+      position: absolute;
+  }
+  .oof2 {
+      position: fixed;
+  }
+  .nobox {
+      display: none;
+  }
+  .allChildrenVisible > *:not(.nobox) {
+      display: inline math;
+  }
+</style>
+<script>
+  function spaceBeforeElement(element) {
+      var mnBefore = previousInFlowSibling(element);
+      return element.getBoundingClientRect().left - mnBefore.getBoundingClientRect().right;
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+      var epsilon = 1;
+      var emToPx = 25;
+
+      ["maction", "semantics"].forEach(tag => {
+           test(function() {
+               assert_true(MathMLFeatureDetection.has_operator_spacing());
+               var element = document.getElementsByTagName(tag)[0];
+               assert_approx_equals(spaceBeforeElement(element), 2 * emToPx, epsilon);
+           }, `${tag} (embellished operator)`);
+
+           test(function() {
+               assert_true(MathMLFeatureDetection.has_operator_spacing());
+               var element = document.getElementsByTagName(tag)[1];
+               assert_approx_equals(spaceBeforeElement(element), 2 * emToPx, epsilon);
+           }, `${tag} (embellished operator, from in-flow children)`);
+
+           test(function() {
+               assert_true(MathMLFeatureDetection.has_operator_spacing());
+               var element = document.getElementsByTagName(tag)[2];
+               assert_approx_equals(spaceBeforeElement(element), 0, epsilon);
+           }, `${tag} (not embellished operator)`);
+
+           test(function() {
+               assert_true(MathMLFeatureDetection.has_operator_spacing());
+               var element = document.getElementsByTagName(tag)[3];
+               assert_approx_equals(spaceBeforeElement(element), 0, epsilon);
+           }, `${tag} (not embellished operator, from in-flow children)`);
+
+           test(function() {
+               assert_true(MathMLFeatureDetection.has_operator_spacing());
+               var element = document.getElementsByTagName(tag)[4];
+               assert_approx_equals(spaceBeforeElement(element), 0, epsilon);
+           }, `${tag} (not embellished operator, empty)`);
+
+           test(function() {
+               assert_true(MathMLFeatureDetection.has_operator_spacing());
+               var element = document.getElementsByTagName(tag)[5];
+               assert_approx_equals(spaceBeforeElement(element), 2 * emToPx, epsilon);
+           }, `${tag} (embellished operator, one child)`);
+
+           test(function() {
+               assert_true(MathMLFeatureDetection.has_operator_spacing());
+               var element = document.getElementsByTagName(tag)[6];
+               assert_approx_equals(spaceBeforeElement(element), 2 * emToPx, epsilon);
+           }, `${tag} (embellished operator, complex)`);
+     });
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <!-- <semantics> or <maction> are embellished operators if their children
+       consist (in any order) of one embellished operator and zero or more
+       space-like elements. -->
+  <p>
+    <math>
+      <mn>X</mn>
+      <maction class="testedElement" actiontype="statusline">
+        <mo lspace="2em" rspace="0em">X</mo>
+        <mn>STATUS MESSAGE</mn>
+      </maction>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <semantics class="testedElement">
+        <mo lspace="2em" rspace="0em">X</mo>
+        <annotation>TEXT ANNOTATION</annotation>
+        <mn>X</mn>
+      </semantics>
+      <mn>X</mn>
+    </math>
+  </p>
+
+  <!-- Only in-flow children affect determination of embellished operators. -->
+  <p>
+    <math>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <maction class="testedElement" actiontype="statusline">
+        <mo lspace="2em" rspace="0em">X</mo>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        <mn>STATUS MESSAGE</mn>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      </maction>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <semantics class="testedElement">
+        <mo lspace="2em" rspace="0em">X</mo>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        <annotation>TEXT ANNOTATION</annotation>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        <mn>X</mn>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      </semantics>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+    </math>
+  </p>
+
+  <!-- <semantics> or <maction> are not embellished
+       operators if their first in-flow child is not an embellished operator -->
+  <p>
+    <math>
+      <mn>X</mn>
+      <msub class="testedElement">
+        <mn>X</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+      </msub>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <msup class="testedElement">
+        <mn>X</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+      </msup>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <msubsup class="testedElement">
+        <mn>X</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+        <mn>X</mn>
+      </msubsup>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <munder class="testedElement">
+        <mn>X</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+      </munder>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mover class="testedElement">
+        <mn>X</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+      </mover>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <munderover class="testedElement">
+        <mn>X</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+      </munderover>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mmultiscripts class="testedElement">
+        <mn>X</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+        <mn>X</mn>
+        <mn>X</mn>
+        <mn>X</mn>
+      </mmultiscripts>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mfrac class="testedElement">
+        <mn>X</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+      </mfrac>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <maction class="testedElement" actiontype="statusline">
+        <mn>X</mn>
+        <mo lspace="2em" rspace="0em">STATUS MESSAGE</mo>
+      </maction>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <semantics class="testedElement">
+        <mrow>
+          <mn>X</mn>
+          <mo lspace="2em" rspace="0em">X</mo>
+        </mrow>
+        <annotation>TEXT ANNOTATION</annotation>
+      </semantics>
+      <mn>X</mn>
+    </math>
+  </p>
+
+  <!-- Only in-flow children affect determination of embellished operators. -->
+  <p>
+    <math>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <maction class="testedElement" actiontype="statusline">
+        <mn>X</mn>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        <mo lspace="2em" rspace="0em">STATUS MESSAGE</mo>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      </maction>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <semantics class="testedElement">
+        <mrow>
+          <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+          <mn>X</mn>
+          <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+          <mo lspace="2em" rspace="0em">X</mo>
+          <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        </mrow>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        <annotation>TEXT ANNOTATION</annotation>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      </semantics>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+    </math>
+  </p>
+
+  <!-- Empty <maction> and <semantics> (invalid in MathML3). -->
+  <p>
+    <math>
+      <mn>X</mn>
+      <maction class="testedElement">
+      </maction>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <semantics class="testedElement">
+      </semantics>
+      <mn>X</mn>
+    </math>
+  </p>
+
+  <!-- One-child <maction> and <semantics> (invalid in MathML3). -->
+  <p>
+    <math>
+      <mn>X</mn>
+      <maction class="testedElement">
+        <mo lspace="2em" rspace="0em">X</mo>
+      </maction>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <semantics class="testedElement">
+        <mo lspace="2em" rspace="0em">X</mo>
+      </semantics>
+      <mn>X</mn>
+    </math>
+  </p>
+
+  <!-- Complex structure (invalid in MathML3). -->
+  <p>
+    <math>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <maction class="testedElement allChildrenVisible">
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        <mtext class="space-like">X</mtext>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      </maction>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <semantics class="testedElement allChildrenVisible">
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        <mo lspace="2em" rspace="0em">X</mo>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+        <mtext class="space-like">X</mtext>
+        <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      </semantics>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+      <mn>X</mn>
+      <mn class="oof1">0</mn><mn class="oof2">1</mn><mn class="nobox">2</mn>
+    </math>
+  </p>
+</body>
+</html>

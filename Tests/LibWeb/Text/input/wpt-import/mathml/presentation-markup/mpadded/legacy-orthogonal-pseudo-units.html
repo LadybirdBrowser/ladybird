@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Legacy mpadded pseudo-units relying on orthogonal metrics</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<link rel="help" href="https://www.w3.org/TR/MathML3/chapter3.html#presm.mpadded">
+<meta name="assert" content="Legacy pseudo-units depending on orthogonal metrics">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<style>
+  .testedElement {
+      background: red;
+  }
+</style>
+</head>
+<body>
+  <div id="log"></div>
+
+  <p>
+    <math>
+      <mpadded id="reference">
+        <mspace width="10px" height="20px" depth="30px"
+                style="background: blue"/>
+      </mpadded>
+    </math>
+  </p>
+
+  <p>
+    <!-- width cannot use vertical pseudo-units -->
+    <math>
+      <mpadded class="testedElement" width="200%height">
+        <mspace width="10px" height="20px" depth="30px"
+                style="background: blue"/>
+      </mpadded>
+    </math>
+    <math>
+      <mpadded class="testedElement" width="200%depth">
+        <mspace width="10px" height="20px" depth="30px"
+                style="background: blue"/>
+      </mpadded>
+    </math>
+  </p>
+
+  <p>
+    <!-- lspace cannot use vertical pseudo-units -->
+    <math>
+      <mpadded class="testedElement" lspace="200%height">
+        <mspace width="10px" height="20px" depth="30px"
+                style="background: blue"/>
+      </mpadded>
+    </math>
+    <math>
+      <mpadded class="testedElement" lspace="200%depth">
+        <mspace width="10px" height="20px" depth="30px"
+                style="background: blue"/>
+      </mpadded>
+    </math>
+  </p>
+  <p>
+    <!-- height cannot use horizontal pseudo-units -->
+    <math>
+      <mpadded class="testedElement" height="200%width">
+        <mspace width="10px" height="20px" depth="30px"
+                style="background: blue"/>
+      </mpadded>
+    </math>
+  </p>
+  <p>
+    <!-- depth cannot use horizontal pseudo-units -->
+    <math>
+      <mpadded class="testedElement" depth="200%width">
+        <mspace width="10px" height="20px" depth="30px"
+                style="background: blue"/>
+      </mpadded>
+    </math>
+  </p>
+  <p>
+    <!-- voffset cannot use horizontal pseudo-units -->
+    <math>
+      <mpadded class="testedElement" voffset="200%width">
+        <mspace width="10px" height="20px" depth="30px"
+                style="background: blue"/>
+      </mpadded>
+    </math>
+  </p>
+<script type="text/javascript">
+  Array.from(document.getElementsByClassName("testedElement")).forEach(mpadded => {
+      var reference = document.getElementById("reference");
+      const name = ["width", "depth", "height", "lspace", "voffset"].find(attr => mpadded.hasAttribute(attr));
+      const epsilon = 1;
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          compareLayout(mpadded, reference, epsilon);
+      }, `${mpadded.getAttribute(name)} is not allowed on ${name}`);
+  });
+</script>
+</body>
+</html>

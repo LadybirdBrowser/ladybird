@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>margin</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<meta name="assert" content="Verify that margin is taken into account on children.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../mathml/support/feature-detection.js"></script>
+<script src="../../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../../mathml/support/layout-comparison.js"></script>
+<script>
+  var epsilon = 1;
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+
+    for (tag in MathMLFragments) {
+        if (!FragmentHelper.isValidChildOfMrow(tag) ||
+            FragmentHelper.isEmpty(tag) ||
+            FragmentHelper.isTokenElement(tag) ||
+            tag == "semantics" ||
+            tag == "maction" ||
+            tag == "mtable")
+            continue;
+
+        test(function() {
+            assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+
+            document.body.insertAdjacentHTML("beforeend", `<hr/><div>\
+<div style="display: inline-block; border: 1px dashed blue;"><math>${MathMLFragments[tag]}</math></div><br/>\
+<div style="display: inline-block; border: 1px dashed green;"><math>${MathMLFragments[tag]}</math></div>\
+</div>`);
+
+            var div = document.body.lastElementChild;
+            var elementShrinkWrapContainer = div.firstElementChild;
+            var element = elementShrinkWrapContainer.firstElementChild.firstElementChild;
+            var elementContainer = div.firstElementChild;
+            var referenceShrinkWrapContainer = div.lastElementChild;
+            var reference = referenceShrinkWrapContainer.firstElementChild.firstElementChild;
+
+            FragmentHelper.forceNonEmptyElement(element);
+            FragmentHelper.forceNonEmptyElement(reference);
+
+            var mspaceWidth = 20, mspaceHeight = 40, mspaceDepth = 30;
+            var marginLeft = 10, marginRight = 15, marginTop = 20, marginBottom = 25;
+            Array.from(element.children).forEach(mrow => {
+                mrow.outerHTML = `<mspace width="${mspaceWidth}px" height="${mspaceHeight}px" depth='${mspaceDepth}px' style='background: blue; margin-left: ${marginLeft}px; margin-right: ${marginRight}px;  margin-top: ${marginTop}px; margin-bottom: ${marginBottom}px;'></mspace>`;
+            });
+
+            Array.from(reference.children).forEach(mrow => {
+                mrow.outerHTML = `<mspace width="${marginLeft+mspaceWidth+marginRight}px" height="${mspaceHeight+marginTop}px" depth='${mspaceDepth+marginBottom}px' style='background: green;'></mspace>`;
+            });
+
+            // Compare sizes.
+            compareSize(element, reference, epsilon);
+
+            // Compare children positions.
+            var elementBox = element.getBoundingClientRect();
+            var referenceBox = reference.getBoundingClientRect();
+            for (var i = 0; i < element.children.length; i++) {
+                var childBox = element.children[i].getBoundingClientRect();
+                var referenceChildBox = reference.children[i].getBoundingClientRect();
+                assert_approx_equals(childBox.width + marginLeft + marginRight, referenceChildBox.width, epsilon, `inline size (child ${i})`);
+                assert_approx_equals(childBox.height + marginTop + marginBottom, referenceChildBox.height, epsilon, `block size (child ${i})`);
+
+                assert_approx_equals(childBox.left - marginLeft - elementBox.left,
+                                     referenceChildBox.left - referenceBox.left,
+                                     epsilon,
+                                     `inline position (child ${i})`);
+                assert_approx_equals(childBox.top - marginTop - elementBox.top,
+                                     referenceChildBox.top - referenceBox.top,
+                                     epsilon,
+                                     `block position (child ${i})`);
+            }
+
+            // Compare preferred widths.
+            assert_approx_equals(elementShrinkWrapContainer.offsetWidth, referenceShrinkWrapContainer.offsetWidth, epsilon, "preferred width");
+
+        }, `Margin properties on the children of ${tag}`);
+    }
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>

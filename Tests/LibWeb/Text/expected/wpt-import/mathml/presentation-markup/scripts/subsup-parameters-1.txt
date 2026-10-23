@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Fail
+Fail	SpaceAfterScript
+Fail	SuperscriptShiftUp
+Fail	SuperscriptShiftUpCramped
+Fail	SubscriptShiftDown
+Fail	SubSuperscriptGapMin
+Fail	SuperscriptBottomMaxWithSubscript
+Fail	SubscriptTopMax
+Fail	SuperscriptBottomMin
+Fail	SubscriptBaselineDrop
+Fail	SuperscriptBaselineDrop

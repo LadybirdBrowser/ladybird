@@ -1,0 +1,31 @@
+Harness status: OK
+
+Found 26 tests
+
+26 Fail
+Fail	Appending and removing children to a
+Fail	Appending and removing children to maction
+Fail	Appending and removing children to menclose
+Fail	Appending and removing children to merror
+Fail	Appending and removing children to mfrac
+Fail	Appending and removing children to mi
+Fail	Appending and removing children to mmultiscripts
+Fail	Appending and removing children to mn
+Fail	Appending and removing children to mo
+Fail	Appending and removing children to mover
+Fail	Appending and removing children to mpadded
+Fail	Appending and removing children to mphantom
+Fail	Appending and removing children to mroot
+Fail	Appending and removing children to mrow
+Fail	Appending and removing children to ms
+Fail	Appending and removing children to mspace
+Fail	Appending and removing children to msqrt
+Fail	Appending and removing children to mstyle
+Fail	Appending and removing children to msub
+Fail	Appending and removing children to msubsup
+Fail	Appending and removing children to msup
+Fail	Appending and removing children to mtable
+Fail	Appending and removing children to mtext
+Fail	Appending and removing children to munder
+Fail	Appending and removing children to munderover
+Fail	Appending and removing children to semantics

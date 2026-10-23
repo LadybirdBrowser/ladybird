@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test hit testing on large operators</title>
+<meta name="assert" content="Verify that hit testing works on large operators.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  @font-face {
+    font-family: TestFont;
+    src: url("../../../fonts/math/largeop-displayoperatorminheight5000.woff");
+  }
+  mo  {
+    font-family: TestFont;
+    font-size: 16px;
+  }
+</style>
+<script>
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_operator_spacing());
+
+      let bbox = getBox("largeop");
+      let hit = document.getElementById("largeop");
+      let reference = getBox("reference");
+      assert_true(bbox.height > reference.height, "height of large op is bigger than the equivalent normal operator");
+      assert_equals(hit, document.elementFromPoint(bbox.left + 1, bbox.top + 1), "hit testing top-left corner of large op works");
+      assert_equals(hit, document.elementFromPoint(bbox.right - 1, bbox.bottom - 1), "hit testing bottom-right corner of large op works");
+    }, "Large op hit testing");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <math>
+    <mtable>
+      <mtr>
+        <mtd>
+          <mstyle displaystyle="false">
+            <mo id="reference">&#x2AFF;</mo>
+          </mstyle>
+        </mtd>
+        <mtd>
+          <mstyle displaystyle="true">
+            <mo id="largeop">&#x2AFF;</mo>
+          </mstyle>
+        </mtd>
+      </mtr>
+    </mtable>
+  </math>
+</body>
+</html>

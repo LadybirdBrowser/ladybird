@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Fail
+Fail	Margin properties on the children of a
+Fail	Margin properties on the children of menclose
+Fail	Margin properties on the children of merror
+Fail	Margin properties on the children of mfrac
+Fail	Margin properties on the children of mmultiscripts
+Fail	Margin properties on the children of mover
+Fail	Margin properties on the children of mpadded
+Fail	Margin properties on the children of mphantom
+Fail	Margin properties on the children of mroot
+Fail	Margin properties on the children of mrow
+Fail	Margin properties on the children of msqrt
+Fail	Margin properties on the children of mstyle
+Fail	Margin properties on the children of msub
+Fail	Margin properties on the children of msubsup
+Fail	Margin properties on the children of msup
+Fail	Margin properties on the children of munder
+Fail	Margin properties on the children of munderover

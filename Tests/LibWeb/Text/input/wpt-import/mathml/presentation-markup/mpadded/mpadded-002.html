@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mpadded</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+<meta name="assert" content="Verify metrics of nonempty mpadded element for different values of height, depth and width">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  var epsilon = 1;
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+      const contentWidth = 100;
+      const contentDepth = 125;
+      const contentHeight = 150;
+
+    test(function() {
+      var none = getBox("none");
+      assert_equals(none.width, contentWidth, "content width");
+      assert_approx_equals(getBox("baseline").bottom - none.top, contentHeight, epsilon, "content height");
+      assert_approx_equals(none.bottom - getBox("baseline").bottom, contentDepth, epsilon, "content height");
+    }, "mpadded with no attributes");
+
+    test(function() {
+      for (var i = 0; i <= 2; i++) {
+        var mpadded = getBox("width" + i);
+        assert_approx_equals(mpadded.width, 25*(i+1), epsilon, "width " + i);
+        assert_approx_equals(getBox("baseline").bottom - mpadded.top, contentHeight, epsilon, "height" + i);
+        assert_approx_equals(mpadded.bottom - getBox("baseline").bottom, contentDepth, epsilon, "depth" + i);
+      }
+    }, "Different widths");
+
+    test(function() {
+      for (var i = 0; i <= 2; i++) {
+        var mpadded = getBox("height" + i);
+        assert_equals(mpadded.width, contentWidth, "width" + i);
+        assert_approx_equals(getBox("baseline").bottom - mpadded.top, 25*(i+1), epsilon, "height" + i);
+        assert_approx_equals(mpadded.bottom - getBox("baseline").bottom, contentDepth, epsilon, "depth" + i);
+      }
+    }, "Different heights");
+
+    test(function() {
+      var mpadded = getBox("percentages");
+      assert_equals(mpadded.width, contentWidth, "width");
+      assert_approx_equals(getBox("baseline").bottom - mpadded.top, contentHeight, epsilon, "height");
+      assert_approx_equals(mpadded.bottom - getBox("baseline").bottom, contentDepth, epsilon, "depth");
+    }, "Percentage calculation for width, height and depth");
+
+    test(function() {
+      for (var i = 0; i <= 2; i++) {
+        var mpadded = getBox("depth" + i);
+        assert_equals(mpadded.width, contentWidth, "width" + i);
+        assert_approx_equals(getBox("baseline2").bottom - mpadded.top, contentHeight, epsilon, "height" + i);
+        assert_approx_equals(mpadded.bottom - getBox("baseline2").bottom, 25*(i+1), epsilon, "depth" + i);
+      }
+    }, "Different depths");
+
+    test(function() {
+      for (var i = 0; i <= 2; i++) {
+        var mpadded = getBox("mpadded" + i);
+        assert_approx_equals(mpadded.width, 25*(1+i%3), epsilon, "width" + i);
+        assert_approx_equals(getBox("baseline2").bottom - mpadded.top, 25*(1+(i+1)%3), epsilon, "height" + i);
+        assert_approx_equals(mpadded.bottom - getBox("baseline2").bottom, 25*(1+(i+2)%3), epsilon, "depth" + i);
+      }
+    }, "Various combinations of height, depth and width.");
+
+    test(function() {
+      var container = document.getElementById("containerForPreferredWidth");
+      var mpadded = container.getElementsByTagName("mpadded")[0];
+      var containerWidth = container.getBoundingClientRect().width;
+      var mpaddedWidth = mpadded.getBoundingClientRect().width;
+      assert_approx_equals(containerWidth, mpaddedWidth, epsilon);
+    }, "Preferred width");
+
+    // Dynamically set attributes.
+    ["width", "height", "depth"].forEach(function (name, index) {
+        document.getElementById("dynamic-remove").removeAttribute(name);
+        let length = `${50 + index * 10}px`;
+        document.getElementById("dynamic-attach").setAttribute(name, length);
+        document.getElementById("dynamic-modify").setAttribute(name, length);
+    });
+    let baseline = getBox("baseline3").bottom;
+
+    test(function() {
+        let remove = getBox("dynamic-remove");
+        assert_approx_equals(remove.width, contentWidth, epsilon);
+        assert_approx_equals(remove.height, contentHeight + contentDepth, epsilon);
+        assert_approx_equals(baseline - remove.top, contentHeight, epsilon);
+    }, "dynamic attributes (remove)");
+
+    test(function() {
+        let attach = getBox("dynamic-attach");
+        assert_approx_equals(attach.width, 50, epsilon);
+        assert_approx_equals(attach.height, 60 + 70, epsilon);
+        assert_approx_equals(baseline - attach.top, 60, epsilon);
+    }, "dynamic attributes (attach)");
+
+    test(function() {
+        let modify = getBox("dynamic-modify");
+        assert_approx_equals(modify.width, 50, epsilon);
+        assert_approx_equals(modify.height, 60 + 70, epsilon);
+        assert_approx_equals(baseline - modify.top, 60, epsilon);
+    }, "dynamic attributes (modify)");
+
+    done();
+  }
+</script>
+<style>
+div.shrink-wrap {
+  background: yellow;
+  display: inline-block;
+  margin-top: 5px;
+  padding-top: 5px;
+}
+</style>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <span id="baseline" style="display: inline-block; width: 30px; height: 5px; background: blue"></span>
+    <math>
+      <mpadded id="none"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="width0" width="25px"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="width1" width="50px"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="width2" width="75px"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="height0" height="25px"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="height1" height="50px"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="height2" height="75px"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="percentages" width="50%" height="33%" depth="10%"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+    </math>
+  </p>
+  <p>
+    <span id="baseline2" style="display: inline-block; width: 30px; height: 5px; background: blue"></span>
+    <math>
+      <mpadded id="depth0" depth="25px"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="depth1" depth="50px"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="depth2" depth="75px"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="mpadded0" width="25px" height="50px" depth="75px" style="background: green"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="mpadded1" width="50px" height="75px" depth="25px" style="background: blue"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="mpadded2" width="75px" height="25px" depth="50px" style="background: green"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+    </math>
+  </p>
+  <div>
+    <div id="containerForPreferredWidth" class="shrink-wrap">
+      <math><mpadded width="75px" height="25px" depth="50px" style="background: green"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded></math>
+    </div>
+  </div>
+  <p>
+    <span id="baseline3" style="display: inline-block; width: 30px; height: 5px; background: blue"></span>
+    <math>
+      <mpadded id="dynamic-attach" style="background: lightgreen"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="dynamic-remove" width="10px" height="20px" depth="30px" style="background: lightyellow"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+      <mpadded id="dynamic-modify" width="100px" height="200px" depth="300px" style="background: pink"><mspace width="100px" depth="125px" height="150px" style="background: black; opacity: .5"/></mpadded>
+    </math>
+  </p>
+</body>
+</html>

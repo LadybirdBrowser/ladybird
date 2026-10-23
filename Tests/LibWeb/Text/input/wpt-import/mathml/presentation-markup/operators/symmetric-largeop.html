@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test placement of non-stretchy symmetric/non-symmetric largeops with a block-direction intrinsic stretch axis</title>
+<link rel="help" href="https://issues.chromium.org/issues/40889877">
+<link rel="help" href="https://github.com/w3c/mathml-core/issues/250">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+@font-face {
+  font-family: TestFont;
+  src: url("../../../fonts/math/largeop-displayoperatorminheight3000-2AFF-axisheight1000.woff");
+}
+math {
+  font-family: TestFont;
+  font-size: 30px;
+  margin-bottom: 15px; /* to distinguish the tests visually */
+}
+mspace {
+  background-color: green;
+}
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  // U+2AFF has intrinsic block stretch axis and the symmetric, largeop and movablelimits properties.
+  //
+  // We compare the operator top to the mspace bottom (which will always be the alphabetic baseline).
+  //
+  // The operator should center around the math axis for symmetric largeops.
+  // The ascent of the largeop is:
+  //   largeop height / 2 (= 1.5em)
+  // + AxisHeight         (= 1em)
+  // = 2.5em (75px).
+  //
+  // The operator should place on the baseline for non-symmetric largeops,
+  // so the ascent of the largeop = 3em (90px).
+
+  function runTests() {
+    test(function() {
+      const container = document.getElementById("container");
+      [
+        [ 75, "symmetric largeop is centered around the math axis" ],
+        [ 90, "non-symmetric largeop is placed on the baseline" ],
+      ].forEach(([ spacing, desc ], i) => {
+        const mrow = container.children[i].firstElementChild;
+        let opBbox = mrow.firstElementChild.getBoundingClientRect();
+        let spaceBbox = mrow.lastElementChild.getBoundingClientRect();
+        assert_equals(spaceBbox.bottom - opBbox.top, spacing, desc);
+      })
+    }, "Placement of operators");
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="container">
+    <math display="block">
+      <mrow>
+          <mo symmetric="true" largeop="true">&#x2AFF;</mo>
+          <mspace height="1em" width="1em"></mspace>
+      </mrow>
+    </math>
+    <math display="block">
+      <mrow>
+          <mo symmetric="false" largeop="true">&#x2AFF;</mo>
+          <mspace height="1em" width="1em"></mspace>
+      </mrow>
+    </math>
+  </div>
+</body>
+</html>

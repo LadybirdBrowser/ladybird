@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>DisplayOperatorMinHeight with custom font</title>
+    <link
+      rel="help"
+      href="https://w3c.github.io/mathml-core/#layout-of-operators"
+    >
+    <meta
+      name="assert"
+      content="Laying out operators should respect the font's DisplayOperatorMinHeight"
+    >
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../mathml/support/feature-detection.js"></script>
+    <script src="../../../mathml/support/fonts.js"></script>
+
+    <style>
+      /* This font has a DisplayOperatorMinHeight of 1.25em and two variants of the 0x2AFF
+      character, one with a height of 1.25em and the other with 2em. */
+      @font-face {
+        font-family: largeop-displayoperatorminheight1250;
+        src: url("../../../fonts/math/largeop-displayoperatorminheight1250.woff");
+      }
+      math {
+        font-family: largeop-displayoperatorminheight1250;
+        font-size: 32px;
+        color: green;
+      }
+      math > mo:first-child {
+        color: blue;
+      }
+    </style>
+
+    <script>
+      const font_size = 32;
+      const small_variant = 1.25 * font_size;
+      // Needs to be less than the difference between the two variants (2em - 1.25em)
+      const epsilon = 0.1 * font_size;
+
+      // Some browser engines had a minimum for DisplayOperatorMinHeight of sqrt(2) times
+      // the base glyph size (~1.41 * 1em in this case).
+      // This test checks that the constant is not modified and the variant measuring 1.25em
+      // is picked instead of the bigger one measuring 2em.
+      var t = async_test("DisplayOperatorMinHeight is not modified");
+      window.addEventListener("load", () => {
+        loadAllFonts().then(
+          t.step_func_done(function () {
+            const math = document.querySelector("math");
+            children = math.children;
+            largeop = children[1].getBoundingClientRect();
+            assert_approx_equals(
+              largeop.height,
+              small_variant,
+              epsilon,
+              "Using the small variant",
+            );
+          }),
+        );
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="log"></div>
+    <math display="block">
+      <mo largeop="false">&#x2AFF;</mo>
+      <mo largeop="true">&#x2AFF;</mo>
+    </math>
+  </body>
+</html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Subscripts and Superscripts parameters</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#subscripts-and-superscripts-msub-msup-msubsup">
+<meta name="assert" content="Elements msub, msup, subsup and msubsup correctly use the subscript and superscript parameters from the MATH table.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math, mspace {
+    font-size: 10px;
+  }
+  @font-face {
+    font-family: spaceafterscript3000;
+    src: url("../../../fonts/math/scripts-spaceafterscript3000.woff");
+  }
+  @font-face {
+    font-family: superscriptshiftup7000;
+    src: url("../../../fonts/math/scripts-superscriptshiftup7000.woff");
+  }
+  @font-face {
+    font-family: superscriptshiftupcramped5000;
+    src: url("../../../fonts/math/scripts-superscriptshiftupcramped5000.woff");
+  }
+  @font-face {
+    font-family: subscriptshiftdown6000;
+    src: url("../../../fonts/math/scripts-subscriptshiftdown6000.woff");
+  }
+  @font-face {
+    font-family: subsuperscriptgapmin11000;
+    src: url("../../../fonts/math/scripts-subsuperscriptgapmin11000.woff");
+  }
+  @font-face {
+    font-family: subsuperscriptgapmin11000superscriptbottommaxwithsubscript3000;
+    src: url("../../../fonts/math/scripts-subsuperscriptgapmin11000-superscriptbottommaxwithsubscript3000.woff");
+  }
+  @font-face {
+    font-family: subscripttopmax4000;
+    src: url("../../../fonts/math/scripts-subscripttopmax4000.woff");
+  }
+  @font-face {
+    font-family: superscriptbottommin8000;
+    src: url("../../../fonts/math/scripts-superscriptbottommin8000.woff");
+  }
+  @font-face {
+    font-family: subscriptbaselinedropmin9000;
+    src: url("../../../fonts/math/scripts-subscriptbaselinedropmin9000.woff");
+  }
+  @font-face {
+    font-family: superscriptbaselinedropmax10000;
+    src: url("../../../fonts/math/scripts-superscriptbaselinedropmax10000.woff");
+  }
+</style>
+<script>
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  var epsilon = 1;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 3000 * emToPx;
+      assert_approx_equals(getBox("ref001").left - getBox("sub001").right, v, epsilon, "msub: Space after subscript");
+      assert_approx_equals(getBox("ref002").left - getBox("sup002").right, v, epsilon, "msup: Space after superscript");
+      assert_approx_equals(getBox("ref003").left - getBox("sup003").right, v, epsilon, "msubsup: Space after superscript");
+      assert_approx_equals(getBox("sup0042").left - getBox("sup0041").right, v, epsilon, "mmultiscripts: Space after first superscript");
+      assert_approx_equals(getBox("sup0043").left - getBox("sup0042").right, v, epsilon, "mmultiscripts: Space after second superscript");
+      assert_approx_equals(getBox("ref004").left - getBox("sup0043").right, v, epsilon, "mmultiscripts: Space after last superscript");
+    }, "SpaceAfterScript");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 7000 * emToPx;
+      assert_approx_equals(getBox("ref101").bottom - getBox("sup102").bottom, v, epsilon, "msup: Superscript shift");
+      assert_approx_equals(getBox("ref101").bottom - getBox("sup103").bottom, v, epsilon, "msubsup: Superscript shift");
+      assert_approx_equals(getBox("ref101").bottom - getBox("sup1041").bottom, v, epsilon, "mmultiscripts: First superscript shift");
+      assert_approx_equals(getBox("ref101").bottom - getBox("sup1042").bottom, v, epsilon, "mmultiscripts: Second superscript shift");
+      assert_approx_equals(getBox("ref101").bottom - getBox("sup1043").bottom, v, epsilon, "mmultiscripts: Last superscript shift");
+    }, "SuperscriptShiftUp");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 5000 * emToPx;
+      assert_approx_equals(getBox("ref201").bottom - getBox("sup202").bottom, v, epsilon, "msup: Superscript shift");
+      assert_approx_equals(getBox("ref201").bottom - getBox("sup203").bottom, v, epsilon, "msubsup: Superscript shift");
+      assert_approx_equals(getBox("ref201").bottom - getBox("sup2041").bottom, v, epsilon, "mmultiscripts: First superscript shift");
+      assert_approx_equals(getBox("ref201").bottom - getBox("sup2042").bottom, v, epsilon, "mmultiscripts: Second superscript shift");
+      assert_approx_equals(getBox("ref201").bottom - getBox("sup2043").bottom, v, epsilon, "mmultiscripts: Last superscript shift");
+    }, "SuperscriptShiftUpCramped");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 6000 * emToPx;
+      assert_approx_equals(getBox("sub301").bottom - getBox("ref300").bottom, v, epsilon, "msup: Subscript shift");
+      assert_approx_equals(getBox("sub302").bottom - getBox("ref300").bottom, v, epsilon, "msubsup: Subscript shift");
+      assert_approx_equals(getBox("sub303").bottom - getBox("ref300").bottom, v, epsilon, "mmultiscripts: First subscript shift");
+      assert_approx_equals(getBox("sub304").bottom - getBox("ref300").bottom, v, epsilon, "mmultiscripts: Second subscript shift");
+    }, "SubscriptShiftDown");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 11000 * emToPx;
+      assert_approx_equals(getBox("sub4011").top - getBox("sup4012").bottom, v, epsilon, "msubsup: SubSuperscript gap");
+      assert_approx_equals(getBox("sub4021").top - getBox("sup4022").bottom, v, epsilon, "mmultiscripts: SubSuperscript gap");
+    }, "SubSuperscriptGapMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v1 = 11000 * emToPx;
+      var v2 = 3000 * emToPx;
+      assert_approx_equals(getBox("sub501").top - getBox("sup501").bottom, v1, epsilon, "msubsup: SubSuperscript gap");
+      assert_approx_equals(getBox("ref500").bottom - getBox("sup501").bottom, v2, epsilon, "msubsup: Superscript bottom");
+      assert_approx_equals(getBox("sub502").top - getBox("sup502").bottom, v1, epsilon, "mmultiscripts: SubSuperscript gap");
+      assert_approx_equals(getBox("ref500").bottom - getBox("sup502").bottom, v2, epsilon, "mmultiscripts: Superscript bottom");
+    }, "SuperscriptBottomMaxWithSubscript");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 4000 * emToPx;
+      assert_approx_equals(getBox("ref600").bottom - getBox("sub601").top, v, epsilon, "msub: Subscript top");
+    }, "SubscriptTopMax");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 8000 * emToPx;
+      assert_approx_equals(getBox("ref700").bottom - getBox("sub701").bottom, v, epsilon, "msub: Superscript bottom");
+    }, "SuperscriptBottomMin");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 9000 * emToPx;
+      assert_approx_equals(getBox("sub801").bottom - getBox("base801").bottom, v, epsilon, "msub: Superscript drop");
+    }, "SubscriptBaselineDrop");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+
+      var v = 10000 * emToPx;
+      assert_approx_equals(getBox("sup901").bottom - getBox("base901").top, v, epsilon, "msup: Superscript drop");
+    }, "SuperscriptBaselineDrop");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+    <p>
+      <math style="font-family: spaceafterscript3000;">
+        <msub>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sub001" height="1em" width="1em" style="background: red"/>
+        </msub>
+        <mspace id="ref001" height="1em" width="1em" style="background: green"/>
+      </math>
+      <math style="font-family: spaceafterscript3000;">
+        <msup>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sup002" height="1em" width="1em" style="background: red"/>
+        </msup>
+        <mspace id="ref002" height="1em" width="1em" style="background: green"/>
+      </math>
+      <math style="font-family: spaceafterscript3000;">
+        <msubsup>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace/>
+          <mspace id="sup003" height="1em" width="1em" style="background: red"/>
+        </msubsup>
+        <mspace id="ref003" height="1em" width="1em" style="background: green"/>
+      </math>
+      <math style="font-family: spaceafterscript3000;">
+        <mmultiscripts>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <none/>
+          <mspace id="sup0041" height="1em" width="1em" style="background: red"/>
+          <none/>
+          <mspace id="sup0042" height="1em" width="1em" style="background: red"/>
+          <none/>
+          <mspace id="sup0043" height="1em" width="1em" style="background: red"/>
+        </mmultiscripts>
+        <mspace id="ref004" height="1em" width="1em" style="background: green"/>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: superscriptshiftup7000;">
+        <mspace id="ref101" height="1em" width="1em" style="background: green"/>
+        <msup>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sup102" height="1em" width="1em" style="background: red"/>
+        </msup>
+        <msubsup>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace height="1em" width="1em" style="background: red"/>
+          <mspace id="sup103" height="1em" width="1em" style="background: red"/>
+        </msubsup>
+        <mmultiscripts>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <none/>
+          <mspace id="sup1041" height="1em" width="1em" style="background: red"/>
+          <none/>
+          <mspace id="sup1042" height="1em" width="1em" style="background: red"/>
+          <none/>
+          <mspace id="sup1043" height="1em" width="1em" style="background: red"/>
+        </mmultiscripts>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: superscriptshiftupcramped5000;">
+        <msqrt>
+          <mspace id="ref201" height="1em" width="1em" style="background: green"/>
+          <msup>
+            <mspace height="2em" width="2em" style="background: blue"/>
+            <mspace id="sup202" height="1em" width="1em" style="background: red"/>
+          </msup>
+          <msubsup>
+            <mspace height="2em" width="2em" style="background: blue"/>
+            <mspace height="1em" width="1em" style="background: blue"/>
+            <mspace id="sup203" height="1em" width="1em" style="background: red"/>
+          </msubsup>
+          <mmultiscripts>
+            <mspace height="2em" width="2em" style="background: blue"/>
+            <none/>
+            <mspace id="sup2041" height="1em" width="1em" style="background: red"/>
+            <none/>
+            <mspace id="sup2042" height="1em" width="1em" style="background: red"/>
+            <none/>
+            <mspace id="sup2043" height="1em" width="1em" style="background: red"/>
+          </mmultiscripts>
+        </msqrt>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: subscriptshiftdown6000;">
+        <mspace id="ref300" height="1em" width="1em" style="background: green"/>
+        <msub>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sub301" height="1em" width="1em" style="background: red"/>
+        </msub>
+        <msubsup>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sub302" height="1em" width="1em" style="background: red"/>
+          <mspace height="1em" width="1em" style="background: blue"/>
+        </msubsup>
+        <mmultiscripts>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sub303" height="1em" width="1em" style="background: red"/>
+          <none/>
+          <mspace id="sub304" height="1em" width="1em" style="background: red"/>
+          <none/>
+        </mmultiscripts>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: subsuperscriptgapmin11000;">
+        <msubsup>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sub4011" height="1em" width="1em" style="background: red"/>
+          <mspace id="sup4012" height="1em" width="1em" style="background: red"/>
+        </msubsup>
+        <mmultiscripts>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <none/>
+          <none/>
+          <mspace id="sub4021" height="1em" width="1em" style="background: red"/>
+          <mspace id="sup4022" height="1em" width="1em" style="background: red"/>
+        </mmultiscripts>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: subsuperscriptgapmin11000superscriptbottommaxwithsubscript3000;">
+        <mspace id="ref500" height="1em" width="1em" style="background: green"/>
+        <msubsup>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sub501" height="1em" width="1em" style="background: red"/>
+          <mspace id="sup501" height="1em" width="1em" style="background: red"/>
+        </msubsup>
+        <mmultiscripts>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <none/>
+          <none/>
+          <mspace id="sub502" height="1em" width="1em" style="background: red"/>
+          <mspace id="sup502" height="1em" width="1em" style="background: red"/>
+        </mmultiscripts>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: subscripttopmax4000;">
+        <mspace id="ref600" height="1em"
+                width="1em" style="background: green"/>
+        <msub>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sub601" height="10em"
+                  width="1em" style="background: red"/>
+        </msub>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: superscriptbottommin8000;">
+        <mspace id="ref700" height="1em"
+                width="1em" style="background: green"/>
+        <msup>
+          <mspace height="2em" width="2em" style="background: blue"/>
+          <mspace id="sub701" depth="1em"
+                  width="1em" style="background: red"/>
+        </msup>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: subscriptbaselinedropmin9000;">
+        <msub>
+          <mspace id="base801" height="2em" width="2em" style="background: blue"/>
+          <mspace id="sub801" height="1em"
+                  width="1em" style="background: red"/>
+        </msub>
+      </math>
+    </p>
+    <hr/>
+    <p>
+      <math style="font-family: superscriptbaselinedropmax10000;">
+        <msup>
+          <mspace id="base901" height="15em" width="2em" style="background: blue"/>
+          <mspace id="sup901" height="1em"
+                  width="1em" style="background: red"/>
+        </msup>
+      </math>
+    </p>
+</body>
+</html>

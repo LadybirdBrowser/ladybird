@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Fail	font-relative lspace refers to the core operator
+Fail	font-relative rspace refers to the core operator
+Fail	font-relative minsize refers to the core operator
+Pass	font-relative maxsize refers to the core operator

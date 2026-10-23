@@ -1,0 +1,59 @@
+Harness status: OK
+
+Found 54 tests
+
+54 Fail
+Fail	Spacing inside an <mfrac> child of <math>.
+Fail	Spacing around an <mfrac> child of an <math>.
+Fail	Spacing inside an <mfrac> child of <mrow>.
+Fail	Spacing around an <mfrac> child of an <mrow>.
+Fail	Spacing inside an <mfrac> child of <mtd>.
+Fail	Spacing around an <mfrac> child of an <mtd>.
+Fail	Spacing inside an <msub> child of <math>.
+Fail	Spacing around an <msub> child of an <math>.
+Fail	Spacing inside an <msub> child of <mrow>.
+Fail	Spacing around an <msub> child of an <mrow>.
+Fail	Spacing inside an <msub> child of <mtd>.
+Fail	Spacing around an <msub> child of an <mtd>.
+Fail	Spacing inside an <msup> child of <math>.
+Fail	Spacing around an <msup> child of an <math>.
+Fail	Spacing inside an <msup> child of <mrow>.
+Fail	Spacing around an <msup> child of an <mrow>.
+Fail	Spacing inside an <msup> child of <mtd>.
+Fail	Spacing around an <msup> child of an <mtd>.
+Fail	Spacing inside an <msubsup> child of <math>.
+Fail	Spacing around an <msubsup> child of an <math>.
+Fail	Spacing inside an <msubsup> child of <mrow>.
+Fail	Spacing around an <msubsup> child of an <mrow>.
+Fail	Spacing inside an <msubsup> child of <mtd>.
+Fail	Spacing around an <msubsup> child of an <mtd>.
+Fail	Spacing inside an <mmultiscripts> child of <math>.
+Fail	Spacing around an <mmultiscripts> child of an <math>.
+Fail	Spacing inside an <mmultiscripts> child of <mrow>.
+Fail	Spacing around an <mmultiscripts> child of an <mrow>.
+Fail	Spacing inside an <mmultiscripts> child of <mtd>.
+Fail	Spacing around an <mmultiscripts> child of an <mtd>.
+Fail	Spacing inside an <munder> child of <math>.
+Fail	Spacing around an <munder> child of an <math>.
+Fail	Spacing inside an <munder> child of <mrow>.
+Fail	Spacing around an <munder> child of an <mrow>.
+Fail	Spacing inside an <munder> child of <mtd>.
+Fail	Spacing around an <munder> child of an <mtd>.
+Fail	Spacing inside an <mover> child of <math>.
+Fail	Spacing around an <mover> child of an <math>.
+Fail	Spacing inside an <mover> child of <mrow>.
+Fail	Spacing around an <mover> child of an <mrow>.
+Fail	Spacing inside an <mover> child of <mtd>.
+Fail	Spacing around an <mover> child of an <mtd>.
+Fail	Spacing inside an <munderover> child of <math>.
+Fail	Spacing around an <munderover> child of an <math>.
+Fail	Spacing inside an <munderover> child of <mrow>.
+Fail	Spacing around an <munderover> child of an <mrow>.
+Fail	Spacing inside an <munderover> child of <mtd>.
+Fail	Spacing around an <munderover> child of an <mtd>.
+Fail	Spacing inside an <mroot> child of <math>.
+Fail	Spacing around an <mroot> child of an <math>.
+Fail	Spacing inside an <mroot> child of <mrow>.
+Fail	Spacing around an <mroot> child of an <mrow>.
+Fail	Spacing inside an <mroot> child of <mtd>.
+Fail	Spacing around an <mroot> child of an <mtd>.

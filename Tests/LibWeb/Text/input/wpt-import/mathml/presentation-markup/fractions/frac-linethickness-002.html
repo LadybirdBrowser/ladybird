@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>fractions linethickness</title>
+    <link rel="help" href="https://w3c.github.io/mathml-core/#fractions-mfrac">
+    <link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript">
+    <meta name="assert" content="Verifies fraction with positive, negative, percent and named space linethickness values.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../mathml/support/feature-detection.js"></script>
+    <script src="../../../mathml/support/fonts.js"></script>
+    <style type="text/css">
+      @font-face {
+        font-family: TestFont;
+        src: url("../../../fonts/math/fraction-rulethickness10000.woff");
+      }
+      math {
+        /* FractionRuleThickness = 10000 * 10 / 1000 = 100px; */
+        font-family: "TestFont";
+        font-size: 10px;
+      }
+    </style>
+    <script>
+      function LineThickness(aId) {
+        var mfrac = document.getElementById(aId);
+        var numBox = mfrac.firstElementChild.getBoundingClientRect();
+        var denumBox = mfrac.lastElementChild.getBoundingClientRect();
+        return denumBox.top - numBox.bottom;
+      }
+
+      setup({ explicit_done: true });
+      window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+      function runTests() {
+        var defaultRuleThickness = 100;
+        var epsilon = 2;
+
+        test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals(LineThickness("positive"),  5.67 * 10, epsilon);
+        }, "Positive");
+
+        test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          /* Negative values are treated as 0 */
+          assert_approx_equals(LineThickness("negative"),  0, epsilon);
+        }, "Negative");
+
+        test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals(LineThickness("percent"), defaultRuleThickness * 234 / 100, epsilon);
+        }, "Percentage");
+
+        test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          /* Namedspace values are invalid in MathML Core. */
+          assert_approx_equals(LineThickness("namedspace"), defaultRuleThickness, epsilon);
+        }, "Named space");
+
+        test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          /* Calc() expressions are invalid in MathML Core. */
+          assert_approx_equals(LineThickness("calc"), defaultRuleThickness, epsilon);
+        }, "Calc() expression");
+
+        test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          document.getElementById("dynamic-attach").setAttribute("linethickness", "400%");
+          document.getElementById("dynamic-modify").setAttribute("linethickness", "200%");
+          document.getElementById("dynamic-remove").removeAttribute("linethickness");
+          assert_approx_equals(LineThickness("dynamic-attach"), defaultRuleThickness * 4, epsilon, "attach");
+          assert_approx_equals(LineThickness("dynamic-modify"), defaultRuleThickness * 2, epsilon, "modify");
+          assert_approx_equals(LineThickness("dynamic-remove"), defaultRuleThickness, epsilon, "remove");
+        }, "Dynamic linethickness");
+
+        done();
+      }
+    </script>
+  </head>
+  <body>
+    <math>
+      <mfrac id="positive" linethickness="5.67em">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+    <math>
+      <mfrac id="negative" linethickness="-1.23em">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+    <math>
+      <mfrac id="percent" linethickness="234%">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+    <math>
+      <mfrac id="namedspace" linethickness="veryverythickmathspace">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+    <math>
+      <mfrac id="calc" linethickness="calc(20px)">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+    <math>
+      <mfrac id="dynamic-attach">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+    <math>
+      <mfrac id="dynamic-modify" linethickness="300%">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+    <math>
+      <mfrac id="dynamic-remove" linethickness="300%">
+        <mspace width="20px" height="10px" style="background: blue"></mspace>
+        <mspace width="20px" height="10px" style="background: cyan"></mspace>
+      </mfrac>
+    </math>
+  </body>
+</html>

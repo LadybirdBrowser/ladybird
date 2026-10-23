@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Fail
+Fail	mroot is not space-like
+Fail	mfrac is not space-like
+Fail	mi is not space-like
+Fail	mmultiscripts is not space-like
+Fail	mn is not space-like
+Fail	mo is not space-like
+Fail	mover is not space-like
+Fail	munder is not space-like
+Fail	ms is not space-like
+Fail	munderover is not space-like
+Fail	msup is not space-like
+Fail	msub is not space-like
+Fail	msubsup is not space-like
+Fail	msqrt is not space-like
+Fail	mtable is not space-like

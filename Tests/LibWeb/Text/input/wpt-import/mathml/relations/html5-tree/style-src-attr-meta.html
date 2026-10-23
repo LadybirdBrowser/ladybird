@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>MathML CSP: style-src-attr and style-src syntax enforcement</title>
+
+<meta name="variant" content="?1-72">
+<meta name="variant" content="?73-144">
+<meta name="variant" content="?145-216">
+<meta name="variant" content="?217-last">
+
+<link rel="help" href="https://w3c.github.io/webappsec-csp/#directive-style-src-attr">
+<link rel="help" href="https://w3c.github.io/webappsec-csp/#directive-style-src">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/dom.html#the-style-attribute">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../common/subset-tests.js"></script>
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../mathml/support/csp-test-helper.js"></script>
+
+<body>
+  <script>
+    for (const tag in MathMLFragments) {
+      // Group 1: style-src-attr Directives
+      // 1. 'none' -> Block inline style attribute
+      subsetTest(test, t => {
+        runMathMLStyleCSPTest(t, {
+          tag,
+          policy: "style-src-attr 'none'",
+          shouldApply: false,
+          styleApplication: "styleAttribute",
+        });
+      }, `style-src-attr 'none' blocks inline style on <${tag}>`);
+
+      // 2. Absent / 'unsafe-inline' -> Allow inline style attribute
+      subsetTest(test, t => {
+        runMathMLStyleCSPTest(t, {
+          tag,
+          policy: null,
+          shouldApply: true,
+          styleApplication: "styleAttribute",
+        });
+      }, `CSP absent allows inline style on <${tag}>`);
+
+      subsetTest(test, t => {
+        runMathMLStyleCSPTest(t, {
+          tag,
+          policy: "style-src-attr 'unsafe-inline'",
+          shouldApply: true,
+          styleApplication: "styleAttribute",
+        });
+      }, `style-src-attr 'unsafe-inline' allows inline style on <${tag}>`);
+
+      // 3a. 'unsafe-hashes' + Matching Hash -> Allow
+      subsetTest(test, t => {
+        runMathMLStyleCSPTest(t, {
+          tag,
+          policy: `style-src-attr 'unsafe-hashes' '${CSS_TEXT_HASH}'`,
+          shouldApply: true,
+          styleApplication: "styleAttribute",
+        });
+      }, `style-src-attr 'unsafe-hashes' with matching hash allows inline style on <${tag}>`);
+
+      subsetTest(test, t => {
+        runMathMLStyleCSPTest(t, {
+          tag,
+          policy: `style-src-attr 'unsafe-hashes' 'sha256-mismatching='`,
+          shouldApply: false,
+          styleApplication: "styleAttribute",
+        });
+      }, `style-src-attr 'unsafe-hashes' with mismatching hash blocks inline style on <${tag}>`);
+
+      // Group 2: style-src Directive (Fallback behavior)
+      subsetTest(test, t => {
+        runMathMLStyleCSPTest(t, {
+          tag,
+          policy: "style-src 'none'",
+          shouldApply: false,
+          styleApplication: "styleAttribute",
+        });
+      }, `style-src 'none' fallback blocks inline style on <${tag}>`);
+
+      subsetTest(test, t => {
+        runMathMLStyleCSPTest(t, {
+          tag,
+          policy: "style-src 'unsafe-inline'",
+          shouldApply: true,
+          styleApplication: "styleAttribute",
+        });
+      }, `style-src 'unsafe-inline' fallback allows inline style on <${tag}>`);
+
+      // Group 3: Precedence (style-src-attr overrides style-src)
+      subsetTest(test, t => {
+        runMathMLStyleCSPTest(t, {
+          tag,
+          policy: "style-src-attr 'unsafe-inline'; style-src 'none'",
+          shouldApply: true,
+          styleApplication: "styleAttribute",
+        });
+      }, `style-src-attr 'unsafe-inline' overrides style-src 'none' on <${tag}>`);
+
+      subsetTest(test, t => {
+        runMathMLStyleCSPTest(t, {
+          tag,
+          policy: "style-src-attr 'none'; style-src 'unsafe-inline'",
+          shouldApply: false,
+          styleApplication: "styleAttribute",
+        });
+      }, `style-src-attr 'none' overrides style-src 'unsafe-inline' on <${tag}>`);
+    }
+  </script>
+</body>

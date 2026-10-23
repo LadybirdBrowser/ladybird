@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Radical parameters</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#radicals-msqrt-mroot">
+<meta name="assert" content="Test edge kerning values for radicals.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  @font-face {
+      font-family: radical-negativekernbeforedegree1000-rulethickness1000;
+      src: url("../../../fonts/math/radical-negativekernbeforedegree1000-rulethickness1000.woff");
+  }
+  @font-face {
+      font-family: radical-kernafterdegreeminus5000-rulethickness1000;
+      src: url("../../../fonts/math/radical-kernafterdegreeminus5000-rulethickness1000.woff");
+  }
+  math, mspace {
+      font-size: 10px;
+  }
+  mspace {
+      opacity: .5;
+  }
+</style>
+<script>
+  var emToPx = 10 / 1000; // font-size: 10px, font.em = 1000
+  var epsilon = 1;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  function runTests() {
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals(getBox("index001").left - getBox("mroot001").left,
+                               0, epsilon, "should be clamped to 0");
+      }, "RadicalKernBeforeDegree = -1em < 0");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          var radicalSymbolWidth = 1000 * emToPx;
+          var radicalLeft = getBox("base002").left - radicalSymbolWidth;
+          assert_approx_equals(getBox("index002").right - radicalLeft,
+                               30, epsilon, "should be clamped to 3em");
+      }, "RadicalKernBeforeAfterDegree = -5em < -3em = -degree's inline size");
+
+      done();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math style="font-family: radical-negativekernbeforedegree1000-rulethickness1000">
+      <mroot id="mroot001">
+        <mspace id="base001" height="6em" width="6em" style="background: blue"/>
+        <mspace id="index001" height="6em" width="6em" style="background: green"/>
+      </mroot>
+    </math>
+  </p>
+  <hr/>
+  <p>
+    <math style="font-family: radical-kernafterdegreeminus5000-rulethickness1000">
+      <mroot id="mroot002">
+        <mspace id="base002" height="3em" width="3em" style="background: blue"/>
+        <mspace id="index002" height="3em" width="3em" style="background: green"/>
+      </mroot>
+    </math>
+  </p>
+</body>
+</html>

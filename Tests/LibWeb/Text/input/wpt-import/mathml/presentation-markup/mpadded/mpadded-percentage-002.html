@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <link rel="help" href="https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded">
+    <meta name="assert" content="Percentage values are interpreted as the default value">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../mathml/support/feature-detection.js"></script>
+    <script src="../../../mathml/support/layout-comparison.js"></script>
+    <style>
+      .testedElement {
+          background: red;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="log"></div>
+
+    <p>
+      <math>
+        <mpadded id="reference">
+          <mspace width="10px" height="20px" depth="30px"
+                  style="background: blue"/>
+        </mpadded>
+      </math>
+    </p>
+    <p>
+      <math>
+        <mpadded class="testedElement" width="200%">
+          <mspace width="10px" height="20px" depth="30px"
+                  style="background: blue"/>
+        </mpadded>
+      </math>
+    </p>
+    <p>
+      <math>
+        <mpadded class="testedElement" height="200%">
+          <mspace width="10px" height="20px" depth="30px"
+                  style="background: blue"/>
+        </mpadded>
+      </math>
+    </p>
+    <p>
+      <math>
+        <mpadded class="testedElement" depth="200%">
+          <mspace width="10px" height="20px" depth="30px"
+                  style="background: blue"/>
+        </mpadded>
+      </math>
+    </p>
+    <p>
+      <math>
+        <mpadded class="testedElement" lspace="200%">
+          <mspace width="10px" height="20px" depth="30px"
+                  style="background: blue"/>
+        </mpadded>
+      </math>
+    </p>
+    <p>
+      <math>
+        <mpadded class="testedElement" voffset="200%">
+          <mspace width="10px" height="20px" depth="30px"
+                  style="background: blue"/>
+        </mpadded>
+      </math>
+    </p>
+    <script type="text/javascript">
+      Array.from(document.getElementsByClassName("testedElement")).forEach(mpadded => {
+          var reference = document.getElementById("reference");
+          const name = ["width", "depth", "height", "lspace", "voffset"].find(attr => mpadded.hasAttribute(attr));
+          const epsilon = 1;
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace());
+              compareLayout(mpadded, reference, epsilon);
+          }, `${name}='${mpadded.getAttribute(name)}' is interpreted as the default value`);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	<mtd> relies on mrow algorithm to layout its children
+Fail	<mtable> layout does not change if children of <mtd> elements are wrapped in an explicit <mrow>

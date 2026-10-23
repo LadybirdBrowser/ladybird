@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Baseline of mpadded with padding and border</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#inner-box-and-requested-parameters">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<meta name="assert" content="Verify that padding and border are taken into account for the baseline of an mpadded element, including when it is empty.">
+<style>
+  math {
+    font-size: 20px;
+  }
+  mpadded {
+    border: 0 solid black;
+  }
+</style>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+  var epsilon = 1;
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function check(id, paddingTop, borderTop, paddingBottom, borderBottom) {
+    var baseline = document.getElementById(`${id}-ref`).getBoundingClientRect().bottom;
+    var box = document.getElementById(id).getBoundingClientRect();
+    assert_approx_equals(box.top, baseline - (20 + paddingTop + borderTop), epsilon, "top of border box");
+    assert_approx_equals(box.bottom, baseline + 10 + paddingBottom + borderBottom, epsilon, "bottom of border box");
+  }
+
+  function runTests() {
+    test(() => check("empty-top", 10, 5, 0, 0), "Empty mpadded with padding-top and border-top");
+    test(() => check("empty-all", 7, 4, 11, 6), "Empty mpadded with padding and border on all sides");
+    test(() => check("nonempty-top", 10, 5, 0, 0), "Non-empty mpadded with padding-top and border-top");
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mspace id="empty-top-ref" width="10px" height="50px"/>
+      <mpadded id="empty-top" width="10px" height="20px" depth="10px" style="padding-top: 10px; border-top-width: 5px;"></mpadded>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mspace id="empty-all-ref" width="10px" height="50px"/>
+      <mpadded id="empty-all" width="10px" height="20px" depth="10px" style="padding: 7px 3px 11px 3px; border-width: 4px 2px 6px 2px;"></mpadded>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mspace id="nonempty-top-ref" width="10px" height="50px"/>
+      <mpadded id="nonempty-top" width="10px" height="20px" depth="10px" style="padding-top: 10px; border-top-width: 5px;"><mspace width="10px" height="10px" depth="5px"/></mpadded>
+    </math>
+  </p>
+</body>
+</html>

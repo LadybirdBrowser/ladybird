@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Absolutely positioned MathML elements</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<link rel="help" href="https://w3c.github.io/mathml-core/#css-styling">
+<meta name="assert" content="Verify that position:absolute with top/left works on MathML elements themselves.">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../mathml/support/feature-detection.js"></script>
+<script src="../../../../mathml/support/mathml-fragments.js"></script>
+<style>
+  /* override display: none on children of maction/semantics */
+  maction > *, semantics > * {
+    display: math;
+  }
+</style>
+<script>
+
+  window.addEventListener("DOMContentLoaded", _ => {
+      var targetTop = 200;
+      var targetLeft = 300;
+
+      for (tag in MathMLFragments) {
+          if (!FragmentHelper.isValidChildOfMrow(tag))
+              continue;
+
+          // Create a positioned container.
+          var container = document.createElement("div");
+          container.style.position = "absolute";
+          container.style.left = "0";
+          container.style.top = "0";
+          document.body.appendChild(container);
+
+          // Insert the MathML fragment inside a <math> element.
+          container.insertAdjacentHTML("beforeend", `<math>${MathMLFragments[tag]}</math>`);
+          var element = FragmentHelper.element(container.querySelector("math"));
+
+          // Give the element content so it has a nonzero size.
+          if (tag === "mspace") {
+              element.setAttribute("width", "50px");
+              element.setAttribute("height", "50px");
+          } else {
+              FragmentHelper.forceNonEmptyDescendants(element);
+          }
+
+          // Make the element itself absolutely positioned.
+          element.setAttribute("style",
+              `position: absolute; top: ${targetTop}px; left: ${targetLeft}px`);
+
+          var box = element.getBoundingClientRect();
+          var containerBox = container.getBoundingClientRect();
+          var epsilon = 1;
+
+          test(function() {
+              assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+              assert_greater_than(box.width, 0, "element has nonzero width");
+              assert_greater_than(box.height, 0, "element has nonzero height");
+              assert_approx_equals(box.left - containerBox.left, targetLeft, epsilon,
+                  "left position");
+              assert_approx_equals(box.top - containerBox.top, targetTop, epsilon,
+                  "top position");
+          }, `position: absolute on <${tag}> element itself`);
+
+          container.style.display = "none";
+      }
+  });
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>

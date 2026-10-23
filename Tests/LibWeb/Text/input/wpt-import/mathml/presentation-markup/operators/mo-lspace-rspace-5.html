@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>lspace/rspace attributes</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<meta name="assert" content="lspace/rspace is added around embellished operators">
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  @font-face {
+    font-family: stretchy;
+    src: url("../../../fonts/math/stretchy.woff");
+  }
+  @font-face {
+    font-family: largeop;
+    src: url("../../../fonts/math/largeop-displayoperatorminheight3000-2AFF-axisheight1000.woff");
+  }
+  div {
+      margin-bottom: 50px;
+  }
+  math {
+      font-size: 25px;
+      line-height: 1;
+      font-family: stretchy, largeop, Ahem;
+  }
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+  const epsilon = 1;
+  const emToPx = 25;
+  function emStringToPx(value) {
+    return parseInt(value.match(/^([0-9]+)em$/)[1]) * emToPx;
+  }
+  function runTests() {
+     Array.from(document.querySelectorAll("[data-title]")).forEach(operator => {
+      test(function() {
+        let operatorBox = operator.getBoundingClientRect();
+        let beforeBox = operator.previousElementSibling.getBoundingClientRect();
+        let afterBox = operator.nextElementSibling.getBoundingClientRect();
+        let mo = operator.getElementsByTagName("mo")[0] || operator;
+        let lspace = emStringToPx(mo.getAttribute("lspace"));
+        let rspace = emStringToPx(mo.getAttribute("rspace"));
+        let isRTL = getComputedStyle(operator.parentNode).direction === "rtl";
+        if (isRTL) {
+          assert_approx_equals(operatorBox.left - afterBox.right, rspace, epsilon);
+          assert_approx_equals(beforeBox.left - operatorBox.right, lspace, epsilon);
+        } else {
+          assert_approx_equals(operatorBox.left - beforeBox.right, lspace, epsilon);
+          assert_approx_equals(afterBox.left - operatorBox.right, rspace, epsilon);
+        }
+      }, `lspace/rspace spacing correctly set around operator (${operator.dataset.title}).`);
+    });
+    done();
+  }
+</script>
+<div id="log"></div>
+<div>
+  <math>
+    <mrow>
+      <mn>22</mn>
+      <mo data-title="child of mrow, not embellished, LTR, normal text"
+          lspace="1em" rspace="2em">+++</mo>
+      <mn>4444</mn>
+      <mo data-title="child of mrow, not embellished, LTR, largeop variant"
+          lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+      <mn>55555</mn>
+      <mo data-title="child of mrow, not embellished, LTR, stretchy variant"
+          lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+      <mn>666666</mn>
+      <mo data-title="child of mrow, not embellished, LTR, glyph assembly"
+          lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+      <mn>7777777</mn>
+    </mrow>
+  </math>
+  <math>
+    <mn>22</mn>
+    <mo data-title="child of math, not embellished, LTR, normal text"
+        lspace="1em" rspace="2em">+++</mo>
+    <mn>4444</mn>
+    <mo data-title="child of math, not embellished, LTR, largeop variant"
+        lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+    <mn>55555</mn>
+    <mo data-title="child of math, not embellished, LTR, stretchy variant"
+        lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+    <mn>666666</mn>
+    <mo data-title="child of math, not embellished, LTR, glyph assembly"
+        lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+    <mn>7777777</mn>
+  </math>
+  <math>
+    <mtable>
+      <mtr>
+        <mtd>
+          <mn>22</mn>
+          <mo data-title="child of mtd, not embellished, LTR, normal text"
+              lspace="1em" rspace="2em">+++</mo>
+          <mn>4444</mn>
+          <mo data-title="child of mtd, not embellished, LTR, largeop variant"
+              lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+          <mn>55555</mn>
+          <mo data-title="child of mtd, not embellished, LTR, stretchy variant"
+              lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+          <mn>666666</mn>
+          <mo data-title="child of mtd, not embellished, LTR, glyph assembly"
+              lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+          <mn>7777777</mn>
+        </mtd>
+      </mtr>
+    </mtable>
+  </math>
+  <math>
+    <mrow>
+      <mn>22</mn>
+      <mrow data-title="child of mrow, embellished, LTR, normal text">
+        <mo lspace="1em" rspace="2em">+++</mo>
+      </mrow>
+      <mn>4444</mn>
+      <mrow data-title="child of mrow, embellished, LTR, largeop variant">
+        <mo lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+      </mrow>
+      <mn>55555</mn>
+      <mrow data-title="child of mrow, embellished, LTR, stretchy variant">
+        <mo lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+      </mrow>
+      <mn>666666</mn>
+      <mrow data-title="child of mrow, embellished, LTR, glyph assembly">
+        <mo lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+      </mrow>
+      <mn>7777777</mn>
+    </mrow>
+  </math>
+  <math>
+    <mn>22</mn>
+    <mrow data-title="child of math, embellished, LTR, normal text">
+      <mo lspace="1em" rspace="2em">+++</mo>
+    </mrow>
+    <mn>4444</mn>
+    <mrow data-title="child of math, embellished, LTR, largeop variant">
+      <mo lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+    </mrow>
+    <mn>55555</mn>
+    <mrow data-title="child of math, embellished, LTR, stretchy variant">
+      <mo lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+      </mrow>
+    <mn>666666</mn>
+    <mrow data-title="child of math, embellished, LTR, glyph assembly">
+      <mo lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+    </mrow>
+    <mn>7777777</mn>
+  </math>
+  <math>
+    <mtable>
+      <mtr>
+        <mtd>
+          <mn>22</mn>
+          <mrow data-title="child of mtd, embellished, LTR, normal text">
+            <mo lspace="1em" rspace="2em">+++</mo>
+          </mrow>
+          <mn>4444</mn>
+          <mrow data-title="child of mtd, embellished, LTR, largeop variant">
+            <mo lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+          </mrow>
+          <mn>55555</mn>
+          <mrow data-title="child of mtd, embellished, LTR, stretchy variant">
+            <mo lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+          </mrow>
+          <mn>666666</mn>
+          <mrow data-title="child of mtd, embellished, LTR, glyph assembly">
+            <mo lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+          </mrow>
+          <mn>7777777</mn>
+        </mtd>
+      </mtr>
+    </mtable>
+  </math>
+</div>
+
+
+
+<div>
+  <math dir="rtl">
+    <mrow>
+      <mn>22</mn>
+      <mo data-title="child of mrow, not embellished, RTL, normal text"
+          lspace="1em" rspace="2em">+++</mo>
+      <mn>4444</mn>
+      <mo data-title="child of mrow, not embellished, RTL, largeop variant"
+          lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+      <mn>55555</mn>
+      <mo data-title="child of mrow, not embellished, RTL, stretchy variant"
+          lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+      <mn>666666</mn>
+      <mo data-title="child of mrow, not embellished, RTL, glyph assembly"
+          lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+      <mn>7777777</mn>
+    </mrow>
+  </math>
+  <math dir="rtl">
+    <mn>22</mn>
+    <mo data-title="child of math, not embellished, RTL, normal text"
+        lspace="1em" rspace="2em">+++</mo>
+    <mn>4444</mn>
+    <mo data-title="child of math, not embellished, RTL, largeop variant"
+        lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+    <mn>55555</mn>
+    <mo data-title="child of math, not embellished, RTL, stretchy variant"
+        lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+    <mn>666666</mn>
+    <mo data-title="child of math, not embellished, RTL, glyph assembly"
+        lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+    <mn>7777777</mn>
+  </math>
+  <math dir="rtl">
+    <mtable>
+      <mtr>
+        <mtd>
+          <mn>22</mn>
+          <mo data-title="child of mtd, not embellished, RTL, normal text"
+              lspace="1em" rspace="2em">+++</mo>
+          <mn>4444</mn>
+          <mo data-title="child of mtd, not embellished, RTL, largeop variant"
+              lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+          <mn>55555</mn>
+          <mo data-title="child of mtd, not embellished, RTL, stretchy variant"
+              lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+          <mn>666666</mn>
+          <mo data-title="child of mtd, not embellished, RTL, glyph assembly"
+              lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+          <mn>7777777</mn>
+        </mtd>
+      </mtr>
+    </mtable>
+  </math>
+  <math dir="rtl">
+    <mrow>
+      <mn>22</mn>
+      <mrow data-title="child of mrow, embellished, RTL, normal text">
+        <mo lspace="1em" rspace="2em">+++</mo>
+      </mrow>
+      <mn>4444</mn>
+      <mrow data-title="child of mrow, embellished, RTL, largeop variant">
+        <mo lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+      </mrow>
+      <mn>55555</mn>
+      <mrow data-title="child of mrow, embellished, RTL, stretchy variant">
+        <mo lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+      </mrow>
+      <mn>666666</mn>
+      <mrow data-title="child of mrow, embellished, RTL, glyph assembly">
+        <mo lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+      </mrow>
+      <mn>7777777</mn>
+    </mrow>
+  </math>
+  <math dir="rtl">
+    <mn>22</mn>
+    <mrow data-title="child of math, embellished, RTL, normal text">
+      <mo lspace="1em" rspace="2em">+++</mo>
+    </mrow>
+    <mn>4444</mn>
+    <mrow data-title="child of math, embellished, RTL, largeop variant">
+      <mo lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+    </mrow>
+    <mn>55555</mn>
+    <mrow data-title="child of math, embellished, RTL, stretchy variant">
+      <mo lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+      </mrow>
+    <mn>666666</mn>
+    <mrow data-title="child of math, embellished, RTL, glyph assembly">
+      <mo lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+    </mrow>
+    <mn>7777777</mn>
+  </math>
+  <math dir="rtl">
+    <mtable>
+      <mtr>
+        <mtd>
+          <mn>22</mn>
+          <mrow data-title="child of mtd, embellished, RTL, normal text">
+            <mo lspace="1em" rspace="2em">+++</mo>
+          </mrow>
+          <mn>4444</mn>
+          <mrow data-title="child of mtd, embellished, RTL, largeop variant">
+            <mo lspace="3em" rspace="4em" largeop="true">&#x2AFF;</mo>
+          </mrow>
+          <mn>55555</mn>
+          <mrow data-title="child of mtd, embellished, RTL, stretchy variant">
+            <mo lspace="5em" rspace="6em" stretchy="true" minsize="2em">&#x295C;</mo>
+          </mrow>
+          <mn>666666</mn>
+          <mrow data-title="child of mtd, embellished, RTL, glyph assembly">
+            <mo lspace="7em" rspace="8em" stretchy="true" minsize="10em">&#x295C;</mo>
+          </mrow>
+          <mn>7777777</mn>
+        </mtd>
+      </mtr>
+    </mtable>
+  </math>
+</div>

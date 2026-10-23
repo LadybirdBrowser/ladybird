@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Space-like elements</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#definition-of-space-like-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-fence-separator-or-accent-mo">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-of-mrow">
+<meta name="assert" content="Verify definition of space-like elements">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<style>
+  /* Default spacing of operator 'X' is 0.2777777777777778em so quite different
+     from the measured/specified 0em and 1em. */
+  math, math * {
+      font: 25px/1 Ahem;
+  }
+  mn {
+      color: black;
+  }
+  mo {
+      color: yellow;
+  }
+  .testedElement, .testedElement * {
+      color: blue !important;
+      background: blue !important;
+  }
+</style>
+<script>
+  function spaceBefore(id) {
+      var element = document.getElementById(id);
+      var mnBeforeParent = element.parentNode.previousElementSibling;
+      return element.getBoundingClientRect().left - mnBeforeParent.getBoundingClientRect().right;
+  }
+
+  function spaceAfter(id) {
+      var element = document.getElementById(id);
+      var mnAfterParent = element.parentNode.nextElementSibling;
+      return mnAfterParent.getBoundingClientRect().left - element.getBoundingClientRect().right;
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+      var epsilon = 1;
+      var emToPx = 25;
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mtext"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("mtext"), emToPx, epsilon);
+      }, "mtext is space-like");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mspace"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("mspace"), emToPx, epsilon);
+      }, "mspace is space-like");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mrow1"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("mrow1"), emToPx, epsilon);
+      }, "space-like mrow");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mrow2"), 0, epsilon);
+          assert_approx_equals(spaceAfter("mrow2"), 2 * emToPx, epsilon);
+      }, "non-space-like mrow");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mstyle1"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("mstyle1"), emToPx, epsilon);
+      }, "space-like mstyle");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mstyle2"), 0, epsilon);
+          assert_approx_equals(spaceAfter("mstyle2"), 2 * emToPx, epsilon);
+      }, "non-space-like mstyle");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mphantom1"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("mphantom1"), emToPx, epsilon);
+      }, "space-like mphantom");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mphantom2"), 0, epsilon);
+          assert_approx_equals(spaceAfter("mphantom2"), 2 * emToPx, epsilon);
+      }, "non-space-like mphantom");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mpadded1"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("mpadded1"), emToPx, epsilon);
+      }, "space-like mpadded");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("mpadded2"), 0, epsilon);
+          assert_approx_equals(spaceAfter("mpadded2"), 2 * emToPx, epsilon);
+      }, "non-space-like mpadded");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("merror1"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("merror1"), emToPx, epsilon);
+      }, "space-like merror");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("merror2"), 0, epsilon);
+          assert_approx_equals(spaceAfter("merror2"), 2 * emToPx, epsilon);
+      }, "non-space-like merror");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("menclose1"), emToPx, epsilon);
+          assert_approx_equals(spaceAfter("menclose1"), emToPx, epsilon);
+      }, "space-like menclose");
+
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_operator_spacing());
+          assert_approx_equals(spaceBefore("menclose2"), 0, epsilon);
+          assert_approx_equals(spaceAfter("menclose2"), 2 * emToPx, epsilon);
+      }, "non-space-like menclose");
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mtext is space-like. -->
+        <mtext class="testedElement" id="mtext">X</mtext>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mspace is space-like. -->
+        <mspace class="testedElement" id="mspace" width="25px" height="10px"></mspace>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mrow is space-like when it contains only space-like elements. -->
+        <mrow id="mrow1" class="testedElement">
+          <mtext>X</mtext>
+          <mspace width="25px" height="10px"></mspace>
+        </mrow>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mrow is not space-like when it contains a non space-like element
+             such as "mn". -->
+        <mrow id="mrow2" class="testedElement">
+          <mn>X</mn>
+          <mspace width="25px" height="10px"></mspace>
+        </mrow>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mstyle is space-like when it contains only space-like elements. -->
+        <mstyle id="mstyle1" class="testedElement">
+          <mtext>X</mtext>
+          <mspace width="25px" height="10px"></mspace>
+        </mstyle>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mstyle is not space-like when it contains a non space-like element
+             such as "mn". -->
+        <mstyle id="mstyle2" class="testedElement">
+          <mn>X</mn>
+          <mspace width="25px" height="10px"></mspace>
+        </mstyle>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mphantom is space-like when it contains only space-like elements.
+          -->
+        <mphantom id="mphantom1" class="testedElement">
+          <mtext>X</mtext>
+          <mspace width="25px" height="10px"></mspace>
+        </mphantom>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mphantom is not space-like when it contains a non space-like
+             element such as "mn". -->
+        <mphantom id="mphantom2" class="testedElement">
+          <mn>X</mn>
+          <mspace width="25px" height="10px"></mspace>
+        </mphantom>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mpadded is space-like when it contains only space-like elements. -->
+        <mpadded id="mpadded1" class="testedElement">
+          <mtext>X</mtext>
+          <mspace width="25px" height="10px"></mspace>
+        </mpadded>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- mpadded is not space-like when it contains a non space-like element
+             such as "mn". -->
+        <mpadded id="mpadded2" class="testedElement">
+          <mn>X</mn>
+          <mspace width="25px" height="10px"></mspace>
+        </mpadded>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- merror is space-like when it contains only space-like elements. -->
+        <merror id="merror1" class="testedElement">
+          <mtext>X</mtext>
+          <mspace width="25px" height="10px"></mspace>
+        </merror>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- merror is not space-like when it contains a non space-like element
+             such as "mn". -->
+        <merror id="merror2" class="testedElement">
+          <mn>X</mn>
+          <mspace width="25px" height="10px"></mspace>
+        </merror>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- menclose is space-like when it contains only space-like
+             elements. -->
+        <menclose id="menclose1" class="testedElement">
+          <mtext>X</mtext>
+          <mspace width="25px" height="10px"></mspace>
+        </menclose>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mn>X</mn>
+      <mrow>
+        <!-- menclose is not space-like when it contains a non space-like
+             element such as "mn". -->
+        <menclose id="menclose2" class="testedElement">
+          <mn>X</mn>
+          <mspace width="25px" height="10px"></mspace>
+        </menclose>
+        <mo lspace="1em" rspace="0em">X</mo>
+      </mrow>
+      <mn>X</mn>
+    </math>
+  </p>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>MathML sibling of SVG with foreignObject[overflow=visible]</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#html-and-svg">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=989920">
+<meta name="assert" content="Verify that an SVG containing a foreignObject with visible overflow does not affect layout of MathML siblings.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("DOMContentLoaded", function() {
+      var scale = 2;
+      var epsilon = 1;
+      var mfrac = document.getElementById("mfrac");
+      var num = mfrac.firstElementChild.getBoundingClientRect();
+      var denom = mfrac.lastElementChild.getBoundingClientRect();
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mspace());
+          assert_approx_equals(num.width, 30, epsilon, "numerator width");
+          assert_approx_equals(num.height, 40, epsilon, "numerator height");
+          assert_approx_equals(denom.width, 50, epsilon, "denonimator width");
+          assert_approx_equals(denom.height, 60, epsilon, "denonimator height");
+      }, "mspace layout in sibling of SVG foreignObject[overflow=visible]");
+      test(function() {
+          assert_true(MathMLFeatureDetection.has_mfrac());
+          assert_greater_than_equal(denom.bottom - num.top,
+                                    (40 + 60),
+                                    "numerator above denominator");
+          assert_approx_equals((num.left + num.right) / 2,
+                               (denom.left + denom.right) / 2,
+                               epsilon, "numerator and denominator are horizontally aligned");
+      }, "mfrac layout in sibling of SVG with foreignObject[overflow=visible]");
+      done();
+  });
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <math>
+    <mfrac id="mfrac">
+      <mspace width="30px" height="40px" style="background: cyan"></mspace>
+      <mspace width="50px" height="60px" style="background: yellow"></mspace>
+    </mfrac>
+  </math>
+  <svg width="200px" height="200px" style="background: lightblue">
+    <foreignObject width="200px" height="200px"
+                   overflow="visible">
+      <div xmlns="http://www.w3.org/1999/xhtml">
+        This is a foreignObject
+      </div>
+    </foreignObject>
+  </svg>
+</body>
+</html>

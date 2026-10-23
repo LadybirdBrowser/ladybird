@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Operator dictionary: multi-character operators</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#operator-dictionary">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dfn-algorithm-to-determine-the-category-of-an-operator">
+<meta name="assert" content="Verify that multi-character operator entries (e.g. '&&', '!=', '->') resolve to their operator-dictionary spacing rather than the default 5/18em.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/feature-detection-operators.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css"/>
+<style>
+  math { font: 32px/1 Ahem; }
+</style>
+</head>
+<body>
+<div id="log"></div>
+<div id="container"></div>
+<script>
+"use strict";
+
+// Multi-character entries from the MathML Core operator dictionary. The main
+// single-codepoint dictionary does not cover these, so an implementation must
+// perform a string-keyed lookup for the listed (operator, form) pairs.
+// lspace and rspace are in math units (1 unit = 1/18em).
+const MULTI_CHAR_OPERATORS = [
+  { op: "!!", form: "postfix", lspace: 0, rspace: 0 },
+  { op: "!=", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "&&", form: "infix",   lspace: 4, rspace: 4 },
+  { op: "**", form: "infix",   lspace: 3, rspace: 3 },
+  { op: "*=", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "++", form: "postfix", lspace: 0, rspace: 0 },
+  { op: "+=", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "--", form: "postfix", lspace: 0, rspace: 0 },
+  { op: "-=", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "->", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "//", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "/=", form: "infix",   lspace: 5, rspace: 5 },
+  { op: ":=", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "<=", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "<>", form: "infix",   lspace: 3, rspace: 3 },
+  { op: "==", form: "infix",   lspace: 5, rspace: 5 },
+  { op: ">=", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "||", form: "infix",   lspace: 5, rspace: 5 },
+  { op: "||", form: "postfix", lspace: 0, rspace: 0 },
+  { op: "||", form: "prefix",  lspace: 0, rspace: 0 },
+];
+
+// Per MathML Core layout, the <mo> element's rendered box width is
+// lspace + glyph_width + rspace, so measuring the <mo> width directly exposes
+// the applied spacing. The gap between sibling bounding rects is 0 regardless
+// of lspace/rspace because the spacing is internal to the <mo>'s box.
+function moWidth(markup) {
+    const container = document.getElementById("container");
+    container.innerHTML = markup;
+    const width = container.querySelector("mo").getBoundingClientRect().width;
+    container.innerHTML = "";
+    return width;
+}
+
+setup({ explicit_done: true });
+
+window.addEventListener("load", () => loadAllFonts().then(runTests));
+
+async function runTests() {
+    const hasOperatorSpacing = await MathMLFeatureDetection.has_operator_spacing();
+    const epsilon = 1;
+    const escape = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const toEm = units => (units / 18).toFixed(16) + "em";
+
+    for (const { op, form, lspace, rspace } of MULTI_CHAR_OPERATORS) {
+        test(() => {
+            assert_true(hasOperatorSpacing, "Operator spacing is supported");
+
+            const actual = moWidth(
+                `<math><mrow><mn>1</mn>` +
+                `<mo form="${form}">${escape(op)}</mo>` +
+                `<mn>2</mn></mrow></math>`);
+            const reference = moWidth(
+                `<math><mrow><mn>1</mn>` +
+                `<mo form="${form}" lspace="${toEm(lspace)}" rspace="${toEm(rspace)}">` +
+                `${escape(op)}</mo>` +
+                `<mn>2</mn></mrow></math>`);
+
+            assert_approx_equals(actual, reference, epsilon,
+                `<mo form="${form}">${op}</mo> should apply dictionary spacing lspace=${lspace}/18em, rspace=${rspace}/18em`);
+        }, `Operator dictionary spacing for "${op}" (${form})`);
+    }
+
+    done();
+}
+</script>
+</body>
+</html>

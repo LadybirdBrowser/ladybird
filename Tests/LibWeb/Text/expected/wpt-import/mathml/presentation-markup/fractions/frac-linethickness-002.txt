@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Positive
+Fail	Negative
+Fail	Percentage
+Fail	Named space
+Fail	Calc() expression
+Fail	Dynamic linethickness

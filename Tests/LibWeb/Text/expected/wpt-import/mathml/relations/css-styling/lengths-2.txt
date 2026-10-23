@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Units
+Fail	Trimming of space
+Fail	Non-negative numbers
+Fail	Non-positive numbers
+Fail	Legacy namedspaces
+Fail	Legacy numbers

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>href click</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#attributes-common-to-html-and-mathml-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#dom-and-javascript">
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<style>
+  annotation, annotation-xml { display: initial; }
+  mphantom { visibility: visible; }
+  .element, mtr.element > mtd { background: lightblue; padding: 50px; }
+</style>
+</head>
+<body>
+  <div id="container"></div>
+  <script>
+    for (tag in MathMLFragments) {
+      if (tag === "a" || FragmentHelper.isEmpty(tag)) continue;
+      container.insertAdjacentHTML("beforeend", `<math>${MathMLFragments[tag]}</math>`);
+      let element = FragmentHelper.element(container.lastElementChild);
+      element.setAttribute("href", "badHandler()");
+    }
+    Array.from(document.getElementsByClassName("element")).forEach(element => {
+      promise_test(t => {
+        t.add_cleanup = _ => window.badHandler = undefined;
+        window.badHandler = t.unreached_func("Bad handler executed");
+        return test_driver.click(element);
+      }, `${element.tagName} with href attribute does not react to click.`);
+    });
+  </script>
+</body>
+</html>

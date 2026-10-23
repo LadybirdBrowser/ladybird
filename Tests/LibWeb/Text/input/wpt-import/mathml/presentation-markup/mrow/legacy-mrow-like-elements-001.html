@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Legacy maction and semantics elements</title>
+<link rel="help" href="https://www.w3.org/TR/MathML3/chapter3.html#presm.maction">
+<link rel="help" href="https://w3c.github.io/mathml-core/#enlivening-expressions">
+<link rel="help" href="https://www.w3.org/TR/MathML3/chapter3.html#presm.semantics">
+<link rel="help" href="https://w3c.github.io/mathml-core/#semantics-and-presentation">
+<meta name="assert" content="Legacy maction and semantics elements are handled as mrow with special style">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/layout-comparison.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+  function runTests()
+  {
+      Array.from(document.getElementsByClassName("TestContainer")).forEach(container => {
+          const id = container.id;
+          const math = container.getElementsByTagName("math");
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace(), "<mspace> is supported");
+              const epsilon = 1;
+              compareLayout(math[0], math[1], epsilon);
+          }, `Element is laid out as an mrow with only first child displayed (id=${id})`);
+
+          test(function() {
+              assert_true(MathMLFeatureDetection.has_mspace(), "<mspace> is supported");
+              let firstChild = math[0].firstElementChild.firstElementChild;
+              for (var child = firstChild; child; child = child.nextElementSibling) {
+                  var style = window.getComputedStyle(child).getPropertyValue("display");
+                  if (child == firstChild) {
+                      assert_equals(style, "block math", "First child has computed display value 'block math'");
+                  } else {
+                      assert_equals(style, "none", "Other children have computed display value 'none'");
+                  }
+              }
+          }, `Computed display of children (id=${id})`);
+      });
+      done();
+  }
+</script>
+<style>
+  mspace:nth-child(2n) {
+      background: lightblue;
+  }
+  mspace:nth-child(2n+1) {
+      background: lightgreen;
+  }
+  mrow.onlyShowFirstChild > :not(:first-child) {
+      display: none;
+  }
+</style>
+</head>
+<body>
+  <div id="log"></div>
+  <p class="TestContainer" id="semantics">
+    <math>
+      <semantics>
+        <mspace width="10px" height="10px"></mspace>
+        <mspace width="10px" depth="10px"></mspace>
+        <mspace width="10px" height="15px" depth="5px"></mspace>
+        <mspace width="10px" height="5px" depth="15px"></mspace>
+      </semantics>
+    </math>
+    <math>
+      <mrow class="onlyShowFirstChild">
+        <mspace width="10px" height="10px"></mspace>
+        <mspace width="10px" depth="10px"></mspace>
+        <mspace width="10px" height="15px" depth="5px"></mspace>
+        <mspace width="10px" height="5px" depth="15px"></mspace>
+      </mrow>
+    </math>
+  </p>
+  <p class="TestContainer" id="semantics-annotations">
+    <math>
+      <semantics>
+        <mspace width="10px" height="10px"></mspace>
+        <annotation>ANNOTATION</annotation>
+        <annotation-xml>ANNOTATION-XML</annotation-xml>
+      </semantics>
+    </math>
+    <math>
+      <mrow class="onlyShowFirstChild">
+        <mspace width="10px" height="10px"></mspace>
+        <annotation>ANNOTATION</annotation>
+        <annotation-xml>ANNOTATION-XML</annotation-xml>
+      </mrow>
+    </math>
+  </p>
+  <p class="TestContainer" id="maction">
+    <math>
+      <maction>
+        <mspace width="10px" height="10px"></mspace>
+        <mspace width="10px" depth="10px"></mspace>
+        <mspace width="10px" height="15px" depth="5px"></mspace>
+        <mspace width="10px" height="5px" depth="15px"></mspace>
+      </maction>
+    </math>
+    <math>
+      <mrow class="onlyShowFirstChild">
+        <mspace width="10px" height="10px"></mspace>
+        <mspace width="10px" depth="10px"></mspace>
+        <mspace width="10px" height="15px" depth="5px"></mspace>
+        <mspace width="10px" height="5px" depth="15px"></mspace>
+      </mrow>
+    </math>
+  </p>
+  <p class="TestContainer" id="maction-toggle">
+    <math>
+      <maction actiontype="toggle">
+        <mspace width="10px" height="10px"></mspace>
+        <mspace width="10px" depth="10px"></mspace>
+        <mspace width="10px" height="15px" depth="5px"></mspace>
+        <mspace width="10px" height="5px" depth="15px"></mspace>
+      </maction>
+    </math>
+    <math>
+      <mrow class="onlyShowFirstChild">
+        <mspace width="10px" height="10px"></mspace>
+        <mspace width="10px" depth="10px"></mspace>
+        <mspace width="10px" height="15px" depth="5px"></mspace>
+        <mspace width="10px" height="5px" depth="15px"></mspace>
+      </mrow>
+    </math>
+  </p>
+  <p class="TestContainer" id="maction-toggle-selection">
+    <math>
+      <maction actiontype="toggle" selection="3">
+        <mspace width="10px" height="10px"></mspace>
+        <mspace width="10px" depth="10px"></mspace>
+        <mspace width="10px" height="15px" depth="5px"></mspace>
+        <mspace width="10px" height="5px" depth="15px"></mspace>
+      </maction>
+    </math>
+    <math>
+      <mrow class="onlyShowFirstChild">
+        <mspace width="10px" height="10px"></mspace>
+        <mspace width="10px" depth="10px"></mspace>
+        <mspace width="10px" height="15px" depth="5px"></mspace>
+        <mspace width="10px" height="5px" depth="15px"></mspace>
+      </mrow>
+    </math>
+  </p>
+  <p class="TestContainer" id="maction-statusline">
+    <math>
+      <maction actiontype="statusline">
+        <mspace width="10px" height="10px"></mspace>
+        <mtext>MESSAGE</mtext>
+      </maction>
+    </math>
+    <math>
+      <mrow class="onlyShowFirstChild">
+        <mspace width="10px" height="10px"></mspace>
+        <mtext>MESSAGE</mtext>
+      </mrow>
+    </math>
+  </p>
+  <p class="TestContainer" id="maction-tooltip">
+    <math>
+      <maction actiontype="tooltip">
+        <mspace width="10px" height="10px"></mspace>
+        <mtext>MESSAGE</mtext>
+      </maction>
+    </math>
+    <math>
+      <mrow class="onlyShowFirstChild">
+        <mspace width="10px" height="10px"></mspace>
+        <mtext>MESSAGE</mtext>
+      </mrow>
+    </math>
+  </p>
+  <p class="TestContainer" id="maction-input">
+    <math>
+      <maction actiontype="input">
+        <mspace width="10px" height="10px"></mspace>
+      </maction>
+    </math>
+    <math>
+      <mrow class="onlyShowFirstChild">
+        <mspace width="10px" height="10px"></mspace>
+      </mrow>
+    </math>
+  </p>
+</body>
+</html>

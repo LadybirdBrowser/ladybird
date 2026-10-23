@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<title>MathML lengths</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#css-styling">
+<link rel="help" href="https://w3c.github.io/mathml-core/#types-for-mathml-attribute-values">
+<link rel="help" href="https://w3c.github.io/mathml-core/#legacy-mathml-style-attributes">
+<link rel="help" href="https://w3c.github.io/mathml-core/#space-mspace">
+<link rel="help" href="https://www.w3.org/TR/css-values-4/#relative-lengths">
+<meta name="assert" content="Verify various cases of the MathML length syntax.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  @font-face {
+    font-family: TestFont;
+    src: url("../../../fonts/math/css-units.woff");
+  }
+  math {
+    font-family: TestFont;
+    font-size: 10px;
+  }
+  /* For rlh. */
+  html {
+    line-height: 17px;
+  }
+</style>
+<script>
+  // Omitted units: vi, vb
+
+  var epsilon = .5;
+
+  function getBox(aId) {
+    return document.getElementById(aId).getBoundingClientRect();
+  }
+
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      assert_equals(getBox("unitCm").width, 96, "cm");
+      assert_equals(getBox("unitEm").width, 120, "em");
+      assert_equals(getBox("unitEx").width, 500, "ex");
+      assert_equals(getBox("unitIn").width, 288, "in");
+      assert_equals(getBox("unitMm").width, 576, "mm");
+      assert_equals(getBox("unitPc").width, 96, "pc");
+      assert_equals(getBox("unitPercentage").width, 60, "%");
+      assert_equals(getBox("unitPt").width, 96, "pt");
+      assert_equals(getBox("unitPx").width, 123, "px");
+      assert_equals(getBox("unitQ").width, 192, "q");
+      assert_equals(getBox("unitCh").width, 100, "ch");
+      assert_equals(getBox("unitCap").width, 140, "cap");
+      assert_equals(getBox("unitIc").width, 90, "ic");
+      assert_approx_equals(getBox("unitVw").width, window.innerWidth*0.35, epsilon, "vw");
+      assert_approx_equals(getBox("unitVh").width, window.innerHeight*0.54, epsilon, "vh");
+      assert_approx_equals(getBox("unitVmin").width, Math.min(window.innerWidth, window.innerHeight)*0.27, epsilon, "vmin");
+      assert_approx_equals(getBox("unitVmax").width, Math.max(window.innerWidth, window.innerHeight)*0.34, epsilon, "vmax");
+      assert_equals(getBox("unitRem").width, 128, "rem");
+      assert_equals(getBox("unitLh").width, 60, "lh");
+      assert_equals(getBox("unitRlh").width, 102, "rlh");
+    }, "Units");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      assert_equals(getBox("spaceCm").width, 96, "cm");
+      assert_equals(getBox("spaceEm").width, 120, "em");
+      assert_equals(getBox("spaceEx").width, 500, "ex");
+      assert_equals(getBox("spaceIn").width, 288, "in");
+      assert_equals(getBox("spaceMm").width, 576, "mm");
+      assert_equals(getBox("spacePc").width, 96, "pc");
+      assert_equals(getBox("spacePercentage").width, 60, "%");
+      assert_equals(getBox("spacePt").width, 96, "pt");
+      assert_equals(getBox("spacePx").width, 123, "px");
+      assert_equals(getBox("spaceQ").width, 192, "q");
+      assert_equals(getBox("spaceCh").width, 100, "ch");
+      assert_equals(getBox("spaceCap").width, 140, "cap");
+      assert_equals(getBox("spaceIc").width, 90, "ic");
+      assert_approx_equals(getBox("spaceVw").width, window.innerWidth*0.35, epsilon, "vw");
+      assert_approx_equals(getBox("spaceVh").width, window.innerHeight*0.54, epsilon, "vh");
+      assert_approx_equals(getBox("spaceVmin").width, Math.min(window.innerWidth, window.innerHeight)*0.27, epsilon, "vmin");
+      assert_approx_equals(getBox("spaceVmax").width, Math.max(window.innerWidth, window.innerHeight)*0.34, epsilon, "vmax");
+      assert_equals(getBox("spaceRem").width, 128, "rem");
+      assert_equals(getBox("spaceLh").width, 60, "lh");
+      assert_equals(getBox("spaceRlh").width, 102, "rlh");
+    }, "Trimming of space");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      assert_approx_equals(getBox("n0").width, 0, epsilon, "n0");
+      assert_approx_equals(getBox("n1").width, 90, epsilon, "n1");
+      assert_approx_equals(getBox("n2").width, 8, epsilon, "n2");
+      assert_approx_equals(getBox("n4").width, 650, epsilon, "n4");
+      assert_approx_equals(getBox("n5").width, 4320, epsilon, "n5");
+      assert_approx_equals(getBox("n6").width, 1, epsilon, "n6");
+      assert_approx_equals(getBox("n7").width, 8, epsilon, "n7");
+      assert_approx_equals(getBox("n8").width, 65, epsilon, "n8");
+      assert_approx_equals(getBox("n9").width, 432, epsilon, "n9");
+      assert_approx_equals(getBox("n10").width, 123, epsilon, "n10");
+    }, "Non-negative numbers");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      var topRef = getBox("ref").top;
+      assert_approx_equals(getBox("N0").top - topRef, -0, epsilon, "N0");
+      assert_approx_equals(topRef - getBox("N1").top, -90, epsilon, "N1");
+      assert_approx_equals(topRef - getBox("N2").top, -8, epsilon, "N2");
+      assert_approx_equals(topRef - getBox("N4").top, -650, epsilon, "N4");
+      assert_approx_equals(topRef - getBox("N5").top, -4320, epsilon, "N5");
+      assert_approx_equals(topRef - getBox("N6").top, -1, epsilon, "N6");
+      assert_approx_equals(topRef - getBox("N7").top, -8, epsilon, "N7");
+      assert_approx_equals(topRef - getBox("N8").top, -65, epsilon, "N8");
+      assert_approx_equals(topRef - getBox("N9").top, -432, epsilon, "N9");
+      assert_approx_equals(topRef - getBox("N10").top, -123, epsilon, "N10");
+    }, "Non-positive numbers");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      // Namedspace values are invalid in MathML Core.
+      ["veryverythinmathspace",
+       "verythinmathspace",
+       "thinmathspace",
+       "mediummathspace",
+       "thickmathspace",
+       "verythickmathspace",
+       "veryverythickmathspace",
+       "negativeveryverythinmathspace",
+       "negativeverythinmathspace",
+       "negativethinmathspace",
+       "negativemediummathspace",
+       "negativethickmathspace",
+       "negativeverythickmathspace",
+       "negativeveryverythickmathspace"
+      ].forEach(function(space) {
+          var mrow = document.getElementById(space);
+          var boxBefore = mrow.firstElementChild.getBoundingClientRect();
+          var boxAfter = mrow.lastElementChild.getBoundingClientRect();
+          assert_equals(boxAfter.left - boxBefore.right, 0, space);
+      });
+    }, "Legacy namedspaces");
+
+    test(function() {
+      assert_true(MathMLFeatureDetection.has_mspace());
+      // These values are invalid in MathML Core.
+      assert_equals(getBox("unitNone").width, 30, "Unitless");
+      assert_approx_equals(getBox("n3").width, 0, epsilon, "n3");
+      var topRef = getBox("ref").top;
+      assert_approx_equals(topRef - getBox("N3").top, 0, epsilon, "N3");
+    }, "Legacy numbers");
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mspace id="unitCm" width="2.54cm"/>
+      <mspace id="unitEm" width="12em"/>
+      <mspace id="unitEx" width="100ex"/>
+      <mspace id="unitIn" width="3in"/>
+      <mspace id="unitMm" width="152.4mm"/>
+      <mspace id="unitPc" width="6pc"/>
+      <mstyle mathsize="200%"><mspace id="unitPercentage" width="3em"/></mstyle>
+      <mspace id="unitPt" width="72pt"/>
+      <mspace id="unitPx" width="123px"/>
+      <mspace id="unitQ" width="203.2q"/>
+      <mspace id="unitCh" width="10ch"/>
+      <mspace id="unitCap" width="14ch"/>
+      <mspace id="unitIc" width="9ic"/>
+      <mspace id="unitVw" width="35vw"/>
+      <mspace id="unitVh" width="54vh"/>
+      <mspace id="unitVi" width="11vi"/>
+      <mspace id="unitVb" width="4vb"/>
+      <mspace id="unitVmin" width="27vmin"/>
+      <mspace id="unitVmax" width="34vmax"/>
+      <mspace id="unitRem" width="8rem" style="font-size: 3px;"/>
+      <mspace id="unitLh" width="5lh" style="line-height: 12px;"/>
+      <mspace id="unitRlh" width="6rlh" style="line-height: 12px;"/>
+      <mstyle mathsize="5"><mspace id="unitNone" width="3em"/></mstyle>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mspace id="spaceCm" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;2.54cm&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceEm" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;12em&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceEx" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;100ex&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceIn" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;3in&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceMm" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;152.4mm&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spacePc" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;6pc&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mstyle mathsize="200%"><mspace id="spacePercentage" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;3em&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/></mstyle>
+      <mspace id="spacePt" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;72pt&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spacePx" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;123px&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceQ" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;203.2q&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceCh" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;10ch&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceCap" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;14ch&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceIc" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;9ic&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceVw" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;35vw&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceVh" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;54vh&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceVi" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;11vi&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceVb" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;4vb&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceVmin" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;27vmin&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceVmax" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;34vmax&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;"/>
+      <mspace id="spaceRem" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;8rem&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;" style="font-size: 3px;"/>
+      <mspace id="spaceLh" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;5lh&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;" style="line-height: 12px;"/>
+      <mspace id="spaceRlh" width="&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;6rlh&#x20;&#x9;&#xA;&#xD;&#x20;&#x9;&#xA;&#xD;" style="line-height: 12px;"/>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mspace id="n0" width="0em"/>
+      <mspace id="n1" width="9em"/>
+      <mspace id="n2" width=".8em"/>
+      <mspace id="n3" width="7.em"/>
+      <mspace id="n4" width="65em"/>
+      <mspace id="n5" width="432em"/>
+      <mspace id="n6" width=".10em"/>
+      <mspace id="n7" width=".789em"/>
+      <mspace id="n8" width="6.5em"/>
+      <mspace id="n9" width="43.21em"/>
+      <mspace id="n10" width="012.345em"/>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mspace id="ref"></mspace>
+      <mpadded voffset="-0em"><mspace id="N0"/></mpadded>
+      <mpadded voffset="-9em"><mspace id="N1"/></mpadded>
+      <mpadded voffset="-.8em"><mspace id="N2"/></mpadded>
+      <mpadded voffset="-7.em"><mspace id="N3"/></mpadded>
+      <mpadded voffset="-65em"><mspace id="N4"/></mpadded>
+      <mpadded voffset="-432em"><mspace id="N5"/></mpadded>
+      <mpadded voffset="-.10em"><mspace id="N6"/></mpadded>
+      <mpadded voffset="-.789em"><mspace id="N7"/></mpadded>
+      <mpadded voffset="-6.5em"><mspace id="N8"/></mpadded>
+      <mpadded voffset="-43.21em"><mspace id="N9"/></mpadded>
+      <mpadded voffset="-012.345em"><mspace id="N10"/></mpadded>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow id="veryverythinmathspace">
+        <mspace width="1em"/>
+        <mspace width="veryverythinmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="verythinmathspace">
+        <mspace width="1em"/>
+        <mspace width="verythinmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="thinmathspace">
+        <mspace width="1em"/>
+        <mspace width="thinmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="mediummathspace">
+        <mspace width="1em"/>
+        <mspace width="mediummathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="thickmathspace">
+        <mspace width="1em"/>
+        <mspace width="thickmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="verythickmathspace">
+        <mspace width="1em"/>
+        <mspace width="verythickmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="veryverythickmathspace">
+        <mspace width="1em"/>
+        <mspace width="veryverythickmathspace"/>
+        <mspace/>
+      </mrow>
+    </math>
+    <math>
+      <mrow id="negativeveryverythinmathspace">
+        <mspace width="1em"/>
+        <mspace width="veryverythinmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="negativeverythinmathspace">
+        <mspace width="1em"/>
+        <mspace width="verythinmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="negativethinmathspace">
+        <mspace width="1em"/>
+        <mspace width="thinmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="negativemediummathspace">
+        <mspace width="1em"/>
+        <mspace width="mediummathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="negativethickmathspace">
+        <mspace width="1em"/>
+        <mspace width="thickmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="negativeverythickmathspace">
+        <mspace width="1em"/>
+        <mspace width="verythickmathspace"/>
+        <mspace/>
+      </mrow>
+      <mrow id="negativeveryverythickmathspace">
+        <mspace width="1em"/>
+        <mspace width="veryverythickmathspace"/>
+        <mspace/>
+      </mrow>
+    </math>
+  </p>
+</body>
+</html>

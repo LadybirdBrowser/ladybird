@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Basic mathematical alphanumeric symbols with default font</title>
+    <meta name="assert" content="Verify whether the default font contains italic/bold/bold-italic characters from the Mathematical Alphanumeric Symbols block.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style>
+      span[data-name] {
+          font-size: 100px;
+          background: lightblue;
+          display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="log"></div>
+    <p><span id="frakturL" data-name="U+1D529 MATHEMATICAL FRAKTUR SMALL L">𝔩</span></p>
+    <p><span id="emSpace" data-name="U+2003 EM SPACE">&#x2003;</span></p>
+    <p><span data-test="Bold" data-name="U+1D416 MATHEMATICAL BOLD CAPITAL W">𝐖</span></p>
+    <p><span data-test="Italic" data-name="U+1D44A MATHEMATICAL ITALIC CAPITAL W">𝑊</span></p>
+    <p><span data-test="Bold-italic" data-name="U+1D47E MATHEMATICAL BOLD ITALIC CAPITAL">𝑾</span></p>
+    <script>
+      const frakturLWidth = document.getElementById("frakturL").getBoundingClientRect().width;
+      const emSpaceWidth = document.getElementById("emSpace").getBoundingClientRect().width;
+      Array.from(document.querySelectorAll('span[data-test]')).forEach(span => {
+        test(function() {
+          let spanWidth = span.getBoundingClientRect().width;
+            // This test expects the default font to provide a fraktur l than is much thiner than a bold/italic/bold-italic W.
+            // If the font lacks bold/italic/bold-italic W then a fortiori it is likely that its lacks fraktur l, so browsers
+            // will display "Tofu characters" for all of them (e.g. gray boxes or boxes containing the Unicode code points)
+            // with very similar widths, so the test is likely to fail.
+            assert_greater_than(spanWidth, frakturLWidth + emSpaceWidth / 4, `Width of '${span.dataset.name}' is much larger than '${frakturL.dataset.name}'`);
+        }, `${span.dataset.test} mathematical alphanumeric symbol with the default font`);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Border properties on mrow
+Fail	Border properties on mrow (rtl)
+Fail	Border properties on mrow (shorthand)
+Fail	Border properties on mrow (logical)
+Fail	Border properties on mrow (logical, rtl)
+Fail	Border properties on mrow (logical, shorthand)

@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Fail
+Fail	operator spacing inside Mrow
+Fail	operator spacing inside Sqrt
+Fail	operator spacing inside Style
+Fail	operator spacing inside Error
+Fail	operator spacing inside Phantom
+Fail	operator spacing inside Math
+Fail	operator spacing inside Menclose
+Fail	operator spacing inside Mpadded
+Fail	operator spacing inside Unknown
+Fail	operator spacing inside Fenced
+Fail	operator spacing inside A
+Fail	operator spacing inside Mtd

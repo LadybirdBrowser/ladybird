@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Font-relative lengths on an operator</title>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<link rel="help" href="https://w3c.github.io/mathml-core/#dictionary-based-attributes">
+<link rel="help" href="https://w3c.github.io/mathml-core/#embellished-operators">
+<link rel="help" href="https://w3c.github.io/mathml-core/#definition-of-space-like-elements">
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-of-mrow">
+<meta name="assert" content="Verify font-relative lengths refer to the core operator, not the embellished operator">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/fonts.js"></script>
+<style>
+  math {
+      font: 100px/1 Ahem;
+  }
+  @font-face {
+      font-family: operators;
+      src: url("../../../fonts/math/operators.woff");
+  }
+  mo {
+      font-family: operators;
+  }
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", () => { loadAllFonts().then(runTests); });
+
+  function runTests() {
+      var epsilon = 1;
+      var baseSizePx = 100;
+
+      test(function() {
+          var beforeRight = document.getElementById("before1").getBoundingClientRect().right;
+          var afterLeft = document.getElementById("after1").getBoundingClientRect().left;
+          var fontScalePercent = .5;
+          var lspaceEm = 1;
+          var moWidthEm = 1;
+          assert_approx_equals(afterLeft - beforeRight, baseSizePx * fontScalePercent * (lspaceEm + moWidthEm), epsilon, "baseSizePx * fontScalePercent * lspaceEm");
+      }, `font-relative lspace refers to the core operator`);
+
+      test(function() {
+          var beforeRight = document.getElementById("before2").getBoundingClientRect().right;
+          var afterLeft = document.getElementById("after2").getBoundingClientRect().left;
+          var fontScalePercent = 2;
+          var rspaceEm = 1;
+          var moWidthEm = 1;
+          assert_approx_equals(afterLeft - beforeRight, baseSizePx * fontScalePercent * (rspaceEm + moWidthEm), epsilon, "baseSizePx * fontScalePercent * rspaceEm");
+      }, `font-relative rspace refers to the core operator`);
+
+      test(function() {
+          var moStretchSize = document.getElementById("operator1").getBoundingClientRect().height;
+          var fontScalePercent = .5;
+          var minsizeEm = 8;
+          var beforeHeight = document.getElementById("before1").getBoundingClientRect().height;
+
+          assert_approx_equals(moStretchSize, baseSizePx * minsizeEm * fontScalePercent, epsilon, "baseSizePx * fontScalePercent * minsizeEm");
+
+          // This is really testing the same thing but do make sure minsize is
+          // applied i.e. the unconstrained target size is less than the actual
+          // stretch size.
+          assert_approx_equals(beforeHeight, moStretchSize / 2, epsilon);
+
+      }, `font-relative minsize refers to the core operator`);
+
+      test(function() {
+          var moStretchSize = document.getElementById("operator2").getBoundingClientRect().height;
+          var fontScalePercent = 2;
+          var maxsizeEm = 1;
+          var afterHeight = document.getElementById("after2").getBoundingClientRect().height;
+
+          assert_approx_equals(moStretchSize, baseSizePx * maxsizeEm * fontScalePercent, epsilon, "baseSizePx * fontScalePercent * maxsizeEm");
+
+          // This is really testing the same thing but do make sure maxsize is
+          // applied i.e. the unconstrained target size is more than the actual
+          // stretch size.
+          assert_approx_equals(afterHeight, 2 * moStretchSize, epsilon);
+
+      }, `font-relative maxsize refers to the core operator`);
+
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <p>
+    <math>
+      <mrow>
+        <mspace id="before1" width="1em" height="1em" depth="1em" style="background: blue"/>
+        <mrow style="font-size: 50%;">
+          <mo id="operator1" lspace="1em" rspace="0em" minsize="8em">⥯</mo>
+          <mspace id="after1" width="1em" height=".5em" depth=".5em" style="background: green"/>
+        </mrow>
+        <mn><!-- not space like --></mn>
+      </mrow>
+    </math>
+  </p>
+  <p>
+    <math>
+      <mrow>
+        <mrow style="font-size: 200%">
+          <mspace id="before2" width="1em" height=".5em" depth=".5em" style="background: green"/>
+          <mo id="operator2" lspace="0em" rspace="1em" maxsize="1em">⥯</mo>
+        </mrow>
+        <mspace id="after2" width="1em" height="2em" depth="2em" style="background: blue"/>
+        <mn><!-- not space like --></mn>
+      </mrow>
+    </math>
+  </p>
+</body>
+</html>

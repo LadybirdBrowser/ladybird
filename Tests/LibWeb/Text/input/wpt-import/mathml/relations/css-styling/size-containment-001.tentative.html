@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MathML and size containment</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#layout-algorithms">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../mathml/support/feature-detection.js"></script>
+<script src="../../../mathml/support/mathml-fragments.js"></script>
+<style>
+  /* Revert style specified in the UA style sheet that changes box size. */
+  merror { border: 0; }
+  mfrac { padding: 0; }
+</style>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+
+  function runTests() {
+
+    for (tag in MathMLFragments) {
+        if (!FragmentHelper.isValidChildOfMrow(tag) ||
+            FragmentHelper.isEmpty(tag))
+            continue;
+
+        // TODO(https://github.com/w3c/mathml-core/issues/199): Check/decide how
+        // size containment behave for these cases:
+        // - table layout.
+        // - radical layout.
+        // - contain-intrinsic-block-size.
+        // - operators width special drawing (stretchy/largop).
+        if (tag == "mroot" || tag == "msqrt" || tag == "mtable") {
+            continue;
+        }
+
+        document.body.insertAdjacentHTML("beforeend", `<div style="position: absolute;">\
+<div style="display: inline-block;"><math>${MathMLFragments[tag]}</math></div>\
+</div>`);
+        let div = document.body.lastElementChild;
+
+        let elementContainer = div.firstElementChild;
+        let element = FragmentHelper.element(elementContainer);
+        FragmentHelper.forceNonEmptyDescendants(element);
+
+        const style = `contain: size; contain-intrinsic-inline-size: 111px;`;
+        element.setAttribute("style", style)
+
+        if (tag === "mo") {
+            element.setAttribute("lspace", "0");
+            element.setAttribute("rspace", "0");
+        }
+
+        const elementContainerWidth = elementContainer.getBoundingClientRect().width;
+        const elementBox = element.getBoundingClientRect();
+
+        test(function() {
+            assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+            assert_equals(elementContainerWidth, 111);
+        }, `intrinsic size of ${tag} with ${style}`);
+
+        test(function() {
+            assert_true(MathMLFeatureDetection[`has_${tag}`](), `${tag} is supported`);
+            assert_equals(elementBox.width, 111);
+        }, `inline-size of ${tag} with ${style}`);
+
+        div.style = "display: none;"; // Hide the div after measurement.
+    }
+
+    done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+</body>
+</html>
