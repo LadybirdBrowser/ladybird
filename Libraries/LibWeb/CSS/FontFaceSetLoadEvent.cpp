@@ -44,9 +44,9 @@ FontFaceSetLoadEvent::FontFaceSetLoadEvent(Utf16FlyString const& event_name, Vec
     m_fontfaces = move(fonts);
 }
 
-Vector<GC::Ref<FontFace>> FontFaceSetLoadEvent::fontfaces() const
+GC::RootVector<GC::Ref<FontFace>> FontFaceSetLoadEvent::fontfaces() const
 {
-    Vector<GC::Ref<FontFace>> faces;
+    GC::RootVector<GC::Ref<FontFace>> faces;
     faces.ensure_capacity(m_fontfaces.size());
     for (auto const& font : m_fontfaces)
         faces.unchecked_append(font->cssom_font_face());
