@@ -397,6 +397,7 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
         auto drag = m_scrollbar_controller.begin_drag(m_async_scroll_tree, m_scene.visual_context_tree_for_compositing(), m_scroll_state_snapshot, position);
         if (!drag.has_value())
             return ContextUpdateResult::declined(Web::InputRoutingDecision::NotOverAScrollbar);
+        m_scrollbar_press_scroll_operation.clear();
 
         ContextUpdateResult result;
         result.accepted = true;
@@ -1828,10 +1829,41 @@ Optional<PendingFrame> ContextState::apply_scrollbar_drag(ScrollbarController::D
     auto old_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(node_id, m_scroll_state_snapshot);
     if (!node || !old_scroll_offset.has_value())
         return {};
-    if (m_async_scroll_tree.clamped_scroll_offset_for_node(node_id, dragged_to->scroll_offset) == *old_scroll_offset)
+    auto destination = m_async_scroll_tree.clamped_scroll_offset_for_node(node_id, dragged_to->scroll_offset);
+
+    // A press beside the thumb scrolls there smoothly, as a page step does. Dragging on before that scroll has ended
+    // moves where it goes.
+    if (m_scrollbar_press_scroll_operation.has_value()) {
+        auto running_animation = m_smooth_scroll_animations.find_if([&](auto const& animation) { return animation.operation_id == *m_scrollbar_press_scroll_operation; });
+        if (running_animation != m_smooth_scroll_animations.end()) {
+            if (running_animation->animation.destination_offset() == destination)
+                return {};
+            retarget_user_scroll(*running_animation, destination, MonotonicTime::now());
+            report_started_user_scroll(running_animation->operation_id, node->stable_node_id, *old_scroll_offset, destination, Compositing::ScrollAnimationKind::SmoothScroll, true);
+            return PendingFrame::repainting_changes(m_async_scrolling_viewport_rect);
+        }
+        m_scrollbar_press_scroll_operation.clear();
+    }
+
+    if (destination == *old_scroll_offset)
         return {};
 
     cancel_smooth_scroll_taken_over_by_user_input(node_id);
+
+    if (drag.is_press_beside_thumb) {
+        auto operation_id = m_async_scroll_update_outbox.allocate_operation_id();
+        m_smooth_scroll_animations.append({
+            .stable_node_id = node->stable_node_id,
+            .operation_id = operation_id,
+            .animation = Compositing::SmoothScrollAnimation { *old_scroll_offset, destination, m_async_scroll_tree.device_pixels_per_css_pixel() },
+            .started_at = MonotonicTime::now(),
+            .is_user_scroll = true,
+        });
+        report_started_user_scroll(operation_id, node->stable_node_id, *old_scroll_offset, destination, Compositing::ScrollAnimationKind::SmoothScroll, true);
+        m_scrollbar_press_scroll_operation = operation_id;
+        return PendingFrame::repainting_changes(m_async_scrolling_viewport_rect);
+    }
+
     auto new_scroll_offset = m_async_scroll_tree.set_scroll_offset(node_id, dragged_to->scroll_offset, m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
     VERIFY(new_scroll_offset.has_value());
     rebuild_wheel_hit_test_targets();

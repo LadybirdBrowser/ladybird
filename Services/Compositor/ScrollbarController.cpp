@@ -237,7 +237,7 @@ Optional<ScrollbarController::Drag> ScrollbarController::begin_drag(Compositing:
         m_hovered_scrollbar_index = *scrollbar_index;
     m_thumb_grab_position = thumb_grab_position;
     m_last_primary_position_of_captured_drag = primary_position;
-    return Drag { *scrollbar_index, primary_position, thumb_grab_position };
+    return Drag { *scrollbar_index, primary_position, thumb_grab_position, !position_is_along_thumb };
 }
 
 // A drag usually leaves the clip of its scrollbar, and the spaces above the scrollbar may move while it lasts, so the
