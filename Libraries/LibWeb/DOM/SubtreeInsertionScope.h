@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -31,7 +32,7 @@ private:
     GC::Ref<Document> m_document;
     SubtreeInsertionScope* m_enclosing_scope { nullptr };
     Optional<GC::Ptr<HTML::HTMLFormElement>> m_nearest_inclusive_form_ancestor_of_parent;
-    Optional<Vector<GC::Ref<Element>>> m_inclusive_fieldset_ancestors_of_parent;
+    Optional<GC::RootVector<GC::Ref<Element>>> m_inclusive_fieldset_ancestors_of_parent;
 };
 
 }

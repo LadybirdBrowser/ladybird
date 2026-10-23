@@ -43,7 +43,7 @@ GC::Ptr<HTML::HTMLFormElement> SubtreeInsertionScope::nearest_inclusive_form_anc
 ReadonlySpan<GC::Ref<Element>> SubtreeInsertionScope::inclusive_fieldset_ancestors_of_parent()
 {
     if (!m_inclusive_fieldset_ancestors_of_parent.has_value()) {
-        Vector<GC::Ref<Element>> fieldsets;
+        GC::RootVector<GC::Ref<Element>> fieldsets;
         for (GC::Ptr<Element> element = as_if<Element>(*m_parent); element; element = element->parent_element()) {
             if (is<HTML::HTMLFieldSetElement>(*element))
                 fieldsets.append(*element);
