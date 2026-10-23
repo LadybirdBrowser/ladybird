@@ -1,0 +1,5 @@
+0ms: rgb(255, 0, 0)
+500ms: rgb(0, 0, 255)
+0ms: rgb(255, 0, 0)
+500ms: rgb(0, 0, 255)
+cancelled: rgb(0, 0, 0)

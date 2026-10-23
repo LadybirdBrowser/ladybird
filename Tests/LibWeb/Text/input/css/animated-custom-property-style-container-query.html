@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --clock {
+        syntax: "<integer>";
+        inherits: true;
+        initial-value: -1;
+    }
+    @keyframes cycle-clock {
+        0% { --clock: 0; }
+        50% { --clock: 1; }
+    }
+    #container {
+        animation: 1s steps(1, jump-end) cycle-clock infinite paused;
+    }
+    #target {
+        @container style(--clock: 0) { color: red; }
+        @container style(--clock: 1) { color: blue; }
+    }
+</style>
+<div id="container"><p id="target">Text</p></div>
+<script>
+    test(() => {
+        const animation = document.getElementById("container").getAnimations()[0];
+        const target = document.getElementById("target");
+        for (const currentTime of [0, 500, 0, 500]) {
+            animation.currentTime = currentTime;
+            println(`${currentTime}ms: ${getComputedStyle(target).color}`);
+        }
+        animation.cancel();
+        println(`cancelled: ${getComputedStyle(target).color}`);
+    });
+</script>

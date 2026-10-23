@@ -501,11 +501,14 @@ impl RetainedState {
             // as the container's record computes them.
             let mut style_context = None;
             if requirements & CONTAINER_QUERY_REQUIRES_STYLE != 0 {
-                let store = match self
-                    .computed_group_sets
-                    .style_record_custom_property_environment(inputs.style_record)
-                    .unwrap_or_default()
-                {
+                let environment = match self.element_custom_property_data.get(&candidate) {
+                    Some(held) if held.sampled_over.is_some() => held.identity,
+                    _ => self
+                        .computed_group_sets
+                        .style_record_custom_property_environment(inputs.style_record)
+                        .unwrap_or_default(),
+                };
+                let store = match environment {
                     0 => None,
                     identity => Some(&**self.custom_property_environments.store(identity)?),
                 };
