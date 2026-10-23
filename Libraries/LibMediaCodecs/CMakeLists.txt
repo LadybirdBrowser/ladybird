@@ -31,6 +31,13 @@ if (APPLE)
     list(APPEND SOURCES VideoToolbox/VideoToolboxVideoDecoder.mm)
 endif()
 
+if (WIN32)
+    list(APPEND SOURCES
+        WindowsMediaFoundation/WindowsMediaFoundation.cpp
+        WindowsMediaFoundation/WindowsMediaFoundationVideoDecoder.cpp
+    )
+endif()
+
 if (USE_VULKAN_DMABUF_IMAGES)
     list(APPEND SOURCES FFmpeg/FFmpegVulkanVideoDecoder.cpp Vulkan/VulkanVideoDevice.cpp)
 endif()
@@ -65,6 +72,10 @@ endif()
 
 if (APPLE)
     target_link_libraries(LibMediaCodecs PRIVATE "-framework VideoToolbox" "-framework CoreMedia" "-framework CoreVideo")
+endif()
+
+if (WIN32)
+    target_link_libraries(LibMediaCodecs PRIVATE mfplat mfuuid)
 endif()
 
 if (USE_VULKAN_DMABUF_IMAGES)
