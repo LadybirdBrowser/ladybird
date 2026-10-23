@@ -27,11 +27,14 @@ bool subtree_affects_generated_content_state(DOM::Node const& node)
         if (!element)
             return TraversalDecision::Continue;
 
-        if (!style_affects_state(element->computed_style())
+        auto style = element->computed_style();
+        if (!style_affects_state(style)
             && !style_affects_state(element->computed_style(PseudoElement::Before))
             && !style_affects_state(element->computed_style(PseudoElement::After))
             && !style_affects_state(element->computed_style(PseudoElement::Marker))) {
-            return TraversalDecision::Continue;
+            // NB: An element's style is computed only with the styles of the elements it inherits from, so the
+            //     subtree of an element without style holds none, as that of a revealed display:none root does.
+            return style ? TraversalDecision::Continue : TraversalDecision::SkipChildrenAndContinue;
         }
 
         affects_generated_content_state = true;
