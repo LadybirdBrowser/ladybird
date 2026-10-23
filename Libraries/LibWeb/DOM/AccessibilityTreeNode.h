@@ -26,7 +26,7 @@ public:
 
     GC::Ptr<DOM::Node const> value() const { return m_value; }
     void set_value(GC::Ptr<DOM::Node const> value) { m_value = value; }
-    Vector<GC::Ptr<AccessibilityTreeNode>> children() const { return m_children; }
+    ReadonlySpan<GC::Ptr<AccessibilityTreeNode>> children() const { return m_children; }
     void append_child(AccessibilityTreeNode* child) { m_children.append(child); }
 
     void serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& object, Document const&) const;
