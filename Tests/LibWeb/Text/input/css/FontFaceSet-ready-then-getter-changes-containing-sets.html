@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function makeFontFaceSet() {
+            const frame = document.createElement("iframe");
+            const loaded = new Promise(resolve => (frame.onload = resolve));
+            frame.srcdoc = "<!DOCTYPE html>";
+            document.body.append(frame);
+            await loaded;
+            return frame.contentDocument.fonts;
+        }
+
+        const sets = await Promise.all(Array.from({ length: 64 }, makeFontFaceSet));
+        const initialSets = sets.slice(0, 4);
+        const addedSets = sets.slice(4);
+        const face = new FontFace("Broken", 'url("data:font/woff;base64,AA==")');
+
+        let thenGetterRan = false;
+        function thenGetter() {
+            if (thenGetterRan)
+                return;
+            thenGetterRan = true;
+            for (const set of initialSets)
+                set.delete(face);
+            for (const set of addedSets)
+                set.add(face);
+        }
+
+        let deletedSetErrors = 0;
+        const loadingDone = initialSets.map(set => new Promise(resolve => set.addEventListener("loadingdone", resolve)));
+        for (const set of initialSets) {
+            Object.defineProperty(set, "then", { get: thenGetter });
+            set.addEventListener("loadingerror", () => ++deletedSetErrors);
+            set.add(face);
+        }
+        await face.load().catch(() => {});
+        await Promise.all(loadingDone);
+        await new Promise(resolve => setTimeout(resolve));
+
+        println(`then getter ran: ${thenGetterRan}`);
+        println(`face status: ${face.status}`);
+        println(`added sets containing face: ${addedSets.filter(set => set.has(face)).length}`);
+        println(`loadingerror events on deleted sets: ${deletedSetErrors}`);
+    });
+</script>
