@@ -988,10 +988,10 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
     //     the animations this element holds, which it publishes. See match_existing_animations(). So are the
     //     keyframes each definition runs, from the `@keyframes` every style scope publishes.
 
-    auto existing_animations = *element_animations;
+    GC::RootVector<GC::Ref<CSSAnimation>> existing_animations { element_animations->span() };
     Vector<bool> existing_animation_was_claimed;
     existing_animation_was_claimed.resize(existing_animations.size());
-    Vector<GC::Ref<CSSAnimation>> new_animations;
+    GC::RootVector<GC::Ref<CSSAnimation>> new_animations;
 
     for (size_t i = animation_definitions.size(); i-- > 0;) {
         auto const& definition = animation_definitions[i];
@@ -1239,8 +1239,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions(Layout::
         return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value));
     };
 
-    Vector<GC::Ref<Animations::KeyframeEffect>> newly_started_transition_effects;
-    HashTable<Animations::KeyframeEffect*> replaced_transition_effects;
+    GC::RootVector<GC::Ref<Animations::KeyframeEffect>> newly_started_transition_effects;
+    GC::RootHashTable<Animations::KeyframeEffect*> replaced_transition_effects;
     auto on_actions = [&](ReadonlySpan<StyleValueFFI::FfiTransitionAction> actions) {
         for (auto const& action : actions) {
             auto property_id = static_cast<PropertyID>(action.property_id);
@@ -2071,7 +2071,7 @@ void StyleComputer::publish_sampled_animation_overlays(Layout::BegunRead const& 
         GC::Ref<DOM::Document const> document;
         TreeScopeID tree_scope;
     };
-    Vector<OverlayFont, 1> fonts;
+    GC::ConservativeVector<OverlayFont, 1> fonts;
     Vector<StyleEngineFFI::FfiAnimationOverlayPublicationInput, 1> inputs;
     fonts.ensure_capacity(overlays.size());
     inputs.ensure_capacity(overlays.size());
