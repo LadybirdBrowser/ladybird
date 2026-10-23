@@ -996,7 +996,8 @@ WebIDL::ExceptionOr<GC::Ref<Key>> convert_a_value_to_a_multi_entry_key(JS::Realm
         auto len = TRY(length_of_array_like(realm.vm(), value.as_object()));
 
         // 2. Let seen be a new set containing only input.
-        Vector<JS::Value> seen { value };
+        GC::RootVector<JS::Value> seen;
+        seen.append(value);
 
         // 3. Let keys be a new empty list.
         auto keys = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<Key>>>();
