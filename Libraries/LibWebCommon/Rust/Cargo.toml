@@ -1,0 +1,22 @@
+[package]
+name = "libwebcommon_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+ak = { path = "../../../AK/Rust" }
+ladybird_allocator = { path = "../../RustAllocator", optional = true }
+rustc-demangle = "0.1"
+
+[features]
+default = []
+allocator = ["dep:ladybird_allocator"]
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[lints]
+workspace = true

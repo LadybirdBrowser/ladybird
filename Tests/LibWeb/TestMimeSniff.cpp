@@ -10,7 +10,7 @@
 #include <LibTest/TestCase.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
-#include <LibWeb/MimeSniff/Resource.h>
+#include <LibWebCommon/MimeSniff/Resource.h>
 
 TEST_CASE(parse_mime_type_from_utf16)
 {

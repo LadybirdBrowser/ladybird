@@ -37,8 +37,8 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/MimeSniff/Resource.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
+#include <LibWebCommon/MimeSniff/Resource.h>
 
 namespace Web::HTML {
 
