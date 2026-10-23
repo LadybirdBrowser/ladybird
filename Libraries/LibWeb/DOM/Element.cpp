@@ -5399,22 +5399,25 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
     Layout::ForcedReadScope read { document() };
     auto held_before = exchange(m_installed_style, document().style_computer().install_style(read, style_record_identity));
     // The element holds the record it installed before until the engine takes the new one in, so the layout node reads
-    // what it moves from before the element lets go of it.
+    // what it moves from, and everything below that compares against the old record is read from it, before the
+    // element lets go of it. The engine may free the old record's payloads as soon as it is no longer held.
     if (auto* layout_node = unsafe_layout_node(read))
         layout_node->set_style_record_identity(m_installed_style, held_before);
+    bool const was_display_none = !held_before || held_before.display_is_none();
+    // https://drafts.csswg.org/scroll-animations-1/#timeline-scoping
+    bool const timeline_declarations_changed = timeline_declarations_differ(held_before, m_installed_style);
     if (style_node_id() != 0)
         CSS::StyleEngineFFI::style_engine_set_held_style_record(document().style_computer().style_engine().host(), style_node_id(), style_record_identity.value());
     // Children that wait to arrive in a display:none subtree may be revealed as the subtree's root, or an element
     // between it and them, stops being display:none.
     if ((child_style_arrivals_wait() || descendant_style_arrival_pending()) && m_installed_style && !m_installed_style.display_is_none()
-        && (!held_before || held_before.display_is_none()))
+        && was_display_none)
         CSS::record_waiting_children_may_be_revealed(*this);
     // The resources an SVG graphics element's `mask`, `clip-path`, `fill` and `stroke` name are published beside its
     // attributes for the layout tree build to resolve, so they follow every record the element takes.
     if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity)
         Layout::publish_svg_style_references(*this);
-    // https://drafts.csswg.org/scroll-animations-1/#timeline-scoping
-    if (timeline_declarations_differ(held_before, m_installed_style))
+    if (timeline_declarations_changed)
         document().did_change_timeline_declarations();
 }
 
