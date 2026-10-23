@@ -23,6 +23,8 @@ pub struct InlineContent {
     /// there are no boxes to interleave, so text can be painted together.
     pub items: Vec<InlineItem>,
     pub lines_after_clamp_point_rect: Option<Box<used_values::FfiCssPixelRect>>,
+    /// Where the content that text-overflow elided from the end of a line would be, by line index.
+    pub elided_content_rects: Vec<(u32, used_values::FfiCssPixelRect)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -138,7 +140,11 @@ impl InlineContent {
     pub(crate) fn finish(data: used_values::LineData, arena: &LayoutNodeArena, content_inline_size: CssPixels) -> Self {
         let mut lines = Vec::with_capacity(data.line_boxes.len());
         let mut fragment_count = 0usize;
-        for line in &data.line_boxes {
+        let mut elided_content_rects = Vec::new();
+        for (line_index, line) in data.line_boxes.iter().enumerate() {
+            if let Some(rect) = inline_formatting_context::elided_content_rect(line) {
+                elided_content_rects.push((line_index as u32, rect));
+            }
             let visible_fragment_count = line.visible_fragments().count();
             fragment_count = fragment_count
                 .checked_add(visible_fragment_count)
@@ -194,6 +200,7 @@ impl InlineContent {
             inline_box_pieces: pieces,
             items: Vec::new(),
             lines_after_clamp_point_rect: data.lines_after_clamp_point_rect,
+            elided_content_rects,
         };
         // Plain text needs no interleaving and keeps its single foreground producer.
         if content.inline_box_pieces.is_empty() && !content.fragments.iter().any(|fragment| fragment.is_atomic_inline) {
@@ -305,6 +312,12 @@ impl InlineContent {
             line.next_line_block_offset += offset.y;
             line
         }));
+        self.elided_content_rects
+            .extend(content.elided_content_rects.iter().map(|&(line_index, mut rect)| {
+                rect.x += offset.x;
+                rect.y += offset.y;
+                (line_index + line_offset, rect)
+            }));
         self.fragments
             .extend(content.fragments.iter().cloned().map(|mut fragment| {
                 fragment.line_index += line_offset;

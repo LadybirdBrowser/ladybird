@@ -122,8 +122,14 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData) {
             should_paint: true,
             is_rtl: false,
         });
+        let ellipsis_fragment_inline_length = line.fragments[index].inline_length;
         line.fragments[index].inline_length = CssPixels::nearest_value_for_f32(last_kept_end + ellipsis_inline_size);
         line.fragments[index].has_text_overflow_ellipsis = true;
+        line.text_overflow_elision = Some(line_box::TextOverflowElision {
+            inline_length: line.inline_length,
+            ellipsis_fragment_start: fragment_start,
+            ellipsis_fragment_inline_length,
+        });
         for later in &mut line.fragments[index + 1..] {
             later.is_fully_truncated = true;
         }
@@ -1447,6 +1453,7 @@ impl<'context> InlineFormattingContext<'context> {
                     .collect(),
                 static_position_markers: Vec::new(),
                 inline_box_baselines: Vec::new(),
+                text_overflow_elision: None,
             };
             fragment_start = fragment_end;
             let line_item_start = item_index;
@@ -2614,10 +2621,9 @@ impl<'context> InlineFormattingContext<'context> {
                 })
         };
         for line in &mut data.line_boxes {
+            // NB: Fragments that text-overflow elided keep their shift too, since the elided content still extends
+            //     the scrollable overflow.
             for fragment in &mut line.fragments {
-                if fragment.is_fully_truncated {
-                    continue;
-                }
                 fragment.relpos_delta = accumulated_relative_offset_from(self.callbacks.parent(fragment.layout_node));
             }
         }
@@ -2747,6 +2753,61 @@ pub(crate) fn line_physical_horizontal_extent(line: &line_box::LineBoxData) -> C
         right = right.max(fragment_left + fragment.physical_horizontal_extent());
     }
     right - left
+}
+
+// https://drafts.csswg.org/css-overflow-3/#ellipsing-details
+// Ellipsing only affects rendering and must not affect layout
+// NB: So the content that text-overflow elided still extends the scrollable overflow. This is where the line's content
+//     would be without the ellipsis: overflowing its line box from the inline start edge.
+pub(crate) fn elided_content_rect(line: &line_box::LineBoxData) -> Option<FfiCssPixelRect> {
+    let elision = line.text_overflow_elision?;
+    let inline_length = elision.inline_length;
+    let ellipsis_index = line
+        .fragments
+        .iter()
+        .position(|fragment| fragment.has_text_overflow_ellipsis)?;
+    let fragment = &line.fragments[ellipsis_index];
+    let line_box_inline_start = fragment.inline_offset - elision.ellipsis_fragment_start;
+    let content_inline_start = if line.direction == direction::RTL {
+        line_box_inline_start + line.original_available_inline_size.to_px_or_zero() - inline_length
+    } else {
+        line_box_inline_start
+    };
+    let content_inline_shift = content_inline_start - line_box_inline_start;
+    let to_rect = |inline_start, block_start, inline_size, block_size, relpos_delta: FfiCssPixelPoint| {
+        let (x, y) = geometry::to_physical(line.writing_mode, inline_start, block_start);
+        let (width, height) = geometry::to_physical(line.writing_mode, inline_size, block_size);
+        CssPixelRect {
+            x: x + relpos_delta.x,
+            y: y + relpos_delta.y,
+            width,
+            height,
+        }
+    };
+    let mut rect = to_rect(
+        content_inline_start,
+        fragment.block_offset,
+        inline_length,
+        fragment.block_length,
+        FfiCssPixelPoint::default(),
+    );
+    // NB: Like the fragments that were not elided, each elided fragment's content moves with its own relative
+    //     positioning, so unite the elided content of each one where it would be without the ellipsis.
+    for (index, elided) in line.fragments.iter().enumerate().skip(ellipsis_index) {
+        let inline_size = if index == ellipsis_index {
+            elision.ellipsis_fragment_inline_length
+        } else {
+            elided.inline_length
+        };
+        rect.unite(to_rect(
+            elided.inline_offset + content_inline_shift,
+            elided.block_offset,
+            inline_size,
+            elided.block_length,
+            elided.relpos_delta,
+        ));
+    }
+    Some(rect.into())
 }
 
 pub(crate) fn line_rect(line: &line_box::LineBoxData, content_inline_size: CssPixels) -> FfiCssPixelRect {

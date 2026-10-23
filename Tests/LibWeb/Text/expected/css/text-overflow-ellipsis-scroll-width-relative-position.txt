@@ -1,0 +1,4 @@
+clip includes the relative shift: true
+ellipsis: scrollWidth matches clip: true
+shifted-first: ellipsis scrollWidth matches clip: true
+shifted-last: ellipsis scrollWidth matches clip: true

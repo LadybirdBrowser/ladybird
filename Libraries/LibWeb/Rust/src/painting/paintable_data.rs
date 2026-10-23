@@ -268,6 +268,11 @@ impl CommittedSideData {
     pub(crate) fn lines(&self) -> &[crate::layout::inline_content::LineRecord] {
         self.inline_content.as_ref().map_or(&[], |content| &content.lines)
     }
+    pub(crate) fn elided_content_rects(&self) -> &[(u32, used_values::FfiCssPixelRect)] {
+        self.inline_content
+            .as_ref()
+            .map_or(&[], |content| &content.elided_content_rects)
+    }
     pub(crate) fn lines_after_clamp_point_rect(&self) -> Option<used_values::FfiCssPixelRect> {
         self.inline_content
             .as_ref()

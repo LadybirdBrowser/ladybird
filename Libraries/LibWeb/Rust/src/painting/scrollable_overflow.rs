@@ -310,14 +310,17 @@ fn measure_scrollable_overflow_impl(
     if crate::painting::node_painting::has_lines(layout_arena, box_paintable) {
         let side_data = layout_arena.committed_side_data(box_paintable);
         let positions = paintable_geometry::LineRootPositions::new(layout_arena, box_paintable);
-        let line_rects = side_data
-            .lines()
+        let lines = side_data.lines();
+        let line_rects = lines
             .iter()
             .map(|line| CssPixelRect::from(line.rect).translated_by(positions.of_fragment(line.box_fragment)));
+        let elided_content_rects = side_data.elided_content_rects().iter().map(|&(line_index, rect)| {
+            CssPixelRect::from(rect).translated_by(positions.of_fragment(lines[line_index as usize].box_fragment))
+        });
         let lines_after_clamp_point = side_data
             .lines_after_clamp_point_rect()
             .map(|rect| CssPixelRect::from(rect).translated_by(positions.of_fragment(0)));
-        for line_rect in line_rects.chain(lines_after_clamp_point) {
+        for line_rect in line_rects.chain(elided_content_rects).chain(lines_after_clamp_point) {
             scrollable_overflow_rect.unite(line_rect);
             in_flow_and_floated_content_bounds.unite(line_rect);
         }
