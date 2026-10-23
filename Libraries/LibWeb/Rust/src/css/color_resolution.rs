@@ -401,7 +401,7 @@ const fn color_function(name: &'static str) -> ColorFunctionDescriptor {
 }
 
 /// Color function metadata indexed by the frozen color-type codes.
-static COLOR_FUNCTION_DESCRIPTORS: [ColorFunctionDescriptor; 16] = [
+static COLOR_FUNCTION_DESCRIPTORS: [ColorFunctionDescriptor; 17] = [
     // RGB
     ColorFunctionDescriptor {
         name: "rgb",
@@ -497,6 +497,17 @@ static COLOR_FUNCTION_DESCRIPTORS: [ColorFunctionDescriptor; 16] = [
     color_function("xyz-d50"),
     // XYZD65
     color_function("xyz-d65"),
+    // Alpha
+    ColorFunctionDescriptor {
+        name: "alpha",
+        behavior: SerializationBehavior::ModernNamed,
+        channels: [
+            number_channel(1.0, None, None),
+            number_channel(1.0, None, None),
+            number_channel(1.0, None, None),
+        ],
+        absolutizes_to_rgb: false,
+    },
 ];
 
 pub(crate) fn descriptor_for_color_type(color_type: u8) -> &'static ColorFunctionDescriptor {
@@ -1030,6 +1041,9 @@ fn color_function_to_color(value: &StyleValueData, input: &ColorResolutionInput)
         return None;
     }
     let color_type = color_base.color_type;
+    if color_type == color_conversion::ALPHA {
+        return to_color(&resolve_relative_form(value, input)?, input);
+    }
 
     let relative_channels;
     let synthesized_alpha;
@@ -1353,6 +1367,9 @@ pub(crate) fn resolve_relative_form(value: &StyleValueData, input: &ColorResolut
         return None;
     }
     let target_color_type = color_base.color_type;
+    if target_color_type == color_conversion::ALPHA {
+        return resolve_relative_alpha(origin, alpha.optional_data()?, input);
+    }
 
     let (relative_channels, missing_slots) = extract_channels_in_color_space(origin, target_color_type, input)?;
     let mut channel_input = *input;
@@ -1412,6 +1429,93 @@ pub(crate) fn resolve_relative_form(value: &StyleValueData, input: &ColorResolut
         channel_0: retained_value(resolve_channel(channel_0, 0)),
         channel_1: retained_value(resolve_channel(channel_1, 1)),
         channel_2: retained_value(resolve_channel(channel_2, 2)),
+        alpha: retained_value(resolved_alpha),
+        has_name: false,
+        name: CssString::none(),
+        origin_color: retained_null(),
+    })
+}
+
+/// Resolves alpha(from <color> / <alpha>) to an absolute color in the color space of its origin color.
+// https://drafts.csswg.org/css-color-5/#relative-alpha
+fn resolve_relative_alpha(
+    origin_color: &StyleValueData,
+    alpha: &StyleValueData,
+    input: &ColorResolutionInput,
+) -> Option<StyleValueData> {
+    let mut effective_origin = origin_color;
+    if let StyleValueData::Keyword { keyword: code } = effective_origin
+        && *code == keyword::CURRENTCOLOR
+        && let Some(current_color_value) = input.current_color_value
+        && !value_depends_on_current_color(current_color_value)
+    {
+        effective_origin = current_color_value;
+    }
+    let resolved_origin_storage;
+    if let StyleValueData::ColorFunction {
+        origin_color: nested_origin,
+        ..
+    } = effective_origin
+        && nested_origin.optional_data().is_some()
+    {
+        resolved_origin_storage = resolve_relative_form(effective_origin, input)?;
+        effective_origin = &resolved_origin_storage;
+    }
+
+    // The color components of the origin color are unchanged, the alpha component is modified or replaced.
+    // The result of this function is in the color space of the origin color.
+    let (color_type, components, missing) = match resolve_origin_native_channels(effective_origin) {
+        Some(native) => native,
+        None => {
+            let color = to_color(effective_origin, input)?;
+            (
+                color_conversion::SRGB,
+                [
+                    f32::from(color.r) / 255.0,
+                    f32::from(color.g) / 255.0,
+                    f32::from(color.b) / 255.0,
+                    f32::from(color.a) / 255.0,
+                ],
+                [false; 4],
+            )
+        }
+    };
+    let component = |index: usize| {
+        if missing[index] {
+            StyleValueData::Keyword { keyword: keyword::NONE }
+        } else {
+            StyleValueData::Number {
+                value: f64::from(components[index]),
+            }
+        }
+    };
+
+    // alpha is a <number> that corresponds to the origin color's alpha transparency.
+    let mut channels: RelativeColorContext = [None; 13];
+    channels[usize::from(channel_keyword::ALPHA)] = Some(if missing[3] { 0.0 } else { f64::from(components[3]) });
+    let channel_input = ColorResolutionInput {
+        channels: Some(&channels),
+        ..*input
+    };
+    let refers_to_missing_alpha =
+        missing[3] && matches!(alpha, StyleValueData::Keyword { keyword: code } if *code == keyword::ALPHA);
+    let resolved_alpha = if is_none_keyword(alpha) || refers_to_missing_alpha {
+        StyleValueData::Keyword { keyword: keyword::NONE }
+    } else {
+        StyleValueData::Number {
+            value: resolve_alpha(alpha, &channel_input)?,
+        }
+    };
+
+    Some(StyleValueData::ColorFunction {
+        color_base: ColorBase {
+            has_color_type: true,
+            color_type,
+            color_syntax: crate::css::value_codes::COLOR_SYNTAX_MODERN,
+        },
+        channel_0: retained_value(component(0)),
+        channel_1: retained_value(component(1)),
+        channel_2: retained_value(component(2)),
         alpha: retained_value(resolved_alpha),
         has_name: false,
         name: CssString::none(),

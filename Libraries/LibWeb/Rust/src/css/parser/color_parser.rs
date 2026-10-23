@@ -805,6 +805,28 @@ fn parse_color_function(context: &ParseContext, property: u16, values: &[Compone
     ))
 }
 
+// https://drafts.csswg.org/css-color-5/#relative-alpha
+fn parse_alpha_function(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
+    // alpha() = alpha(from <color> / [<alpha-value> | none])
+    let mut stream = TokenStream::new(values);
+    let origin_color = parse_relative_origin(context, property, &mut stream, false).ok()??;
+    let alpha = parse_alpha(context, property, &mut stream, allowed_channels(&[]))?;
+    stream.discard_whitespace();
+    if stream.has_next_token() {
+        return None;
+    }
+    // NB: alpha() keeps the color components of its origin color, so its own channels are unused.
+    let unused_channel = || StyleValueData::Number { value: 0.0 };
+    Some(make_color_function(
+        color_conversion::ALPHA,
+        [unused_channel(), unused_channel(), unused_channel()],
+        Some(alpha),
+        COLOR_SYNTAX_MODERN,
+        None,
+        Some(origin_color),
+    ))
+}
+
 pub(crate) fn parse_color_interpolation_method(stream: &mut TokenStream<'_>) -> Option<StyleValueData> {
     let start = stream.current_index();
     stream.discard_whitespace();
@@ -971,6 +993,8 @@ fn parse_color_function_component(
 ) -> Option<StyleValueData> {
     if equals_ascii_case_insensitive(name, b"color") {
         parse_color_function(context, property, values)
+    } else if equals_ascii_case_insensitive(name, b"alpha") {
+        parse_alpha_function(context, property, values)
     } else if equals_ascii_case_insensitive(name, b"color-mix") {
         parse_color_mix(context, property, values)
     } else if equals_ascii_case_insensitive(name, b"rgb")
@@ -997,6 +1021,7 @@ fn parse_color_function_component(
 
 pub(crate) fn is_color_function_name(name: &[u16]) -> bool {
     [
+        "alpha",
         "color",
         "color-mix",
         "contrast-color",
@@ -1142,6 +1167,8 @@ mod tests {
             "hsl(from red calc(h + 10) s l)",
             "lab(from red l calc(a * 2) b)",
             "color(from red srgb r g b)",
+            "alpha(from red / 0.5)",
+            "alpha(from currentcolor / calc(alpha * 0.5))",
         ] {
             assert!(parse(source).is_some(), "{source}");
         }
@@ -1157,6 +1184,9 @@ mod tests {
             "color(unknown 1 2 3)",
             "light-dark(red)",
             "contrast-color(red, blue)",
+            "alpha(red / 0.5)",
+            "alpha(from red)",
+            "alpha(from red / r)",
         ] {
             assert!(parse(source).is_none(), "{source}");
         }

@@ -24,6 +24,8 @@ pub(crate) const PROPHOTO_RGB: u8 = 12;
 pub(crate) const REC2020: u8 = 13;
 pub(crate) const XYZ_D50: u8 = 14;
 pub(crate) const XYZ_D65: u8 = 15;
+// NB: alpha() has no color space of its own; its result is in the color space of its origin color.
+pub(crate) const ALPHA: u8 = 16;
 
 // https://drafts.csswg.org/css-color-4/#predefined-sRGB
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
