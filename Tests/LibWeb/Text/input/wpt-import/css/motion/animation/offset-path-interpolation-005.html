@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>offset-distance interpolation</title>
+    <link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-distance-property">
+    <meta name="assert" content="offset-distance supports animation.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <style>
+    .parent {
+      offset-path: ray(30deg closest-side);
+    }
+    .target {
+      offset-path: ray(10deg closest-side);
+    }
+  </style>
+  <body>
+    <script>
+      'use strict';
+
+      test_no_interpolation({
+        property: 'offset-path',
+        from: "path('M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z')",
+        to: "ray(0deg closest-side)",
+      });
+
+      test_no_interpolation({
+        property: 'offset-path',
+        from: "ray(0deg closest-corner)",
+        to: "none",
+      });
+
+      // Neutral keyframes use the inline style.
+      test_interpolation({
+        property: 'offset-path',
+        from: neutralKeyframe,
+        to: 'ray(20deg closest-side)',
+      }, [
+        {at: -0.3, expect: 'ray(7deg closest-side)'},
+        {at: 0, expect: 'ray(10deg closest-side)'},
+        {at: 0.3, expect: 'ray(13deg closest-side)'},
+        {at: 0.6, expect: 'ray(16deg closest-side)'},
+        {at: 1, expect: 'ray(20deg closest-side)'},
+        {at: 1.5, expect: 'ray(25deg closest-side)'},
+      ]);
+
+      // No interpolation to a ray from the initial value 'none'.
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'initial',
+        to: 'ray(20deg closest-side)',
+      });
+
+      // 'inherit' keyframes use the parent style.
+      test_interpolation({
+        property: 'offset-path',
+        from: 'inherit',
+        to: 'ray(20deg closest-side)',
+      }, [
+        {at: -0.3, expect: 'ray(33deg closest-side)'},
+        {at: 0, expect: 'ray(30deg closest-side)'},
+        {at: 0.3, expect: 'ray(27deg closest-side)'},
+        {at: 0.6, expect: 'ray(24deg closest-side)'},
+        {at: 1, expect: 'ray(20deg closest-side)'},
+        {at: 1.5, expect: 'ray(15deg closest-side)'},
+      ]);
+
+      // No interpolation to a ray from the initial value 'none'.
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'unset',
+        to: 'ray(20deg closest-side)',
+      });
+
+      // No interpolation to a ray from the initial value 'none'.
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'none',
+        to: 'ray(20deg closest-side)',
+      });
+
+      // Interpolation between rays.
+      test_interpolation({
+        property: 'offset-path',
+        from: 'ray(10deg sides contain)',
+        to: 'ray(50deg sides contain)'
+      }, [
+        {at: -1, expect: 'ray(-30deg sides contain)'},
+        {at: 0, expect: 'ray(10deg sides contain)'},
+        {at: 0.125, expect: 'ray(15deg sides contain)'},
+        {at: 0.875, expect: 'ray(45deg sides contain)'},
+        {at: 1, expect: 'ray(50deg sides contain)'},
+        {at: 2, expect: 'ray(90deg sides contain)'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: 'ray(-10deg farthest-corner)',
+        to: 'ray(-50deg farthest-corner)'
+      }, [
+        {at: -1, expect: 'ray(30deg farthest-corner)'},
+        {at: 0, expect: 'ray(-10deg farthest-corner)'},
+        {at: 0.125, expect: 'ray(-15deg farthest-corner)'},
+        {at: 0.875, expect: 'ray(-45deg farthest-corner)'},
+        {at: 1, expect: 'ray(-50deg farthest-corner)'},
+        {at: 2, expect: 'ray(-90deg farthest-corner)'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: 'ray(-10deg farthest-corner at 0% 0px)',
+        to: 'ray(-50deg farthest-corner at 100% 100px)'
+      }, [
+        {at: -1, expect: 'ray(30deg farthest-corner at -100% -100px)'},
+        {at: 0, expect: 'ray(-10deg farthest-corner at 0% 0px)'},
+        {at: 0.125, expect: 'ray(-15deg farthest-corner at 12.5% 12.5px)'},
+        {at: 0.875, expect: 'ray(-45deg farthest-corner at 87.5% 87.5px)'},
+        {at: 1, expect: 'ray(-50deg farthest-corner at 100% 100px)'},
+        {at: 2, expect: 'ray(-90deg farthest-corner at 200% 200px)'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: 'ray(-10deg farthest-corner)',
+        to: 'ray(-50deg farthest-corner at 100% 100%)'
+      }, [
+        // TODO: Test intermediate values as well, once the expected behavior
+        // is clear in the spec. Right now it's a bit unclear whether or how to
+        // interpolate to/from the initial 'auto' value.
+        {at: 1, expect: 'ray(-50deg farthest-corner at 100% 100%)'},
+      ]);
+
+      // No interpolation between different sizes and/or different containment and/or coord-boxes.
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'ray(200deg farthest-side)',
+        to: 'ray(300deg sides)'
+      });
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'ray(200deg sides contain)',
+        to: 'ray(300deg sides)'
+      });
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'ray(200deg farthest-side contain)',
+        to: 'ray(300deg sides)'
+      });
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'ray(-10deg farthest-corner) content-box',
+        to: 'ray(-50deg farthest-corner at 100% 100%) padding-box'
+      });
+    </script>
+  </body>
+</html>

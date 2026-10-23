@@ -555,7 +555,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
             if (property_string == "cssFloat"sv) {
                 property = CSS::PropertyNameAndID::from_id(CSS::PropertyID::Float);
             } else if (property_string == "cssOffset"sv) {
-                // FIXME: Support CSS offset property
+                property = CSS::PropertyNameAndID::from_id(CSS::PropertyID::Offset);
             } else if (property_string == "float"sv || property_string == "offset"sv) {
                 // Ignore these properties
             } else if (CSS::is_a_custom_property_name_string(property_string)) {
@@ -968,7 +968,21 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> KeyframeEffect::get_key
             }
 
             for (auto const& [property, value] : keyframe.parsed_properties()) {
-                auto key = property.is_custom_property() ? property.name() : CSS::camel_case_string_from_property_id(property.id());
+                // https://drafts.csswg.org/web-animations-1/#animation-property-name-to-idl-attribute-name
+                // 1. If property follows the <custom-property-name> production, return property.
+                // 2. If property refers to the CSS float property, return the string "cssFloat".
+                // 3. If property refers to the CSS offset property, return the string "cssOffset".
+                // 4. Otherwise, return the result of applying the CSS property to IDL attribute algorithm [CSSOM] to
+                //    property.
+                Utf16FlyString key;
+                if (property.is_custom_property())
+                    key = property.name();
+                else if (property.id() == CSS::PropertyID::Float)
+                    key = "cssFloat"_utf16_fly_string;
+                else if (property.id() == CSS::PropertyID::Offset)
+                    key = "cssOffset"_utf16_fly_string;
+                else
+                    key = CSS::camel_case_string_from_property_id(property.id());
                 // Serialization can still fall back to C++, which needs the typed facade; reflection is cold, so
                 // wrap on demand.
                 auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));

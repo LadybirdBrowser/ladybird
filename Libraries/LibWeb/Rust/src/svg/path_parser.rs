@@ -125,6 +125,23 @@ enum PathInstruction {
     },
 }
 
+impl PathInstruction {
+    fn is_relative(&self) -> bool {
+        match *self {
+            PathInstruction::ClosePath => false,
+            PathInstruction::MoveTo { absolute, .. }
+            | PathInstruction::LineTo { absolute, .. }
+            | PathInstruction::HorizontalLineTo { absolute, .. }
+            | PathInstruction::VerticalLineTo { absolute, .. }
+            | PathInstruction::CurveTo { absolute, .. }
+            | PathInstruction::SmoothCurveTo { absolute, .. }
+            | PathInstruction::QuadraticBezierCurveTo { absolute, .. }
+            | PathInstruction::SmoothQuadraticBezierCurveTo { absolute, .. }
+            | PathInstruction::EllipticalArc { absolute, .. } => !absolute,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ParsedPath {
     instructions: Vec<PathInstruction>,
@@ -435,6 +452,449 @@ impl ParsedPath {
         }
 
         path.build()
+    }
+
+    /// The same path with each relative command replaced by its absolute equivalent, or `None` when the path has
+    /// no relative commands.
+    pub(crate) fn to_absolute(&self) -> Option<ParsedPath> {
+        if !self.instructions.iter().any(PathInstruction::is_relative) {
+            return None;
+        }
+        let mut current_point = [0.0f32, 0.0];
+        let mut subpath_start = [0.0f32, 0.0];
+        let mut instructions = Vec::with_capacity(self.instructions.len());
+        for instruction in &self.instructions {
+            let resolve = |absolute: bool, point: [f32; 2]| {
+                if absolute {
+                    point
+                } else {
+                    [point[0] + current_point[0], point[1] + current_point[1]]
+                }
+            };
+            let (converted, end_point) = match *instruction {
+                PathInstruction::MoveTo { absolute, point } => {
+                    let point = resolve(absolute, point);
+                    subpath_start = point;
+                    (PathInstruction::MoveTo { absolute: true, point }, point)
+                }
+                PathInstruction::ClosePath => (PathInstruction::ClosePath, subpath_start),
+                PathInstruction::LineTo { absolute, point } => {
+                    let point = resolve(absolute, point);
+                    (PathInstruction::LineTo { absolute: true, point }, point)
+                }
+                PathInstruction::HorizontalLineTo { absolute, x } => {
+                    let x = if absolute { x } else { current_point[0] + x };
+                    (
+                        PathInstruction::HorizontalLineTo { absolute: true, x },
+                        [x, current_point[1]],
+                    )
+                }
+                PathInstruction::VerticalLineTo { absolute, y } => {
+                    let y = if absolute { y } else { current_point[1] + y };
+                    (
+                        PathInstruction::VerticalLineTo { absolute: true, y },
+                        [current_point[0], y],
+                    )
+                }
+                PathInstruction::CurveTo {
+                    absolute,
+                    control_point_1,
+                    control_point_2,
+                    point,
+                } => {
+                    let point = resolve(absolute, point);
+                    (
+                        PathInstruction::CurveTo {
+                            absolute: true,
+                            control_point_1: resolve(absolute, control_point_1),
+                            control_point_2: resolve(absolute, control_point_2),
+                            point,
+                        },
+                        point,
+                    )
+                }
+                PathInstruction::SmoothCurveTo {
+                    absolute,
+                    control_point_2,
+                    point,
+                } => {
+                    let point = resolve(absolute, point);
+                    (
+                        PathInstruction::SmoothCurveTo {
+                            absolute: true,
+                            control_point_2: resolve(absolute, control_point_2),
+                            point,
+                        },
+                        point,
+                    )
+                }
+                PathInstruction::QuadraticBezierCurveTo {
+                    absolute,
+                    control_point,
+                    point,
+                } => {
+                    let point = resolve(absolute, point);
+                    (
+                        PathInstruction::QuadraticBezierCurveTo {
+                            absolute: true,
+                            control_point: resolve(absolute, control_point),
+                            point,
+                        },
+                        point,
+                    )
+                }
+                PathInstruction::SmoothQuadraticBezierCurveTo { absolute, point } => {
+                    let point = resolve(absolute, point);
+                    (
+                        PathInstruction::SmoothQuadraticBezierCurveTo { absolute: true, point },
+                        point,
+                    )
+                }
+                PathInstruction::EllipticalArc {
+                    absolute,
+                    radius,
+                    x_axis_rotation,
+                    large_arc,
+                    sweep,
+                    point,
+                } => {
+                    let point = resolve(absolute, point);
+                    (
+                        PathInstruction::EllipticalArc {
+                            absolute: true,
+                            radius,
+                            x_axis_rotation,
+                            large_arc,
+                            sweep,
+                            point,
+                        },
+                        point,
+                    )
+                }
+            };
+            instructions.push(converted);
+            current_point = end_point;
+        }
+        let mut path = ParsedPath { instructions };
+        path.normalize_for_serialization();
+        Some(path)
+    }
+
+    /// https://svgwg.org/svg2-draft/paths.html#PathElement
+    /// https://drafts.csswg.org/css-shapes-1/#interpolating-shape
+    /// Interpolates two paths with the same commands, in order, component by component. Returns `None` when the
+    /// commands do not match.
+    pub(crate) fn interpolate(&self, to: &ParsedPath, delta: f32) -> Option<ParsedPath> {
+        if self.instructions.len() != to.instructions.len() {
+            return None;
+        }
+        let delta = f64::from(delta);
+        let number = |from: f32, to: f32| (f64::from(from) + (f64::from(to) - f64::from(from)) * delta) as f32;
+        let point = |from: [f32; 2], to: [f32; 2]| [number(from[0], to[0]), number(from[1], to[1])];
+        // NB: Like the arc command of shape(), an arc whose flags differ between the starting and ending list uses the
+        //     set flag for any progress value between 0 and 1.
+        let flag = |from: bool, to: bool| {
+            if from == to || delta <= 0.0 {
+                from
+            } else if delta >= 1.0 {
+                to
+            } else {
+                true
+            }
+        };
+        let mut instructions = Vec::with_capacity(self.instructions.len());
+        for (from, to) in self.instructions.iter().zip(&to.instructions) {
+            instructions.push(match (*from, *to) {
+                (
+                    PathInstruction::MoveTo {
+                        absolute,
+                        point: from_point,
+                    },
+                    PathInstruction::MoveTo {
+                        absolute: to_absolute,
+                        point: to_point,
+                    },
+                ) if absolute == to_absolute => PathInstruction::MoveTo {
+                    absolute,
+                    point: point(from_point, to_point),
+                },
+                (PathInstruction::ClosePath, PathInstruction::ClosePath) => PathInstruction::ClosePath,
+                (
+                    PathInstruction::LineTo {
+                        absolute,
+                        point: from_point,
+                    },
+                    PathInstruction::LineTo {
+                        absolute: to_absolute,
+                        point: to_point,
+                    },
+                ) if absolute == to_absolute => PathInstruction::LineTo {
+                    absolute,
+                    point: point(from_point, to_point),
+                },
+                (
+                    PathInstruction::HorizontalLineTo { absolute, x: from_x },
+                    PathInstruction::HorizontalLineTo {
+                        absolute: to_absolute,
+                        x: to_x,
+                    },
+                ) if absolute == to_absolute => PathInstruction::HorizontalLineTo {
+                    absolute,
+                    x: number(from_x, to_x),
+                },
+                (
+                    PathInstruction::VerticalLineTo { absolute, y: from_y },
+                    PathInstruction::VerticalLineTo {
+                        absolute: to_absolute,
+                        y: to_y,
+                    },
+                ) if absolute == to_absolute => PathInstruction::VerticalLineTo {
+                    absolute,
+                    y: number(from_y, to_y),
+                },
+                (
+                    PathInstruction::CurveTo {
+                        absolute,
+                        control_point_1: from_1,
+                        control_point_2: from_2,
+                        point: from_point,
+                    },
+                    PathInstruction::CurveTo {
+                        absolute: to_absolute,
+                        control_point_1: to_1,
+                        control_point_2: to_2,
+                        point: to_point,
+                    },
+                ) if absolute == to_absolute => PathInstruction::CurveTo {
+                    absolute,
+                    control_point_1: point(from_1, to_1),
+                    control_point_2: point(from_2, to_2),
+                    point: point(from_point, to_point),
+                },
+                (
+                    PathInstruction::SmoothCurveTo {
+                        absolute,
+                        control_point_2: from_2,
+                        point: from_point,
+                    },
+                    PathInstruction::SmoothCurveTo {
+                        absolute: to_absolute,
+                        control_point_2: to_2,
+                        point: to_point,
+                    },
+                ) if absolute == to_absolute => PathInstruction::SmoothCurveTo {
+                    absolute,
+                    control_point_2: point(from_2, to_2),
+                    point: point(from_point, to_point),
+                },
+                (
+                    PathInstruction::QuadraticBezierCurveTo {
+                        absolute,
+                        control_point: from_control,
+                        point: from_point,
+                    },
+                    PathInstruction::QuadraticBezierCurveTo {
+                        absolute: to_absolute,
+                        control_point: to_control,
+                        point: to_point,
+                    },
+                ) if absolute == to_absolute => PathInstruction::QuadraticBezierCurveTo {
+                    absolute,
+                    control_point: point(from_control, to_control),
+                    point: point(from_point, to_point),
+                },
+                (
+                    PathInstruction::SmoothQuadraticBezierCurveTo {
+                        absolute,
+                        point: from_point,
+                    },
+                    PathInstruction::SmoothQuadraticBezierCurveTo {
+                        absolute: to_absolute,
+                        point: to_point,
+                    },
+                ) if absolute == to_absolute => PathInstruction::SmoothQuadraticBezierCurveTo {
+                    absolute,
+                    point: point(from_point, to_point),
+                },
+                (
+                    PathInstruction::EllipticalArc {
+                        absolute,
+                        radius: from_radius,
+                        x_axis_rotation: from_rotation,
+                        large_arc: from_large_arc,
+                        sweep: from_sweep,
+                        point: from_point,
+                    },
+                    PathInstruction::EllipticalArc {
+                        absolute: to_absolute,
+                        radius: to_radius,
+                        x_axis_rotation: to_rotation,
+                        large_arc: to_large_arc,
+                        sweep: to_sweep,
+                        point: to_point,
+                    },
+                ) if absolute == to_absolute => PathInstruction::EllipticalArc {
+                    absolute,
+                    radius: point(from_radius, to_radius),
+                    x_axis_rotation: number(from_rotation, to_rotation),
+                    large_arc: flag(from_large_arc, to_large_arc),
+                    sweep: flag(from_sweep, to_sweep),
+                    point: point(from_point, to_point),
+                },
+                _ => return None,
+            });
+        }
+        let mut path = ParsedPath { instructions };
+        path.normalize_for_serialization();
+        Some(path)
+    }
+
+    /// https://drafts.csswg.org/css-shapes-1/#interpolating-shape
+    /// The commands and points of the shape() equivalent to this path, for interpolating it with a shape(). The first
+    /// command of the path becomes the initial <coordinate-pair> of the shape(). Absolute coordinates become positions
+    /// and relative ones coordinate pairs, the way shape() holds them after parsing.
+    pub(crate) fn to_shape_commands(
+        &self,
+    ) -> Option<(
+        Vec<crate::css::style_value::ShapeCommand>,
+        Vec<crate::css::style_value::RetainedShapePoint>,
+    )> {
+        use crate::css::style_value::{
+            RetainedShapePoint, RetainedStyleValueData, ShapeCommand, ShapeCommandKind, ShapeControlPointAnchor,
+            StyleValueData,
+        };
+        let length = |value: f32| StyleValueData::Length {
+            value: f64::from(value),
+            unit: crate::css::style_compute::px_length_unit(),
+        };
+        let value = |value: StyleValueData| RetainedStyleValueData::from_owned(value);
+        let edge = |offset: f32| {
+            value(StyleValueData::Edge {
+                has_edge: false,
+                edge: 0,
+                offset: value(length(offset)),
+            })
+        };
+        let point = |absolute: bool, point: [f32; 2]| {
+            if absolute {
+                RetainedShapePoint::from_retained_values(edge(point[0]), edge(point[1]))
+            } else {
+                RetainedShapePoint::from_retained_values(value(length(point[0])), value(length(point[1])))
+            }
+        };
+        let zero = || value(StyleValueData::Percentage { value: 0.0 });
+        let mut commands = Vec::with_capacity(self.instructions.len());
+        let mut points = Vec::with_capacity(self.instructions.len());
+        for (index, instruction) in self.instructions.iter().enumerate() {
+            let (kind, absolute) = match *instruction {
+                PathInstruction::MoveTo {
+                    absolute,
+                    point: end_point,
+                } => {
+                    if index == 0 {
+                        // NB: The current point starts at the origin, so a relative first move is absolute too.
+                        points.push(point(true, end_point));
+                        commands.push(ShapeCommand::new(ShapeCommandKind::From, false));
+                        continue;
+                    }
+                    points.push(point(absolute, end_point));
+                    (ShapeCommandKind::Move, absolute)
+                }
+                _ if index == 0 => return None,
+                PathInstruction::ClosePath => (ShapeCommandKind::Close, true),
+                PathInstruction::LineTo {
+                    absolute,
+                    point: end_point,
+                } => {
+                    points.push(point(absolute, end_point));
+                    (ShapeCommandKind::Line, absolute)
+                }
+                PathInstruction::HorizontalLineTo { absolute, x } => {
+                    points.push(RetainedShapePoint::from_retained_values(value(length(x)), zero()));
+                    (ShapeCommandKind::HorizontalLine, absolute)
+                }
+                PathInstruction::VerticalLineTo { absolute, y } => {
+                    points.push(RetainedShapePoint::from_retained_values(zero(), value(length(y))));
+                    (ShapeCommandKind::VerticalLine, absolute)
+                }
+                PathInstruction::CurveTo { .. }
+                | PathInstruction::SmoothCurveTo { .. }
+                | PathInstruction::QuadraticBezierCurveTo { .. }
+                | PathInstruction::SmoothQuadraticBezierCurveTo { .. } => {
+                    let (kind, absolute, end_point, control_points) = match *instruction {
+                        PathInstruction::CurveTo {
+                            absolute,
+                            control_point_1,
+                            control_point_2,
+                            point,
+                        } => (
+                            ShapeCommandKind::Curve,
+                            absolute,
+                            point,
+                            vec![control_point_1, control_point_2],
+                        ),
+                        PathInstruction::QuadraticBezierCurveTo {
+                            absolute,
+                            control_point,
+                            point,
+                        } => (ShapeCommandKind::Curve, absolute, point, vec![control_point]),
+                        PathInstruction::SmoothCurveTo {
+                            absolute,
+                            control_point_2,
+                            point,
+                        } => (ShapeCommandKind::Smooth, absolute, point, vec![control_point_2]),
+                        PathInstruction::SmoothQuadraticBezierCurveTo { absolute, point } => {
+                            (ShapeCommandKind::Smooth, absolute, point, vec![])
+                        }
+                        _ => unreachable!(),
+                    };
+                    let mut command = ShapeCommand::new(kind, !absolute);
+                    points.push(point(absolute, end_point));
+                    for (control_index, control_point) in control_points.into_iter().enumerate() {
+                        // Absolute control points are positions in the reference box, and relative ones are relative to
+                        // the start of the segment.
+                        command.control_points[control_index] = if absolute {
+                            ShapeControlPointAnchor::Origin
+                        } else {
+                            ShapeControlPointAnchor::Start
+                        };
+                        command.control_point_count += 1;
+                        points.push(point(absolute, control_point));
+                    }
+                    commands.push(command);
+                    continue;
+                }
+                PathInstruction::EllipticalArc {
+                    absolute,
+                    radius,
+                    x_axis_rotation,
+                    large_arc,
+                    sweep,
+                    point: end_point,
+                } => {
+                    let mut command = ShapeCommand::new(ShapeCommandKind::Arc, !absolute);
+                    command.arc_clockwise = sweep;
+                    command.arc_large = large_arc;
+                    command.arc_has_rotation = x_axis_rotation != 0.0;
+                    points.push(point(absolute, end_point));
+                    points.push(RetainedShapePoint::from_retained_values(
+                        value(length(radius[0])),
+                        value(length(radius[1])),
+                    ));
+                    let rotation = || {
+                        value(StyleValueData::Angle {
+                            value: f64::from(x_axis_rotation),
+                            unit: 0,
+                        })
+                    };
+                    points.push(RetainedShapePoint::from_retained_values(rotation(), rotation()));
+                    commands.push(command);
+                    continue;
+                }
+            };
+            commands.push(ShapeCommand::new(kind, !absolute));
+        }
+        Some((commands, points))
     }
 
     pub(crate) fn serialize(&self) -> String {
