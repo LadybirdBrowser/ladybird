@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/AllOf.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -65,6 +64,13 @@ ErrorOr<ColorSpace> ColorSpace::from_cicp(Media::CodingIndependentCodePoints cic
     return ColorSpace { CICP { cicp.color_primaries(), cicp.transfer_characteristics() } };
 }
 
+ErrorOr<ColorSpace> ColorSpace::from_icc_bytes(ReadonlyBytes icc_bytes)
+{
+    if (icc_bytes.is_empty())
+        return ColorSpace {};
+    return ColorSpace { ICCProfile::create(TRY(ByteBuffer::copy(icc_bytes))) };
+}
+
 }
 
 namespace IPC {
@@ -72,7 +78,7 @@ namespace IPC {
 enum class ColorSpaceKind : u8 {
     SRGB,
     CICP,
-    Parametric,
+    ICCProfile,
 };
 
 template<>
@@ -88,12 +94,9 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::ColorSpace const& color_space)
             TRY(encoder.encode(to_underlying(cicp.transfer_characteristics)));
             return {};
         },
-        [&](Gfx::ColorSpace::Parametric const& parametric) -> ErrorOr<void> {
-            TRY(encoder.encode(ColorSpaceKind::Parametric));
-            for (auto value : parametric.transfer_function)
-                TRY(encoder.encode(value));
-            for (auto value : parametric.to_xyz_d50)
-                TRY(encoder.encode(value));
+        [&](NonnullRefPtr<Gfx::ColorSpace::ICCProfile const> const& icc_profile) -> ErrorOr<void> {
+            TRY(encoder.encode(ColorSpaceKind::ICCProfile));
+            TRY(encoder.encode(icc_profile->bytes()));
             return {};
         });
 }
@@ -112,16 +115,11 @@ ErrorOr<Gfx::ColorSpace> decode(Decoder& decoder)
         TRY(Gfx::check_transfer_characteristics(transfer_characteristics));
         return Gfx::ColorSpace { Gfx::ColorSpace::CICP { color_primaries, transfer_characteristics } };
     }
-    case ColorSpaceKind::Parametric: {
-        Gfx::ColorSpace::Parametric parametric;
-        for (auto& value : parametric.transfer_function)
-            value = TRY(decoder.decode<float>());
-        for (auto& value : parametric.to_xyz_d50)
-            value = TRY(decoder.decode<float>());
-        auto is_finite = [](float value) { return __builtin_isfinite(value); };
-        if (!all_of(parametric.transfer_function, is_finite) || !all_of(parametric.to_xyz_d50, is_finite))
-            return Error::from_string_literal("IPC: Color space has a value that is not finite");
-        return Gfx::ColorSpace { move(parametric) };
+    case ColorSpaceKind::ICCProfile: {
+        auto icc_bytes = TRY(decoder.decode<ByteBuffer>());
+        if (icc_bytes.is_empty())
+            return Error::from_string_literal("IPC: ICC profile has no bytes");
+        return Gfx::ColorSpace { Gfx::ColorSpace::ICCProfile::create(move(icc_bytes)) };
     }
     }
     return Error::from_string_literal("IPC: Unknown color space kind");
