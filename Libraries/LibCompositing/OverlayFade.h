@@ -26,6 +26,15 @@ public:
         m_started_at = now;
     }
 
+    // Ends any fade, with the opacity at once where it would end.
+    void jump_to(float opacity)
+    {
+        m_opacity = opacity;
+        m_initial_opacity = opacity;
+        m_target_opacity = opacity;
+        m_started_at.clear();
+    }
+
     // Returns whether the opacity changed.
     bool advance_to(MonotonicTime frame_time)
     {

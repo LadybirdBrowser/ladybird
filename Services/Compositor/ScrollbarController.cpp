@@ -111,6 +111,7 @@ static Gfx::IntRect scrollbar_hit_rect(Compositing::AsyncScrollbar const& scroll
 void ScrollbarController::clear()
 {
     m_scrollbars.clear();
+    m_visibilities.clear();
     m_hovered_scrollbar_index.clear();
     m_captured_scrollbar_index.clear();
     m_thumb_grab_position = 0;
@@ -122,7 +123,15 @@ void ScrollbarController::set_scrollbars(Vector<Compositing::AsyncScrollbar> con
     auto hovered_scrollbar_identity = scrollbar_identity_at(m_scrollbars, m_hovered_scrollbar_index);
     auto captured_scrollbar_identity = scrollbar_identity_at(m_scrollbars, m_captured_scrollbar_index);
 
+    Vector<Visibility> visibilities;
+    visibilities.ensure_capacity(scrollbars.size());
+    for (auto const& scrollbar : scrollbars) {
+        auto previous_index = find_scrollbar_index(m_scrollbars, scrollbar_identity(scrollbar));
+        visibilities.unchecked_append(previous_index.has_value() ? m_visibilities[*previous_index] : Visibility {});
+    }
+
     m_scrollbars = scrollbars;
+    m_visibilities = move(visibilities);
     m_hovered_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_scrollbar_index(m_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
     m_captured_scrollbar_index = captured_scrollbar_identity.has_value() ? find_scrollbar_index(m_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
     if (!m_captured_scrollbar_index.has_value())
@@ -301,12 +310,94 @@ Optional<ScrollbarController::ScrollOffset> ScrollbarController::scroll_offset_f
     return ScrollOffset { scrollbar.scroll_node_id, scroll_offset };
 }
 
+void ScrollbarController::update_visibility(Compositing::ScrollStateSnapshot const& scroll_state_snapshot, MonotonicTime now)
+{
+    for (size_t i = 0; i < m_scrollbars.size(); ++i) {
+        auto& visibility = m_visibilities[i];
+        auto scroll_offset = scroll_state_snapshot.device_offset_for_index(m_scrollbars[i].scroll_node_index);
+        auto scrolled = visibility.scroll_offset.has_value() && *visibility.scroll_offset != scroll_offset;
+        visibility.scroll_offset = scroll_offset;
+
+        auto was_held_shown = visibility.is_held_shown;
+        visibility.is_held_shown = is_held_shown(i);
+        if (visibility.is_held_shown) {
+            visibility.fade.jump_to(1);
+            visibility.fade_out_time.clear();
+            continue;
+        }
+        if (scrolled)
+            visibility.fade.jump_to(1);
+        if (scrolled || was_held_shown)
+            visibility.fade_out_time = now + shown_duration_after_activity;
+    }
+}
+
+Optional<MonotonicTime> ScrollbarController::next_fade_out_time() const
+{
+    Optional<MonotonicTime> next_fade_out_time;
+    for (auto const& visibility : m_visibilities) {
+        if (visibility.fade_out_time.has_value() && (!next_fade_out_time.has_value() || *visibility.fade_out_time < *next_fade_out_time))
+            next_fade_out_time = visibility.fade_out_time;
+    }
+    return next_fade_out_time;
+}
+
+bool ScrollbarController::fades_need_frame(MonotonicTime now) const
+{
+    for (auto const& visibility : m_visibilities) {
+        if (visibility.fade.is_fading() || (visibility.fade_out_time.has_value() && *visibility.fade_out_time <= now))
+            return true;
+    }
+    return false;
+}
+
+Gfx::IntRect ScrollbarController::advance_fades(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, MonotonicTime frame_time)
+{
+    Gfx::IntRect damage_rect;
+    for (size_t i = 0; i < m_scrollbars.size(); ++i) {
+        auto& visibility = m_visibilities[i];
+        if (visibility.fade_out_time.has_value() && *visibility.fade_out_time <= frame_time) {
+            visibility.fade_out_time.clear();
+            visibility.fade.fade_to(0, frame_time);
+        }
+        if (!visibility.fade.advance_to(frame_time))
+            continue;
+
+        auto const& scrollbar = m_scrollbars[i];
+        auto rect = scrollbar.gutter_rect.united(scrollbar.track_rect).united(scrollbar.expanded_gutter_rect);
+        if (scrollbar.is_painted_by_compositor) {
+            damage_rect.unite(rect.inflated(2, 2));
+            continue;
+        }
+        if (!visual_context_tree.context_is_valid(scrollbar.context))
+            continue;
+        auto rect_in_viewport = visual_context_tree.transform_rect_to_viewport(scrollbar.context.spatial, rect.to_type<float>(), scroll_state_snapshot);
+        if (!isfinite(rect_in_viewport.x()) || !isfinite(rect_in_viewport.y()) || !isfinite(rect_in_viewport.width()) || !isfinite(rect_in_viewport.height()))
+            continue;
+        damage_rect.unite(Gfx::enclosing_int_rect(rect_in_viewport).inflated(2, 2));
+    }
+    return damage_rect;
+}
+
+float ScrollbarController::opacity_of_scrollbar_painted_by_display_list(Compositing::SpatialNodeIndex scroll_node_index, bool vertical) const
+{
+    for (size_t i = 0; i < m_scrollbars.size(); ++i) {
+        auto const& scrollbar = m_scrollbars[i];
+        if (!scrollbar.is_painted_by_compositor && scrollbar.scroll_node_index == scroll_node_index && scrollbar.vertical == vertical)
+            return opacity(i);
+    }
+    return 1;
+}
+
 bool ScrollbarController::paint(Gfx::PaintingSurface& surface, DisplayListPlayerSkia& display_list_player, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     bool painted_a_scrollbar = false;
     for (size_t i = 0; i < m_scrollbars.size(); ++i) {
         auto const& scrollbar = m_scrollbars[i];
         if (!scrollbar.is_painted_by_compositor)
+            continue;
+        auto scrollbar_opacity = opacity(i);
+        if (scrollbar_opacity <= 0)
             continue;
         auto expanded = is_expanded(i);
         Compositing::PaintScrollBar paint_scrollbar {
@@ -319,7 +410,7 @@ bool ScrollbarController::paint(Gfx::PaintingSurface& surface, DisplayListPlayer
             .track_color = scrollbar.track_color,
             .vertical = scrollbar.vertical,
         };
-        display_list_player.paint_scrollbar(surface, paint_scrollbar, scrollbar.corner_clip_rect, scrollbar.corner_clip_radius);
+        display_list_player.paint_scrollbar(surface, paint_scrollbar, scrollbar_opacity, scrollbar.corner_clip_rect, scrollbar.corner_clip_radius);
         painted_a_scrollbar = true;
     }
     return painted_a_scrollbar;
@@ -328,6 +419,22 @@ bool ScrollbarController::paint(Gfx::PaintingSurface& surface, DisplayListPlayer
 bool ScrollbarController::is_expanded(size_t scrollbar_index) const
 {
     return m_hovered_scrollbar_index == scrollbar_index || m_captured_scrollbar_index == scrollbar_index;
+}
+
+// The main thread hovers and drags the scrollbars the display list paints, and paints them enlarged meanwhile.
+bool ScrollbarController::is_held_shown(size_t scrollbar_index) const
+{
+    auto const& scrollbar = m_scrollbars[scrollbar_index];
+    if (scrollbar.is_painted_by_compositor)
+        return is_expanded(scrollbar_index);
+    return scrollbar.display_list_paints_enlarged_scrollbar || m_captured_scrollbar_index == scrollbar_index;
+}
+
+float ScrollbarController::opacity(size_t scrollbar_index) const
+{
+    if (s_scrollbars_always_shown)
+        return 1;
+    return m_visibilities[scrollbar_index].fade.opacity();
 }
 
 }

@@ -47,16 +47,23 @@ static void clamp_visual_viewport_transform_to_viewport(Compositing::TransformWi
     transform.matrix[1, 3] = clamp(transform.matrix[1, 3], min_y, 0.0f);
 }
 
-ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Compositing::OwnedCanvasSurfaces canvas_surfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint)
+ContextState::ContextState(Web::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Compositing::OwnedCanvasSurfaces canvas_surfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint, Function<void()> request_scrollbar_fade_frames)
     : m_web_content_client(web_content_client)
     , m_context_id(context_id)
     , m_page_id(page_id)
     , m_presenter(m_scene, canvas_surfaces, page_id.has_value())
     , m_caret_blink_timer([this] { return damage_rect_of_blinking_carets(); }, move(schedule_caret_repaint))
+    , m_request_scrollbar_fade_frames(move(request_scrollbar_fade_frames))
 {
 }
 
-ContextState::~ContextState() = default;
+ContextState::~ContextState()
+{
+    if (m_scrollbar_fade_out_timer) {
+        m_scrollbar_fade_out_timer->on_timeout = {};
+        m_scrollbar_fade_out_timer->stop();
+    }
+}
 
 bool ContextState::is_owned_by(CompositorStateWebContentClient const& web_content_client) const
 {
@@ -1526,8 +1533,46 @@ ContextPresenter::FrameContent ContextState::frame_content(Compositing::ScrollSt
     };
 }
 
+// Each frame shows the scrollbars as of when it is painted. An elastic overscroll moves the presented scroll offsets
+// only, and shows the scrollbars of the stretched scroller as a scroll does.
+void ContextState::update_scrollbar_visibility()
+{
+    auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
+    auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
+    m_scrollbar_controller.update_visibility(presented_scroll_state_snapshot, MonotonicTime::now());
+
+    // The fade out runs on display ticks, which the wait before it does not need.
+    auto fade_out_time = m_scrollbar_controller.next_fade_out_time();
+    if (!fade_out_time.has_value() || !m_request_scrollbar_fade_frames) {
+        if (m_scrollbar_fade_out_timer)
+            m_scrollbar_fade_out_timer->stop();
+        return;
+    }
+    if (!m_scrollbar_fade_out_timer) {
+        m_scrollbar_fade_out_timer = Core::Timer::create_single_shot(AK::Duration::zero(), [this] {
+            m_request_scrollbar_fade_frames();
+        });
+    }
+    auto delay = max(AK::Duration::zero(), *fade_out_time - MonotonicTime::now());
+    m_scrollbar_fade_out_timer->restart(delay);
+}
+
+Optional<PendingFrame> ContextState::advance_scrollbar_fades(MonotonicTime frame_time)
+{
+    if (!m_scene.visual_context_tree().has_value())
+        return {};
+    auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
+    auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
+    auto damage_rect = m_scrollbar_controller.advance_fades(m_scene.visual_context_tree_for_compositing(), presented_scroll_state_snapshot, frame_time);
+    auto viewport_rect = m_presenter.viewport_rect_for_ui_overlay();
+    if (damage_rect.is_empty() || !viewport_rect.has_value())
+        return {};
+    return PendingFrame { *viewport_rect, damage_rect };
+}
+
 Optional<PreparedFrame> ContextState::prepare_frame(DisplayListPlayerSkia& display_list_player, PendingFrame pending_frame, CompositedContextResolver const* composited_context_resolver)
 {
+    update_scrollbar_visibility();
     auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
     auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
     return m_presenter.prepare_frame(display_list_player, pending_frame, frame_content(presented_scroll_state_snapshot, composited_context_resolver));
@@ -1535,21 +1580,27 @@ Optional<PreparedFrame> ContextState::prepare_frame(DisplayListPlayerSkia& displ
 
 bool ContextState::present_synchronously(DisplayListPlayerSkia& display_list_player, CompositedContextResolver const* composited_context_resolver)
 {
+    update_scrollbar_visibility();
     auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
     auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
     return m_presenter.present_synchronously(display_list_player, frame_content(presented_scroll_state_snapshot, composited_context_resolver));
 }
 
-void ContextState::paint_screenshot(DisplayListPlayerSkia& display_list_player, Gfx::ShareableBitmap& target_bitmap, CompositedContextResolver const* composited_context_resolver)
+Optional<PendingFrame> ContextState::paint_screenshot(DisplayListPlayerSkia& display_list_player, Gfx::ShareableBitmap& target_bitmap, CompositedContextResolver const* composited_context_resolver)
 {
     VERIFY(can_paint_screenshot(target_bitmap));
 
-    // Screenshot requests can arrive between display ticks, so sample animations at capture time.
-    advance_visual_animations(MonotonicTime::now());
+    // Screenshot requests can arrive between display ticks, so sample animations and scrollbar visibility at capture
+    // time.
+    auto capture_time = MonotonicTime::now();
+    advance_visual_animations(capture_time);
+    update_scrollbar_visibility();
+    auto scrollbar_fade_frame = advance_scrollbar_fades(capture_time);
 
     auto stretched_scroll_state_snapshot = scroll_state_snapshot_stretched_by_elastic_overscrolls();
     auto const& presented_scroll_state_snapshot = stretched_scroll_state_snapshot.has_value() ? *stretched_scroll_state_snapshot : m_scroll_state_snapshot;
     m_presenter.paint_screenshot(display_list_player, target_bitmap, frame_content(presented_scroll_state_snapshot, composited_context_resolver));
+    return scrollbar_fade_frame;
 }
 
 bool ContextState::can_paint_screenshot(Gfx::ShareableBitmap& target_bitmap) const

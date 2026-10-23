@@ -124,7 +124,7 @@ public:
         Optional<Compositing::NestedContextWheelHit> nested_context_hit {};
     };
 
-    ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::OwnedCanvasSurfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
+    ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::OwnedCanvasSurfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint = {}, Function<void()> request_scrollbar_fade_frames = {});
     ~ContextState();
 
     bool is_owned_by(CompositorStateWebContentClient const&) const;
@@ -194,7 +194,7 @@ public:
     AsyncScrollResult smooth_scroll_to(Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue);
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
-    bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame() || m_presenter.ui_overlay_fades_need_frame(); }
+    bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || m_elastic_overscroll_controller.has_rebound() || visual_animations_need_frame() || m_presenter.ui_overlay_fades_need_frame() || m_scrollbar_controller.fades_need_frame(MonotonicTime::now()); }
 
     bool has_active_scroll_fling() const { return m_scroll_fling_controller.is_active(); }
     // The wheel event of the next step of the fling, which is scrolled by like a wheel event from the UI.
@@ -209,6 +209,7 @@ public:
     Optional<Web::MouseEvent> interrupt_scroll_fling(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
     void set_scrolls_elastically(bool);
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
+    Optional<PendingFrame> advance_scrollbar_fades(MonotonicTime frame_time);
     // The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.
     String scroll_state_for_testing(Web::AsyncScrollNodeStableID stretched_scroller) const;
     Web::InputTraceRecorder& input_trace() { return m_input_trace; }
@@ -247,7 +248,8 @@ public:
     Optional<PreparedFrame> prepare_frame(DisplayListPlayerSkia&, PendingFrame, CompositedContextResolver const*);
     bool present_synchronously(DisplayListPlayerSkia&, CompositedContextResolver const*);
     bool can_paint_screenshot(Gfx::ShareableBitmap&) const;
-    void paint_screenshot(DisplayListPlayerSkia&, Gfx::ShareableBitmap&, CompositedContextResolver const*);
+    // Returns the scrollbar fade damage that the screenshot did not present on screen.
+    Optional<PendingFrame> paint_screenshot(DisplayListPlayerSkia&, Gfx::ShareableBitmap&, CompositedContextResolver const*);
 
 private:
     struct ActiveSmoothScrollAnimation {
@@ -331,6 +333,7 @@ private:
     void rebuild_wheel_hit_test_targets();
     ContextPresenter::FrameContent frame_content(Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, CompositedContextResolver const*) const;
     Gfx::IntRect damage_rect_of_blinking_carets();
+    void update_scrollbar_visibility();
 
     CompositorStateWebContentClient& m_web_content_client;
     Web::CompositorContextId m_context_id;
@@ -357,6 +360,8 @@ private:
     bool m_has_async_scrolling_state { false };
 
     CaretBlinkTimer m_caret_blink_timer;
+    Function<void()> m_request_scrollbar_fade_frames;
+    RefPtr<Core::Timer> m_scrollbar_fade_out_timer;
     Web::InputTraceRecorder m_input_trace;
     Optional<u64> m_display_id;
     double m_display_refresh_rate { 60.0 };

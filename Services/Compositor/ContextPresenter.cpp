@@ -536,7 +536,8 @@ void ContextPresenter::paint_current_display_list(DisplayListPlayerSkia& display
             frame_content.presented_scroll_state_snapshot,
             target_surface,
             &m_canvas_surfaces,
-            frame_content.composited_context_resolver);
+            frame_content.composited_context_resolver,
+            &frame_content.scrollbar_controller);
         frame_content.scrollbar_controller.paint(target_surface, display_list_player, frame_content.presented_scroll_state_snapshot);
         if (paint_ui_overlay == PaintUIOverlay::No)
             return;

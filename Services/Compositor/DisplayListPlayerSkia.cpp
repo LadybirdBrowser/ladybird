@@ -35,6 +35,7 @@
 
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/DisplayListRasterCache.h>
+#include <Compositor/ScrollbarController.h>
 #include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
@@ -88,9 +89,11 @@ void DisplayListPlayerSkia::execute(
     ScrollStateSnapshot const& scroll_state_snapshot,
     RefPtr<Gfx::PaintingSurface> surface,
     OwnedCanvasSurfaces const* canvas_surfaces,
-    CompositedContextResolver const* composited_context_resolver)
+    CompositedContextResolver const* composited_context_resolver,
+    ScrollbarController const* scrollbar_controller)
 {
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
+    TemporaryChange scrollbar_controller_change { m_scrollbar_controller, scrollbar_controller };
     TemporaryChange raster_cache_change { m_raster_cache, &raster_cache };
     if (m_layer_image_filter_cache->tree_structural_epoch != visual_context_tree.structural_epoch()) {
         m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_effect.clear();
@@ -206,8 +209,11 @@ static Gfx::IntRect thumb_rect_kept_inside_track(PaintScrollBar const& command)
     return thumb_rect;
 }
 
-static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScrollBar const& command, Optional<SkRRect> const& corner_clip = {})
+static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScrollBar const& command, float opacity, Optional<SkRRect> const& corner_clip = {})
 {
+    if (opacity <= 0)
+        return;
+
     auto gutter_rect = to_skia_rect(command.gutter_rect);
 
     auto thumb_rect = to_skia_rect(thumb_rect_kept_inside_track(command));
@@ -219,6 +225,7 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScr
     auto gutter_fill_color = command.track_color;
     SkPaint gutter_fill_paint;
     gutter_fill_paint.setColor(to_skia_color(gutter_fill_color));
+    gutter_fill_paint.setAlphaf(gutter_fill_paint.getAlphaf() * opacity);
     canvas.drawRect(gutter_rect, gutter_fill_paint);
 
     if (thumb_rect.isEmpty())
@@ -242,6 +249,7 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScr
 
     SkPaint thumb_fill_paint;
     thumb_fill_paint.setColor(to_skia_color(command.thumb_color));
+    thumb_fill_paint.setAlphaf(thumb_fill_paint.getAlphaf() * opacity);
     thumb_fill_paint.setAntiAlias(clipped_thumb.has_value());
     draw_thumb(thumb_fill_paint);
 
@@ -251,17 +259,18 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, PaintScr
     stroke_paint.setStrokeWidth(1);
     stroke_paint.setAntiAlias(true);
     stroke_paint.setColor(to_skia_color(stroke_color));
+    stroke_paint.setAlphaf(stroke_paint.getAlphaf() * opacity);
     draw_thumb(stroke_paint);
 }
 
-void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, PaintScrollBar const& command, Gfx::IntRect const& corner_clip_rect, int corner_clip_radius)
+void DisplayListPlayerSkia::paint_scrollbar(Gfx::PaintingSurface& surface, PaintScrollBar const& command, float opacity, Gfx::IntRect const& corner_clip_rect, int corner_clip_radius)
 {
     Optional<SkRRect> corner_clip;
     if (corner_clip_radius > 0) {
         auto radius = static_cast<SkScalar>(corner_clip_radius);
         corner_clip = SkRRect::MakeRectXY(to_skia_rect(corner_clip_rect), radius, radius);
     }
-    paint_scrollbar_into_surface(surface, command, corner_clip);
+    paint_scrollbar_into_surface(surface, command, opacity, corner_clip);
 }
 
 static SkMatrix vertical_glyph_run_rotation(Gfx::IntRect const& rect)
@@ -1505,7 +1514,8 @@ void DisplayListPlayerSkia::play_command(CompositorNestedContextWheelRegion cons
 
 void DisplayListPlayerSkia::play_command(PaintScrollBar const& command)
 {
-    paint_scrollbar_into_surface(surface(), command);
+    auto opacity = m_scrollbar_controller ? m_scrollbar_controller->opacity_of_scrollbar_painted_by_display_list(command.scroll_node_index, command.vertical) : 1.0f;
+    paint_scrollbar_into_surface(surface(), command, opacity);
 }
 
 void DisplayListPlayerSkia::push_clip(ReplayClip const& clip)
