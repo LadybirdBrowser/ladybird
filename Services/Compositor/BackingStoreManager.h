@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
+#include <Compositor/Forward.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/SharedImage.h>

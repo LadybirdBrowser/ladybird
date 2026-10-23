@@ -24,15 +24,15 @@ extern "C" {
 #include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
+#include <Compositor/PaintingSurface.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImageBuffer.h>
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <LibGfx/VulkanImage.h>
 #endif
 #include <Compositor/OpenGLContext.h>
-#include <LibGfx/SkiaBackendContext.h>
-#include <LibGfx/SkiaUtils.h>
+#include <Compositor/SkiaBackendContext.h>
+#include <Compositor/SkiaUtils.h>
 
 #include <core/SkCanvas.h>
 #include <core/SkImage.h>

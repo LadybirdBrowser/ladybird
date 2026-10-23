@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/PaintingSurface.h>
+#include <Compositor/SkiaUtils.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImageBuffer.h>
-#include <LibGfx/SkiaUtils.h>
 
 #include <core/SkCanvas.h>
 #include <core/SkColorSpace.h>

@@ -9,11 +9,11 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
+#include <Compositor/PaintingSurface.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/ScalingMode.h>

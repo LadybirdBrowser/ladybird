@@ -5,8 +5,8 @@
  */
 
 #include <Compositor/CanvasSurfaceRegistry.h>
+#include <Compositor/PaintingSurface.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibTest/TestCase.h>
 
 static NonnullRefPtr<Gfx::PaintingSurface> create_surface()

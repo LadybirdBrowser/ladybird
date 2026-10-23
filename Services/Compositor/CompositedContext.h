@@ -8,9 +8,9 @@
 
 #include <AK/Function.h>
 #include <AK/RefPtr.h>
+#include <Compositor/PaintingSurface.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Matrix.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Rect.h>
 
 namespace Compositor {

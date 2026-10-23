@@ -9,6 +9,8 @@
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/HostWebGLContext.h>
+#include <Compositor/PaintingSurface.h>
+#include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VideoFrameHolds.h>
 #include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/CanvasSize.h>
@@ -16,8 +18,6 @@
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
-#include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SkiaBackendContext.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <core/SkImage.h>
 

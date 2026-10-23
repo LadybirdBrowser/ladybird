@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <Compositor/Forward.h>
 #include <LibCompositing/Forward.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>

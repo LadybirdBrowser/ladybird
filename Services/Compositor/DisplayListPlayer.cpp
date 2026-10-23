@@ -6,8 +6,8 @@
 
 #include <AK/TemporaryChange.h>
 #include <Compositor/DisplayListPlayer.h>
+#include <Compositor/PaintingSurface.h>
 #include <LibCompositing/RustFFI.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
 
 namespace Compositor {

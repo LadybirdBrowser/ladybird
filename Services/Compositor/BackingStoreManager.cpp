@@ -6,10 +6,10 @@
 
 #include <AK/AnyOf.h>
 #include <Compositor/BackingStoreManager.h>
+#include <Compositor/PaintingSurface.h>
+#include <Compositor/SkiaBackendContext.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImageBuffer.h>
-#include <LibGfx/SkiaBackendContext.h>
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <AK/Array.h>

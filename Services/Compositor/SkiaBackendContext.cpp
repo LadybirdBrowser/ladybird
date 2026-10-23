@@ -8,12 +8,12 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
+#include <Compositor/PaintingSurface.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
 #ifdef USE_DIRECTX
 #    include <LibGfx/Direct3DContext.h>
 #endif
-#include <LibGfx/SkiaBackendContext.h>
+#include <Compositor/SkiaBackendContext.h>
 
 #include <core/SkSurface.h>
 #include <gpu/ganesh/GrContextOptions.h>
@@ -26,7 +26,7 @@
 #endif
 
 #ifdef USE_VULKAN
-#    include <LibGfx/SkiaVulkanMemoryAllocator.h>
+#    include <Compositor/SkiaVulkanMemoryAllocator.h>
 #    include <gpu/ganesh/vk/GrVkDirectContext.h>
 #    include <gpu/vk/VulkanBackendContext.h>
 #    include <gpu/vk/VulkanExtensions.h>

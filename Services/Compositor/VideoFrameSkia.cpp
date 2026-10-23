@@ -5,12 +5,12 @@
  */
 
 #include <AK/HashMap.h>
+#include <Compositor/PaintingSurface.h>
+#include <Compositor/SkiaBackendContext.h>
+#include <Compositor/SkiaUtils.h>
 #include <Compositor/VideoFrameSkia.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
-#include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SkiaBackendContext.h>
-#include <LibGfx/SkiaUtils.h>
 #include <LibGfx/YUVData.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoFrameHandle.h>

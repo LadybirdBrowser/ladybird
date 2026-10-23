@@ -8,6 +8,7 @@
 #include <Compositor/FontSkia.h>
 #include <Compositor/Sandbox.h>
 #include <Compositor/ScrollbarController.h>
+#include <Compositor/SkiaBackendContext.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/EventLoop.h>
@@ -18,7 +19,6 @@
 #include <LibCore/StatsLog.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/GpuDeviceIdentity.h>
-#include <LibGfx/SkiaBackendContext.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
 

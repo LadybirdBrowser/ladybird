@@ -11,12 +11,12 @@
 #include <Compositor/CompositorState.h>
 #include <Compositor/ContextState.h>
 #include <Compositor/DisplayListPlayerSkia.h>
+#include <Compositor/PaintingSurface.h>
 #include <Compositor/PausedDebuggerOverlay.h>
+#include <Compositor/SkiaUtils.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SkiaUtils.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <core/SkCanvas.h>
 #include <core/SkImage.h>

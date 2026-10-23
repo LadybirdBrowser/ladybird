@@ -37,11 +37,11 @@
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/ScrollbarController.h>
+#include <Compositor/SkiaBackendContext.h>
+#include <Compositor/SkiaUtils.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/SkiaBackendContext.h>
-#include <LibGfx/SkiaUtils.h>
 
 namespace Compositor {
 

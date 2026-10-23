@@ -15,6 +15,7 @@
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/ContextState.h>
 #include <Compositor/DisplayListPlayerSkia.h>
+#include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VSyncScheduler.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
@@ -28,7 +29,6 @@
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
-#include <LibGfx/SkiaBackendContext.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/VideoSinkHandle.h>

@@ -7,6 +7,9 @@
 #include <AK/Assertions.h>
 #include <Compositor/Canvas2DCommandPlayer.h>
 #include <Compositor/FontSkia.h>
+#include <Compositor/PainterSkia.h>
+#include <Compositor/PaintingSurface.h>
+#include <Compositor/SkiaUtils.h>
 #include <LibCompositing/DisplayList/Canvas2DTape.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibGfx/Bitmap.h>
@@ -14,10 +17,7 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/PainterSkia.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Path.h>
-#include <LibGfx/SkiaUtils.h>
 #include <core/SkCanvas.h>
 #include <core/SkFont.h>
 #include <core/SkPaint.h>

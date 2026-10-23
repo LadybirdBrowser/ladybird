@@ -8,6 +8,7 @@
 
 #include <AK/Error.h>
 #include <AK/RefPtr.h>
+#include <Compositor/Forward.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibMediaCodecs/Color/CodingIndependentCodePoints.h>

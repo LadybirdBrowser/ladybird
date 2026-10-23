@@ -11,9 +11,9 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <Compositor/PaintingSurface.h>
 #include <LibCompositing/WebGL/GLFunctions.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Size.h>
 
 class SkImage;

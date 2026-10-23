@@ -11,7 +11,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/kmalloc.h>
-#include <LibGfx/SkiaVulkanMemoryAllocator.h>
+#include <Compositor/SkiaVulkanMemoryAllocator.h>
 #include <gpu/vk/VulkanTypes.h>
 
 #define VMA_IMPLEMENTATION

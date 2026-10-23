@@ -13,6 +13,7 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
+#include <Compositor/Forward.h>
 #include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>

@@ -12,12 +12,12 @@
 #include <AK/GenericShorthands.h>
 #include <AK/String.h>
 #include <AK/TypeCasts.h>
+#include <Compositor/PainterSkia.h>
+#include <Compositor/SkiaUtils.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
-#include <LibGfx/SkiaUtils.h>
 
 #include <core/SkCanvas.h>
 #include <core/SkFont.h>
