@@ -66,6 +66,9 @@ public:
     [[nodiscard]] bool reload_pending() const { return m_reload_pending; }
     void set_reload_pending(bool reload_pending) { m_reload_pending = reload_pending; }
 
+    [[nodiscard]] bool reload_bypasses_cache() const { return m_reload_bypasses_cache; }
+    void set_reload_bypasses_cache(bool reload_bypasses_cache) { m_reload_bypasses_cache = reload_bypasses_cache; }
+
     [[nodiscard]] bool ever_populated() const { return m_ever_populated; }
     void set_ever_populated(bool ever_populated) { m_ever_populated = ever_populated; }
 
@@ -109,6 +112,12 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-reload-pending
     bool m_reload_pending { false };
+
+    // AD-HOC: Whether the pending reload bypasses the HTTP cache, as the user can ask one to. HTML leaves that to the
+    //         user agent: "When a user requests a reload of a navigable, user agents may provide a mechanism for
+    //         ignoring any caches when reloading."
+    //         https://html.spec.whatwg.org/multipage/speculative-loading.html#nav-traversal-ui
+    bool m_reload_bypasses_cache { false };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-ever-populated
     bool m_ever_populated { false };

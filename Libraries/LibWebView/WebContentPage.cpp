@@ -2803,10 +2803,10 @@ void WebContentPage::did_request_stop_loading_for_testing()
         view().stop_loading();
 }
 
-void WebContentPage::did_request_reload_for_testing()
+void WebContentPage::did_request_reload_for_testing(bool bypass_cache)
 {
     if (displays_tab())
-        view().reload();
+        view().reload(bypass_cache ? BypassCache::Yes : BypassCache::No);
 }
 
 // The tab's Back and Forward buttons, which traverse the history with no source document.

@@ -33,6 +33,7 @@ SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(Cr
             .about_base_url = move(about_base_url),
             .resource = Empty {},
             .reload_pending = false,
+            .reload_bypasses_cache = false,
             .ever_populated = false,
             .user_agent_initiated = UserAgentInitiated::No,
             .navigable_target_name = move(navigable_target_name),
@@ -217,6 +218,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryDocumentSta
     TRY(encoder.encode(document_state.about_base_url));
     TRY(encoder.encode(document_state.resource));
     TRY(encoder.encode(document_state.reload_pending));
+    TRY(encoder.encode(document_state.reload_bypasses_cache));
     TRY(encoder.encode(document_state.ever_populated));
     TRY(encoder.encode(document_state.user_agent_initiated));
     TRY(encoder.encode(document_state.navigable_target_name));
@@ -235,6 +237,7 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
     auto about_base_url = TRY(decoder.decode<Optional<URL::URL>>());
     auto resource = TRY(decoder.decode<Web::HTML::DocumentResource>());
     auto reload_pending = TRY(decoder.decode<bool>());
+    auto reload_bypasses_cache = TRY(decoder.decode<bool>());
     auto ever_populated = TRY(decoder.decode<bool>());
     auto user_agent_initiated = TRY(decoder.decode<Web::HTML::UserAgentInitiated>());
     auto navigable_target_name = TRY(decoder.decode<Utf16String>());
@@ -249,6 +252,7 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
         .about_base_url = move(about_base_url),
         .resource = move(resource),
         .reload_pending = reload_pending,
+        .reload_bypasses_cache = reload_bypasses_cache,
         .ever_populated = ever_populated,
         .user_agent_initiated = user_agent_initiated,
         .navigable_target_name = move(navigable_target_name),

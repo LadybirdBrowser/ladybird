@@ -211,7 +211,7 @@ private:
     virtual void crash_remote_frame_processes_for_testing() override;
     virtual void page_did_spoof_document_origin_for_testing(Web::HTML::EnvironmentSettingsObject const&, URL::Origin const&) override;
     virtual void stop_loading_through_ui_process_for_testing() override;
-    virtual void reload_through_ui_process_for_testing() override;
+    virtual void reload_through_ui_process_for_testing(bool bypass_cache) override;
     virtual void traverse_history_by_delta_through_ui_process_for_testing(i32 delta) override;
     virtual void send_bad_ipc_message_for_testing(StringView kind, URL::URL const& active_document_url) override;
     virtual Gfx::Palette palette() const override;

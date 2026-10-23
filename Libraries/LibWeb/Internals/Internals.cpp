@@ -1844,7 +1844,12 @@ void Internals::stop_loading_through_ui_process()
 
 void Internals::reload_through_ui_process()
 {
-    window().associated_document().page().client().reload_through_ui_process_for_testing();
+    window().associated_document().page().client().reload_through_ui_process_for_testing(false);
+}
+
+void Internals::reload_bypassing_cache_through_ui_process()
+{
+    window().associated_document().page().client().reload_through_ui_process_for_testing(true);
 }
 
 void Internals::traverse_history_through_ui_process(i32 delta)

@@ -170,6 +170,7 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
     //     navigable's active window to run the steps:
     for (auto& changing_navigable : m_changing_navigables) {
         changing_navigable->target_entry_reload_pending = changing_navigable->target_entry->document_state->reload_pending;
+        changing_navigable->target_entry_reload_bypasses_cache = changing_navigable->target_entry->document_state->reload_bypasses_cache;
         changing_navigable->displayed_document = changing_navigable->navigable().active_document();
         if (!m_traversable.run_changing_navigable_history_step_job(*this, *changing_navigable))
             end_changing_navigable_job(*changing_navigable);
@@ -446,6 +447,7 @@ Web::HTML::SessionHistoryEntryDescriptor ChangingNavigable::target_entry_descrip
 {
     auto descriptor = target_entry->descriptor();
     descriptor.document_state.reload_pending = target_entry_reload_pending;
+    descriptor.document_state.reload_bypasses_cache = target_entry_reload_bypasses_cache;
     return descriptor;
 }
 

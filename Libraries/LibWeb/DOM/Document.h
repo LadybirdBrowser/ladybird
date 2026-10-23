@@ -854,6 +854,11 @@ public:
     bool browsing_context_group_has_remote_contexts() const { return m_browsing_context_group_has_remote_contexts; }
     void set_browsing_context_group_has_remote_contexts(bool value) { m_browsing_context_group_has_remote_contexts = value; }
 
+    // AD-HOC: Whether this document is still loading after a navigation that bypassed the HTTP cache: a reload that
+    //         bypasses it, or a child navigable's navigation while its container document loaded that way. Until it
+    //         has completely loaded, the requests it makes without a cache mode of their own bypass the cache too.
+    bool is_loading_bypassing_cache() const { return m_navigation_bypassed_cache && !is_completely_loaded(); }
+
     GC::Ptr<HTML::HTMLScriptElement> current_script() const { return m_current_script.ptr(); }
     void set_current_script(Badge<HTML::HTMLScriptElement>, GC::Ptr<HTML::HTMLScriptElement> script) { m_current_script = move(script); }
     static constexpr size_t current_script_offset() { return offsetof(Document, m_current_script); }
@@ -1960,6 +1965,7 @@ private:
     // Each Document has a text directive user activation, which is a boolean, initially false.
     bool m_text_directive_user_activation { false };
     bool m_browsing_context_group_has_remote_contexts { false };
+    bool m_navigation_bypassed_cache { false };
     GC::Ptr<HTML::HTMLScriptElement> m_current_script;
 
     u32 m_ignore_destructive_writes_counter { 0 };

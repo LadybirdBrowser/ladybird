@@ -56,6 +56,8 @@ struct SessionHistoryDocumentStateDescriptor {
     Optional<URL::URL> about_base_url;
     DocumentResource resource;
     bool reload_pending { false };
+    // AD-HOC: Whether the pending reload bypasses the HTTP cache.
+    bool reload_bypasses_cache { false };
     bool ever_populated { false };
     UserAgentInitiated user_agent_initiated { UserAgentInitiated::No };
     Utf16String navigable_target_name;
