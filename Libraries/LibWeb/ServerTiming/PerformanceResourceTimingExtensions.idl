@@ -1,0 +1,5 @@
+// https://w3c.github.io/server-timing/#extension-to-the-performanceresourcetiming-interface
+[Exposed=(Window,Worker)]
+partial interface PerformanceResourceTiming {
+    readonly attribute FrozenArray<PerformanceServerTiming> serverTiming;
+};
