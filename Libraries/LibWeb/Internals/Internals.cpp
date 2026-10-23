@@ -858,7 +858,7 @@ void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, doub
         return;
     }
 
-    Vector<GC::Ref<WebIDL::Promise>> scroll_promises;
+    GC::RootVector<GC::Ref<WebIDL::Promise>> scroll_promises;
     for (auto& navigable : HTML::all_local_navigables()) {
         if (&navigable->page() == &page && !navigable->has_been_destroyed())
             navigable->wait_for_wheel_scrolls(scroll_promises);
