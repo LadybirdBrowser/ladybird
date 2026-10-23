@@ -1050,12 +1050,12 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
         };
 
         if (auto doc = page->page().local_traversable()->active_document()) {
-            Queue<Web::DOM::Node*> nodes_to_visit;
-            nodes_to_visit.enqueue(doc->document_element());
-            while (!nodes_to_visit.is_empty()) {
-                auto node = nodes_to_visit.dequeue();
+            GC::RootVector<Web::DOM::Node*> nodes_to_visit;
+            nodes_to_visit.append(doc->document_element());
+            for (size_t i = 0; i < nodes_to_visit.size(); ++i) {
+                auto node = nodes_to_visit[i];
                 for (auto& child : node->children_as_vector())
-                    nodes_to_visit.enqueue(child.ptr());
+                    nodes_to_visit.append(child.ptr());
                 if (auto* element = as_if<Web::DOM::Element>(node)) {
                     doc->update_style_for_element(Web::DOM::AbstractElement { *element });
                     if (auto styles = element->computed_style())
