@@ -1949,6 +1949,11 @@ TabWidget::TabWidget(QWidget* parent)
     m_tab_bar_row->setAcceptDrops(true);
     m_tab_bar_row_layout = new QHBoxLayout(m_tab_bar_row);
     m_tab_bar_row->installEventFilter(this);
+    // NB: The tab bar is given a fixed width that fills the row whenever there are enough tabs, so the row's minimum
+    //     width would be the window's current width. Keep it out of the window's minimum size, or the window could only
+    //     be narrowed by the row's few spare pixels at each step of a resize. The tab bar is fitted to the new width,
+    //     and update_tab_layout() gives the row the minimum width its controls need.
+    m_tab_bar_row->setSizePolicy(QSizePolicy::Ignored, m_tab_bar_row->sizePolicy().verticalPolicy());
 
     m_vertical_tabs_content = new QWidget(this);
     m_vertical_tabs_content_layout = new QHBoxLayout(m_vertical_tabs_content);
@@ -2825,6 +2830,10 @@ void TabWidget::update_tab_layout()
         controls_width += m_window_controls->width();
 
     auto available_for_tabs = width() - controls_width - 36;
+
+    // NB: The tab strip has no minimum width from its contents (see the constructor), so it keeps the window wide enough
+    //     for its controls with a minimum of its own.
+    m_tab_bar_row->setMinimumWidth(controls_width + 36);
 
     m_tab_bar->set_available_width(available_for_tabs);
 
