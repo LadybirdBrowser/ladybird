@@ -994,18 +994,27 @@ fn float64_values_get_floating_point_registers() {
     let program = assemble(|_| {
         vec![
             Instruction::Enter,
-            Instruction::CallBuiltinMathSqrt {
+            Instruction::Call {
+                value_feedback: 0,
                 call_feedback: 0,
                 dst: r(5),
                 callee: r(6),
                 this_value: r(7),
-                argument: a(0),
+                argument_count: 1,
                 expression_string: None,
+                arguments: vec![a(0)],
             },
             Instruction::Return { value: r(5) },
         ]
     });
-    let graph = build(&program);
+    let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
+    snapshot.runtime.layout.builtin_math_sqrt = 13;
+    snapshot.executables[0].feedback.call = vec![crate::snapshot::CallFeedbackSnapshot {
+        target_builtin: Some(13),
+        ..Default::default()
+    }];
+    let mut graph = crate::builder::build_graph_with_feedback(&snapshot, &|_| true).unwrap();
+    crate::passes::optimize(&mut graph, &snapshot.executables[0].layout, true);
     let allocation = allocate_and_verify(&graph);
     let mut floats = 0;
     for (index, node) in graph.nodes.iter().enumerate() {

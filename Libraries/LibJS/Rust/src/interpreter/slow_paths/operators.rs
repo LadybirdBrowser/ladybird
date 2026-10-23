@@ -16,7 +16,6 @@ use crate::runtime::big_int::BigInt;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::value::{self, PreferredType};
-use crate::utf16::Utf16View;
 
 /// Stores the result of the binary operator instruction at `pc`, whose length is `length`, and continues after it.
 /// NB: The slow paths that receive their operands in registers each serve the instruction of one opcode, so they know
@@ -476,24 +475,6 @@ pub fn helper_to_boolean(encoded_value: u64) -> u64 {
     u64::from(value.to_boolean())
 }
 
-pub fn helper_math_exp(encoded_value: u64) -> u64 {
-    let value = Value(encoded_value);
-    Value::from_f64(value.as_f64().exp()).0
-}
-
-pub fn helper_empty_string(vm: &Vm) -> u64 {
-    Value::from_string(vm.empty_string()).0
-}
-
 pub fn helper_single_ascii_character_string(vm: &Vm, encoded_value: u64) -> u64 {
     Value::from_string(vm.single_ascii_character_string(encoded_value as u8)).0
-}
-
-pub fn helper_single_utf16_code_unit_string(vm: &Vm, encoded_value: u64) -> u64 {
-    let code_unit = encoded_value as u16;
-    Value::from_string(PrimitiveString::create_from_utf16_view(
-        vm,
-        Utf16View::Utf16(&[code_unit]),
-    ))
-    .0
 }

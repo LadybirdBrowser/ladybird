@@ -16,7 +16,6 @@ use super::Flow;
 use super::GenericInfo;
 use super::GraphBuilder;
 use super::SlotState;
-use super::intrinsics::StringCharacter;
 use crate::CompileFailure;
 use crate::bytecode::Instruction;
 use crate::bytecode::OpCode;
@@ -26,8 +25,6 @@ use crate::code::ExitKind;
 use crate::code::Repr;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
-use crate::ir::Float64Function;
-use crate::ir::Float64UnaryOp;
 use crate::ir::FrameStateId;
 use crate::ir::NodeId;
 use crate::ir::Op;
@@ -70,90 +67,6 @@ impl GraphBuilder<'_> {
                 self.build_conversion(BranchCondition::NonNegativeInt32, dst, value)
             }
             Instruction::ResolveThisBinding => self.build_resolve_this_binding(),
-            Instruction::CallBuiltinMathAbs {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_function(Float64UnaryOp::Abs, dst, callee, argument, call_feedback),
-            Instruction::CallBuiltinMathFloor {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_function(Float64UnaryOp::Floor, dst, callee, argument, call_feedback),
-            Instruction::CallBuiltinMathCeil {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_function(Float64UnaryOp::Ceil, dst, callee, argument, call_feedback),
-            Instruction::CallBuiltinMathRound {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_function(Float64UnaryOp::Round, dst, callee, argument, call_feedback),
-            Instruction::CallBuiltinMathSqrt {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_function(Float64UnaryOp::Sqrt, dst, callee, argument, call_feedback),
-            Instruction::CallBuiltinMathExp {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_call(Float64Function::Exp, dst, callee, &[argument], call_feedback),
-            Instruction::CallBuiltinMathLog {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_call(Float64Function::Log, dst, callee, &[argument], call_feedback),
-            Instruction::CallBuiltinMathSin {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_call(Float64Function::Sin, dst, callee, &[argument], call_feedback),
-            Instruction::CallBuiltinMathCos {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_call(Float64Function::Cos, dst, callee, &[argument], call_feedback),
-            Instruction::CallBuiltinMathTan {
-                dst,
-                callee,
-                argument,
-                call_feedback,
-                ..
-            } => self.build_math_call(Float64Function::Tan, dst, callee, &[argument], call_feedback),
-            Instruction::CallBuiltinMathPow {
-                dst,
-                callee,
-                argument0,
-                argument1,
-                call_feedback,
-                ..
-            } => self.build_math_call(
-                Float64Function::Pow,
-                dst,
-                callee,
-                &[argument0, argument1],
-                call_feedback,
-            ),
             Instruction::GetIterator {
                 dst_iterator_object,
                 dst_iterator_next,
@@ -196,20 +109,6 @@ impl GraphBuilder<'_> {
                 keys,
                 cursor,
             } => self.build_object_property_iterator_next(dst_value, dst_done, receiver, keys, cursor),
-            Instruction::CallBuiltinStringPrototypeCharCodeAt {
-                dst,
-                callee,
-                this_value,
-                argument,
-                ..
-            } => self.build_string_character(StringCharacter::CodeUnit, dst, callee, this_value, argument),
-            Instruction::CallBuiltinStringPrototypeCharAt {
-                dst,
-                callee,
-                this_value,
-                argument,
-                ..
-            } => self.build_string_character(StringCharacter::String, dst, callee, this_value, argument),
             Instruction::GetByValue { .. } => self.build_get_by_value(instruction, info),
             Instruction::PutByValue { .. } => self.build_put_by_value(instruction, info),
             Instruction::GetLength { .. } => self.build_get_length(instruction),

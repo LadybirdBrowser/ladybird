@@ -51,6 +51,17 @@ extern "C" fn marker_scalar(vm: *mut u64, pc: u32, _instruction: *const u8, _val
     }
 }
 
+/// A fake `libjs_jit_call` that writes `MARKER` into the destination of the
+/// `Call`.
+extern "C" fn marker_call(vm: *mut u64, frame: *mut u64, pc: u32) -> i64 {
+    let Instruction::Call { dst, .. } = decoded(vm, pc) else {
+        panic!("not a Call");
+    };
+    // SAFETY: The frame is the fake frame of the running test.
+    unsafe { *frame.add(FRAME_HEADER_WORDS + dst.raw() as usize) = MARKER };
+    continuation_after(vm, pc)
+}
+
 /// Counts its calls, and writes `MARKER`.
 extern "C" fn marker_comparison(vm: *mut u64, pc: u32, dst: *mut u64, _lhs: u64, _rhs: u64) -> i64 {
     // SAFETY: The fake VM has a word for this, and compiled code passes the
@@ -263,23 +274,7 @@ fn marker_runtime() -> RuntimeInfo {
     ] {
         set(opcode, throwing_binding_read as *const () as u64);
     }
-    for opcode in [
-        O::CallBuiltinStringPrototypeCharCodeAt,
-        O::CallBuiltinStringPrototypeCharAt,
-        O::CallBuiltinMathAbs,
-        O::CallBuiltinMathFloor,
-        O::CallBuiltinMathCeil,
-        O::CallBuiltinMathRound,
-        O::CallBuiltinMathSqrt,
-        O::CallBuiltinMathExp,
-        O::CallBuiltinMathLog,
-        O::CallBuiltinMathSin,
-        O::CallBuiltinMathCos,
-        O::CallBuiltinMathTan,
-        O::CallBuiltinMathPow,
-    ] {
-        set(opcode, marker_scalar as *const () as u64);
-    }
+    runtime.jit_call = marker_call as *const () as u64;
     runtime.float64_functions = crate::snapshot::Float64FunctionAddresses(fake_float64_function);
     for opcode in [O::ObjectPropertyIteratorNext, O::ResolveThisBinding, O::CreateVariable] {
         set(opcode, marker_put as *const () as u64);
@@ -3386,6 +3381,30 @@ fn get_by_value_of_string_characters() {
     assert_eq!(get(value::int32(5), value::int32(0)), MARKER);
 }
 
+/// A `Call` of the callee in `argument(0)` with `this_value` and
+/// `arguments`, into `r(5)`.
+fn builtin_call(this_value: Operand, arguments: Vec<Operand>) -> Instruction {
+    Instruction::Call {
+        value_feedback: 0,
+        call_feedback: 0,
+        dst: r(5),
+        callee: argument(0),
+        this_value,
+        argument_count: arguments.len() as u32,
+        expression_string: None,
+        arguments,
+    }
+}
+
+/// Makes the feedback of the `Call` of `builtin_call()` say it saw the
+/// builtin `builtin`.
+fn saw_builtin(snapshot: &mut Snapshot, builtin: u8) {
+    snapshot.executables[0].feedback.call = vec![crate::snapshot::CallFeedbackSnapshot {
+        target_builtin: Some(builtin),
+        ..Default::default()
+    }];
+}
+
 /// Fake function memory: its flags at byte 8, and the builtin it is (if
 /// any) at bytes 24 and 25, see `function_object_builtin` in the test
 /// layout.
@@ -3401,25 +3420,7 @@ fn string_character_builtin_calls() {
         0x10_0000 + 64 * character as u64
     })));
     let call = |code_unit: bool, callee: u64, this_value: u64, index: u64| {
-        let instruction = if code_unit {
-            Instruction::CallBuiltinStringPrototypeCharCodeAt {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(1),
-                argument: argument(2),
-                expression_string: None,
-            }
-        } else {
-            Instruction::CallBuiltinStringPrototypeCharAt {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(1),
-                argument: argument(2),
-                expression_string: None,
-            }
-        };
+        let instruction = builtin_call(argument(1), vec![argument(2)]);
         let program = assemble(|_| {
             vec![
                 Instruction::Enter,
@@ -3430,7 +3431,10 @@ fn string_character_builtin_calls() {
         let (result, _) = run_program_with_snapshot(
             &program,
             &[callee, this_value, index],
-            |snapshot| snapshot.runtime.layout.single_ascii_character_strings = characters.as_ptr() as u64,
+            |snapshot| {
+                snapshot.runtime.layout.single_ascii_character_strings = characters.as_ptr() as u64;
+                saw_builtin(snapshot, if code_unit { 7 } else { 8 });
+            },
             |_| {},
         );
         assert_eq!(result.status, RETURNED);
@@ -3485,48 +3489,7 @@ fn math_builtin_calls() {
     ];
     // NB: Where the code exited before, it calls the slow path instead.
     let call_with = |builtin: u8, callee: u64, argument_value: u64, exited: bool| {
-        let instruction = match builtin {
-            9 => Instruction::CallBuiltinMathAbs {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(2),
-                argument: argument(1),
-                expression_string: None,
-            },
-            10 => Instruction::CallBuiltinMathFloor {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(2),
-                argument: argument(1),
-                expression_string: None,
-            },
-            11 => Instruction::CallBuiltinMathCeil {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(2),
-                argument: argument(1),
-                expression_string: None,
-            },
-            12 => Instruction::CallBuiltinMathRound {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(2),
-                argument: argument(1),
-                expression_string: None,
-            },
-            _ => Instruction::CallBuiltinMathSqrt {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(2),
-                argument: argument(1),
-                expression_string: None,
-            },
-        };
+        let instruction = builtin_call(argument(2), vec![argument(1)]);
         let program = assemble(|_| {
             vec![
                 Instruction::Enter,
@@ -3539,6 +3502,7 @@ fn math_builtin_calls() {
             &program,
             &[callee, argument_value, value::UNDEFINED],
             |snapshot| {
+                saw_builtin(snapshot, builtin);
                 if exited {
                     snapshot.executables[0].exit_sites = vec![(pc, ExitKind::SlowPath), (pc, ExitKind::Overflow)];
                 }
@@ -3671,57 +3635,12 @@ fn math_function_calls() {
     ];
     // NB: Where the code exited before, it calls the slow path instead.
     let call_with = |builtin: u8, callee: u64, argument0: u64, argument1: u64, exited: bool| {
-        let instruction = match builtin {
-            14 => Instruction::CallBuiltinMathExp {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(0),
-                argument: argument(1),
-                expression_string: None,
-            },
-            15 => Instruction::CallBuiltinMathLog {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(0),
-                argument: argument(1),
-                expression_string: None,
-            },
-            16 => Instruction::CallBuiltinMathSin {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(0),
-                argument: argument(1),
-                expression_string: None,
-            },
-            17 => Instruction::CallBuiltinMathCos {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(0),
-                argument: argument(1),
-                expression_string: None,
-            },
-            18 => Instruction::CallBuiltinMathTan {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(0),
-                argument: argument(1),
-                expression_string: None,
-            },
-            _ => Instruction::CallBuiltinMathPow {
-                call_feedback: 0,
-                dst: r(5),
-                callee: argument(0),
-                this_value: argument(0),
-                argument0: argument(1),
-                argument1: argument(2),
-                expression_string: None,
-            },
+        let arguments = if builtin == 19 {
+            vec![argument(1), argument(2)]
+        } else {
+            vec![argument(1)]
         };
+        let instruction = builtin_call(argument(0), arguments);
         let program = assemble(|_| {
             vec![
                 Instruction::Enter,
@@ -3734,6 +3653,7 @@ fn math_function_calls() {
             &program,
             &[callee, argument0, argument1],
             |snapshot| {
+                saw_builtin(snapshot, builtin);
                 if exited {
                     snapshot.executables[0].exit_sites = vec![(pc, ExitKind::SlowPath)];
                 }

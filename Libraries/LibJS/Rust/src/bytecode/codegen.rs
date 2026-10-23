@@ -47,7 +47,6 @@ use num_traits::ToPrimitive;
 use num_traits::Zero;
 
 use libjs_abi::ArgumentsKind;
-use libjs_abi::Builtin;
 use libjs_abi::ClassElementKind;
 use libjs_abi::CompletionType;
 use libjs_abi::EnvironmentMode;
@@ -3661,13 +3660,6 @@ fn generate_call_expression(
     let is_direct_eval = !is_new
         && matches!(&data.callee.inner, ExpressionKind::Identifier(ident) if arena.name_slice(*ident) == utf16!("eval"));
 
-    // Detect known builtins for member expression callees (e.g. Math.abs).
-    let builtin: Option<Builtin> = if !is_new {
-        get_builtin(&data.callee, &generator.arena)
-    } else {
-        None
-    };
-
     // For method calls (obj.method()), we need to use the object as `this`.
     let (callee, this_value) = if !is_new {
         match &data.callee.inner {
@@ -3877,31 +3869,6 @@ fn generate_call_expression(
                 expression_string,
                 arguments,
             });
-        } else if let Some(builtin) = builtin {
-            if builtin.argument_count() == arguments.len() {
-                emit_builtin_call(
-                    generator,
-                    builtin,
-                    dst.operand(),
-                    callee.operand(),
-                    this_value.operand(),
-                    expression_string,
-                    arguments,
-                );
-            } else {
-                let value_feedback = generator.next_value_feedback();
-                let call_feedback = generator.next_call_feedback();
-                generator.emit(Instruction::Call {
-                    value_feedback,
-                    call_feedback,
-                    dst: dst.operand(),
-                    callee: callee.operand(),
-                    this_value: this_value.operand(),
-                    argument_count: u32_from_usize(arguments.len()),
-                    expression_string,
-                    arguments,
-                });
-            }
         } else {
             let value_feedback = generator.next_value_feedback();
             let call_feedback = generator.next_call_feedback();
@@ -9627,190 +9594,6 @@ fn collect_binding_pattern_names(
 struct FdiParameterName {
     name: Utf16String,
     is_local: bool,
-}
-
-/// Detect known builtin methods from a callee expression (e.g. Math.abs).
-/// Returns the builtin the callee names, if any.
-fn get_builtin(callee: &Expression, arena: &crate::ast::AstArena) -> Option<Builtin> {
-    let ExpressionKind::Member(member_data) = &callee.inner else {
-        return None;
-    };
-    if member_data.computed {
-        return None;
-    }
-    let ExpressionKind::Identifier(property_ident) = &member_data.property.inner else {
-        return None;
-    };
-    let property_name = arena.name_slice(*property_ident);
-    if property_name == utf16!("charAt") {
-        return Some(Builtin::StringPrototypeCharAt);
-    }
-    if property_name == utf16!("charCodeAt") {
-        return Some(Builtin::StringPrototypeCharCodeAt);
-    }
-    let ExpressionKind::Identifier(base_ident) = &member_data.object.inner else {
-        return None;
-    };
-    let base_name = arena.name_slice(*base_ident);
-    static BUILTINS: &[(&[u16], &[u16], Builtin)] = &[
-        (utf16!("Math"), utf16!("abs"), Builtin::MathAbs),
-        (utf16!("Math"), utf16!("log"), Builtin::MathLog),
-        (utf16!("Math"), utf16!("pow"), Builtin::MathPow),
-        (utf16!("Math"), utf16!("exp"), Builtin::MathExp),
-        (utf16!("Math"), utf16!("ceil"), Builtin::MathCeil),
-        (utf16!("Math"), utf16!("floor"), Builtin::MathFloor),
-        (utf16!("Math"), utf16!("imul"), Builtin::MathImul),
-        (utf16!("Math"), utf16!("random"), Builtin::MathRandom),
-        (utf16!("Math"), utf16!("round"), Builtin::MathRound),
-        (utf16!("Math"), utf16!("sqrt"), Builtin::MathSqrt),
-        (utf16!("Math"), utf16!("sin"), Builtin::MathSin),
-        (utf16!("Math"), utf16!("cos"), Builtin::MathCos),
-        (utf16!("Math"), utf16!("tan"), Builtin::MathTan),
-        (utf16!("RegExpPrototype"), utf16!("exec"), Builtin::RegExpPrototypeExec),
-        (
-            utf16!("RegExpPrototype"),
-            utf16!("replace"),
-            Builtin::RegExpPrototypeReplace,
-        ),
-        (
-            utf16!("RegExpPrototype"),
-            utf16!("split"),
-            Builtin::RegExpPrototypeSplit,
-        ),
-        (
-            utf16!("InternalBuiltin"),
-            utf16!("ordinary_has_instance"),
-            Builtin::OrdinaryHasInstance,
-        ),
-        (
-            utf16!("ArrayIteratorPrototype"),
-            utf16!("next"),
-            Builtin::ArrayIteratorPrototypeNext,
-        ),
-        (
-            utf16!("MapIteratorPrototype"),
-            utf16!("next"),
-            Builtin::MapIteratorPrototypeNext,
-        ),
-        (
-            utf16!("SetIteratorPrototype"),
-            utf16!("next"),
-            Builtin::SetIteratorPrototypeNext,
-        ),
-        (
-            utf16!("StringIteratorPrototype"),
-            utf16!("next"),
-            Builtin::StringIteratorPrototypeNext,
-        ),
-        (utf16!("String"), utf16!("fromCharCode"), Builtin::StringFromCharCode),
-    ];
-    for &(base, property, id) in BUILTINS {
-        if base_name == base && property_name == property {
-            return Some(id);
-        }
-    }
-    None
-}
-
-fn emit_builtin_call(
-    generator: &mut Generator,
-    builtin: Builtin,
-    dst: Operand,
-    callee: Operand,
-    this_value: Operand,
-    expression_string: Option<StringTableIndex>,
-    arguments: Vec<Operand>,
-) {
-    macro_rules! emit_nullary_builtin_instruction {
-        ($instruction:ident) => {{
-            let call_feedback = generator.next_call_feedback();
-            generator.emit(Instruction::$instruction {
-                call_feedback,
-                dst,
-                callee,
-                this_value,
-                expression_string,
-            });
-        }};
-    }
-
-    macro_rules! emit_unary_builtin_instruction {
-        ($instruction:ident) => {{
-            let call_feedback = generator.next_call_feedback();
-            generator.emit(Instruction::$instruction {
-                call_feedback,
-                dst,
-                callee,
-                this_value,
-                argument: arguments[0],
-                expression_string,
-            });
-        }};
-    }
-
-    macro_rules! emit_binary_builtin_instruction {
-        ($instruction:ident) => {{
-            let call_feedback = generator.next_call_feedback();
-            generator.emit(Instruction::$instruction {
-                call_feedback,
-                dst,
-                callee,
-                this_value,
-                argument0: arguments[0],
-                argument1: arguments[1],
-                expression_string,
-            });
-        }};
-    }
-
-    match builtin {
-        Builtin::MathAbs => emit_unary_builtin_instruction!(CallBuiltinMathAbs),
-        Builtin::MathLog => emit_unary_builtin_instruction!(CallBuiltinMathLog),
-        Builtin::MathPow => emit_binary_builtin_instruction!(CallBuiltinMathPow),
-        Builtin::MathExp => emit_unary_builtin_instruction!(CallBuiltinMathExp),
-        Builtin::MathCeil => emit_unary_builtin_instruction!(CallBuiltinMathCeil),
-        Builtin::MathFloor => emit_unary_builtin_instruction!(CallBuiltinMathFloor),
-        Builtin::MathImul => emit_binary_builtin_instruction!(CallBuiltinMathImul),
-        Builtin::MathRandom => emit_nullary_builtin_instruction!(CallBuiltinMathRandom),
-        Builtin::MathRound => emit_unary_builtin_instruction!(CallBuiltinMathRound),
-        Builtin::MathSqrt => emit_unary_builtin_instruction!(CallBuiltinMathSqrt),
-        Builtin::MathSin => emit_unary_builtin_instruction!(CallBuiltinMathSin),
-        Builtin::MathCos => emit_unary_builtin_instruction!(CallBuiltinMathCos),
-        Builtin::MathTan => emit_unary_builtin_instruction!(CallBuiltinMathTan),
-        Builtin::RegExpPrototypeExec => {
-            emit_unary_builtin_instruction!(CallBuiltinRegExpPrototypeExec);
-        }
-        Builtin::RegExpPrototypeReplace => {
-            emit_binary_builtin_instruction!(CallBuiltinRegExpPrototypeReplace);
-        }
-        Builtin::RegExpPrototypeSplit => {
-            emit_binary_builtin_instruction!(CallBuiltinRegExpPrototypeSplit);
-        }
-        Builtin::OrdinaryHasInstance => {
-            emit_unary_builtin_instruction!(CallBuiltinOrdinaryHasInstance);
-        }
-        Builtin::ArrayIteratorPrototypeNext => {
-            emit_nullary_builtin_instruction!(CallBuiltinArrayIteratorPrototypeNext);
-        }
-        Builtin::MapIteratorPrototypeNext => {
-            emit_nullary_builtin_instruction!(CallBuiltinMapIteratorPrototypeNext);
-        }
-        Builtin::SetIteratorPrototypeNext => {
-            emit_nullary_builtin_instruction!(CallBuiltinSetIteratorPrototypeNext);
-        }
-        Builtin::StringIteratorPrototypeNext => {
-            emit_nullary_builtin_instruction!(CallBuiltinStringIteratorPrototypeNext);
-        }
-        Builtin::StringFromCharCode => {
-            emit_unary_builtin_instruction!(CallBuiltinStringFromCharCode);
-        }
-        Builtin::StringPrototypeCharCodeAt => {
-            emit_unary_builtin_instruction!(CallBuiltinStringPrototypeCharCodeAt);
-        }
-        Builtin::StringPrototypeCharAt => {
-            emit_unary_builtin_instruction!(CallBuiltinStringPrototypeCharAt);
-        }
-    }
 }
 
 /// JS ToInt32 conversion (ECMA-262 7.1.6).
