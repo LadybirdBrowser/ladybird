@@ -65,9 +65,6 @@ pub(crate) struct SizingContext<'pass> {
     style_cache: Cell<Option<(Node, &'pass FfiStylePayloads)>>,
 }
 
-/// Whether a size is auto without a calc-size() that changes the size auto gives.
-/// NB: A replaced element's size given as calc-size() resolves to a used size that the other size follows through
-///     the aspect ratio.
 /// Whether a size is `auto` itself, rather than a calc-size() with an auto basis.
 pub(crate) fn is_plain_auto(size: &ComputedSize) -> bool {
     size.is_auto() && size.calc_size().is_none()
@@ -462,7 +459,7 @@ impl<'pass> SizingContext<'pass> {
             preferred_block_size
         };
         // NB: A height given as calc-size() resolves to a used height that the width follows through the ratio.
-        let block_size_is_auto = computed_block_size.is_auto() && computed_block_size.calc_size().is_none();
+        let block_size_is_auto = is_plain_auto(computed_block_size);
         let used_inline_size = if computed_inline_size.is_auto() {
             computed_inline_size.to_px(available_space.inline_size.to_px_or_zero())
         } else {

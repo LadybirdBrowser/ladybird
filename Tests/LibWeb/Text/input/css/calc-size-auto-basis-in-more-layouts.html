@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+.flex { display: flex; width: 300px; align-items: start; }
+.content { width: 10px; height: 40px; }
+.abspos-container { position: relative; width: 300px; height: 300px; }
+</style>
+<div class="flex"><div id="flex-max" style="height: calc-size(auto, size * 2); max-height: 50px"><div class="content"></div></div></div>
+<div class="flex"><div id="flex-min" style="min-height: calc-size(auto, 100px)"><div class="content"></div></div></div>
+<div class="flex"><div style="height: calc-size(auto, size + 10px)"><div id="flex-percentage-child" style="height: 100%"><div class="content"></div></div></div></div>
+<div class="flex"><canvas id="flex-replaced" width="100" height="10" style="flex: 0 0 calc-size(max-content, size / 2); min-width: 0"></canvas></div>
+<div style="display: flex"><div id="flex-stretched" style="height: calc-size(stretch, size + 10px)"><div class="content"></div></div><div style="height: 50px"></div></div>
+<div id="block-min" style="width: 50px; min-width: calc-size(auto, 200px)"></div>
+<div class="abspos-container"><div id="abspos-insets" style="position: absolute; top: 0; bottom: 0; height: calc-size(auto, size / 2)"></div></div>
+<div class="abspos-container"><div id="abspos-content" style="position: absolute; height: calc-size(auto, size + 20px)"><div class="content"></div></div></div>
+<script>
+test(() => {
+    const size = (id, property) => getComputedStyle(document.getElementById(id))[property];
+    println(`flex item with a clamped calc-size() height: ${size("flex-max", "height")}`);
+    println(`flex item with a calc-size() min-height: ${size("flex-min", "height")}`);
+    println(`percentage child of a flex item with a calc-size() height: ${size("flex-percentage-child", "height")}`);
+    println(`replaced flex item with a calc-size() flex-basis: ${size("flex-replaced", "width")}`);
+    println(`stretched flex item with a calc-size() height of an indefinite stretch: ${size("flex-stretched", "height")}`);
+    println(`block with a calc-size() min-width: ${size("block-min", "width")}`);
+    println(`abspos with insets and a calc-size() height: ${size("abspos-insets", "height")}`);
+    println(`abspos with a calc-size() height around its content: ${size("abspos-content", "height")}`);
+});
+</script>
