@@ -107,9 +107,6 @@ public:
     void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2);
     void glyph_run(GlyphRun const&);
 
-    void horizontal_line_to(float x) { line_to({ x, last_point().y() }); }
-    void vertical_line_to(float y) { line_to({ last_point().x(), y }); }
-
     void append_path(Gfx::Path const&);
 
     [[nodiscard]] Vector<u8> serialize_to_bytes() const;
