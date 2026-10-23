@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 120 tests
+Found 136 tests
 
-120 Pass
+132 Pass
+4 Fail
 Pass	Property color value 'lab(0 0 0)'
 Pass	Property color value 'lab(0 0 0 / 1)'
 Pass	Property color value 'lab(0 0 0 / 0.5)'
@@ -76,8 +77,16 @@ Pass	Property color value 'lch(none none none)'
 Pass	Property color value 'lch(20 none none / none)'
 Pass	Property color value 'lch(none none none / 0.5)'
 Pass	Property color value 'lch(0 0 0 / none)'
+Pass	Property color value 'lch(calc(infinity) 0 0)'
+Pass	Property color value 'lch(calc(-infinity) 0 0)'
+Fail	Property color value 'lch(50 calc(infinity) 0)'
+Pass	Property color value 'lch(50 calc(-infinity) 0)'
+Pass	Property color value 'lch(50 10 calc(infinity))'
+Fail	Property color value 'lch(50 10 calc(-infinity))'
 Pass	Property color value 'lch(calc(NaN) 0 0)'
 Pass	Property color value 'lch(calc(0 / 0) 0 0)'
+Pass	Property color value 'lch(50 10 calc(0 / 0))'
+Pass	Property color value 'lch(50 10 calc(NaN))'
 Pass	Property color value 'oklch(0 0 0deg)'
 Pass	Property color value 'oklch(0 0 0deg / 1)'
 Pass	Property color value 'oklch(0 0 0deg / 0.5)'
@@ -105,8 +114,16 @@ Pass	Property color value 'oklch(none none none / 0.5)'
 Pass	Property color value 'oklch(0 0 0 / none)'
 Pass	Property color value 'lch(20% 80% 10/0.5)'
 Pass	Property color value 'oklch(20% 60% 10/0.5)'
+Pass	Property color value 'oklch(calc(infinity) 0 0)'
+Pass	Property color value 'oklch(calc(-infinity) 0 0)'
+Fail	Property color value 'oklch(0.5 calc(infinity) 0)'
+Pass	Property color value 'oklch(0.5 calc(-infinity) 0)'
+Pass	Property color value 'oklch(0.5 0.1 calc(infinity))'
+Fail	Property color value 'oklch(0.5 0.1 calc(-infinity))'
 Pass	Property color value 'oklch(calc(NaN) 0 0)'
 Pass	Property color value 'oklch(calc(0 / 0) 0 0)'
+Pass	Property color value 'oklch(0.5 0.1 calc(0 / 0))'
+Pass	Property color value 'oklch(0.5 0.1 calc(NaN))'
 Pass	Property color value 'lab(calc(50 + (sign(1em - 10px) * 10)) 30 50 / 50%)'
 Pass	Property color value 'oklab(calc(0.5 + (sign(1em - 10px) * 0.1)) 0.3 0.5 / 50%)'
 Pass	Property color value 'lab(60 30 50 / calc(50% + (sign(1em - 10px) * 10%)))'

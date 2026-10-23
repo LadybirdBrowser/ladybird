@@ -1,26 +1,41 @@
 Harness status: OK
 
-Found 56 tests
+Found 70 tests
 
-56 Pass
+58 Pass
+12 Fail
 Pass	Property color value 'hwb(120 30% 50%)'
+Pass	Property color value 'hwb(120 60% 60%)'
+Pass	Property color value 'hwb(0 60% 60%)'
+Pass	Property color value 'hwb(0 100% 0%)'
+Pass	Property color value 'hwb(0 0% 100%)'
 Pass	Property color value 'hwb(120 30% 50% / 0.5)'
 Pass	Property color value 'hwb(120 30% 50% / 50%)'
-Pass	Property color value 'hwb(none none none)'
+Fail	Property color value 'hwb(none none none)'
 Pass	Property color value 'hwb(0 0% 0%)'
-Pass	Property color value 'hwb(none none none / none)'
+Fail	Property color value 'hwb(none none none / none)'
 Pass	Property color value 'hwb(0 0% 0% / 0)'
-Pass	Property color value 'hwb(120 none none)'
+Fail	Property color value 'hwb(120 none none)'
 Pass	Property color value 'hwb(120 0% 0%)'
-Pass	Property color value 'hwb(120 80% none)'
+Fail	Property color value 'hwb(120 80% none)'
 Pass	Property color value 'hwb(120 80% 0%)'
-Pass	Property color value 'hwb(120 none 50%)'
+Fail	Property color value 'hwb(120 none 50%)'
 Pass	Property color value 'hwb(120 0% 50%)'
-Pass	Property color value 'hwb(120 30% 50% / none)'
+Pass	Property color value 'hwb(150 20% 10%)'
+Pass	Property color value 'hwb(45 40% 80%)'
+Fail	Property color value 'hwb(120 30% 50% / none)'
 Pass	Property color value 'hwb(120 30% 50% / 0)'
 Pass	Property color value 'hwb(120 30% 50% / 0%)'
-Pass	Property color value 'hwb(none 100% 50% / none)'
+Fail	Property color value 'hwb(none 100% 50% / none)'
 Pass	Property color value 'hwb(0 100% 50% / 0)'
+Pass	Property color value 'hwb(0 100% 100%)'
+Pass	Property color value 'hwb(0 70% 60%)'
+Pass	Property color value 'hwb(0 260% 260%)'
+Fail	Property color value 'hwb(0 200% 100%)'
+Fail	Property color value 'hwb(0 100% 200%)'
+Fail	Property color value 'hwb(0 150% 50%)'
+Fail	Property color value 'hwb(0 50% 150%)'
+Fail	Property color value 'hwb(0 180% 120%)'
 Pass	Property color value 'hwb(0 50% 50%)' [HWB value should parse and round correctly]
 Pass	Property color value 'hwb(30 50% 50%)' [HWB value should parse and round correctly]
 Pass	Property color value 'hwb(60 50% 50%)' [HWB value should parse and round correctly]

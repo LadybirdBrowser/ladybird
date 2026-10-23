@@ -50,16 +50,17 @@ function set_up_fuzzy_color_test(epsilon) {
  * @param {string} computed   The expected computed color. If omitted, defaults
  *                            to the default test_computed_value test, as
  *                            fuzziness is unnecessary.
- * @param {object} epsilon    Epsilon for comparison of numeric values.
+ * @param {number} epsilon    Epsilon for comparison of numeric values.
+ * @param {string} titleExtra Additional information to put in test output.
  */
 
-function fuzzy_test_computed_color(specified, computed, epsilon) {
+function fuzzy_test_computed_color(specified, computed, epsilon, titleExtra) {
   if (!computed) {
-    test_computed_value("color", specified);
+    test_computed_value("color", specified, undefined, titleExtra);
     return;
   }
 
-  test_computed_value("color", specified, computed, undefined /* titleExtra */, {comparisonFunction: set_up_fuzzy_color_test(epsilon)});
+  test_computed_value("color", specified, computed, titleExtra, {comparisonFunction: set_up_fuzzy_color_test(epsilon)});
 }
 
 /**
@@ -70,16 +71,17 @@ function fuzzy_test_computed_color(specified, computed, epsilon) {
  * @param {string} computed   The expected computed color. If omitted, defaults
  *                            to the default test_computed_value test, as
  *                            fuzziness is unnecessary.
- * @param {object} epsilon    Epsilon for comparison of numeric values.
+ * @param {number} epsilon    Epsilon for comparison of numeric values.
+ * @param {string} titleExtra Additional information to put in test output.
  */
 
-function fuzzy_test_computed_color_property(property, specified, computed, epsilon) {
+function fuzzy_test_computed_color_property(property, specified, computed, epsilon, titleExtra) {
   if (!computed) {
-    test_computed_value(property, specified);
+    test_computed_value(property, specified, undefined, titleExtra);
     return;
   }
 
-  test_computed_value(property, specified, computed, undefined /* titleExtra */, {comparisonFunction: set_up_fuzzy_color_test(epsilon)});
+  test_computed_value(property, specified, computed, titleExtra, {comparisonFunction: set_up_fuzzy_color_test(epsilon)});
 }
 
 /**
@@ -89,7 +91,7 @@ function fuzzy_test_computed_color_property(property, specified, computed, epsil
  * @param {string} parsed     The expected parsed color. If omitted, defaults
  *                            to the default test_valid_value test, as
  *                            fuzziness is unnecessary.
- * @param {object} epsilon    Epsilon for comparison of numeric values.
+ * @param {number} epsilon    Epsilon for comparison of numeric values.
  */
 function fuzzy_test_valid_color(specified, parsed, epsilon) {
   if (!parsed) {
@@ -108,7 +110,7 @@ function fuzzy_test_valid_color(specified, parsed, epsilon) {
  * @param {string} parsed     The expected parsed color. If omitted, defaults
  *                            to the default test_valid_value test, as
  *                            fuzziness is unnecessary.
- * @param {object} epsilon    Epsilon for comparison of numeric values.
+ * @param {number} epsilon    Epsilon for comparison of numeric values.
  */
 function fuzzy_test_valid_color_property(property, specified, parsed, epsilon) {
   if (!parsed) {

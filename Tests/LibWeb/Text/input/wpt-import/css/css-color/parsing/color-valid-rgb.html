@@ -9,26 +9,28 @@
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
 <script src="../../../css/support/parsing-testcommon.js"></script>
+<script src="../../../css/support/color-testcommon.js"></script>
 </head>
 <body>
 <script>
 tests = [
-    ["rgb(none none none)", "rgb(0, 0, 0)"],
-    ["rgb(none none none / none)", "rgba(0, 0, 0, 0)"],
-    ["rgb(128 none none)", "rgb(128, 0, 0)"],
-    ["rgb(128 none none / none)", "rgba(128, 0, 0, 0)"],
-    ["rgb(none none none / .5)", "rgba(0, 0, 0, 0.5)"],
-    ["rgb(20% none none)", "rgb(51, 0, 0)"],
-    ["rgb(20% none none / none)", "rgba(51, 0, 0, 0)"],
-    ["rgb(none none none / 50%)", "rgba(0, 0, 0, 0.5)"],
-    ["rgba(none none none)", "rgb(0, 0, 0)"],
-    ["rgba(none none none / none)", "rgba(0, 0, 0, 0)"],
-    ["rgba(128 none none)", "rgb(128, 0, 0)"],
-    ["rgba(128 none none / none)", "rgba(128, 0, 0, 0)"],
-    ["rgba(none none none / .5)", "rgba(0, 0, 0, 0.5)"],
-    ["rgba(20% none none)", "rgb(51, 0, 0)"],
-    ["rgba(20% none none / none)", "rgba(51, 0, 0, 0)"],
-    ["rgba(none none none / 50%)", "rgba(0, 0, 0, 0.5)"],
+    ["rgb(none none none)", "color(srgb none none none)"],
+    ["rgb(none none none / none)", "color(srgb none none none / none)"],
+    ["rgb(128 none none)", "color(srgb 0.50196078 none none)"],
+    ["rgb(128 none none / none)", "color(srgb 0.50196078 none none / none)"],
+    ["rgb(none none none / .5)", "color(srgb none none none / 0.5)"],
+    ["rgb(20% none none)", "color(srgb 0.2 none none)"],
+    ["rgb(20% none none / none)", "color(srgb 0.2 none none / none)"],
+    ["rgb(none none none / 50%)", "color(srgb none none none / 0.5)"],
+    ["rgba(none none none)", "color(srgb none none none)"],
+    ["rgba(none none none / none)", "color(srgb none none none / none)"],
+    ["rgba(128 none none)", "color(srgb 0.50196078 none none)"],
+    ["rgba(128 none none / none)", "color(srgb 0.501961 none none / none)"],
+    ["rgba(none none none / .5)", "color(srgb none none none / 0.5)"],
+    ["rgba(20% none none)", "color(srgb 0.2 none none)"],
+    ["rgba(20% none none / none)", "color(srgb 0.2 none none / none)"],
+    ["rgba(none none none / 50%)", "color(srgb none none none / 0.5)"],
+
     ["rgb(-2 3 4)", "rgb(0, 3, 4)"],
     ["rgb(-20% 20% 40%)", "rgb(0, 51, 102)"],
     ["rgb(257 30 40)", "rgb(255, 30, 40)"],
@@ -99,7 +101,7 @@ tests = [
 ];
 
 for (const test of tests) {
-    test_valid_value("color", test[0], test[1], test[2] ? `[${test[2]}]` : undefined);
+    fuzzy_test_valid_color(test[0], test[1]);
 }
 
 </script>

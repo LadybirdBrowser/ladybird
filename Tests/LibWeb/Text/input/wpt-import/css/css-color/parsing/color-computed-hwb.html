@@ -24,23 +24,40 @@
 <script>
 tests = [
     ["hwb(120 30% 50%)", "rgb(77, 128, 77)"],
+    ["hwb(120 60% 60%)", "rgb(128, 128, 128)"],
+    ["hwb(0 60% 60%)", "rgb(128, 128, 128)"],
+    ["hwb(0 100% 0%)", "rgb(255, 255, 255)"],
+    ["hwb(0 0% 100%)", "rgb(0, 0, 0)"],
     ["hwb(120 30% 50% / 0.5)", "rgba(77, 128, 77, 0.5)"],
     ["hwb(120 30% 50% / 50%)", "rgba(77, 128, 77, 0.5)"],
-    ["hwb(none none none)", "rgb(255, 0, 0)"],
+    ["hwb(none none none)", "hwb(none none none)"],
     ["hwb(0 0% 0%)", "rgb(255, 0, 0)"],
-    ["hwb(none none none / none)", "rgba(255, 0, 0, 0)"],
+    ["hwb(none none none / none)", "hwb(none none none / none)"],
     ["hwb(0 0% 0% / 0)", "rgba(255, 0, 0, 0)"],
-    ["hwb(120 none none)", "rgb(0, 255, 0)"],
+    ["hwb(120 none none)", "hwb(120 none none)"],
     ["hwb(120 0% 0%)", "rgb(0, 255, 0)"],
-    ["hwb(120 80% none)", "rgb(204, 255, 204)"],
+    ["hwb(120 80% none)", "hwb(120 80% none)"],
     ["hwb(120 80% 0%)", "rgb(204, 255, 204)"],
-    ["hwb(120 none 50%)", "rgb(0, 128, 0)"],
+    ["hwb(120 none 50%)", "hwb(120 none 50%)"],
     ["hwb(120 0% 50%)", "rgb(0, 128, 0)"],
-    ["hwb(120 30% 50% / none)", "rgba(77, 128, 77, 0)"],
+    ["hwb(150 20% 10%)", "rgb(51, 230, 140)"], // https://drafts.csswg.org/css-color-4/#ex-hwb-simple
+    ["hwb(45 40% 80%)", "rgb(85, 85, 85)"], // https://drafts.csswg.org/css-color-4/#ex-hwb-achromatic
+    ["hwb(120 30% 50% / none)", "hwb(120 30% 50% / none)"],
     ["hwb(120 30% 50% / 0)", "rgba(77, 128, 77, 0)"],
     ["hwb(120 30% 50% / 0%)", "rgba(77, 128, 77, 0)"],
-    ["hwb(none 100% 50% / none)", "rgba(170, 170, 170, 0)"],
+    ["hwb(none 100% 50% / none)", "hwb(none 100% 50% / none)"],
     ["hwb(0 100% 50% / 0)", "rgba(170, 170, 170, 0)"],
+
+    // Test `w` or `b` components >= 100%.
+    // Spec: If the sum white+black is greater than or equal to 100%, it defines an achromatic color, i.e. a shade of gray; when converted to sRGB the R, G and B values are identical and have the value white / (white + black).
+    ["hwb(0 100% 100%)",  "rgb(128, 128, 128)"], // 100 / (100 + 100) * 255 = 127.5, round up to 128
+    ["hwb(0 70% 60%)",  "rgb(137, 137, 137)"], // 70 / (70 + 60) * 255 ≈ 137.30769231, rounding to the nearest integer is 137
+    ["hwb(0 260% 260%)",  "rgb(128, 128, 128)"],
+    ["hwb(0 200% 100%)", "rgb(170, 170, 170)"], // 200 / (200 + 100) * 255 = 170
+    ["hwb(0 100% 200%)", "rgb(85, 85, 85)"],
+    ["hwb(0 150% 50%)",  "rgb(191, 191, 191)"],
+    ["hwb(0 50% 150%)",  "rgb(64, 64, 64)"],
+    ["hwb(0 180% 120%)",  "rgb(153, 153, 153)"],
 
     ["hwb(0 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
     ["hwb(30 50% 50%)", "rgb(128, 128, 128)", "HWB value should parse and round correctly"],
