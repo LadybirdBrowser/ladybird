@@ -1,0 +1,10 @@
+columns 50px 50px 50px; grid-column: span 2; margin: auto => left 62.5
+columns 175px; one track; margin: auto => left 62.5
+columns 50px 50px 50px; grid-column: span 2; margin-left: auto => left 125
+columns 175px; one track; margin-left: auto => left 125
+columns 50px 50px 50px; grid-column: span 2; margin-left: 10% => left 17.5
+columns 175px; one track; margin-left: 10% => left 17.5
+rows 50px 50px 50px; grid-row: span 2; margin: auto => top 62.5
+rows 175px; one track; margin: auto => top 62.5
+rows 50px 50px 50px; grid-row: span 2; margin-top: auto => top 125
+rows 175px; one track; margin-top: auto => top 125

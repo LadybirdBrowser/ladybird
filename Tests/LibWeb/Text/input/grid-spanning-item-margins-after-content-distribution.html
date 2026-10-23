@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+</style>
+<script>
+// Content distribution widens the grid areas of spanning items, so their auto and percentage margins must resolve
+// against the final grid areas. The single-track cases use a track as wide as the distributed area for reference.
+test(() => {
+    const inlineCases = [
+        ["50px 50px 50px", "grid-column: span 2", "margin: auto"],
+        ["175px", "", "margin: auto"],
+        ["50px 50px 50px", "grid-column: span 2", "margin-left: auto"],
+        ["175px", "", "margin-left: auto"],
+        ["50px 50px 50px", "grid-column: span 2", "margin-left: 10%"],
+        ["175px", "", "margin-left: 10%"],
+    ];
+    for (const [columns, placement, margins] of inlineCases) {
+        const grid = document.createElement("div");
+        grid.style.cssText = `display: grid; width: 300px; grid-template-columns: ${columns}; justify-content: space-between`;
+        const item = document.createElement("div");
+        item.style.cssText = `width: 50px; height: 10px; ${placement}; ${margins}`;
+        grid.append(item);
+        document.body.append(grid);
+        const left = item.getBoundingClientRect().left - grid.getBoundingClientRect().left;
+        println(`columns ${columns}; ${placement || "one track"}; ${margins} => left ${left}`);
+    }
+
+    const blockCases = [
+        ["50px 50px 50px", "grid-row: span 2", "margin: auto"],
+        ["175px", "", "margin: auto"],
+        ["50px 50px 50px", "grid-row: span 2", "margin-top: auto"],
+        ["175px", "", "margin-top: auto"],
+    ];
+    for (const [rows, placement, margins] of blockCases) {
+        const grid = document.createElement("div");
+        grid.style.cssText = `display: grid; width: 100px; height: 300px; grid-template-rows: ${rows}; align-content: space-between`;
+        const item = document.createElement("div");
+        item.style.cssText = `width: 50px; height: 50px; ${placement}; ${margins}`;
+        grid.append(item);
+        document.body.append(grid);
+        const top = item.getBoundingClientRect().top - grid.getBoundingClientRect().top;
+        println(`rows ${rows}; ${placement || "one track"}; ${margins} => top ${top}`);
+    }
+});
+</script>

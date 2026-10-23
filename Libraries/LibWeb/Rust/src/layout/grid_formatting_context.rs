@@ -3191,8 +3191,15 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn resolve_item_metrics(&mut self, axis: Axis) {
+        self.resolve_metrics_of_items_where(axis, |_| true);
+    }
+
+    fn resolve_metrics_of_items_where(&mut self, axis: Axis, filter: impl Fn(GridItem) -> bool) {
         for item_index in 0..self.items.len() {
             let item = self.items[item_index];
+            if !filter(item) {
+                continue;
+            }
             let style = self.style(item.box_);
             let inline_basis = self.containing_block_size(item, Axis::Column);
             let extra_margin = self.subgrid_gap_extra_margin(axis, self.axis_available(axis));
@@ -3474,8 +3481,15 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn resolve_item_sizes(&mut self, axis: Axis) {
+        self.resolve_sizes_of_items_where(axis, |_| true);
+    }
+
+    fn resolve_sizes_of_items_where(&mut self, axis: Axis, filter: impl Fn(GridItem) -> bool) {
         for item_index in 0..self.items.len() {
             let item = self.items[item_index];
+            if !filter(item) {
+                continue;
+            }
             // https://drafts.csswg.org/css-grid-1/#grid-item-sizing
             // A grid item is sized within the containing block defined by its grid area.
             let containing = self.containing_block_size(item, axis);
@@ -3728,7 +3742,8 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    fn resolve_track_spacing(&mut self, axis: Axis) {
+    /// Returns whether content distribution made the gutters wider than the gap.
+    fn resolve_track_spacing(&mut self, axis: Axis) -> bool {
         let container = self.grid_container_alignment_size(axis);
         let track_sum = self
             .axis_tracks(axis)
@@ -3743,6 +3758,7 @@ impl<'pass> GridFormattingContext<'pass> {
         for (gap, collapse) in gaps.iter_mut().zip(collapsed) {
             gap.base_size = if collapse { CssPixels::default() } else { size };
         }
+        gap_count > 0 && size > minimum
     }
 
     fn used_container_block_size_for_second_row_layout(&self) -> CssPixels {
@@ -4369,8 +4385,8 @@ impl<'pass> GridFormattingContext<'pass> {
             self.use_row_alignment_container_size = true;
         }
         self.re_resolve_columns_with_row_sizes();
-        self.resolve_track_spacing(Axis::Column);
-        self.resolve_track_spacing(Axis::Row);
+        let columns_were_distributed = self.resolve_track_spacing(Axis::Column);
+        let rows_were_distributed = self.resolve_track_spacing(Axis::Row);
 
         if available.inline_size.is_intrinsic_sizing_constraint()
             || available.block_size.is_intrinsic_sizing_constraint()
@@ -4387,6 +4403,20 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.container_used().set_content_block_size(size);
             }
             return;
+        }
+
+        // https://drafts.csswg.org/css-align-3/#distribution-grid
+        // The grid tracks in the appropriate axis, with any spacing inserted between tracks added to the relevant
+        // gutters, and treating collapsed gutters as a single opportunity for space insertion.
+        // NB: Distributed space widens the grid areas of items that span gutters, so size and align those items again
+        //     within their final grid areas.
+        if columns_were_distributed {
+            self.resolve_metrics_of_items_where(Axis::Column, |item| item.column_span > 1);
+            self.resolve_sizes_of_items_where(Axis::Column, |item| item.column_span > 1);
+        }
+        if rows_were_distributed {
+            self.resolve_metrics_of_items_where(Axis::Row, |item| item.row_span > 1);
+            self.resolve_sizes_of_items_where(Axis::Row, |item| item.row_span > 1);
         }
 
         self.layout_items(run);
