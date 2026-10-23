@@ -81,9 +81,9 @@ static String serialize_record_value(JS::Realm& realm, HTML::StorageSerializatio
     return serialized.release_value();
 }
 
-static Vector<IndexedDatabaseDocument> indexed_database_documents_for_inspection(DOM::Document& root_document)
+static GC::ConservativeVector<IndexedDatabaseDocument> indexed_database_documents_for_inspection(DOM::Document& root_document)
 {
-    Vector<IndexedDatabaseDocument> documents;
+    GC::ConservativeVector<IndexedDatabaseDocument> documents;
 
     auto append_document = [&](DOM::Document& document) {
         auto storage_key = StorageAPI::obtain_a_storage_key(document.relevant_settings_object());
