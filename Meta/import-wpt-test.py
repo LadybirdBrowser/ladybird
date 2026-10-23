@@ -66,6 +66,11 @@ raw_reference_paths = []  # As specified in the test HTML
 reference_paths = []  # With parent directories
 
 
+def resource_file_path(resource: str) -> str:
+    # A query or fragment (e.g. a form action of /common/blank.html?1) is not part of the file to download.
+    return resource.split("#")[0].split("?")[0]
+
+
 class LinkedResourceFinder(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -81,7 +86,13 @@ class LinkedResourceFinder(HTMLParser):
 
     @property
     def resources(self) -> set:
-        return self._resources
+        # An empty path refers to the document itself (e.g. a form action of "" or "?1"), and one ending in a slash to a
+        # directory (e.g. a form action of "/"). Neither is a file to import.
+        return {
+            resource
+            for resource in self._resources
+            if resource_file_path(resource) and not resource_file_path(resource).endswith("/")
+        }
 
     def handle_starttag(self, tag, attrs):
         self._tag_stack_.append(tag)
@@ -174,9 +185,10 @@ def map_to_path(
 
     for source in sources:
         base_directory = test_type.input_path if source.type == ResourceType.INPUT else test_type.expected_path
+        resource = resource_file_path(source.resource)
 
-        if source.resource.startswith("/") or not is_resource:
-            file_path = Path(base_directory, source.resource.lstrip("/"))
+        if resource.startswith("/") or not is_resource:
+            file_path = Path(base_directory, resource.lstrip("/"))
         else:
             assert resource_path is not None
             parsed_url = urlparse(source.resource)
@@ -187,7 +199,7 @@ def map_to_path(
             sibling_location = Path(resource_path).parent
             parent_directory = Path(base_directory, sibling_location)
 
-            file_path = Path(parent_directory, source.resource)
+            file_path = Path(parent_directory, resource)
         # Map to source and destination
         output_path = wpt_base_url + str(file_path).replace(base_directory, "")
 
@@ -230,11 +242,15 @@ def modify_sources(files, resources: list[ResourceAndType]) -> None:
         with open(file, "rb") as f:
             page_source = f.read()
 
-        # Iterate all scripts and overwrite the src attribute
-        for resource in dict.fromkeys(r.resource for r in resources):
-            if resource.startswith("/"):
-                new_src_value = parent_folder_path + resource[1::]
-                page_source = page_source.replace(resource.encode(), new_src_value.encode())
+        # Rewrite all absolute resource paths in a single pass, trying longer paths first, so that a path which contains
+        # another (e.g. /common/blank.html?1 and /common/blank.html) is not rewritten twice.
+        absolute_resources = {r.resource for r in resources if r.resource.startswith("/")}
+        if absolute_resources:
+            alternatives = b"|".join(
+                re.escape(resource[1:].encode()) for resource in sorted(absolute_resources, key=len, reverse=True)
+            )
+            pattern = re.compile(b"/(" + alternatives + b")")
+            page_source = pattern.sub(parent_folder_path.encode() + rb"\1", page_source)
 
         # Look for mentions of reference pages, and update their hrefs
         for raw_reference_path, reference_path in zip(raw_reference_paths, reference_paths):
