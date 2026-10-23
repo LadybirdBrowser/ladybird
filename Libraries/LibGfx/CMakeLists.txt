@@ -24,7 +24,6 @@ set(SOURCES
     Font/WOFF2/Loader.cpp
     FontCascadeList.cpp
     GpuDeviceIdentity.cpp
-    GradientPainting.cpp
     Gradients.cpp
     LinuxDmaBufHandle.cpp
     Matrix4x4.cpp
