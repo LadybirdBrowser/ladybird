@@ -10,6 +10,7 @@
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
 <script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/support/color-testcommon.js"></script>
 </head>
 <body>
 <div id="container">
@@ -26,24 +27,24 @@ tests = [
     ["hsl(120 30% 50%)", "rgb(89, 166, 89)"],
     ["hsl(120 30% 50% / 0.5)", "rgba(89, 166, 89, 0.5)"],
     ["hsl(120 30% 50% / 50%)", "rgba(89, 166, 89, 0.5)"],
-    ["hsl(none none none)", "rgb(0, 0, 0)"],
+    ["hsl(none none none)", "hsl(none none none)"],
     ["hsl(0 0% 0%)", "rgb(0, 0, 0)"],
-    ["hsl(none none none / none)", "rgba(0, 0, 0, 0)"],
+    ["hsl(none none none / none)", "hsl(none none none / none)"],
     ["hsl(0 0% 0% / 0)", "rgba(0, 0, 0, 0)"],
-    ["hsla(none none none)", "rgb(0, 0, 0)"],
+    ["hsla(none none none)", "hsl(none none none)"],
     ["hsla(0 0% 0%)", "rgb(0, 0, 0)"],
-    ["hsla(none none none / none)", "rgba(0, 0, 0, 0)"],
+    ["hsla(none none none / none)", "hsl(none none none / none)"],
     ["hsla(0 0% 0% / 0)", "rgba(0, 0, 0, 0)"],
-    ["hsl(120 none none)", "rgb(0, 0, 0)"],
+    ["hsl(120 none none)", "hsl(120 none none)"],
     ["hsl(120 0% 0%)", "rgb(0, 0, 0)"],
-    ["hsl(120 80% none)", "rgb(0, 0, 0)"],
+    ["hsl(120 80% none)", "hsl(120 80% none)"],
     ["hsl(120 80% 0%)", "rgb(0, 0, 0)"],
-    ["hsl(120 none 50%)", "rgb(128, 128, 128)"],
+    ["hsl(120 none 50%)", "hsl(120 none 50%)"],
     ["hsl(120 0% 50%)", "rgb(128, 128, 128)"],
-    ["hsl(120 100% 50% / none)", "rgba(0, 255, 0, 0)"],
+    ["hsl(120 100% 50% / none)", "hsl(120 100% 50% / none)"],
     ["hsl(120 100% 50% / 0)", "rgba(0, 255, 0, 0)"],
     ["hsl(120 100% 50% / 0%)", "rgba(0, 255, 0, 0)"],
-    ["hsl(none 100% 50%)", "rgb(255, 0, 0)"],
+    ["hsl(none 100% 50%)", "hsl(none 100% 50%)"],
     ["hsl(0 100% 50%)", "rgb(255, 0, 0)"],
 
     ["HSL(0, 0%, 0%)", "rgb(0, 0, 0)", "Capitalization should not affect parsing"],
@@ -3782,14 +3783,14 @@ tests = [
 ];
 
 for (const test of tests) {
-    test_computed_value("color", test[0], test[1], test[2] ? `[${test[2]}]` : undefined);
+    fuzzy_test_computed_color(test[0], test[1], undefined /* epsilon */, test[2] ? `[${test[2]}]` : undefined);
 }
 
 // Ensure that `calc` values work with dynamically changing relative units (slighly different alpha values to make test harness not complain about duplicate tests).
 document.getElementById("container").style.width = "1000px";
-test_computed_value("color", "hsla(calc(50deg + (sign(2cqw - 10px) * 10deg)), 100%, 37.5%, 51%)", "rgba(191, 191, 0, 0.51)");
+fuzzy_test_computed_color("hsla(calc(50deg + (sign(2cqw - 10px) * 10deg)), 100%, 37.5%, 51%)", "rgba(191, 191, 0, 0.51)");
 document.getElementById("container").style.width = "100px";
-test_computed_value("color", "hsla(calc(50deg + (sign(2cqw - 10px) * 10deg)), 100%, 37.5%, 52%)", "rgba(191, 127, 0, 0.52)");
+fuzzy_test_computed_color("hsla(calc(50deg + (sign(2cqw - 10px) * 10deg)), 100%, 37.5%, 52%)", "rgba(191, 128, 0, 0.52)");
 
 </script>
 </body>

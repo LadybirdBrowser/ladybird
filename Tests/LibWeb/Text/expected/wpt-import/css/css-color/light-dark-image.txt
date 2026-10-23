@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 35 tests
+
+8 Pass
+27 Fail
+Fail	background-image: light-dark(url('light.png'), url('dark.png'))
+Fail	background-image: light-dark(none, url('dark.png'))
+Fail	background-image: light-dark(url('light.png'), none)
+Fail	background-image: light-dark(none, none)
+Fail	background-image: light-dark(linear-gradient(red, blue), linear-gradient(green, yellow))
+Fail	background-image: light-dark(radial-gradient(red, blue), radial-gradient(green, yellow))
+Fail	background-image: light-dark(conic-gradient(red, blue), conic-gradient(green, yellow))
+Fail	background-image: light-dark(repeating-linear-gradient(red, blue 50px), repeating-linear-gradient(green, yellow 50px))
+Fail	background-image: light-dark(url('light.png'), linear-gradient(red, blue))
+Fail	background-image: light-dark(linear-gradient(red, blue), url('dark.png'))
+Fail	background-image: light-dark(none, linear-gradient(red, blue))
+Fail	background-image: light-dark(linear-gradient(red, blue), none)
+Fail	list-style-image: light-dark(url('light.png'), url('dark.png'))
+Fail	list-style-image: light-dark(none, url('dark.png'))
+Fail	list-style-image: light-dark(url('light.png'), none)
+Fail	border-image-source: light-dark(url('light.png'), url('dark.png'))
+Fail	border-image-source: light-dark(linear-gradient(red, blue), linear-gradient(green, yellow))
+Fail	content: light-dark(url('light.png'), url('dark.png'))
+Fail	background-image: light-dark(light-dark(url('a.png'), url('b.png')), url('c.png'))
+Fail	background-image: light-dark(url('a.png'), light-dark(url('b.png'), url('c.png')))
+Fail	background-image: light-dark() inside image-set()
+Fail	background-image: image-set() inside light-dark()
+Fail	background-image: light-dark() inside -webkit-cross-fade()
+Fail	background-image: light-dark() inside -webkit-cross-fade() inside image-set()
+Fail	Serialization round-trip for light-dark() image
+Fail	Inherited light-dark() image resolves with parent's color-scheme
+Fail	light-dark() image responds to dynamic color-scheme changes
+Pass	background-image: light-dark() (invalid)
+Pass	background-image: light-dark(url(a.png)) (invalid)
+Pass	background-image: light-dark(url(a.png) url(b.png)) (invalid)
+Pass	background-image: light-dark(url(a.png),,url(b.png)) (invalid)
+Pass	background-image: light-dark(red, green) (invalid)
+Pass	background-image: light-dark(red, url(a.png)) (invalid)
+Pass	background-image: light-dark(url(a.png), red) (invalid)
+Pass	background-image: light-dark(url(a.png), url(b.png), url(c.png)) (invalid)

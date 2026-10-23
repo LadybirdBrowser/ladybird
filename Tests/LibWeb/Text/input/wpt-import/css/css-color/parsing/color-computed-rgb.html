@@ -10,6 +10,7 @@
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
 <script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/support/color-testcommon.js"></script>
 </head>
 <body>
 <div id="container">
@@ -27,24 +28,22 @@
 </style>
 <script>
 tests = [
-    ["rgb(none none none)", "rgb(0, 0, 0)"],
-    ["rgb(none none none / none)", "rgba(0, 0, 0, 0)"],
-    ["rgb(128 none none)", "rgb(128, 0, 0)"],
-    ["rgb(128 none none / none)", "rgba(128, 0, 0, 0)"],
-    ["rgb(none none none / .5)", "rgba(0, 0, 0, 0.5)"],
-    ["rgb(20% none none)", "rgb(51, 0, 0)"],
-    ["rgb(20% none none / none)", "rgba(51, 0, 0, 0)"],
-    ["rgb(none none none / 50%)", "rgba(0, 0, 0, 0.5)"],
-    ["rgba(none none none)", "rgb(0, 0, 0)"],
-    ["rgba(none none none / none)", "rgba(0, 0, 0, 0)"],
-    ["rgba(128 none none)", "rgb(128, 0, 0)"],
-    ["rgba(128 none none / none)", "rgba(128, 0, 0, 0)"],
-    ["rgba(none none none / .5)", "rgba(0, 0, 0, 0.5)"],
-    ["rgba(20% none none)", "rgb(51, 0, 0)"],
-    ["rgba(20% none none / none)", "rgba(51, 0, 0, 0)"],
-    ["rgba(none none none / 50%)", "rgba(0, 0, 0, 0.5)"],
-
-    ["rgb(2.5, 3.4, 4.6)", ["rgb(3, 3, 5)", "rgb(2.5, 3.4, 4.6)"], "Tests that RGB channels are rounded appropriately"],
+    ["rgb(none none none)", "color(srgb none none none)"],
+    ["rgb(none none none / none)", "color(srgb none none none / none)"],
+    ["rgb(128 none none)", "color(srgb 0.501961 none none)"],
+    ["rgb(128 none none / none)", "color(srgb 0.501961 none none / none)"],
+    ["rgb(none none none / .5)", "color(srgb none none none / 0.5)"],
+    ["rgb(20% none none)", "color(srgb 0.2 none none)"],
+    ["rgb(20% none none / none)", "color(srgb 0.2 none none / none)"],
+    ["rgb(none none none / 50%)", "color(srgb none none none / 0.5)"],
+    ["rgba(none none none)", "color(srgb none none none)"],
+    ["rgba(none none none / none)", "color(srgb none none none / none)"],
+    ["rgba(128 none none)", "color(srgb 0.501961 none none)"],
+    ["rgba(128 none none / none)", "color(srgb 0.501961 none none / none)"],
+    ["rgba(none none none / .5)", "color(srgb none none none / 0.5)"],
+    ["rgba(20% none none)", "color(srgb 0.2 none none)"],
+    ["rgba(20% none none / none)", "color(srgb 0.2 none none / none)"],
+    ["rgba(none none none / 50%)", "color(srgb none none none / 0.5)"],
 
     ["rgb(00, 51, 102)", "rgb(0, 51, 102)", "Valid numbers should be parsed"],
     ["r\\gb(00, 51, 102)", "rgb(0, 51, 102)", "Correct escape sequences should still parse"],
@@ -138,14 +137,16 @@ tests = [
 ];
 
 for (const test of tests) {
-    test_computed_value("color", test[0], test[1], test[2] ? `[${test[2]}]` : undefined);
+    fuzzy_test_computed_color(test[0], test[1], undefined /* epsilon */, test[2] ? `[${test[2]}]` : undefined);
 }
+
+test_computed_value("color", "rgb(2.5, 3.4, 4.6)", ["rgb(3, 3, 5)", "rgb(2.5, 3.4, 4.6)"], "Tests that RGB channels are rounded appropriately");
 
 // Ensure that `calc` values work with dynamically changing relative units (slighly different alpha values to make test harness not complain about duplicate tests).
 document.getElementById("container").style.width = "1000px";
-test_computed_value("color", "rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 51%)", "rgba(153, 0, 0, 0.51)");
+fuzzy_test_computed_color("rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 51%)", "rgba(153, 0, 0, 0.51)");
 document.getElementById("container").style.width = "100px";
-test_computed_value("color", "rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 52%)", "rgba(102, 0, 0, 0.52)");
+fuzzy_test_computed_color("rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 52%)", "rgba(102, 0, 0, 0.52)");
 
 </script>
 </body>

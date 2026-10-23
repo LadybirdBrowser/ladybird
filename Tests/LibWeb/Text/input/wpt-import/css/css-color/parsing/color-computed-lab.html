@@ -19,7 +19,7 @@
 <style>
   #container {
     container-type: inline-size;
-    color: rgb(255, 0, 0]);
+    color: rgb(255, 0, 0);
   }
 </style>
 <script>
@@ -110,8 +110,17 @@ tests = [
     ["lch(none none none / 0.5)", "lch(none none none / 0.5)"],
     ["lch(0 0 0 / none)", "lch(0 0 0 / none)"],
 
+    ["lch(calc(infinity) 0 0)", "lch(100 0 0)"],
+    ["lch(calc(-infinity) 0 0)", "lch(0 0 0)"],
+    ["lch(50 calc(infinity) 0)", "lch(50 calc(infinity) 0)"],
+    ["lch(50 calc(-infinity) 0)", "lch(50 0 0)"],
+    ["lch(50 10 calc(infinity))", "lch(50 10 0)"],
+    ["lch(50 10 calc(-infinity))", "lch(50 10 0)"],
+
     ["lch(calc(NaN) 0 0)", "lch(0 0 0)"],
     ["lch(calc(0 / 0) 0 0)", "lch(0 0 0)"],
+    ["lch(50 10 calc(0 / 0))", "lch(50 10 0)"],
+    ["lch(50 10 calc(NaN))", "lch(50 10 0)"],
 
     // oklch()
     ["oklch(0 0 0deg)", "oklch(0 0 0)"],
@@ -145,8 +154,17 @@ tests = [
     ["lch(20% 80% 10/0.5)", "lch(20 120 10 / 0.5)"],
     ["oklch(20% 60% 10/0.5)", "oklch(0.2 0.24 10 / 0.5)"],
 
+    ["oklch(calc(infinity) 0 0)", "oklch(1 0 0)"],
+    ["oklch(calc(-infinity) 0 0)", "oklch(0 0 0)"],
+    ["oklch(0.5 calc(infinity) 0)", "oklch(0.5 calc(infinity) 0)"],
+    ["oklch(0.5 calc(-infinity) 0)", "oklch(0.5 0 0)"],
+    ["oklch(0.5 0.1 calc(infinity))", "oklch(0.5 0.1 0)"],
+    ["oklch(0.5 0.1 calc(-infinity))", "oklch(0.5 0.1 0)"],
+
     ["oklch(calc(NaN) 0 0)", "oklch(0 0 0)"],
     ["oklch(calc(0 / 0) 0 0)", "oklch(0 0 0)"],
+    ["oklch(0.5 0.1 calc(0 / 0))", "oklch(0.5 0.1 0)"],
+    ["oklch(0.5 0.1 calc(NaN))", "oklch(0.5 0.1 0)"],
 
     // calc(50% + (sign(1em - 10px) * 10%)), with its font relative units, must be evaluatated for computed value.
     ["lab(calc(50 + (sign(1em - 10px) * 10)) 30 50 / 50%)", "lab(60 30 50 / 0.5)"],
@@ -164,7 +182,7 @@ for (const test of tests) {
     test_computed_value("color", test[0], test[1], test[2] ? `[${test[2]}]` : undefined);
 }
 
-// Ensure that `calc` values work with dynamically changing relative units (slighly different alpha values to make test harness not complain about duplicate tests).
+// Ensure that `calc` values work with dynamically changing relative units (slightly different alpha values to make test harness not complain about duplicate tests).
 document.getElementById("container").style.width = "1000px";
 test_computed_value("color", "lab(calc(50 + (sign(2cqw - 10px) * 10)) 30 50 / 0.51)", "lab(60 30 50 / 0.51)");
 test_computed_value("color", "oklab(calc(0.5 + (sign(2cqw - 10px) * 0.1)) 0.3 0.5 / 0.51)", "oklab(0.6 0.3 0.5 / 0.51)");

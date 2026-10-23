@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 5: alpha() function - computed values</title>
+<link rel="author" title="CGQAQ" href="mailto:cgqaq@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#relative-alpha">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/support/color-testcommon.js"></script>
+<div id="target"></div>
+<script>
+
+const target = document.getElementById('target');
+
+// Basic: replace alpha on a named color.
+test_computed_value("color", "alpha(from red / 0.5)", "color(srgb 1 0 0 / 0.5)");
+test_computed_value("color", "alpha(from blue / 0)", "color(srgb 0 0 1 / 0)");
+test_computed_value("color", "alpha(from rebeccapurple / 1)", "color(srgb 0.4 0.2 0.6)");
+
+// Percentage alpha.
+test_computed_value("color", "alpha(from red / 50%)", "color(srgb 1 0 0 / 0.5)");
+test_computed_value("color", "alpha(from red / 0%)", "color(srgb 1 0 0 / 0)");
+
+// None alpha.
+test_computed_value("color", "alpha(from red / none)", "color(srgb 1 0 0 / none)");
+test_computed_value("color", "color-mix(in srgb, rgb(255 0 0 / 0.5), alpha(from red / none))", "color(srgb 1 0 0 / 0.5)")
+
+// Alpha clamped to [0, 1].
+test_computed_value("color", "alpha(from red / 2)", "color(srgb 1 0 0)");
+test_computed_value("color", "alpha(from red / -1)", "color(srgb 1 0 0 / 0)");
+
+// Origin color with existing alpha.
+test_computed_value("color", "alpha(from rgba(255, 0, 0, 0.3) / 0.8)", "color(srgb 1 0 0 / 0.8)");
+
+// Preserves non-legacy color spaces.
+test_computed_value("color", "alpha(from color(display-p3 1 0 0) / 0.5)", "color(display-p3 1 0 0 / 0.5)");
+test_computed_value("color", "alpha(from color(srgb 1 0 0) / 0.5)", "color(srgb 1 0 0 / 0.5)");
+test_computed_value("color", "alpha(from color(srgb 1 0 0) / 50%)", "color(srgb 1 0 0 / 0.5)");
+
+// calc() referencing the origin's alpha keyword.
+test_computed_value("color", "alpha(from rgba(255, 0, 0, 0.8) / calc(alpha + 0.1))", "color(srgb 1 0 0 / 0.9)");
+test_computed_value("color", "alpha(from rebeccapurple / calc(alpha / 1))", "color(srgb 0.4 0.2 0.6)");
+
+// Nested alpha(): the inner result is the outer origin (and its alpha).
+test_computed_value("color", "alpha(from alpha(from red / 0.5) / calc(alpha + 0.25))", "color(srgb 1 0 0 / 0.75)");
+test_computed_value("color", "alpha(from alpha(from rebeccapurple / 0%) / 100%)", "color(srgb 0.4 0.2 0.6)");
+
+// Other color functions as origin.
+test_computed_value("color", "alpha(from color-mix(in srgb, red, blue) / 0.5)", "color(srgb 0.5 0 0.5 / 0.5)");
+test_computed_value("color", "alpha(from rgb(from red r g b) / 0.8)", "color(srgb 1 0 0 / 0.8)");
+
+// Origin color with 'none'.
+test_computed_value("color", "alpha(from rgb(none none none / none) / alpha)", "color(srgb none none none / none)");
+test_computed_value("color", "alpha(from rgb(none none none) / alpha)", "color(srgb none none none)");
+test_computed_value("color", "alpha(from rgb(0 255 0 / none) / alpha)", "color(srgb 0 1 0 / none)");
+test_computed_value("color", "alpha(from rgb(0 none 0) / alpha)", "color(srgb 0 none 0)");
+
+// alpha() as the origin of other relative color functions: the `alpha` channel
+// keyword reads the alpha produced by alpha().
+test_computed_value("color", "rgb(from alpha(from red / 0.5) r g b / alpha)", "color(srgb 1 0 0 / 0.5)");
+test_computed_value("color", "hsl(from alpha(from red / 0.5) h s l / alpha)", "color(srgb 1 0 0 / 0.5)");
+test_computed_value("color", "lab(from alpha(from lab(50% 20 -30) / 0.5) l a b / alpha)", "lab(50 20 -30 / 0.5)");
+test_computed_value("color", "oklch(from alpha(from oklch(50% 0.2 120) / 0.5) l c h / alpha)", "oklch(0.5 0.2 120 / 0.5)");
+test_computed_value("color", "color(from alpha(from red / 1.5) srgb r g b / calc(alpha - 0.2))", "color(srgb 1 0 0 / 0.8)");
+
+// currentcolor: resolves against the element's color property.
+// Set color on target, then test background-color with currentcolor origin.
+function test_currentcolor_alpha(specified, expected, current) {
+  target.style["color"] = current;
+  fuzzy_test_computed_color_property("background-color", specified, expected);
+}
+
+// Explicit alpha replaces origin alpha.
+test_currentcolor_alpha("alpha(from currentcolor / 0.5)", "color(srgb 1 0 0 / 0.5)", "red");
+// Alpha keyword references origin's alpha.
+test_currentcolor_alpha("alpha(from currentcolor / alpha)", "color(srgb 1 0 0 / 0.8)", "rgba(255, 0, 0, 0.8)");
+// None alpha.
+test_currentcolor_alpha("alpha(from currentcolor / none)", "color(srgb 0.4 0.2 0.6 / none)", "rebeccapurple");
+// Percentage alpha.
+test_currentcolor_alpha("alpha(from currentcolor / 50%)", "color(srgb 1 0 0 / 0.5)", "red");
+// Calc with alpha keyword.
+test_currentcolor_alpha("alpha(from currentcolor / calc(alpha * 0.5))", "color(srgb 1 0 0 / 0.4)", "rgba(255, 0, 0, 0.8)");
+
+</script>

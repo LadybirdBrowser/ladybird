@@ -1,0 +1,318 @@
+<!doctype html>
+<title>light-dark() with image values</title>
+<link rel="author" title="Jason Leo" href="mailto:cgqaq@chromium.org">
+<link rel="author" title="一丝" href="mailto:yiorsi@gmail.com">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#light-dark">
+<div id="light" style="color-scheme: light"></div>
+<div id="dark" style="color-scheme: dark"></div>
+<div id="inherit-parent" style="color-scheme: dark">
+  <div id="inherit-child"></div>
+</div>
+<script>
+function test_light_dark_image(property, value, expected_light, expected_dark) {
+  test(() => {
+    for (let element of [light, dark]) {
+      element.style.setProperty(property, "");
+      element.style.setProperty(property, value);
+      assert_not_equals(element.style.getPropertyValue(property), "",
+                        "Should parse as valid: " + value);
+      let computed = getComputedStyle(element).getPropertyValue(property);
+      let expected = element.id == "dark" ? expected_dark : expected_light;
+      assert_true(computed.endsWith(expected),
+                  `Expected "${computed}" to end with "${expected}"`);
+      element.style.setProperty(property, "");
+    }
+  }, `${property}: ${value}`);
+}
+
+function test_invalid(property, value) {
+  test(() => {
+    light.style.setProperty(property, "initial");
+    light.style.setProperty(property, value);
+    assert_equals(light.style.getPropertyValue(property), "initial",
+                  "Should not parse: " + value);
+    light.style.setProperty(property, "");
+  }, `${property}: ${value} (invalid)`);
+}
+
+// background-image: url values
+test_light_dark_image(
+  "background-image",
+  "light-dark(url('light.png'), url('dark.png'))",
+  'light.png")',
+  'dark.png")'
+);
+
+// 'none' inside light-dark() image computes to image(transparent) per CSS
+// Color 5, which then resolves to image(rgba(0, 0, 0, 0)) per the
+// computed-value rules for <color>.
+// https://drafts.csswg.org/css-color-5/#valdef-light-dark-none
+test_light_dark_image(
+  "background-image",
+  "light-dark(none, url('dark.png'))",
+  "image(rgba(0, 0, 0, 0))",
+  'dark.png")'
+);
+
+test_light_dark_image(
+  "background-image",
+  "light-dark(url('light.png'), none)",
+  'light.png")',
+  "image(rgba(0, 0, 0, 0))",
+);
+
+test_light_dark_image(
+  "background-image",
+  "light-dark(none, none)",
+  "image(rgba(0, 0, 0, 0))",
+  "image(rgba(0, 0, 0, 0))",
+);
+
+// background-image: gradient values
+test_light_dark_image(
+  "background-image",
+  "light-dark(linear-gradient(red, blue), linear-gradient(green, yellow))",
+  "linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255))",
+  "linear-gradient(rgb(0, 128, 0), rgb(255, 255, 0))"
+);
+
+test_light_dark_image(
+  "background-image",
+  "light-dark(radial-gradient(red, blue), radial-gradient(green, yellow))",
+  "radial-gradient(rgb(255, 0, 0), rgb(0, 0, 255))",
+  "radial-gradient(rgb(0, 128, 0), rgb(255, 255, 0))"
+);
+
+test_light_dark_image(
+  "background-image",
+  "light-dark(conic-gradient(red, blue), conic-gradient(green, yellow))",
+  "conic-gradient(rgb(255, 0, 0), rgb(0, 0, 255))",
+  "conic-gradient(rgb(0, 128, 0), rgb(255, 255, 0))"
+);
+
+test_light_dark_image(
+  "background-image",
+  "light-dark(repeating-linear-gradient(red, blue 50px), repeating-linear-gradient(green, yellow 50px))",
+  "repeating-linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255) 50px)",
+  "repeating-linear-gradient(rgb(0, 128, 0), rgb(255, 255, 0) 50px)"
+);
+
+// background-image: mixed image types (url + gradient)
+test_light_dark_image(
+  "background-image",
+  "light-dark(url('light.png'), linear-gradient(red, blue))",
+  'light.png")',
+  "linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255))"
+);
+
+test_light_dark_image(
+  "background-image",
+  "light-dark(linear-gradient(red, blue), url('dark.png'))",
+  "linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255))",
+  'dark.png")'
+);
+
+// background-image: none + gradient
+test_light_dark_image(
+  "background-image",
+  "light-dark(none, linear-gradient(red, blue))",
+  "image(rgba(0, 0, 0, 0))",
+  "linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255))"
+);
+
+test_light_dark_image(
+  "background-image",
+  "light-dark(linear-gradient(red, blue), none)",
+  "linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255))",
+  "image(rgba(0, 0, 0, 0))",
+);
+
+// list-style-image
+test_light_dark_image(
+  "list-style-image",
+  "light-dark(url('light.png'), url('dark.png'))",
+  'light.png")',
+  'dark.png")'
+);
+
+test_light_dark_image(
+  "list-style-image",
+  "light-dark(none, url('dark.png'))",
+  "image(rgba(0, 0, 0, 0))",
+  'dark.png")'
+);
+
+test_light_dark_image(
+  "list-style-image",
+  "light-dark(url('light.png'), none)",
+  'light.png")',
+  "image(rgba(0, 0, 0, 0))",
+);
+
+// border-image-source
+test_light_dark_image(
+  "border-image-source",
+  "light-dark(url('light.png'), url('dark.png'))",
+  'light.png")',
+  'dark.png")'
+);
+
+test_light_dark_image(
+  "border-image-source",
+  "light-dark(linear-gradient(red, blue), linear-gradient(green, yellow))",
+  "linear-gradient(rgb(255, 0, 0), rgb(0, 0, 255))",
+  "linear-gradient(rgb(0, 128, 0), rgb(255, 255, 0))"
+);
+
+// content property with image values
+test_light_dark_image(
+  "content",
+  "light-dark(url('light.png'), url('dark.png'))",
+  'light.png")',
+  'dark.png")'
+);
+
+// Nested light-dark with image values
+test_light_dark_image(
+  "background-image",
+  "light-dark(light-dark(url('a.png'), url('b.png')), url('c.png'))",
+  'a.png")',
+  'c.png")'
+);
+
+test_light_dark_image(
+  "background-image",
+  "light-dark(url('a.png'), light-dark(url('b.png'), url('c.png')))",
+  'a.png")',
+  'c.png")'
+);
+
+// Nested image functions, one wrapper per test, so a browser without
+// -webkit-cross-fade() still runs the image-set() cases. image-set() is never
+// nested inside image-set(): the spec forbids that, directly or indirectly.
+function test_nested_light_dark_image(value, description) {
+  test(() => {
+    const names = [...value.matchAll(/dummy:\/\/light-(\w)\.png/g)]
+        .map(match => match[1]);
+    for (let element of [light, dark]) {
+      element.style.setProperty("background-image", "");
+      element.style.setProperty("background-image", value);
+      assert_not_equals(element.style.getPropertyValue("background-image"), "",
+                        "Should parse as valid: " + value);
+      const computed = getComputedStyle(element).getPropertyValue(
+          "background-image");
+      const scheme = element.id == "dark" ? "dark" : "light";
+      const other = element.id == "dark" ? "light" : "dark";
+      for (const name of names) {
+        const expected = `dummy://${scheme}-${name}.png`;
+        const unexpected = `dummy://${other}-${name}.png`;
+        assert_true(
+            computed.includes(expected),
+            `Expected "${computed}" to include resolved URL "${expected}"`);
+        assert_false(
+            computed.includes(unexpected),
+            `Expected "${computed}" not to include unresolved URL "${unexpected}"`);
+      }
+      element.style.setProperty("background-image", "");
+    }
+  }, `background-image: ${description}`);
+}
+
+test_nested_light_dark_image(
+  "image-set(light-dark(url('dummy://light-a.png'), " +
+      "url('dummy://dark-a.png')) 1x)",
+  "light-dark() inside image-set()"
+);
+
+test_nested_light_dark_image(
+  "light-dark(image-set(url('dummy://light-a.png') 1x), " +
+      "image-set(url('dummy://dark-a.png') 1x))",
+  "image-set() inside light-dark()"
+);
+
+test_nested_light_dark_image(
+  "-webkit-cross-fade(" +
+      "light-dark(url('dummy://light-a.png'), url('dummy://dark-a.png')), " +
+      "light-dark(url('dummy://light-b.png'), url('dummy://dark-b.png')), " +
+      "50%)",
+  "light-dark() inside -webkit-cross-fade()"
+);
+
+test_nested_light_dark_image(
+  "image-set(-webkit-cross-fade(" +
+      "light-dark(url('dummy://light-a.png'), url('dummy://dark-a.png')), " +
+      "light-dark(url('dummy://light-b.png'), url('dummy://dark-b.png')), " +
+      "50%) 1x)",
+  "light-dark() inside -webkit-cross-fade() inside image-set()"
+);
+
+// Serialization round-trip
+test(() => {
+  for (let element of [light, dark]) {
+    element.style.setProperty("background-image", "");
+    element.style.setProperty("background-image",
+      "light-dark(url('light.png'), url('dark.png'))");
+    let serialized = element.style.getPropertyValue("background-image");
+    assert_not_equals(serialized, "", "Should serialize");
+    let computed_before =
+        getComputedStyle(element).getPropertyValue("background-image");
+    element.style.setProperty("background-image", "");
+    element.style.setProperty("background-image", serialized);
+    assert_not_equals(element.style.getPropertyValue("background-image"), "",
+                      "Serialized value should re-parse");
+    let computed_after =
+        getComputedStyle(element).getPropertyValue("background-image");
+    assert_equals(computed_after, computed_before,
+                  "Computed value should match after round-trip");
+    element.style.setProperty("background-image", "");
+  }
+}, "Serialization round-trip for light-dark() image");
+
+// Inheritance: child inherits light-dark image from parent
+test(() => {
+  const parent = document.getElementById("inherit-parent");
+  const child = document.getElementById("inherit-child");
+  parent.style.setProperty("background-image",
+    "light-dark(url('light.png'), url('dark.png'))");
+  child.style.setProperty("background-image", "inherit");
+  let computed = getComputedStyle(child).getPropertyValue("background-image");
+  assert_true(computed.endsWith('dark.png")'),
+              `Expected "${computed}" to end with dark.png")`);
+  parent.style.setProperty("background-image", "");
+  child.style.setProperty("background-image", "");
+}, "Inherited light-dark() image resolves with parent's color-scheme");
+
+// Dynamic color-scheme change
+test(() => {
+  light.style.setProperty("background-image",
+    "light-dark(url('light.png'), url('dark.png'))");
+  let computed_light = getComputedStyle(light).getPropertyValue("background-image");
+  assert_true(computed_light.endsWith('light.png")'),
+              "Should resolve to light image initially");
+
+  light.style.setProperty("color-scheme", "dark");
+  let computed_dark = getComputedStyle(light).getPropertyValue("background-image");
+  assert_true(computed_dark.endsWith('dark.png")'),
+              "Should resolve to dark image after scheme change");
+
+  light.style.setProperty("color-scheme", "light");
+  let computed_restored = getComputedStyle(light).getPropertyValue("background-image");
+  assert_true(computed_restored.endsWith('light.png")'),
+              "Should resolve to light image after restoring scheme");
+  light.style.setProperty("background-image", "");
+}, "light-dark() image responds to dynamic color-scheme changes");
+
+// Invalid cases
+test_invalid("background-image", "light-dark()");
+test_invalid("background-image", "light-dark(url(a.png))");
+test_invalid("background-image", "light-dark(url(a.png) url(b.png))");
+test_invalid("background-image", "light-dark(url(a.png),,url(b.png))");
+// Colors are not valid in image context
+test_invalid("background-image", "light-dark(red, green)");
+test_invalid("background-image", "light-dark(red, url(a.png))");
+test_invalid("background-image", "light-dark(url(a.png), red)");
+// Three arguments
+test_invalid("background-image", "light-dark(url(a.png), url(b.png), url(c.png))");
+</script>

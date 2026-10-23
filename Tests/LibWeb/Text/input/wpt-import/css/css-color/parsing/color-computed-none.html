@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color 4 and 5: Computation of colors containing none</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#missing">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#interpolation-missing">
+<link rel="help" href="https://drafts.csswg.org/css-color-5/#rcs-intro">
+<link rel="author" title="Romain Menke" href="mailto:romainmenke@gmail.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<script src="../../../css/support/color-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<style>
+  :root {
+    --high: 500;
+    --negative: -100;
+  }
+  #container {
+    container-type: inline-size;
+    color: rgb(255, 0, 0);
+  }
+</style>
+<script>
+    // HSL - RCS
+    fuzzy_test_computed_color(`hsl(from hsl(none 50% 50%) h s l)`, `hsl(none 50% 50%)`);
+    fuzzy_test_computed_color(`hsl(from hsl(180 none 50%) h s l)`, `hsl(180 none 50%)`);
+    fuzzy_test_computed_color(`hsl(from hsl(180 50% none) h s l)`, `hsl(180 50% none)`);
+    fuzzy_test_computed_color(`hsl(from hsl(none none 50%) h s l)`, `hsl(none none 50%)`);
+    fuzzy_test_computed_color(`hsl(from hsl(180 none none) h s l)`, `hsl(180 none none)`);
+    fuzzy_test_computed_color(`hsl(from hsl(none 50% none) h s l)`, `hsl(none 50% none)`);
+    fuzzy_test_computed_color(`hsl(from hsl(none none none) h s l)`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`hsl(from hwb(none 25% 25%) h s l)`, `hsl(none 50% 50%)`);
+    fuzzy_test_computed_color(`hsl(from hwb(180 none 25%) h s l)`, `color(srgb 0 0.75 0.75)`);
+    fuzzy_test_computed_color(`hsl(from hwb(180 25% none) h s l)`, `color(srgb 0.25 1 1)`);
+    fuzzy_test_computed_color(`hsl(from hwb(none none 25%) h s l)`, `hsl(none 100% 37.5%)`);
+    fuzzy_test_computed_color(`hsl(from hwb(180 none none) h s l)`, `hsl(180 none none)`);
+    fuzzy_test_computed_color(`hsl(from hwb(none 25% none) h s l)`, `hsl(none 100% 62.5%)`);
+    fuzzy_test_computed_color(`hsl(from hwb(none none none) h s l)`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`hsl(from lch(none 20 180) h s l)`, `hsl(339.80326134 266.58541811% none)`);
+    fuzzy_test_computed_color(`hsl(from lch(20 none 180) h s l)`, `hsl(none none 18.93757452%)`);
+    fuzzy_test_computed_color(`hsl(from lch(20 20 none) h s l)`, `hsl(none 35.05613281% 21.64776943%)`);
+    fuzzy_test_computed_color(`hsl(from lch(none none 180) h s l)`, `hsl(none none none)`);
+    fuzzy_test_computed_color(`hsl(from lch(20 none none) h s l)`, `hsl(none none 18.93757452%)`);
+    fuzzy_test_computed_color(`hsl(from lch(none 20 none) h s l)`, `hsl(none 266.58541811% none)`);
+    fuzzy_test_computed_color(`hsl(from lch(none none none) h s l)`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`hsl(from oklch(none 0.2 180) h s l)`, `hsl(345.65323987 193.08743918% none)`);
+    fuzzy_test_computed_color(`hsl(from oklch(0.2 none 180) h s l)`, `hsl(none none 8.61042044%)`);
+    fuzzy_test_computed_color(`hsl(from oklch(0.2 0.2 none) h s l)`, `hsl(none 250.47260791% 8.44443686%)`);
+    fuzzy_test_computed_color(`hsl(from oklch(none none 180) h s l)`, `hsl(none none none)`);
+    fuzzy_test_computed_color(`hsl(from oklch(0.2 none none) h s l)`, `hsl(none none 8.61042044%)`);
+    fuzzy_test_computed_color(`hsl(from oklch(none 0.2 none) h s l)`, `hsl(none 193.08743918% none)`);
+    fuzzy_test_computed_color(`hsl(from oklch(none none none) h s l)`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`hsl(from lab(none 10 10) h s l)`, `hsl(15.41935071 846.24593338% none)`);
+    fuzzy_test_computed_color(`hsl(from lab(50 none 10) h s l)`, `color(srgb 0.48695869 0.46487838 0.39973421)`);
+    fuzzy_test_computed_color(`hsl(from lab(50 10 none) h s l)`, `color(srgb 0.53211144 0.44322485 0.46796893)`);
+    fuzzy_test_computed_color(`hsl(from lab(none none 10) h s l)`, `hsl(221.36868606 238.90028442% none)`);
+    fuzzy_test_computed_color(`hsl(from lab(50 none none) h s l)`, `hsl(none none 46.63266093%)`);
+    fuzzy_test_computed_color(`hsl(from lab(none 10 none) h s l)`, `hsl(342.55812287 218.14148709% none)`);
+    fuzzy_test_computed_color(`hsl(from lab(none none none) h s l)`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`hsl(from oklab(none 0.1 0.1) h s l)`, `hsl(243.07265774 131.85826046% none)`);
+    fuzzy_test_computed_color(`hsl(from oklab(0.5 none 0.1) h s l)`, `color(srgb 0.4759136 0.37572819 0.02451529)`);
+    fuzzy_test_computed_color(`hsl(from oklab(0.5 0.1 none) h s l)`, `color(srgb 0.56587447 0.28546849 0.37966669)`);
+    fuzzy_test_computed_color(`hsl(from oklab(none none 0.1) h s l)`, `hsl(256.18317397 149.40414617% none)`);
+    fuzzy_test_computed_color(`hsl(from oklab(0.5 none none) h s l)`, `hsl(none none 38.8572859%)`);
+    fuzzy_test_computed_color(`hsl(from oklab(none 0.1 none) h s l)`, `hsl(345.65323987 193.08743918% none)`);
+    fuzzy_test_computed_color(`hsl(from oklab(none none none) h s l)`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`hsl(from rgb(none none none) h s l)`, `hsl(none none none)`);
+    fuzzy_test_computed_color(`hsl(from color(display-p3 none none none) h s l)`, `hsl(none none none)`);
+
+    // HSL - color-mix
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(none 50% 50%), hsl(11 33 44))`, `color(srgb 0.66505 0.34646833 0.27495)`); // hsl(11 41.5% 47%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(180 none 50%), hsl(11 33 44))`, `color(srgb 0.441565 0.6251 0.3149)`); // hsl(95.5 33% 47%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(180 50% none), hsl(11 33 44))`, `color(srgb 0.40652333 0.6226 0.2574)`); // hsl(95.5 41.5% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(none none 50%), hsl(11 33 44))`, `color(srgb 0.6251 0.37177 0.3149)`); // hsl(11 33% 47%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(180 none none), hsl(11 33 44))`, `color(srgb 0.41338 0.5852 0.2948)`); // hsl(95.5 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(none 50% none), hsl(11 33 44))`, `color(srgb 0.6226 0.32435333 0.2574)`); // hsl(11 41.5% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(none none none), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(none 25% 25%), hsl(11 33 44))`, `color(srgb 0.66505 0.34646833 0.27495)`); // hsl(11 41.5% 47%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(180 none 25%), hsl(11 33 44))`, `color(srgb 0.35781896 0.6784875 0.1365125)`); // hsl(95.5 66.5% 40.75%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(180 25% none), hsl(11 33 44))`, `color(srgb 0.47550396 0.8433875 0.2216125)`); // hsl(95.5 66.5% 53.25%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(none none 25%), hsl(11 33 44))`, `color(srgb 0.6784875 0.23587458 0.1365125)`); // hsl(11 66.5% 40.75%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(180 none none), hsl(11 33 44))`, `color(srgb 0.41338 0.5852 0.2948)`); // hsl(95.5 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(none 25% none), hsl(11 33 44))`, `color(srgb 0.8433875 0.33560458 0.2216125)`); // hsl(11 66.5% 53.25%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(none none none), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(none 20 180), hsl(11 33 44))`, `color(srgb 1.09908792 -0.21908792 -0.1180636)`); // hsl(355.40163067 149.79270905% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(20 none 180), hsl(11 33 44))`, `color(srgb 0.41853487 0.24891811 0.21084087)`); // hsl(11 33% 31.46878726%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(20 20 none), hsl(11 33 44))`, `color(srgb 0.43993218 0.25749974 0.21654551)`); // hsl(11 34.02806641% 32.82388472%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(none none 180), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(20 none none), hsl(11 33 44))`, `color(srgb 0.41853487 0.24891811 0.21084087)`); // hsl(11 33% 31.46878726%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(none 20 none), hsl(11 33 44))`, `color(srgb 1.09908792 0.02257765 -0.21908792)`); // hsl(11 149.79270905% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(none none none), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(none 0.2 180), hsl(11 33 44))`, `color(srgb 0.93739237 -0.05739237 -0.02964815)`); // hsl(358.32661994 113.04371959% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(0.2 none 180), hsl(11 33 44))`, `color(srgb 0.3498593 0.20807421 0.17624491)`); // hsl(11 33% 26.30521022%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(0.2 0.2 none), hsl(11 33 44))`, `color(srgb 0.63388622 0.02683496 -0.10944185)`); // hsl(11 141.73630395% 26.22221843%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(none none 180), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(0.2 none none), hsl(11 33 44))`, `color(srgb 0.3498593 0.20807421 0.17624491)`); // hsl(11 33% 26.30521022%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(none 0.2 none), hsl(11 33 44))`, `color(srgb 0.93739237 0.12498483 -0.05739237)`); // hsl(11 113.04371959% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(none none none), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(none 10 10), hsl(11 33 44))`, `color(srgb 2.37434105 -0.64260714 -1.49434105)`); // hsl(13.20967536 439.62296669% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(50 none 10), hsl(11 33 44))`, `color(srgb 0.53627313 0.43506919 0.34707332)`); // hsl(27.90569495 21.41852791% 44.16732245%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(50 10 none), hsl(11 33 44))`, `color(srgb 0.56150229 0.36616585 0.3754487)`); // hsl(357.14865816 21.05671491% 46.38340725%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(none none 10), hsl(11 33 44))`, `color(srgb 0.96209889 -0.15818063 1.03818063)`); // hsl(296.18434303 135.95014221% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(50 none none), hsl(11 33 44))`, `color(srgb 0.6027072 0.35845217 0.30361941)`); // hsl(11 33% 45.31633047%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(none 10 none), hsl(11 33 44))`, `color(srgb 0.99251127 -0.11251127 -0.05319111)`); // hsl(356.77906144 125.57074355% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(none none none), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(none 0.1 0.1), hsl(11 33 44))`, `color(srgb 0.80268817 0.07731183 0.71762173)`); // hsl(307.03632887 82.42913023% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(0.5 none 0.1), hsl(11 33 44))`, `color(srgb 0.55769722 0.33689886 0.13251723)`); // hsl(28.84166204 61.60114338% 34.51072245%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(0.5 0.1 none), hsl(11 33 44))`, `color(srgb 0.57553497 0.29013651 0.31191266)`); // hsl(355.42194841 32.96844963% 43.28357396%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(none none 0.1), hsl(11 33 44))`, `color(srgb 0.84128912 0.03871088 0.65948392)`); // hsl(313.59158699 91.20207309% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(0.5 none none), hsl(11 33 44))`, `color(srgb 0.55100095 0.32770057 0.27757191)`); // hsl(11 33% 41.42864295%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(none 0.1 none), hsl(11 33 44))`, `color(srgb 0.93739237 -0.05739237 -0.02964815)`); // hsl(358.32661994 113.04371959% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(none none none), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hsl, rgb(none none none), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hsl, color(display-p3 none none none), hsl(11 33 44))`, `color(srgb 0.5852 0.34804 0.2948)`); // hsl(11 33% 44%)
+
+    // HSL - color-mix : single color input
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(none 50% 50%))`, `hsl(none 50% 50%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(180 none 50%))`, `hsl(180 none 50%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(180 50% none))`, `hsl(180 50% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(none none 50%))`, `hsl(none none 50%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(180 none none))`, `hsl(180 none none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(none 50% none))`, `hsl(none 50% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hsl(none none none))`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(none 25% 25%))`, `hsl(none 50% 50%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(180 none 25%))`, `color(srgb 0 0.75 0.75)`); // hsl(180 100% 37.5%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(180 25% none))`, `color(srgb 0.25 1 1)`); // hsl(180 100% 62.5%)
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(none none 25%))`, `hsl(none 100% 37.5%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(180 none none))`, `hsl(180 none none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(none 25% none))`, `hsl(none 100% 62.5%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, hwb(none none none))`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(none 20 180))`, `hsl(339.80326134 266.58541811% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(20 none 180))`, `hsl(none none 18.93757452%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(20 20 none))`, `hsl(none 35.05613281% 21.64776943%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(none none 180))`, `hsl(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(20 none none))`, `hsl(none none 18.93757452%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(none 20 none))`, `hsl(none 266.58541811% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lch(none none none))`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(none 0.2 180))`, `hsl(345.65323987 193.08743918% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(0.2 none 180))`, `hsl(none none 8.61042044%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(0.2 0.2 none))`, `hsl(none 250.47260791% 8.44443686%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(none none 180))`, `hsl(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(0.2 none none))`, `hsl(none none 8.61042044%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(none 0.2 none))`, `hsl(none 193.08743918% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklch(none none none))`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(none 10 10))`, `hsl(15.41935071 846.24593338% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(50 none 10))`, `color(srgb 0.48695869 0.46487838 0.39973421)`); // hsl(44.8113899 9.83705582% 44.33464489%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(50 10 none))`, `color(srgb 0.53211144 0.44322485 0.46796893)`); // hsl(343.29731631 9.11342981% 48.76681449%)
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(none none 10))`, `hsl(221.36868606 238.90028442% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(50 none none))`, `hsl(none none 46.63266093%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(none 10 none))`, `hsl(342.55812287 218.14148709% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, lab(none none none))`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(none 0.1 0.1))`, `hsl(243.07265774 131.85826046% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(0.5 none 0.1))`, `color(srgb 0.4759136 0.37572819 0.02451529)`); // hsl(46.68332407 90.20228676% 25.0214449%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(0.5 0.1 none))`, `color(srgb 0.56587447 0.28546849 0.37966669)`); // hsl(339.84389681 32.93689926% 42.56714792%)
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(none none 0.1))`, `hsl(256.18317397 149.40414617% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(0.5 none none))`, `hsl(none none 38.8572859%)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(none 0.1 none))`, `hsl(345.65323987 193.08743918% none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, oklab(none none none))`, `hsl(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hsl, rgb(none none none))`, `hsl(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in hsl, color(display-p3 none none none))`, `hsl(none none none)`);
+
+    // HWB - RCS
+    fuzzy_test_computed_color(`hwb(from hsl(none 50% 50%) h w b)`, `hwb(none 25% 25%)`);
+    fuzzy_test_computed_color(`hwb(from hsl(180 none 50%) h w b)`, `hwb(none 50% 50%)`);
+    fuzzy_test_computed_color(`hwb(from hsl(180 50% none) h w b)`, `hwb(none 0% 100%)`);
+    fuzzy_test_computed_color(`hwb(from hsl(none none 50%) h w b)`, `hwb(none 50% 50%)`);
+    fuzzy_test_computed_color(`hwb(from hsl(180 none none) h w b)`, `hwb(none none none)`);
+    fuzzy_test_computed_color(`hwb(from hsl(none 50% none) h w b)`, `hwb(none 0% 100%)`);
+    fuzzy_test_computed_color(`hwb(from hsl(none none none) h w b)`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`hwb(from hwb(none 25% 25%) h w b)`, `hwb(none 25% 25%)`);
+    fuzzy_test_computed_color(`hwb(from hwb(180 none 25%) h w b)`, `hwb(180 none 25%)`);
+    fuzzy_test_computed_color(`hwb(from hwb(180 25% none) h w b)`, `hwb(180 25% none)`);
+    fuzzy_test_computed_color(`hwb(from hwb(none none 25%) h w b)`, `hwb(none none 25%)`);
+    fuzzy_test_computed_color(`hwb(from hwb(180 none none) h w b)`, `hwb(180 none none)`);
+    fuzzy_test_computed_color(`hwb(from hwb(none 25% none) h w b)`, `hwb(none 25% none)`);
+    fuzzy_test_computed_color(`hwb(from hwb(none none none) h w b)`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`hwb(from lch(none 20 180) h w b)`, `color(srgb -0.13099833 0.05952886 -0.00460494)`);
+    fuzzy_test_computed_color(`hwb(from lch(20 none 180) h w b)`, `hwb(none 18.93757452% 81.06242548%)`);
+    fuzzy_test_computed_color(`hwb(from lch(20 20 none) h w b)`, `hwb(none 14.05889863% 70.76335977%)`);
+    fuzzy_test_computed_color(`hwb(from lch(none none 180) h w b)`, `hwb(none none none)`);
+    fuzzy_test_computed_color(`hwb(from lch(20 none none) h w b)`, `hwb(none 18.93757452% 81.06242548%)`);
+    fuzzy_test_computed_color(`hwb(from lch(none 20 none) h w b)`, `hwb(none -5.95288574% 86.90016729%)`);
+    fuzzy_test_computed_color(`hwb(from lch(none none none) h w b)`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`hwb(from oklch(none 0.2 180) h w b)`, `color(srgb -0.0266189 0.00845442 0.00006795)`);
+    fuzzy_test_computed_color(`hwb(from oklch(0.2 none 180) h w b)`, `hwb(none 8.61042044% 91.38957956%)`);
+    fuzzy_test_computed_color(`hwb(from oklch(0.2 0.2 none) h w b)`, `hwb(none -12.70656437% 70.40456191%)`);
+    fuzzy_test_computed_color(`hwb(from oklch(none none 180) h w b)`, `hwb(none none none)`);
+    fuzzy_test_computed_color(`hwb(from oklch(0.2 none none) h w b)`, `hwb(none 8.61042044% 91.38957956%)`);
+    fuzzy_test_computed_color(`hwb(from oklch(none 0.2 none) h w b)`, `hwb(none -0.84544246% 97.33810956%)`);
+    fuzzy_test_computed_color(`hwb(from oklch(none none none) h w b)`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`hwb(from lab(none 10 10) h w b)`, `color(srgb 0.10216252 -0.03360919 -0.08056929)`);
+    fuzzy_test_computed_color(`hwb(from lab(50 none 10) h w b)`, `color(srgb 0.48695869 0.46487838 0.39973421)`);
+    fuzzy_test_computed_color(`hwb(from lab(50 10 none) h w b)`, `color(srgb 0.53211144 0.44322485 0.46796893)`);
+    fuzzy_test_computed_color(`hwb(from lab(none none 10) h w b)`, `color(srgb 0.03358551 -0.00228914 -0.08194467)`);
+    fuzzy_test_computed_color(`hwb(from lab(50 none none) h w b)`, `hwb(none 46.63266093% 53.36733907%)`);
+    fuzzy_test_computed_color(`hwb(from lab(none 10 none) h w b)`, `color(srgb 0.0843413 -0.03132005 0.00230247)`);
+    fuzzy_test_computed_color(`hwb(from lab(none none none) h w b)`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`hwb(from oklab(none 0.1 0.1) h w b)`, `color(srgb 0.00443054 0.00769076 -0.05597186)`);
+    fuzzy_test_computed_color(`hwb(from oklab(0.5 none 0.1) h w b)`, `color(srgb 0.4759136 0.37572819 0.02451529)`);
+    fuzzy_test_computed_color(`hwb(from oklab(0.5 0.1 none) h w b)`, `color(srgb 0.56587447 0.28546849 0.37966669)`);
+    fuzzy_test_computed_color(`hwb(from oklab(none none 0.1) h w b)`, `color(srgb -0.00588767 0.00932583 -0.04707904)`);
+    fuzzy_test_computed_color(`hwb(from oklab(0.5 none none) h w b)`, `hwb(none 38.8572859% 61.1427141%)`);
+    fuzzy_test_computed_color(`hwb(from oklab(none 0.1 none) h w b)`, `color(srgb 0.00332736 -0.0010568 -0.00000849)`);
+    fuzzy_test_computed_color(`hwb(from oklab(none none none) h w b)`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`hwb(from rgb(none none none) h w b)`, `hwb(none none none)`);
+    fuzzy_test_computed_color(`hwb(from color(display-p3 none none none) h w b)`, `hwb(none none none)`);
+
+    // HWB - color-mix
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(none 50% 50%), hwb(11 33 44))`, `color(srgb 0.655 0.35691667 0.29)`); // hwb(11 29% 34.5%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(180 none 50%), hwb(11 33 44))`, `color(srgb 0.53 0.43608333 0.415)`); // hwb(11 41.5% 47%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(180 50% none), hwb(11 33 44))`, `color(srgb 0.28 0.18608333 0.165)`); // hwb(11 16.5% 72%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(none none 50%), hwb(11 33 44))`, `color(srgb 0.53 0.43608333 0.415)`); // hwb(11 41.5% 47%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(180 none none), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(none 50% none), hwb(11 33 44))`, `color(srgb 0.28 0.18608333 0.165)`); // hwb(11 16.5% 72%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(none none none), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(none 25% 25%), hwb(11 33 44))`, `color(srgb 0.655 0.35691667 0.29)`); // hwb(11 29% 34.5%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(180 none 25%), hwb(11 33 44))`, `color(srgb 0.46270833 0.655 0.33)`); // hwb(95.5 33% 34.5%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(180 25% none), hwb(11 33 44))`, `color(srgb 0.40025 0.56 0.29)`); // hwb(95.5 29% 44%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(none none 25%), hwb(11 33 44))`, `color(srgb 0.655 0.38958333 0.33)`); // hwb(11 33% 34.5%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(180 none none), hwb(11 33 44))`, `color(srgb 0.42391667 0.56 0.33)`); // hwb(95.5 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(none 25% none), hwb(11 33 44))`, `color(srgb 0.56 0.3395 0.29)`); // hwb(11 29% 44%)
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(none none none), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(none 20 180), hwb(11 33 44))`, `color(srgb 0.22074713 0.30976443 0.09950084)`); // hwb(85.40163067 9.95008365% 69.02355713%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(20 none 180), hwb(11 33 44))`, `color(srgb 0.37468787 0.28077121 0.25968787)`); // hwb(11 25.96878726% 62.53121274%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(20 20 none), hwb(11 33 44))`, `color(srgb 0.4261832 0.27029076 0.23529449)`); // hwb(11 23.52944932% 57.38167989%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(none none 180), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(20 none none), hwb(11 33 44))`, `color(srgb 0.37468787 0.28077121 0.25968787)`); // hwb(11 25.96878726% 62.53121274%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(none 20 none), hwb(11 33 44))`, `color(srgb 0.34549916 0.1737839 0.13523557)`); // hwb(11 13.52355713% 65.45008365%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(none none none), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(none 0.2 180), hwb(11 33 44))`, `color(srgb 0.22165528 0.28422721 0.15169055)`); // hwb(88.32661994 15.16905478% 71.57727877%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(0.2 none 180), hwb(11 33 44))`, `color(srgb 0.3230521 0.22913544 0.2080521)`); // hwb(11 20.80521022% 67.69478978%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(0.2 0.2 none), hwb(11 33 44))`, `color(srgb 0.42797719 0.16132735 0.10146718)`); // hwb(11 10.14671781% 57.20228096%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(none none 180), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(0.2 none none), hwb(11 33 44))`, `color(srgb 0.3230521 0.22913544 0.2080521)`); // hwb(11 20.80521022% 67.69478978%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(none 0.2 none), hwb(11 33 44))`, `color(srgb 0.29330945 0.18507118 0.16077279)`); // hwb(11 16.07727877% 70.66905478%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(none none none), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(none 10 10), hwb(11 33 44))`, `color(srgb 0.33108126 0.17014913 0.12471536)`); // hwb(13.20967536 12.47153557% 66.89187423%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(50 none 10), hwb(11 33 44))`, `color(srgb 0.52347934 0.43863685 0.36486711)`); // hwb(27.90569495 36.48671056% 47.65206568%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(50 10 none), hwb(11 33 44))`, `color(srgb 0.54605572 0.38661243 0.39418955)`); // hwb(357.14865816 38.66124254% 45.39442805%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(none none 10), hwb(11 33 44))`, `color(srgb 0.29679275 0.19942334 0.12402767)`); // hwb(26.18434303 12.40276657% 70.32072467%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(50 none none), hwb(11 33 44))`, `color(srgb 0.5131633 0.41924664 0.3981633)`); // hwb(11 39.81633047% 48.68366954%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(none 10 none), hwb(11 33 44))`, `color(srgb 0.32217065 0.14933998 0.15861793)`); // hwb(356.77906144 14.93399752% 67.78293476%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(none none none), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(none 0.1 0.1), hwb(11 33 44))`, `color(srgb 0.28384538 0.22764895 0.13701407)`); // hwb(37.03632887 13.70140721% 71.61546206%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(0.5 none 0.1), hwb(11 33 44))`, `color(srgb 0.5179568 0.34102981 0.17725765)`); // hwb(28.84166204 17.72576471% 48.20431981%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(0.5 0.1 none), hwb(11 33 44))`, `color(srgb 0.56293723 0.30773425 0.32720645)`); // hwb(355.42194841 30.77342465% 43.70627672%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(none none 0.1), hwb(11 33 44))`, `color(srgb 0.28466291 0.24550084 0.14146048)`); // hwb(43.59158699 14.14604796% 71.53370867%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(0.5 none none), hwb(11 33 44))`, `color(srgb 0.47428643 0.38036976 0.35928643)`); // hwb(11 35.92864295% 52.57135705%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(none 0.1 none), hwb(11 33 44))`, `color(srgb 0.28166368 0.1644716 0.16774005)`); // hwb(358.32661994 16.44715985% 71.83363185%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(none none none), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+
+    fuzzy_test_computed_color(`color-mix(in hwb, rgb(none none none), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+    fuzzy_test_computed_color(`color-mix(in hwb, color(display-p3 none none none), hwb(11 33 44))`, `color(srgb 0.56 0.37216667 0.33)`); // hwb(11 33% 44%)
+
+    // HWB - color-mix : single color input
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(none 50% 50%))`, `hwb(none 25% 25%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(180 none 50%))`, `hwb(none 50% 50%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(180 50% none))`, `hwb(none 0% 100%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(none none 50%))`, `hwb(none 50% 50%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(180 none none))`, `hwb(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(none 50% none))`, `hwb(none 0% 100%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hsl(none none none))`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(none 25% 25%))`, `hwb(none 25% 25%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(180 none 25%))`, `hwb(180 none 25%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(180 25% none))`, `hwb(180 25% none)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(none none 25%))`, `hwb(none none 25%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(180 none none))`, `hwb(180 none none)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(none 25% none))`, `hwb(none 25% none)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, hwb(none none none))`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(none 20 180))`, `color(srgb -0.13099833 0.05952886 -0.00460494)`); // hwb(159.80326134 -13.09983271% 94.04711426%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(20 none 180))`, `hwb(none 18.93757452% 81.06242548%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(20 20 none))`, `hwb(none 14.05889863% 70.76335977%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(none none 180))`, `hwb(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(20 none none))`, `hwb(none 18.93757452% 81.06242548%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(none 20 none))`, `hwb(none -5.95288574% 86.90016729%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, lch(none none none))`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(none 0.2 180))`, `color(srgb -0.0266189 0.00845442 0.00006795)`); // hwb(165.65323987 -2.66189044% 99.15455754%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(0.2 none 180))`, `hwb(none 8.61042044% 91.38957956%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(0.2 0.2 none))`, `hwb(none -12.70656437% 70.40456191%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(none none 180))`, `hwb(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(0.2 none none))`, `hwb(none 8.61042044% 91.38957956%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(none 0.2 none))`, `hwb(none -0.84544246% 97.33810956%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, oklch(none none none))`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(none 10 10))`, `color(srgb 0.10216252 -0.03360919 -0.08056929)`); // hwb(15.41935071 -8.05692886% 89.78374845%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(50 none 10))`, `color(srgb 0.48695869 0.46487838 0.39973421)`); // hwb(44.8113899 39.97342112% 51.30413135%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(50 10 none))`, `color(srgb 0.53211144 0.44322485 0.46796893)`); // hwb(343.29731631 44.32248508% 46.7888561%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(none none 10))`, `color(srgb 0.03358551 -0.00228914 -0.08194467)`); // hwb(41.36868606 -8.19446686% 96.64144933%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(50 none none))`, `hwb(none 46.63266093% 53.36733907%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(none 10 none))`, `color(srgb 0.0843413 -0.03132005 0.00230247)`); // hwb(342.55812287 -3.13200497% 91.56586951%)
+    fuzzy_test_computed_color(`color-mix(in hwb, lab(none none none))`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(none 0.1 0.1))`, `color(srgb 0.00443054 0.00769076 -0.05597186)`); // hwb(63.07265774 -5.59718559% 99.23092412%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(0.5 none 0.1))`, `color(srgb 0.4759136 0.37572819 0.02451529)`); // hwb(46.68332407 2.45152942% 52.40863962%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(0.5 0.1 none))`, `color(srgb 0.56587447 0.28546849 0.37966669)`); // hwb(339.84389681 28.54684929% 43.41255345%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(none none 0.1))`, `color(srgb -0.00588767 0.00932583 -0.04707904)`); // hwb(76.18317397 -4.70790409% 99.06741734%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(0.5 none none))`, `hwb(none 38.8572859% 61.1427141%)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(none 0.1 none))`, `color(srgb 0.00332736 -0.0010568 -0.00000849)`); // hwb(345.65323987 -0.10568031% 99.66726369%)
+    fuzzy_test_computed_color(`color-mix(in hwb, oklab(none none none))`, `hwb(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in hwb, rgb(none none none))`, `hwb(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in hwb, color(display-p3 none none none))`, `hwb(none none none)`);
+
+    // LCH - RCS
+    fuzzy_test_computed_color(`lch(from hsl(none 50% 50%) l c h)`, `lch(46.42043661 59.74639249 none)`);
+    fuzzy_test_computed_color(`lch(from hsl(180 none 50%) l c h)`, `lch(53.38896474 none none)`);
+    fuzzy_test_computed_color(`lch(from hsl(180 50% none) l c h)`, `lch(none 0 none)`);
+    fuzzy_test_computed_color(`lch(from hsl(none none 50%) l c h)`, `lch(53.38896474 none none)`);
+    fuzzy_test_computed_color(`lch(from hsl(180 none none) l c h)`, `lch(none none none)`);
+    fuzzy_test_computed_color(`lch(from hsl(none 50% none) l c h)`, `lch(none 0 none)`);
+    fuzzy_test_computed_color(`lch(from hsl(none none none) l c h)`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`lch(from hwb(none 25% 25%) l c h)`, `lch(46.42043661 59.74639249 none)`);
+    fuzzy_test_computed_color(`lch(from hwb(180 none 25%) l c h)`, `lch(69.91337803 42.54334477 196.45478916)`);
+    fuzzy_test_computed_color(`lch(from hwb(180 25% none) l c h)`, `lch(91.18116399 49.29673753 196.65803824)`);
+    fuzzy_test_computed_color(`lch(from hwb(none none 25%) l c h)`, `lch(40.61501478 86.05118759 none)`);
+    fuzzy_test_computed_color(`lch(from hwb(180 none none) l c h)`, `lch(none none 196.45478916)`);
+    fuzzy_test_computed_color(`lch(from hwb(none 25% none) l c h)`, `lch(58.23109529 85.49243054 none)`);
+    fuzzy_test_computed_color(`lch(from hwb(none none none) l c h)`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`lch(from lch(none 20 180) l c h)`, `lch(none 20 180)`);
+    fuzzy_test_computed_color(`lch(from lch(20 none 180) l c h)`, `lch(20 none 180)`);
+    fuzzy_test_computed_color(`lch(from lch(20 20 none) l c h)`, `lch(20 20 none)`);
+    fuzzy_test_computed_color(`lch(from lch(none none 180) l c h)`, `lch(none none 180)`);
+    fuzzy_test_computed_color(`lch(from lch(20 none none) l c h)`, `lch(20 none none)`);
+    fuzzy_test_computed_color(`lch(from lch(none 20 none) l c h)`, `lch(none 20 none)`);
+    fuzzy_test_computed_color(`lch(from lch(none none none) l c h)`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`lch(from oklch(none 0.2 180) l c h)`, `lch(none 2.6503948 181.20369565)`);
+    fuzzy_test_computed_color(`lch(from oklch(0.2 none 180) l c h)`, `lch(7.22637037 none none)`);
+    fuzzy_test_computed_color(`lch(from oklch(0.2 0.2 none) l c h)`, `lch(5.10873217 59.48824051 none)`);
+    fuzzy_test_computed_color(`lch(from oklch(none none 180) l c h)`, `lch(none none none)`);
+    fuzzy_test_computed_color(`lch(from oklch(0.2 none none) l c h)`, `lch(7.22637037 none none)`);
+    fuzzy_test_computed_color(`lch(from oklch(none 0.2 none) l c h)`, `lch(none 2.6503948 none)`);
+    fuzzy_test_computed_color(`lch(from oklch(none none none) l c h)`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`lch(from lab(none 10 10) l c h)`, `lch(none 14.14213562 45)`);
+    fuzzy_test_computed_color(`lch(from lab(50 none 10) l c h)`, `lch(50 10 90)`);
+    fuzzy_test_computed_color(`lch(from lab(50 10 none) l c h)`, `lch(50 10 0)`);
+    fuzzy_test_computed_color(`lch(from lab(none none 10) l c h)`, `lch(none 10 90)`);
+    fuzzy_test_computed_color(`lch(from lab(50 none none) l c h)`, `lch(50 none none)`);
+    fuzzy_test_computed_color(`lch(from lab(none 10 none) l c h)`, `lch(none 10 0)`);
+    fuzzy_test_computed_color(`lch(from lab(none none none) l c h)`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`lch(from oklab(none 0.1 0.1) l c h)`, `lch(none 6.59869105 107.32334354)`);
+    fuzzy_test_computed_color(`lch(from oklab(0.5 none 0.1) l c h)`, `lch(42.22128134 47.63708012 84.22289046)`);
+    fuzzy_test_computed_color(`lch(from oklab(0.5 0.1 none) l c h)`, `lch(40.74235313 32.8495187 0.72132548)`);
+    fuzzy_test_computed_color(`lch(from oklab(none none 0.1) l c h)`, `lch(none 5.73918282 116.45307687)`);
+    fuzzy_test_computed_color(`lch(from oklab(0.5 none none) l c h)`, `lch(42 none none)`);
+    fuzzy_test_computed_color(`lch(from oklab(none 0.1 none) l c h)`, `lch(none 0.33129935 1.20369565)`);
+    fuzzy_test_computed_color(`lch(from oklab(none none none) l c h)`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`lch(from rgb(none none none) l c h)`, `lch(none none none)`);
+    fuzzy_test_computed_color(`lch(from color(display-p3 none none none) l c h)`, `lch(none none none)`);
+
+    // LCH - color-mix
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(none 50% 50%), lch(11 33 44))`, `lch(28.71021831 46.37319624 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(180 none 50%), lch(11 33 44))`, `lch(32.19448237 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(180 50% none), lch(11 33 44))`, `lch(11 16.5 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(none none 50%), lch(11 33 44))`, `lch(32.19448237 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(180 none none), lch(11 33 44))`, `lch(11 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(none 50% none), lch(11 33 44))`, `lch(11 16.5 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(none none none), lch(11 33 44))`, `lch(11 33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(none 25% 25%), lch(11 33 44))`, `lch(28.71021831 46.37319624 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(180 none 25%), lch(11 33 44))`, `lch(40.45668902 37.77167238 120.22739458)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(180 25% none), lch(11 33 44))`, `lch(51.090582 41.14836876 120.32901912)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(none none 25%), lch(11 33 44))`, `lch(25.80750739 59.52559379 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(180 none none), lch(11 33 44))`, `lch(11 33 120.22739458)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(none 25% none), lch(11 33 44))`, `lch(34.61554764 59.24621527 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(none none none), lch(11 33 44))`, `lch(11 33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, lch(none 20 180), lch(11 33 44))`, `lch(11 26.5 112)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(20 none 180), lch(11 33 44))`, `lch(15.5 33 112)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(20 20 none), lch(11 33 44))`, `lch(15.5 26.5 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(none none 180), lch(11 33 44))`, `lch(11 33 112)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(20 none none), lch(11 33 44))`, `lch(15.5 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(none 20 none), lch(11 33 44))`, `lch(11 26.5 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(none none none), lch(11 33 44))`, `lch(11 33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(none 0.2 180), lch(11 33 44))`, `lch(11 17.8251974 112.60184783)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(0.2 none 180), lch(11 33 44))`, `lch(9.11318519 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(0.2 0.2 none), lch(11 33 44))`, `lch(8.05436608 46.24412025 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(none none 180), lch(11 33 44))`, `lch(11 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(0.2 none none), lch(11 33 44))`, `lch(9.11318519 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(none 0.2 none), lch(11 33 44))`, `lch(11 17.8251974 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(none none none), lch(11 33 44))`, `lch(11 33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, lab(none 10 10), lch(11 33 44))`, `lch(11 23.57106781 44.5)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(50 none 10), lch(11 33 44))`, `lch(30.5 21.5 67)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(50 10 none), lch(11 33 44))`, `lch(30.5 21.5 22)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(none none 10), lch(11 33 44))`, `lch(11 21.5 67)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(50 none none), lch(11 33 44))`, `lch(30.5 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(none 10 none), lch(11 33 44))`, `lch(11 21.5 22)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(none none none), lch(11 33 44))`, `lch(11 33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(none 0.1 0.1), lch(11 33 44))`, `lch(11 19.79934553 75.66167177)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(0.5 none 0.1), lch(11 33 44))`, `lch(26.61064067 40.31854006 64.11144523)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(0.5 0.1 none), lch(11 33 44))`, `lch(25.87117656 32.92475935 22.36066274)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(none none 0.1), lch(11 33 44))`, `lch(11 19.36959141 80.22653844)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(0.5 none none), lch(11 33 44))`, `lch(26.5 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(none 0.1 none), lch(11 33 44))`, `lch(11 16.66564968 22.60184783)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(none none none), lch(11 33 44))`, `lch(11 33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, rgb(none none none), lch(11 33 44))`, `lch(11 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lch, color(display-p3 none none none), lch(11 33 44))`, `lch(11 33 44)`);
+
+    // LCH - color-mix : single color input
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(none 50% 50%))`, `lch(46.42043661 59.74639249 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(180 none 50%))`, `lch(53.38896474 none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(180 50% none))`, `lch(none 0 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(none none 50%))`, `lch(53.38896474 none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(180 none none))`, `lch(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(none 50% none))`, `lch(none 0 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hsl(none none none))`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(none 25% 25%))`, `lch(46.42043661 59.74639249 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(180 none 25%))`, `lch(69.91337803 42.54334477 196.45478916)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(180 25% none))`, `lch(91.18116399 49.29673753 196.65803824)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(none none 25%))`, `lch(40.61501478 86.05118759 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(180 none none))`, `lch(none none 196.45478916)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(none 25% none))`, `lch(58.23109529 85.49243054 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, hwb(none none none))`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, lch(none 20 180))`, `lch(none 20 180)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(20 none 180))`, `lch(20 none 180)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(20 20 none))`, `lch(20 20 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(none none 180))`, `lch(none none 180)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(20 none none))`, `lch(20 none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(none 20 none))`, `lch(none 20 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lch(none none none))`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(none 0.2 180))`, `lch(none 2.6503948 181.20369565)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(0.2 none 180))`, `lch(7.22637037 none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(0.2 0.2 none))`, `lch(5.10873217 59.48824051 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(none none 180))`, `lch(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(0.2 none none))`, `lch(7.22637037 none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(none 0.2 none))`, `lch(none 2.6503948 none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklch(none none none))`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, lab(none 10 10))`, `lch(none 14.14213562 45)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(50 none 10))`, `lch(50 10 90)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(50 10 none))`, `lch(50 10 0)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(none none 10))`, `lch(none 10 90)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(50 none none))`, `lch(50 none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(none 10 none))`, `lch(none 10 0)`);
+    fuzzy_test_computed_color(`color-mix(in lch, lab(none none none))`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(none 0.1 0.1))`, `lch(none 6.59869105 107.32334354)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(0.5 none 0.1))`, `lch(42.22128134 47.63708012 84.22289046)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(0.5 0.1 none))`, `lch(40.74235313 32.8495187 0.72132548)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(none none 0.1))`, `lch(none 5.73918282 116.45307687)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(0.5 none none))`, `lch(42 none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(none 0.1 none))`, `lch(none 0.33129935 1.20369565)`);
+    fuzzy_test_computed_color(`color-mix(in lch, oklab(none none none))`, `lch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in lch, rgb(none none none))`, `lch(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in lch, color(display-p3 none none none))`, `lch(none none none)`);
+
+    // oklch - RCS
+    fuzzy_test_computed_color(`oklch(from hsl(none 50% 50%) l c h)`, `oklch(0.55233858 0.16366995 none)`);
+    fuzzy_test_computed_color(`oklch(from hsl(180 none 50%) l c h)`, `oklch(0.59818073 none none)`);
+    fuzzy_test_computed_color(`oklch(from hsl(180 50% none) l c h)`, `oklch(none 0 none)`);
+    fuzzy_test_computed_color(`oklch(from hsl(none none 50%) l c h)`, `oklch(0.59818073 none none)`);
+    fuzzy_test_computed_color(`oklch(from hsl(180 none none) l c h)`, `oklch(none none none)`);
+    fuzzy_test_computed_color(`oklch(from hsl(none 50% none) l c h)`, `oklch(none 0 none)`);
+    fuzzy_test_computed_color(`oklch(from hsl(none none none) l c h)`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`oklch(from hwb(none 25% 25%) l c h)`, `oklch(0.55233858 0.16366995 none)`);
+    fuzzy_test_computed_color(`oklch(from hwb(180 none 25%) l c h)`, `oklch(0.72924735 0.12448121 194.7689599)`);
+    fuzzy_test_computed_color(`oklch(from hwb(180 25% none) l c h)`, `oklch(0.91079253 0.14429702 194.91785641)`);
+    fuzzy_test_computed_color(`oklch(from hwb(none none 25%) l c h)`, `oklch(0.50578216 0.20754918 none)`);
+    fuzzy_test_computed_color(`oklch(from hwb(180 none none) l c h)`, `oklch(none none 194.7689599)`);
+    fuzzy_test_computed_color(`oklch(from hwb(none 25% none) l c h)`, `oklch(0.65951623 0.22690049 none)`);
+    fuzzy_test_computed_color(`oklch(from hwb(none none none) l c h)`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`oklch(from lch(none 20 180) l c h)`, `oklch(none 0.26412556 175.27132911)`);
+    fuzzy_test_computed_color(`oklch(from lch(20 none 180) l c h)`, `oklch(0.31034483 none none)`);
+    fuzzy_test_computed_color(`oklch(from lch(20 20 none) l c h)`, `oklch(0.31697196 0.06085528 none)`);
+    fuzzy_test_computed_color(`oklch(from lch(none none 180) l c h)`, `oklch(none none none)`);
+    fuzzy_test_computed_color(`oklch(from lch(20 none none) l c h)`, `oklch(0.31034483 none none)`);
+    fuzzy_test_computed_color(`oklch(from lch(none 20 none) l c h)`, `oklch(none 0.26412556 none)`);
+    fuzzy_test_computed_color(`oklch(from lch(none none none) l c h)`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`oklch(from oklch(none 0.2 180) l c h)`, `oklch(none 0.2 180)`);
+    fuzzy_test_computed_color(`oklch(from oklch(0.2 none 180) l c h)`, `oklch(0.2 none 180)`);
+    fuzzy_test_computed_color(`oklch(from oklch(0.2 0.2 none) l c h)`, `oklch(0.2 0.2 none)`);
+    fuzzy_test_computed_color(`oklch(from oklch(none none 180) l c h)`, `oklch(none none 180)`);
+    fuzzy_test_computed_color(`oklch(from oklch(0.2 none none) l c h)`, `oklch(0.2 none none)`);
+    fuzzy_test_computed_color(`oklch(from oklch(none 0.2 none) l c h)`, `oklch(none 0.2 none)`);
+    fuzzy_test_computed_color(`oklch(from oklch(none none none) l c h)`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`oklch(from lab(none 10 10) l c h)`, `oklch(none 0.3755088 12.38482735)`);
+    fuzzy_test_computed_color(`oklch(from lab(50 none 10) l c h)`, `oklch(0.56788978 0.02565454 91.47921894)`);
+    fuzzy_test_computed_color(`oklch(from lab(50 10 none) l c h)`, `oklch(0.57220592 0.02980361 359.47844895)`);
+    fuzzy_test_computed_color(`oklch(from lab(none none 10) l c h)`, `oklch(none 0.27769178 16.66376148)`);
+    fuzzy_test_computed_color(`oklch(from lab(50 none none) l c h)`, `oklch(0.56896552 none none)`);
+    fuzzy_test_computed_color(`oklch(from lab(none 10 none) l c h)`, `oklch(none 0.2096366 355.27132911)`);
+    fuzzy_test_computed_color(`oklch(from lab(none none none) l c h)`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`oklch(from oklab(none 0.1 0.1) l c h)`, `oklch(none 0.14142136 45)`);
+    fuzzy_test_computed_color(`oklch(from oklab(0.5 none 0.1) l c h)`, `oklch(0.5 0.1 90)`);
+    fuzzy_test_computed_color(`oklch(from oklab(0.5 0.1 none) l c h)`, `oklch(0.5 0.1 0)`);
+    fuzzy_test_computed_color(`oklch(from oklab(none none 0.1) l c h)`, `oklch(none 0.1 90)`);
+    fuzzy_test_computed_color(`oklch(from oklab(0.5 none none) l c h)`, `oklch(0.5 none none)`);
+    fuzzy_test_computed_color(`oklch(from oklab(none 0.1 none) l c h)`, `oklch(none 0.1 0)`);
+    fuzzy_test_computed_color(`oklch(from oklab(none none none) l c h)`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`oklch(from rgb(none none none) l c h)`, `oklch(none none none)`);
+    fuzzy_test_computed_color(`oklch(from color(display-p3 none none none) l c h)`, `oklch(none none none)`);
+
+    // oklch - color-mix
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(none 50% 50%), oklch(0.11 0.33 44))`, `oklch(0.33116929 0.24683498 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(180 none 50%), oklch(0.11 0.33 44))`, `oklch(0.35409037 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(180 50% none), oklch(0.11 0.33 44))`, `oklch(0.11 0.165 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(none none 50%), oklch(0.11 0.33 44))`, `oklch(0.35409037 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(180 none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(none 50% none), oklch(0.11 0.33 44))`, `oklch(0.11 0.165 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(none none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(none 25% 25%), oklch(0.11 0.33 44))`, `oklch(0.33116929 0.24683498 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(180 none 25%), oklch(0.11 0.33 44))`, `oklch(0.41962368 0.22724061 119.38447995)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(180 25% none), oklch(0.11 0.33 44))`, `oklch(0.51039626 0.23714851 119.45892821)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(none none 25%), oklch(0.11 0.33 44))`, `oklch(0.30789108 0.26877459 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(180 none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 119.38447995)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(none 25% none), oklch(0.11 0.33 44))`, `oklch(0.38475811 0.27845024 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(none none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(none 20 180), oklch(0.11 0.33 44))`, `oklch(0.11 0.29706278 109.63566456)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(20 none 180), oklch(0.11 0.33 44))`, `oklch(0.21017241 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(20 20 none), oklch(0.11 0.33 44))`, `oklch(0.21348598 0.19542764 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(none none 180), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(20 none none), oklch(0.11 0.33 44))`, `oklch(0.21017241 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(none 20 none), oklch(0.11 0.33 44))`, `oklch(0.11 0.29706278 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(none none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(none 0.2 180), oklch(0.11 0.33 44))`, `oklch(0.11 0.265 112)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(0.2 none 180), oklch(0.11 0.33 44))`, `oklch(0.155 0.33 112)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(0.2 0.2 none), oklch(0.11 0.33 44))`, `oklch(0.155 0.265 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(none none 180), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 112)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(0.2 none none), oklch(0.11 0.33 44))`, `oklch(0.155 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(none 0.2 none), oklch(0.11 0.33 44))`, `oklch(0.11 0.265 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(none none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(none 10 10), oklch(0.11 0.33 44))`, `oklch(0.11 0.3527544 28.19241368)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(50 none 10), oklch(0.11 0.33 44))`, `oklch(0.33894489 0.17782727 67.73960947)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(50 10 none), oklch(0.11 0.33 44))`, `oklch(0.34110296 0.1799018 21.73922447)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(none none 10), oklch(0.11 0.33 44))`, `oklch(0.11 0.30384589 30.33188074)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(50 none none), oklch(0.11 0.33 44))`, `oklch(0.33948276 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(none 10 none), oklch(0.11 0.33 44))`, `oklch(0.11 0.2698183 19.63566456)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(none none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(none 0.1 0.1), oklch(0.11 0.33 44))`, `oklch(0.11 0.23571068 44.5)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(0.5 none 0.1), oklch(0.11 0.33 44))`, `oklch(0.305 0.215 67)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(0.5 0.1 none), oklch(0.11 0.33 44))`, `oklch(0.305 0.215 22)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(none none 0.1), oklch(0.11 0.33 44))`, `oklch(0.11 0.215 67)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(0.5 none none), oklch(0.11 0.33 44))`, `oklch(0.305 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(none 0.1 none), oklch(0.11 0.33 44))`, `oklch(0.11 0.215 22)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(none none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, rgb(none none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, color(display-p3 none none none), oklch(0.11 0.33 44))`, `oklch(0.11 0.33 44)`);
+
+    // oklch - color-mix : single color input
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(none 50% 50%))`, `oklch(0.55233858 0.16366995 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(180 none 50%))`, `oklch(0.59818073 none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(180 50% none))`, `oklch(none 0 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(none none 50%))`, `oklch(0.59818073 none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(180 none none))`, `oklch(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(none 50% none))`, `oklch(none 0 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hsl(none none none))`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(none 25% 25%))`, `oklch(0.55233858 0.16366995 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(180 none 25%))`, `oklch(0.72924735 0.12448121 194.7689599)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(180 25% none))`, `oklch(0.91079253 0.14429702 194.91785641)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(none none 25%))`, `oklch(0.50578216 0.20754918 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(180 none none))`, `oklch(none none 194.7689599)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(none 25% none))`, `oklch(0.65951623 0.22690049 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, hwb(none none none))`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(none 20 180))`, `oklch(none 0.26412556 175.27132911)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(20 none 180))`, `oklch(0.31034483 none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(20 20 none))`, `oklch(0.31697196 0.06085528 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(none none 180))`, `oklch(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(20 none none))`, `oklch(0.31034483 none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(none 20 none))`, `oklch(none 0.26412556 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lch(none none none))`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(none 0.2 180))`, `oklch(none 0.2 180)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(0.2 none 180))`, `oklch(0.2 none 180)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(0.2 0.2 none))`, `oklch(0.2 0.2 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(none none 180))`, `oklch(none none 180)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(0.2 none none))`, `oklch(0.2 none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(none 0.2 none))`, `oklch(none 0.2 none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklch(none none none))`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(none 10 10))`, `oklch(none 0.3755088 12.38482735)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(50 none 10))`, `oklch(0.56788978 0.02565454 91.47921894)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(50 10 none))`, `oklch(0.57220592 0.02980361 359.47844895)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(none none 10))`, `oklch(none 0.27769178 16.66376148)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(50 none none))`, `oklch(0.56896552 none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(none 10 none))`, `oklch(none 0.2096366 355.27132911)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, lab(none none none))`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(none 0.1 0.1))`, `oklch(none 0.14142136 45)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(0.5 none 0.1))`, `oklch(0.5 0.1 90)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(0.5 0.1 none))`, `oklch(0.5 0.1 0)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(none none 0.1))`, `oklch(none 0.1 90)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(0.5 none none))`, `oklch(0.5 none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(none 0.1 none))`, `oklch(none 0.1 0)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, oklab(none none none))`, `oklch(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in oklch, rgb(none none none))`, `oklch(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in oklch, color(display-p3 none none none))`, `oklch(none none none)`);
+
+    // rgb - RCS
+    fuzzy_test_computed_color(`rgb(from rgb(none 50 100) r g b)`, `color(srgb none 0.19607843 0.39215686)`);
+    fuzzy_test_computed_color(`rgb(from rgb(25 none 100) r g b)`, `color(srgb 0.09803922 none 0.39215686)`);
+    fuzzy_test_computed_color(`rgb(from rgb(25 50 none) r g b)`, `color(srgb 0.09803922 0.19607843 none)`);
+    fuzzy_test_computed_color(`rgb(from rgb(none none 100) r g b)`, `color(srgb none none 0.39215686)`);
+    fuzzy_test_computed_color(`rgb(from rgb(25 none none) r g b)`, `color(srgb 0.09803922 none none)`);
+    fuzzy_test_computed_color(`rgb(from rgb(none 50 none) r g b)`, `color(srgb none 0.19607843 none)`);
+    fuzzy_test_computed_color(`rgb(from rgb(none none none) r g b)`, `color(srgb none none none)`);
+
+    fuzzy_test_computed_color(`rgb(from color(display-p3 none 0.5 1) r g b)`, `color(srgb none 0.50960895 1.03498498)`);
+    fuzzy_test_computed_color(`rgb(from color(display-p3 0.25 none 1) r g b)`, `color(srgb 0.27690544 none 1.0416057)`);
+    fuzzy_test_computed_color(`rgb(from color(display-p3 0.25 0.5 none) r g b)`, `color(srgb 0.12407597 0.50734577 none)`);
+    fuzzy_test_computed_color(`rgb(from color(display-p3 none none 1) r g b)`, `color(srgb none none 1.04202162)`);
+    fuzzy_test_computed_color(`rgb(from color(display-p3 0.25 none none) r g b)`, `color(srgb 0.27690544 none none)`);
+    fuzzy_test_computed_color(`rgb(from color(display-p3 none 0.5 none) r g b)`, `color(srgb none 0.50960895 none)`);
+    fuzzy_test_computed_color(`rgb(from color(display-p3 none none none) r g b)`, `color(srgb none none none)`);
+
+    fuzzy_test_computed_color(`rgb(from color(xyz none 0.5 1) r g b)`, `color(srgb none 0.99095134 0.97994511)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz 0.25 none 1) r g b)`, `color(srgb 0.59403754 none 1.03053617)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz 0.25 0.5 none) r g b)`, `color(srgb 0.22532444 0.85195951 none)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz none none 1) r g b)`, `color(srgb none none 1.02463965)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz 0.25 none none) r g b)`, `color(srgb 0.91144108 none none)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz none 0.5 none) r g b)`, `color(srgb none 0.97222877 none)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz none none none) r g b)`, `color(srgb none none none)`);
+
+    fuzzy_test_computed_color(`rgb(from color(xyz-d50 none 0.5 1) r g b)`, `color(srgb none 0.99628519 1.11843052)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz-d50 0.25 none 1) r g b)`, `color(srgb 0.57746244 none 1.16718092)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz-d50 0.25 0.5 none) r g b)`, `color(srgb -0.17244425 0.8615337 none)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz-d50 none none 1) r g b)`, `color(srgb none none 1.16072115)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz-d50 0.25 none none) r g b)`, `color(srgb 0.89803728 none none)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz-d50 none 0.5 none) r g b)`, `color(srgb none 0.98136351 none)`);
+    fuzzy_test_computed_color(`rgb(from color(xyz-d50 none none none) r g b)`, `color(srgb none none none)`);
+
+    fuzzy_test_computed_color(`rgb(from hwb(none none none) r g b)`, `color(srgb none none none)`);
+    fuzzy_test_computed_color(`rgb(from hsl(none none none) r g b)`, `color(srgb none none none)`);
+    fuzzy_test_computed_color(`rgb(from lab(none none none) r g b)`, `color(srgb none none none)`);
+    fuzzy_test_computed_color(`rgb(from oklab(none none none) r g b)`, `color(srgb none none none)`);
+
+    // rgb - color-mix
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(none 50 100), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.26303922 0.41607843)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(25 none 100), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.10401961 0.33 0.41607843)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(25 50 none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.10401961 0.26303922 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(none none 100), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.41607843)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(25 none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.10401961 0.33 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(none 50 none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.26303922 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(none none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.44)`);
+
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 none 0.5 1), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.41980447 0.73749249)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 0.25 none 1), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.19345272 0.33 0.74080285)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 0.25 0.5 none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11703798 0.41867289 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 none none 1), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.74101081)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 0.25 none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.19345272 0.33 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 none 0.5 none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.41980447 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 none none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.44)`);
+
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz none 0.5 1), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.66047567 0.70997256)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz 0.25 none 1), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.35201877 0.33 0.73526809)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz 0.25 0.5 none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.16766222 0.59097976 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz none none 1), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.73231982)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz 0.25 none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.51072054 0.33 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz none 0.5 none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.65111439 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz none none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.44)`);
+
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 none 0.5 1), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.6631426 0.77921526)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 0.25 none 1), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.34373122 0.33 0.80359046)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 0.25 0.5 none), color(srgb 0.11 0.33 0.44))`, `color(srgb -0.03122213 0.59576685 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 none none 1), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.80036058)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 0.25 none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.50401864 0.33 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 none 0.5 none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.65568176 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 none none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.44)`);
+
+    fuzzy_test_computed_color(`color-mix(in srgb, hwb(none none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, hsl(none none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, lab(none none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.44)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, oklab(none none none), color(srgb 0.11 0.33 0.44))`, `color(srgb 0.11 0.33 0.44)`);
+
+    // rgb - color-mix : single color input
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(none 50 100))`, `color(srgb none 0.19607843 0.39215686)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(25 none 100))`, `color(srgb 0.09803922 none 0.39215686)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(25 50 none))`, `color(srgb 0.09803922 0.19607843 none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(none none 100))`, `color(srgb none none 0.39215686)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(25 none none))`, `color(srgb 0.09803922 none none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(none 50 none))`, `color(srgb none 0.19607843 none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, rgb(none none none))`, `color(srgb none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 none 0.5 1))`, `color(srgb none 0.50960895 1.03498498)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 0.25 none 1))`, `color(srgb 0.27690544 none 1.0416057)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 0.25 0.5 none))`, `color(srgb 0.12407597 0.50734577 none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 none none 1))`, `color(srgb none none 1.04202162)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 0.25 none none))`, `color(srgb 0.27690544 none none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 none 0.5 none))`, `color(srgb none 0.50960895 none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(display-p3 none none none))`, `color(srgb none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz none 0.5 1))`, `color(srgb none 0.99095134 0.97994511)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz 0.25 none 1))`, `color(srgb 0.59403754 none 1.03053617)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz 0.25 0.5 none))`, `color(srgb 0.22532444 0.85195951 none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz none none 1))`, `color(srgb none none 1.02463965)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz 0.25 none none))`, `color(srgb 0.91144108 none none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz none 0.5 none))`, `color(srgb none 0.97222877 none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz none none none))`, `color(srgb none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 none 0.5 1))`, `color(srgb none 0.99628519 1.11843052)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 0.25 none 1))`, `color(srgb 0.57746244 none 1.16718092)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 0.25 0.5 none))`, `color(srgb -0.17244425 0.8615337 none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 none none 1))`, `color(srgb none none 1.16072115)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 0.25 none none))`, `color(srgb 0.89803728 none none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 none 0.5 none))`, `color(srgb none 0.98136351 none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, color(xyz-d50 none none none))`, `color(srgb none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in srgb, hwb(none none none))`, `color(srgb none none none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, hsl(none none none))`, `color(srgb none none none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, lab(none none none))`, `color(srgb none none none)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, oklab(none none none))`, `color(srgb none none none)`);
+
+    // lab - RCS
+    fuzzy_test_computed_color(`lab(from lab(none 10 10) l a b)`, `lab(none 10 10)`);
+    fuzzy_test_computed_color(`lab(from lab(50 none 10) l a b)`, `lab(50 none 10)`);
+    fuzzy_test_computed_color(`lab(from lab(50 10 none) l a b)`, `lab(50 10 none)`);
+    fuzzy_test_computed_color(`lab(from lab(none none 10) l a b)`, `lab(none none 10)`);
+    fuzzy_test_computed_color(`lab(from lab(50 none none) l a b)`, `lab(50 none none)`);
+    fuzzy_test_computed_color(`lab(from lab(none 10 none) l a b)`, `lab(none 10 none)`);
+    fuzzy_test_computed_color(`lab(from lab(none none none) l a b)`, `lab(none none none)`);
+
+    fuzzy_test_computed_color(`lab(from oklab(none 0.1 0.1) l a b)`, `lab(none -1.96485158 6.29937155)`);
+    fuzzy_test_computed_color(`lab(from oklab(0.5 none 0.1) l a b)`, `lab(42.22128134 none 47.39513153)`);
+    fuzzy_test_computed_color(`lab(from oklab(0.5 0.1 none) l a b)`, `lab(40.74235313 32.84691548 none)`);
+    fuzzy_test_computed_color(`lab(from oklab(none none 0.1) l a b)`, `lab(none none 5.1382874)`);
+    fuzzy_test_computed_color(`lab(from oklab(0.5 none none) l a b)`, `lab(42 none none)`);
+    fuzzy_test_computed_color(`lab(from oklab(none 0.1 none) l a b)`, `lab(none 0.33122624 none)`);
+    fuzzy_test_computed_color(`lab(from oklab(none none none) l a b)`, `lab(none none none)`);
+
+    fuzzy_test_computed_color(`lab(from hwb(none none none) l a b)`, `lab(none none none)`);
+    fuzzy_test_computed_color(`lab(from hsl(none none none) l a b)`, `lab(none none none)`);
+    fuzzy_test_computed_color(`lab(from rgb(none none none) l a b)`, `lab(none none none)`);
+    fuzzy_test_computed_color(`lab(from color(display-p3 none none none) l a b)`, `lab(none none none)`);
+
+    // lab - color-mix
+    fuzzy_test_computed_color(`color-mix(in lab, lab(none 10 10), lab(11 33 44))`, `lab(11 21.5 27)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(50 none 10), lab(11 33 44))`, `lab(30.5 33 27)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(50 10 none), lab(11 33 44))`, `lab(30.5 21.5 44)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(none none 10), lab(11 33 44))`, `lab(11 33 27)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(50 none none), lab(11 33 44))`, `lab(30.5 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(none 10 none), lab(11 33 44))`, `lab(11 21.5 44)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(none none none), lab(11 33 44))`, `lab(11 33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(none 0.1 0.1), lab(11 33 44))`, `lab(11 15.51757421 25.14968577)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(0.5 none 0.1), lab(11 33 44))`, `lab(26.61064067 33 45.69756576)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(0.5 0.1 none), lab(11 33 44))`, `lab(25.87117656 32.92345774 44)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(none none 0.1), lab(11 33 44))`, `lab(11 33 24.5691437)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(0.5 none none), lab(11 33 44))`, `lab(26.5 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(none 0.1 none), lab(11 33 44))`, `lab(11 16.66561312 44)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(none none none), lab(11 33 44))`, `lab(11 33 44)`);
+
+    fuzzy_test_computed_color(`color-mix(in lab, hwb(none none none), lab(11 33 44))`, `lab(11 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lab, hsl(none none none), lab(11 33 44))`, `lab(11 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lab, rgb(none none none), lab(11 33 44))`, `lab(11 33 44)`);
+    fuzzy_test_computed_color(`color-mix(in lab, color(display-p3 none none none), lab(11 33 44))`, `lab(11 33 44)`);
+
+    // lab - color-mix : single color input
+    fuzzy_test_computed_color(`color-mix(in lab, lab(none 10 10))`, `lab(none 10 10)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(50 none 10))`, `lab(50 none 10)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(50 10 none))`, `lab(50 10 none)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(none none 10))`, `lab(none none 10)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(50 none none))`, `lab(50 none none)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(none 10 none))`, `lab(none 10 none)`);
+    fuzzy_test_computed_color(`color-mix(in lab, lab(none none none))`, `lab(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(none 0.1 0.1))`, `lab(none -1.96485158 6.29937155)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(0.5 none 0.1))`, `lab(42.22128134 none 47.39513153)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(0.5 0.1 none))`, `lab(40.74235313 32.84691548 none)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(none none 0.1))`, `lab(none none 5.1382874)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(0.5 none none))`, `lab(42 none none)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(none 0.1 none))`, `lab(none 0.33122624 none)`);
+    fuzzy_test_computed_color(`color-mix(in lab, oklab(none none none))`, `lab(none none none)`);
+
+    fuzzy_test_computed_color(`color-mix(in lab, hwb(none none none))`, `lab(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in lab, hsl(none none none))`, `lab(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in lab, rgb(none none none))`, `lab(none none none)`);
+    fuzzy_test_computed_color(`color-mix(in lab, color(display-p3 none none none))`, `lab(none none none)`);
+</script>
+</body>
+</html>
