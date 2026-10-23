@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    .grid {
+        display: grid;
+        max-width: 400px;
+        grid-template-columns: repeat(auto-fill, minmax(25%, 1fr));
+    }
+    .grid > div {
+        width: 100px;
+        height: 10px;
+    }
+</style>
+<!-- The percentages of the repeated tracks resolve against the maximum size that the repetitions fill. -->
+<div style="display: flex">
+    <div class="grid" id="flex-item"><div></div><div></div><div></div></div>
+</div>
+<div style="display: inline-block">
+    <div class="grid" id="in-inline-block"><div></div><div></div><div></div></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll(".grid")) {
+            const width = element.getBoundingClientRect().width;
+            println(`${element.id}: width=${width} columns=${getComputedStyle(element).gridTemplateColumns}`);
+        }
+    });
+</script>
