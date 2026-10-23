@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<title>CSS Anchor Position Test: invalid at computed-value time</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-valid">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#anchor-size-valid">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  :root {
+    --top: top;
+  }
+  #cb {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    border: 1px solid black;
+  }
+
+  #anchor {
+    anchor-name: --a;
+    position: absolute;
+    width: 50px;
+    height: 40px;
+    left: 75px;
+    top: 75px;
+    background: coral;
+  }
+
+  #main > div, #ref {
+    position: absolute;
+    background: seagreen;
+  }
+
+  #ref {
+    inset: unset;
+    width: unset;
+    height: unset;
+    min-width: unset;
+    min-height: unset;
+    max-width: unset;
+    max-height: unset;
+  }
+
+</style>
+<div id=cb>
+  <div id=anchor></div>
+  <div id=main></div>
+  <div id=ref>X</div>
+</div>
+<script>
+
+// Append <div>X</div> to `container`, and remove it again once the test (`t`)
+// is finished.
+function createTarget(t, container) {
+  t.add_cleanup(() => { container.replaceChildren(); });
+  let target = document.createElement('div');
+  target.textContent = 'X';
+  container.append(target);
+  return target;
+}
+
+// First, some sanity checks to verify that the anchor etc is set up correctly,
+// and that anchor() queries can produce results if done correctly.
+
+test((t) => {
+  let target = createTarget(t, main);
+  target.style = `
+    position-anchor: --a;
+    left:anchor(right);
+    top:anchor(top);
+    width:anchor-size(width);
+    height:anchor-size(height);
+  `;
+  let cs = getComputedStyle(target);
+  assert_equals(cs.left, '125px');
+  assert_equals(cs.top, '75px');
+  assert_equals(cs.width, '50px');
+  assert_equals(cs.height, '40px');
+}, 'Element can be anchor positioned');
+
+test((t) => {
+  let target = createTarget(t, main);
+  target.style = `
+    /* No position-anchor here */
+    left:anchor(right, 17px);
+    top:anchor(top, 18px);
+    width:anchor-size(width, 42px);
+    height:anchor-size(height, 43px);
+  `;
+  let cs = getComputedStyle(target);
+  assert_equals(cs.left, '17px');
+  assert_equals(cs.top, '18px');
+  assert_equals(cs.width, '42px');
+  assert_equals(cs.height, '43px');
+}, 'Element can use <length> fallback if present');
+
+test((t) => {
+  let target = createTarget(t, main);
+  target.style = `
+    /* No position-anchor here */
+    left:anchor(right, 8.5%);
+    top:calc(8.5% + anchor(top, 1px));
+    width:anchor-size(width, 21%);
+    height:calc(21% + anchor-size(height, 1px));
+  `;
+  let cs = getComputedStyle(target);
+  assert_equals(cs.left, '17px');
+  assert_equals(cs.top, '18px');
+  assert_equals(cs.width, '42px');
+  assert_equals(cs.height, '43px');
+}, 'Element can use <length> fallback with percentage');
+
+test((t) => {
+  let target = createTarget(t, main);
+  target.style = `
+    /* No position-anchor here */
+    max-width:anchor-size(width, 28%);
+    max-height:calc(28% + anchor-size(height, 1px));
+  `;
+  let cs = getComputedStyle(target);
+  assert_equals(cs.maxWidth, '28%');
+  assert_equals(cs.maxHeight, 'calc(28% + 1px)');
+}, 'Element can use <length> fallback for max size with percentage');
+
+test((t) => {
+  let target = createTarget(t, main);
+  target.style = `
+    /* No position-anchor here */
+    margin-left:anchor-size(width, 6%);
+    margin-top:calc(6% + anchor-size(height, 1px));
+  `;
+  let cs = getComputedStyle(target);
+  assert_equals(cs.marginLeft, '12px');
+  assert_equals(cs.marginTop, '13px');
+}, 'Element can use <length> fallback for margin with percentage');
+
+// Now test that any invalid anchor*() behaves as invalid at computed-value
+// time if there's no fallback specified.
+
+// Check that an anchored element with the specified style has the same
+// computed insets and sizing as the reference element (#ref), i.e. all
+// insets and sizing properties behave as 'unset'.
+function test_ref(style, description) {
+  test((t) => {
+    let target = createTarget(t, main);
+    target.style = style;
+    let cs = getComputedStyle(target);
+    let ref_cs = getComputedStyle(ref);
+    assert_equals(cs.top, ref_cs.top, 'top');
+    assert_equals(cs.left, ref_cs.left, 'left');
+    assert_equals(cs.right, ref_cs.right, 'right');
+    assert_equals(cs.bottom, ref_cs.bottom, 'bottom');
+    assert_equals(cs.width, ref_cs.width, 'width');
+    assert_equals(cs.height, ref_cs.height, 'height');
+    assert_equals(cs.minWidth, ref_cs.minWidth, 'minWidth');
+    assert_equals(cs.minHeight, ref_cs.minHeight, 'minHeight');
+    assert_equals(cs.maxWidth, ref_cs.maxWidth, 'maxWidth');
+    assert_equals(cs.maxHeight, ref_cs.maxHeight, 'maxHeight');
+  }, `Invalid anchor function, ${description}`);
+}
+
+// No default anchor (position-anchor):
+test_ref('left:anchor(left)', 'left');
+test_ref('right:anchor(right)', 'right');
+test_ref('bottom:anchor(bottom)', 'bottom');
+test_ref('top:anchor(top)', 'top');
+test_ref('width:anchor-size(width)', 'width');
+test_ref('height:anchor-size(height)', 'height');
+test_ref('min-width:anchor-size(width)', 'min-width');
+test_ref('min-height:anchor-size(height)', 'min-height');
+test_ref('max-width:anchor-size(width)', 'max-width');
+test_ref('max-height:anchor-size(height)', 'max-height');
+
+// Unknown anchor reference:
+test_ref('left:anchor(--unknown left)', '--unknown left');
+test_ref('width:anchor-size(--unknown width)', '--unknown width');
+
+// Wrong axis;
+test_ref('left:anchor(--a top)', 'cross-axis query (vertical)');
+test_ref('top:anchor(--a left)', ' cross-axis query (horizontal)');
+
+// Wrong query for the given property:
+test_ref('width:anchor(--a left)', 'anchor() in sizing property');
+
+// Invalid anchor*() deeper within calc():
+test_ref('left:calc(anchor(left) + 10px)', 'nested left');
+test_ref('right:calc(anchor(right) + 10px)', 'nested right');
+test_ref('bottom:calc(anchor(bottom) + 10px)', 'nested bottom');
+test_ref('top:calc(anchor(top) + 10px)', 'nested top');
+test_ref('min-width:calc(anchor-size(width) + 10px)', 'nested min-width');
+test_ref('min-height:calc(anchor-size(height) + 10px)', 'nested min-height');
+test_ref('max-width:calc(anchor-size(width) + 10px)', 'nested max-width');
+test_ref('max-height:calc(anchor-size(height) + 10px)', 'nested max-height');
+
+// Invalid anchor*() within fallback:
+test_ref('top:anchor(top, anchor(--unknown top))', 'invalid anchor() in fallback');
+test_ref('width:anchor-size(width, anchor-size(--unknown width))', 'invalid anchor-size() in fallback');
+
+// Non-calc() functions:
+test_ref('top:min(10px, anchor(top))', 'min()');
+test_ref('top:max(10px, anchor(top))', 'max()');
+test_ref('top:abs(anchor(top) - 100px)', 'abs()');
+test_ref('top:calc(sign(anchor(top) - 100px) * 20px)', 'sign()');
+
+// var():
+test_ref('top:anchor(var(--top))', 'anchor(var())');
+test_ref('top:anchor(var(--unknown, top))', 'anchor(unknown var()) (fallback)');
+test_ref('top:anchor(var(--unknown))', 'anchor(unknown var()) (no fallback)');
+
+// Reverting to an invalid anchor():
+test((t) => {
+  let target = createTarget(t, main);
+  target.setAttribute('id', 'target');
+
+  let css = document.createElement('style');
+  css.textContent = `
+    @layer base {
+      #target {
+        top: anchor(top); /* Invalid */
+        color: green;
+      }
+    }
+    #target {
+      top: revert-layer; /* Reverts to 'base'. */
+    }
+  `;
+
+  t.add_cleanup(() => { css.remove(); })
+  cb.append(css);
+
+  let cs = getComputedStyle(target);
+  let ref_cs = getComputedStyle(ref);
+  // The color check verifies that the rule is applied at all.
+  assert_equals(cs.color, 'rgb(0, 128, 0)');
+  assert_equals(cs.top, ref_cs.top);
+}, 'Revert to invalid anchor()');
+
+// Using <try-tactic> to flip to an invalid anchor():
+test((t) => {
+  let target = createTarget(t, main);
+  target.setAttribute('id', 'target');
+
+  let css = document.createElement('style');
+  css.textContent = `
+    @position-try --pt {
+      /* Undo force overflow, and also use this value to check that
+         the rule is applied at all. */
+      left: 10px;
+
+      /* Invalid. Becomes bottom:anchor(bottom) (also invalid)
+         after flip-block. */
+      top: anchor(top);
+    }
+
+    #target {
+      left: 9999px; /* Force overflow. */
+      position-try-fallbacks: --pt flip-block;
+    }
+  `;
+
+  t.add_cleanup(() => { css.remove(); })
+  cb.append(css);
+
+  let cs = getComputedStyle(target);
+  let ref_cs = getComputedStyle(ref);
+  assert_equals(cs.left, '10px', 'left');
+  // 'right' is not important in this test.
+
+  assert_equals(cs.top, ref_cs.top, 'top');
+  assert_equals(cs.bottom, ref_cs.bottom, 'bottom');
+}, 'Flip to invalid anchor()');
+
+</script>
+

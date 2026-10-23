@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: position-area in @position-try</title>
+<link rel="help" href='https://drafts.csswg.org/css-anchor-position-1/#position-try-fallbacks'>
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<style>
+  #cb {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    border: 1px solid black;
+  }
+  #anchor {
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 50px;
+    height: 50px;
+    background-color: tomato;
+    anchor-name: --a;
+  }
+  #target {
+    left: 200px; /* force fallback */
+  }
+  #target, #ref {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background-color: skyblue;
+    position-area: bottom right;
+    position-anchor: --a;
+  }
+  #ref {
+    background-color: seagreen;
+  }
+</style>
+<style id=style>
+</style>
+<div id=cb>
+  <div id=anchor></div>
+  <div id=target></div>
+  <div id=ref></div>
+</div>
+<script>
+
+// Test that inside-area, when used inside @position-try, works the same
+// as when it's specified in the base style.
+function test_position_area_ref(position_area) {
+  test((t) => {
+    t.add_cleanup(() => {
+      style.textContent = '';
+    });
+    style.textContent = `
+      @position-try --pt {
+        inset: unset; /* Undo force fallback */
+        position-area: ${position_area};
+      }
+      #target {
+        position-try-fallbacks: --pt;
+      }
+      #ref {
+        position-area: ${position_area};
+      }
+    `;
+    assert_true(CSS.supports('position-area', 'top left'));
+    assert_true(CSS.supports('position-try-fallbacks', '--x'));
+    assert_equals(target.offsetLeft, ref.offsetLeft, 'offsetLeft');
+    assert_equals(target.offsetTop, ref.offsetTop, 'offsetTop');
+  }, `${position_area}`);
+}
+
+test_position_area_ref('none');
+test_position_area_ref('span-all');
+test_position_area_ref('span-all span-all');
+test_position_area_ref('top left');
+test_position_area_ref('top center');
+test_position_area_ref('top right');
+test_position_area_ref('center left');
+test_position_area_ref('center center');
+test_position_area_ref('center right');
+test_position_area_ref('bottom left');
+test_position_area_ref('bottom center');
+test_position_area_ref('bottom right');
+test_position_area_ref('start start');
+test_position_area_ref('start center');
+test_position_area_ref('start end');
+test_position_area_ref('center start');
+test_position_area_ref('center end');
+test_position_area_ref('end start');
+test_position_area_ref('end center');
+test_position_area_ref('end end');
+test_position_area_ref('self-start self-start');
+test_position_area_ref('self-start center');
+test_position_area_ref('self-start self-end');
+test_position_area_ref('center self-start');
+test_position_area_ref('center self-end');
+test_position_area_ref('self-end self-start');
+test_position_area_ref('self-end center');
+test_position_area_ref('self-end self-end');
+test_position_area_ref('y-start x-start');
+test_position_area_ref('y-start center');
+test_position_area_ref('y-start x-end');
+test_position_area_ref('center x-start');
+test_position_area_ref('center x-end');
+test_position_area_ref('y-end x-start');
+test_position_area_ref('y-end center');
+test_position_area_ref('y-end x-end');
+test_position_area_ref('self-y-start self-x-start');
+test_position_area_ref('self-y-start center');
+test_position_area_ref('self-y-start self-x-end');
+test_position_area_ref('center self-x-start');
+test_position_area_ref('center self-x-end');
+test_position_area_ref('self-y-end self-x-start');
+test_position_area_ref('self-y-end center');
+test_position_area_ref('self-y-end self-x-end');
+test_position_area_ref('span-self-y-start span-self-x-end');
+test_position_area_ref('span-bottom span-all');
+
+</script>
+
+<style>
+  @position-try --top {
+    inset: unset; /* Undo force fallback */
+    position-area: top;
+  }
+  @position-try --right {
+    inset: unset; /* Undo force fallback */
+    position-area: right;
+  }
+  @position-try --bottom {
+    inset: unset; /* Undo force fallback */
+    position-area: bottom;
+  }
+  @position-try --left {
+    inset: unset; /* Undo force fallback */
+    position-area: left;
+  }
+</style>
+<script>
+
+// Test that an element with the specified position-try-fallbacks is placed
+// at the same position as a reference element with position-area:`expected`.
+// This test uses #target/#ref size of 60x60px, which causes overflow if
+// if we attempt the --right and --bottom positions.
+function test_position_area_placement(position_try_fallbacks, expected) {
+  test((t) => {
+    style.textContent = `
+      #target, #ref {
+        width: 60px;
+        height: 60px;
+      }
+      #target {
+        position-try-fallbacks: ${position_try_fallbacks};
+      }
+      #ref {
+        position-area: ${expected};
+      }
+    `;
+    assert_true(CSS.supports('position-area', 'top left'));
+    assert_true(CSS.supports('position-try-fallbacks', '--x'));
+    assert_equals(target.offsetLeft, ref.offsetLeft, 'offsetLeft');
+    assert_equals(target.offsetTop, ref.offsetTop, 'offsetTop');
+  }, `Placement: ${position_try_fallbacks}`);
+}
+
+test_position_area_placement('--top', 'top');
+test_position_area_placement('--left', 'left');
+
+// No space to to the right/bottom:
+test_position_area_placement('--right, --top', 'top');
+test_position_area_placement('--bottom, --top', 'top');
+test_position_area_placement('--bottom, --right, --top', 'top');
+test_position_area_placement('--bottom, --right, --left, --top', 'left');
+test_position_area_placement('--bottom, --left, --top, --right', 'left');
+
+// Flipping:
+test_position_area_placement('--right flip-inline', 'left');
+test_position_area_placement('--bottom flip-block', 'top');
+test_position_area_placement('--left flip-start', 'top');
+test_position_area_placement('--right flip-x', 'left');
+test_position_area_placement('--bottom flip-y', 'top');
+
+// left + flip-inline => right (no space).
+test_position_area_placement('--left flip-inline, --top', 'top');
+test_position_area_placement('--left flip-x, --top', 'top');
+// top + flip-block => bottom (no space).
+test_position_area_placement('--top flip-block, --left', 'left');
+test_position_area_placement('--top flip-y, --left', 'left');
+// left + flip-start flip-block => bottom (no space).
+test_position_area_placement('--left flip-start flip-block, --left', 'left');
+test_position_area_placement('--left flip-start flip-y, --left', 'left');
+
+</script>

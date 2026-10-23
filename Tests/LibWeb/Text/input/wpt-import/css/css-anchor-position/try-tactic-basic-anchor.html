@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: simple try-tactic with anchor</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #cb {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border: 1px solid black;
+  }
+  #anchor {
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 50px;
+    height: 50px;
+    background-color:red;
+    anchor-name: --anchor;
+  }
+  #target1 {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    /* Does not fit ... */
+    left: anchor(--anchor left);
+    top: anchor(--anchor bottom);
+    /* flip-block fits */
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+    background-color: coral;
+  }
+  #target2 {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    /* Does not fit ... */
+    left: anchor(--anchor right);
+    top: anchor(--anchor top);
+    /* flip-inline fits */
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+    background-color: blue;
+  }
+  #target3 {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    /* Does not fit ... */
+    left: anchor(--anchor right);
+    top: anchor(--anchor bottom);
+    /* flip-block flip-inline fits */
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+    background-color: green;
+  }
+</style>
+<div id=cb>
+  <div id=anchor></div>
+  <div id=target1></div>
+  <div id=target2></div>
+  <div id=target3></div>
+</div>
+<script>
+  test(() => {
+    let cs = getComputedStyle(target1);
+    assert_equals(cs.left, '100px');
+    assert_equals(cs.top, '0px');
+  }, 'Uses flip-block');
+  test(() => {
+    let cs = getComputedStyle(target2);
+    assert_equals(cs.left, '0px');
+    assert_equals(cs.top, '100px');
+  }, 'Uses flip-inline');
+  test(() => {
+    let cs = getComputedStyle(target3);
+    assert_equals(cs.left, '0px');
+    assert_equals(cs.top, '0px');
+  }, 'Uses flip-block flip-inline');
+</script>

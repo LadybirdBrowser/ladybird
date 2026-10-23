@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#propdef-anchor-name">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+.container {
+  position: relative;
+  height: 10px;
+}
+.anchor1 {
+  anchor-name: --a1;
+  width: 5px;
+  height: 7px;
+  background: orange;
+}
+.target {
+  position: absolute;
+}
+</style>
+<body onload="checkLayoutForAnchorPos('.target')">
+  <div class="container">
+    <div class="anchor1"></div>
+
+    <!-- Basic cases of all `anchor-size`s. -->
+    <div class="target" style="width: anchor-size(--a1 width)" data-expected-width=5></div>
+    <div class="target" style="height: anchor-size(--a1 height)" data-expected-height=7></div>
+    <div class="target" style="width: anchor-size(--a1 inline)" data-expected-width=5></div>
+    <div class="target" style="height: anchor-size(--a1 block)" data-expected-height=7></div>
+    <div class="target" style="width: anchor-size(--a1 self-inline)" data-expected-width=5></div>
+    <div class="target" style="height: anchor-size(--a1 self-block)" data-expected-height=7></div>
+
+    <!-- Different axes should work. -->
+    <div class="target" style="height: anchor-size(--a1 width)" data-expected-height=5></div>
+    <div class="target" style="width: anchor-size(--a1 height)" data-expected-width=7></div>
+    <div class="target" style="height: anchor-size(--a1 inline)" data-expected-height=5></div>
+    <div class="target" style="width: anchor-size(--a1 block)" data-expected-width=7></div>
+    <div class="target" style="height: anchor-size(--a1 self-inline)" data-expected-height=5></div>
+    <div class="target" style="width: anchor-size(--a1 self-block)" data-expected-width=7></div>
+
+    <!-- anchor-size() in insets -->
+    <div class="target" style="left: anchor-size(--a1 width)" data-offset-x=5></div>
+    <div class="target" style="top: anchor-size(--a1 height)" data-offset-y=7></div>
+    <div class="target" style="left: anchor-size(--a1 height)" data-offset-x=7></div>
+    <div class="target" style="top: anchor-size(--a1 width" data-offset-y=5></div>
+
+    <!-- anchor-size() in margins -->
+    <div class="target" style="margin-left: anchor-size(--a1 width)" data-expected-margin-left=5></div>
+    <div class="target" style="margin-top: anchor-size(--a1 height)" data-expected-margin-top=7></div>
+    <div class="target" style="margin-right: anchor-size(--a1 height)" data-expected-margin-right=7></div>
+    <div class="target" style="margin-bottom: anchor-size(--a1 width" data-expected-margin-bottom=5></div>
+
+    <!-- Implicit <anchor-size> -->
+    <div class="target" style="width: anchor-size(--a1)" data-expected-width=5></div>
+    <div class="target" style="height: anchor-size(--a1)" data-expected-height=7></div>
+    <div class="target" style="left: anchor-size(--a1)" data-offset-x=5></div>
+    <div class="target" style="top: anchor-size(--a1)" data-offset-y=7></div>
+    <div class="target" style="margin-left: anchor-size(--a1)" data-expected-margin-left=5></div>
+    <div class="target" style="margin-right: anchor-size(--a1)" data-expected-margin-right=5></div>
+    <div class="target" style="margin-top: anchor-size(--a1)" data-expected-margin-top=7></div>
+    <div class="target" style="margin-bottom: anchor-size(--a1)" data-expected-margin-bottom=7></div>
+  </div>
+</body>

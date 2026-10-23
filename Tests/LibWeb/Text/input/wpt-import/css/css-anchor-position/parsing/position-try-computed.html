@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Anchor Positioning Test: Computed position-try</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#position-try-prop">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="target"></div>
+<script>
+  test_computed_value("position-try", "none");
+  test_computed_value("position-try", "normal none", "none");
+  test_computed_value("position-try", "flip-block");
+  test_computed_value("position-try", "flip-y");
+  test_computed_value("position-try", "most-width none");
+  test_computed_value("position-try", "most-height flip-block, flip-inline");
+  test_computed_value("position-try", "most-height flip-y, flip-x");
+  test_computed_value("position-try", "most-width --foo, --bar");
+  test_computed_value("position-try", "normal --foo", "--foo");
+</script>

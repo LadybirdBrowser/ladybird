@@ -1,0 +1,65 @@
+Harness status: OK
+
+Found 60 tests
+
+60 Pass
+Pass	, justify-self:start;align-self:start, justify-self:start;align-self:start, ltr, horizontal-tb
+Pass	flip-inline, justify-self:start;align-self:start, justify-self:end;align-self:start, ltr, horizontal-tb
+Pass	flip-block, justify-self:start;align-self:start, justify-self:start;align-self:end, ltr, horizontal-tb
+Pass	flip-block flip-inline, justify-self:start;align-self:start, justify-self:end;align-self:end, ltr, horizontal-tb
+Pass	flip-start, justify-self:start;align-self:end, justify-self:end;align-self:start, ltr, horizontal-tb
+Pass	flip-block flip-start, justify-self:start;align-self:start, justify-self:end;align-self:start, ltr, horizontal-tb
+Pass	flip-inline flip-start, justify-self:start;align-self:start, justify-self:start;align-self:end, ltr, horizontal-tb
+Pass	flip-block flip-inline flip-start, justify-self:start;align-self:start, justify-self:end;align-self:end, ltr, horizontal-tb
+Pass	flip-x, justify-self:start;align-self:start, justify-self:end;align-self:start, ltr, horizontal-tb
+Pass	flip-y, justify-self:start;align-self:start, justify-self:start;align-self:end, ltr, horizontal-tb
+Pass	flip-y flip-x, justify-self:start;align-self:start, justify-self:end;align-self:end, ltr, horizontal-tb
+Pass	flip-y flip-start, justify-self:start;align-self:start, justify-self:end;align-self:start, ltr, horizontal-tb
+Pass	flip-x flip-start, justify-self:start;align-self:start, justify-self:start;align-self:end, ltr, horizontal-tb
+Pass	flip-y flip-x flip-start, justify-self:start;align-self:start, justify-self:end;align-self:end, ltr, horizontal-tb
+Pass	flip-inline, justify-self:left;align-self:start, justify-self:right;align-self:start, ltr, horizontal-tb
+Pass	flip-x, justify-self:left;align-self:start, justify-self:right;align-self:start, ltr, horizontal-tb
+Pass	flip-start, justify-self:left;align-self:end, justify-self:end;align-self:self-start, ltr, horizontal-tb
+Pass	flip-start, justify-self:right;align-self:start, justify-self:start;align-self:self-end, ltr, horizontal-tb
+Pass	, justify-self:start
+Pass	, justify-self:end
+Pass	, justify-self:self-start
+Pass	, justify-self:self-end
+Pass	, justify-self:flex-start
+Pass	, justify-self:flex-end
+Pass	, align-self:start
+Pass	, align-self:end
+Pass	, align-self:self-start
+Pass	, align-self:self-end
+Pass	, align-self:flex-start
+Pass	, align-self:flex-end
+Pass	flip-inline, justify-self:start
+Pass	flip-inline, justify-self:end
+Pass	flip-inline, justify-self:self-start
+Pass	flip-inline, justify-self:self-end
+Pass	flip-inline, justify-self:flex-start
+Pass	flip-inline, justify-self:flex-end
+Pass	flip-inline, justify-self:left
+Pass	flip-inline, justify-self:right
+Pass	flip-x, justify-self:start
+Pass	flip-x, justify-self:end
+Pass	flip-x, justify-self:self-start
+Pass	flip-x, justify-self:self-end
+Pass	flip-x, justify-self:flex-start
+Pass	flip-x, justify-self:flex-end
+Pass	flip-x, justify-self:left
+Pass	flip-x, justify-self:right
+Pass	flip-block, align-self:start
+Pass	flip-block, align-self:end
+Pass	flip-block, align-self:self-start
+Pass	flip-block, align-self:self-end
+Pass	flip-block, align-self:flex-start
+Pass	flip-block, align-self:flex-end
+Pass	flip-y, align-self:start
+Pass	flip-y, align-self:end
+Pass	flip-y, align-self:self-start
+Pass	flip-y, align-self:self-end
+Pass	flip-y, align-self:flex-start
+Pass	flip-y, align-self:flex-end
+Pass	flip-start, justify-self:left;align-self:end, justify-self:end;align-self:self-start, ltr, vertical-rl
+Pass	flip-start, justify-self:left;align-self:start, justify-self:start;align-self:self-end, rtl, horizontal-tb

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: position-area positioning - alignment</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position/#position-area">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  /* A 300x300 container with a 100x100 centered anchor */
+  #container {
+    position: relative;
+    width: 300px;
+    height: 300px;
+  }
+  #anchor {
+    position: absolute;
+    top: 100px;
+    left: 100px;
+    width: 100px;
+    height: 100px;
+    anchor-name: --anchor;
+  }
+  #anchored {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    inset: 10px 15px 20px 25px;
+    position-anchor: --anchor;
+  }
+</style>
+<div id="container">
+  <div id="anchor"></div>
+  <div id="anchored"></div>
+</div>
+<script>
+  function test_position_area(position_area, expected_offsets) {
+    anchored.style.positionArea = position_area;
+
+    test(() => {
+      assert_equals(anchored.offsetLeft, expected_offsets.left, "Check expected offsetLeft");
+      assert_equals(anchored.offsetTop, expected_offsets.top, "Check expected offsetTop");
+      assert_equals(anchored.offsetWidth, expected_offsets.width, "Check expected offsetWidth");
+      assert_equals(anchored.offsetHeight, expected_offsets.height, "Check expected offsetHeight");
+    }, "Offsets for position-area: " + position_area);
+  }
+
+  // anchor-center in both directions
+  test_position_area("span-all", {left:145, top:145, width:10, height:10});
+
+  // Single region spans
+  test_position_area("top left", {left:75, top:70, width:10, height:10});
+  test_position_area("top center", {left:150, top:70, width:10, height:10});
+  test_position_area("top right", {left:225, top:70, width:10, height:10});
+  test_position_area("center left", {left:75, top:140, width:10, height:10});
+  test_position_area("center center", {left:150, top:140, width:10, height:10});
+  test_position_area("center right", {left:225, top:140, width:10, height:10});
+  test_position_area("bottom left", {left:75, top:210, width:10, height:10});
+  test_position_area("bottom center", {left:150, top:210, width:10, height:10});
+  test_position_area("bottom right", {left:225, top:210, width:10, height:10});
+
+  // Multi-region spans
+  test_position_area("top span-left", {left:175, top:70, width:10, height:10});
+  test_position_area("top span-right", {left:125, top:70, width:10, height:10});
+  test_position_area("span-top left", {left:75, top:170, width:10, height:10});
+  test_position_area("span-bottom left", {left:75, top:110, width:10, height:10});
+
+</script>

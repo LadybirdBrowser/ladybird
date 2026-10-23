@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: try-tactic, position-area</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+  }
+  #anchor {
+    position: absolute;
+    left: 150px;
+    top: 150px;
+    width: 100px;
+    height: 50px;
+    background-color: coral;
+  }
+  #target, #ref {
+    position: absolute;
+    left: 450px; /* force fallback */
+    width: 40px;
+    height: 40px;
+    background-color: skyblue;
+  }
+</style>
+<style id=style>
+</style>
+<div id=cb>
+  <div id=target></div>
+  <div id=ref></div>
+</div>
+<script>
+
+function test_position_area_tactic(try_tactic, property, value, expected, direction = 'ltr', writing_mode = 'horizontal-tb') {
+  test((t) => {
+    t.add_cleanup(() => {
+      style.textContent = '';
+      document.documentElement.style = '';
+    });
+    document.documentElement.style.direction = direction;
+    document.documentElement.style.writingMode = writing_mode;
+    style.textContent = `
+      @position-try --pf {
+        inset: initial;
+        ${property}:${value};
+      }
+      #target {
+        position-try-fallbacks: --pf ${try_tactic};
+      }
+      #ref {
+        inset: initial;
+        ${property}:${expected};
+      }
+    `;
+    let targetRect = target.getBoundingClientRect();
+    let refRect = ref.getBoundingClientRect();
+    for (let prop of ["top", "right", "bottom", "left"]) {
+      assert_equals(targetRect[prop], refRect[prop], `Should render as ${property}: ${expected}: ${prop}`);
+    }
+  }, `${try_tactic}, ${property}:${value}, ${direction} ${writing_mode}`);
+}
+
+// Physical:
+
+test_position_area_tactic('flip-inline', 'position-area', 'left top', 'right top');
+test_position_area_tactic('flip-inline', 'position-area', 'left bottom', 'right bottom');
+test_position_area_tactic('flip-inline', 'position-area', 'right bottom', 'left bottom');
+test_position_area_tactic('flip-inline', 'position-area', 'right top', 'left top');
+
+test_position_area_tactic('flip-block', 'position-area', 'left top', 'left bottom');
+test_position_area_tactic('flip-block', 'position-area', 'left bottom', 'left top');
+test_position_area_tactic('flip-block', 'position-area', 'right bottom', 'right top');
+test_position_area_tactic('flip-block', 'position-area', 'right top', 'right bottom');
+
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'left top', 'right bottom');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'left bottom', 'right top');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'right bottom', 'left top');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'right top', 'left bottom');
+
+test_position_area_tactic('flip-start', 'position-area', 'left top', 'left top');
+test_position_area_tactic('flip-start', 'position-area', 'left bottom', 'right top');
+test_position_area_tactic('flip-start', 'position-area', 'right bottom', 'right bottom');
+test_position_area_tactic('flip-start', 'position-area', 'right top', 'left bottom');
+
+test_position_area_tactic('flip-block flip-start', 'position-area', 'left top', 'right top');
+test_position_area_tactic('flip-block flip-start', 'position-area', 'left bottom', 'left top');
+test_position_area_tactic('flip-block flip-start', 'position-area', 'right bottom', 'left bottom');
+test_position_area_tactic('flip-block flip-start', 'position-area', 'right top', 'right bottom');
+
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'left top', 'left bottom');
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'left bottom', 'right bottom');
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'right bottom', 'right top');
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'right top', 'left top');
+
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'left top', 'right bottom');
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'left bottom', 'left bottom');
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'right bottom', 'left top');
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'right top', 'right top');
+
+// Variations:
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'span-left span-top', 'span-right span-bottom');
+
+// XY:
+
+test_position_area_tactic('flip-inline', 'position-area', 'x-start y-start', 'x-end y-start');
+test_position_area_tactic('flip-inline', 'position-area', 'x-start y-end', 'x-end y-end');
+test_position_area_tactic('flip-inline', 'position-area', 'x-end y-end', 'x-start y-end');
+test_position_area_tactic('flip-inline', 'position-area', 'x-end y-start', 'x-start y-start');
+
+test_position_area_tactic('flip-block', 'position-area', 'x-start y-start', 'x-start y-end');
+test_position_area_tactic('flip-block', 'position-area', 'x-start y-end', 'x-start y-start');
+test_position_area_tactic('flip-block', 'position-area', 'x-end y-end', 'x-end y-start');
+test_position_area_tactic('flip-block', 'position-area', 'x-end y-start', 'x-end y-end');
+
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'x-start y-start', 'x-end y-end');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'x-start y-end', 'x-end y-start');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'x-end y-end', 'x-start y-start');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'x-end y-start', 'x-start y-end');
+
+test_position_area_tactic('flip-start', 'position-area', 'x-start y-start', 'x-start y-start');
+test_position_area_tactic('flip-start', 'position-area', 'x-start y-end', 'x-end y-start');
+test_position_area_tactic('flip-start', 'position-area', 'x-end y-end', 'x-end y-end');
+test_position_area_tactic('flip-start', 'position-area', 'x-end y-start', 'x-start y-end');
+
+test_position_area_tactic('flip-block flip-start', 'position-area', 'x-start y-start', 'x-end y-start');
+test_position_area_tactic('flip-block flip-start', 'position-area', 'x-start y-end', 'x-start y-start');
+test_position_area_tactic('flip-block flip-start', 'position-area', 'x-end y-end', 'x-start y-end');
+test_position_area_tactic('flip-block flip-start', 'position-area', 'x-end y-start', 'x-end y-end');
+
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'x-start y-start', 'x-start y-end');
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'x-start y-end', 'x-end y-end');
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'x-end y-end', 'x-end y-start');
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'x-end y-start', 'x-start y-start');
+
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'x-start y-start', 'x-end y-end');
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'x-start y-end', 'x-start y-end');
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'x-end y-end', 'x-start y-start');
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'x-end y-start', 'x-end y-start');
+
+// Variations:
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'span-x-start span-y-start', 'span-x-end span-y-end');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'self-x-start self-y-start', 'self-x-end self-y-end');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'span-self-x-start span-self-y-start', 'span-self-x-end span-self-y-end');
+
+// Logical:
+
+test_position_area_tactic('flip-inline', 'position-area', 'block-start inline-start', 'start end');
+test_position_area_tactic('flip-inline', 'position-area', 'block-end inline-start', 'end');
+test_position_area_tactic('flip-inline', 'position-area', 'block-end inline-end', 'end start');
+test_position_area_tactic('flip-inline', 'position-area', 'block-start inline-end', 'start');
+
+test_position_area_tactic('flip-block', 'position-area', 'block-start inline-start', 'end start');
+test_position_area_tactic('flip-block', 'position-area', 'block-end inline-start', 'start');
+test_position_area_tactic('flip-block', 'position-area', 'block-end inline-end', 'start end');
+test_position_area_tactic('flip-block', 'position-area', 'block-start inline-end', 'end');
+
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'block-start inline-start', 'end');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'block-end inline-start', 'start end');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'block-end inline-end', 'start');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'block-start inline-end', 'end start');
+
+test_position_area_tactic('flip-start', 'position-area', 'block-start inline-start', 'start');
+test_position_area_tactic('flip-start', 'position-area', 'block-end inline-start', 'start end');
+test_position_area_tactic('flip-start', 'position-area', 'block-end inline-end', 'end');
+test_position_area_tactic('flip-start', 'position-area', 'block-start inline-end', 'end start');
+
+test_position_area_tactic('flip-block flip-start', 'position-area', 'block-start inline-start', 'start end');
+test_position_area_tactic('flip-block flip-start', 'position-area', 'block-end inline-start', 'start');
+test_position_area_tactic('flip-block flip-start', 'position-area', 'block-end inline-end', 'end start');
+test_position_area_tactic('flip-block flip-start', 'position-area', 'block-start inline-end', 'end');
+
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'block-start inline-start', 'end start');
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'block-end inline-start', 'end');
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'block-end inline-end', 'start end');
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'block-start inline-end', 'start');
+
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'block-start inline-start', 'end');
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'block-end inline-start', 'end start');
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'block-end inline-end', 'start');
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'block-start inline-end', 'start end');
+
+// Variations:
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'span-block-start span-inline-start', 'span-end');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'self-block-start self-inline-start', 'self-end');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'span-self-block-start span-self-inline-start', 'span-self-end');
+
+// start/end
+
+test_position_area_tactic('', 'position-area', 'start end', 'start end');
+
+test_position_area_tactic('flip-block', 'position-area', 'start end', 'end');
+
+test_position_area_tactic('flip-inline', 'position-area', 'start end', 'start');
+
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'start end', 'end start');
+
+test_position_area_tactic('flip-start', 'position-area', 'start', 'start');
+test_position_area_tactic('flip-start', 'position-area', 'end', 'end');
+test_position_area_tactic('flip-start', 'position-area', 'start end', 'end start');
+
+test_position_area_tactic('flip-block flip-start', 'position-area', 'start end', 'end');
+
+test_position_area_tactic('flip-inline flip-start', 'position-area', 'start end', 'start');
+
+test_position_area_tactic('flip-block flip-inline flip-start', 'position-area', 'start end', 'start end');
+
+// Variations:
+
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'span-start span-end', 'span-end span-start');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'self-start self-end', 'self-end self-start');
+test_position_area_tactic('flip-block flip-inline', 'position-area', 'span-self-start span-self-end', 'span-self-end span-self-start');
+
+// center
+test_position_area_tactic('flip-block', 'position-area', 'left center', 'left center');
+test_position_area_tactic('flip-block', 'position-area', 'center top', 'center bottom');
+test_position_area_tactic('flip-block', 'position-area', 'center', 'center');
+test_position_area_tactic('flip-block', 'position-area', 'start center', 'end center');
+test_position_area_tactic('flip-block', 'position-area', 'center start', 'center start');
+test_position_area_tactic('flip-inline', 'position-area', 'center start', 'center end');
+test_position_area_tactic('flip-start', 'position-area', 'center start', 'start center');
+
+// span-all
+test_position_area_tactic('flip-block', 'position-area', 'left span-all', 'left');
+test_position_area_tactic('flip-block', 'position-area', 'span-all top', 'bottom');
+test_position_area_tactic('flip-block', 'position-area', 'span-all', 'span-all');
+test_position_area_tactic('flip-block', 'position-area', 'start span-all', 'block-end');
+test_position_area_tactic('flip-block', 'position-area', 'span-all start', 'inline-start');
+test_position_area_tactic('flip-inline', 'position-area', 'span-all start', 'inline-end');
+test_position_area_tactic('flip-start', 'position-area', 'span-all start', 'block-start');
+
+// Span mix:
+test_position_area_tactic('flip-block', 'position-area', 'left span-top', 'left span-bottom');
+test_position_area_tactic('flip-inline', 'position-area', 'left span-top', 'right span-top');
+test_position_area_tactic('flip-start', 'position-area', 'span-block-start inline-end', 'end span-start');
+
+// Writing modes:
+test_position_area_tactic('flip-block', 'position-area', 'left top', 'right top', 'ltr', 'vertical-rl');
+
+test_position_area_tactic('', 'position-area', 'x-start y-start', 'x-start y-start', 'rtl');
+test_position_area_tactic('flip-block', 'position-area', 'x-start y-start', 'x-start y-end', 'rtl');
+test_position_area_tactic('flip-inline', 'position-area', 'x-start y-start', 'x-end y-start', 'rtl');
+test_position_area_tactic('flip-block', 'position-area', 'x-end y-start', 'x-start y-start', 'ltr', 'vertical-rl');
+test_position_area_tactic('flip-inline', 'position-area', 'x-end y-start', 'x-end y-end', 'ltr', 'vertical-rl');
+
+test_position_area_tactic('flip-inline', 'position-area', 'start end', 'start', 'rtl');
+test_position_area_tactic('flip-inline', 'position-area', 'start end', 'start', 'ltr', 'vertical-rl');
+test_position_area_tactic('flip-block', 'position-area', 'start end', 'end', 'rtl');
+test_position_area_tactic('flip-block', 'position-area', 'start end', 'end', 'ltr', 'vertical-rl');
+
+</script>

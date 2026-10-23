@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#determining">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#propdef-anchor-name">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<style>
+.relpos {
+  position: relative;
+}
+.abspos {
+  position: absolute;
+}
+.anchor1 {
+  anchor-name: --a1;
+  width: 10px;
+  height: 10px;
+  background: orange;
+}
+.target {
+  position: absolute;
+  width: anchor-size(--a1 width);
+  height: 10px;
+  background: lime;
+}
+</style>
+<body onload="checkLayoutForAnchorPos('.target')">
+  <!-- In-flow and out-of-flow boxes in a containing block. -->
+  <div class="relpos">
+    <div class="target" data-expected-width=30></div>
+    <div>
+      <div class="target" data-expected-width=30></div>
+      <div class="relpos">
+        <div class="target" data-expected-width=0></div>
+        <div class="abspos">
+          <div class="target" data-expected-width=30></div>
+          <div class="relpos">
+            <div class="target" data-expected-width=40></div>
+            <div class="anchor1" style="width: 20px"></div>
+            <div class="anchor1" style="position: absolute; width: 10px"></div>
+            <div class="anchor1" style="width: 40px"></div>
+            <div class="anchor1" style="position: absolute; width: 30px"></div>
+            <div class="target" data-expected-width=30></div>
+          </div>
+        </div>
+        <div class="target" data-expected-width=30></div>
+      </div>
+      <div class="target" data-expected-width=30></div>
+    </div>
+    <div class="target" data-expected-width=30></div>
+  </div>
+
+  <!-- In-flow boxes in ancestors, after the propagated ones. -->
+  <div class="relpos">
+    <div>
+      <div class="relpos">
+        <div class="target" data-expected-width=0></div>
+        <div class="abspos">
+          <div class="relpos">
+            <div class="target" data-expected-width=20></div>
+            <div class="anchor1" style="width: 20px"></div>
+            <div class="anchor1" style="position: absolute; width: 10px"></div>
+            <div class="target" data-expected-width=10></div>
+          </div>
+          <div class="anchor1" style="width: 50px"></div>
+          <div class="target" data-expected-width=50></div>
+        </div>
+        <div class="target" data-expected-width=50></div>
+      </div>
+      <div class="anchor1" style="width: 60px"></div>
+      <div class="target" data-expected-width=70></div>
+    </div>
+    <div class="anchor1" style="width: 70px"></div>
+    <div class="target" data-expected-width=70></div>
+  </div>
+
+  <!-- Out-of-flow boxes in ancestors, after the propagated ones. -->
+  <div class="relpos">
+    <div>
+      <div class="relpos">
+        <div class="target" data-expected-width=0></div>
+        <div class="abspos">
+          <div class="relpos">
+            <div class="target" data-expected-width=20></div>
+            <div class="anchor1" style="width: 20px"></div>
+            <div class="anchor1" style="position: absolute; width: 10px"></div>
+            <div class="target" data-expected-width=10></div>
+          </div>
+          <div class="anchor1" style="position: absolute; width: 110px"></div>
+          <div class="target" data-expected-width=110></div>
+        </div>
+        <div class="target" data-expected-width=110></div>
+      </div>
+      <div class="target" data-expected-width=110></div>
+    </div>
+    <div class="anchor1" style="position: absolute; width: 100px"></div>
+    <div class="target" data-expected-width=100></div>
+  </div>
+
+  <!-- In-flow boxes in ancestors, before the propagated ones. -->
+  <div class="relpos">
+    <div>
+      <div class="relpos">
+        <div class="abspos">
+          <div class="relpos">
+            <div class="target" data-expected-width=20></div>
+            <div class="anchor1" style="position: absolute; width: 10px"></div>
+            <div class="anchor1" style="width: 20px"></div>
+            <div class="target" data-expected-width=20></div>
+          </div>
+          <div class="anchor1" style="width: 120px"></div>
+          <div class="target" data-expected-width=120></div>
+        </div>
+        <div class="anchor1" style="width: 110px"></div>
+        <div class="target" data-expected-width=110></div>
+      </div>
+      <div class="target" data-expected-width=100></div>
+    </div>
+    <div class="anchor1" style="width: 100px"></div>
+    <div class="target" data-expected-width=100></div>
+  </div>
+
+  <!-- Out-of-flow boxes in ancestors, before the propagated ones. -->
+  <div class="relpos">
+    <div class="target" data-expected-width=10></div>
+    <div class="anchor1" style="position: absolute; width: 100px"></div>
+    <div>
+      <div class="target" data-expected-width=10></div>
+      <div class="relpos">
+        <div class="target" data-expected-width=0></div>
+        <div class="anchor1" style="position: absolute; width: 110px"></div>
+        <div class="abspos">
+          <div class="target" data-expected-width=10></div>
+          <div class="anchor1" style="position: absolute; width: 120px"></div>
+          <div class="relpos">
+            <div class="target" data-expected-width=20></div>
+            <div class="anchor1" style="width: 20px"></div>
+            <div class="anchor1" style="position: absolute; width: 10px"></div>
+            <div class="target" data-expected-width=10></div>
+          </div>
+          <div class="target" data-expected-width=10></div>
+        </div>
+        <div class="target" data-expected-width=10></div>
+      </div>
+      <div class="target" data-expected-width=10></div>
+    </div>
+    <div class="target" data-expected-width=10></div>
+  </div>
+</body>

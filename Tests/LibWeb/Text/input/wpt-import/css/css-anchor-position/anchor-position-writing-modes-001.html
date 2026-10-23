@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<title>Tests `anchor` function for `writing-mode`/`direction`s</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#propdef-anchor-name">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script><style>
+:root, body {
+  margin: 0;
+}
+#container {
+  position: relative;
+  width: 600px;
+  height: 400px;
+}
+#a1 {
+  anchor-name: --a1;
+  background: orange;
+  margin-left: 100px;
+  margin-top: 100px;
+  width: 100px;
+  height: 100px;
+}
+.htb-rtl #a1 { margin-right: 400px; }
+.vlr-rtl #a1 { margin-bottom: 200px; }
+.vrl-ltr #a1 { margin-right: 400px; }
+.vrl-rtl #a1 { margin-right: 400px; margin-bottom: 200px; }
+#a2 {
+  anchor-name: --a2;
+  background: purple;
+  margin-left: 500px;
+  margin-top: 100px;
+  width: 100px;
+  height: 100px;
+}
+.vlr-ltr #a2 { margin-left: 300px; margin-top: 300px; }
+.vlr-rtl #a2 { margin-left: 300px; margin-top: 300px; }
+.vrl-ltr #a2 { margin-right: -600px; margin-top: 300px; }
+.vrl-rtl #a2 { margin-right: -600px; margin-top: 300px; }
+#target {
+  background: green;
+  position: absolute;
+  left: anchor(--a1 right);
+  top: anchor(--a1 bottom);
+  right: anchor(--a2 left);
+  bottom: anchor(--a2 top);
+}
+.htb-ltr { writing-mode: horizontal-tb; direction: ltr; }
+.htb-rtl { writing-mode: horizontal-tb; direction: rtl; }
+.vlr-ltr { writing-mode: vertical-lr; direction: ltr; }
+.vlr-rtl { writing-mode: vertical-lr; direction: rtl; }
+.vrl-ltr { writing-mode: vertical-rl; direction: ltr; }
+.vrl-rtl { writing-mode: vertical-rl; direction: rtl; }
+</style>
+<body>
+  <div id="container">
+    <div id="a1"></div>
+    <div id="a2"></div>
+    <div id="target"></div>
+  </div>
+<script>
+const classes = [
+  'htb-ltr', 'htb-rtl',
+  'vlr-ltr', 'vlr-rtl',
+  'vrl-ltr', 'vrl-rtl'];
+const combinations = [];
+for (const container_class of classes) {
+  for (const a1_class of classes) {
+    for (const a2_class of classes) {
+      for (const target_class of classes) {
+        combinations.push([container_class, a1_class, a2_class, target_class]);
+      }
+    }
+  }
+}
+
+for (let i = 0; i < combinations.length; ++i)
+  run_test_index(i);
+
+function run_test_index(i) {
+  const combination = combinations[i];
+  run_test(i, ...combination);
+}
+
+function run_test(i, container_class, a1_class, a2_class, target_class) {
+  container.classList.add(container_class);
+  a1.classList.add(a1_class);
+  a2.classList.add(a2_class);
+  target.classList.add(target_class);
+  test(() => {
+    const bounds = target.getBoundingClientRect();
+    assert_array_equals(
+        [bounds.left, bounds.top, bounds.right, bounds.bottom],
+        [200, 200, 500, 300]);
+  }, `${i}: ${container_class}/${a1_class}/${a2_class}/${target_class}`);
+  container.classList.remove(container_class);
+  a1.classList.remove(a1_class);
+  a2.classList.remove(a2_class);
+  target.classList.remove(target_class);
+}
+</script>
+</body>

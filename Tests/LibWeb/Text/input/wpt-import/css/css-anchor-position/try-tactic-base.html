@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: try-tactic, base values</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 200px;
+    border: 1px solid black;
+  }
+  #target {
+    position: absolute;
+    /* Does not fit initially */
+    width: 150px;
+    height: 300px;
+    border: 3px solid skyblue;
+  }
+</style>
+<div id=cb>
+  <div id=target></div>
+</div>
+<script>
+  test(() => {
+    let cs = getComputedStyle(target);
+    assert_equals(cs.width, '150px');
+    assert_equals(cs.height, '300px');
+
+    target.style.positionTryFallbacks = 'flip-start';
+
+    assert_equals(cs.width, '300px');
+    assert_equals(cs.height, '150px');
+  }, 'flip-start affects base values');
+</script>

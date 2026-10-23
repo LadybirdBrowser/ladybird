@@ -1,0 +1,92 @@
+Harness status: OK
+
+Found 86 tests
+
+2 Pass
+84 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Fail	CSSPositionTryRule interface: existence and properties of interface object
+Fail	CSSPositionTryRule interface object length
+Fail	CSSPositionTryRule interface object name
+Fail	CSSPositionTryRule interface: existence and properties of interface prototype object
+Fail	CSSPositionTryRule interface: existence and properties of interface prototype object's "constructor" property
+Fail	CSSPositionTryRule interface: existence and properties of interface prototype object's @@unscopables property
+Fail	CSSPositionTryRule interface: attribute name
+Fail	CSSPositionTryRule interface: attribute style
+Fail	CSSPositionTryDescriptors interface: existence and properties of interface object
+Fail	CSSPositionTryDescriptors interface object length
+Fail	CSSPositionTryDescriptors interface object name
+Fail	CSSPositionTryDescriptors interface: existence and properties of interface prototype object
+Fail	CSSPositionTryDescriptors interface: existence and properties of interface prototype object's "constructor" property
+Fail	CSSPositionTryDescriptors interface: existence and properties of interface prototype object's @@unscopables property
+Fail	CSSPositionTryDescriptors interface: attribute margin
+Fail	CSSPositionTryDescriptors interface: attribute marginTop
+Fail	CSSPositionTryDescriptors interface: attribute marginRight
+Fail	CSSPositionTryDescriptors interface: attribute marginBottom
+Fail	CSSPositionTryDescriptors interface: attribute marginLeft
+Fail	CSSPositionTryDescriptors interface: attribute marginBlock
+Fail	CSSPositionTryDescriptors interface: attribute marginBlockStart
+Fail	CSSPositionTryDescriptors interface: attribute marginBlockEnd
+Fail	CSSPositionTryDescriptors interface: attribute marginInline
+Fail	CSSPositionTryDescriptors interface: attribute marginInlineStart
+Fail	CSSPositionTryDescriptors interface: attribute marginInlineEnd
+Fail	CSSPositionTryDescriptors interface: attribute margin-top
+Fail	CSSPositionTryDescriptors interface: attribute margin-right
+Fail	CSSPositionTryDescriptors interface: attribute margin-bottom
+Fail	CSSPositionTryDescriptors interface: attribute margin-left
+Fail	CSSPositionTryDescriptors interface: attribute margin-block
+Fail	CSSPositionTryDescriptors interface: attribute margin-block-start
+Fail	CSSPositionTryDescriptors interface: attribute margin-block-end
+Fail	CSSPositionTryDescriptors interface: attribute margin-inline
+Fail	CSSPositionTryDescriptors interface: attribute margin-inline-start
+Fail	CSSPositionTryDescriptors interface: attribute margin-inline-end
+Fail	CSSPositionTryDescriptors interface: attribute inset
+Fail	CSSPositionTryDescriptors interface: attribute insetBlock
+Fail	CSSPositionTryDescriptors interface: attribute insetBlockStart
+Fail	CSSPositionTryDescriptors interface: attribute insetBlockEnd
+Fail	CSSPositionTryDescriptors interface: attribute insetInline
+Fail	CSSPositionTryDescriptors interface: attribute insetInlineStart
+Fail	CSSPositionTryDescriptors interface: attribute insetInlineEnd
+Fail	CSSPositionTryDescriptors interface: attribute top
+Fail	CSSPositionTryDescriptors interface: attribute left
+Fail	CSSPositionTryDescriptors interface: attribute right
+Fail	CSSPositionTryDescriptors interface: attribute bottom
+Fail	CSSPositionTryDescriptors interface: attribute inset-block
+Fail	CSSPositionTryDescriptors interface: attribute inset-block-start
+Fail	CSSPositionTryDescriptors interface: attribute inset-block-end
+Fail	CSSPositionTryDescriptors interface: attribute inset-inline
+Fail	CSSPositionTryDescriptors interface: attribute inset-inline-start
+Fail	CSSPositionTryDescriptors interface: attribute inset-inline-end
+Fail	CSSPositionTryDescriptors interface: attribute width
+Fail	CSSPositionTryDescriptors interface: attribute minWidth
+Fail	CSSPositionTryDescriptors interface: attribute maxWidth
+Fail	CSSPositionTryDescriptors interface: attribute height
+Fail	CSSPositionTryDescriptors interface: attribute minHeight
+Fail	CSSPositionTryDescriptors interface: attribute maxHeight
+Fail	CSSPositionTryDescriptors interface: attribute blockSize
+Fail	CSSPositionTryDescriptors interface: attribute minBlockSize
+Fail	CSSPositionTryDescriptors interface: attribute maxBlockSize
+Fail	CSSPositionTryDescriptors interface: attribute inlineSize
+Fail	CSSPositionTryDescriptors interface: attribute minInlineSize
+Fail	CSSPositionTryDescriptors interface: attribute maxInlineSize
+Fail	CSSPositionTryDescriptors interface: attribute min-width
+Fail	CSSPositionTryDescriptors interface: attribute max-width
+Fail	CSSPositionTryDescriptors interface: attribute min-height
+Fail	CSSPositionTryDescriptors interface: attribute max-height
+Fail	CSSPositionTryDescriptors interface: attribute block-size
+Fail	CSSPositionTryDescriptors interface: attribute min-block-size
+Fail	CSSPositionTryDescriptors interface: attribute max-block-size
+Fail	CSSPositionTryDescriptors interface: attribute inline-size
+Fail	CSSPositionTryDescriptors interface: attribute min-inline-size
+Fail	CSSPositionTryDescriptors interface: attribute max-inline-size
+Fail	CSSPositionTryDescriptors interface: attribute placeSelf
+Fail	CSSPositionTryDescriptors interface: attribute alignSelf
+Fail	CSSPositionTryDescriptors interface: attribute justifySelf
+Fail	CSSPositionTryDescriptors interface: attribute place-self
+Fail	CSSPositionTryDescriptors interface: attribute align-self
+Fail	CSSPositionTryDescriptors interface: attribute justify-self
+Fail	CSSPositionTryDescriptors interface: attribute positionAnchor
+Fail	CSSPositionTryDescriptors interface: attribute position-anchor
+Fail	CSSPositionTryDescriptors interface: attribute positionArea
+Fail	CSSPositionTryDescriptors interface: attribute position-area

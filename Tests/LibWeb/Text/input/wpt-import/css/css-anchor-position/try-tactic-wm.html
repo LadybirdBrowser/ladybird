@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: try-tactic under different writing modes</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @position-try --pf {
+    left:10px;
+    top:20px;
+  }
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+  }
+  #target {
+    position: absolute;
+    left: 99999px; /* force fallback */
+    width: 30px;
+    height: 40px;
+    background-color: skyblue;
+  }
+</style>
+<div id=cb>
+  <div id=target></div>
+</div>
+<script>
+
+  function test_try_tactic_wm(try_tactic, writing_mode, direction, expected_offsets) {
+    target.style.positionTryFallbacks = `--pf ${try_tactic}`;
+    cb.style.writingMode = writing_mode;
+    cb.style.direction = direction;
+    test(() => {
+      assert_equals(target.offsetLeft, expected_offsets.left, 'offsetLeft');
+      assert_equals(target.offsetTop, expected_offsets.top, 'offsetTop');
+      assert_equals(target.offsetWidth, expected_offsets.width, 'offsetWidth');
+      assert_equals(target.offsetHeight, expected_offsets.height, 'offsetHeight');
+    }, `${try_tactic} ${writing_mode} ${direction}`);
+  }
+
+  test_try_tactic_wm('', 'horizontal-tb', 'ltr', {left:10, top:20, width:30, height:40});
+
+  // Effectively flips left:10px to right:10px:
+  test_try_tactic_wm('flip-inline', 'horizontal-tb', 'ltr', {left:360, top:20, width:30, height:40});
+  test_try_tactic_wm('flip-x', 'horizontal-tb', 'ltr', {left:360, top:20, width:30, height:40});
+
+  // Effectively flips top:20px to bottom:20px:
+  test_try_tactic_wm('flip-inline', 'vertical-lr', 'ltr', {left:10, top:340, width:30, height:40});
+  test_try_tactic_wm('flip-inline', 'sideways-lr', 'ltr', {left:10, top:340, width:30, height:40});
+  test_try_tactic_wm('flip-y', 'vertical-lr', 'ltr', {left:10, top:340, width:30, height:40});
+  test_try_tactic_wm('flip-y', 'sideways-lr', 'ltr', {left:10, top:340, width:30, height:40});
+
+  // Effectively flips left:10px to right:10px:
+  test_try_tactic_wm('flip-block', 'sideways-rl', 'ltr', {left:360, top:20, width:30, height:40});
+  test_try_tactic_wm('flip-x', 'sideways-rl', 'ltr', {left:360, top:20, width:30, height:40});
+
+  // Mirror across the [left,top]=>[bottom,right] diagonal:
+  test_try_tactic_wm('flip-start', 'horizontal-tb', 'ltr', {left:20, top:10, width:40, height:30});
+
+  // Mirror across the [right,top]=>[bottom,left] diagonal:
+  test_try_tactic_wm('flip-start', 'horizontal-tb', 'rtl', {left:340, top:360, width:40, height:30});
+
+</script>

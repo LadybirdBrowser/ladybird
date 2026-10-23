@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<title>Tests parsing of the anchor-size() function</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#anchor-size">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+
+<script>
+const anchorNames = [
+  '--foo',
+  '',
+];
+
+const sizeProperties = [
+  'width',
+  'min-width',
+  'max-width',
+  'height',
+  'min-height',
+  'max-height',
+  'block-size',
+  'min-block-size',
+  'max-block-size',
+  'inline-size',
+  'min-inline-size',
+  'max-inline-size',
+];
+
+const insetProperties = [
+  'left',
+  'right',
+  'top',
+  'bottom',
+  'inset',
+  'inset-block',
+  'inset-block-start',
+  'inset-block-end',
+  'inset-inline',
+  'inset-inline-start',
+  'inset-inline-end',
+];
+
+const marginProperties = [
+  'margin',
+  'margin-left',
+  'margin-right',
+  'margin-top',
+  'margin-bottom',
+  'margin-block',
+  'margin-block-start',
+  'margin-block-end',
+  'margin-inline',
+  'margin-inline-start',
+  'margin-inline-end',
+];
+
+const anchorSizes = [
+  'width',
+  'height',
+  'block',
+  'inline',
+  'self-block',
+  'self-inline',
+];
+
+const fallbacks = [
+  null,
+  '1px',
+  '50%',
+  'calc(50% + 1px)',
+  'anchor-size(block)',
+  'anchor-size(--bar block)',
+  'anchor-size(--bar block, anchor-size(--baz inline))',
+];
+
+// Tests basic combinations
+for (let name of anchorNames) {
+  for (let property of sizeProperties.concat(insetProperties, marginProperties)) {
+    for (let size of anchorSizes) {
+      for (let fallback of fallbacks) {
+        let value = `anchor-size(${name ? name + ' ' : ''}${size}${fallback ? ', ' + fallback : ''})`;
+        test_valid_value(property, value);
+        if (name) {
+          // The <anchor-element> is allowed to appear after the <anchor-size>
+          let value_flip_order = `anchor-size(${size} ${name}${fallback ? ', ' + fallback : ''})`;
+          test_valid_value(property, value_flip_order, value);
+        }
+      }
+    }
+  }
+}
+
+// Implicit <anchor-size>
+test_valid_value('width', 'anchor-size()');
+test_valid_value('width', 'anchor-size(--foo)');
+test_valid_value('width', 'anchor-size(--foo, 10px)');
+test_valid_value('width', 'anchor-size(10px)');
+
+// Tests that anchor-size() can be used in a calc tree
+// Still follow the simplification process as outlined in https://drafts.csswg.org/css-values-4/#calc-simplification
+for (const prop of ['width', 'max-width', 'margin-left']) {
+  test_valid_value(prop, 'calc((anchor-size(--foo width) + anchor-size(--bar height)) / 2)', 'calc(0.5 * (anchor-size(--foo width) + anchor-size(--bar height)))');
+  test_valid_value(prop, 'calc(0.5 * (anchor-size(--foo width) + anchor-size(--bar height)))');
+  test_valid_value(prop, 'anchor-size(--foo width, calc(0.5 * anchor-size(--bar height)))');
+  test_valid_value(prop, 'min(100px, 10%, anchor-size(--foo width), anchor-size(--bar height))');
+  test_valid_value(prop, 'calc(anchor-size(--foo width, 1px) + 10%)', 'calc(10% + anchor-size(--foo width, 1px))');
+}
+
+// Should accept unitless zero
+test_valid_value('width', "anchor-size(--foo width, 0)", "anchor-size(--foo width, 0px)");
+test_valid_value('width', "calc(anchor-size(--foo width, 0))", "anchor-size(--foo width, 0px)");
+</script>

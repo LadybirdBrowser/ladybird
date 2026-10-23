@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: try-tactic (margin)</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  @position-try --pf {
+    left:10px;
+    top:20px;
+    margin: 5px 15px 25px 35px;
+  }
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+  }
+  #target {
+    position: absolute;
+    left: 99999px; /* force fallback */
+    width: 30px;
+    height: 40px;
+    background-color: skyblue;
+  }
+</style>
+<div id=cb>
+  <div id=target></div>
+</div>
+<script>
+  function test_try_tactic(try_tactic, expected_offsets) {
+    target.style.positionTryFallbacks = `--pf ${try_tactic}`;
+    test(() => {
+      assert_equals(target.offsetLeft, expected_offsets.left, 'offsetLeft');
+      assert_equals(target.offsetTop, expected_offsets.top, 'offsetTop');
+      assert_equals(target.offsetWidth, expected_offsets.width, 'offsetWidth');
+      assert_equals(target.offsetHeight, expected_offsets.height, 'offsetHeight');
+    }, target.style.positionTryFallbacks);
+  }
+
+  let w = 30;
+  let h = 40;
+  let cbw = 400;
+  let cbh = 400;
+
+  test_try_tactic('', {left:10+35, top:20+5, width:w, height:h});
+  test_try_tactic('flip-block', {left:10+35, top:cbh-h-20-5, width:w, height:h});
+  test_try_tactic('flip-inline', {left:cbw-w-10-35, top:20+5, width:w, height:h});
+  test_try_tactic('flip-block flip-inline', {left:cbw-w-10-35, top:cbh-h-20-5, width:w, height:h});
+  test_try_tactic('flip-start', {left:20+5, top:10+35, width:h, height:w});
+  test_try_tactic('flip-block flip-start', {left:cbh-h-20-5, top:10+35, width:h, height:w});
+  test_try_tactic('flip-inline flip-start', {left:20+5, top:cbw-w-10-35, width:h, height:w});
+  test_try_tactic('flip-block flip-inline flip-start', {left:cbh-h-20-5, top:cbw-w-10-35, width:h, height:w});
+</script>

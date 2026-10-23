@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: try-tactic, justify/align-self</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+  }
+  #anchor {
+    position: absolute;
+    left: 150px;
+    top: 150px;
+    width: 100px;
+    height: 50px;
+    background-color: coral;
+  }
+  #target, #ref {
+    position: absolute;
+    left: 450px; /* force fallback */
+    width: 40px;
+    height: 40px;
+    background-color: skyblue;
+  }
+  #ref {
+    background-color: seagreen;
+  }
+</style>
+<style id=style>
+</style>
+<div id=cb>
+  <div id=target></div>
+  <div id=ref></div>
+</div>
+<script>
+
+// Verify that a given try-tactic + untransformed declaration equals
+// a reference element using `transformed` directly.
+function test_justify_flip(try_tactic, untransformed, transformed, direction, writing_mode) {
+  if (direction==undefined) {
+    direction = 'ltr';
+  }
+  if (writing_mode==undefined) {
+    writing_mode = 'horizontal-tb';
+  }
+  test((t) => {
+    t.add_cleanup(() => {
+      document.documentElement.style = '';
+      style.textContent = '';
+    });
+    document.documentElement.style.direction = direction;
+    document.documentElement.style.writingMode = writing_mode;
+    style.textContent = `
+      @position-try --pf {
+        inset: 0;
+        ${untransformed}
+      }
+      #target {
+        position-try-fallbacks: --pf ${try_tactic};
+      }
+      @position-try --ref {
+        inset: 0;
+        ${transformed}
+      }
+      #ref {
+        position-try-fallbacks: --ref;
+      }
+    `;
+    assert_equals(target.offsetLeft, ref.offsetLeft, 'offsetLeft');
+    assert_equals(target.offsetTop, ref.offsetTop, 'offsetTop');
+  }, `${try_tactic}, ${untransformed}, ${transformed}, ${direction}, ${writing_mode}`);
+}
+
+test_justify_flip(
+  '',
+  'justify-self:start;align-self:start',
+  'justify-self:start;align-self:start');
+
+test_justify_flip(
+  'flip-inline',
+  'justify-self:start;align-self:start',
+  'justify-self:end;align-self:start');
+
+test_justify_flip(
+  'flip-block',
+  'justify-self:start;align-self:start',
+  'justify-self:start;align-self:end');
+
+test_justify_flip(
+  'flip-block flip-inline',
+  'justify-self:start;align-self:start',
+  'justify-self:end;align-self:end');
+
+test_justify_flip(
+  'flip-start',
+  'justify-self:start;align-self:end',
+  'justify-self:end;align-self:start');
+
+test_justify_flip(
+  'flip-block flip-start',
+  'justify-self:start;align-self:start',
+  'justify-self:end;align-self:start');
+
+test_justify_flip(
+  'flip-inline flip-start',
+  'justify-self:start;align-self:start',
+  'justify-self:start;align-self:end');
+
+test_justify_flip(
+  'flip-block flip-inline flip-start',
+  'justify-self:start;align-self:start',
+  'justify-self:end;align-self:end');
+
+test_justify_flip(
+  'flip-x',
+  'justify-self:start;align-self:start',
+  'justify-self:end;align-self:start');
+
+test_justify_flip(
+  'flip-y',
+  'justify-self:start;align-self:start',
+  'justify-self:start;align-self:end');
+
+test_justify_flip(
+  'flip-y flip-x',
+  'justify-self:start;align-self:start',
+  'justify-self:end;align-self:end');
+
+test_justify_flip(
+  'flip-y flip-start',
+  'justify-self:start;align-self:start',
+  'justify-self:end;align-self:start');
+
+test_justify_flip(
+  'flip-x flip-start',
+  'justify-self:start;align-self:start',
+  'justify-self:start;align-self:end');
+
+test_justify_flip(
+  'flip-y flip-x flip-start',
+  'justify-self:start;align-self:start',
+  'justify-self:end;align-self:end');
+
+// left/right are special cases, because they're supported by
+// justify-self, but not align-self:
+
+test_justify_flip(
+  'flip-inline',
+  'justify-self:left;align-self:start',
+  'justify-self:right;align-self:start');
+
+test_justify_flip(
+  'flip-x',
+  'justify-self:left;align-self:start',
+  'justify-self:right;align-self:start');
+
+test_justify_flip(
+  'flip-start',
+  'justify-self:left;align-self:end',
+  'justify-self:end;align-self:self-start');
+
+test_justify_flip(
+  'flip-start',
+  'justify-self:right;align-self:start',
+  'justify-self:start;align-self:self-end');
+
+
+// That that all relevant computed values can be transformed:
+
+function test_computed_value(try_tactic, property, value, expected) {
+  test((t) => {
+    t.add_cleanup(() => {
+      style.textContent = '';
+    });
+    style.textContent = `
+      @position-try --pf {
+        inset: 0;
+        ${property}:${value};
+      }
+      #target {
+        position-try-fallbacks: --pf ${try_tactic};
+      }
+      @position-try --ref {
+        inset: 0;
+        ${property}:${expected};
+      }
+      #ref {
+        position-try-fallbacks: --ref;
+      }
+    `;
+    assert_equals(target.offsetLeft, ref.offsetLeft, 'offsetLeft');
+    assert_equals(target.offsetTop, ref.offsetTop, 'offsetTop');
+  }, `${try_tactic}, ${property}:${value}`);
+}
+
+// No flip:
+for (let property of ['justify-self', 'align-self']) {
+  test_computed_value('', property, 'start', 'start');
+  test_computed_value('', property, 'end', 'end');
+  test_computed_value('', property, 'self-start', 'self-start');
+  test_computed_value('', property, 'self-end', 'self-end');
+  test_computed_value('', property, 'flex-start', 'flex-start');
+  test_computed_value('', property, 'flex-end', 'flex-end');
+}
+
+test_computed_value('flip-inline', 'justify-self', 'start', 'end');
+test_computed_value('flip-inline', 'justify-self', 'end', 'start');
+test_computed_value('flip-inline', 'justify-self', 'self-start', 'self-end');
+test_computed_value('flip-inline', 'justify-self', 'self-end', 'self-start');
+test_computed_value('flip-inline', 'justify-self', 'flex-start', 'flex-end');
+test_computed_value('flip-inline', 'justify-self', 'flex-end', 'flex-start');
+test_computed_value('flip-inline', 'justify-self', 'left', 'right');
+test_computed_value('flip-inline', 'justify-self', 'right', 'left');
+
+test_computed_value('flip-x', 'justify-self', 'start', 'end');
+test_computed_value('flip-x', 'justify-self', 'end', 'start');
+test_computed_value('flip-x', 'justify-self', 'self-start', 'self-end');
+test_computed_value('flip-x', 'justify-self', 'self-end', 'self-start');
+test_computed_value('flip-x', 'justify-self', 'flex-start', 'flex-end');
+test_computed_value('flip-x', 'justify-self', 'flex-end', 'flex-start');
+test_computed_value('flip-x', 'justify-self', 'left', 'right');
+test_computed_value('flip-x', 'justify-self', 'right', 'left');
+
+test_computed_value('flip-block', 'align-self', 'start', 'end');
+test_computed_value('flip-block', 'align-self', 'end', 'start');
+test_computed_value('flip-block', 'align-self', 'self-start', 'self-end');
+test_computed_value('flip-block', 'align-self', 'self-end', 'self-start');
+test_computed_value('flip-block', 'align-self', 'flex-start', 'flex-end');
+test_computed_value('flip-block', 'align-self', 'flex-end', 'flex-start');
+
+test_computed_value('flip-y', 'align-self', 'start', 'end');
+test_computed_value('flip-y', 'align-self', 'end', 'start');
+test_computed_value('flip-y', 'align-self', 'self-start', 'self-end');
+test_computed_value('flip-y', 'align-self', 'self-end', 'self-start');
+test_computed_value('flip-y', 'align-self', 'flex-start', 'flex-end');
+test_computed_value('flip-y', 'align-self', 'flex-end', 'flex-start');
+
+test_justify_flip(
+  'flip-start',
+  'justify-self:left;align-self:end',
+  'justify-self:end;align-self:self-start',
+  'ltr',
+  'vertical-rl');
+
+test_justify_flip(
+  'flip-start',
+  'justify-self:left;align-self:start',
+  'justify-self:start;align-self:self-end',
+  'rtl');
+
+</script>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/">
+<title>Tests the position and available-size of 'anchor-center' alignment with different insets.</title>
+<style>
+.container {
+  writing-mode: vertical-rl;
+  width: 100px;
+  height: 100px;
+  border: solid 3px;
+  position: relative;
+  margin: 50px;
+}
+
+.anchor {
+  anchor-name: --anchor;
+  position: relative;
+  width: 50px;
+  height: 50px;
+  right: 10px;
+  top: 40px;
+  background: lime;
+}
+
+.target {
+  writing-mode: horizontal-tb;
+  position-anchor: --anchor;
+  position: absolute;
+  background: cyan;
+  align-self: anchor-center;
+  top: anchor(bottom);
+  height: 20px;
+}
+/* used to test the available-size given to the element */
+.target::after {
+  color: transparent;
+  content: 'a a a a a a a a a a a a a a a a a a';
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.target')">
+
+<!-- no insets -->
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" data-expected-width="100" data-offset-x="0"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="max-width: 60px;" data-expected-width="60" data-offset-x="35"></div>
+</div>
+
+<!-- single insets -->
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="left: 20px;" data-expected-width="80" data-offset-x="20"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="right: 20px;" data-expected-width="80" data-offset-x="0"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="right: -20px;" data-expected-width="120" data-offset-x="0"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="max-width: 100px; right: -20px;" data-expected-width="100" data-offset-x="15"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="right: -50px;" data-expected-width="150" data-offset-x="0"></div>
+</div>
+
+<!-- both insets -->
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="left: 10px; right: 20px;" data-expected-width="70" data-offset-x="10"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="left: 10px; right: -20px;" data-expected-width="110" data-offset-x="10"></div>
+</div>
+
+<div class="container">
+  <div class="anchor"></div>
+  <div class="target" style="left: -10px; right: -50px;" data-expected-width="160" data-offset-x="-10"></div>
+</div>

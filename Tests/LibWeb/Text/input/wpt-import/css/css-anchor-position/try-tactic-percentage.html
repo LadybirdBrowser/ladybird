@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: try-tactic, percentage</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#typedef-position-try-fallbacks-try-tactic">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #cb {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+  }
+  #anchor {
+    position: absolute;
+    left: 150px;
+    top: 150px;
+    width: 100px;
+    height: 50px;
+    background-color: coral;
+    anchor-name: --a;
+  }
+  #target, #ref {
+    position: absolute;
+    left: 450px; /* force fallback */
+    width: 40px;
+    height: 40px;
+    background-color: skyblue;
+    position-anchor: --a;
+  }
+  #ref {
+    background-color: seagreen;
+  }
+</style>
+<style id=style>
+</style>
+<div id=cb>
+  <div id=anchor></div>
+  <div id=target></div>
+  <div id=ref></div>
+</div>
+<script>
+
+// Verify that a given try-tactic + untransformed declaration equals
+// a reference element using `transformed` directly.
+function test_anchor_flip(try_tactic, untransformed, transformed) {
+  test((t) => {
+    style.textContent = `
+      @position-try --pf {
+        inset: auto;
+        ${untransformed}
+      }
+      #target {
+        position-try-fallbacks: --pf ${try_tactic};
+      }
+      @position-try --ref {
+        inset: auto;
+        ${transformed}
+      }
+      #ref {
+        position-try-fallbacks: --ref;
+      }
+    `;
+    assert_equals(target.offsetLeft, ref.offsetLeft, 'offsetLeft');
+    assert_equals(target.offsetTop, ref.offsetTop, 'offsetTop');
+  }, `${try_tactic}, ${untransformed}, ${transformed}`);
+}
+
+test_anchor_flip('', 'left:anchor(0%)', 'left:anchor(left)');
+test_anchor_flip('', 'left:anchor(100%)', 'left:anchor(right)');
+test_anchor_flip('', 'left:anchor(50%)', 'left:anchor(center)');
+test_anchor_flip('', 'top:anchor(0%)', 'top:anchor(top)');
+test_anchor_flip('', 'top:anchor(100%)', 'top:anchor(bottom)');
+test_anchor_flip('', 'top:anchor(50%)', 'top:anchor(center)');
+
+test_anchor_flip('flip-inline', 'left:anchor(10%)', 'right:anchor(90%)');
+test_anchor_flip('flip-inline', 'left:anchor(calc(10% + 20%))', 'right:anchor(70%)');
+
+test_anchor_flip('flip-block', 'left:anchor(0%)', 'left:anchor(0%)');
+test_anchor_flip('flip-block', 'left:anchor(100%)', 'left:anchor(100%)');
+test_anchor_flip('flip-block', 'top:anchor(0%)', 'bottom:anchor(100%)');
+test_anchor_flip('flip-block', 'top:anchor(100%)', 'bottom:anchor(0%)');
+
+test_anchor_flip('flip-inline', 'left:anchor(0%)', 'right:anchor(100%)');
+test_anchor_flip('flip-inline', 'left:anchor(100%)', 'right:anchor(0%)');
+test_anchor_flip('flip-inline', 'top:anchor(0%)', 'top:anchor(0%)');
+test_anchor_flip('flip-inline', 'top:anchor(100%)', 'top:anchor(100%)');
+
+test_anchor_flip('flip-block flip-inline', 'left:anchor(0%)', 'right:anchor(100%)');
+test_anchor_flip('flip-block flip-inline', 'left:anchor(100%)', 'right:anchor(0%)');
+test_anchor_flip('flip-block flip-inline', 'top:anchor(0%)', 'bottom:anchor(100%)');
+test_anchor_flip('flip-block flip-inline', 'top:anchor(100%)', 'bottom:anchor(0%)');
+
+test_anchor_flip('flip-start', 'left:anchor(0%)', 'top:anchor(0%)');
+test_anchor_flip('flip-start', 'left:anchor(100%)', 'top:anchor(100%)');
+test_anchor_flip('flip-start', 'bottom:anchor(0%)', 'right:anchor(0%)');
+test_anchor_flip('flip-start', 'bottom:anchor(100%)', 'right:anchor(100%)');
+
+test_anchor_flip('flip-block flip-start', 'left:anchor(0%)', 'top:anchor(0%)');
+test_anchor_flip('flip-block flip-start', 'left:anchor(100%)', 'top:anchor(100%)');
+test_anchor_flip('flip-block flip-start', 'bottom:anchor(0%)', 'left:anchor(100%)');
+test_anchor_flip('flip-block flip-start', 'bottom:anchor(100%)', 'left:anchor(0%)');
+
+test_anchor_flip('flip-inline flip-start', 'left:anchor(0%)', 'bottom:anchor(100%)');
+test_anchor_flip('flip-inline flip-start', 'left:anchor(100%)', 'bottom:anchor(0%)');
+test_anchor_flip('flip-inline flip-start', 'bottom:anchor(0%)', 'right:anchor(0%)');
+test_anchor_flip('flip-inline flip-start', 'bottom:anchor(100%)', 'right:anchor(100%)');
+
+test_anchor_flip('flip-block flip-inline flip-start', 'left:anchor(0%)', 'bottom:anchor(100%)');
+test_anchor_flip('flip-block flip-inline flip-start', 'left:anchor(100%)', 'bottom:anchor(0%)');
+test_anchor_flip('flip-block flip-inline flip-start', 'bottom:anchor(0%)', 'left:anchor(100%)');
+test_anchor_flip('flip-block flip-inline flip-start', 'bottom:anchor(100%)', 'left:anchor(0%)');
+
+</script>

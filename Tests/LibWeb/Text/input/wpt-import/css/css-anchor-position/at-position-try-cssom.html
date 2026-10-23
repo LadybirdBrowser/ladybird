@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<title>Tests the CSSOM interfaces of @position-try rules</title>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#interfaces">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="anchor"></div>
+<div id="other-anchor"></div>
+<div id="target"></div>
+
+<script>
+function createStyle(t, text) {
+  const style = document.createElement('style');
+  style.textContent = text;
+  t.add_cleanup(() => style.remove());
+  document.head.appendChild(style);
+  return style;
+}
+
+test(t => {
+  const style = createStyle(
+      t, '@position-try --pf { left: anchor(right); }');
+  const positionTryRule = style.sheet.cssRules[0];
+  assert_true(positionTryRule instanceof CSSPositionTryRule);
+  assert_equals(positionTryRule.name, '--pf');
+  assert_true(positionTryRule.style instanceof CSSPositionTryDescriptors);
+  assert_equals(positionTryRule.style.length, 1);
+  assert_equals(positionTryRule.style.left, 'anchor(right)');
+}, 'CSSPositionTryRule attribute values');
+
+test(t => {
+  const style = createStyle(
+      t, '@position-try --\\{ {}');
+  const positionTryRule = style.sheet.cssRules[0];
+  assert_true(positionTryRule instanceof CSSPositionTryRule);
+  assert_equals(positionTryRule.name, '--\\{');
+  assert_equals(positionTryRule.cssText, '@position-try --\\{ { }');
+}, 'CSSPositionTryRule escaped ident name');
+
+test(t => {
+  const style = createStyle(t, `
+    @position-try --pf { top: anchor(top); left: 0; }
+    #anchor, #other-anchor, #target {
+      position: absolute; width: 100px; height: 100px;
+    }
+    #anchor { top: 100px; left: 0; anchor-name: --a; }
+    #other-anchor { top: 200px; left: 0; anchor-name: --b; }
+    #target { position-try-fallbacks: --pf; position-anchor: --a; left: 999999px; }
+  `);
+  const positionTryRule = style.sheet.cssRules[0];
+
+  // Check the initial position fallback result
+  assert_equals(target.getBoundingClientRect().left, 0);
+  assert_equals(target.getBoundingClientRect().top, 100);
+
+  // `left` is an allowed property in `@position-try` and should affect position fallback.
+  positionTryRule.style.setProperty('left', 'anchor(right)');
+  assert_equals(target.getBoundingClientRect().left, 100);
+  assert_equals(target.getBoundingClientRect().top, 100);
+
+  // This property are disallowed in `@position-try` rule, and hence should not affect
+  // position fallback.
+  positionTryRule.style.setProperty('position', 'static');
+  assert_equals(target.getBoundingClientRect().left, 100);
+  assert_equals(target.getBoundingClientRect().top, 100);
+
+  // `position-anchor` is an allowed property in `@position-try` and should affect position fallback.
+  positionTryRule.style.setProperty('position-anchor', '--b');
+  assert_equals(target.getBoundingClientRect().left, 100);
+  assert_equals(target.getBoundingClientRect().top, 200);
+
+}, 'CSSPositionTryRule.style.setProperty setting allowed and disallowed properties');
+
+test(t => {
+  const style = createStyle(t, `
+    @position-try --pf {
+      top: 10px;
+      left: 20px;
+      --x: 200px;
+      color: red;
+    }
+  `);
+  let declarations = style.sheet.cssRules[0].style;
+  assert_equals(declarations.length, 2);
+  assert_equals(declarations.item(0), 'top');
+  assert_equals(declarations.item(1), 'left');
+}, 'CSSPositionTryDescriptors.item');
+
+test(t => {
+  const style = createStyle(t, '@position-try --pf {}');
+  let declarations = style.sheet.cssRules[0].style;
+  assert_equals(declarations.length, 0);
+  declarations.cssText = `color:red;top:10px;`;
+  assert_equals(declarations.length, 1);
+}, 'CSSPositionTryDescriptors.cssText');
+
+let supported_properties = [
+  'margin',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'margin-block',
+  'margin-block-start',
+  'margin-block-end',
+  'margin-inline',
+  'margin-inline-start',
+  'margin-inline-end',
+  'inset',
+  'top',
+  'left',
+  'right',
+  'bottom',
+  'inset-block',
+  'inset-block-start',
+  'inset-block-end',
+  'inset-inline',
+  'inset-inline-start',
+  'inset-inline-end',
+  'width',
+  'height',
+  'min-width',
+  'max-width',
+  'min-height',
+  'max-height',
+  'block-size',
+  'min-block-size',
+  'max-block-size',
+  'inline-size',
+  'min-inline-size',
+  'max-inline-size',
+  'place-self',
+  'align-self',
+  'justify-self',
+  'position-anchor',
+  'position-area',
+];
+
+// A selection of unsupported properties.
+let unsupported_properties = [
+  'color',
+  'align-items',
+  'align-content',
+  'background',
+  'display',
+  'position',
+  'writing-mode',
+  'direction',
+  'syntax', // @property
+];
+
+let upperFirst = (x) => x[0].toUpperCase() + x.slice(1);
+let lowerFirst = (x) => x[0].toLowerCase() + x.slice(1);
+let toLowerCamelCase = (x) => lowerFirst(x.split('-').map(upperFirst).join(''));
+
+// Test getting/setting the specified property on a CSSPositionTryDescriptors
+// object. The property can either be supported or not supported,
+// which determines the expected results.
+function test_property(prop, supported) {
+  test(t => {
+    let decls = supported_properties.map(x => `${x}:unset;`).join('');
+    let style = createStyle(t, `@position-try --pf { ${decls} }`);
+    let declarations = style.sheet.cssRules[0].style;
+    assert_equals(declarations.getPropertyValue(prop), supported ? 'unset' : '');
+  }, `CSSPositionTryDescriptors.getPropertyValue(${prop})`);
+
+  test(t => {
+    let style = createStyle(t, '@position-try --pf {}');
+    let declarations = style.sheet.cssRules[0].style;
+    declarations.setProperty(prop, 'unset');
+    assert_equals(declarations.getPropertyValue(prop), supported ? 'unset' : '');
+  }, `CSSPositionTryDescriptors.setProperty(${prop})`);
+
+  test(t => {
+    let decls = supported_properties.map(x => `${x}:unset;`).join('');
+    let style = createStyle(t, `@position-try --pf { ${decls} }`);
+    let declarations = style.sheet.cssRules[0].style;
+    assert_equals(declarations[prop], supported ? 'unset' : undefined);
+  }, `CSSPositionTryDescriptors[${prop}] (set)`);
+
+  test(t => {
+    let style = createStyle(t, '@position-try --pf {}');
+    let declarations = style.sheet.cssRules[0].style;
+    declarations[prop] = 'unset';
+    assert_equals(declarations.getPropertyValue(prop), supported ? 'unset' : '');
+  }, `CSSPositionTryDescriptors[${prop}] (get)`);
+
+  let camelCaseAttr = toLowerCamelCase(prop);
+  if (camelCaseAttr != prop) {
+    // Also test the camelCase version of the attribute.
+    test(t => {
+      let decls = supported_properties.map(x => `${x}:unset;`).join('');
+      let style = createStyle(t, `@position-try --pf { ${decls} }`);
+      let declarations = style.sheet.cssRules[0].style;
+      assert_equals(declarations[camelCaseAttr], supported ? 'unset' : undefined);
+    }, `CSSPositionTryDescriptors[${camelCaseAttr}] (get)`);
+
+    test(t => {
+      let style = createStyle(t, '@position-try --pf {}');
+      let declarations = style.sheet.cssRules[0].style;
+      declarations[camelCaseAttr] = 'unset';
+      assert_equals(declarations.getPropertyValue(prop), supported ? 'unset' : '');
+    }, `CSSPositionTryDescriptors[${camelCaseAttr}] (set)`);
+  }
+}
+
+supported_properties.forEach(x => { test_property(x, /* supported */ true);  });
+unsupported_properties.forEach(x => { test_property(x, /* supported */ false);  });
+
+</script>

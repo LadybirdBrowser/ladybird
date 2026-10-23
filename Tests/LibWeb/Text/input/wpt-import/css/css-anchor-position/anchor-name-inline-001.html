@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-anchor-position-1/#target">
+<link rel="help" href="https://drafts.csswg.org/css-anchor-1/#determining">
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script src="support/test-common.js"></script>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+.container {
+  font-family: Ahem;
+  font-size: 10px;
+  line-height: 1;
+  width: 10em;
+}
+.relpos {
+  position: relative;
+}
+.abspos {
+  position: absolute;
+}
+.anchor {
+  anchor-name: --a1;
+  background: orange;
+}
+.target {
+  position: absolute;
+  width: anchor-size(--a1 width);
+  height: 10px;
+  background: lime;
+}
+</style>
+<body>
+  <div class="container relpos">
+    <div style="height: 150px"></div>
+    <div class="relpos">
+      <span class="target" data-expected-width=30></span>
+      <span class="relpos">
+        <span class="target" data-expected-width=30></span>
+        <span class="relpos">
+          <span class="target" data-expected-width=20></span>
+          <span class="anchor">12</span>
+          <span class="target" data-expected-width=20></span>
+          <span class="anchor abspos">123</span>
+          <span class="target" data-expected-width=30></span>
+        </span>
+        <span class="target" data-expected-width=30></span>
+      </span>
+      <span class="target" data-expected-width=30></span>
+    </div>
+  </div>
+  <script>
+  document.fonts.ready.then(() => checkLayoutForAnchorPos('.target'));
+  </script>
+</body>
