@@ -5463,12 +5463,6 @@ fn decompose_matrix(mut matrix: Matrix4) -> Option<DecomposedMatrix> {
         rotation[2] = -rotation[2];
     }
 
-    // FIXME: This accounts for the fact that the browser coordinate system is left-handed instead of right-handed.
-    //        The reason for this is that the positive Y-axis direction points down instead of up. To fix this, we
-    //        invert the Y axis. However, it feels like the spec pseudo-code above should have taken something like
-    //        this into account, so we're probably doing something else wrong.
-    rotation[2] *= -1.0;
-
     Some(DecomposedMatrix {
         translation,
         scale,
@@ -5496,15 +5490,17 @@ fn recompose_matrix(values: DecomposedMatrix) -> Matrix4 {
     let [x, y, z, w] = values.rotation;
     // Construct a composite rotation matrix from the quaternion values
     // rotationMatrix is a identity 4x4 matrix initially
+    // NB: Unlike the other matrices in the pseudo-code, rotationMatrix is indexed by row and then column. Read the
+    //     other way, it would be the inverse of the rotation that decomposing a matrix extracts.
     let mut rotation_matrix = identity_matrix();
     rotation_matrix[0][0] = 1.0 - 2.0 * (y * y + z * z);
-    rotation_matrix[1][0] = 2.0 * (x * y - z * w);
-    rotation_matrix[2][0] = 2.0 * (x * z + y * w);
-    rotation_matrix[0][1] = 2.0 * (x * y + z * w);
+    rotation_matrix[0][1] = 2.0 * (x * y - z * w);
+    rotation_matrix[0][2] = 2.0 * (x * z + y * w);
+    rotation_matrix[1][0] = 2.0 * (x * y + z * w);
     rotation_matrix[1][1] = 1.0 - 2.0 * (x * x + z * z);
-    rotation_matrix[2][1] = 2.0 * (y * z - x * w);
-    rotation_matrix[0][2] = 2.0 * (x * z - y * w);
-    rotation_matrix[1][2] = 2.0 * (y * z + x * w);
+    rotation_matrix[1][2] = 2.0 * (y * z - x * w);
+    rotation_matrix[2][0] = 2.0 * (x * z - y * w);
+    rotation_matrix[2][1] = 2.0 * (y * z + x * w);
     rotation_matrix[2][2] = 1.0 - 2.0 * (x * x + y * y);
     matrix = multiply_matrices(matrix, rotation_matrix);
 
