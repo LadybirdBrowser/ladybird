@@ -4263,6 +4263,7 @@
     "affects-layout": false,
     "inherited": false,
     "initial": "50% 50%",
+    "needs-layout-node-for-resolved-value": true,
     "requires-computation": "cascaded-value",
     "valid-types": [
       "position"

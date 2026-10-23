@@ -1364,6 +1364,24 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         }
         return style_value_for_transform_origin(layout_node.transform_origin(), reference_box);
     }
+    case PropertyID::PerspectiveOrigin: {
+        // https://drafts.csswg.org/css-transforms-2/#perspective-origin-property
+        // The perspective-origin property is a resolved value special case property like height. [CSSOM]
+        Optional<CSSPixelRect> reference_box;
+        if (auto display = layout_node.display(); !display.is_none() && !display.is_contents()) {
+            if (Painting::has_committed_box(layout_node))
+                reference_box = Painting::transform_reference_box(layout_node);
+        }
+        if (!reference_box.has_value())
+            return get_computed_value(property_id);
+        auto const& transform_values = layout_node.style_group<ComputedValues::TransformValues>();
+        TransformOrigin perspective_origin {
+            LengthPercentage::view(transform_values.perspective_origin_x),
+            LengthPercentage::view(transform_values.perspective_origin_y),
+            Length::make_px(0),
+        };
+        return style_value_for_transform_origin(perspective_origin, reference_box);
+    }
     case PropertyID::AnimationDuration: {
         // https://drafts.csswg.org/css-animations-2/#animation-duration
         // For backwards-compatibility with Level 1, when the computed value of animation-timeline is auto (i.e. only
