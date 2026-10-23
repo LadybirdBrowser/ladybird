@@ -9,6 +9,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <AK/kmalloc.h>
+#include <LibCore/EventLoop.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
@@ -2070,10 +2071,23 @@ void TabWidget::add_tab(Tab* widget, QString const& label)
 // Sizing the hidden page's view alone doesn't hold: The page itself still has its placeholder geometry, and the next
 // pass of the page's own layout pulls the view back to it. So, give the whole page the current page's geometry, laid
 // out now — and only then push the view's viewport.
+// NB: A page that already had a real size is left alone. Sizing it would have it lay out anew, and wake its WebContent,
+//     at every step of a window resize, for a size it would never show. It takes the window's size when it is shown.
 static void size_page_like(Tab& page, Tab const& current)
 {
+    if (page.has_had_real_size())
+        return;
     size_hidden_page_like(page, current);
     page.view().push_viewport_size();
+
+    // NB: The current view takes several sizes in one turn of the event loop as the chrome around it settles, so the
+    //     page has its real size only once the turn is over.
+    if (current.isVisible()) {
+        Core::deferred_invoke([page = QPointer<Tab>(&page)] {
+            if (page)
+                page->did_get_real_size();
+        });
+    }
 }
 
 void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
@@ -2410,7 +2424,7 @@ void TabWidget::resizeEvent(QResizeEvent* event)
 // The stacked layout sizes only the current page, so the tabs behind it keep stale geometry: Qt's default 100x30 for
 // a tab that was created before the window was first shown — which is every tab but the first on a command line, and
 // every restored one. Their pages may already be loading. So, whenever the current page's view gets its size, then size
-// every hidden page's view the same (Chrome keeps its background tabs at the window's size the same way).
+// every hidden page's view the same, until it has had a real size.
 // NB: This hangs off the view's own resize event, not this widget's: At the window's first show, this widget is laid
 // out before the current page's child layout has run. So at that point the current view still has its placeholder size.
 void TabWidget::size_hidden_pages_like_the_current_one()

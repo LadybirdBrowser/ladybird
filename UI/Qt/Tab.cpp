@@ -1620,6 +1620,8 @@ void Tab::paintEvent(QPaintEvent*)
 void Tab::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    if (isVisible())
+        did_get_real_size();
     if (m_hover_label->isVisible())
         update_hover_label();
 }
