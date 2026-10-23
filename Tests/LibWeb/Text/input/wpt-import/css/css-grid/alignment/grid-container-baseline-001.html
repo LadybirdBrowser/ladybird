@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Grid container baseline</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-baselines">
+<meta name="assert" content="Grid container baseline should match the element with 'align-self: baseline' in the first row, even if it's an orthogonal element.">
+<style>
+.wrapper {
+  position: relative;
+  margin: 10px;
+  line-height: 0;
+}
+
+.grid {
+  display: inline-grid;
+  grid-auto-flow: column;
+  background: grey;
+}
+
+.i1 {
+  width: 150px;
+  height: 100px;
+  background: magenta;
+}
+
+.i2 {
+  align-self: baseline;
+  width: 75px;
+  height: 50px;
+  background: cyan;
+}
+
+.i3 {
+  width: 100px;
+  height: 75px;
+  background: yellow;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.wrapper')">
+
+<div class="wrapper" style="writing-mode: horizontal-tb;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-y="40"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" data-offset-y="0"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-y="40"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: horizontal-tb;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-y="40"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" style="writing-mode: vertical-lr;" data-offset-y="0"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-y="40"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: horizontal-tb;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-y="40"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" style="writing-mode: vertical-rl;" data-offset-y="0"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-y="40"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: vertical-lr; text-orientation: sideways;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="0"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" data-offset-x="0"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="0"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: vertical-lr; text-orientation: sideways;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="0"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" style="writing-mode: horizontal-tb;" data-offset-x="0"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="0"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: vertical-lr; text-orientation: sideways;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="0"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" data-offset-x="0"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="0"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: vertical-lr; text-orientation: sideways;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="0"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" style="writing-mode: horizontal-tb;" data-offset-x="0"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="0"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: vertical-rl; text-orientation: sideways;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="75"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" data-offset-x="75"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="75"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: vertical-rl; text-orientation: sideways;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="75"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" style="writing-mode: horizontal-tb;" data-offset-x="75"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="75"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: vertical-rl; text-orientation: sideways;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="75"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" data-offset-x="75"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="75"></div>
+</div>
+
+<div class="wrapper" style="writing-mode: vertical-rl; text-orientation:  sideways;">
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="75"></div>
+  <div class="grid">
+    <div class="i1"></div>
+    <div class="i2" style="writing-mode: horizontal-tb;" data-offset-x="75"></div>
+    <div class="i3"></div>
+  </div>
+  <div style="display: inline-block; width: 20px; height: 10px; background: black" data-offset-x="75"></div>
+</div>
+
+</body>

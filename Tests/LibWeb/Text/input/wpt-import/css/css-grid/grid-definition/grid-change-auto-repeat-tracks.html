@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Support 'repeat()' notation for 'grid-template-columns' and 'grid-template-rows' properties</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/css-grid-1/#repeat-notation" title="5.1.2 Repeating Rows and Columns: the 'repeat()' notation">
+<meta name="assert" content="This test checks that grid-template-{rows|columns} with auto-repeat tracks recomputes the positions of automatically placed grid items.">
+
+<link href="../../../css/support/grid.css" rel="stylesheet">
+<style>
+.grid {
+  grid-auto-rows: 25px;
+  grid-auto-columns: 25px;
+  margin-bottom: 10px;
+}
+.fixedWidth {
+  width: 50px;
+  grid-auto-flow: row;
+  grid-template-columns: repeat(auto-fill, 25px);
+}
+.fixedHeight {
+  width: 100px;
+  height: 50px;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(auto-fill, 25px);
+}
+#i1-1, #i2-1 {
+  grid-row: auto;
+  grid-column: 1;
+  background-color: orange;
+}
+#i1-2, #i2-2 {
+  grid-row: 1;
+  grid-column: auto;
+  background-color: green;
+}
+#i1-3, #i2-3 {
+  grid-row: auto;
+  grid-column: auto;
+  background-color: blue;
+}
+</style>
+
+<div id="log"></div>
+
+<div style="position: relative">
+  <div id="grid1" class="grid fixedWidth">
+    <div id="i1-1"></div>
+    <div id="i1-2"></div>
+    <div id="i1-3"></div>
+  </div>
+</div>
+<div style="position: relative">
+  <div id="grid2" class="grid fixedHeight">
+    <div id="i2-1"></div>
+    <div id="i2-2"></div>
+    <div id="i2-3"></div>
+  </div>
+</div>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script>
+function setGridTemplate(id, gridTemplateRows, gridTemplateColumns) {
+  let gridElement = document.getElementById(id);
+  gridElement.style.gridTemplateRows = gridTemplateRows;
+  gridElement.style.gridTemplateColumns = gridTemplateColumns;
+}
+
+function setGridSize(id, width, height) {
+  let gridElement = document.getElementById(id);
+  gridElement.style.width = width;
+  gridElement.style.height = height;
+}
+
+function setGridItemPlacement(id, gridRow, gridColumn) {
+  let gridItem = document.getElementById(id);
+  gridItem.style.gridRow = gridRow;
+  gridItem.style.gridColumn = gridColumn;
+}
+
+function testGridDefinitions(...gridItemDataList) {
+  for (let gridItemData of gridItemDataList) {
+    let gridItem = document.getElementById(gridItemData.id);
+    gridItem.setAttribute("data-expected-width", gridItemData.width);
+    gridItem.setAttribute("data-expected-height", gridItemData.height);
+    gridItem.setAttribute("data-offset-x", gridItemData.x);
+    gridItem.setAttribute("data-offset-y", gridItemData.y);
+  }
+  checkLayout(".grid", false);
+}
+
+// Test changing the number of auto-repeat tracks.
+setGridTemplate('grid1', 'none', 'repeat(auto-fill, 25px)');
+setGridTemplate('grid2', 'repeat(auto-fill, 25px)', 'none');
+testGridDefinitions(
+  { id: 'i1-1', width: '25', height: '25', x: '0', y: '25' },
+  { id: 'i1-2', width: '25', height: '25', x: '0', y: '0' },
+  { id: 'i1-3', width: '25', height: '25', x: '25', y: '25' },
+  { id: 'i2-1', width: '25', height: '25', x: '0', y: '0' },
+  { id: 'i2-2', width: '25', height: '25', x: '25', y: '0' },
+  { id: 'i2-3', width: '25', height: '25', x: '25', y: '25' });
+
+setGridTemplate('grid1', 'none', 'none');
+setGridTemplate('grid2', 'none', 'none');
+testGridDefinitions(
+  { id: 'i1-1', width: '25', height: '25', x: '0', y: '25' },
+  { id: 'i1-2', width: '25', height: '25', x: '0', y: '0' },
+  { id: 'i1-3', width: '25', height: '25', x: '0', y: '50' },
+  { id: 'i2-1', width: '25', height: '25', x: '0', y: '0' },
+  { id: 'i2-2', width: '25', height: '25', x: '25', y: '0' },
+  { id: 'i2-3', width: '25', height: '25', x: '50', y: '0' });
+
+setGridTemplate('grid1', 'none', '5px repeat(auto-fill, 20px)');
+setGridTemplate('grid2', 'repeat(auto-fill, 20px) 3px', 'none');
+testGridDefinitions(
+  { id: 'i1-1', width: '5', height: '25', x: '0', y: '25' },
+  { id: 'i1-2', width: '5', height: '25', x: '0', y: '0' },
+  { id: 'i1-3', width: '20', height: '25', x: '5', y: '25' },
+  { id: 'i2-1', width: '25', height: '20', x: '0', y: '0' },
+  { id: 'i2-2', width: '25', height: '20', x: '25', y: '0' },
+  { id: 'i2-3', width: '25', height: '20', x: '25', y: '20' });
+
+setGridTemplate('grid1', 'none', '5px repeat(auto-fill, 22px)');
+setGridTemplate('grid2', 'repeat(auto-fill, 18px) 3px', 'none');
+testGridDefinitions(
+  { id: 'i1-1', width: '5', height: '25', x: '0', y: '25' },
+  { id: 'i1-2', width: '5', height: '25', x: '0', y: '0' },
+  { id: 'i1-3', width: '22', height: '25', x: '5', y: '25' },
+  { id: 'i2-1', width: '25', height: '18', x: '0', y: '0' },
+  { id: 'i2-2', width: '25', height: '18', x: '25', y: '0' },
+  { id: 'i2-3', width: '25', height: '18', x: '25', y: '18' });
+
+setGridTemplate('grid1', 'none', 'repeat(auto-fill, 45px)');
+setGridTemplate('grid2', 'repeat(auto-fill, 45px)', 'none');
+testGridDefinitions(
+  { id: 'i1-1', width: '45', height: '25', x: '0', y: '25' },
+  { id: 'i1-2', width: '45', height: '25', x: '0', y: '0' },
+  { id: 'i1-3', width: '45', height: '25', x: '0', y: '50' },
+  { id: 'i2-1', width: '25', height: '45', x: '0', y: '0' },
+  { id: 'i2-2', width: '25', height: '45', x: '25', y: '0' },
+  { id: 'i2-3', width: '25', height: '45', x: '50', y: '0' });
+
+// Test changing the size of the grid.
+setGridSize('grid1', '100px', 'auto');
+setGridSize('grid2', '100px', '100px');
+testGridDefinitions(
+  { id: 'i1-1', width: '45', height: '25', x: '0', y: '25' },
+  { id: 'i1-2', width: '45', height: '25', x: '0', y: '0' },
+  { id: 'i1-3', width: '45', height: '25', x: '45', y: '25' },
+  { id: 'i2-1', width: '25', height: '45', x: '0', y: '0' },
+  { id: 'i2-2', width: '25', height: '45', x: '25', y: '0' },
+  { id: 'i2-3', width: '25', height: '45', x: '25', y: '45' });
+
+// Move the third item so that there is an empty track between it and the others.
+setGridItemPlacement('i1-3', 'auto', '3');
+setGridItemPlacement('i2-3', '3', 'auto');
+testGridDefinitions(
+  { id: 'i1-1', width: '45', height: '25', x: '0', y: '25' },
+  { id: 'i1-2', width: '45', height: '25', x: '0', y: '0' },
+  { id: 'i1-3', width: '25', height: '25', x: '90', y: '25' },
+  { id: 'i2-1', width: '25', height: '45', x: '0', y: '0' },
+  { id: 'i2-2', width: '25', height: '45', x: '25', y: '0' },
+  { id: 'i2-3', width: '25', height: '25', x: '25', y: '90' });
+
+// Set the same templates, but using auto-fit instead of auto-fill. The empty track should collapse.
+setGridTemplate('grid1', 'none', 'repeat(auto-fit, 45px)');
+setGridTemplate('grid2', 'repeat(auto-fit, 45px)', 'none');
+testGridDefinitions(
+  { id: 'i1-1', width: '45', height: '25', x: '0', y: '25' },
+  { id: 'i1-2', width: '45', height: '25', x: '0', y: '0' },
+  { id: 'i1-3', width: '25', height: '25', x: '45', y: '25' },
+  { id: 'i2-1', width: '25', height: '45', x: '0', y: '0' },
+  { id: 'i2-2', width: '25', height: '45', x: '25', y: '0' },
+  { id: 'i2-3', width: '25', height: '25', x: '25', y: '45' });
+
+done();
+</script>

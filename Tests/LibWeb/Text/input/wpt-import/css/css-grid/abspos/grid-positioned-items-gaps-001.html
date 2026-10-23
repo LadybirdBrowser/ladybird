@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Grid positioned items gaps</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#abspos" title="9. Absolute Positioning">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#gutters" title="10.1. Gutters: the row-gap, column-gap, and gap properties">
+<meta name="assert" content="This test checks the behavior of the positioned items in a grid container with gaps.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<style>
+
+.grid {
+  grid-template-columns: 100px 100px 100px 100px;
+  grid-template-rows: 50px 50px;
+  grid-gap: 25px 50px;
+  width: 800px;
+  height: 200px;
+  border: 5px solid black;
+  margin: 30px;
+  padding: 15px;
+  /* Ensures that the grid container is the containing block of the absolutely positioned grid children. */
+  position: relative;
+}
+
+.grid > div {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: lime;
+}
+
+.offsets {
+  left: 0;
+  top: 0;
+}
+
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.grid')">
+
+<div id="log"></div>
+
+<div class="grid">
+  <div style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="830" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="830" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 1 / auto; grid-row: 1 / auto;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="815" data-expected-height="215">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 1 / auto; grid-row: 1 / auto;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="815" data-expected-height="215">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="100" data-expected-height="50">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="100" data-expected-height="50">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 1 / 3; grid-row: 1 / 3;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="250" data-expected-height="125">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 1 / 3; grid-row: 1 / 3;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="250" data-expected-height="125">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 1 / 4; grid-row: 1 / 4;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="400" data-expected-height="215">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 1 / 4; grid-row: 1 / 4;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="400" data-expected-height="215">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 1 / 5; grid-row: 1 / 5;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="550" data-expected-height="215">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 1 / 5; grid-row: 1 / 5;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="550" data-expected-height="215">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 1 / 6; grid-row: 1 / 6;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="815" data-expected-height="215">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 1 / 6; grid-row: 1 / 6;"
+    data-offset-x="15" data-offset-y="15" data-expected-width="815" data-expected-height="215">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="665" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="665" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="100" data-expected-height="50">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="100" data-expected-height="50">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 2 / 4; grid-row: 2 / 4;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="250" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 2 / 4; grid-row: 2 / 4;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="250" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 2 / 5; grid-row: 2 / 5;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="400" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 2 / 5; grid-row: 2 / 5;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="400" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 2 / 6; grid-row: 2 / 6;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="665" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 2 / 6; grid-row: 2 / 6;"
+    data-offset-x="165" data-offset-y="90" data-expected-width="665" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 3 / auto; grid-row: 3 / auto;"
+    data-offset-x="315" data-offset-y="140" data-expected-width="515" data-expected-height="90">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 3 / auto; grid-row: 3 / auto;"
+    data-offset-x="315" data-offset-y="140" data-expected-width="515" data-expected-height="90">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 4 / auto; grid-row: 4 / auto;"
+    data-offset-x="465" data-offset-y="0" data-expected-width="365" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 4 / auto; grid-row: 4 / auto;"
+    data-offset-x="465" data-offset-y="0" data-expected-width="365" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 5 / auto; grid-row: 5 / auto;"
+    data-offset-x="565" data-offset-y="0" data-expected-width="265" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 5 / auto; grid-row: 5 / auto;"
+    data-offset-x="565" data-offset-y="0" data-expected-width="265" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: 6 / auto; grid-row: 6 / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="830" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: 6 / auto; grid-row: 6 / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="830" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: auto / 1; grid-row: auto / 1;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="15" data-expected-height="15">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: auto / 1; grid-row: auto / 1;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="15" data-expected-height="15">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="115" data-expected-height="65">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="115" data-expected-height="65">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: auto / 3; grid-row: auto / 3;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="265" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: auto / 3; grid-row: auto / 3;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="265" data-expected-height="140">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: auto / 4; grid-row: auto / 4;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="415" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: auto / 4; grid-row: auto / 4;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="415" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: auto / 5; grid-row: auto / 5;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="565" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: auto / 5; grid-row: auto / 5;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="565" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div style="grid-column: auto / 6; grid-row: auto / 6;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="830" data-expected-height="230">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="offsets" style="grid-column: auto / 6; grid-row: auto / 6;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="830" data-expected-height="230">
+  </div>
+</div>
+
+</body>

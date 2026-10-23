@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#distribution-values">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-justify-content">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-align">
+<meta name="assert" content="justify-content 'space-between', 'space-around', 'space-evenly' and 'stretch' distribute the free space among the column tracks of a vertical-rl grid, in LTR and RTL.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<style>
+body {
+    margin: 0px;
+}
+
+.grid {
+    grid-auto-columns: 20px;
+    grid-auto-rows: 40px;
+    position: relative;
+    width: 400px;
+    height: 300px;
+}
+
+.stretchedGrid {
+    grid-auto-columns: auto;
+}
+
+</style>
+<body onload="checkLayout('.grid')">
+
+<p>This test checks that the justify-content property is applied correctly when using content-distribution values.</p>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'space-between'</p>
+    <div class="grid justifyContentSpaceBetween verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'space-around'</p>
+    <div class="grid justifyContentSpaceAround verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="65" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="215" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="65" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="215" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'space-evenly'</p>
+    <div class="grid justifyContentSpaceEvenly verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="87" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="193" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="87" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="193" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'stretch'</p>
+    <div class="grid stretchedGrid justifyContentStretch verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="150"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="150" data-expected-width="40" data-expected-height="150"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="150"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="150" data-expected-width="40" data-expected-height="150"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'space-between'</p>
+    <div class="grid justifyContentSpaceBetween verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'space-around'</p>
+    <div class="grid justifyContentSpaceAround verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="40" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="240" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="40" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="240" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'space-evenly'</p>
+    <div class="grid justifyContentSpaceEvenly verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="60" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="220" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="60" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="220" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'stretch'</p>
+    <div class="grid stretchedGrid justifyContentStretch verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="100"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="100" data-expected-width="40" data-expected-height="100"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="200" data-expected-width="40" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="100"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="100" data-expected-width="40" data-expected-height="100"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="200" data-expected-width="40" data-expected-height="100"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'space-between'</p>
+    <div class="grid justifyContentSpaceBetween verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="93" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="187" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowFourthColumn" data-offset-x="360" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="93" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="187" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFourthColumn" data-offset-x="320" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'space-around'</p>
+    <div class="grid justifyContentSpaceAround verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="28" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="103" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="178" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowFourthColumn" data-offset-x="360" data-offset-y="253" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="28" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="103" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="178" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFourthColumn" data-offset-x="320" data-offset-y="253" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'space-evenly'</p>
+    <div class="grid justifyContentSpaceEvenly verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="44" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="108" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="172" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowFourthColumn" data-offset-x="360" data-offset-y="236" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="44" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="108" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="172" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFourthColumn" data-offset-x="320" data-offset-y="236" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'stretch'</p>
+    <div class="grid stretchedGrid justifyContentStretch verticalRL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="75"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="75" data-expected-width="40" data-expected-height="75"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="150" data-expected-width="40" data-expected-height="75"></div>
+        <div class="firstRowFourthColumn" data-offset-x="360" data-offset-y="225" data-expected-width="40" data-expected-height="75"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="75"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="75" data-expected-width="40" data-expected-height="75"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="150" data-expected-width="40" data-expected-height="75"></div>
+        <div class="secondRowFourthColumn" data-offset-x="320" data-offset-y="225" data-expected-width="40" data-expected-height="75"></div>
+    </div>
+</div>
+
+<!-- RTL direction. -->
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'space-between'</p>
+    <div class="grid justifyContentSpaceBetween verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'space-around'</p>
+    <div class="grid justifyContentSpaceAround verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="215" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="65" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="215" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="65" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'space-evenly'</p>
+    <div class="grid justifyContentSpaceEvenly verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="193" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="87" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="193" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="87" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'stretch'</p>
+    <div class="grid stretchedGrid justifyContentStretch verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="150" data-expected-width="40" data-expected-height="150"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="150"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="150" data-expected-width="40" data-expected-height="150"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="150"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'space-between'</p>
+    <div class="grid justifyContentSpaceBetween verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'space-around'</p>
+    <div class="grid justifyContentSpaceAround verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="240" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="40" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="240" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="40" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'space-evenly'</p>
+    <div class="grid justifyContentSpaceEvenly verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="220" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="60" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="220" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="60" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'stretch'</p>
+    <div class="grid stretchedGrid justifyContentStretch verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="200" data-expected-width="40" data-expected-height="100"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="100" data-expected-width="40" data-expected-height="100"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="200" data-expected-width="40" data-expected-height="100"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="100" data-expected-width="40" data-expected-height="100"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="100"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'space-between'</p>
+    <div class="grid justifyContentSpaceBetween verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="187" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="93" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowFourthColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="187" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="93" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFourthColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'space-around'</p>
+    <div class="grid justifyContentSpaceAround verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="253" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="178" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="103" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowFourthColumn" data-offset-x="360" data-offset-y="28" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="253" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="178" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="103" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFourthColumn" data-offset-x="320" data-offset-y="28" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'space-evenly'</p>
+    <div class="grid justifyContentSpaceEvenly verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="236" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="172" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="108" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowFourthColumn" data-offset-x="360" data-offset-y="44" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="236" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="172" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="108" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFourthColumn" data-offset-x="320" data-offset-y="44" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'stretch'</p>
+    <div class="grid stretchedGrid justifyContentStretch verticalRL directionRTL" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="225" data-expected-width="40" data-expected-height="75"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="150" data-expected-width="40" data-expected-height="75"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="75" data-expected-width="40" data-expected-height="75"></div>
+        <div class="firstRowFourthColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="75"></div>
+        <div class="secondRowFirstColumn" data-offset-x="320" data-offset-y="225" data-expected-width="40" data-expected-height="75"></div>
+        <div class="secondRowSecondColumn" data-offset-x="320" data-offset-y="150" data-expected-width="40" data-expected-height="75"></div>
+        <div class="secondRowThirdColumn" data-offset-x="320" data-offset-y="75" data-expected-width="40" data-expected-height="75"></div>
+        <div class="secondRowFourthColumn" data-offset-x="320" data-offset-y="0" data-expected-width="40" data-expected-height="75"></div>
+    </div>
+</div>
+
+</body>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#line-placement">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#implicit-grids">
+<meta name="assert" content="Dynamically changing an item's grid-row and grid-column between line numbers, spans, named lines and named-line spans recomputes its grid area, including implicit tracks created for unknown line names.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<style>
+.grid {
+    grid-template-columns: [col] 50px [col] 100px [col] 200px [col];
+    grid-template-rows: [row] 70px [row] 140px [row] 280px [row];
+    grid-auto-columns: 5px;
+    grid-auto-rows: 10px;
+}
+.differentNamedGridLines {
+    grid-template-columns: [col1] 50px [col2] 100px [col3] 200px [col4];
+    grid-template-rows: [row1] 70px [row2] 140px [row3] 280px [row4];
+}
+</style>
+<script>
+function testPosition(position, size)
+{
+    gridItem = document.getElementsByClassName("grid")[0].firstChild;
+    gridItem.style.gridColumn = position.column;
+    gridItem.style.gridRow = position.row;
+    gridItem.setAttribute("data-expected-width", size.width);
+    gridItem.setAttribute("data-expected-height", size.height);
+    checkLayout(".grid", false);
+}
+
+function updateGridItemPosition()
+{
+    // Test with the same type of positions.
+    // 1. Explicit grid lines.
+    testPosition({ 'column': '1 / 2', 'row': '1 / 2' }, { 'width': '50', 'height': '70' });
+    testPosition({ 'column': '1 / 3', 'row': '1 / 2' }, { 'width': '150', 'height': '70' });
+
+    testPosition({ 'column': '1 / 2', 'row': '1 / 3' }, { 'width': '50', 'height': '210' });
+    testPosition({ 'column': '1 / 2', 'row': '1 / 2' }, { 'width': '50', 'height': '70' });
+
+    testPosition({ 'column': '2 / 3', 'row': '1 / 3' }, { 'width': '100', 'height': '210' });
+    testPosition({ 'column': '1 / 3', 'row': '1 / 3' }, { 'width': '150', 'height': '210' });
+
+    testPosition({ 'column': '1 / 3', 'row': '1 / 3' }, { 'width': '150', 'height': '210' });
+    testPosition({ 'column': '1 / 3', 'row': '2 / 3' }, { 'width': '150', 'height': '140' });
+
+    // 2. spans.
+    testPosition({ 'column': '1 / span 2', 'row': '1 / span 1' }, { 'width': '150', 'height': '70' });
+    testPosition({ 'column': '1 / span 1', 'row': '1 / span 1' }, { 'width': '50', 'height': '70' });
+
+    testPosition({ 'column': '2 / span 1', 'row': '1 / span 1' }, { 'width': '100', 'height': '70' });
+    testPosition({ 'column': '2 / span 1', 'row': '1 / span 2' }, { 'width': '100', 'height': '210' });
+
+    testPosition({ 'column': 'span 2 / 3', 'row': 'span 2 / 3' }, { 'width': '150', 'height': '210' });
+    testPosition({ 'column': 'span 1 / 3', 'row': 'span 2 / 3' }, { 'width': '100', 'height': '210' });
+
+    testPosition({ 'column': 'span 2 / 3', 'row': 'span 1 / 3' }, { 'width': '150', 'height': '140' });
+    testPosition({ 'column': 'span 2 / 3', 'row': 'span 2 / 3' }, { 'width': '150', 'height': '210' });
+
+    // 3. Named grid lines, changing the explicit position.
+    testPosition({ 'column': '1 / 2 col', 'row': '1 / 2 row' }, { 'width': '50', 'height': '70' });
+    testPosition({ 'column': '1 / 3 col', 'row': '1 / 2 row' }, { 'width': '150', 'height': '70' });
+
+    testPosition({ 'column': '1 / 2 col', 'row': '1 / 3 row' }, { 'width': '50', 'height': '210' });
+    testPosition({ 'column': '1 / 2 col', 'row': '1 / 2 row' }, { 'width': '50', 'height': '70' });
+
+    testPosition({ 'column': '1 col / 4', 'row': '1 row / 4' }, { 'width': '350', 'height': '490' });
+    testPosition({ 'column': '2 col / 4', 'row': '1 row / 4' }, { 'width': '300', 'height': '490' });
+
+    testPosition({ 'column': '2 col / 4', 'row': '2 row / 4' }, { 'width': '300', 'height': '420' });
+    testPosition({ 'column': '2 col / 4', 'row': '1 row / 4' }, { 'width': '300', 'height': '490' });
+
+    // 4. Named grid lines, changing the name of the grid lines.
+    testPosition({ 'column': '1 / 3 col', 'row': '1 / 2 row' }, { 'width': '150', 'height': '70' });
+    testPosition({ 'column': '1 / 3 invalid', 'row': '1 / 2 row' }, { 'width': '365', 'height': '70' });
+
+    testPosition({ 'column': '1 / 4 col', 'row': '1 / 4 invalid' }, { 'width': '350', 'height': '530' });
+    testPosition({ 'column': '1 / 4 col', 'row': '1 / 4 row' }, { 'width': '350', 'height': '490' });
+
+    testPosition({ 'column': '2 invalid / 4', 'row': '1 row / 4' }, { 'width': '10', 'height': '490' });
+    testPosition({ 'column': '2 col / 4', 'row': '1 row / 4' }, { 'width': '300', 'height': '490' });
+
+    testPosition({ 'column': '2 col / 4', 'row': '2 row / 4' }, { 'width': '300', 'height': '420' });
+    testPosition({ 'column': '2 col / 4', 'row': '2 invalid / 4' }, { 'width': '300', 'height': '20' });
+
+    // 5. Span named grid lines, changing the grid line number.
+    testPosition({ 'column': '1 / span 3 col', 'row': '1 / span 2 row' }, { 'width': '350', 'height': '210' });
+    testPosition({ 'column': '1 / span 2 col', 'row': '1 / span 2 row' }, { 'width': '150', 'height': '210' });
+
+    testPosition({ 'column': '2 / span 3 col', 'row': '1 / span 2 row' }, { 'width': '305', 'height': '210' });
+    testPosition({ 'column': '2 / span 3 col', 'row': '1 / span 1 row' }, { 'width': '305', 'height': '70' });
+
+    testPosition({ 'column': 'span 2 col / 3', 'row': 'span 2 row / 4' }, { 'width': '150', 'height': '420' });
+    testPosition({ 'column': 'span 1 col / 3', 'row': 'span 2 row / 4' }, { 'width': '100', 'height': '420' });
+
+    testPosition({ 'column': 'span 2 col / 3', 'row': 'span 2 row / 4' }, { 'width': '150', 'height': '420' });
+    testPosition({ 'column': 'span 2 col / 3', 'row': 'span 3 row / 4' }, { 'width': '150', 'height': '490' });
+
+    // Test transition across grid lines types.
+    // 1. Explicit <-> spans.
+    testPosition({ 'column': '1 / 3', 'row': '1 / 2' }, { 'width': '150', 'height': '70' });
+    testPosition({ 'column': '1 / span 3', 'row': '1 / 2' }, { 'width': '350', 'height': '70' });
+
+    testPosition({ 'column': '1 / 3', 'row': '1 / span 2' }, { 'width': '150', 'height': '210' });
+    testPosition({ 'column': '1 / 3', 'row': '1 / 2' }, { 'width': '150', 'height': '70' });
+
+    testPosition({ 'column': 'span 1 / 3', 'row': '1 / 2' }, { 'width': '100', 'height': '70' });
+    testPosition({ 'column': '1 / 3', 'row': '1 / 2' }, { 'width': '150', 'height': '70' });
+
+    testPosition({ 'column': '1 / 3', 'row': '1 / 4' }, { 'width': '150', 'height': '490' });
+    testPosition({ 'column': '1 / 3', 'row': 'span 2 / 4' }, { 'width': '150', 'height': '420' });
+
+    // 2. Span <-> named grid lines.
+    testPosition({ 'column': '1 / col 3', 'row': '1 / span 4' }, { 'width': '150', 'height': '500' });
+    testPosition({ 'column': '1 / span 3', 'row': '1 / span 4' }, { 'width': '350', 'height': '500' });
+
+    testPosition({ 'column': '1 / col 3', 'row': '1 / span 3' }, { 'width': '150', 'height': '490' });
+    testPosition({ 'column': '1 / col 3', 'row': '1 / row 3' }, { 'width': '150', 'height': '210' });
+
+    testPosition({ 'column': 'span 1 / 3', 'row': 'span 2 / 4' }, { 'width': '100', 'height': '420' });
+    testPosition({ 'column': '1 col / 3', 'row': 'span 2 / 4' }, { 'width': '150', 'height': '420' });
+
+    testPosition({ 'column': 'span 1 / 3', 'row': 'col 1 / 4' }, { 'width': '100', 'height': '10' });
+    testPosition({ 'column': 'span 1 / 3', 'row': 'span 1 / 4' }, { 'width': '100', 'height': '280' });
+
+    // 3. Named grid lines to span named grid line.
+    testPosition({ 'column': '1 / col 3', 'row': '1 / span 4' }, { 'width': '150', 'height': '500' });
+    testPosition({ 'column': '1 / span col 3', 'row': '1 / span 4' }, { 'width': '350', 'height': '500' });
+
+    testPosition({ 'column': '1 / col 3', 'row': '1 / span row 3' }, { 'width': '150', 'height': '490' });
+    testPosition({ 'column': '1 / col 3', 'row': '1 / row 3' }, { 'width': '150', 'height': '210' });
+
+    testPosition({ 'column': 'span col 1 / 3', 'row': 'span 2 / 4' }, { 'width': '100', 'height': '420' });
+    testPosition({ 'column': '1 col / 3', 'row': 'span 2 / 4' }, { 'width': '150', 'height': '420' });
+
+    testPosition({ 'column': 'span col 1 / 3', 'row': 'col 1 / 4' }, { 'width': '100', 'height': '10' });
+    testPosition({ 'column': 'span col 1 / 3', 'row': 'span col 1 / 4' }, { 'width': '100', 'height': '500' });
+
+    // 4. Explicit <-> named grid lines.
+    // We need to modify the grid's definitions so that we have explicit and named grid lines not match anymore.
+    var gridElement = document.getElementsByClassName("grid")[0];
+    gridElement.classList.add("differentNamedGridLines");
+
+    testPosition({ 'column': '1 / col4 3', 'row': '1 / 4' }, { 'width': '360', 'height': '490' });
+    testPosition({ 'column': '1 / 3', 'row': '1 / 4' }, { 'width': '150', 'height': '490' });
+
+    testPosition({ 'column': '1 / col4 3', 'row': '1 / 4' }, { 'width': '360', 'height': '490' });
+    testPosition({ 'column': '1 / col4 3', 'row': '1 / row3 4' }, { 'width': '360', 'height': '520' });
+
+    testPosition({ 'column': 'col2 1 / 4', 'row': '1 row2 / 4' }, { 'width': '300', 'height': '420' });
+    testPosition({ 'column': '1 / 4', 'row': '1 row2 / 4' }, { 'width': '350', 'height': '420' });
+
+    testPosition({ 'column': 'col2 1 / 4', 'row': '1 / 4' }, { 'width': '300', 'height': '490' });
+    testPosition({ 'column': 'col2 1 / 4', 'row': '1 row2 / 4' }, { 'width': '300', 'height': '420' });
+
+    // 5. Span <-> span named grid lines.
+    testPosition({ 'column': '1 / span col4 2', 'row': '3 / span 1' }, { 'width': '355', 'height': '280' });
+    testPosition({ 'column': '1 / span 2', 'row': '3 / span 1' }, { 'width': '150', 'height': '280' });
+
+    testPosition({ 'column': '1 / span col4 3', 'row': '1 / span 4' }, { 'width': '360', 'height': '500' });
+    testPosition({ 'column': '1 / span col4 3', 'row': '1 / span row3 4' }, { 'width': '360', 'height': '520' });
+
+    testPosition({ 'column': 'span 2 / 4', 'row': 'span 1 / 4' }, { 'width': '300', 'height': '280' });
+    testPosition({ 'column': 'span col1 2 / 4', 'row': 'span 1 / 4' }, { 'width': '355', 'height': '280' });
+
+    testPosition({ 'column': 'span 2 / 4', 'row': 'span 1 / 4' }, { 'width': '300', 'height': '280' });
+    testPosition({ 'column': 'span 2 / 4', 'row': 'span row2 1 / 4' }, { 'width': '300', 'height': '420' });
+
+    // 6. Explicit to span named grid line.
+    testPosition({ 'column': '1 / 2', 'row': '2 / span row3 1' }, { 'width': '50', 'height': '140' });
+    testPosition({ 'column': '1 / span col3 2', 'row': '2 / span row3 1' }, { 'width': '355', 'height': '140' });
+
+    testPosition({ 'column': '1 / 2', 'row': '2 / span row3 4' }, { 'width': '50', 'height': '450' });
+    testPosition({ 'column': '1 / 2', 'row': '2 / 4' }, { 'width': '50', 'height': '420' });
+
+    testPosition({ 'column': 'span col2 1 / 4', 'row': 'span row1 3 / 4' }, { 'width': '300', 'height': '510' });
+    testPosition({ 'column': '1 / 4', 'row': 'span row1 3 / 4' }, { 'width': '350', 'height': '510' });
+
+    testPosition({ 'column': 'span col2 1 / 4', 'row': 'span row1 3 / 4' }, { 'width': '300', 'height': '510' });
+    testPosition({ 'column': 'span col2 1 / 4', 'row': '3 / 4' }, { 'width': '300', 'height': '280' });
+}
+</script>
+<body onload="document.fonts.ready.then(() => { updateGridItemPosition(); done(); })">
+
+<p>This test checks that a grid item's area is recomputed when its placement properties change.</p>
+
+<div class="grid"><div class="sizedToGridArea"></div></div>
+
+</body>

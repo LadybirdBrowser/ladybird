@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Mininum width of grid items vertical-lr</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-items">
+<meta name="assert" content="Checks that grid items minimum width takes into account borders, padding and margins for grid containers with indefinite width in vertical-lr.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<style>
+.grid {
+  display: inline-grid;
+  border: solid 5px;
+  grid: minmax(auto, 0px) / 10px 10px;
+  writing-mode: vertical-lr;
+}
+
+.grid > div:nth-child(1) { background: cyan; }
+.grid > div:nth-child(2) { background: magenta; }
+
+.width60 { width: 60px; }
+.minWidth60 { min-width: 60px; }
+
+.marginLeft5 { margin-left: 5px; }
+.marginRight10 { margin-right: 10px; }
+
+.paddingLeft6 { padding-left: 6px; }
+.paddingRight3 { padding-right: 3px; }
+
+.borderLeft2, .borderRight4 { border: solid yellow 0px; }
+.borderLeft2 { border-left-width: 2px; }
+.borderRight4 { border-right-width: 4px; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.grid')">
+
+<div id="log"></div>
+
+<h3>Direction LTR</h3>
+
+<pre>Item width: 60px;</pre>
+
+<div class="grid" data-expected-width="70">
+  <div class="width60" data-expected-width="60"></div>
+  <div data-expected-width="60"></div>
+</div>
+
+<pre>Item min-width: 60px;</pre>
+
+<div class="grid" data-expected-width="70">
+  <div class="minWidth60" data-expected-width="60"></div>
+  <div data-expected-width="60"></div>
+</div>
+
+<pre>Item width: 60px; &amp; margin-left: 5px;</pre>
+
+<div class="grid" data-expected-width="75">
+  <div class="width60 marginLeft5" data-expected-width="60"></div>
+  <div data-expected-width="65"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; margin-left: 5px;</pre>
+
+<div class="grid" data-expected-width="75">
+  <div class="minWidth60 marginLeft5" data-expected-width="60"></div>
+  <div data-expected-width="65"></div>
+</div>
+
+<pre>Item width: 60px; &amp; margin-right: 10px;</pre>
+
+<div class="grid" data-expected-width="80">
+  <div class="width60 marginRight10" data-expected-width="60"></div>
+  <div data-expected-width="70"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; margin-right: 10px;</pre>
+
+<div class="grid" data-expected-width="80">
+  <div class="minWidth60 marginRight10" data-expected-width="60"></div>
+  <div data-expected-width="70"></div>
+</div>
+
+<pre>Item width: 60px; &amp; margin-left: 5px; &amp; margin-right: 10px;</pre>
+
+<div class="grid" data-expected-width="85">
+  <div class="width60 marginLeft5 marginRight10" data-expected-width="60"></div>
+  <div data-expected-width="75"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; margin-left: 5px; &amp; margin-right: 10px;</pre>
+
+<div class="grid" data-expected-width="85">
+  <div class="minWidth60 marginLeft5 marginRight10" data-expected-width="60"></div>
+  <div data-expected-width="75"></div>
+</div>
+
+<pre>Item width: 60px; &amp; padding-left: 6px;</pre>
+
+<div class="grid" data-expected-width="76">
+  <div class="width60 paddingLeft6" data-expected-width="66"></div>
+  <div data-expected-width="66"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; padding-left: 6px;</pre>
+
+<div class="grid" data-expected-width="76">
+  <div class="minWidth60 paddingLeft6" data-expected-width="66"></div>
+  <div data-expected-width="66"></div>
+</div>
+
+<pre>Item width: 60px; &amp; padding-right: 3px;</pre>
+
+<div class="grid" data-expected-width="73">
+  <div class="width60 paddingRight3" data-expected-width="63"></div>
+  <div data-expected-width="63"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; padding-right: 3px;</pre>
+
+<div class="grid" data-expected-width="73">
+  <div class="minWidth60 paddingRight3" data-expected-width="63"></div>
+  <div data-expected-width="63"></div>
+</div>
+
+<pre>Item width: 60px; &amp; padding-left: 6px; &amp; padding-right: 3px;</pre>
+
+<div class="grid" data-expected-width="79">
+  <div class="width60 paddingLeft6 paddingRight3" data-expected-width="69"></div>
+  <div data-expected-width="69"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; padding-left: 6px; &amp; padding-right: 3px;</pre>
+
+<div class="grid" data-expected-width="79">
+  <div class="minWidth60 paddingLeft6 paddingRight3" data-expected-width="69"></div>
+  <div data-expected-width="69"></div>
+</div>
+
+<pre>Item width: 60px; &amp; border-left-width: 2px;</pre>
+
+<div class="grid" data-expected-width="72">
+  <div class="width60 borderLeft2" data-expected-width="62"></div>
+  <div data-expected-width="62"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; border-left-width: 2px;</pre>
+
+<div class="grid" data-expected-width="72">
+  <div class="minWidth60 borderLeft2" data-expected-width="62"></div>
+  <div data-expected-width="62"></div>
+</div>
+
+<pre>Item width: 60px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid" data-expected-width="74">
+  <div class="width60 borderRight4" data-expected-width="64"></div>
+  <div data-expected-width="64"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid" data-expected-width="74">
+  <div class="minWidth60 borderRight4" data-expected-width="64"></div>
+  <div data-expected-width="64"></div>
+</div>
+
+<pre>Item width: 60px; &amp; border-left-width: 2px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid" data-expected-width="76">
+  <div class="width60 borderLeft2 borderRight4" data-expected-width="66"></div>
+  <div data-expected-width="66"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; border-left-width: 2px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid" data-expected-width="76">
+  <div class="minWidth60 borderLeft2 borderRight4" data-expected-width="66"></div>
+  <div data-expected-width="66"></div>
+</div>
+
+<pre>Item width: 60px; &amp; margin-left: 5px; &amp; margin-right: 10px; &amp; padding-left: 6px; &amp; padding-right: 3px; &amp; border-left-width: 2px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid" data-expected-width="100">
+  <div class="width60 marginLeft5 marginRight10 paddingLeft6 paddingRight3 borderLeft2 borderRight4" data-expected-width="75"></div>
+  <div data-expected-width="90"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; margin-left: 5px; &amp; margin-right: 10px; &amp; padding-left: 6px; &amp; padding-right: 3px; &amp; border-left-width: 2px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid" data-expected-width="100">
+  <div class="minWidth60 marginLeft5 marginRight10 paddingLeft6 paddingRight3 borderLeft2 borderRight4" data-expected-width="75"></div>
+  <div data-expected-width="90"></div>
+</div>
+
+<h3>Direction RTL</h3>
+
+<pre>Item width: 60px;</pre>
+
+<div class="grid directionRTL" data-expected-width="70">
+  <div class="width60" data-expected-width="60"></div>
+  <div data-expected-width="60"></div>
+</div>
+
+<pre>Item min-width: 60px;</pre>
+
+<div class="grid directionRTL" data-expected-width="70">
+  <div class="minWidth60" data-expected-width="60"></div>
+  <div data-expected-width="60"></div>
+</div>
+
+<pre>Item width: 60px; &amp; margin-left: 5px;</pre>
+
+<div class="grid directionRTL" data-expected-width="75">
+  <div class="width60 marginLeft5" data-expected-width="60"></div>
+  <div data-expected-width="65"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; margin-left: 5px;</pre>
+
+<div class="grid directionRTL" data-expected-width="75">
+  <div class="minWidth60 marginLeft5" data-expected-width="60"></div>
+  <div data-expected-width="65"></div>
+</div>
+
+<pre>Item width: 60px; &amp; margin-right: 10px;</pre>
+
+<div class="grid directionRTL" data-expected-width="80">
+  <div class="width60 marginRight10" data-expected-width="60"></div>
+  <div data-expected-width="70"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; margin-right: 10px;</pre>
+
+<div class="grid directionRTL" data-expected-width="80">
+  <div class="minWidth60 marginRight10" data-expected-width="60"></div>
+  <div data-expected-width="70"></div>
+</div>
+
+<pre>Item width: 60px; &amp; margin-left: 5px; &amp; margin-right: 10px;</pre>
+
+<div class="grid directionRTL" data-expected-width="85">
+  <div class="width60 marginLeft5 marginRight10" data-expected-width="60"></div>
+  <div data-expected-width="75"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; margin-left: 5px; &amp; margin-right: 10px;</pre>
+
+<div class="grid directionRTL" data-expected-width="85">
+  <div class="minWidth60 marginLeft5 marginRight10" data-expected-width="60"></div>
+  <div data-expected-width="75"></div>
+</div>
+
+<pre>Item width: 60px; &amp; padding-left: 6px;</pre>
+
+<div class="grid directionRTL" data-expected-width="76">
+  <div class="width60 paddingLeft6" data-expected-width="66"></div>
+  <div data-expected-width="66"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; padding-left: 6px;</pre>
+
+<div class="grid directionRTL" data-expected-width="76">
+  <div class="minWidth60 paddingLeft6" data-expected-width="66"></div>
+  <div data-expected-width="66"></div>
+</div>
+
+<pre>Item width: 60px; &amp; padding-right: 3px;</pre>
+
+<div class="grid directionRTL" data-expected-width="73">
+  <div class="width60 paddingRight3" data-expected-width="63"></div>
+  <div data-expected-width="63"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; padding-right: 3px;</pre>
+
+<div class="grid directionRTL" data-expected-width="73">
+  <div class="minWidth60 paddingRight3" data-expected-width="63"></div>
+  <div data-expected-width="63"></div>
+</div>
+
+<pre>Item width: 60px; &amp; padding-left: 6px; &amp; padding-right: 3px;</pre>
+
+<div class="grid directionRTL" data-expected-width="79">
+  <div class="width60 paddingLeft6 paddingRight3" data-expected-width="69"></div>
+  <div data-expected-width="69"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; padding-left: 6px; &amp; padding-right: 3px;</pre>
+
+<div class="grid directionRTL" data-expected-width="79">
+  <div class="minWidth60 paddingLeft6 paddingRight3" data-expected-width="69"></div>
+  <div data-expected-width="69"></div>
+</div>
+
+<pre>Item width: 60px; &amp; border-left-width: 2px;</pre>
+
+<div class="grid directionRTL" data-expected-width="72">
+  <div class="width60 borderLeft2" data-expected-width="62"></div>
+  <div data-expected-width="62"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; border-left-width: 2px;</pre>
+
+<div class="grid directionRTL" data-expected-width="72">
+  <div class="minWidth60 borderLeft2" data-expected-width="62"></div>
+  <div data-expected-width="62"></div>
+</div>
+
+<pre>Item width: 60px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid directionRTL" data-expected-width="74">
+  <div class="width60 borderRight4" data-expected-width="64"></div>
+  <div data-expected-width="64"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid directionRTL" data-expected-width="74">
+  <div class="minWidth60 borderRight4" data-expected-width="64"></div>
+  <div data-expected-width="64"></div>
+</div>
+
+<pre>Item width: 60px; &amp; border-left-width: 2px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid directionRTL" data-expected-width="76">
+  <div class="width60 borderLeft2 borderRight4" data-expected-width="66"></div>
+  <div data-expected-width="66"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; border-left-width: 2px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid directionRTL" data-expected-width="76">
+  <div class="minWidth60 borderLeft2 borderRight4" data-expected-width="66"></div>
+  <div data-expected-width="66"></div>
+</div>
+
+<pre>Item width: 60px; &amp; margin-left: 5px; &amp; margin-right: 10px; &amp; padding-left: 6px; &amp; padding-right: 3px; &amp; border-left-width: 2px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid directionRTL" data-expected-width="100">
+  <div class="width60 marginLeft5 marginRight10 paddingLeft6 paddingRight3 borderLeft2 borderRight4" data-expected-width="75"></div>
+  <div data-expected-width="90"></div>
+</div>
+
+<pre>Item min-width: 60px; &amp; margin-left: 5px; &amp; margin-right: 10px; &amp; padding-left: 6px; &amp; padding-right: 3px; &amp; border-left-width: 2px; &amp; border-right-width: 4px;</pre>
+
+<div class="grid directionRTL" data-expected-width="100">
+  <div class="minWidth60 marginLeft5 marginRight10 paddingLeft6 paddingRight3 borderLeft2 borderRight4" data-expected-width="75"></div>
+  <div data-expected-width="90"></div>
+</div>

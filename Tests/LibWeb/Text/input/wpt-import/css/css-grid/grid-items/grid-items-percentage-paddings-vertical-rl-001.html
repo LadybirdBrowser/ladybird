@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Grid items with percentage paddings vertical-rl</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#item-margins">
+<meta name="assert" content="Checks grid items percentage paddings are resolved against the inline size of their grid area (in a fixed size track) in a vertical-rl grid container.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  font: 10px/1 Ahem;
+  grid-template-columns: 100px;
+  height: 500px;
+  justify-items: start;
+  position: relative;
+  writing-mode: vertical-rl;
+}
+
+.grid > div:nth-child(1) { background: cyan; }
+.grid > div:nth-child(2) {
+  background: magenta;
+  width: 10px;
+  height: 100%;
+}
+
+.paddingLeft50Percent { padding-left: 50%; }
+.paddingRight50Percent { padding-right: 50%; }
+.paddingTop50Percent { padding-top: 50%; }
+.paddingBottom50Percent { padding-bottom: 50%; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<div id="log"></div>
+
+<h3>Direction LTR</h3>
+
+<pre>Item padding-left: 50%;</pre>
+
+<div class="grid">
+  <div class="paddingLeft50Percent" data-expected-padding-left="50" data-expected-width="60" data-expected-height="10">X</div>
+  <div data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item padding-right: 50%;</pre>
+
+<div class="grid">
+  <div class="paddingRight50Percent" data-expected-padding-right="50" data-expected-width="60" data-expected-height="10">X</div>
+  <div data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item padding-top: 50%;</pre>
+
+<div class="grid">
+  <div class="paddingTop50Percent" data-expected-padding-top="50" data-expected-width="10" data-expected-height="60">X</div>
+  <div data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item padding-bottom: 50%;</pre>
+
+<div class="grid">
+  <div class="paddingBottom50Percent" data-expected-padding-bottom="50" data-expected-width="10" data-expected-height="60">X</div>
+  <div data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<h3>Direction RTL</h3>
+
+<pre>Item padding-left: 50%;</pre>
+
+<div class="grid directionRTL">
+  <div class="paddingLeft50Percent" data-expected-padding-left="50" data-expected-width="60" data-expected-height="10">X</div>
+  <div data-offset-x="0" data-offset-y="400" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item padding-right: 50%;</pre>
+
+<div class="grid directionRTL">
+  <div class="paddingRight50Percent" data-expected-padding-right="50" data-expected-width="60" data-expected-height="10">X</div>
+  <div data-offset-x="0" data-offset-y="400" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item padding-top: 50%;</pre>
+
+<div class="grid directionRTL">
+  <div class="paddingTop50Percent" data-expected-padding-top="50" data-expected-width="10" data-expected-height="60">X</div>
+  <div data-offset-x="0" data-offset-y="400" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item padding-bottom: 50%;</pre>
+
+<div class="grid directionRTL">
+  <div class="paddingBottom50Percent" data-expected-padding-bottom="50" data-expected-width="10" data-expected-height="60">X</div>
+  <div data-offset-x="0" data-offset-y="400" data-expected-width="10" data-expected-height="100"></div>
+</div>

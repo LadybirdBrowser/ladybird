@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout test: box model parts and alignment properties</title>
+<link rel="author" title="Rossana Monteriso" href="mailto:rmonteriso@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-items-property">
+<meta name="assert" content="This test checks that the 'margin', 'border' and 'padding' properties are applied together correctly for 'align' and 'justify' properties, in both LTR and RTL directions.">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<link rel="stylesheet" href="../../../css/support/width-keyword-classes.css">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+
+<style>
+
+.grid {
+    grid-template-columns: 100px 200px;
+    grid-template-rows: 200px 200px;
+    padding: 10px 15px 20px 30px;
+    border-width: 5px 10px 15px 20px;
+    border-style: dotted;
+    border-color: blue;
+    position: relative;
+}
+
+.cell {
+    width: 20px;
+    height: 40px;
+    margin: 4px 8px 12px 16px;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<p>This test checks that the 'margin', 'border' and 'padding' properties are applied together correctly for 'align' and 'justify' properties.</p>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR | align-items: 'auto' | justify-items: 'auto'</p>
+    <div class="grid fit-content" data-expected-width="375" data-expected-height="450">
+        <div class="cell firstRowFirstColumn"   data-offset-x="46"  data-offset-y="14"  data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell firstRowSecondColumn"  data-offset-x="146" data-offset-y="14"  data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell secondRowFirstColumn"  data-offset-x="46"  data-offset-y="214" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="146" data-offset-y="214" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR | align-items: 'center' | justify-items: 'center'</p>
+    <div class="grid fit-content itemsCenter" data-expected-width="375" data-expected-height="450">
+        <div class="firstRowFirstColumn cell"     data-offset-x="74"  data-offset-y="86" data-expected-width="20"  data-expected-height="40"></div>
+        <div class="selfStretch firstRowSecondColumn" data-offset-x="130" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell secondRowSecondColumn"   data-offset-x="224" data-offset-y="286" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR | align-items: 'end' | justify-items: 'end'</p>
+    <div class="grid fit-content itemsEnd" data-expected-width="375" data-expected-height="450">
+        <div class="cell firstRowFirstColumn"     data-offset-x="102" data-offset-y="158" data-expected-width="20"  data-expected-height="40"></div>
+        <div class="selfStretch firstRowSecondColumn" data-offset-x="130" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell secondRowSecondColumn"   data-offset-x="302" data-offset-y="358" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR | align-items: 'start' | justify-items: 'left'</p>
+    <div class="grid fit-content alignItemsStart justifyItemsLeft" data-expected-width="375" data-expected-height="450">
+        <div class="cell firstRowFirstColumn"     data-offset-x="46"  data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="selfStretch firstRowSecondColumn" data-offset-x="130" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell secondRowSecondColumn"   data-offset-x="146" data-offset-y="214" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR | align-items: 'start' | justify-items: 'right'</p>
+    <div class="grid fit-content alignItemsStart justifyItemsRight" data-expected-width="375" data-expected-height="450">
+        <div class="cell firstRowFirstColumn"     data-offset-x="102" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="selfStretch firstRowSecondColumn" data-offset-x="130" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell secondRowSecondColumn"   data-offset-x="302" data-offset-y="214" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR (ortho) | align-items: 'self-start' | justify-items: 'self-start'</p>
+    <div class="grid fit-content directionLTR itemsSelfStart" data-expected-width="375" data-expected-height="450">
+        <div class="directionRTL cell firstRowFirstColumn"     data-offset-x="102" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionRTL selfStretch firstRowSecondColumn" data-offset-x="130" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionRTL selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionRTL cell secondRowSecondColumn"   data-offset-x="302" data-offset-y="214" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR (ortho) | align-items: 'self-end' | justify-items: 'self-end'</p>
+    <div class="grid fit-content directionLTR itemsSelfEnd" data-expected-width="375" data-expected-height="450">
+        <div class="directionRTL cell firstRowFirstColumn"     data-offset-x="46"  data-offset-y="158" data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionRTL selfStretch firstRowSecondColumn" data-offset-x="130" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionRTL selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionRTL cell secondRowSecondColumn"   data-offset-x="146" data-offset-y="358" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR (parall) | align-items: 'self-start' | justify-items: 'self-start'</p>
+    <div class="grid fit-content directionLTR itemsSelfStart" data-expected-width="375" data-expected-height="450">
+        <div class="directionLTR cell firstRowFirstColumn"     data-offset-x="46" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionLTR selfStretch firstRowSecondColumn" data-offset-x="130" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionLTR selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionLTR cell secondRowSecondColumn"   data-offset-x="146" data-offset-y="214" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR - (parall) | align-items: 'self-end' | justify-items: 'self-end'</p>
+    <div class="grid fit-content directionLTR itemsSelfEnd" data-expected-width="375" data-expected-height="450">
+        <div class="directionLTR cell firstRowFirstColumn"     data-offset-x="102"  data-offset-y="158" data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionLTR selfStretch firstRowSecondColumn" data-offset-x="130" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionLTR selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionLTR cell secondRowSecondColumn"   data-offset-x="302" data-offset-y="358" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<!-- RTL direction. -->
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL | align-items: 'auto' | justify-items: 'auto'</p>
+    <div class="grid fit-content directionRTL" data-expected-width="375" data-expected-height="450">
+        <div class="cell firstRowFirstColumn"   data-offset-x="302" data-offset-y="14"  data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell firstRowSecondColumn"  data-offset-x="202" data-offset-y="14"  data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell secondRowFirstColumn"  data-offset-x="302" data-offset-y="214" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="202" data-offset-y="214" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL | align-items: 'center' | justify-items: 'center'</p>
+    <div class="grid fit-content directionRTL itemsCenter" data-expected-width="375" data-expected-height="450">
+        <div class="cell firstRowFirstColumn"     data-offset-x="274" data-offset-y="86" data-expected-width="20"  data-expected-height="40"></div>
+        <div class="selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="selfStretch secondRowFirstColumn" data-offset-x="230" data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell secondRowSecondColumn"   data-offset-x="124" data-offset-y="286" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL | align-items: 'end' | justify-items: 'end'</p>
+    <div class="grid fit-content directionRTL itemsEnd"       data-expected-width="375" data-expected-height="450">
+        <div class="cell firstRowFirstColumn"     data-offset-x="246" data-offset-y="158" data-expected-width="20"  data-expected-height="40"></div>
+        <div class="selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="selfStretch secondRowFirstColumn" data-offset-x="230" data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell secondRowSecondColumn"   data-offset-x="46"  data-offset-y="358" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL | align-items: 'start' | justify-items: 'left'</p>
+    <div class="grid fit-content directionRTL alignItemsStart justifyItemsLeft"      data-expected-width="375" data-expected-height="450">
+        <div class="cell firstRowFirstColumn"     data-offset-x="246" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="selfStretch secondRowFirstColumn" data-offset-x="230" data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell secondRowSecondColumn"   data-offset-x="46"  data-offset-y="214" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL | align-items: 'start' | justify-items: 'right'</p>
+    <div class="grid fit-content directionRTL alignItemsStart justifyItemsRight"     data-expected-width="375" data-expected-height="450">
+        <div class="cell firstRowFirstColumn"     data-offset-x="302" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="selfStretch secondRowFirstColumn" data-offset-x="230" data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell secondRowSecondColumn"   data-offset-x="202" data-offset-y="214" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL (ortho) | align-items: 'self-start' | justify-items: 'self-start'</p>
+    <div class="grid fit-content directionRTL itemsSelfStart" data-expected-width="375" data-expected-height="450">
+        <div class="directionLTR cell firstRowFirstColumn"     data-offset-x="246" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionLTR selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionLTR selfStretch secondRowFirstColumn" data-offset-x="230" data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionLTR cell secondRowSecondColumn"   data-offset-x="46"  data-offset-y="214" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL (ortho) | align-items: 'self-end' | justify-items: 'self-end'</p>
+    <div class="grid fit-content directionRTL itemsSelfEnd" data-expected-width="375" data-expected-height="450">
+        <div class="directionLTR cell firstRowFirstColumn"     data-offset-x="302" data-offset-y="158" data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionLTR selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionLTR selfStretch secondRowFirstColumn" data-offset-x="230" data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionLTR cell secondRowSecondColumn"   data-offset-x="202" data-offset-y="358" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL (parall) | align-items: 'self-start' | justify-items: 'self-start'</p>
+    <div class="grid fit-content directionRTL itemsSelfStart" data-expected-width="375" data-expected-height="450">
+        <div class="directionRTL cell firstRowFirstColumn"     data-offset-x="302" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionRTL selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionRTL selfStretch secondRowFirstColumn" data-offset-x="230" data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionRTL cell secondRowSecondColumn"   data-offset-x="202"  data-offset-y="214" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div>
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL (parall) | align-items: 'self-end' | justify-items: 'self-end'</p>
+    <div class="grid fit-content directionRTL itemsSelfEnd" data-expected-width="375" data-expected-height="450">
+        <div class="directionRTL cell firstRowFirstColumn"     data-offset-x="246" data-offset-y="158" data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionRTL selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionRTL selfStretch secondRowFirstColumn" data-offset-x="230" data-offset-y="210" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionRTL cell secondRowSecondColumn"   data-offset-x="46" data-offset-y="358" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+</body>

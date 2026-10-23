@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Grid Layout Test: content alignment and items spanning multiple tracks.</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#alignment">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#auto-tracks">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#distribution-values">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#content-distribution">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-align-content">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-content">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=376823">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=249451">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<meta name="assert" content="Test that content distribution alignment is applied correctly when items span more than one track." />
+
+<style>
+body {
+  margin: 0px;
+}
+
+.grid {
+  grid-auto-columns: 20px;
+  grid-auto-rows: 40px;
+  grid-template-areas: "a a b"
+                       "c d b";
+  position: relative;
+  width: 300px;
+  height: 200px;
+}
+.a {
+  grid-area: a;
+  background-color: blue;
+}
+.b {
+  grid-area: b;
+  background-color: lime;
+}
+.c {
+  grid-area: c;
+  background-color: purple;
+}
+.d {
+  grid-area: d;
+  background-color: orange;
+}
+.stretchedGrid {
+  grid-auto-columns: auto;
+  grid-auto-rows: auto;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+</head>
+
+<body onload="checkLayout('.grid')">
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-between'</p>
+  <div class="grid contentSpaceBetween" data-expected-width="300" data-expected-height="200">
+    <div class="a" data-offset-x="0" data-offset-y="0" data-expected-width="160" data-expected-height="40"></div>
+    <div class="b" data-offset-x="280" data-offset-y="0" data-expected-width="20" data-expected-height="200"></div>
+    <div class="c" data-offset-x="0" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-around'</p>
+  <div class="grid contentSpaceAround" data-expected-width="300" data-expected-height="200">
+    <div class="a" data-offset-x="40" data-offset-y="30" data-expected-width="120" data-expected-height="40"></div>
+    <div class="b" data-offset-x="240" data-offset-y="30" data-expected-width="20" data-expected-height="140"></div>
+    <div class="c" data-offset-x="40" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-evenly'</p>
+  <div class="grid contentSpaceEvenly" data-expected-width="300" data-expected-height="200">
+    <div class="a" data-offset-x="60" data-offset-y="40" data-expected-width="100" data-expected-height="40"></div>
+    <div class="b" data-offset-x="220" data-offset-y="40" data-expected-width="20" data-expected-height="120"></div>
+    <div class="c" data-offset-x="60" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'stretch'</p>
+  <div class="grid stretchedGrid contentStretch" data-expected-width="300" data-expected-height="200">
+    <div class="a" data-offset-x="0" data-offset-y="0" data-expected-width="200" data-expected-height="100"></div>
+    <div class="b" data-offset-x="200" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+    <div class="c" data-offset-x="0" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+    <div class="d" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+  </div>
+</div>
+
+<!-- RTL direction. -->
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-between'</p>
+  <div class="grid contentSpaceBetween directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a" data-offset-x="140" data-offset-y="0" data-expected-width="160" data-expected-height="40"></div>
+    <div class="b" data-offset-x="0" data-offset-y="0" data-expected-width="20" data-expected-height="200"></div>
+    <div class="c" data-offset-x="280" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-around'</p>
+  <div class="grid contentSpaceAround directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a" data-offset-x="140" data-offset-y="30" data-expected-width="120" data-expected-height="40"></div>
+    <div class="b" data-offset-x="40" data-offset-y="30" data-expected-width="20" data-expected-height="140"></div>
+    <div class="c" data-offset-x="240" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-evenly''</p>
+  <div class="grid contentSpaceEvenly directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a" data-offset-x="140" data-offset-y="40" data-expected-width="100" data-expected-height="40"></div>
+    <div class="b" data-offset-x="60" data-offset-y="40" data-expected-width="20" data-expected-height="120"></div>
+    <div class="c" data-offset-x="220" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'stretch'</p>
+  <div class="grid stretchedGrid contentStretch directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a" data-offset-x="100" data-offset-y="0" data-expected-width="200" data-expected-height="100"></div>
+    <div class="b" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+    <div class="c" data-offset-x="200" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+    <div class="d" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: evaluate how the baseline affects the grid intrinsic size</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-align-self">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-by-baseline">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<meta name="assert" content="The grid intrinsic size is comptuted correctly, considering the effect of baseline alignment in the size of the column tracks"/>
+<style>
+.grid {
+   position: relative;
+   background: grey;
+   float: left;
+   margin: 5px;
+   text-orientation: sideways;
+   width: 350px;
+   font-family: Ahem;
+   line-height: 1;
+   grid-auto-flow: row;
+}
+.grid > :nth-child(1) { font-size:20px; }
+.grid > :nth-child(2) { font-size:30px; }
+.grid > :nth-child(3) { font-size:50px; }
+.grid > :nth-child(4) { font-size:60px; }
+.item {
+   border-width: 2px 5px 3px 4px;
+   border-style: solid;
+   padding: 6px 3px 7px 8px;
+   margin: 10px 6px 4px 12px;
+}
+.extraTopPadding { padding-top: 50px; }
+.extraBottomPadding { padding-bottom: 50px; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { runTests(); })">
+
+<p>Vertical RL 4x1 grid with parallel and orthogonal items.</p>
+<div id="grid1" class="grid verticalRL contentStart itemsBaseline" data-expected-height="104">
+    <div class="item"                                 data-offset-x="304" data-offset-y="40"  data-expected-width="40" data-expected-height="38">É</div>
+    <div class="item horizontalTB"                    data-offset-x="236" data-offset-y="46"  data-expected-width="50" data-expected-height="48">É</div>
+    <div class="item"                                 data-offset-x="148" data-offset-y="10"  data-expected-width="70" data-expected-height="68">É</div>
+    <div class="item horizontalTB"                    data-offset-x="50"  data-offset-y="22"  data-expected-width="80" data-expected-height="78">É</div>
+</div>
+<div id="grid2" class="grid verticalRL contentStart itemsBaseline" data-expected-height="155">
+    <div class="item extraTopPadding"                 data-offset-x="304" data-offset-y="10"  data-expected-width="40" data-expected-height="82">É</div>
+    <div class="item horizontalTB extraBottomPadding" data-offset-x="236" data-offset-y="60"  data-expected-width="50" data-expected-height="91">É</div>
+    <div class="item"                                 data-offset-x="148" data-offset-y="24"  data-expected-width="70" data-expected-height="68">É</div>
+    <div class="item horizontalTB"                    data-offset-x="50"  data-offset-y="36"  data-expected-width="80" data-expected-height="78">É</div>
+</div>
+
+<br clear="all">
+
+<script>
+    "use strict";
+    function runTests() {
+
+        let values = [ "auto", "min-content", "max-content" ];
+        let minValues = values.concat([ "0px" ]);
+
+        var grid1 = document.getElementById("grid1");
+        var grid2 = document.getElementById("grid2");
+
+        minValues.forEach(function (minValue) {
+            values.forEach(function (maxValue) {
+
+                grid1.id = "grid1-" + minValue + "-" + maxValue
+                grid2.id = "grid2-" + minValue + "-" + maxValue
+
+                grid1.style.gridTemplateColumns = "minmax(" + minValue + ", " + maxValue + ")";
+                grid2.style.gridTemplateColumns = "minmax(" + minValue + ", " + maxValue + ")";
+
+                checkLayout("#" + grid1.id, false);
+                checkLayout("#" + grid2.id, false);
+            });
+        });
+
+        done();
+    }
+</script>
+
+</body>

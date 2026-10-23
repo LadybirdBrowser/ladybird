@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Grid positioned items content alignment</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#abspos" title="9. Absolute Positioning">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-align" title="10.5. Aligning the Grid: the justify-content and align-content properties">
+<meta name="assert" content="This test checks the behavior of the positioned items in a grid using content alignment.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../support/alignment.css">
+<style>
+
+.grid {
+  grid-template-columns: 100px 50px;
+  grid-template-rows: 70px 30px;
+  width: 400px;
+  height: 200px;
+  margin: 5px;
+  /* Ensures that the grid container is the containing block of the absolutely positioned grid children. */
+  position: relative;
+}
+
+.grid > div {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: lime;
+}
+
+.offsets {
+  left: 0;
+  top: 0;
+}
+
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.grid')">
+
+<div id="log"></div>
+
+<div class="grid contentStart">
+  <div style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentStart">
+  <div class="offsets" style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="125" data-offset-y="50" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div class="offsets" style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="125" data-offset-y="50" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="250" data-offset-y="100" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div class="offsets" style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="250" data-offset-y="100" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div class="offsets" style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="63" data-offset-y="25" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div class="offsets" style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="63" data-offset-y="25" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="83" data-offset-y="33" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div class="offsets" style="grid-column: 1 / 2; grid-row: 1 / 2;"
+    data-offset-x="83" data-offset-y="33" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentStart">
+  <div style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="100" data-offset-y="70" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentStart">
+  <div class="offsets" style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="100" data-offset-y="70" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="225" data-offset-y="120" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div class="offsets" style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="225" data-offset-y="120" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="350" data-offset-y="170" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div class="offsets" style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="350" data-offset-y="170" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="350" data-offset-y="170" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div class="offsets" style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="350" data-offset-y="170" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="288" data-offset-y="145" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div class="offsets" style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="288" data-offset-y="145" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="267" data-offset-y="137" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div class="offsets" style="grid-column: 2 / 3; grid-row: 2 / 3;"
+    data-offset-x="267" data-offset-y="137" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentStart">
+  <div style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentStart">
+  <div class="offsets" style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="225" data-expected-height="120">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div class="offsets" style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="225" data-expected-height="120">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="350" data-expected-height="170">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div class="offsets" style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="350" data-expected-height="170">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div class="offsets" style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="70">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="163" data-expected-height="95">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div class="offsets" style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="163" data-expected-height="95">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="183" data-expected-height="103">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div class="offsets" style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="183" data-expected-height="103">
+  </div>
+</div>
+
+<div class="grid contentStart">
+  <div style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="100" data-offset-y="70" data-expected-width="300" data-expected-height="130">
+  </div>
+</div>
+
+<div class="grid contentStart">
+  <div class="offsets" style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="100" data-offset-y="70" data-expected-width="300" data-expected-height="130">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="225" data-offset-y="120" data-expected-width="175" data-expected-height="80">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div class="offsets" style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="225" data-offset-y="120" data-expected-width="175" data-expected-height="80">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="350" data-offset-y="170" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div class="offsets" style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="350" data-offset-y="170" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="350" data-offset-y="170" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div class="offsets" style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="350" data-offset-y="170" data-expected-width="50" data-expected-height="30">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="288" data-offset-y="145" data-expected-width="112.5" data-expected-height="55">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div class="offsets" style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="288" data-offset-y="145" data-expected-width="112.5" data-expected-height="55">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="267" data-offset-y="137" data-expected-width="133" data-expected-height="63">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div class="offsets" style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="267" data-offset-y="137" data-expected-width="133" data-expected-height="63">
+  </div>
+</div>
+
+<div class="grid contentStart">
+  <div style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentStart">
+  <div class="offsets" style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentCenter">
+  <div class="offsets" style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentEnd">
+  <div class="offsets" style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentSpaceBetween">
+  <div class="offsets" style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentSpaceAround">
+  <div class="offsets" style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid contentSpaceEvenly">
+  <div class="offsets" style="grid-column: auto / auto; grid-row: auto / auto;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="400" data-expected-height="200">
+  </div>
+</div>
+
+</body>

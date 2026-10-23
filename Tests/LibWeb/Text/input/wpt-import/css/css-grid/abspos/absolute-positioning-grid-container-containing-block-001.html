@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Absolute positioning grid container containing block</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#abspos" title="9. Absolute Positioning">
+<meta name="assert" content="This test checks the behavior of the absolutely positioned elements with a grid container as containing block.">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<style>
+
+.grid {
+  grid-template-columns: 50px 100px 150px 200px;
+  grid-template-rows: 50px 100px 150px 200px;
+  width: 500px;
+  height: 500px;
+  border: 5px solid black;
+  margin: 30px;
+  padding: 15px;
+  /* Ensures that the grid container is the containing block of the absolutely positioned grid children. */
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.thirdRowThirdColumnSpanning2Rows {
+  grid-column: 3;
+  grid-row: 3 / span 2;
+  background-color: maroon;
+}
+
+.thirdRowThirdColumnSpanning2Rows2Columns {
+  grid-column: 3 / span 2;
+  grid-row: 3 / span 2;
+  background-color: aqua;
+}
+
+.endFirstRowEndFirstColumn {
+  background-color: blue;
+  grid-column-end: 2;
+  grid-row-end: 2;
+}
+
+.endFirstRowEndSecondColumn {
+  background-color: lime;
+  grid-column-end: 3;
+  grid-row-end: 2;
+}
+
+.endSecondRowEndFirstColumn {
+  background-color: purple;
+  grid-column-end: 2;
+  grid-row-end: 3;
+}
+
+.endThirdRowEndThirdColumnSpanning2Rows {
+  grid-column-end: 4;
+  grid-row: span 2 / 4;
+  background-color: maroon;
+}
+
+.endThirdRowEndThirdColumnSpanning2Rows2Columns {
+  grid-column: span 2 / 4;
+  grid-row: span 2 / 4;
+  background-color: aqua;
+}
+
+.onlyThirdRowOnlyThirdColumnSpanning2Rows {
+  grid-column: 3 / 4;
+  grid-row: 3 / 5;
+  background-color: maroon;
+}
+
+.onlyThirdRowOnlyThirdColumnSpanning2Rows2Columns {
+  grid-column: 3 / 5;
+  grid-row: 3 / 5;
+  background-color: aqua;
+}
+
+.offsetLeft25 {
+  left: 25px;
+}
+
+.offsetRight50 {
+  right: 50px;
+}
+
+.offsetTop75 {
+  top: 75px;
+}
+
+.offsetBottom100 {
+  bottom: 100px;
+}
+
+.offsetLeftMinus20 {
+  left: -20px;
+}
+
+.offsetRightMinus40 {
+  right: -40px;
+}
+
+.offsetTopMinus60 {
+  top: -60px;
+}
+
+.offsetBottomMinus80 {
+  bottom: -80px;
+}
+
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<div id="log"></div>
+
+<div class="grid">
+  <div class="sizedToGridArea absolute autoRowAutoColumn"
+    data-offset-x="0" data-offset-y="0" data-expected-width="530" data-expected-height="530">
+  </div>
+  <div class="sizedToGridArea absolute firstRowFirstColumn"
+    data-offset-x="15" data-offset-y="15" data-expected-width="515" data-expected-height="515">
+  </div>
+  <div class="sizedToGridArea absolute secondRowFirstColumn"
+    data-offset-x="15" data-offset-y="65" data-expected-width="515" data-expected-height="465">
+  </div>
+  <div class="sizedToGridArea absolute firstRowSecondColumn"
+    data-offset-x="65" data-offset-y="15" data-expected-width="465" data-expected-height="515">
+  </div>
+  <div class="sizedToGridArea absolute secondRowSecondColumn"
+    data-offset-x="65" data-offset-y="65" data-expected-width="465" data-expected-height="465">
+  </div>
+  <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows"
+    data-offset-x="165" data-offset-y="165" data-expected-width="365" data-expected-height="350">
+  </div>
+  <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows2Columns"
+    data-offset-x="165" data-offset-y="165" data-expected-width="350" data-expected-height="350">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sizedToGridArea absolute endThirdRowEndThirdColumnSpanning2Rows"
+    data-offset-x="0" data-offset-y="65" data-expected-width="315" data-expected-height="250">
+  </div>
+  <div class="sizedToGridArea absolute endThirdRowEndThirdColumnSpanning2Rows2Columns"
+    data-offset-x="65" data-offset-y="65" data-expected-width="250" data-expected-height="250">
+  </div>
+  <div class="sizedToGridArea absolute endSecondRowEndSecondColumn"
+    data-offset-x="0" data-offset-y="0" data-expected-width="165" data-expected-height="165">
+  </div>
+  <div class="sizedToGridArea absolute endSecondRowEndFirstColumn"
+    data-offset-x="0" data-offset-y="0" data-expected-width="65" data-expected-height="165">
+  </div>
+  <div class="sizedToGridArea absolute endFirstRowEndSecondColumn"
+    data-offset-x="0" data-offset-y="0" data-expected-width="165" data-expected-height="65">
+  </div>
+  <div class="sizedToGridArea absolute endFirstRowEndFirstColumn"
+    data-offset-x="0" data-offset-y="0" data-expected-width="65" data-expected-height="65">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sizedToGridArea absolute onlyFirstRowOnlyFirstColumn"
+    data-offset-x="15" data-offset-y="15" data-expected-width="50" data-expected-height="50">
+  </div>
+  <div class="sizedToGridArea absolute onlySecondRowOnlyFirstColumn"
+    data-offset-x="15" data-offset-y="65" data-expected-width="50" data-expected-height="100">
+  </div>
+  <div class="sizedToGridArea absolute onlyFirstRowOnlySecondColumn"
+    data-offset-x="65" data-offset-y="15" data-expected-width="100" data-expected-height="50">
+  </div>
+  <div class="sizedToGridArea absolute onlySecondRowOnlySecondColumn"
+    data-offset-x="65" data-offset-y="65" data-expected-width="100" data-expected-height="100">
+  </div>
+  <div class="sizedToGridArea absolute onlyThirdRowOnlyThirdColumnSpanning2Rows2Columns"
+    data-offset-x="165" data-offset-y="165" data-expected-width="350" data-expected-height="350">
+  </div>
+  <div class="sizedToGridArea absolute onlyThirdRowOnlyThirdColumnSpanning2Rows"
+    data-offset-x="165" data-offset-y="165" data-expected-width="150" data-expected-height="350">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sizedToGridArea absolute autoRowAutoColumn offsetLeft25 offsetTop75"
+    data-offset-x="25" data-offset-y="75" data-expected-width="530" data-expected-height="530">
+  </div>
+  <div class="sizedToGridArea absolute firstRowFirstColumn offsetRightMinus40 offsetBottomMinus80"
+    data-offset-x="55" data-offset-y="95" data-expected-width="515" data-expected-height="515">
+  </div>
+  <div class="sizedToGridArea absolute secondRowFirstColumn offsetRight50 offsetBottom100"
+    data-offset-x="-35" data-offset-y="-35" data-expected-width="515" data-expected-height="465">
+  </div>
+  <div class="sizedToGridArea absolute firstRowSecondColumn offsetLeftMinus20 offsetTopMinus60"
+    data-offset-x="45" data-offset-y="-45" data-expected-width="465" data-expected-height="515">
+  </div>
+  <div class="sizedToGridArea absolute secondRowSecondColumn offsetRight50 offsetTop75"
+    data-offset-x="15" data-offset-y="140" data-expected-width="465" data-expected-height="465">
+  </div>
+  <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows offsetLeft25 offsetBottom100"
+    data-offset-x="190" data-offset-y="65" data-expected-width="365" data-expected-height="350">
+  </div>
+  <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows2Columns offsetLeftMinus20 offsetRight50 offsetTopMinus60 offsetBottom100"
+    data-offset-x="145" data-offset-y="105" data-expected-width="350" data-expected-height="350">
+  </div>
+</div>
+
+<div class="grid">
+  <div>
+    <div class="sizedToGridArea absolute autoRowAutoColumn offsetLeft25 offsetTop75"
+      data-offset-x="25" data-offset-y="75" data-expected-width="530" data-expected-height="530">
+    </div>
+    <div class="sizedToGridArea absolute firstRowFirstColumn offsetRightMinus40 offsetBottomMinus80"
+      data-offset-x="55" data-offset-y="95" data-expected-width="515" data-expected-height="515">
+    </div>
+    <div class="sizedToGridArea absolute secondRowFirstColumn offsetRight50 offsetBottom100"
+      data-offset-x="-35" data-offset-y="-35" data-expected-width="515" data-expected-height="465">
+    </div>
+    <div class="sizedToGridArea absolute firstRowSecondColumn offsetLeftMinus20 offsetTopMinus60"
+      data-offset-x="45" data-offset-y="-45" data-expected-width="465" data-expected-height="515">
+    </div>
+    <div class="sizedToGridArea absolute secondRowSecondColumn offsetRight50 offsetTop75"
+      data-offset-x="15" data-offset-y="140" data-expected-width="465" data-expected-height="465">
+    </div>
+    <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows offsetLeft25 offsetBottom100"
+      data-offset-x="190" data-offset-y="65" data-expected-width="365" data-expected-height="350">
+    </div>
+    <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows2Columns offsetLeftMinus20 offsetRight50 offsetTopMinus60 offsetBottom100"
+      data-offset-x="145" data-offset-y="105" data-expected-width="350" data-expected-height="350">
+    </div>
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sizedToGridArea absolute autoRowAutoColumn"
+    data-offset-x="0" data-offset-y="0" data-expected-width="530" data-expected-height="530">
+  </div>
+  <div class="sizedToGridArea absolute firstRowFirstColumn"
+    data-offset-x="0" data-offset-y="15" data-expected-width="515" data-expected-height="515">
+  </div>
+  <div class="sizedToGridArea absolute secondRowFirstColumn"
+    data-offset-x="0" data-offset-y="65" data-expected-width="515" data-expected-height="465">
+  </div>
+  <div class="sizedToGridArea absolute firstRowSecondColumn"
+    data-offset-x="0" data-offset-y="15" data-expected-width="465" data-expected-height="515">
+  </div>
+  <div class="sizedToGridArea absolute secondRowSecondColumn"
+    data-offset-x="0" data-offset-y="65" data-expected-width="465" data-expected-height="465">
+  </div>
+  <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows"
+    data-offset-x="0" data-offset-y="165" data-expected-width="365" data-expected-height="350">
+  </div>
+  <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows2Columns"
+    data-offset-x="15" data-offset-y="165" data-expected-width="350" data-expected-height="350">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sizedToGridArea absolute endThirdRowEndThirdColumnSpanning2Rows"
+    data-offset-x="215" data-offset-y="65" data-expected-width="315" data-expected-height="250">
+  </div>
+  <div class="sizedToGridArea absolute endThirdRowEndThirdColumnSpanning2Rows2Columns"
+    data-offset-x="215" data-offset-y="65" data-expected-width="250" data-expected-height="250">
+  </div>
+  <div class="sizedToGridArea absolute endSecondRowEndSecondColumn"
+    data-offset-x="365" data-offset-y="0" data-expected-width="165" data-expected-height="165">
+  </div>
+  <div class="sizedToGridArea absolute endSecondRowEndFirstColumn"
+    data-offset-x="465" data-offset-y="0" data-expected-width="65" data-expected-height="165">
+  </div>
+  <div class="sizedToGridArea absolute endFirstRowEndSecondColumn"
+    data-offset-x="365" data-offset-y="0" data-expected-width="165" data-expected-height="65">
+  </div>
+  <div class="sizedToGridArea absolute endFirstRowEndFirstColumn"
+    data-offset-x="465" data-offset-y="0" data-expected-width="65" data-expected-height="65">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sizedToGridArea absolute onlyFirstRowOnlyFirstColumn"
+    data-offset-x="465" data-offset-y="15" data-expected-width="50" data-expected-height="50">
+  </div>
+  <div class="sizedToGridArea absolute onlySecondRowOnlyFirstColumn"
+    data-offset-x="465" data-offset-y="65" data-expected-width="50" data-expected-height="100">
+  </div>
+  <div class="sizedToGridArea absolute onlyFirstRowOnlySecondColumn"
+    data-offset-x="365" data-offset-y="15" data-expected-width="100" data-expected-height="50">
+  </div>
+  <div class="sizedToGridArea absolute onlySecondRowOnlySecondColumn"
+    data-offset-x="365" data-offset-y="65" data-expected-width="100" data-expected-height="100">
+  </div>
+  <div class="sizedToGridArea absolute onlyThirdRowOnlyThirdColumnSpanning2Rows2Columns"
+    data-offset-x="15" data-offset-y="165" data-expected-width="350" data-expected-height="350">
+  </div>
+  <div class="sizedToGridArea absolute onlyThirdRowOnlyThirdColumnSpanning2Rows"
+    data-offset-x="215" data-offset-y="165" data-expected-width="150" data-expected-height="350">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sizedToGridArea absolute autoRowAutoColumn offsetLeft25 offsetTop75"
+    data-offset-x="25" data-offset-y="75" data-expected-width="530" data-expected-height="530">
+  </div>
+  <div class="sizedToGridArea absolute firstRowFirstColumn offsetRightMinus40 offsetBottomMinus80"
+    data-offset-x="40" data-offset-y="95" data-expected-width="515" data-expected-height="515">
+  </div>
+  <div class="sizedToGridArea absolute secondRowFirstColumn offsetRight50 offsetBottom100"
+    data-offset-x="-50" data-offset-y="-35" data-expected-width="515" data-expected-height="465">
+  </div>
+  <div class="sizedToGridArea absolute firstRowSecondColumn offsetLeftMinus20 offsetTopMinus60"
+    data-offset-x="-20" data-offset-y="-45" data-expected-width="465" data-expected-height="515">
+  </div>
+  <div class="sizedToGridArea absolute secondRowSecondColumn offsetRight50 offsetTop75"
+    data-offset-x="-50" data-offset-y="140" data-expected-width="465" data-expected-height="465">
+  </div>
+  <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows offsetLeft25 offsetBottom100"
+    data-offset-x="25" data-offset-y="65" data-expected-width="365" data-expected-height="350">
+  </div>
+  <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows2Columns offsetLeftMinus20 offsetRight50 offsetTopMinus60 offsetBottom100"
+    data-offset-x="-35" data-offset-y="105" data-expected-width="350" data-expected-height="350">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div>
+    <div class="sizedToGridArea absolute autoRowAutoColumn offsetLeft25 offsetTop75"
+      data-offset-x="25" data-offset-y="75" data-expected-width="530" data-expected-height="530">
+    </div>
+    <div class="sizedToGridArea absolute firstRowFirstColumn offsetRightMinus40 offsetBottomMinus80"
+      data-offset-x="40" data-offset-y="95" data-expected-width="515" data-expected-height="515">
+    </div>
+    <div class="sizedToGridArea absolute secondRowFirstColumn offsetRight50 offsetBottom100"
+      data-offset-x="-50" data-offset-y="-35" data-expected-width="515" data-expected-height="465">
+    </div>
+    <div class="sizedToGridArea absolute firstRowSecondColumn offsetLeftMinus20 offsetTopMinus60"
+      data-offset-x="-20" data-offset-y="-45" data-expected-width="465" data-expected-height="515">
+    </div>
+    <div class="sizedToGridArea absolute secondRowSecondColumn offsetRight50 offsetTop75"
+      data-offset-x="-50" data-offset-y="140" data-expected-width="465" data-expected-height="465">
+    </div>
+    <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows offsetLeft25 offsetBottom100"
+      data-offset-x="25" data-offset-y="65" data-expected-width="365" data-expected-height="350">
+    </div>
+    <div class="sizedToGridArea absolute thirdRowThirdColumnSpanning2Rows2Columns offsetLeftMinus20 offsetRight50 offsetTopMinus60 offsetBottom100"
+      data-offset-x="-35" data-offset-y="105" data-expected-width="350" data-expected-height="350">
+    </div>
+  </div>
+</div>
+
+</body>

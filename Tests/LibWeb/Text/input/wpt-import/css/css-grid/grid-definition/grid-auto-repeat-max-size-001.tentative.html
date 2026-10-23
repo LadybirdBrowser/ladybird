@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Auto repeat tracks and max sizes</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#auto-repeat">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/8963">
+<meta name="assert" content="This test checks that auto repeat tracks use max size when size is indefinite to compute the number of tracks.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<style>
+.grid {
+  position: relative;
+  display: grid;
+  grid: repeat(auto-fill, 50px) / repeat(auto-fill, 100px);
+  max-width: 300px;
+  max-height: 200px;
+}
+.border {
+  border: 10px solid;
+}
+.border-box {
+  box-sizing: border-box;
+}
+.item {
+  background: lime;
+  /* Place item on the last cell. */
+  grid-column: -2;
+  grid-row: -2;
+}
+.pad-calc {
+ border-width: 0;
+ padding: calc(10% + 20px);
+}
+.pad-percent {
+ border-width: 0;
+ padding: 10%;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.grid');">
+
+<div id="log"></div>
+
+<div class="grid" data-expected-width="300" data-expected-height="200">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid" style="width: 200px; height: 100px;" data-expected-width="200" data-expected-height="100">
+  <div class="item" data-offset-x="100" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid" style="width: min-content; height: min-content;" data-expected-width="300" data-expected-height="200">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid" style="width: max-content; height: max-content;" data-expected-width="300" data-expected-height="200">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border" style="width: 200px; height: 100px;" data-expected-width="220" data-expected-height="120">
+  <div class="item" data-offset-x="100" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border" style="width: min-content; height: min-content;" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border" style="width: max-content; height: max-content;" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border border-box" data-expected-width="300" data-expected-height="170">
+  <div class="item" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div style="width:min-content" data-expected-width="300" data-expected-height="160">
+  <div class="grid border border-box pad-percent" data-expected-width="300" data-expected-height="160">
+    <div class="item" data-offset-x="130" data-offset-y="80" data-expected-width="100" data-expected-height="50">x</div>
+  </div>
+</div>
+
+<div style="width:min-content" data-expected-width="240" data-expected-height="188">
+  <div class="grid border border-box pad-calc" data-expected-width="240" data-expected-height="188">
+    <div class="item" data-offset-x="44" data-offset-y="94" data-expected-width="100" data-expected-height="50"></div>
+  </div>
+</div>
+
+<div class="grid border border-box" style="width: 200px; height: 100px;" data-expected-width="200" data-expected-height="100">
+  <div class="item" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div style="width:min-content" data-expected-width="200" data-expected-height="100">
+  <div class="grid border border-box pad-percent" style="width: 200px; height: 100px;" data-expected-width="200" data-expected-height="100">
+    <div class="item" data-offset-x="20" data-offset-y="20" data-expected-width="100" data-expected-height="50"></div>
+  </div>
+</div>
+
+<div style="width:min-content" data-expected-width="200" data-expected-height="100">
+  <div class="grid border border-box pad-calc" style="width: 200px; height: 100px;" data-expected-width="200" data-expected-height="100">
+    <div class="item" data-offset-x="40" data-offset-y="40" data-expected-width="100" data-expected-height="50"></div>
+  </div>
+</div>
+
+<div class="grid border border-box" style="width: min-content; height: min-content;" data-expected-width="220" data-expected-height="170">
+  <div class="item" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div style="width:min-content" data-expected-width="300" data-expected-height="160">
+  <div class="grid border border-box pad-percent" style="width: min-content; height: min-content;" data-expected-width="260" data-expected-height="160" title="Percentage padding, min-content">
+    <div class="item" data-offset-x="130" data-offset-y="80" data-expected-width="100" data-expected-height="50"></div>
+  </div>
+</div>
+
+<div style="width:min-content" data-expected-width="240" data-expected-height="188">
+  <div class="grid border border-box pad-calc" style="width: min-content; height: min-content;" data-expected-width="288" data-expected-height="188">
+    <div class="item" data-offset-x="144" data-offset-y="94" data-expected-width="100" data-expected-height="50"></div>
+  </div>
+</div>
+
+<div class="grid border border-box" style="width: max-content; height: max-content;" data-expected-width="220" data-expected-height="170">
+  <div class="item" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div style="width:min-content" data-expected-width="300" data-expected-height="160">
+  <div class="grid border border-box pad-percent" style="width: max-content; height: max-content;" data-expected-width="260" data-expected-height="160" title="Percentage padding, max-content">
+    <div class="item" data-offset-x="130" data-offset-y="80" data-expected-width="100" data-expected-height="50"></div>
+  </div>
+</div>
+
+<div style="width:min-content" data-expected-width="240" data-expected-height="188">
+  <div class="grid border border-box pad-calc" style="width: max-content; height: max-content;" data-expected-width="288" data-expected-height="188">
+    <div class="item" data-offset-x="144" data-offset-y="94" data-expected-width="100" data-expected-height="50"></div>
+  </div>
+</div>
+
+</body>

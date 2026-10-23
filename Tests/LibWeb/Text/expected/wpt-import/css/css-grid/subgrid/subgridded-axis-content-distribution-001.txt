@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+1 Pass
+7 Fail
+Fail	.grid 1: columns, parent space-between, subgrid sets nothing
+Fail	.grid 2: columns, parent space-around
+Fail	.grid 3: columns, parent space-evenly
+Pass	.grid 4: columns, parent center, shift must not be applied twice
+Fail	.grid 5: columns, parent space-between, subgrid spans 2 / -1
+Fail	.grid 6: rows, parent align-content space-between
+Fail	.grid 7: columns, nested subgrid inside a subgrid
+Fail	.grid 8: columns, subgrid's own justify-content is ignored

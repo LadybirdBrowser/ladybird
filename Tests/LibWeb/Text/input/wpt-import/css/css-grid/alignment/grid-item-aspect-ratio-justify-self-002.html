@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#alignment">
+<meta name="assert" content="For a grid item with display:table, an 'aspect-ratio', a resolvable percent height, and a non-stretching justify-self, the item's inline-size should be resolved based on the height and 'aspect-ratio'">
+<style>
+  .group { margin-bottom: 20px;}
+  .group.orthog .item { writing-mode: vertical-rl }
+  .grid {
+      height: 32px;
+      width: 24px;
+      display: inline-grid;
+      border: 2px solid black;
+      vertical-align: top;
+      background: cyan;
+  }
+
+  .item {
+      display: table;
+      height: 100%;
+      background: fuchsia;
+      box-sizing: border-box;
+      aspect-ratio: 1/2;
+  }
+  .center     { justify-self: center; }
+  .start      { justify-self: start; }
+  .end        { justify-self: end; }
+  .self-start { justify-self: self-start; }
+  .self-end   { justify-self: self-end; }
+  .flex-start { justify-self: flex-start; }
+  .flex-end   { justify-self: flex-end; }
+  .left       { justify-self: left; }
+  .right      { justify-self: right; }
+  .normal     { justify-self: normal; }
+  .stretch    { justify-self: stretch; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.item')">
+  <div class="group">
+    <div class="grid">
+      <div class="item start"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item end"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item self-start"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item self-end"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item flex-start"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item flex-end"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item left"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item right"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item center"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item normal"
+           data-expected-width="24" data-expected-height="48"></div>
+    </div>
+    <div class="grid">
+      <div class="item stretch"
+           data-expected-width="24" data-expected-height="48"></div>
+    </div>
+  </div>
+
+  <!-- For these ones, the item's writing-mode will be orthogonal to the
+       grid container's writing-mode -->
+  <div class="group orthog">
+    <div class="grid">
+      <div class="item start"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item end"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item self-start"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item self-end"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item flex-start"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item flex-end"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item left"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item right"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <div class="grid">
+      <div class="item center"
+           data-expected-width="16" data-expected-height="32"></div>
+    </div>
+    <!-- TODO(dholbert):
+         These ones behave differently in every browser. Need to sort out
+         the expected rendering here...
+    <div class="grid">
+      <div class="item normal"
+           data-expected-width="24" data-expected-height="48"></div>
+    </div>
+    <div class="grid">
+      <div class="item stretch"
+           data-expected-width="24" data-expected-height="48"></div>
+    </div>
+    -->
+  </div>
+</body>

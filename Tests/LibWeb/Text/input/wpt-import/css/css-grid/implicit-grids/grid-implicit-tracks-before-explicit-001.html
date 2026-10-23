@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#implicit-grids">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#line-placement">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#auto-placement-algo">
+<meta name="assert" content="Negative line numbers that fall before the start of the explicit grid create implicit rows and columns before it; auto tracks created this way are sized to their items' content, and auto-placed items are placed taking them into account.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<style>
+.grid {
+    grid: 50px / 100px;
+    font: 10px/1 Ahem;
+    position: relative;
+    margin: 25px;
+}
+
+.firstNegativeRowFirstColumn {
+    background-color: purple;
+    grid-row: -3;
+    grid-column: 1;
+}
+
+.firstNegativeRowFirstNegativeColumn {
+    background-color: navy;
+    grid-row: -3;
+    grid-column: -3;
+}
+
+.secondNegativeRowFirstColumn {
+    background-color: lime;
+    grid-row: -4;
+    grid-column: 1;
+}
+
+.secondNegativeRowSecondNegativeColumn {
+    background-color: orange;
+    grid-row: -4;
+    grid-column: -4;
+}
+
+.firstRowFirstNegativeColumn {
+    background-color: magenta;
+    grid-row: 1;
+    grid-column: -3;
+}
+
+.firstNegativeRowFirstNegativeColumn {
+    background-color: maroon;
+    grid-row: -3;
+    grid-column: -3;
+}
+
+.firstRowSecondNegativeColumn {
+    background-color: aqua;
+    grid-row: 1;
+    grid-column: -4;
+}
+
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<p>This test checks that it's possible to create implicit tracks before the explicit ones using negative line numbers.</p>
+
+<div class="grid">
+    <div class="autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid">
+    <div class="firstNegativeRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="autoRowAutoColumn" data-offset-x="0" data-offset-y="10" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid">
+    <div class="firstNegativeRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstRowFirstColumn" data-offset-x="0" data-offset-y="10" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstNegativeRowFirstNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="autoRowAutoColumn" data-offset-x="10" data-offset-y="0" data-expected-width="100" data-expected-height="10">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstNegativeRowFirstNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="firstRowFirstColumn" data-offset-x="10" data-offset-y="10" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid">
+    <div class="secondNegativeRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="autoRowAutoColumn" data-offset-x="0" data-offset-y="10" data-expected-width="100" data-expected-height="10">XX</div>
+</div>
+
+<div class="grid">
+    <div class="secondNegativeRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstRowFirstColumn" data-offset-x="0" data-offset-y="10" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="autoRowAutoColumn" data-offset-x="10" data-offset-y="0" data-expected-width="20" data-expected-height="10">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="firstRowFirstColumn" data-offset-x="10" data-offset-y="10" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid">
+    <div class="secondNegativeRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstNegativeRowFirstColumn" data-offset-x="0" data-offset-y="10" data-expected-width="100" data-expected-height="10">XX</div>
+    <div class="autoRowAutoColumn" data-offset-x="0" data-offset-y="20" data-expected-width="100" data-expected-height="50">XXX</div>
+</div>
+
+<div class="grid">
+    <div class="secondNegativeRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstNegativeRowFirstColumn" data-offset-x="0" data-offset-y="10" data-expected-width="100" data-expected-height="10">XX</div>
+    <div class="firstRowFirstColumn" data-offset-x="0" data-offset-y="20" data-expected-width="100" data-expected-height="50">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="firstNegativeRowFirstNegativeColumn" data-offset-x="10" data-offset-y="10" data-expected-width="30" data-expected-height="10">XX</div>
+    <div class="autoRowAutoColumn" data-offset-x="10" data-offset-y="0" data-expected-width="30" data-expected-height="10">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="firstNegativeRowFirstNegativeColumn" data-offset-x="10" data-offset-y="10" data-expected-width="20" data-expected-height="10">XX</div>
+    <div class="firstRowFirstColumn" data-offset-x="30" data-offset-y="20" data-expected-width="100" data-expected-height="50">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstRowFirstNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="50">X</div>
+    <div class="autoRowAutoColumn" data-offset-x="10" data-offset-y="0" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstRowFirstNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="50">X</div>
+    <div class="firstRowFirstColumn" data-offset-x="10" data-offset-y="0" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstNegativeRowFirstNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="autoRowAutoColumn" data-offset-x="10" data-offset-y="0" data-expected-width="100" data-expected-height="10">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstNegativeRowFirstNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="firstRowFirstColumn" data-offset-x="10" data-offset-y="10" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="50">X</div>
+    <div class="autoRowAutoColumn" data-offset-x="10" data-offset-y="0" data-expected-width="20" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="50">X</div>
+    <div class="firstRowFirstColumn" data-offset-x="10" data-offset-y="0" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="autoRowAutoColumn" data-offset-x="10" data-offset-y="0" data-expected-width="20" data-expected-height="10">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="firstRowFirstColumn" data-offset-x="10" data-offset-y="10" data-expected-width="100" data-expected-height="50">XX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="50">X</div>
+    <div class="firstRowFirstNegativeColumn" data-offset-x="10" data-offset-y="0" data-expected-width="20" data-expected-height="50">XX</div>
+    <div class="autoRowAutoColumn" data-offset-x="30" data-offset-y="0" data-expected-width="100" data-expected-height="50">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="50">X</div>
+    <div class="firstRowFirstNegativeColumn" data-offset-x="10" data-offset-y="0" data-expected-width="20" data-expected-height="50">XX</div>
+    <div class="firstRowFirstColumn" data-offset-x="30" data-offset-y="0" data-expected-width="100" data-expected-height="50">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="firstNegativeRowFirstNegativeColumn" data-offset-x="10" data-offset-y="10" data-expected-width="30" data-expected-height="10">XX</div>
+    <div class="autoRowAutoColumn" data-offset-x="10" data-offset-y="0" data-expected-width="30" data-expected-height="10">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowSecondNegativeColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+    <div class="firstNegativeRowFirstNegativeColumn" data-offset-x="10" data-offset-y="10" data-expected-width="20" data-expected-height="10">XX</div>
+    <div class="firstRowFirstColumn" data-offset-x="30" data-offset-y="20" data-expected-width="100" data-expected-height="50">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstNegativeRowFirstColumn" data-offset-x="30" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstRowFirstNegativeColumn" data-offset-x="0" data-offset-y="10" data-expected-width="30" data-expected-height="50">XX</div>
+    <div class="autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="30" data-expected-height="10">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="firstNegativeRowFirstColumn" data-offset-x="20" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstRowFirstNegativeColumn" data-offset-x="0" data-offset-y="10" data-expected-width="20" data-expected-height="50">XX</div>
+    <div class="firstRowFirstColumn" data-offset-x="20" data-offset-y="10" data-expected-width="100" data-expected-height="50">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowFirstColumn" data-offset-x="30" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstRowSecondNegativeColumn" data-offset-x="0" data-offset-y="10" data-expected-width="30" data-expected-height="50">XX</div>
+    <div class="autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="30" data-expected-height="10">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowFirstColumn" data-offset-x="20" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstRowSecondNegativeColumn" data-offset-x="0" data-offset-y="10" data-expected-width="20" data-expected-height="50">XX</div>
+    <div class="firstRowFirstColumn" data-offset-x="20" data-offset-y="10" data-expected-width="100" data-expected-height="50">XXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowFirstColumn" data-offset-x="90" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstRowSecondNegativeColumn" data-offset-x="0" data-offset-y="20" data-expected-width="50" data-expected-height="50">XX</div>
+    <div class="firstNegativeRowFirstColumn" data-offset-x="90" data-offset-y="10" data-expected-width="100" data-expected-height="10">XXX</div>
+    <div class="firstRowFirstNegativeColumn" data-offset-x="50" data-offset-y="20" data-expected-width="40" data-expected-height="50">XXXX</div>
+    <div class="autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="10">XXXXX</div>
+</div>
+
+<div class="grid justifyContentStart">
+    <div class="secondNegativeRowFirstColumn" data-offset-x="60" data-offset-y="0" data-expected-width="100" data-expected-height="10">X</div>
+    <div class="firstRowSecondNegativeColumn" data-offset-x="0" data-offset-y="20" data-expected-width="20" data-expected-height="50">XX</div>
+    <div class="firstNegativeRowFirstColumn" data-offset-x="60" data-offset-y="10" data-expected-width="100" data-expected-height="10">XXX</div>
+    <div class="firstRowFirstNegativeColumn" data-offset-x="20" data-offset-y="20" data-expected-width="40" data-expected-height="50">XXXX</div>
+    <div class="firstRowFirstColumn" data-offset-x="60" data-offset-y="20" data-expected-width="100" data-expected-height="50">XXXXX</div>
+</div>
+
+</body>

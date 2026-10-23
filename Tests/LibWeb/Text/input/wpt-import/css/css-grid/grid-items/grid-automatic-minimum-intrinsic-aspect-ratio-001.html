@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<title>CSS Grid: automatic minimum for items with instrinsic aspect ratios</title>
+<link rel="author" title="Sergio Villar" href="mailto:svillar@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#min-size-auto">
+<meta name="assert" content="Check how min-width|height:auto is computed for items with intrinsic aspect ratios.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/width-keyword-classes.css">
+
+<style>
+.container {
+    border: 5px solid orange;
+    display: grid;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.container')">
+<div id="log"></div>
+
+<div class="container min-content" data-expected-width="60"
+    data-expected-height="35">
+  <img src="../../../images/green-100x50.png" style="height: 25px;"
+      data-expected-width="50" data-expected-height="25"/>
+</div>
+
+<div class="container min-content" data-expected-width="150"
+    data-expected-height="80">
+  <img src="../../../images/green-100x50.png" style="min-height: 70px;"
+      data-expected-width="140" data-expected-height="70"/>
+</div>
+
+<div class="container min-content" data-expected-width="90"
+    data-expected-height="50">
+  <img src="../../../images/green-100x50.png" style="max-height: 40px;"
+      data-expected-width="80" data-expected-height="40"/>
+</div>
+
+<div class="container min-content" data-expected-width="70"
+    data-expected-height="40">
+  <img src="../../../images/green-100x50.png" style="height: 25px; min-height: 30px;"
+      data-expected-width="60" data-expected-height="30"/>
+</div>
+
+<div class="container min-content" data-expected-width="30"
+    data-expected-height="20">
+  <img src="../../../images/green-100x50.png" style="height: 25px; max-height: 10px;"
+      data-expected-width="20" data-expected-height="10"/>
+</div>
+
+<div class="container min-content" data-expected-width="50"
+    data-expected-height="35">
+  <img src="../../../images/green-100x50.png" style="height: 25px; max-width: 40px;"
+      data-expected-width="40" data-expected-height="25"/>
+</div>
+
+<div class="container min-content" data-expected-width="60"
+    data-expected-height="40">
+  <img src="../../../images/green-100x50.png"
+      style="height: 25px; min-height: 30px; max-width: 50px;"
+      data-expected-width="50" data-expected-height="30"/>
+</div>
+
+<div class="container min-content" data-expected-width="60"
+    data-expected-height="35">
+  <img src="../../../images/green-100x50.png" style="width: 50px;"
+      data-expected-width="50" data-expected-height="25"/>
+</div>
+
+<div class="container min-content" data-expected-width="70"
+    data-expected-height="40">
+  <img src="../../../images/green-100x50.png" style="max-width: 60px;"
+      data-expected-width="60" data-expected-height="30"/>
+</div>
+
+<div class="container min-content" data-expected-width="130"
+    data-expected-height="70">
+  <img src="../../../images/green-100x50.png" style="min-width: 120px;"
+      data-expected-width="120" data-expected-height="60"/>
+</div>
+
+<div class="container min-content" data-expected-width="90"
+    data-expected-height="50">
+  <img src="../../../images/green-100x50.png" style="width: 60px; min-width: 80px;"
+      data-expected-width="80" data-expected-height="40"/>
+</div>
+
+<div class="container min-content" data-expected-width="34"
+    data-expected-height="22">
+  <img src="../../../images/green-100x50.png" style="width: 24px; max-width: 40px;"
+      data-expected-width="24" data-expected-height="12"/>
+</div>
+
+<div class="container min-content" data-expected-width="130"
+    data-expected-height="35">
+  <img src="../../../images/green-100x50.png" style="width: 120px; max-height: 25px;"
+      data-expected-width="120" data-expected-height="25"/>
+</div>
+
+<div class="container min-content" data-expected-width="35"
+    data-expected-height="110">
+  <img src="../../../images/green-100x50.png" style="width: 25px; min-height: 100px;"
+      data-expected-width="25" data-expected-height="100"/>
+</div>
+</body>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout test: item alignment with orthogonal flows</title>
+<link rel="author" title="Rossana Monteriso" href="mailto:rmonteriso@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#alignment-values">
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-4/#orthogonal-flows">
+<meta name="assert" content="This test checks that grid item alignment works as expected with horizontal-tb and vertical-rl/vertical-lr orthogonal flows">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<link rel="stylesheet" href="../../../css/support/width-keyword-classes.css">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+
+<style>
+.container {
+    position: relative;
+}
+.grid {
+    grid-template-columns: 100px 100px;
+    grid-template-rows: 150px 150px 150px;
+    font-size: 10px;
+}
+.item {
+   width: 20px;
+   height: 50px;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<p>This test checks that grid items alignment works as expected with HORIZONTAL-TB vs VERTICAL-RL orthogonal flows.</p>
+
+<p>Orthogonal flows: HORIZONTAL-TB vs VERTICAL-RL</p>
+<p>Direction: LTR vs LTR</p>
+<div class="container">
+    <div class="grid fit-content directionLTR">
+        <div class="item firstRowFirstColumn   verticalRL selfEnd"       data-offset-x="80"   data-offset-y="100">end</div>
+        <div class="item firstRowSecondColumn  verticalRL selfCenter"    data-offset-x="140"  data-offset-y="50">center</div>
+        <div class="item secondRowFirstColumn  verticalRL selfStart"     data-offset-x="0"    data-offset-y="150">start</div>
+        <div class="item secondRowSecondColumn verticalRL selfSelfEnd"   data-offset-x="100"  data-offset-y="250">s-end</div>
+        <div class="item thirdRowFirstColumn   verticalRL selfSelfStart" data-offset-x="80"   data-offset-y="300">s-start</div>
+        <div class="item thirdRowSecondColumn  verticalRL"               data-offset-x= "100" data-offset-y="300">default</div>
+    </div>
+</div>
+
+<p>Direction: RTL vs LTR</p>
+<div class="container">
+    <div class="grid fit-content directionRTL">
+        <div class="item firstRowFirstColumn   directionLTR verticalRL selfEnd"       data-offset-x="100" data-offset-y="100">end</div>
+        <div class="item firstRowSecondColumn  directionLTR verticalRL selfCenter"    data-offset-x="40"  data-offset-y="50">center</div>
+        <div class="item secondRowFirstColumn  directionLTR verticalRL selfStart"     data-offset-x="180"  data-offset-y="150">start</div>
+        <div class="item secondRowSecondColumn directionLTR verticalRL selfSelfEnd"   data-offset-x="0" data-offset-y="250">s-end</div>
+        <div class="item thirdRowFirstColumn   directionLTR verticalRL selfSelfStart" data-offset-x="180"  data-offset-y="300">s-start</div>
+        <div class="item thirdRowSecondColumn  directionLTR verticalRL"               data-offset-x="80" data-offset-y="300">default</div>
+
+    </div>
+</div>
+
+<p>Direction: LTR vs RTL</p>
+<div class="container">
+    <div class="grid fit-content directionLTR">
+        <div class="item firstRowFirstColumn   directionRTL verticalRL selfEnd"       data-offset-x="80"  data-offset-y="100">end</div>
+        <div class="item firstRowSecondColumn  directionRTL verticalRL selfCenter"    data-offset-x="140" data-offset-y="50">center</div>
+        <div class="item secondRowFirstColumn  directionRTL verticalRL selfStart"     data-offset-x="0" data-offset-y="150">start</div>
+        <div class="item secondRowSecondColumn directionRTL verticalRL selfSelfEnd"   data-offset-x="100"   data-offset-y="150">s-end</div>
+        <div class="item thirdRowFirstColumn   directionRTL verticalRL selfSelfStart" data-offset-x="80" data-offset-y="400">s-start</div>
+        <div class="item thirdRowSecondColumn  directionRTL verticalRL"               data-offset-x="100"   data-offset-y="300">default</div>
+    </div>
+</div>
+
+<p>Direction: RTL vs RTL</p>
+<div class="container">
+    <div class="grid fit-content directionRTL">
+        <div class="item firstRowFirstColumn   verticalRL selfEnd"       data-offset-x="100" data-offset-y="100">end</div>
+        <div class="item firstRowSecondColumn  verticalRL selfCenter"    data-offset-x="40"  data-offset-y="50">center</div>
+        <div class="item secondRowFirstColumn  verticalRL selfStart"     data-offset-x="180" data-offset-y="150">start</div>
+        <div class="item secondRowSecondColumn verticalRL selfSelfEnd"   data-offset-x="0"   data-offset-y="150">s-end</div>
+        <div class="item thirdRowFirstColumn   verticalRL selfSelfStart" data-offset-x="180" data-offset-y="400">s-start</div>
+        <div class="item thirdRowSecondColumn  verticalRL"               data-offset-x="80"  data-offset-y="300">default</div>
+    </div>
+</div>
+
+<!-- HORIZONTAL-TB vs VERTICAL-LR -->
+<p>Orthogonal flows: HORIZONTAL-TB vs VERTICAL-LR</p>
+<p>Direction: LTR vs LTR</p>
+<div class="container">
+    <div class="grid fit-content drectionLTR">
+        <div class="item firstRowFirstColumn   verticalLR selfEnd"       data-offset-x="80"  data-offset-y="100">end</div>
+        <div class="item firstRowSecondColumn  verticalLR selfCenter"    data-offset-x="140" data-offset-y="50">center</div>
+        <div class="item secondRowFirstColumn  verticalLR selfStart"     data-offset-x="0"   data-offset-y="150">start</div>
+        <div class="item secondRowSecondColumn verticalLR selfSelfEnd"   data-offset-x="180" data-offset-y="250">s-end</div>
+        <div class="item thirdRowFirstColumn   verticalLR selfSelfStart" data-offset-x="0"   data-offset-y="300">s-start</div>
+        <div class="item thirdRowSecondColumn  verticalLR"               data-offset-x="100" data-offset-y="300">default</div>
+    </div>
+</div>
+
+<p>Direction: RTL vs LTR</p>
+<div class="container">
+    <div class="grid fit-content directionRTL">
+        <div class="item firstRowFirstColumn   directionLTR verticalLR selfEnd"       data-offset-x="100" data-offset-y="100">end</div>
+        <div class="item firstRowSecondColumn  directionLTR verticalLR selfCenter"    data-offset-x="40"  data-offset-y="50">center</div>
+        <div class="item secondRowFirstColumn  directionLTR verticalLR selfStart"     data-offset-x="180" data-offset-y="150">start</div>
+        <div class="item secondRowSecondColumn directionLTR verticalLR selfSelfEnd"   data-offset-x="80"  data-offset-y="250">s-end</div>
+        <div class="item thirdRowFirstColumn   directionLTR verticalLR selfSelfStart" data-offset-x="100" data-offset-y="300">s-start</div>
+        <div class="item thirdRowSecondColumn  directionLTR verticalLR"               data-offset-x="80"  data-offset-y="300">default</div>
+    </div>
+</div>
+
+<p>Direction: RTL vs RTL</p>
+<div class="container">
+    <div class="grid fit-content directionRTL">
+        <div class="item firstRowFirstColumn   verticalLR selfEnd"       data-offset-x="100" data-offset-y="100">end</div>
+        <div class="item firstRowSecondColumn  verticalLR selfCenter"    data-offset-x="40"  data-offset-y="50">center</div>
+        <div class="item secondRowFirstColumn  verticalLR selfStart"     data-offset-x="180" data-offset-y="150">start</div>
+        <div class="item secondRowSecondColumn verticalLR selfSelfEnd"   data-offset-x="80"  data-offset-y="150">s-end</div>
+        <div class="item thirdRowFirstColumn   verticalLR selfSelfStart" data-offset-x="100" data-offset-y="400">s-start</div>
+        <div class="item thirdRowSecondColumn  verticalLR"               data-offset-x="80"  data-offset-y="300">default</div>
+    </div>
+</div>
+
+</body>
