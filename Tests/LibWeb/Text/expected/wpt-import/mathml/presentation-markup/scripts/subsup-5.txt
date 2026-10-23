@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-1 Pass
-2 Fail
+3 Pass
 Pass	Alignment on the baseline with different and large script heights
-Fail	Tall subscripts/superscripts are not placed too high/low
-Fail	No collisions for tall subscripts and superscripts
+Pass	Tall subscripts/superscripts are not placed too high/low
+Pass	No collisions for tall subscripts and superscripts

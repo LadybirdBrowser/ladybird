@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 54 tests
 
-43 Pass
-11 Fail
+46 Pass
+8 Fail
 Pass	Spacing inside an <mfrac> child of <math>.
 Pass	Spacing around an <mfrac> child of an <math>.
 Pass	Spacing inside an <mfrac> child of <mrow>.
@@ -28,11 +28,11 @@ Pass	Spacing inside an <msubsup> child of <mrow>.
 Pass	Spacing around an <msubsup> child of an <mrow>.
 Pass	Spacing inside an <msubsup> child of <mtd>.
 Fail	Spacing around an <msubsup> child of an <mtd>.
-Fail	Spacing inside an <mmultiscripts> child of <math>.
+Pass	Spacing inside an <mmultiscripts> child of <math>.
 Pass	Spacing around an <mmultiscripts> child of an <math>.
-Fail	Spacing inside an <mmultiscripts> child of <mrow>.
+Pass	Spacing inside an <mmultiscripts> child of <mrow>.
 Pass	Spacing around an <mmultiscripts> child of an <mrow>.
-Fail	Spacing inside an <mmultiscripts> child of <mtd>.
+Pass	Spacing inside an <mmultiscripts> child of <mtd>.
 Fail	Spacing around an <mmultiscripts> child of an <mtd>.
 Pass	Spacing inside an <munder> child of <math>.
 Pass	Spacing around an <munder> child of an <math>.
