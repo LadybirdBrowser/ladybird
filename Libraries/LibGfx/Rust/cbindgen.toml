@@ -16,7 +16,7 @@ namespaces = ["Gfx", "FFI"]
 # The byte layout the filter codec writes is defined by these enums, and the C++ reader that
 # builds Skia filters from it decodes them from the same definitions.
 [export]
-include = ["FilterOperationType", "ChannelSelector", "TurbulenceType"]
+include = ["FilterOperationType", "ChannelSelector", "TurbulenceType", "PathVerb"]
 
 [parse]
 parse_deps = false
