@@ -7,7 +7,6 @@
 #include <AK/Math.h>
 #include <AK/Optional.h>
 #include <LibGfx/AffineTransform.h>
-#include <LibGfx/Quad.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
