@@ -1007,6 +1007,13 @@ static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& styl
         }
     }
 
+    // NB: A computed color-mix() is still a mix only where it reads currentcolor, which the used value resolves.
+    if (color_resolution_style.has_value() && style_value.is_color()) {
+        auto ffi_color_resolution_style = color_resolution_style->to_ffi();
+        if (auto const* resolved = StyleValueFFI::rust_color_mix_resolved_value(style_value.rust_style_value_data(), &ffi_color_resolution_style))
+            return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(resolved));
+    }
+
     if (style_value.is_color_function() && as<ColorFunctionStyleValue>(style_value).serializes_as_color_function())
         return style_value;
     if (style_value.is_color()) {

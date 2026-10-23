@@ -521,6 +521,7 @@ impl CustomPropertyRegistry {
             random_base_values: &random_base_values,
             document_base_url: &self.document_base_url,
             style_sheet_resource_context: None,
+            current_color: None,
         };
         let computed = match crate::css::absolutize::absolutize(parsed.data(), &context) {
             Some(crate::css::absolutize::Absolutized::Changed(computed)) => computed,

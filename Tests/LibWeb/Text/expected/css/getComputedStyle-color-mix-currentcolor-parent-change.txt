@@ -1,0 +1,6 @@
+mix color color(srgb 0.5 0.5 0.5)
+child color color(srgb 0.5 0.5 0.5)
+child background-color color(srgb 0.75 0.75 0.75)
+mix color color(srgb 1 0.5 0.5)
+child color color(srgb 1 0.5 0.5)
+child background-color color(srgb 1 0.75 0.75)

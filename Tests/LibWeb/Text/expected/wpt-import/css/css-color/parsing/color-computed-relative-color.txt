@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1169 tests
 
-1126 Pass
-43 Fail
+1127 Pass
+42 Fail
 Pass	Property color value 'rgb(from rebeccapurple r g b)'
 Pass	Property color value 'rgb(from rebeccapurple r g b / alpha)'
 Pass	Property color value 'rgb(from rgb(20%, 40%, 60%, 80%) r g b / alpha)'
@@ -79,7 +79,7 @@ Fail	Property color value 'rgb(from rgb(20% 40% 60% / none) r g b / alpha)'
 Pass	Property color value 'color-mix(in srgb, rgb(from rebeccapurple none g b), rebeccapurple)'
 Pass	Property background-color value 'rgb(from currentColor r g b)'
 Pass	Property color value 'rgb(from color-mix(in srgb, red, red) r g b / alpha)'
-Fail	Property background-color value 'rgb(from color-mix(in srgb, currentColor, red) r g b / alpha)'
+Pass	Property background-color value 'rgb(from color-mix(in srgb, currentColor, red) r g b / alpha)'
 Pass	Property background-color value 'rgb(from rgb(from currentColor r g b) r g b)'
 Pass	Property color value 'light-dark(rgb(from rebeccapurple r g b), rgb(from rebeccapurple r g b))'
 Pass	Property color value 'light-dark(color-mix(in srgb, rgb(from rebeccapurple none g b), rebeccapurple), color-mix(in srgb, rgb(from rebeccapurple none g b), rebeccapurple))'

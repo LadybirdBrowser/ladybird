@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .under { background-color: color-mix(in srgb, currentcolor 20%, white 20%); }
+    .exact { background-color: color-mix(in srgb, currentcolor 30%, white 70%); }
+    .over { background-color: color-mix(in srgb, currentcolor 60%, white 60%); }
+    .mix-color { color: color-mix(in srgb, currentcolor 20%, white 20%); }
+</style>
+<div id="ownUnder" class="under" style="color: rgb(255, 0, 0)"></div>
+<div id="ownExact" class="exact" style="color: rgb(255, 0, 0)"></div>
+<div id="ownOver" class="over" style="color: rgb(255, 0, 0)"></div>
+<div style="color: rgb(255, 0, 0)">
+    <div id="inheritedUnder" class="under"></div>
+    <div id="inheritedExact" class="exact"></div>
+    <div id="inheritedOver" class="over"></div>
+    <div id="mixColor" class="mix-color"><div id="mixColorUnder" class="under"></div></div>
+</div>
+<script>
+    test(() => {
+        for (const element of [ownUnder, ownExact, ownOver, inheritedUnder, inheritedExact, inheritedOver, mixColorUnder])
+            println(`${element.id} background-color ${getComputedStyle(element).backgroundColor}`);
+        println(`mixColor color ${getComputedStyle(mixColor).color}`);
+    });
+</script>

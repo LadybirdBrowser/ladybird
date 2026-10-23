@@ -3171,9 +3171,16 @@ impl<'a> ParentSnapshot<'a> {
         {
             return Some(entry.value_handle());
         }
-        for (property, value) in self.table.retained_inheritance_dependent_values() {
-            if property == property_id && crate::css::style_value::style_value_dependency_flags(value.data()) & 1 != 0 {
-                return Some(value);
+        // NB: A value reading currentcolor is inherited as specified, to resolve against the inheriting element's own
+        //     color, except in the color property, whose currentcolor is the inherited value and so resolved where
+        //     it computes.
+        if property_id != crate::css::property_metadata::property_id::COLOR {
+            for (property, value) in self.table.retained_inheritance_dependent_values() {
+                if property == property_id
+                    && crate::css::style_value::style_value_dependency_flags(value.data()) & 1 != 0
+                {
+                    return Some(value);
+                }
             }
         }
         self.table.get(property_id)
@@ -3714,6 +3721,15 @@ pub(crate) unsafe fn drive_property_computation(
         } else {
             None
         };
+        // https://www.w3.org/TR/css-color-4/#resolving-other-colors
+        // In the color property, the used value of currentcolor is the resolved inherited value.
+        let current_color = (inherited_property_id == prop::COLOR).then(|| {
+            highlight_parent_snapshot
+                .or(snapshot)
+                .and_then(|snapshot| snapshot.value_handle(prop::COLOR))
+                .and_then(RetainedStyleValueData::optional_data)
+                .unwrap_or_else(|| initial_value_handle(prop::COLOR).data())
+        });
         // Absolutizes a value against this element's facts, noting in `results` when it resolved a viewport-relative
         // length.
         let absolutize_value = |value: &StyleValueData,
@@ -3728,6 +3744,7 @@ pub(crate) unsafe fn drive_property_computation(
                 random_base_values,
                 document_base_url,
                 style_sheet_resource_context,
+                current_color,
             };
             let outcome = crate::css::absolutize::absolutize(value, &context);
             if context.resolved_viewport_relative_length.get() {
