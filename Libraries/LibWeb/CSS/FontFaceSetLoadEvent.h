@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
 #include <LibWeb/CSS/FontFaceState.h>
 #include <LibWeb/DOM/Event.h>
@@ -29,7 +30,7 @@ public:
 
     virtual ~FontFaceSetLoadEvent() override = default;
 
-    Vector<GC::Ref<FontFace>> fontfaces() const;
+    GC::RootVector<GC::Ref<FontFace>> fontfaces() const;
 
 private:
     FontFaceSetLoadEvent(Utf16FlyString const& type, Bindings::FontFaceSetLoadEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
