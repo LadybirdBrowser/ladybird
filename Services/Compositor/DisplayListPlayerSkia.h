@@ -27,6 +27,8 @@ class sk_sp;
 
 namespace Compositor {
 
+class ScrollbarController;
+
 // The color filter force-dark runs classified images through: the same Oklab lightness inversion the solid colors
 // take — as a Skia runtime effect. Exposed so a benchmark can time the shipped effect, rather than a copy of it.
 sk_sp<SkColorFilter> force_dark_image_color_filter();
@@ -47,12 +49,13 @@ public:
         Compositing::ScrollStateSnapshot const&,
         RefPtr<Gfx::PaintingSurface>,
         Compositing::OwnedCanvasSurfaces const*,
-        Compositing::CompositedContextResolver const*);
+        Compositing::CompositedContextResolver const*,
+        ScrollbarController const* = nullptr);
 
     void flush(Gfx::PaintingSurface&) override;
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
     // A corner clip radius that is not zero shapes the thumb to the corner clip rect with that radius.
-    void paint_scrollbar(Gfx::PaintingSurface&, Compositing::PaintScrollBar const&, Gfx::IntRect const& corner_clip_rect = {}, int corner_clip_radius = 0);
+    void paint_scrollbar(Gfx::PaintingSurface&, Compositing::PaintScrollBar const&, float opacity, Gfx::IntRect const& corner_clip_rect = {}, int corner_clip_radius = 0);
 
 private:
 #define DECLARE_PLAY_COMMAND(command_type) \
@@ -85,6 +88,8 @@ private:
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Compositing::CompositedContextResolver const* m_composited_context_resolver { nullptr };
+    // Says how opaque the scrollbars that the display list paints are.
+    ScrollbarController const* m_scrollbar_controller { nullptr };
     DisplayListRasterCache* m_raster_cache { nullptr };
     DisplayListRasterCache& raster_cache() const { return *m_raster_cache; }
 

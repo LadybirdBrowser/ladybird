@@ -7,6 +7,7 @@
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/FontSkia.h>
 #include <Compositor/Sandbox.h>
+#include <Compositor/ScrollbarController.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/EventLoop.h>
@@ -67,8 +68,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (auto result = Core::Platform::set_current_thread_qos(Core::Platform::ThreadQoS::UserInteractive); result.is_error())
         warnln("Could not set main thread QoS: {}", result.error());
 
-    if (enable_test_mode)
+    if (enable_test_mode) {
         Compositor::force_font_hinting_for_testing();
+        Compositor::ScrollbarController::show_scrollbars_always_for_testing();
+    }
 
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(TRY(String::from_utf8(resource_root))));
     if (force_fontconfig)

@@ -192,9 +192,14 @@ void CompositorState::create_context(Web::CompositorContextId context_id, Option
         VERIFY(context_id == Web::compositor_context_id_for_page(*page_id));
 
     auto& context = *m_contexts.ensure(context_id, [&] {
-        return make<ContextState>(context_id, page_id, web_content_client, Compositing::OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() }, [this, context_id](Gfx::IntRect damage_rect) {
-            schedule_caret_repaint(context_id, damage_rect);
-        });
+        auto schedule_caret_repaint = [this, context_id](Gfx::IntRect damage_rect) {
+            this->schedule_caret_repaint(context_id, damage_rect);
+        };
+        auto request_scrollbar_fade_frames = [this, context_id] {
+            if (auto* context = context_if_present(context_id))
+                schedule_animation_frames_if_needed(*context);
+        };
+        return make<ContextState>(context_id, page_id, web_content_client, Compositing::OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() }, move(schedule_caret_repaint), move(request_scrollbar_fade_frames));
     });
     resize_backing_stores_if_needed(context_id, context);
 }
@@ -1216,6 +1221,8 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
                 context.presenter().queue_present_frame(PendingFrame::repainting_changes(*rebound_frame));
             if (auto fade_frame = context.presenter().advance_ui_overlay_fades(frame_time); fade_frame.has_value())
                 context.presenter().queue_present_frame(*fade_frame);
+            if (auto fade_frame = context.advance_scrollbar_fades(frame_time); fade_frame.has_value())
+                context.presenter().queue_present_frame(*fade_frame);
         }
 
         // A render clock tick goes to the process's render clock thread, beside what its main thread is doing, with
@@ -1264,7 +1271,8 @@ bool CompositorState::request_screenshot(Web::CompositorContextId context_id, Gf
         return false;
 
     auto composited_context_resolver = resolver_for(context_id);
-    context->paint_screenshot(*m_display_list_player, target_bitmap, &composited_context_resolver);
+    if (auto scrollbar_fade_frame = context->paint_screenshot(*m_display_list_player, target_bitmap, &composited_context_resolver); scrollbar_fade_frame.has_value())
+        schedule_present_frame(context_id, *context, *scrollbar_fade_frame);
     return true;
 }
 
