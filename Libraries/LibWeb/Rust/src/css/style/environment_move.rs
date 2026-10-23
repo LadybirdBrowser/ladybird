@@ -372,7 +372,7 @@ impl StyleEngine {
                         .and_then(|store| store.get(name))
                         .or_else(|| new.as_ref().and_then(|store| store.get(name)))
                 })
-                .map(|entry| entry.name.clone())
+                .map(|entry| Arc::from(entry.name.to_utf16().as_ref()))
                 .collect(),
         )
     }

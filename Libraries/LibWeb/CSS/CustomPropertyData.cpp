@@ -20,15 +20,6 @@ static Atomic<u64> s_next_custom_property_data_identity { 1 };
 static constexpr u8 max_ancestor_count = 32;
 static constexpr size_t absorb_threshold = 8;
 
-static ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
-{
-    return {
-        .ascii = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
-        .utf16 = view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
-        .length = view.length_in_code_units(),
-    };
-}
-
 CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, RefPtr<CustomPropertyData const> inheritance_parent, u8 ancestor_count, size_t declared_count, void const* prebuilt_rust_store, u64 identity)
     : m_own_values(move(own_values))
     , m_parent(move(parent))
@@ -44,7 +35,6 @@ CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StylePrope
     for (auto const& [name, property] : m_own_values) {
         entries.unchecked_append({
             .name_raw = name.to_raw_leaked(),
-            .name = ffi_utf16_view(name),
             .important = property.important == Important::Yes,
             .data = StyleValueFFI::rust_style_value_retain(property.value->rust_style_value_data()),
         });
@@ -101,7 +91,6 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create_animation_overlay(
     for (auto const& [name, property] : animated_values) {
         entries.unchecked_append({
             .name_raw = name.to_raw_leaked(),
-            .name = ffi_utf16_view(name),
             .important = property.important == Important::Yes,
             .data = StyleValueFFI::rust_style_value_retain(property.value->rust_style_value_data()),
         });

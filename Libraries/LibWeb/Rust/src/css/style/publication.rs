@@ -5432,25 +5432,17 @@ mod tests {
 
         let inherited_name = ak::Utf16FlyString::from_utf16(&"--inherited".encode_utf16().collect::<Vec<_>>());
         let own_name = ak::Utf16FlyString::from_utf16(&"--own".encode_utf16().collect::<Vec<_>>());
-        let make_store = |parent: Option<Arc<CustomPropertyStore>>, name: &ak::Utf16FlyString, text: &str, value| {
+        let make_store = |parent: Option<Arc<CustomPropertyStore>>, name: &ak::Utf16FlyString, value| {
             let value = RetainedStyleValueData::from_owned(StyleValueData::Number { value });
             // SAFETY: The parent is null or retained by this test, and both the name and value
             //         remain live while cascaded_child retains them.
             unsafe {
-                CustomPropertyStore::cascaded_child(
-                    parent,
-                    vec![(
-                        name.raw_identity(),
-                        text.encode_utf16().collect::<Vec<_>>().into(),
-                        false,
-                        value.pointer().cast(),
-                    )],
-                )
+                CustomPropertyStore::cascaded_child(parent, vec![(name.raw_identity(), false, value.pointer().cast())])
             }
         };
-        let old_parent = make_store(None, &inherited_name, "--inherited", 1.0);
-        let new_parent = make_store(None, &inherited_name, "--inherited", 2.0);
-        let own = make_store(Some(old_parent.clone()), &own_name, "--own", 42.0);
+        let old_parent = make_store(None, &inherited_name, 1.0);
+        let new_parent = make_store(None, &inherited_name, 2.0);
+        let own = make_store(Some(old_parent.clone()), &own_name, 42.0);
         let mut engine = StyleEngine::new();
         let mut raw_nodes = [0; 3];
         engine.allocate_style_nodes(&mut raw_nodes);
