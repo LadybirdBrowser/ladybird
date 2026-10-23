@@ -583,7 +583,7 @@ void MediaDevices::process_pending_enumerate_devices_requests()
 
     run_device_change_notification_steps(current_audio_device_snapshot());
 
-    auto pending_requests = move(m_pending_enumerate_devices_requests);
+    GC::ConservativeVector pending_requests { move(m_pending_enumerate_devices_requests) };
     for (auto& request : pending_requests)
         queue_enumerate_devices_task(request.promise);
 }
@@ -595,7 +595,7 @@ void MediaDevices::process_pending_get_user_media_requests()
     if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list())
         return;
 
-    auto pending_requests = move(m_pending_get_user_media_requests);
+    GC::ConservativeVector pending_requests { move(m_pending_get_user_media_requests) };
     for (auto& request : pending_requests)
         queue_get_user_media_task(request.promise, move(request.requested_device_ids));
 }
@@ -788,7 +788,7 @@ void MediaDevices::did_observe_audio_device_cache_update()
     process_pending_enumerate_devices_requests();
     process_pending_get_user_media_requests();
 
-    auto awaiting = move(m_awaiting_fresh_audio_device_list);
+    GC::RootVector awaiting { move(m_awaiting_fresh_audio_device_list) };
     for (auto const& callback : awaiting)
         callback->function()();
 }
