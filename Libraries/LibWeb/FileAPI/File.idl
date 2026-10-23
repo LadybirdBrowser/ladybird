@@ -1,5 +1,5 @@
 // https://w3c.github.io/FileAPI/#file-section
-[Exposed=(Window,Worker), Serializable]
+[Exposed=(Window,Worker), Serializable, ImplementedIn=Rust]
 interface File : Blob {
     constructor(sequence<BlobPart> fileBits, USVString fileName, optional FilePropertyBag options = {});
 

@@ -869,6 +869,7 @@ dependencies = [
  "libtextcodec_rust",
  "liburl_rust",
  "libweb_rust",
+ "libwebcommon_rust",
  "rustc-demangle",
  "serde_json",
 ]

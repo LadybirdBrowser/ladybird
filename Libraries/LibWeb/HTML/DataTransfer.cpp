@@ -300,18 +300,8 @@ GC::Ref<FileAPI::FileList> DataTransfer::files() const
         if (item.kind != DragDataStoreItem::Kind::File)
             continue;
 
-        auto blob = FileAPI::Blob::create(MUST(ByteBuffer::copy(item.file_data)), item.type_string.to_utf16_string());
-
-        // File names are UTF-16 at the DOM boundary. The File API still has a
-        // legacy byte-string constructor, so perform this conversion only at
-        // that API boundary.
-        auto file_name = item.file_name.to_utf8();
-
         // FIXME: Fill in other fields (e.g. last_modified).
-        FileAPI::FilePropertyBag options {};
-        options.type = item.type_string.to_utf16_string();
-
-        auto file = MUST(FileAPI::File::create({ { blob } }, file_name, move(options)));
+        auto file = FileAPI::File::create(item.file_data, item.file_name, item.type_string.to_utf16_string());
         files->add_file(file);
     }
 

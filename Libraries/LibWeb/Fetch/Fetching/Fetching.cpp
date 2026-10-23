@@ -1252,7 +1252,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             }
 
             // 8. Let slicedBlob be the result of invoking slice blob given blob, rangeStart, rangeEnd + 1, and type.
-            auto sliced_blob = MUST(blob->slice_blob(*range_start, *range_end + 1, type));
+            auto sliced_blob = blob->slice_blob(*range_start, *range_end + 1, type);
 
             // 9. Let slicedBodyWithType be the result of safely extracting slicedBlob.
             auto sliced_body_with_type = safely_extract_body(realm, sliced_blob->raw_bytes());

@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 
@@ -40,7 +41,8 @@ WebIDL::ExceptionOr<void> FileList::serialization_steps(HTML::StructuredSerializ
         serialized.encode(Bindings::InterfaceName::File);
         if (serialized.type() == HTML::SerializationType::Storage)
             serialized.encode(u64 { 1 });
-        TRY(file->serialization_steps(serialized, for_storage, memory));
+        auto serializable = Bindings::SerializablePlatformObject { .rust_object = file, .interface_name = Bindings::InterfaceName::File, .realm = JS::VM::the().current_realm() };
+        TRY(serializable.serialization_steps(serialized, for_storage, memory));
     }
 
     return {};
@@ -61,9 +63,8 @@ WebIDL::ExceptionOr<void> FileList::deserialization_steps(JS::Realm& realm, HTML
             if (version != 1)
                 return WebIDL::DataCloneError::create("Unsupported FileList entry version"_utf16);
         }
-        auto file = File::create();
-        TRY(file->deserialization_steps(realm, serialized, memory));
-        m_files.append(file);
+        auto wrapper = TRY(Bindings::deserialize_rust_platform_object(Bindings::InterfaceName::File, realm, serialized, memory));
+        m_files.append(*Bindings::impl_from<File>(wrapper.ptr()));
     }
 
     return {};

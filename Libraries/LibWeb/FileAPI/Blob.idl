@@ -1,5 +1,5 @@
 // https://w3c.github.io/FileAPI/#blob-section
-[Exposed=(Window,Worker), Serializable]
+[Exposed=(Window,Worker), Serializable, ImplementedIn=Rust]
 interface Blob {
     constructor(optional sequence<BlobPart> blobParts, optional BlobPropertyBag options = {});
 

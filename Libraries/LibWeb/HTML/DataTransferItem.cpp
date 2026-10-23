@@ -134,17 +134,8 @@ GC::Ptr<FileAPI::File> DataTransferItem::get_as_file() const
         return nullptr;
 
     // 3. Return a new File object representing the actual data of the item represented by the DataTransferItem object.
-    auto blob = FileAPI::Blob::create(MUST(ByteBuffer::copy(item.file_data)), item.type_string.to_utf16_string());
-
-    auto file_name = item.file_name.to_utf8();
-
     // FIXME: Fill in other fields (e.g. last_modified).
-    FileAPI::FilePropertyBag options {};
-    options.type = item.type_string.to_utf16_string();
-
-    FileAPI::BlobParts file_bits {};
-    file_bits.append(blob);
-    return MUST(FileAPI::File::create(file_bits, file_name, move(options)));
+    return FileAPI::File::create(item.file_data, item.file_name, item.type_string.to_utf16_string());
 }
 
 // https://wicg.github.io/entries-api/#dom-datatransferitem-webkitgetasentry

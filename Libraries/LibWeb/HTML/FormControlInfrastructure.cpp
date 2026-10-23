@@ -31,22 +31,13 @@ static WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry_with_scalar_name(JS:
         [&](GC::Ref<FileAPI::Blob> blob) -> WebIDL::ExceptionOr<XHR::FormDataEntry::Value> {
             // 1. If value is not a File object, then set value to a new File object, representing the same bytes, whose
             //    name attribute value is "blob".
-            if (!is<FileAPI::File>(*blob)) {
-                FileAPI::FilePropertyBag options {};
-                options.type = blob->type();
-
-                blob = TRY(FileAPI::File::construct_impl({ { blob } }, "blob"_utf16, move(options)));
-            }
+            if (!is<FileAPI::File>(*blob))
+                blob = FileAPI::File::create(blob->raw_bytes(), "blob"_utf16, blob->type());
 
             // 2. If filename is given, then set value to a new File object, representing the same bytes, whose name
             //    attribute is filename.
-            if (filename.has_value()) {
-                FileAPI::FilePropertyBag options {};
-                options.type = blob->type();
-                options.last_modified = as<FileAPI::File>(*blob).last_modified();
-
-                blob = TRY(FileAPI::File::construct_impl({ { blob } }, filename.value(), move(options)));
-            }
+            if (filename.has_value())
+                blob = FileAPI::File::create(blob->raw_bytes(), filename.value(), blob->type(), as<FileAPI::File>(*blob).last_modified());
 
             return GC::Ref { as<FileAPI::File>(*blob) };
         }));
@@ -211,9 +202,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
         else if (auto* file_element = as_if<HTMLInputElement>(*control); file_element && file_element->type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
             // 1. If there are no selected files, then create an entry with name and a new File object with an empty name, application/octet-stream as type, and an empty body, and append it to entry list.
             if (file_element->files()->length() == 0) {
-                Bindings::FilePropertyBag options {};
-                options.type = "application/octet-stream"_utf16;
-                auto file = TRY(FileAPI::File::construct_impl({}, Utf16String {}, options));
+                auto file = FileAPI::File::create({}, {}, "application/octet-stream"_utf16);
                 entry_list.append(TRY(create_entry(realm, name.view(), Variant<GC::Ref<FileAPI::Blob>, Utf16String> { GC::Ref<FileAPI::Blob> { file } })));
             }
             // 2. Otherwise, for each file in selected files, create an entry with name and a File object representing the file, and append it to entry list.
@@ -339,7 +328,8 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(GC::ConservativeVec
         TRY(entry.value.visit(
             [&](GC::Ref<FileAPI::File> file) -> ErrorOr<void> {
                 // For filenames replace any 0x0A (LF) bytes with the byte sequence `%0A`, 0x0D (CR) with `%0D` and 0x22 (") with `%22`
-                auto escaped_filename = TRY(escape_line_feed_carriage_return_double_quote(file->name().utf16_view()));
+                auto file_name = file->name();
+                auto escaped_filename = TRY(escape_line_feed_carriage_return_double_quote(file_name.utf16_view()));
                 auto escaped_filename_utf8 = TRY(escaped_filename.utf16_view().to_utf8());
                 // Add a `Content-Disposition` header with a `name` set to entry's name and `filename` set to entry's filename.
                 TRY(builder.try_append(TRY(String::formatted("Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\n", escaped_name_utf8, escaped_filename_utf8))));

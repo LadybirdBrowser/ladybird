@@ -27,6 +27,7 @@ libjs_rust = { path = "../../../LibJS/Rust", default-features = false }
 libtextcodec_rust = { path = "../../../LibTextCodec/Rust" }
 liburl_rust = { path = "../../../LibURL/Rust", default-features = false }
 libweb_rust = { path = "../../Rust" }
+libwebcommon_rust = { path = "../../../LibWebCommon/Rust" }
 rustc-demangle = "0.1"
 
 [build-dependencies]
