@@ -4,6 +4,7 @@ import argparse
 import base64
 import hashlib
 import http.server
+import ipaddress
 import itertools
 import json
 import logging
@@ -138,7 +139,7 @@ class WPTContext:
 
         return handler
 
-    def configure_server(self, http_ports):
+    def configure_server(self, http_ports, https_ports):
         def make_subdomains_product(subdomains, depth=2):
             return {
                 ".".join(labels)
@@ -153,7 +154,7 @@ class WPTContext:
             logger,
             browser_host="web-platform.localhost",
             alternate_hosts={"alt": "not-localhost.localhost"},
-            ports={"http": http_ports},
+            ports={"http": http_ports, "https": https_ports},
             subdomains=subdomains,
             not_subdomains=not_subdomains,
             check_subdomains=False,
@@ -175,6 +176,19 @@ class TestHTTPServer(socketserver.ThreadingTCPServer):
 
 
 class TestHTTPServerIPv6(TestHTTPServer):
+    address_family = socket.AF_INET6
+
+
+class TestHTTPSServer(TestHTTPServer):
+    ssl_context: ssl.SSLContext
+
+    def get_request(self):
+        sock, addr = super().get_request()
+        # Leave the handshake to the first read, which happens on the request's own thread.
+        return self.ssl_context.wrap_socket(sock, server_side=True, do_handshake_on_connect=False), addr
+
+
+class TestHTTPSServerIPv6(TestHTTPSServer):
     address_family = socket.AF_INET6
 
 
@@ -743,7 +757,7 @@ class AIATLSServer(socketserver.ThreadingTCPServer):
             raise
 
 
-def _setup_aia_test_servers(http_port, ca_cert_output):
+def _setup_tls_test_servers(http_port, ca_cert_output):
     try:
         from cryptography import x509  # type: ignore[import-not-found]
         from cryptography.hazmat.primitives import hashes  # type: ignore[import-not-found]
@@ -756,8 +770,8 @@ def _setup_aia_test_servers(http_port, ca_cert_output):
         from cryptography.x509.oid import ExtendedKeyUsageOID  # type: ignore[import-not-found]
         from cryptography.x509.oid import NameOID  # type: ignore[import-not-found]
     except ImportError as error:
-        logging.warning("AIA test setup skipped: python 'cryptography' unavailable (%s)", error)
-        return
+        logging.warning("TLS test setup skipped: python 'cryptography' unavailable (%s)", error)
+        return None
 
     import datetime
     import tempfile
@@ -897,8 +911,35 @@ def _setup_aia_test_servers(http_port, ca_cert_output):
     with open(ca_cert_output, "wb") as ca_file:
         ca_file.write(root.public_bytes(Encoding.PEM))
 
+    # WPT tests reach HTTPS origins on localhost and 127.0.0.1, so the WPT HTTPS server presents a leaf for both, issued
+    # by the root itself.
+    wpt_leaf_key = new_key()
+    wpt_leaf = (
+        x509.CertificateBuilder()
+        .subject_name(dn("localhost"))
+        .issuer_name(root.subject)
+        .public_key(wpt_leaf_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(not_before)
+        .not_valid_after(not_after)
+        .add_extension(
+            x509.SubjectAlternativeName(
+                [
+                    x509.DNSName("localhost"),
+                    x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
+                    x509.IPAddress(ipaddress.ip_address("::1")),
+                ]
+            ),
+            critical=False,
+        )
+        .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        .sign(root_key, hashes.SHA256())
+    )
+    scenarios["wpt"] = (wpt_leaf, wpt_leaf_key)
+
     scratch = tempfile.mkdtemp(prefix="ladybird-aia-")
     config = {}
+    wpt_ssl_context = None
     for name, (leaf, leaf_key) in scenarios.items():
         # The cert file holds *only* the leaf — so, each HTTPS host presents a broken chain (the intermediate is omitted
         # and must be fetched via AIA).
@@ -910,18 +951,25 @@ def _setup_aia_test_servers(http_port, ca_cert_output):
             f.write(leaf_key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()))
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain(certfile=cert_path, keyfile=key_path)
+        if name == "wpt":
+            wpt_ssl_context = context
+            continue
         server = AIATLSServer(("127.0.0.1", 0), AIALeafHandler, context)
         config[name] = server.socket.getsockname()[1]
         threading.Thread(target=server.serve_forever, daemon=True).start()
 
     TestHTTPRequestHandler.aia_config = config
     logging.info("AIA test servers ready: %s (root CA at %s)", config, ca_cert_output)
+    return wpt_ssl_context
 
 
-def start_mirror_server(server, server_class, address):
+def start_mirror_server(server, server_class, address, ssl_context=None):
     mirror = server_class(address, TestHTTPRequestHandler)
     mirror.daemon_threads = True
     mirror.scheme = server.scheme
+    if ssl_context:
+        mirror.ssl_context = ssl_context
+        mirror.scheme = "https"
     mirror.router = server.router
     mirror.wpt = server.wpt
     mirror.wpt_file_handler = server.wpt_file_handler
@@ -949,6 +997,19 @@ def start_server(port, static_directory, ca_cert_output=None, exit_when_stdin_cl
     # WPT tests reach a second HTTP origin through {{ports[http][1]}}, so serve the same content on another port.
     alternate_httpd = start_mirror_server(httpd, TestHTTPServer, ("127.0.0.1", 0))
 
+    https_httpd = None
+    if ca_cert_output:
+        # Avoid trusting a stale CA if setup fails. Preserve the inode granted by the sandbox.
+        open(ca_cert_output, "wb").close()
+
+        try:
+            wpt_ssl_context = _setup_tls_test_servers(httpd.socket.getsockname()[1], ca_cert_output)
+            if wpt_ssl_context:
+                # WPT tests reach HTTPS origins through {{ports[https][0]}}, so serve the same content over TLS too.
+                https_httpd = start_mirror_server(httpd, TestHTTPSServer, ("127.0.0.1", 0), wpt_ssl_context)
+        except Exception as error:
+            logging.exception("TLS test setup failed: %s", error)
+
     # A localhost name resolves to ::1 first, which Windows is slow to refuse, so serve there too.
     ipv6_servers = []
     for server in (httpd, alternate_httpd):
@@ -956,19 +1017,21 @@ def start_server(port, static_directory, ca_cert_output=None, exit_when_stdin_cl
             ipv6_servers.append(start_mirror_server(server, TestHTTPServerIPv6, ("::1", server.server_address[1])))
         except OSError as error:
             logging.warning("Not serving on ::1: %s", error)
-
-    httpd.wpt.configure_server([httpd.socket.getsockname()[1], alternate_httpd.socket.getsockname()[1]])
-
-    if ca_cert_output:
-        # Avoid trusting a stale CA if setup fails. Preserve the inode granted by the sandbox.
-        open(ca_cert_output, "wb").close()
-
+    if https_httpd:
         try:
-            _setup_aia_test_servers(httpd.socket.getsockname()[1], ca_cert_output)
-        except Exception as error:
-            logging.exception("AIA test setup failed: %s", error)
+            ipv6_servers.append(
+                start_mirror_server(
+                    https_httpd, TestHTTPSServerIPv6, ("::1", https_httpd.server_address[1]), https_httpd.ssl_context
+                )
+            )
+        except OSError as error:
+            logging.warning("Not serving HTTPS on ::1: %s", error)
 
-    print(httpd.socket.getsockname()[1])
+    https_ports = [https_httpd.socket.getsockname()[1]] if https_httpd else []
+    httpd.wpt.configure_server([httpd.socket.getsockname()[1], alternate_httpd.socket.getsockname()[1]], https_ports)
+
+    # The first line holds the HTTP port, followed by the HTTPS port if there is one.
+    print(" ".join(str(port) for port in [httpd.socket.getsockname()[1], *https_ports]))
     sys.stdout.flush()
 
     if exit_when_stdin_closes:
@@ -988,6 +1051,8 @@ def start_server(port, static_directory, ca_cert_output=None, exit_when_stdin_cl
         for server in ipv6_servers:
             server.server_close()
         alternate_httpd.server_close()
+        if https_httpd:
+            https_httpd.server_close()
         httpd.server_close()
 
 

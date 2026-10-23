@@ -186,6 +186,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool disable_scrollbar_painting = false;
     bool disable_sandbox = false;
     StringView echo_server_port_string_view {};
+    StringView https_echo_server_port_string_view {};
     StringView default_time_zone {};
     bool file_origins_are_tuple_origins = false;
 
@@ -205,6 +206,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
+    args_parser.add_option(https_echo_server_port_string_view, "HTTPS echo server port used in test internals", "https-echo-server-port", 0, "https_echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
@@ -259,6 +261,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (!echo_server_port_string_view.is_empty()) {
         if (auto maybe_echo_server_port = echo_server_port_string_view.to_number<u16>(); maybe_echo_server_port.has_value())
             Web::Internals::Internals::set_echo_server_port(maybe_echo_server_port.value());
+        else
+            VERIFY_NOT_REACHED();
+    }
+
+    if (!https_echo_server_port_string_view.is_empty()) {
+        if (auto maybe_https_echo_server_port = https_echo_server_port_string_view.to_number<u16>(); maybe_https_echo_server_port.has_value())
+            Web::Internals::Internals::set_https_echo_server_port(maybe_https_echo_server_port.value());
         else
             VERIFY_NOT_REACHED();
     }

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 25 tests
 
-23 Pass
-2 Fail
+25 Pass
 Pass	Cache.match with no matching entries
 Pass	Cache.match with URL
 Pass	Cache.match with Request
@@ -25,7 +24,7 @@ Pass	Cache.match with POST Request
 Pass	Cache.match with a non-2xx Response
 Pass	Cache.match with a network error Response
 Pass	Cache produces large Responses that can be cloned and read correctly.
-Fail	cors-exposed header should be stored correctly.
+Pass	cors-exposed header should be stored correctly.
 Pass	MIME type should be set from content-header correctly.
 Pass	MIME type should reflect Content-Type headers of response.
-Fail	Cache.match ignores vary headers on opaque response.
+Pass	Cache.match ignores vary headers on opaque response.

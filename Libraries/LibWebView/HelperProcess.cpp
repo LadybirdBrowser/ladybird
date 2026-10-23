@@ -344,6 +344,11 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
         arguments.append(ByteString::number(maybe_echo_server_port.value()));
     }
 
+    if (auto const maybe_https_echo_server_port = web_content_options.https_echo_server_port; maybe_https_echo_server_port.has_value()) {
+        arguments.append("--https-echo-server-port"sv);
+        arguments.append(ByteString::number(maybe_https_echo_server_port.value()));
+    }
+
     if (web_content_options.default_time_zone.has_value()) {
         arguments.append("--default-time-zone");
         arguments.append(web_content_options.default_time_zone.value());

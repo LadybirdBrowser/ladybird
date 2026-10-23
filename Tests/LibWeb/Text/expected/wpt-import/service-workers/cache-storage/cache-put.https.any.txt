@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 27 tests
 
-24 Pass
-3 Fail
+25 Pass
+2 Fail
 Pass	Cache.put called with simple Request and Response
 Pass	Cache.put called with Request and Response from fetch()
 Pass	Cache.put with Request without a body
@@ -27,7 +27,7 @@ Pass	Cache.put with a used response body
 Pass	getReader() after Cache.put
 Pass	Cache.put with a VARY:* Response
 Pass	Cache.put with an embedded VARY:* Response
-Fail	Cache.put with a VARY:* opaque response should not reject
+Pass	Cache.put with a VARY:* opaque response should not reject
 Pass	Cache.put should store Response.redirect() correctly
 Pass	Cache.put called with simple Request and blob Response
 Pass	Cache.put called with simple Request and form data Response

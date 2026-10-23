@@ -8,7 +8,7 @@ function get_host_info() {
 
   var HTTP_PORT = ECHO_SERVER_PORT;
   var HTTP_PORT2 = ECHO_SERVER_PORT;
-  var HTTPS_PORT = '443';
+  var HTTPS_PORT = String(internals.getHttpsEchoServerPort());
   var HTTPS_PORT2 = '8443';
   var PROTOCOL = self.location.protocol;
   var IS_HTTPS = (PROTOCOL == "https:");
