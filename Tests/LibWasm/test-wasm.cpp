@@ -585,7 +585,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
     if (values.size() == 1)
         return to_js_value(vm, values.first(), type.results.first());
 
-    Vector<JS::Value> js_values;
+    GC::RootVector<JS::Value> js_values;
     for (size_t result_index = 0; result_index < values.size(); ++result_index)
         js_values.append(TRY(to_js_value(vm, values[result_index], type.results[result_index])));
     return JS::Array::create_from(*vm.current_realm(), js_values);
