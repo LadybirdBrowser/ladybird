@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 9 tests
 
-3 Pass
-6 Fail
+9 Pass
 Pass	copy: dispatching an Event at a <math> element must trigger element.oncopy
-Fail	oncopy: the content attribute must be compiled into a function as the corresponding property
-Fail	oncopy: dynamic changes on the attribute
+Pass	oncopy: the content attribute must be compiled into a function as the corresponding property
+Pass	oncopy: dynamic changes on the attribute
 Pass	cut: dispatching an Event at a <math> element must trigger element.oncut
-Fail	oncut: the content attribute must be compiled into a function as the corresponding property
-Fail	oncut: dynamic changes on the attribute
+Pass	oncut: the content attribute must be compiled into a function as the corresponding property
+Pass	oncut: dynamic changes on the attribute
 Pass	paste: dispatching an Event at a <math> element must trigger element.onpaste
-Fail	onpaste: the content attribute must be compiled into a function as the corresponding property
-Fail	onpaste: dynamic changes on the attribute
+Pass	onpaste: the content attribute must be compiled into a function as the corresponding property
+Pass	onpaste: dynamic changes on the attribute
