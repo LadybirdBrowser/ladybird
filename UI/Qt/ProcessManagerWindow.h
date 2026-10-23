@@ -11,6 +11,7 @@
 #include <LibWebView/Forward.h>
 
 #include <QDialog>
+#include <QIcon>
 
 class QAction;
 class QLabel;
@@ -50,6 +51,10 @@ private:
     QLabel* m_process_count { nullptr };
     QLabel* m_summary { nullptr };
     QTimer* m_timer { nullptr };
+    QIcon m_browser_icon;
+    QIcon m_web_content_icon;
+    QIcon m_service_icon;
+    QIcon m_spare_icon;
 };
 
 }
