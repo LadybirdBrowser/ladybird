@@ -12,6 +12,9 @@
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <LibMediaCodecs/FFmpeg/FFmpegVulkanVideoDecoder.h>
 #endif
+#ifdef AK_OS_WINDOWS
+#    include <LibMediaCodecs/WindowsMediaFoundation/WindowsMediaFoundationVideoDecoder.h>
+#endif
 
 namespace Media {
 
@@ -29,11 +32,24 @@ static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_vulkan_video_decoder(C
 }
 #endif
 
+#ifdef AK_OS_WINDOWS
+static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_windows_media_foundation_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+{
+    return NonnullOwnPtr<VideoDecoder> { TRY(WindowsMediaFoundation::WindowsMediaFoundationVideoDecoder::try_create(codec_id, codec_initialization_data)) };
+}
+#endif
+
 ReadonlySpan<VideoDecoderRegistration> hardware_video_decoders()
 {
 #if defined(AK_OS_MACOS)
     static constexpr Array decoders {
         VideoDecoderRegistration { VideoToolbox::VideoToolboxVideoDecoder::capabilities, create_videotoolbox_video_decoder },
+    };
+    return decoders;
+#elif defined(AK_OS_WINDOWS)
+    // These are the system's software decoders until the transforms are given a D3D11 device to decode on.
+    static constexpr Array decoders {
+        VideoDecoderRegistration { WindowsMediaFoundation::WindowsMediaFoundationVideoDecoder::capabilities, create_windows_media_foundation_video_decoder },
     };
     return decoders;
 #elif defined(USE_VULKAN_DMABUF_IMAGES)

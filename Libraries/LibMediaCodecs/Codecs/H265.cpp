@@ -235,9 +235,9 @@ Optional<H265::SequenceParameterSet> H265::parse_sequence_parameter_set(Readonly
     auto sps_seq_parameter_set_id = reader.read_unsigned_exp_golomb();
     auto chroma_format_idc = reader.read_unsigned_exp_golomb();
     if (chroma_format_idc == 3)
-        reader.skip_bits(1);               // separate_colour_plane_flag
-    reader.read_unsigned_exp_golomb();     // pic_width_in_luma_samples
-    reader.read_unsigned_exp_golomb();     // pic_height_in_luma_samples
+        reader.skip_bits(1); // separate_colour_plane_flag
+    auto pic_width_in_luma_samples = reader.read_unsigned_exp_golomb();
+    auto pic_height_in_luma_samples = reader.read_unsigned_exp_golomb();
     if (reader.read_bit()) {               // conformance_window_flag
         reader.read_unsigned_exp_golomb(); // conf_win_left_offset
         reader.read_unsigned_exp_golomb(); // conf_win_right_offset
@@ -268,6 +268,8 @@ Optional<H265::SequenceParameterSet> H265::parse_sequence_parameter_set(Readonly
         .sps_max_sub_layers_minus1 = sps_max_sub_layers_minus1,
         .sps_max_num_reorder_pics = static_cast<u8>(min(sps_max_num_reorder_pics, static_cast<u32>(MAXIMUM_REORDER_FRAME_COUNT))),
         .bit_depth_luma = static_cast<u8>(bit_depth_luma_minus8 + 8),
+        .pic_width_in_luma_samples = pic_width_in_luma_samples,
+        .pic_height_in_luma_samples = pic_height_in_luma_samples,
     };
 }
 

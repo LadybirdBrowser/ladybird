@@ -52,6 +52,11 @@ if (APPLE)
         TestVideoToolboxDecode.cpp
     )
 endif()
+if (WIN32)
+    list(APPEND TEST_SOURCES
+        TestWindowsMediaFoundationDecode.cpp
+    )
+endif()
 if (LINUX)
     list(APPEND TEST_SOURCES TestH264Decode.cpp)
 
