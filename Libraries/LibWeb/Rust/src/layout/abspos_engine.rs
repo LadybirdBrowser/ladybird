@@ -762,7 +762,42 @@ impl AbsposEngine<'_> {
         (Some(resolved), default_scroll_shift)
     }
 
-    fn span_all_position_area_layout_inputs(
+    /// https://drafts.csswg.org/css-anchor-position-1/#position-area
+    /// The used value of any auto inset properties [...] resolves to 0.
+    /// NB: Only a stretched axis needs its auto insets as 0 here: the other alignments size the box to fit its
+    ///     contents, and then place it within the position area themselves.
+    fn position_area_stretch_insets(
+        &self,
+        node: Node,
+        resolved: Option<formatting_context::ResolvedAnchorInsets>,
+        stretches_inline: bool,
+        stretches_block: bool,
+    ) -> Option<formatting_context::ResolvedAnchorInsets> {
+        if !stretches_inline && !stretches_block {
+            return resolved;
+        }
+        let insets = resolved.unwrap_or_default();
+        let style = self.style(node).with_resolved_insets(Some(&insets));
+        let zero_if_auto = |value: style_values::InsetValue<'_>, stretches: bool, current| {
+            if stretches && value.is_auto() {
+                Some(style_values::ResolvedInsetOverride::Pixels(CssPixels::default()))
+            } else {
+                current
+            }
+        };
+        Some(formatting_context::ResolvedAnchorInsets {
+            top: zero_if_auto(style.inset_top(), stretches_block, insets.top),
+            right: zero_if_auto(style.inset_right(), stretches_inline, insets.right),
+            bottom: zero_if_auto(style.inset_bottom(), stretches_block, insets.bottom),
+            left: zero_if_auto(style.inset_left(), stretches_inline, insets.left),
+        })
+    }
+
+    /// The layout inputs a non-none position-area gives `positioned_box`: its static position rect (the default
+    /// anchor box, for anchor-center), its containing block info, the geometry of its new containing block, its default
+    /// anchor box, and whether each of its axes (inline, then block) stretches to fill its position area.
+    #[allow(clippy::type_complexity)]
+    fn position_area_layout_inputs(
         &self,
         positioned_box: Node,
         containing_block: Node,
@@ -774,20 +809,32 @@ impl AbsposEngine<'_> {
         abspos_inputs::AbsposContainingBlockInfo,
         ContainingBlockGeometry,
         Node,
+        (bool, bool),
     )> {
         let style = self.style(positioned_box);
         let position_area = style.anchor().position_area.as_slice();
+        if position_area.is_empty() {
+            return None;
+        }
 
-        // https://drafts.csswg.org/css-anchor-position/#valdef-position-area-span-all
-        // A lone span-all applies to both axes and selects all three tracks in each axis.
-        if position_area != [position_area::SPAN_ALL]
-            && position_area != [position_area::SPAN_ALL, position_area::SPAN_ALL]
-        {
+        // https://drafts.csswg.org/css-anchor-position-1/#position-area
+        // If the box does not have a default anchor box, or is not an absolutely positioned box, this value has no
+        // effect.
+        if !style.has_position_anchor() || !self.facts(positioned_box).is_absolutely_positioned() {
             return None;
         }
-        if !style.has_position_anchor() {
-            return None;
-        }
+        let containing_block_style = self.style(containing_block);
+        let tracks = resolve_position_area_tracks(
+            position_area,
+            PositionAreaWritingMode {
+                writing_mode: containing_block_style.writing_mode(),
+                direction: containing_block_style.direction(),
+            },
+            PositionAreaWritingMode {
+                writing_mode: style.writing_mode(),
+                direction: style.direction(),
+            },
+        )?;
 
         let anchor_box = self.anchor_lookup(positioned_box, style.position_anchor_name())?;
         let anchor_rect = self.anchor_rect(
@@ -809,22 +856,39 @@ impl AbsposEngine<'_> {
             block_offset: containing_block_info.rect.offset.block_offset + containing_block_info.rect.size.block_size,
         };
 
-        // https://drafts.csswg.org/css-anchor-position/#position-area-grid-resolution
-        // The outer grid lines use the more outward edge of the pre-modification containing block and default anchor.
-        let inline_offset = containing_block_info
-            .rect
-            .offset
-            .inline_offset
-            .min(anchor_inline_offset);
-        let block_offset = containing_block_info.rect.offset.block_offset.min(anchor_block_offset);
-        let inline_end = containing_block_end.inline_offset.max(anchor_inline_end);
-        let block_end = containing_block_end.block_offset.max(anchor_block_end);
-        let inline_size = inline_end - inline_offset;
-        let block_size = block_end - block_offset;
+        // https://drafts.csswg.org/css-anchor-position-1/#position-area-grid-resolution
+        // The position-area grid is a 3×3 grid, composed of four grid lines in each axis. In order (using the writing
+        // mode of the containing block):
+        // - the start edge of the box's pre-modification containing block, or the start edge of the default anchor
+        //   box if that is more start-ward
+        // - the start edge of the default anchor box
+        // - the end edge of the default anchor box
+        // - the end edge of the box's pre-modification containing block, or the end edge of the default anchor box
+        //   if that is more end-ward.
+        // NB: The lines are kept in physical order here; the resolved tracks are physical as well.
+        let inline_lines = [
+            containing_block_info
+                .rect
+                .offset
+                .inline_offset
+                .min(anchor_inline_offset),
+            anchor_inline_offset,
+            anchor_inline_end,
+            containing_block_end.inline_offset.max(anchor_inline_end),
+        ];
+        let block_lines = [
+            containing_block_info.rect.offset.block_offset.min(anchor_block_offset),
+            anchor_block_offset,
+            anchor_block_end,
+            containing_block_end.block_offset.max(anchor_block_end),
+        ];
+        let inline_offset = inline_lines[tracks.horizontal.first as usize];
+        let inline_size = inline_lines[tracks.horizontal.last as usize + 1] - inline_offset;
+        let block_offset = block_lines[tracks.vertical.first as usize];
+        let block_size = block_lines[tracks.vertical.last as usize + 1] - block_offset;
 
-        // https://drafts.csswg.org/css-anchor-position/#position-area
-        // The selected position area becomes the box's containing block, so insets and percentage sizes resolve
-        // against this rectangle.
+        // https://drafts.csswg.org/css-anchor-position-1/#position-area
+        // Otherwise, selects a region of the position-area grid, and makes that the box's containing block.
         containing_block_info.rect = geometry::LogicalRect {
             offset: geometry::LogicalOffset {
                 inline_offset,
@@ -838,20 +902,22 @@ impl AbsposEngine<'_> {
         containing_block_info.inline_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
         containing_block_info.block_axis_mode = abspos_inputs::AbsposAxisMode::InsetFromRect;
 
-        // https://drafts.csswg.org/css-anchor-position/#position-area-alignment
-        // Selecting all three tracks changes normal self-alignment to anchor-center. Explicit alignment is unchanged.
-        if matches!(
-            containing_block_info.inline_alignment,
-            None | Some(AbsposAlignment::Normal)
-        ) {
-            containing_block_info.inline_alignment = Some(AbsposAlignment::AnchorCenter);
-        }
-        if matches!(
-            containing_block_info.block_alignment,
-            None | Some(AbsposAlignment::Normal)
-        ) {
-            containing_block_info.block_alignment = Some(AbsposAlignment::AnchorCenter);
-        }
+        // https://drafts.csswg.org/css-anchor-position-1/#position-area-alignment
+        // When position-area is not none, the used value of normal self-alignment changes depending on the
+        // <position-area> value, to align the box towards the anchor.
+        let inline_alignment = self_alignment_for_position_area(
+            style.justify_self(),
+            tracks.horizontal,
+            containing_block_style.direction() == direction::LTR,
+            style.direction() == direction::LTR,
+        );
+        let block_alignment = self_alignment_for_position_area(style.align_self(), tracks.vertical, true, true);
+        let stretches = (
+            inline_alignment == AbsposAlignment::Stretch,
+            block_alignment == AbsposAlignment::Stretch,
+        );
+        containing_block_info.inline_alignment = Some(inline_alignment);
+        containing_block_info.block_alignment = Some(block_alignment);
 
         containing_block_info.derives_from_own_computed_values = true;
 
@@ -872,7 +938,7 @@ impl AbsposEngine<'_> {
         };
 
         Some((
-            // https://drafts.csswg.org/css-anchor-position/#anchor-center
+            // https://drafts.csswg.org/css-anchor-position-1/#anchor-center
             // Express the anchor in the new containing block's coordinate space so anchor-center can center over it.
             abspos_inputs::StaticPositionRect {
                 rect: geometry::LogicalRect {
@@ -893,7 +959,265 @@ impl AbsposEngine<'_> {
             containing_block_info,
             position_area_geometry,
             anchor_box,
+            stretches,
         ))
+    }
+}
+
+/// The tracks of the position-area grid a <position-area> selects in one physical axis, counted from the left or top.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct PositionAreaTrackRange {
+    first: u8,
+    last: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct PositionAreaTracks {
+    horizontal: PositionAreaTrackRange,
+    vertical: PositionAreaTrackRange,
+}
+
+#[derive(Clone, Copy)]
+struct PositionAreaWritingMode {
+    writing_mode: u8,
+    direction: u8,
+}
+
+impl PositionAreaWritingMode {
+    fn inline_axis_is_horizontal(self) -> bool {
+        self.writing_mode == writing_mode::HORIZONTAL_TB
+    }
+
+    /// Whether the start side of the given physical axis is its left or top side.
+    fn start_is_left_or_top(self, horizontal: bool) -> bool {
+        let is_ltr = self.direction == direction::LTR;
+        match (self.writing_mode, horizontal) {
+            (writing_mode::HORIZONTAL_TB, true) => is_ltr,
+            (writing_mode::HORIZONTAL_TB, false) => true,
+            (writing_mode::VERTICAL_RL | writing_mode::SIDEWAYS_RL, true) => false,
+            (writing_mode::VERTICAL_LR | writing_mode::SIDEWAYS_LR, true) => true,
+            (writing_mode::SIDEWAYS_LR, false) => !is_ltr,
+            (_, false) => is_ltr,
+            _ => true,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PositionAreaAxis {
+    Horizontal,
+    Vertical,
+    Block,
+    Inline,
+    Ambiguous,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PositionAreaReference {
+    Physical,
+    ContainingBlock,
+    OwnWritingMode,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PositionAreaSelection {
+    Start,
+    End,
+    SpanStart,
+    SpanEnd,
+    Center,
+    All,
+}
+
+fn classify_position_area_keyword(code: u8) -> (PositionAreaAxis, PositionAreaSelection, PositionAreaReference) {
+    use PositionAreaAxis::*;
+    use PositionAreaReference::*;
+    use PositionAreaSelection::*;
+    match code {
+        position_area::LEFT => (Horizontal, Start, Physical),
+        position_area::RIGHT => (Horizontal, End, Physical),
+        position_area::SPAN_LEFT => (Horizontal, SpanStart, Physical),
+        position_area::SPAN_RIGHT => (Horizontal, SpanEnd, Physical),
+        position_area::X_START => (Horizontal, Start, ContainingBlock),
+        position_area::X_END => (Horizontal, End, ContainingBlock),
+        position_area::SPAN_X_START => (Horizontal, SpanStart, ContainingBlock),
+        position_area::SPAN_X_END => (Horizontal, SpanEnd, ContainingBlock),
+        position_area::SELF_X_START => (Horizontal, Start, OwnWritingMode),
+        position_area::SELF_X_END => (Horizontal, End, OwnWritingMode),
+        position_area::SPAN_SELF_X_START => (Horizontal, SpanStart, OwnWritingMode),
+        position_area::SPAN_SELF_X_END => (Horizontal, SpanEnd, OwnWritingMode),
+        position_area::TOP => (Vertical, Start, Physical),
+        position_area::BOTTOM => (Vertical, End, Physical),
+        position_area::SPAN_TOP => (Vertical, SpanStart, Physical),
+        position_area::SPAN_BOTTOM => (Vertical, SpanEnd, Physical),
+        position_area::Y_START => (Vertical, Start, ContainingBlock),
+        position_area::Y_END => (Vertical, End, ContainingBlock),
+        position_area::SPAN_Y_START => (Vertical, SpanStart, ContainingBlock),
+        position_area::SPAN_Y_END => (Vertical, SpanEnd, ContainingBlock),
+        position_area::SELF_Y_START => (Vertical, Start, OwnWritingMode),
+        position_area::SELF_Y_END => (Vertical, End, OwnWritingMode),
+        position_area::SPAN_SELF_Y_START => (Vertical, SpanStart, OwnWritingMode),
+        position_area::SPAN_SELF_Y_END => (Vertical, SpanEnd, OwnWritingMode),
+        position_area::BLOCK_START => (Block, Start, ContainingBlock),
+        position_area::BLOCK_END => (Block, End, ContainingBlock),
+        position_area::SPAN_BLOCK_START => (Block, SpanStart, ContainingBlock),
+        position_area::SPAN_BLOCK_END => (Block, SpanEnd, ContainingBlock),
+        position_area::INLINE_START => (Inline, Start, ContainingBlock),
+        position_area::INLINE_END => (Inline, End, ContainingBlock),
+        position_area::SPAN_INLINE_START => (Inline, SpanStart, ContainingBlock),
+        position_area::SPAN_INLINE_END => (Inline, SpanEnd, ContainingBlock),
+        position_area::SELF_BLOCK_START => (Block, Start, OwnWritingMode),
+        position_area::SELF_BLOCK_END => (Block, End, OwnWritingMode),
+        position_area::SPAN_SELF_BLOCK_START => (Block, SpanStart, OwnWritingMode),
+        position_area::SPAN_SELF_BLOCK_END => (Block, SpanEnd, OwnWritingMode),
+        position_area::SELF_INLINE_START => (Inline, Start, OwnWritingMode),
+        position_area::SELF_INLINE_END => (Inline, End, OwnWritingMode),
+        position_area::SPAN_SELF_INLINE_START => (Inline, SpanStart, OwnWritingMode),
+        position_area::SPAN_SELF_INLINE_END => (Inline, SpanEnd, OwnWritingMode),
+        position_area::START => (Ambiguous, Start, ContainingBlock),
+        position_area::END => (Ambiguous, End, ContainingBlock),
+        position_area::SPAN_START => (Ambiguous, SpanStart, ContainingBlock),
+        position_area::SPAN_END => (Ambiguous, SpanEnd, ContainingBlock),
+        position_area::SELF_START => (Ambiguous, Start, OwnWritingMode),
+        position_area::SELF_END => (Ambiguous, End, OwnWritingMode),
+        position_area::SPAN_SELF_START => (Ambiguous, SpanStart, OwnWritingMode),
+        position_area::SPAN_SELF_END => (Ambiguous, SpanEnd, OwnWritingMode),
+        position_area::SPAN_ALL => (Ambiguous, All, ContainingBlock),
+        _ => (Ambiguous, Center, ContainingBlock),
+    }
+}
+
+/// https://drafts.csswg.org/css-anchor-position-1/#position-area-syntax
+fn resolve_position_area_tracks(
+    codes: &[u8],
+    containing_block: PositionAreaWritingMode,
+    own: PositionAreaWritingMode,
+) -> Option<PositionAreaTracks> {
+    let writing_mode_for = |reference: PositionAreaReference| match reference {
+        PositionAreaReference::OwnWritingMode => own,
+        PositionAreaReference::Physical | PositionAreaReference::ContainingBlock => containing_block,
+    };
+    // Whether the keyword specifies the horizontal axis, if it is unambiguous about its axis.
+    let axis_is_horizontal = |code: u8| {
+        let (axis, _, reference) = classify_position_area_keyword(code);
+        match axis {
+            PositionAreaAxis::Horizontal => Some(true),
+            PositionAreaAxis::Vertical => Some(false),
+            PositionAreaAxis::Inline => Some(writing_mode_for(reference).inline_axis_is_horizontal()),
+            PositionAreaAxis::Block => Some(!writing_mode_for(reference).inline_axis_is_horizontal()),
+            PositionAreaAxis::Ambiguous => None,
+        }
+    };
+    // INTEROP: When both keywords are self-* keywords, other browsers use the block axis of the box's own writing
+    //          mode. This keeps a value like self-block-end self-inline-start working once it computes to its short
+    //          form, self-end self-start.
+    let (_, _, first_reference) = classify_position_area_keyword(codes[0]);
+    let block_axis_is_horizontal = !writing_mode_for(first_reference).inline_axis_is_horizontal();
+
+    if codes.is_empty() {
+        return None;
+    }
+
+    // If only a single keyword is given, it behaves as if the second keyword is span-all if the given keyword is
+    // unambiguous about its axis; otherwise, it behaves as if the given keyword was repeated.
+    let (first, second) = match *codes {
+        [first] if axis_is_horizontal(first).is_some() => (first, position_area::SPAN_ALL),
+        [first] => (first, first),
+        [first, second] => (first, second),
+        _ => return None,
+    };
+
+    // If the other keyword is unambiguous about its axis, then the ambiguous keyword is referring to the opposite
+    // axis. If both keywords are ambiguous, however, then the first refers to the block axis of the box's
+    // containing block, and the second to the inline axis.
+    let first_is_horizontal = match (axis_is_horizontal(first), axis_is_horizontal(second)) {
+        (Some(first), Some(second)) if first == second => return None,
+        (Some(first), _) => first,
+        (None, Some(second)) => !second,
+        (None, None) => block_axis_is_horizontal,
+    };
+
+    let range_for = |code: u8, horizontal: bool| {
+        let (_, selection, reference) = classify_position_area_keyword(code);
+        let (first, last) = match selection {
+            PositionAreaSelection::Start => (0, 0),
+            PositionAreaSelection::End => (2, 2),
+            PositionAreaSelection::SpanStart => (0, 1),
+            PositionAreaSelection::SpanEnd => (1, 2),
+            PositionAreaSelection::Center => (1, 1),
+            PositionAreaSelection::All => (0, 2),
+        };
+        let start_is_left_or_top = reference == PositionAreaReference::Physical
+            || writing_mode_for(reference).start_is_left_or_top(horizontal);
+        if start_is_left_or_top {
+            PositionAreaTrackRange { first, last }
+        } else {
+            PositionAreaTrackRange {
+                first: 2 - last,
+                last: 2 - first,
+            }
+        }
+    };
+    let first_range = range_for(first, first_is_horizontal);
+    let second_range = range_for(second, !first_is_horizontal);
+    Some(if first_is_horizontal {
+        PositionAreaTracks {
+            horizontal: first_range,
+            vertical: second_range,
+        }
+    } else {
+        PositionAreaTracks {
+            horizontal: second_range,
+            vertical: first_range,
+        }
+    })
+}
+
+/// The used self-alignment of a box with a non-none position-area in one physical axis, where Start and End are
+/// the left/top and right/bottom sides.
+fn self_alignment_for_position_area(
+    computed: u8,
+    tracks: PositionAreaTrackRange,
+    containing_block_start_is_left_or_top: bool,
+    own_start_is_left_or_top: bool,
+) -> AbsposAlignment {
+    let towards_start = |start_is_left_or_top: bool| {
+        if start_is_left_or_top {
+            AbsposAlignment::Start
+        } else {
+            AbsposAlignment::End
+        }
+    };
+    let towards_end = |start_is_left_or_top: bool| {
+        if start_is_left_or_top {
+            AbsposAlignment::End
+        } else {
+            AbsposAlignment::Start
+        }
+    };
+    // NB: align-self and justify-self share their keyword values, except for left and right.
+    match computed {
+        justify_self::CENTER => AbsposAlignment::Center,
+        justify_self::STRETCH => AbsposAlignment::Stretch,
+        justify_self::START | justify_self::FLEX_START | justify_self::BASELINE => {
+            towards_start(containing_block_start_is_left_or_top)
+        }
+        justify_self::END | justify_self::FLEX_END => towards_end(containing_block_start_is_left_or_top),
+        justify_self::SELF_START => towards_start(own_start_is_left_or_top),
+        justify_self::SELF_END => towards_end(own_start_is_left_or_top),
+        justify_self::LEFT => AbsposAlignment::Start,
+        justify_self::RIGHT => AbsposAlignment::End,
+        // https://drafts.csswg.org/css-anchor-position-1/#position-area-alignment
+        // - If the only the center track in an axis is selected, the default alignment in that axis is center.
+        // - If all three tracks are selected, the default alignment in that axis is anchor-center.
+        // - Otherwise, the default alignment in that axis is toward the non-specified side track: if it's
+        //   specifying the “start” track of its axis, the default alignment in that axis is end; etc.
+        _ => match (tracks.first, tracks.last) {
+            (1, 1) => AbsposAlignment::Center,
+            (0, 2) => AbsposAlignment::AnchorCenter,
+            (0, _) => AbsposAlignment::End,
+            _ => AbsposAlignment::Start,
+        },
     }
 }
 
@@ -2125,56 +2449,65 @@ impl<'pass> AbsposEngine<'pass> {
         {
             let used = self.used(node);
             let collapsed = used.uses_collapsing_borders_model.get();
+            // https://drafts.csswg.org/css-anchor-position-1/#position-area-alignment
+            // NB: A position area aligns the box within its inset-modified containing block even when both insets
+            //     in an axis are specified.
+            let aligns_with_insets = inputs.containing_block_info.derives_from_own_computed_values;
+            let alignment_insets = |start: style_values::InsetValue<'_>, end: style_values::InsetValue<'_>, basis| {
+                if start.is_auto() && end.is_auto() {
+                    Some((CssPixels::default(), CssPixels::default()))
+                } else if aligns_with_insets && !start.is_auto() && !end.is_auto() {
+                    Some((start.to_px(basis), end.to_px(basis)))
+                } else {
+                    None
+                }
+            };
             if let Some(inline_alignment) = inputs.containing_block_info.inline_alignment
-                && style.inset_left().is_auto()
-                && style.inset_right().is_auto()
+                && let Some((start_inset, end_inset)) = alignment_insets(
+                    style.inset_left(),
+                    style.inset_right(),
+                    containing_block_size.inline_size,
+                )
             {
-                let available = containing_block_size.inline_size - used.margin_box_inline_size(collapsed);
-                match inline_alignment {
+                let margin_box_size = used.margin_box_inline_size(collapsed);
+                let available = containing_block_size.inline_size - start_inset - end_inset - margin_box_size;
+                let inset = match inline_alignment {
                     AbsposAlignment::AnchorCenter => {
-                        let inset = self.static_offset(node, inputs.static_position_rect).inline_offset;
-                        used.inset_left.set(inset);
-                        used.inset_right.set(available - inset);
+                        Some(self.static_offset(node, inputs.static_position_rect).inline_offset)
                     }
-                    AbsposAlignment::Center => {
-                        used.inset_left.set(available / 2);
-                        used.inset_right.set(available / 2);
-                    }
-                    AbsposAlignment::Start => {
-                        used.inset_left.set(CssPixels::default());
-                        used.inset_right.set(available);
-                    }
-                    AbsposAlignment::End => {
-                        used.inset_left.set(available);
-                        used.inset_right.set(CssPixels::default());
-                    }
-                    _ => {}
+                    AbsposAlignment::Center => Some(start_inset + available / 2),
+                    AbsposAlignment::Start => Some(start_inset),
+                    AbsposAlignment::End => Some(start_inset + available),
+                    _ => None,
+                };
+                if let Some(inset) = inset {
+                    used.inset_left.set(inset);
+                    used.inset_right
+                        .set(containing_block_size.inline_size - inset - margin_box_size);
                 }
             }
             if let Some(block_alignment) = inputs.containing_block_info.block_alignment
-                && style.inset_top().is_auto()
-                && style.inset_bottom().is_auto()
+                && let Some((start_inset, end_inset)) = alignment_insets(
+                    style.inset_top(),
+                    style.inset_bottom(),
+                    containing_block_size.block_size,
+                )
             {
-                let available = containing_block_size.block_size - used.margin_box_block_size(collapsed);
-                match block_alignment {
+                let margin_box_size = used.margin_box_block_size(collapsed);
+                let available = containing_block_size.block_size - start_inset - end_inset - margin_box_size;
+                let inset = match block_alignment {
                     AbsposAlignment::AnchorCenter => {
-                        let inset = self.static_offset(node, inputs.static_position_rect).block_offset;
-                        used.inset_top.set(inset);
-                        used.inset_bottom.set(available - inset);
+                        Some(self.static_offset(node, inputs.static_position_rect).block_offset)
                     }
-                    AbsposAlignment::Center => {
-                        used.inset_top.set(available / 2);
-                        used.inset_bottom.set(available / 2);
-                    }
-                    AbsposAlignment::Start | AbsposAlignment::SelfStart => {
-                        used.inset_top.set(CssPixels::default());
-                        used.inset_bottom.set(available);
-                    }
-                    AbsposAlignment::End | AbsposAlignment::SelfEnd => {
-                        used.inset_top.set(available);
-                        used.inset_bottom.set(CssPixels::default());
-                    }
-                    _ => {}
+                    AbsposAlignment::Center => Some(start_inset + available / 2),
+                    AbsposAlignment::Start | AbsposAlignment::SelfStart => Some(start_inset),
+                    AbsposAlignment::End | AbsposAlignment::SelfEnd => Some(start_inset + available),
+                    _ => None,
+                };
+                if let Some(inset) = inset {
+                    used.inset_top.set(inset);
+                    used.inset_bottom
+                        .set(containing_block_size.block_size - inset - margin_box_size);
                 }
             }
         }
@@ -2273,7 +2606,7 @@ impl<'pass> AbsposEngine<'pass> {
                 None,
             )
         });
-        let position_area_inputs = self.span_all_position_area_layout_inputs(
+        let position_area_inputs = self.position_area_layout_inputs(
             child_box,
             child.containing_block(),
             &containing_block_geometry,
@@ -2285,6 +2618,7 @@ impl<'pass> AbsposEngine<'pass> {
             position_area_containing_block_info,
             position_area_geometry,
             anchor_box,
+            (stretches_inline, stretches_block),
         )) = position_area_inputs
         {
             child.static_position_rect = static_position_rect;
@@ -2295,6 +2629,7 @@ impl<'pass> AbsposEngine<'pass> {
                 child.coordinate_space_box,
                 Some(anchor_box),
             );
+            let resolved = self.position_area_stretch_insets(child_box, resolved, stretches_inline, stretches_block);
             (position_area_containing_block_info, resolved)
         } else {
             let resolved = self.resolve_anchor_insets(

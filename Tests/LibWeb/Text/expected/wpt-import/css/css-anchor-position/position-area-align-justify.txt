@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-14 Fail
-Fail	Offsets for position-area: span-all
-Fail	Offsets for position-area: top left
-Fail	Offsets for position-area: top center
-Fail	Offsets for position-area: top right
-Fail	Offsets for position-area: center left
-Fail	Offsets for position-area: center center
-Fail	Offsets for position-area: center right
-Fail	Offsets for position-area: bottom left
-Fail	Offsets for position-area: bottom center
-Fail	Offsets for position-area: bottom right
-Fail	Offsets for position-area: top span-left
-Fail	Offsets for position-area: top span-right
-Fail	Offsets for position-area: span-top left
-Fail	Offsets for position-area: span-bottom left
+14 Pass
+Pass	Offsets for position-area: span-all
+Pass	Offsets for position-area: top left
+Pass	Offsets for position-area: top center
+Pass	Offsets for position-area: top right
+Pass	Offsets for position-area: center left
+Pass	Offsets for position-area: center center
+Pass	Offsets for position-area: center right
+Pass	Offsets for position-area: bottom left
+Pass	Offsets for position-area: bottom center
+Pass	Offsets for position-area: bottom right
+Pass	Offsets for position-area: top span-left
+Pass	Offsets for position-area: top span-right
+Pass	Offsets for position-area: span-top left
+Pass	Offsets for position-area: span-bottom left
