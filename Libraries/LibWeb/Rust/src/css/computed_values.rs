@@ -957,6 +957,12 @@ impl_computed_payload_clone_and_eq!(TransformValues {
     perspective_px,
     perspective_origin_x,
     perspective_origin_y,
+    has_offset_path,
+    offset_path,
+    offset_distance,
+    offset_position,
+    offset_anchor,
+    offset_rotate,
 });
 impl_computed_payload_clone_and_eq!(ComputedVerticalAlign {
     is_keyword,
@@ -2182,6 +2188,11 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             SCALE => RequireKeyword(k::NONE),
             PERSPECTIVE => RequireKeyword(k::NONE),
             PERSPECTIVE_ORIGIN => RequireInitialValue,
+            OFFSET_PATH => RequireKeyword(k::NONE),
+            OFFSET_DISTANCE => RequireZeroPx,
+            OFFSET_POSITION => RequireKeyword(k::NORMAL),
+            OFFSET_ANCHOR => RequireKeyword(k::AUTO),
+            OFFSET_ROTATE => RequireKeyword(k::AUTO),
         },
         group_index::MASK => fields! { MaskValues:
             MASK_IMAGE => RequireKeyword(k::NONE),
@@ -3080,6 +3091,11 @@ impl TextResetValues {
 
 impl TransformValues {
     fn initial() -> Self {
+        use crate::css::property_metadata::property_id;
+
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
         Self {
             transformations: ComputedStyleValueHandle::empty(),
             resolved_transforms: RetainedComputedResolvedTransformList::from_vec(Vec::new()),
@@ -3099,6 +3115,12 @@ impl TransformValues {
             perspective_px: 0,
             perspective_origin_x: ComputedStyleValueHandle::percentage(50.0),
             perspective_origin_y: ComputedStyleValueHandle::percentage(50.0),
+            has_offset_path: false,
+            offset_path: initial(property_id::OFFSET_PATH),
+            offset_distance: initial(property_id::OFFSET_DISTANCE),
+            offset_position: initial(property_id::OFFSET_POSITION),
+            offset_anchor: initial(property_id::OFFSET_ANCHOR),
+            offset_rotate: initial(property_id::OFFSET_ROTATE),
         }
     }
 }

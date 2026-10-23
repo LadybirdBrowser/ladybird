@@ -236,6 +236,8 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
         return adopt_ref(*new (nothrow) PositionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Ratio:
         return adopt_ref(*new (nothrow) RatioStyleValue(data));
+    case StyleValueFFI::StyleValueData::Tag::Ray:
+        return adopt_ref(*new (nothrow) StyleValue(Type::Ray, data));
     case StyleValueFFI::StyleValueData::Tag::Rect:
         return adopt_ref(*new (nothrow) StyleValue(Type::Rect, data));
     case StyleValueFFI::StyleValueData::Tag::RepeatStyle:

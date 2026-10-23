@@ -253,6 +253,11 @@ min-width: auto
 mix-blend-mode: normal
 object-fit: fill
 object-position: 50% 50%
+offset-anchor: auto
+offset-distance: 0px
+offset-path: none
+offset-position: normal
+offset-rotate: auto
 opacity: 1
 order: 0
 outline-color: rgb(0, 0, 0)
@@ -339,7 +344,7 @@ top: auto
 touch-action: auto
 transform: none
 transform-box: view-box
-transform-origin: 392px 2216.5px
+transform-origin: 392px 2249px
 transform-style: flat
 transition-behavior: normal
 transition-delay: 0s

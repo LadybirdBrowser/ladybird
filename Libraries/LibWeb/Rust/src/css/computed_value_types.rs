@@ -734,6 +734,13 @@ pub struct TransformValues {
     pub perspective_px: i32,
     pub perspective_origin_x: ComputedStyleValueHandle,
     pub perspective_origin_y: ComputedStyleValueHandle,
+    /// Whether offset-path is not none, which is all elements without an offset path pay for.
+    pub has_offset_path: bool,
+    pub offset_path: ComputedStyleValueHandle,
+    pub offset_distance: ComputedStyleValueHandle,
+    pub offset_position: ComputedStyleValueHandle,
+    pub offset_anchor: ComputedStyleValueHandle,
+    pub offset_rotate: ComputedStyleValueHandle,
 }
 
 /// One paint-ready CSS filter operation.

@@ -1283,6 +1283,10 @@ fn build_transform_group(
         };
         ComputedStyleValueHandle::from_retained(offset)
     };
+    let has_offset_path = values
+        .value(property_id::OFFSET_PATH)
+        .is_some_and(|value| !crate::css::style_value::is_none_keyword(value));
+
     let perspective_origin_x = position_offset(edge_x);
     let perspective_origin_y = position_offset(edge_y);
 
@@ -1302,6 +1306,12 @@ fn build_transform_group(
             payload.perspective_px = perspective_px;
             payload.perspective_origin_x = perspective_origin_x;
             payload.perspective_origin_y = perspective_origin_y;
+            payload.has_offset_path = has_offset_path;
+            payload.offset_path = retained(property_id::OFFSET_PATH);
+            payload.offset_distance = retained(property_id::OFFSET_DISTANCE);
+            payload.offset_position = retained(property_id::OFFSET_POSITION);
+            payload.offset_anchor = retained(property_id::OFFSET_ANCHOR);
+            payload.offset_rotate = retained(property_id::OFFSET_ROTATE);
         },
         parent,
     )

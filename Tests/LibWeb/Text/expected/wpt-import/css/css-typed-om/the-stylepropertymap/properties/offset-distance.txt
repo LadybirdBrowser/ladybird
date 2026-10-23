@@ -2,21 +2,20 @@ Harness status: OK
 
 Found 31 tests
 
-18 Pass
-13 Fail
-Fail	Can set 'offset-distance' to CSS-wide keywords: initial
-Fail	Can set 'offset-distance' to CSS-wide keywords: inherit
-Fail	Can set 'offset-distance' to CSS-wide keywords: unset
-Fail	Can set 'offset-distance' to CSS-wide keywords: revert
-Fail	Can set 'offset-distance' to var() references:  var(--A)
-Fail	Can set 'offset-distance' to a length: 0px
-Fail	Can set 'offset-distance' to a length: -3.14em
-Fail	Can set 'offset-distance' to a length: 3.14cm
-Fail	Can set 'offset-distance' to a length: calc(0px + 0em)
-Fail	Can set 'offset-distance' to a percent: 0%
-Fail	Can set 'offset-distance' to a percent: -3.14%
-Fail	Can set 'offset-distance' to a percent: 3.14%
-Fail	Can set 'offset-distance' to a percent: calc(0% + 0%)
+31 Pass
+Pass	Can set 'offset-distance' to CSS-wide keywords: initial
+Pass	Can set 'offset-distance' to CSS-wide keywords: inherit
+Pass	Can set 'offset-distance' to CSS-wide keywords: unset
+Pass	Can set 'offset-distance' to CSS-wide keywords: revert
+Pass	Can set 'offset-distance' to var() references:  var(--A)
+Pass	Can set 'offset-distance' to a length: 0px
+Pass	Can set 'offset-distance' to a length: -3.14em
+Pass	Can set 'offset-distance' to a length: 3.14cm
+Pass	Can set 'offset-distance' to a length: calc(0px + 0em)
+Pass	Can set 'offset-distance' to a percent: 0%
+Pass	Can set 'offset-distance' to a percent: -3.14%
+Pass	Can set 'offset-distance' to a percent: 3.14%
+Pass	Can set 'offset-distance' to a percent: calc(0% + 0%)
 Pass	Setting 'offset-distance' to a time: 0s throws TypeError
 Pass	Setting 'offset-distance' to a time: -3.14ms throws TypeError
 Pass	Setting 'offset-distance' to a time: 3.14s throws TypeError

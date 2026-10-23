@@ -2199,6 +2199,15 @@ pub enum StyleValueData {
         color_operation: u8,
         value: RetainedStyleValueData,
     },
+    /// https://drafts.csswg.org/motion-1/#ray-function
+    /// A ray() offset path: its angle, its <ray-size> keyword, whether it has `contain`, and its
+    /// optional `at <position>` (null when absent).
+    Ray {
+        size: u16,
+        contain: bool,
+        angle: RetainedStyleValueData,
+        position: RetainedStyleValueData,
+    },
 }
 
 // The kinds of a filter style value, which are C++ enum values.
@@ -2934,6 +2943,17 @@ impl StyleValueData {
                 hasher.write_u8(*kind);
                 hasher.write_u8(*color_operation);
                 write_value(hasher, value);
+            }
+            Self::Ray {
+                size,
+                contain,
+                angle,
+                position,
+            } => {
+                hasher.write_u16(*size);
+                write_bool(hasher, *contain);
+                write_value(hasher, angle);
+                write_value(hasher, position);
             }
         }
     }

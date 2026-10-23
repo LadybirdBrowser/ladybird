@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 152 tests
 
-118 Pass
-34 Fail
+120 Pass
+32 Fail
 Pass	Property scale value 'random(1, 11)'
 Fail	Property scale value 'random(--foo element-scoped, 2, 12)'
 Pass	Property scale value 'random(--foo, 3, 13)'
@@ -70,7 +70,7 @@ Pass	Property translate value 'random(10%, 1%)'
 Pass	Property translate value 'random(--identifier, 10%, 100%)'
 Pass	Property text-indent value 'random(10%, 30%)'
 Pass	Property flex-basis value 'random(10%, 30%)'
-Fail	Property offset-distance value 'random(10%, 30%)'
+Pass	Property offset-distance value 'random(10%, 30%)'
 Pass	Property shape-margin value 'random(10%, 30%)'
 Pass	Property stroke-dasharray value 'random(10%, 30%)'
 Pass	Property stroke-dashoffset value 'random(10%, 30%)'
@@ -116,7 +116,7 @@ Pass	Property color value 'light-dark(rgb(random(30, 10) random(60, 10) random(9
 Pass	Property rotate value 'random(1, 0) random(1, 0) 1 90deg'
 Pass	Property rotate value 'x random(90deg, 30deg)'
 Pass	Property corner-shape value 'superellipse(random(3, 1))'
-Fail	Property offset-path value 'ray(random(30deg, 10deg))'
+Pass	Property offset-path value 'ray(random(30deg, 10deg))'
 Fail	Shared by property 'color' with values 'color-mix(in srgb, rgb(from blue random(10, 30) random(g, g + 30) random(b, b)), rgb(random(10, 90) 0 0))', 'color-mix(in srgb, rgb(from blue random(property-index-scoped, 10, 30) random(property-index-scoped, g, g + 30) random(property-index-scoped, b, b)), rgb(random(property-index-scoped, 10, 90) 0 0))'
 Fail	Shared by property 'math-depth' with values 'add(random(1, 30000))', 'add(random(property-index-scoped, 1, 30000))'
 Fail	Shared by property 'view-transition-name' with values 'ident("myident" random(1, 300000))', 'ident("myident" random(property-index-scoped, 1, 300000))'

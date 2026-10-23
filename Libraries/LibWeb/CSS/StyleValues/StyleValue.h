@@ -89,6 +89,7 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(RadialSize, radial_size, StyleValue)                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(RandomValueSharing, random_value_sharing, StyleValue)                     \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Ratio, ratio, RatioStyleValue)                                            \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Ray, ray, StyleValue)                                                     \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Rect, rect, StyleValue)                                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(RepeatStyle, repeat_style, RepeatStyleStyleValue)                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Resolution, resolution, ResolutionStyleValue)                             \

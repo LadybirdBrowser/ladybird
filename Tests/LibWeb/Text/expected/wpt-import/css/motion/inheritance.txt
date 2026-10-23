@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 10 tests
 
-10 Fail
-Fail	Property offset-anchor has initial value auto
-Fail	Property offset-anchor does not inherit
-Fail	Property offset-distance has initial value 0px
-Fail	Property offset-distance does not inherit
-Fail	Property offset-path has initial value none
-Fail	Property offset-path does not inherit
-Fail	Property offset-position has initial value normal
-Fail	Property offset-position does not inherit
-Fail	Property offset-rotate has initial value ['auto 0deg' or 'auto']
-Fail	Property offset-rotate does not inherit
+10 Pass
+Pass	Property offset-anchor has initial value auto
+Pass	Property offset-anchor does not inherit
+Pass	Property offset-distance has initial value 0px
+Pass	Property offset-distance does not inherit
+Pass	Property offset-path has initial value none
+Pass	Property offset-path does not inherit
+Pass	Property offset-position has initial value normal
+Pass	Property offset-position does not inherit
+Pass	Property offset-rotate has initial value ['auto 0deg' or 'auto']
+Pass	Property offset-rotate does not inherit
