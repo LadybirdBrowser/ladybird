@@ -1,0 +1,1 @@
+testServerTiming(document.currentScript, [])
