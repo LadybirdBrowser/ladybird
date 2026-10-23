@@ -208,6 +208,7 @@ public:
     // Ends the fling before a wheel event from a new gesture or other input.
     Optional<Web::MouseEvent> interrupt_scroll_fling(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
     void set_scrolls_elastically(bool);
+    void set_scrollbar_track_press_jumps(bool jumps) { m_scrollbar_track_press_jumps = jumps; }
     Optional<Gfx::IntRect> advance_elastic_overscroll_rebounds(MonotonicTime frame_time);
     Optional<PendingFrame> advance_scrollbar_fades(MonotonicTime frame_time);
     // The installed scrolling state, its routing admission, and how far the given scroller is stretched, as JSON.
@@ -367,6 +368,7 @@ private:
         float primary_position { 0 };
     };
     Optional<ScrollbarPaging> m_scrollbar_paging;
+    bool m_scrollbar_track_press_jumps { false };
     RefPtr<Core::Timer> m_scrollbar_paging_timer;
     ScrollFlingController m_scroll_fling_controller;
     ElasticOverscrollController m_elastic_overscroll_controller;

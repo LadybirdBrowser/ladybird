@@ -28,11 +28,12 @@ namespace Compositor {
 static constexpr auto scrollbar_paging_initial_delay = AK::Duration::from_milliseconds(250);
 static constexpr auto scrollbar_paging_repeat_interval = AK::Duration::from_milliseconds(50);
 
-// INTEROP: The modifier that makes a press beside the thumb jump there instead of paging, as in Chromium and Firefox.
+// INTEROP: The modifier that makes a press beside the thumb page instead of jumping there or the other way around, as in
+//          Chromium and Firefox.
 #if defined(AK_OS_MACOS)
-static constexpr auto scrollbar_jump_modifier = Web::UIEvents::Mod_Alt;
+static constexpr auto scrollbar_track_press_inverting_modifier = Web::UIEvents::Mod_Alt;
 #else
-static constexpr auto scrollbar_jump_modifier = Web::UIEvents::Mod_Shift;
+static constexpr auto scrollbar_track_press_inverting_modifier = Web::UIEvents::Mod_Shift;
 #endif
 
 static Web::AsyncScrollNodeStableID viewport_stable_id_from(Compositing::AsyncScrollNodeID node_id)
@@ -425,8 +426,10 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
         if (!result.scrollbar_dragged_by_compositor.has_value())
             result.frame_to_present = frame_repainting_scrollbars_painted_by_compositor();
 
-        // A press beside the thumb pages toward the pointer, unless the modifier that jumps there instead is held.
-        if (drag->is_press_beside_thumb && !(event.modifiers & scrollbar_jump_modifier)) {
+        // A press beside the thumb pages toward the pointer or jumps there, as the platform says, and a modifier swaps
+        // the two.
+        auto press_jumps = m_scrollbar_track_press_jumps != static_cast<bool>(event.modifiers & scrollbar_track_press_inverting_modifier);
+        if (drag->is_press_beside_thumb && !press_jumps) {
             auto const& scrollbar = m_scrollbar_controller.scrollbars()[drag->scrollbar_index];
             auto scroll_offset = m_async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, m_scroll_state_snapshot);
             VERIFY(scroll_offset.has_value());

@@ -24,6 +24,7 @@
 
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
+#    include <UI/Qt/ScrollbarPreferencesMac.h>
 #endif
 
 #include <QAction>
@@ -586,6 +587,11 @@ Core::EventLoop& Application::create_platform_event_loop()
 #if defined(AK_OS_LINUX)
         Ladybird::initialize_external_url_handler(event_loop);
 #endif
+#if defined(AK_OS_MACOS)
+        Ladybird::on_scrollbar_track_press_behavior_change([this] {
+            platform_scrollbar_track_press_behavior_changed();
+        });
+#endif
         static_cast<EventLoopImplementationQt&>(event_loop.impl()).set_main_loop();
     }
 
@@ -613,6 +619,17 @@ bool Application::platform_scrolls_elastically() const
     if (!m_application)
         return false;
     return QGuiApplication::platformName() == QStringLiteral("cocoa");
+}
+
+bool Application::platform_scrollbar_track_press_jumps() const
+{
+#if defined(AK_OS_MACOS)
+    if (!m_application)
+        return false;
+    return scrollbar_track_press_jumps();
+#else
+    return false;
+#endif
 }
 
 Vector<String> Application::platform_preferred_languages() const

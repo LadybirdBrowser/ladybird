@@ -43,6 +43,7 @@ private:
     virtual void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent) override;
     virtual void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id) override;
     virtual void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) override;
+    virtual void set_scrollbar_track_press_jumps(bool jumps) override;
 
     bool is_bound_to(Web::CompositorContextId) const;
 

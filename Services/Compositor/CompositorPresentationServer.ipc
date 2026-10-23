@@ -8,4 +8,5 @@ endpoint CompositorPresentationServer
     handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event) =|
     presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id) =|
     set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) =|
+    set_scrollbar_track_press_jumps(bool jumps) =|
 }

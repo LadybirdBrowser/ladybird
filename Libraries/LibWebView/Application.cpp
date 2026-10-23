@@ -1789,6 +1789,7 @@ ErrorOr<void> Application::launch_compositor_process()
     auto transport = TRY(presentation.take_handle().create_transport());
     m_compositor_presentation_client = adopt_ref(*new CompositorPresentationClient(move(transport)));
     m_compositor_presentation_id = presentation.presentation_id();
+    m_compositor_presentation_client->async_set_scrollbar_track_press_jumps(platform_scrollbar_track_press_jumps());
     m_compositor_presentation_client->on_death = [this, presentation_client = m_compositor_presentation_client->make_weak_ptr<CompositorPresentationClient>()] {
         // NB: This runs on a later turn, by which time a new Compositor can have replaced the one this belonged to.
         if (!presentation_client || presentation_client.ptr() != m_compositor_presentation_client.ptr())
@@ -1824,6 +1825,12 @@ void Application::when_compositor_gpu_device_identity_is_known(CompositorGpuDevi
         return;
     }
     m_callbacks_awaiting_compositor_gpu_device_identity.append(move(callback));
+}
+
+void Application::platform_scrollbar_track_press_behavior_changed()
+{
+    if (m_compositor_presentation_client)
+        m_compositor_presentation_client->async_set_scrollbar_track_press_jumps(platform_scrollbar_track_press_jumps());
 }
 
 void Application::notify_compositor_gpu_presentation_unavailable()
