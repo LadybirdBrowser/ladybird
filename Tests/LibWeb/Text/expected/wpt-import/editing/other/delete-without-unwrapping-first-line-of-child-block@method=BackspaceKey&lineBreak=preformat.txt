@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 25 tests
+
+25 Fail
+Fail	Backspace at abc\\n[\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at abc\n[\n<div id="child">]def<br>ghi</div>
+Fail	Backspace at \\n[abc\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at \n[abc\n<div id="child">]def<br>ghi</div>
+Fail	Backspace at \\n[\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at \n[\n<div id="child">]def<br>ghi</div>
+Fail	Backspace at [\\n\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at [\n\n<div id="child">]def<br>ghi</div>
+Fail	Backspace at [abc\\n\\n<div id="child">]def<br>ghi</div>
+Fail	Typing "X" at [abc\n\n<div id="child">]def<br>ghi</div>
+Fail	Backspace at abc\\n[\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at abc\n[\n<div id="child">d]ef<br>ghi</div>
+Fail	Backspace at \\n[abc\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at \n[abc\n<div id="child">d]ef<br>ghi</div>
+Fail	Backspace at \\n[\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at \n[\n<div id="child">d]ef<br>ghi</div>
+Fail	Backspace at [\\n\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at [\n\n<div id="child">d]ef<br>ghi</div>
+Fail	Backspace at [abc\\n\\n<div id="child">d]ef<br>ghi</div>
+Fail	Typing "X" at [abc\n\n<div id="child">d]ef<br>ghi</div>
+Fail	Backspace at abc\\n\\n<div id="child">[]def<br>ghi</div>
+Fail	Backspace at \\n\\n<div id="child">[]def<br>ghi</div>
+Fail	Backspace at \\n<div id="child">[]def<br>ghi</div>
+Fail	Backspace at <b>abc\\n\\n</b></b><div id="child">[]def<br>ghi</div>
+Fail	Backspace at <b>\\n</b><div id="child">[]def<br>ghi</div>

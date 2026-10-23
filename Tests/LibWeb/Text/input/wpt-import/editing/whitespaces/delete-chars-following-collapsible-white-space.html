@@ -1,0 +1,282 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>Test Backspace to delete following character(s) of collapsible white-space</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+<script>
+"use strict";
+
+addEventListener("load", () => {
+  const editingHost = document.querySelector("div[contenteditable]");
+  editingHost.focus();
+  const utils = new EditorTestUtils(editingHost);
+  for (const data of [
+    {
+      init: "<p> a[]</p>",
+      // The white-space before "a" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p><br></p>",
+        "<p> <br></p>",
+      ],
+    },
+    {
+      init: "<p><b> a[]</b></p>",
+      // The white-space before "a" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p><br></p>",
+        "<p><b><br></b></p>",
+        "<p><b> <br></b></p>",
+      ],
+    },
+    {
+      init: "<p>abc d[]</p>",
+      expected: [
+        "<p>abc <br></p>",
+        "<p>abc&nbsp;</p>",
+      ],
+    },
+    {
+      init: "<p><b>abc d[]</b></p>",
+      expected: [
+        "<p><b>abc <br></b></p>",
+        "<p><b>abc&nbsp;</b></p>",
+      ],
+    },
+    {
+      init: "<p>abc d[]<br></p>",
+      expected: [
+        "<p>abc <br></p>",
+        "<p>abc&nbsp;</p>",
+      ],
+    },
+    {
+      init: " a[]<p>bc</p>",
+      // The white-space before "a" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<br><p>bc</p>",
+        " <br><p>bc</p>",
+      ],
+    },
+    {
+      init: "abc d[]<p>ef</p>",
+      expected: [
+        "abc <br><p>ef</p>",
+        "abc&nbsp;<p>ef</p>",
+      ],
+    },
+    {
+      init: "<b>abc d[]</b><p>ef</p>",
+      expected: [
+        "<b>abc <br></b><p>ef</p>",
+        "<b>abc&nbsp;</b><p>ef</p>",
+      ],
+    },
+    {
+      init: "<p>abc</p> d[]",
+      // The white-space before "d" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p>abc</p><br>",
+        "<p>abc</p> <br>",
+      ],
+    },
+    {
+      init: "<p>abc</p>def g[]",
+      expected: [
+        "<p>abc</p>def <br>",
+        "<p>abc</p>def&nbsp;",
+      ],
+    },
+    {
+      init: "<p>abc</p><b> d[]</b>",
+      // The white-space before "d" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p>abc</p><br>",
+        "<p>abc</p><b><br></b>",
+        "<p>abc</p><b> <br></b>",
+      ],
+    },
+    {
+      init: "<p>abc</p>def g[]<p>hij</p>",
+      expected: [
+        "<p>abc</p>def <br><p>hij</p>",
+        "<p>abc</p>def&nbsp;<p>hij</p>",
+      ],
+    },
+    {
+      init: "<p>abc</p> d[]<p>efg</p>",
+      // The white-space before "d" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p>abc</p><br><p>efg</p>",
+        "<p>abc</p> <br><p>efg</p>",
+      ],
+    },
+    {
+      init: "<p>abc</p><b> d[]</b><p>efg</p>",
+      // The white-space before "d" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p>abc</p><br><p>efg</p>",
+        "<p>abc</p><b><br></b><p>efg</p>",
+        "<p>abc</p><b> <br></b><p>efg</p>",
+      ],
+    },
+  ]) {
+    promise_test(async () => {
+      utils.setupEditingHost(data.init);
+      await utils.sendBackspaceKey();
+      if (Array.isArray(data.expected)) {
+        assert_in_array(editingHost.innerHTML, data.expected);
+      } else {
+        assert_equals(editingHost.innerHTML, data.expected);
+      }
+    }, `Backspace when ${data.init}`);
+    promise_test(async () => {
+      utils.setupEditingHost(data.init);
+      getSelection().modify("extend", "left", "character");
+      await utils.sendBackspaceKey();
+      if (Array.isArray(data.expected)) {
+        assert_in_array(editingHost.innerHTML, data.expected);
+      } else {
+        assert_equals(editingHost.innerHTML, data.expected);
+      }
+    }, `Backspace when ${data.init} after extending selection backward`);
+  }
+  for (const data of [
+    {
+      init: "<p> abc[]</p>",
+      // The white-space before "abc" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p><br></p>",
+        "<p> <br></p>",
+      ],
+    },
+    {
+      init: "<p>abc def[]</p>",
+      expected: [
+        "<p>abc <br></p>",
+        "<p>abc&nbsp;</p>",
+      ],
+    },
+    {
+      init: "<p><b>abc def[]</b></p>",
+      expected: [
+        "<p><b>abc <br></b></p>",
+        "<p><b>abc&nbsp;</b></p>",
+      ],
+    },
+    {
+      init: "<p>abc def[]<br></p>",
+      expected: [
+        "<p>abc <br></p>",
+        "<p>abc&nbsp;</p>",
+      ],
+    },
+    {
+      init: " abc[]<p>def</p>",
+      // The white-space before "abc" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<br><p>def</p>",
+        " <br><p>def</p>",
+      ],
+    },
+    {
+      init: "abc def[]<p>ghi</p>",
+      expected: [
+        "abc <br><p>ghi</p>",
+        "abc&nbsp;<p>ghi</p>",
+      ],
+    },
+    {
+      init: "<b>abc def[]</b><p>ghi</p>",
+      expected: [
+        "<b>abc <br></b><p>ghi</p>",
+        "<b>abc&nbsp;</b><p>ghi</p>",
+      ],
+    },
+    {
+      init: "<p>abc</p> def[]",
+      // The white-space before "def" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p>abc</p><br>",
+        "<p>abc</p> <br>",
+      ],
+    },
+    {
+      init: "<p>abc</p>def ghi[]",
+      expected: [
+        "<p>abc</p>def <br>",
+        "<p>abc</p>def&nbsp;",
+      ],
+    },
+    {
+      init: "<p>abc</p><b> def[]</b>",
+      // The white-space before "def" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p>abc</p><br>",
+        "<p>abc</p><b><br></b>",
+        "<p>abc</p><b> <br></b>",
+      ],
+    },
+    {
+      init: "<p>abc</p>def ghi[]<p>jkl</p>",
+      expected: [
+        "<p>abc</p>def <br><p>jkl</p>",
+        "<p>abc</p>def&nbsp;<p>jkl</p>",
+      ],
+    },
+    {
+      init: "<p>abc</p> def[]<p>ghi</p>",
+      // The white-space before "def" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p>abc</p><br><p>ghi</p>",
+        "<p>abc</p> <br><p>ghi</p>",
+      ],
+    },
+    {
+      init: "<p>abc</p><b> def[]</b><p>ghi</p>",
+      // The white-space before "def" is invisible due to immediately after the
+      // block boundary.  Therefore, it may be deleted.
+      expected: [
+        "<p>abc</p><br><p>ghi</p>",
+        "<p>abc</p><b><br></b><p>ghi</p>",
+        "<p>abc</p><b> <br></b><p>ghi</p>",
+      ],
+    },
+  ]) {
+    promise_test(async () => {
+      utils.setupEditingHost(data.init);
+      await utils.sendBackspaceKey(utils.deleteWordModifier);
+      if (Array.isArray(data.expected)) {
+        assert_in_array(editingHost.innerHTML, data.expected);
+      } else {
+        assert_equals(editingHost.innerHTML, data.expected);
+      }
+    }, `${
+      utils.deleteWordModifier == utils.kControl ? "Ctrl" : "Alt"
+    }+Backspace when "${data.init}"`);
+  }
+}, {once: true});
+</script>
+</head>
+<body>
+  <div contenteditable></div>
+</body>
+</html>

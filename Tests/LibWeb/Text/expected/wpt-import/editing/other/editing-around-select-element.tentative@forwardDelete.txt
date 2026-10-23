@@ -1,0 +1,43 @@
+Harness status: OK
+
+Found 37 tests
+
+7 Pass
+30 Fail
+Pass	Test execCommand with selection around select element
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>ab[c</p><select><option>d]ef</option></select></div>: shouldn't modify in <option>
+Pass	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select><option>d[]ef</option></select></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><select><option>ab[c</option></select><p>d]ef</p></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select><option>{}def</option></select><p>ghi</p></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select><option>def{}</option></select><p>ghi</p></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select><option>{def}</option></select><p>ghi</p></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select><option>{def</option><option>ghi}</option></select><p>jkl</p></div>: shouldn't join <option>s
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select>{<option>def</option>}<option>ghi</option></select><p>jkl</p></div>: shouldn't delete <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select><option>def</option>{<option>ghi</option>}</select><p>jkl</p></div>: shouldn't delete <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select>{<option>def</option><option>ghi</option>}</select><p>jkl</p></div>: shouldn't delete <option>s nor <select>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select><optgroup>{<option>def</option><option>ghi</option>}</optgroup></select><p>jkl</p></div>: shouldn't delete <option>, <optgroup> nor <select>
+Pass	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p>{<select><option>def</option><option>ghi</option></select>}<p>jkl</p></div>: <select> element itself should be removable
+Pass	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p>{<select><optgroup><option>def</option><option>ghi</option></optgroup></select>}<p>jkl</p></div>: <select> element itself should be removable
+Fail	execCommand(forwardDelete, false, "") in <select contenteditable>{<option>abc</option><option>def</option>}</select>: shouldn't delete <option>s
+Fail	execCommand(forwardDelete, false, "") in <select><option contenteditable>{abc}</option><option>def</option></select>: shouldn't modify <option>
+Fail	execCommand(forwardDelete, false, "") in <select><optgroup contenteditable>{<option>abc</option><option>def</option>}</optgroup></select>: shouldn't delete <option>s
+Fail	execCommand(forwardDelete, false, "") in <select><optgroup contenteditable><option>{abc}</option><option>def</option></optgroup></select>: shouldn't delete <option>s nor optgroup
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>ab[c</p><select multiple><option>d]ef</option></select></div>: shouldn't modify in <option>
+Pass	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select multiple><option>d[]ef</option></select></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><select multiple><option>ab[c</option></select><p>d]ef</p></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select multiple><option>{}def</option></select><p>ghi</p></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select multiple><option>def{}</option></select><p>ghi</p></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select multiple><option>{def}</option></select><p>ghi</p></div>: shouldn't modify in <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select multiple><option>{def</option><option>ghi}</option></select><p>jkl</p></div>: shouldn't join <option>s
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select multiple>{<option>def</option>}<option>ghi</option></select><p>jkl</p></div>: shouldn't delete <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select multiple><option>def</option>{<option>ghi</option>}</select><p>jkl</p></div>: shouldn't delete <option>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select multiple>{<option>def</option><option>ghi</option>}</select><p>jkl</p></div>: shouldn't delete <option>s nor <select multiple>
+Fail	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p><select multiple><optgroup>{<option>def</option><option>ghi</option>}</optgroup></select><p>jkl</p></div>: shouldn't delete <option>, <optgroup> nor <select multiple>
+Pass	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p>{<select multiple><option>def</option><option>ghi</option></select>}<p>jkl</p></div>: <select multiple> element itself should be removable
+Pass	execCommand(forwardDelete, false, "") in <div contenteditable><p>abc</p>{<select multiple><optgroup><option>def</option><option>ghi</option></optgroup></select>}<p>jkl</p></div>: <select multiple> element itself should be removable
+Fail	execCommand(forwardDelete, false, "") in <select multiple contenteditable>{<option>abc</option><option>def</option>}</select>: shouldn't delete <option>s
+Fail	execCommand(forwardDelete, false, "") in <select multiple><option contenteditable>{abc}</option><option>def</option></select>: shouldn't modify <option>
+Fail	execCommand(forwardDelete, false, "") in <select multiple><optgroup contenteditable>{<option>abc</option><option>def</option>}</optgroup></select>: shouldn't delete <option>s
+Fail	execCommand(forwardDelete, false, "") in <select multiple><optgroup contenteditable><option>{abc}</option><option>def</option></optgroup></select>: shouldn't delete <option>s nor optgroup
+Fail	execCommand(forwardDelete, false, "") in <optgroup contenteditable><option>{abc}</option><option>def</option></optgroup>: shouldn't delete <option>s nor optgroup
+Fail	execCommand(forwardDelete, false, "") in <option contenteditable>{abc}</option>: shouldn't modify <option>

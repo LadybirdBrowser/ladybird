@@ -1,0 +1,390 @@
+Harness status: OK
+
+Found 384 tests
+
+360 Pass
+24 Fail
+Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(bold, false, bold) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(italic, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(italic, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(italic, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(italic, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(italic, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(underline, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(underline, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(underline, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(underline, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(underline, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(strikethrough, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(strikethrough, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(strikethrough, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(strikethrough, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(strikethrough, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(subscript, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(subscript, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(subscript, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(subscript, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(subscript, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(superscript, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(superscript, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(superscript, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(superscript, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(superscript, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(delete, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(delete, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(delete, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(delete, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(delete, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(forwarddelete, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(forwarddelete, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(forwarddelete, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(forwarddelete, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(forwarddelete, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(selectall, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(selectall, false, null) with a[b]c: checking unexpected synchronous event
+Pass	ChildDocument.execCommand(selectall, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(selectall, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(selectall, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(undo, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(undo, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(undo, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(undo, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(undo, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(redo, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(redo, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(redo, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(redo, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(redo, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(indent, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(indent, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(indent, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(indent, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(indent, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(outdent, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(outdent, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(outdent, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(outdent, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(outdent, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(backcolor, false, #000000) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(backcolor, false, #000000) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(backcolor, false, #000000) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(backcolor, false, #000000) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(backcolor, false, #000000) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(fontname, false, DummyFont) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(fontname, false, DummyFont) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(fontname, false, DummyFont) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(fontname, false, DummyFont) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(fontname, false, DummyFont) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(fontsize, false, 5) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(fontsize, false, 5) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(fontsize, false, 5) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(fontsize, false, 5) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(fontsize, false, 5) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: calling execCommand
+Pass	ChildDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: checking event on focused document
+Pass	ChildDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: checking event on executed document
+Pass	ChildDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: checking result content in focused document
+Pass	ChildDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: checking result content in executed document
+Pass	ChildDocument.execCommand(createlink, false, foo.html) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(createlink, false, foo.html) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(createlink, false, foo.html) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(createlink, false, foo.html) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(createlink, false, foo.html) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(insertimage, false, no-image.png) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(insertimage, false, no-image.png) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(insertimage, false, no-image.png) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(insertimage, false, no-image.png) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(insertimage, false, no-image.png) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(inserttext, false, **inserted**) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(inserttext, false, **inserted**) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(inserttext, false, **inserted**) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(inserttext, false, **inserted**) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(inserttext, false, **inserted**) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(justifyleft, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(justifyleft, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(justifyleft, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(justifyleft, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(justifyleft, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(justifyright, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(justifyright, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(justifyright, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(justifyright, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(justifyright, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(justifycenter, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(justifycenter, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(justifycenter, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(justifycenter, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(justifycenter, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(justifyfull, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(justifyfull, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(justifyfull, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(justifyfull, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(justifyfull, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: calling execCommand
+Pass	ChildDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: checking event on focused document
+Pass	ChildDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: checking event on executed document
+Pass	ChildDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: checking result content in focused document
+Pass	ChildDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: checking result content in executed document
+Pass	ChildDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: calling execCommand
+Pass	ChildDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: checking event on focused document
+Pass	ChildDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: checking event on executed document
+Pass	ChildDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: checking result content in focused document
+Pass	ChildDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: checking result content in executed document
+Pass	ChildDocument.execCommand(insertorderedlist, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(insertorderedlist, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(insertorderedlist, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(insertorderedlist, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(insertorderedlist, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(insertunorderedlist, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(insertunorderedlist, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(insertunorderedlist, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(insertunorderedlist, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(insertunorderedlist, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(insertparagraph, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(insertparagraph, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(insertparagraph, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(insertparagraph, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(insertparagraph, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(insertlinebreak, false, null) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(insertlinebreak, false, null) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(insertlinebreak, false, null) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(insertlinebreak, false, null) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(insertlinebreak, false, null) with a[b]c: checking result content in executed document
+Pass	ChildDocument.execCommand(formatblock, false, div) with a[b]c: calling execCommand
+Pass	ChildDocument.execCommand(formatblock, false, div) with a[b]c: checking event on focused document
+Pass	ChildDocument.execCommand(formatblock, false, div) with a[b]c: checking event on executed document
+Pass	ChildDocument.execCommand(formatblock, false, div) with a[b]c: checking result content in focused document
+Pass	ChildDocument.execCommand(formatblock, false, div) with a[b]c: checking result content in executed document
+Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling execCommand to initialize
+Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after initializing
+Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focus document after initializing
+Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling execCommand to set state
+Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document
+Pass	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focused document
+Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandValue on executed document
+Fail	ChildDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after making executed document editable
+Fail	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to initialize
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document after initializing
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on focus document after initializing
+Fail	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to set state
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on focused document
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document after making executed document editable
+Fail	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to initialize
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document after initializing
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on focus document after initializing
+Fail	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to set state
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on focused document
+Pass	ChildDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document after making executed document editable
+Pass	ParentDocument.execCommand(bold, false, bold) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(bold, false, bold) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(bold, false, bold) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(bold, false, bold) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(bold, false, bold) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(italic, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(italic, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(italic, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(italic, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(italic, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(underline, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(underline, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(underline, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(underline, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(underline, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(strikethrough, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(strikethrough, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(strikethrough, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(strikethrough, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(strikethrough, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(subscript, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(subscript, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(subscript, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(subscript, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(subscript, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(superscript, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(superscript, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(superscript, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(superscript, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(superscript, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(delete, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(delete, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(delete, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(delete, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(delete, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(forwarddelete, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(forwarddelete, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(forwarddelete, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(forwarddelete, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(forwarddelete, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(selectall, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(selectall, false, null) with a[b]c: checking unexpected synchronous event
+Pass	ParentDocument.execCommand(selectall, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(selectall, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(selectall, false, null) with a[b]c: checking result content in executed document
+Fail	ParentDocument.execCommand(undo, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(undo, false, null) with a[b]c: checking event on focused document
+Fail	ParentDocument.execCommand(undo, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(undo, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(undo, false, null) with a[b]c: checking result content in executed document
+Fail	ParentDocument.execCommand(redo, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(redo, false, null) with a[b]c: checking event on focused document
+Fail	ParentDocument.execCommand(redo, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(redo, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(redo, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(indent, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(indent, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(indent, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(indent, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(indent, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(outdent, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(outdent, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(outdent, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(outdent, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(outdent, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(backcolor, false, #000000) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(backcolor, false, #000000) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(backcolor, false, #000000) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(backcolor, false, #000000) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(backcolor, false, #000000) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(forecolor, false, #F0F0F0) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(hilitecolor, false, #FFFF00) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(fontname, false, DummyFont) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(fontname, false, DummyFont) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(fontname, false, DummyFont) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(fontname, false, DummyFont) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(fontname, false, DummyFont) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(fontsize, false, 5) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(fontsize, false, 5) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(fontsize, false, 5) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(fontsize, false, 5) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(fontsize, false, 5) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: calling execCommand
+Pass	ParentDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: checking event on focused document
+Pass	ParentDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: checking event on executed document
+Pass	ParentDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: checking result content in focused document
+Pass	ParentDocument.execCommand(inserthorizontalrule, false, null) with a[]bc: checking result content in executed document
+Pass	ParentDocument.execCommand(createlink, false, foo.html) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(createlink, false, foo.html) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(createlink, false, foo.html) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(createlink, false, foo.html) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(createlink, false, foo.html) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(insertimage, false, no-image.png) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(insertimage, false, no-image.png) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(insertimage, false, no-image.png) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(insertimage, false, no-image.png) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(insertimage, false, no-image.png) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(inserthtml, false, <b>inserted</b>) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(inserttext, false, **inserted**) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(inserttext, false, **inserted**) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(inserttext, false, **inserted**) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(inserttext, false, **inserted**) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(inserttext, false, **inserted**) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(justifyleft, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(justifyleft, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(justifyleft, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(justifyleft, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(justifyleft, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(justifyright, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(justifyright, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(justifyright, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(justifyright, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(justifyright, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(justifycenter, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(justifycenter, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(justifycenter, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(justifycenter, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(justifycenter, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(justifyfull, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(justifyfull, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(justifyfull, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(justifyfull, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(justifyfull, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: calling execCommand
+Pass	ParentDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: checking event on focused document
+Pass	ParentDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: checking event on executed document
+Pass	ParentDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: checking result content in focused document
+Pass	ParentDocument.execCommand(removeformat, false, null) with <b>a[b]c</b>: checking result content in executed document
+Pass	ParentDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: calling execCommand
+Pass	ParentDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: checking event on focused document
+Pass	ParentDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: checking event on executed document
+Pass	ParentDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: checking result content in focused document
+Pass	ParentDocument.execCommand(unlink, false, null) with <a href="foo.html">a[b]c</a>: checking result content in executed document
+Pass	ParentDocument.execCommand(insertorderedlist, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(insertorderedlist, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(insertorderedlist, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(insertorderedlist, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(insertorderedlist, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(insertunorderedlist, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(insertunorderedlist, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(insertunorderedlist, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(insertunorderedlist, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(insertunorderedlist, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(insertparagraph, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(insertparagraph, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(insertparagraph, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(insertparagraph, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(insertparagraph, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(insertlinebreak, false, null) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(insertlinebreak, false, null) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(insertlinebreak, false, null) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(insertlinebreak, false, null) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(insertlinebreak, false, null) with a[b]c: checking result content in executed document
+Pass	ParentDocument.execCommand(formatblock, false, div) with a[b]c: calling execCommand
+Pass	ParentDocument.execCommand(formatblock, false, div) with a[b]c: checking event on focused document
+Pass	ParentDocument.execCommand(formatblock, false, div) with a[b]c: checking event on executed document
+Pass	ParentDocument.execCommand(formatblock, false, div) with a[b]c: checking result content in focused document
+Pass	ParentDocument.execCommand(formatblock, false, div) with a[b]c: checking result content in executed document
+Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling execCommand to initialize
+Pass	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after initializing
+Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focus document after initializing
+Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling execCommand to set state
+Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document
+Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on focused document
+Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandValue on executed document
+Fail	ParentDocument.execCommand(styleWithCSS, false, true): calling queryCommandState on executed document after making executed document editable
+Fail	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to initialize
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document after initializing
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on focus document after initializing
+Fail	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling execCommand to set state
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on focused document
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, div): calling queryCommandState on executed document after making executed document editable
+Fail	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to initialize
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document after initializing
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on focus document after initializing
+Fail	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling execCommand to set state
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on focused document
+Pass	ParentDocument.execCommand(defaultParagraphSeparator, false, p): calling queryCommandState on executed document after making executed document editable

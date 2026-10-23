@@ -1,0 +1,526 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Test that execCommand without editable element</title>
+<script src=../include/implementation.js></script>
+<script>var testsJsLibraryOnly = true</script>
+<script src=../include/tests.js></script>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script>
+"use strict";
+
+setup({explicit_done: true});
+
+// This test calls execCommand() without editable element in the document,
+// but its parent or child document has editable element and it has focus.
+// In most cases, execCommand() should do nothing and return false.  However,
+// "cut", "copy", "paste" and "selectall" commands should work without DOM tree
+// modification for making web apps can implement their own editor without
+// editable element.
+async function runTests() {
+  let parentWindow = window;
+  let parentDocument = document;
+  let parentSelection = parentDocument.getSelection();
+  let parentEditor = parentDocument.getElementById("editor");
+  parentEditor.focus();
+  let iframe = document.getElementsByTagName("iframe")[0];
+  let childWindow = iframe.contentWindow;
+  let childDocument = iframe.contentDocument;
+  let childSelection = childDocument.getSelection();
+  let childEditor = childDocument.getElementById("editor");
+  childEditor.focus();
+
+  // execCommand() in child document shouldn't affect to focused parent
+  // document.
+  await doTest(parentWindow, parentDocument, parentSelection, parentEditor,
+               childWindow, childDocument, childSelection, childEditor, false);
+  // execCommand() in parent document shouldn't affect to focused child
+  // document but "cut" and "copy" may affect the focused child document.
+  await doTest(childWindow, childDocument, childSelection, childEditor,
+               parentWindow, parentDocument, parentSelection, parentEditor, true);
+
+  done();
+}
+
+async function doTest(aFocusWindow, aFocusDocument, aFocusSelection, aFocusEditor,
+                      aExecWindow, aExecDocument, aExecSelection, aExecEditor,
+                      aExecInParent) {
+  const kTests = [
+    /**
+     * command: The command which you test.
+     * focusContent: Will be set to innerHTML of div#editor element in focused
+     *               document.
+     * execContent: Will be set to innerHTML of div#editor element in the
+     *              document whose execCommand() will be called.
+     * initFunc: [optional] If you need to do something before running the
+     *           test, you can do it with a function.
+     * expectedFocusContent: Expected content and selection in div#editor in
+     *                       focused document after calling execCommand().
+     * expectedExecContent: Expected content and selection in div#editor in
+     *                      the document whose execCommand() is called.
+     * event: The event which you need to check whether it's fired or not.
+     * expectedFiredInFocus: true if the event should be fired on the focused
+     *                       document node.
+     * expectedFiredInExec: true if the event should be fired on the document
+     *                      node whose execCommand() is called.
+     * expectedResult: Expected result of execCommand().
+     */
+    {command: "bold", value: "bold",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "italic", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "underline", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "strikethrough", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "subscript", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "superscript", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    // "cut", "copy" and "paste" command should cause firing corresponding
+    // events to make web apps be able to implement their own editor even
+    // if there is no editor and selection is collapsed.
+    {command: "cut", value: null,
+     focusContent: "a[b]c", execContent: "ab[]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "ab[]c",
+     event: "cut", expectedFiredInFocus: false, expectedFiredInExec: true,
+     expectedResult: false,
+    },
+    {command: "cut", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "cut", expectedFiredInFocus: false, expectedFiredInExec: true,
+     expectedResult: false,
+    },
+    {command: "copy", value: null,
+     focusContent: "a[b]c", execContent: "ab[]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "ab[]c",
+     event: "copy", expectedFiredInFocus: false, expectedFiredInExec: true,
+     expectedResult: false,
+    },
+    {command: "copy", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "copy", expectedFiredInFocus: false, expectedFiredInExec: true,
+     expectedResult: false,
+    },
+    {command: "paste", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     initFunc: () => { aFocusDocument.execCommand("copy", false, "b"); },
+     event: "paste", expectedFiredInFocus: false, expectedFiredInExec: true,
+     expectedResult: false,
+    },
+    {command: "delete", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "forwarddelete", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    // "selectall" command should be available without editable content.
+    {command: "selectall", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: undefined,
+     event: "selectionchange", expectedFiredInFocus: false, expectedFiredInExec: true,
+     expectedResult: true,
+    },
+    {command: "undo", value: null,
+     focusContent: "a[]c", execContent: "a[b]c",
+     initFunc: () => { aFocusDocument.execCommand("insertText", false, "b"); },
+     expectedFocusContent: "ab[]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "redo", value: null,
+     focusContent: "a[]c", execContent: "a[b]c",
+     initFunc: () => {
+       aFocusDocument.execCommand("insertText", false, "b");
+       aFocusDocument.execCommand("undo", false, null);
+     },
+     expectedFocusContent: "a[]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "indent", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "outdent", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "backcolor", value: "#000000",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "forecolor", value: "#F0F0F0",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "hilitecolor", value: "#FFFF00",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "fontname", value: "DummyFont",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "fontsize", value: "5",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "increasefontsize", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "decreasefontsize", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "inserthorizontalrule", value: null,
+     focusContent: "a[]bc", execContent: "a[]bc",
+     expectedFocusContent: "a[]bc", expectedExecContent: "a[]bc",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "createlink", value: "foo.html",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "insertimage", value: "no-image.png",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "inserthtml", value: "<b>inserted</b>",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "inserttext", value: "**inserted**",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "justifyleft", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "justifyright", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "justifycenter", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "justifyfull", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "removeformat", value: null,
+     focusContent: "<b>a[b]c</b>", execContent: "<b>a[b]c</b>",
+     expectedFocusContent: "<b>a[b]c</b>", expectedExecContent: "<b>a[b]c</b>",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "unlink", value: null,
+     focusContent: "<a href=\"foo.html\">a[b]c</a>", execContent: "<a href=\"foo.html\">a[b]c</a>",
+     expectedFocusContent: "<a href=\"foo.html\">a[b]c</a>", expectedExecContent: "<a href=\"foo.html\">a[b]c</a>",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "insertorderedlist", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "insertunorderedlist", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "insertparagraph", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "insertlinebreak", value: null,
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "formatblock", value: "div",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    {command: "heading", value: "h1",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedFocusContent: "a[b]c", expectedExecContent: "a[b]c",
+     event: "input", expectedFiredInFocus: false, expectedFiredInExec: false,
+     expectedResult: false,
+    },
+    /**
+     * command: The command which you test.
+     * state: The state which is used with execCommand().
+     * initState: The state which should be set with execCommand() first.
+     * focusContent: Will be set to innerHTML of div#editor element in focused
+     *               document.
+     * execContent: Will be set to innerHTML of div#editor element in the
+     *              document whose execCommand() will be called.
+     * initFunc: [optional] If you need to do something before running the
+     *           test, you can do it with a function.
+     * expectedSetStateInFocus: Expected queryCommandState() result in focused
+     *                          document.
+     * expectedSetStateInExec: Expected queryCommandState() result in document
+     *                         whose execCommand() is called.
+     * expectedResult: Expected result of execCommand().
+     */
+    {command: "styleWithCSS", state: "true", initState: "false",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedSetStateInFocus: false, expectedSetStateInExec: false,
+     expectedResult: false,
+    },
+    {command: "contentReadOnly", state: "true", initState: "false",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedSetStateInFocus: false, expectedSetStateInExec: false,
+     expectedResult: false,
+    },
+    {command: "insertBrOnReturn", state: "true", initState: "false",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedSetStateInFocus: false, expectedSetStateInExec: false,
+     expectedResult: false,
+    },
+    {command: "defaultParagraphSeparator", state: "div", initState: "p",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedSetStateInFocus: false, expectedSetStateInExec: false,
+     expectedResult: false,
+    },
+    {command: "defaultParagraphSeparator", state: "p", initState: "div",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedSetStateInFocus: false, expectedSetStateInExec: false,
+     expectedResult: false,
+    },
+    {command: "enableObjectResizing", state: "true", initState: "false",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedSetStateInFocus: false, expectedSetStateInExec: false,
+     expectedResult: false,
+    },
+    {command: "enableInlineTableEditing", state: "true", initState: "false",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedSetStateInFocus: false, expectedSetStateInExec: false,
+     expectedResult: false,
+    },
+    {command: "enableAbsolutePositionEditing", state: "true", initState: "false",
+     focusContent: "a[b]c", execContent: "a[b]c",
+     expectedSetStateInFocus: false, expectedSetStateInExec: false,
+     expectedResult: false,
+    },
+  ];
+
+  async function waitForCondition(aCheckFunc) {
+    let retry = 60;
+    while (retry--) {
+      if (aCheckFunc()) {
+        return;
+      }
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+  }
+
+  for (const kTest of kTests) {
+    // Skip unsupported command since it's not purpose of this tests whether
+    // each command is supported on the browser.
+    if (!aExecDocument.queryCommandSupported(kTest.command)) {
+      continue;
+    }
+    aExecEditor.removeAttribute("contenteditable");  // Disable commands in the exec document.
+    let points = setupDiv(aFocusEditor, kTest.focusContent);
+    aFocusSelection.setBaseAndExtent(points[0], points[1], points[2], points[3]);
+    points = setupDiv(aExecEditor, kTest.execContent);
+    aExecSelection.setBaseAndExtent(points[0], points[1], points[2], points[3]);
+    aFocusWindow.focus();
+    aFocusEditor.focus();
+    if (kTest.initFunc) {
+      kTest.initFunc();
+    }
+    if (kTest.state === undefined) {
+      let eventFiredOnFocusDocument = false;
+      function handlerOnFocusDocument() {
+        eventFiredOnFocusDocument = true;
+      }
+      aFocusDocument.addEventListener(kTest.event, handlerOnFocusDocument, {capture: true});
+      let eventFiredOnExecDocument = false;
+      function handlerOnExecDocument() {
+        eventFiredOnExecDocument = true;
+      }
+      aExecDocument.addEventListener(kTest.event, handlerOnExecDocument, {capture: true});
+      const kDescription = `${aExecInParent ? "Parent" : "Child"}Document.execCommand(${kTest.command}, false, ${kTest.value}) with ${kTest.execContent}`;
+      test(function () {
+        let ret = aExecDocument.execCommand(kTest.command, false, kTest.value);
+        assert_equals(ret, kTest.expectedResult, `execCommand should return ${kTest.expectedResult}`);
+      }, `${kDescription}: calling execCommand`);
+      if (kTest.event === "selectionchange") {
+        test(function () {
+          assert_false(eventFiredOnFocusDocument,
+                      `"${kTest.event}" event should not be fired synchronously on focused document`);
+          assert_false(eventFiredOnExecDocument,
+                      `"${kTest.event}" event should not be fired synchronously on executed document`);
+        }, `${kDescription}: checking unexpected synchronous event`);
+        await waitForCondition(() => eventFiredOnFocusDocument && eventFiredOnExecDocument);
+        // TODO: Whether select all changes selection in the focused document depends on the
+        //       implementation of "Select All".
+      } else {
+        test(function () {
+          assert_equals(eventFiredOnFocusDocument, kTest.expectedFiredInFocus,
+                      `"${kTest.event}" event should${kTest.expectedFiredInFocus ? "" : " not"} be fired`);
+        }, `${kDescription}: checking event on focused document`);
+      }
+      test(function () {
+        assert_equals(eventFiredOnExecDocument, kTest.expectedFiredInExec,
+                    `"${kTest.event}" event should${kTest.expectedFiredInExec ? "" : " not"} be fired`);
+      }, `${kDescription}: checking event on executed document`);
+      test(function () {
+        if (aFocusSelection.rangeCount) {
+          addBrackets(aFocusSelection.getRangeAt(0));
+        }
+        assert_equals(aFocusEditor.innerHTML, kTest.expectedFocusContent);
+      }, `${kDescription}: checking result content in focused document`);
+      test(function () {
+        if (kTest.command === "selectall") {
+          assert_true(aExecSelection.rangeCount > 0);
+          assert_equals(
+            aExecSelection.toString().replace(/[\r\n]/g, ""),
+            aExecDocument.body.textContent.replace(/[\r\n]/g, "")
+          );
+        } else {
+          if (aExecSelection.rangeCount) {
+            addBrackets(aExecSelection.getRangeAt(0));
+          }
+          assert_equals(aExecEditor.innerHTML, kTest.expectedExecContent);
+        }
+      }, `${kDescription}: checking result content in executed document`);
+      aFocusDocument.removeEventListener(kTest.event, handlerOnFocusDocument, {capture: true});
+      aExecDocument.removeEventListener(kTest.event, handlerOnExecDocument, {capture: true});
+      aExecEditor.setAttribute("contenteditable", "");
+    } else {
+      const kDescription = `${aExecInParent ? "Parent" : "Child"}Document.execCommand(${kTest.command}, false, ${kTest.state})`;
+      test(function () {
+        let ret = aExecDocument.execCommand(kTest.command, false, kTest.initState);
+        assert_equals(ret, kTest.expectedResult, `execCommand should return ${kTest.expectedResult}`);
+      }, `${kDescription}: calling execCommand to initialize`);
+      let hasSetState = false;
+      test(function () {
+        hasSetState = aExecDocument.queryCommandState(kTest.command);
+        assert_equals(hasSetState, kTest.expectedSetStateInExec, `queryCommandState on executed document should return ${kTest.expectedSetState}`);
+      }, `${kDescription}: calling queryCommandState on executed document after initializing`);
+      test(function () {
+        let ret = aFocusDocument.queryCommandState(kTest.command);
+        assert_equals(ret, kTest.expectedSetStateInFocus, `queryCommandState on focus document should return ${kTest.expectedSetState}`);
+      }, `${kDescription}: calling queryCommandState on focus document after initializing`);
+      if (hasSetState) {
+        test(function () {
+          let ret = aExecDocument.queryCommandValue(kTest.command);
+          assert_equals(ret, kTest.initState, `queryCommandValue on executed document should return ${kTest.initState}`);
+        }, `${kDescription}: calling queryCommandValue on executed document after initializing`);
+      }
+      test(function () {
+        let ret = aExecDocument.execCommand(kTest.command, false, kTest.state);
+        assert_equals(ret, kTest.expectedResult, `execCommand should return ${kTest.expectedResult}`);
+      }, `${kDescription}: calling execCommand to set state`);
+      test(function () {
+        hasSetState = aExecDocument.queryCommandState(kTest.command);
+        assert_equals(hasSetState, kTest.expectedSetStateInExec, `queryCommandState should return ${kTest.expectedSetState}`);
+      }, `${kDescription}: calling queryCommandState on executed document`);
+      test(function () {
+        let ret = aFocusDocument.queryCommandState(kTest.command);
+        assert_equals(ret, kTest.expectedSetStateInFocus, `queryCommandState should return ${kTest.expectedSetState}`);
+      }, `${kDescription}: calling queryCommandState on focused document`);
+      if (hasSetState) {
+        test(function () {
+          let ret = aExecDocument.queryCommandValue(kTest.command);
+          assert_equals(ret, kTest.state, `queryCommandValue should return ${kTest.initState}`);
+        }, `${kDescription}: calling queryCommandValue on executed document`);
+      }
+      aExecEditor.setAttribute("contenteditable", "");
+      test(function () {
+        let ret = aExecDocument.queryCommandState(kTest.command);
+        assert_equals(ret, kTest.expectedSetStateInExec, `queryCommandState should return ${kTest.expectedSetState}`);
+      }, `${kDescription}: calling queryCommandState on executed document after making executed document editable`);
+    }
+  }
+}
+
+window.addEventListener("load", runTests, {once: true});
+</script>
+<body>
+<div contenteditable id="editor">abc</div>
+<iframe srcdoc="<div contenteditable id='editor'>def</div><span>ghi</span>"></iframe>
+</body>

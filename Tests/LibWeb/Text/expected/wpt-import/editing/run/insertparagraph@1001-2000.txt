@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+988 Pass
+12 Fail
+Pass	[["insertparagraph",""]] "<xmp>foo[]bar</xmp>" queryCommandIndeterm("insertparagraph") before
+Pass	[["insertparagraph",""]] "<xmp>foo[]bar</xmp>" queryCommandState("insertparagraph") before
+Pass	[["insertparagraph",""]] "<xmp>foo[]bar</xmp>" queryCommandValue("insertparagraph") before
+Pass	[["insertparagraph",""]] "<xmp>foo[]bar</xmp>" queryCommandIndeterm("insertparagraph") after
+Pass	[["insertparagraph",""]] "<xmp>foo[]bar</xmp>" queryCommandState("insertparagraph") after
+Pass	[["insertparagraph",""]] "<xmp>foo[]bar</xmp>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandState("defaultparagraphseparator") before
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<script>foo[]bar</script>baz" queryCommandValue("insertparagraph") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("insertparagraph", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("stylewithcss") before
+Fail	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("insertparagraph") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("insertparagraph") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("insertparagraph") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("insertparagraph") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("insertparagraph") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("insertparagraph") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("insertparagraph", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("insertparagraph") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("insertparagraph") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("insertparagraph") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("insertparagraph") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("insertparagraph") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","div"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("insertparagraph") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("stylewithcss", false, "true") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("insertparagraph", false, "") return value
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" compare innerHTML
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("insertparagraph") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("insertparagraph") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("insertparagraph") before
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("insertparagraph") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("insertparagraph") after
+Pass	[["stylewithcss","true"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("insertparagraph") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("stylewithcss", false, "false") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz": execCommand("insertparagraph", false, "") return value
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" checks for modifications to non-editable content
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" compare innerHTML
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("stylewithcss") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("stylewithcss") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("defaultparagraphseparator") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("defaultparagraphseparator") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("insertparagraph") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("insertparagraph") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("insertparagraph") before
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandIndeterm("insertparagraph") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandState("insertparagraph") after
+Pass	[["stylewithcss","false"],["defaultparagraphseparator","p"],["insertparagraph",""]] "<div style=display:none>foo[]bar</div>baz" queryCommandValue("insertparagraph") after
+Pass	[["insertparagraph",""]] "<listing>foo[]bar</listing>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<listing>foo[]bar</listing>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<listing>foo[]bar</listing>" compare innerHTML
+Pass	[["insertparagraph",""]] "<listing>foo[]bar</listing>" queryCommandIndeterm("insertparagraph") before
+Pass	[["insertparagraph",""]] "<listing>foo[]bar</listing>" queryCommandState("insertparagraph") before
+Pass	[["insertparagraph",""]] "<listing>foo[]bar</listing>" queryCommandValue("insertparagraph") before
+Pass	[["insertparagraph",""]] "<listing>foo[]bar</listing>" queryCommandIndeterm("insertparagraph") after
+Pass	[["insertparagraph",""]] "<listing>foo[]bar</listing>" queryCommandState("insertparagraph") after
+Pass	[["insertparagraph",""]] "<listing>foo[]bar</listing>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "foo<ol><li>{}<br></li></ol>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br></li></ol>foo" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>foo<li>{}<br></ol>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<ol><li>{}<br><li>bar</ol>" queryCommandValue("insertparagraph") after
+Pass	[["insertparagraph",""]] "<ol><li>foo</li><ul><li>{}<br></ul></ol>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<ol><li>foo</li><ul><li>{}<br></ul></ol>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<ol><li>foo</li><ul><li>{}<br></ul></ol>" compare innerHTML
+Pass	[["insertparagraph",""]] "<ol><li>foo</li><ul><li>{}<br></ul></ol>" queryCommandIndeterm("insertparagraph") before
+Pass	[["insertparagraph",""]] "<ol><li>foo</li><ul><li>{}<br></ul></ol>" queryCommandState("insertparagraph") before
+Pass	[["insertparagraph",""]] "<ol><li>foo</li><ul><li>{}<br></ul></ol>" queryCommandValue("insertparagraph") before
+Pass	[["insertparagraph",""]] "<ol><li>foo</li><ul><li>{}<br></ul></ol>" queryCommandIndeterm("insertparagraph") after
+Pass	[["insertparagraph",""]] "<ol><li>foo</li><ul><li>{}<br></ul></ol>" queryCommandState("insertparagraph") after
+Pass	[["insertparagraph",""]] "<ol><li>foo</li><ul><li>{}<br></ul></ol>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br></dt></dl>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>foo<dd>{}<br></dl>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<dl><dt>{}<br><dd>bar</dl>" queryCommandValue("insertparagraph") after
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>{}<br><dd>baz</dl></dl>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>{}<br><dd>baz</dl></dl>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>{}<br><dd>baz</dl></dl>" compare innerHTML
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>{}<br><dd>baz</dl></dl>" queryCommandIndeterm("insertparagraph") before
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>{}<br><dd>baz</dl></dl>" queryCommandState("insertparagraph") before
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>{}<br><dd>baz</dl></dl>" queryCommandValue("insertparagraph") before
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>{}<br><dd>baz</dl></dl>" queryCommandIndeterm("insertparagraph") after
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>{}<br><dd>baz</dl></dl>" queryCommandState("insertparagraph") after
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>{}<br><dd>baz</dl></dl>" queryCommandValue("insertparagraph") after
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>baz<dd>{}<br></dl></dl>": execCommand("insertparagraph", false, "") return value
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>baz<dd>{}<br></dl></dl>" checks for modifications to non-editable content
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>baz<dd>{}<br></dl></dl>" compare innerHTML
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>baz<dd>{}<br></dl></dl>" queryCommandIndeterm("insertparagraph") before
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>baz<dd>{}<br></dl></dl>" queryCommandState("insertparagraph") before
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>baz<dd>{}<br></dl></dl>" queryCommandValue("insertparagraph") before
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>baz<dd>{}<br></dl></dl>" queryCommandIndeterm("insertparagraph") after
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>baz<dd>{}<br></dl></dl>" queryCommandState("insertparagraph") after
+Pass	[["insertparagraph",""]] "<dl><dt>foo<dd>bar<dl><dt>baz<dd>{}<br></dl></dl>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo[bar</h1><p>baz]quz</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo[bar</p><h1>baz]quz</h1>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "{}<br><p>foo</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{}<br><h1>bar</h1>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><p>bar</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<h1>foo</h1>{}<br><h2>bar</h2>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" checks for modifications to non-editable content
+Fail	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p><h1>[bar]</h1><p>baz</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<p>foo</p>{<h1>bar</h1>}<p>baz</p>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td>foo[]bar</table>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<table><tr><td><p>foo[]bar</table>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>[]foo</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]<br></blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote>foo[]bar</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>[]foo</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>": execCommand("defaultparagraphseparator", false, "p") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>": execCommand("insertparagraph", false, "") return value
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" checks for modifications to non-editable content
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandIndeterm("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandState("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandValue("defaultparagraphseparator") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandIndeterm("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandState("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandValue("defaultparagraphseparator") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandIndeterm("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandState("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandValue("insertparagraph") before
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandIndeterm("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandState("insertparagraph") after
+Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<blockquote><p>foo[]bar</blockquote>" queryCommandValue("insertparagraph") after
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]<p>bar</blockquote>": execCommand("defaultparagraphseparator", false, "div") return value
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<blockquote><p>foo[]<p>bar</blockquote>": execCommand("insertparagraph", false, "") return value

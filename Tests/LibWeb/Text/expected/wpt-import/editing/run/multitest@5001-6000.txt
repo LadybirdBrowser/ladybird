@@ -1,0 +1,1006 @@
+Harness status: OK
+
+Found 1000 tests
+
+968 Pass
+32 Fail
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar": execCommand("justifyleft", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("justifyleft") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandState("justifyleft") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandValue("justifyleft") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("justifyleft") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandState("justifyleft") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""]] "foo[]bar" queryCommandValue("justifyleft") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("justifyleft", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyleft") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyleft") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyleft") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyleft") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyleft") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyleft") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar": execCommand("justifyright", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("justifyright") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandState("justifyright") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandValue("justifyright") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("justifyright") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandState("justifyright") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""]] "foo[]bar" queryCommandValue("justifyright") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("justifyright", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyright") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyright") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyright") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyright") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyright") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyright") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar": execCommand("outdent", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandState("createlink") after
+Fail	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandIndeterm("outdent") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandState("outdent") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandValue("outdent") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandIndeterm("outdent") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandState("outdent") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""]] "foo[]bar" queryCommandValue("outdent") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("createlink", false, "http://www.google.com/") return value
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("outdent", false, "") return value
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("createlink") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("createlink") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("createlink") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("outdent") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("outdent") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("outdent") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("outdent") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("outdent") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("outdent") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["createlink","http://www.google.com/"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandState("delete") before
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandState("delete") after
+Pass	[["fontname","sans-serif"],["delete",""]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") before
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") after
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandState("indent") before
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandState("indent") after
+Pass	[["fontname","sans-serif"],["indent",""]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") before
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") after
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertimage") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("insertimage") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("insertimage") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["insertimage","/img/lion.svg"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandState("fontname") after
+Fail	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("insertlinebreak", false, "") return value
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Fail	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertlinebreak") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertlinebreak") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertlinebreak") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["insertlinebreak",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandState("insertorderedlist") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""]] "foo[]bar" queryCommandValue("insertorderedlist") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("insertorderedlist", false, "") return value
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertorderedlist") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertorderedlist") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertorderedlist") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["insertorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar": execCommand("insertparagraph", false, "") return value
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandState("fontname") after
+Fail	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandIndeterm("insertparagraph") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandState("insertparagraph") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""]] "foo[]bar" queryCommandValue("insertparagraph") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("insertparagraph", false, "") return value
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Fail	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertparagraph") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertparagraph") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertparagraph") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["insertparagraph",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar": execCommand("insertunorderedlist", false, "") return value
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("insertunorderedlist") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("insertunorderedlist") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandState("insertunorderedlist") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""]] "foo[]bar" queryCommandValue("insertunorderedlist") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("insertunorderedlist", false, "") return value
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertunorderedlist") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertunorderedlist") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("insertunorderedlist") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("insertunorderedlist") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("insertunorderedlist") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["insertunorderedlist",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar": execCommand("justifycenter", false, "") return value
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("justifycenter") before
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandState("justifycenter") before
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandValue("justifycenter") before
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandIndeterm("justifycenter") after
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandState("justifycenter") after
+Pass	[["fontname","sans-serif"],["justifycenter",""]] "foo[]bar" queryCommandValue("justifycenter") after
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("justifycenter", false, "") return value
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifycenter") before
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifycenter") before
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifycenter") before
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifycenter") after
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifycenter") after
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifycenter") after
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["justifycenter",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar": execCommand("justifyfull", false, "") return value
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("justifyfull") before
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandState("justifyfull") before
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandValue("justifyfull") before
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandIndeterm("justifyfull") after
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandState("justifyfull") after
+Pass	[["fontname","sans-serif"],["justifyfull",""]] "foo[]bar" queryCommandValue("justifyfull") after
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("justifyfull", false, "") return value
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyfull") before
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyfull") before
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyfull") before
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyfull") after
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyfull") after
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyfull") after
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["justifyfull",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar": execCommand("justifyleft", false, "") return value
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("justifyleft") before
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandState("justifyleft") before
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandValue("justifyleft") before
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandIndeterm("justifyleft") after
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandState("justifyleft") after
+Pass	[["fontname","sans-serif"],["justifyleft",""]] "foo[]bar" queryCommandValue("justifyleft") after
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("justifyleft", false, "") return value
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyleft") before
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyleft") before
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyleft") before
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyleft") after
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyleft") after
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyleft") after
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["justifyleft",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar": execCommand("justifyright", false, "") return value
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("justifyright") before
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandState("justifyright") before
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandValue("justifyright") before
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandIndeterm("justifyright") after
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandState("justifyright") after
+Pass	[["fontname","sans-serif"],["justifyright",""]] "foo[]bar" queryCommandValue("justifyright") after
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("justifyright", false, "") return value
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyright") before
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyright") before
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyright") before
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("justifyright") after
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("justifyright") after
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("justifyright") after
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["justifyright",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar": execCommand("outdent", false, "") return value
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandIndeterm("outdent") before
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandState("outdent") before
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandValue("outdent") before
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandIndeterm("outdent") after
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandState("outdent") after
+Pass	[["fontname","sans-serif"],["outdent",""]] "foo[]bar" queryCommandValue("outdent") after
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("fontname", false, "sans-serif") return value
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("outdent", false, "") return value
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") before
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") before
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") before
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontname") after
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontname") after
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontname") after
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("outdent") before
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("outdent") before
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("outdent") before
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("outdent") after
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("outdent") after
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("outdent") after
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontname","sans-serif"],["outdent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontsize","4"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontsize","4"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandState("delete") before
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandState("delete") after
+Pass	[["fontsize","4"],["delete",""]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("delete", false, "") return value
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") before
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") before
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") before
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("delete") after
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("delete") after
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("delete") after
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontsize","4"],["delete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["fontsize","4"],["formatblock","<div>"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("formatblock", false, "<div>") return value
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") before
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") before
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") before
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("formatblock") after
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("formatblock") after
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("formatblock") after
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontsize","4"],["formatblock","<div>"],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["fontsize","4"],["forwarddelete",""]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("forwarddelete", false, "") return value
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") before
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") before
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") before
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("forwarddelete") after
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("forwarddelete") after
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("forwarddelete") after
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontsize","4"],["forwarddelete",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandState("indent") before
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandState("indent") after
+Pass	[["fontsize","4"],["indent",""]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("indent", false, "") return value
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") before
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") before
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") before
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("indent") after
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("indent") after
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("indent") after
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontsize","4"],["indent",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserthorizontalrule", false, "") return value
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthorizontalrule") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserthorizontalrule") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserthorizontalrule") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") before
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserttext") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandState("inserttext") after
+Pass	[["fontsize","4"],["inserthorizontalrule",""],["inserttext","a"]] "foo[]bar" queryCommandValue("inserttext") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" checks for modifications to non-editable content
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandIndeterm("inserthtml") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandState("inserthtml") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"]] "foo[]bar" queryCommandValue("inserthtml") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("fontsize", false, "4") return value
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserthtml", false, "ab<b>c</b>d") return value
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar": execCommand("inserttext", false, "a") return value
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" checks for modifications to non-editable content
+Fail	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" compare innerHTML
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("fontsize") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("fontsize") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandValue("fontsize") after
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandIndeterm("inserthtml") before
+Pass	[["fontsize","4"],["inserthtml","ab<b>c</b>d"],["inserttext","a"]] "foo[]bar" queryCommandState("inserthtml") before

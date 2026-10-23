@@ -1,0 +1,47 @@
+Harness status: OK
+
+Found 41 tests
+
+16 Pass
+25 Fail
+Pass	Backspace when <p> []a</p>
+Pass	Delete when <p> []a</p> after extending selection forward
+Pass	Backspace when <p><b> []a</b></p>
+Pass	Delete when <p><b> []a</b></p> after extending selection forward
+Pass	Backspace when <p>abc []d</p>
+Pass	Delete when <p>abc []d</p> after extending selection forward
+Pass	Backspace when <p><b>abc []d</b></p>
+Pass	Delete when <p><b>abc []d</b></p> after extending selection forward
+Fail	Backspace when <p>abc []d<br></p>
+Fail	Delete when <p>abc []d<br></p> after extending selection forward
+Fail	Backspace when  []a<p>bc</p>
+Fail	Delete when  []a<p>bc</p> after extending selection forward
+Pass	Backspace when abc []d<p>ef</p>
+Pass	Delete when abc []d<p>ef</p> after extending selection forward
+Pass	Backspace when <b>abc []d</b><p>ef</p>
+Pass	Delete when <b>abc []d</b><p>ef</p> after extending selection forward
+Fail	Backspace when <p>abc</p> []d
+Fail	Delete when <p>abc</p> []d after extending selection forward
+Pass	Backspace when <p>abc</p>def []g
+Pass	Delete when <p>abc</p>def []g after extending selection forward
+Fail	Backspace when <p>abc</p><b> []d</b>
+Fail	Delete when <p>abc</p><b> []d</b> after extending selection forward
+Pass	Backspace when <p>abc</p>def []g<p>hij</p>
+Pass	Delete when <p>abc</p>def []g<p>hij</p> after extending selection forward
+Fail	Backspace when <p>abc</p> []d<p>efg</p>
+Fail	Delete when <p>abc</p> []d<p>efg</p> after extending selection forward
+Fail	Backspace when <p>abc</p><b> []d</b><p>efg</p>
+Fail	Delete when <p>abc</p><b> []d</b><p>efg</p> after extending selection forward
+Fail	Ctrl+Delete when "<p> []abc</p>"
+Fail	Ctrl+Delete when "<p>abc []def</p>"
+Fail	Ctrl+Delete when "<p><b>abc []def</b></p>"
+Fail	Ctrl+Delete when "<p>abc []def<br></p>"
+Fail	Ctrl+Delete when " []abc<p>def</p>"
+Fail	Ctrl+Delete when "abc []def<p>ghi</p>"
+Fail	Ctrl+Delete when "<b>abc []def</b><p>ghi</p>"
+Fail	Ctrl+Delete when "<p>abc</p> []def"
+Fail	Ctrl+Delete when "<p>abc</p>def []ghi"
+Fail	Ctrl+Delete when "<p>abc</p><b> []def</b>"
+Fail	Ctrl+Delete when "<p>abc</p>def []ghi<p>jkl</p>"
+Fail	Ctrl+Delete when "<p>abc</p> []def<p>ghi</p>"
+Fail	Ctrl+Delete when "<p>abc</p><b> []def</b><p>ghi</p>"

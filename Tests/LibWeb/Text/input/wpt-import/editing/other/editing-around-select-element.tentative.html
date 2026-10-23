@@ -1,0 +1,380 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Test execCommand with selection around select element</title>
+<meta name="timeout" content="long">
+<meta name="variant" content="?delete">
+<meta name="variant" content="?forwardDelete">
+<meta name="variant" content="?insertText">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script>
+"use strict";
+
+const command = document.location.search.substring(1);
+const insertText = command === "insertText" ? "XYZ" : "";
+
+/**
+ * Typically, browsers do not allow to move caret or select part of <select>,
+ * <option> and <optgroup>, but Selection API can do it (but browsers don't
+ * show the result).  In this case, any elements under `<select>` element
+ * shouldn't be modified (deleted) for avoiding unexpected data loss for the
+ * users. However, if inserting text when selection range is entirely in the
+ * <select>, it's fine to insert text around the <select>.
+ */
+
+promise_test(async () => {
+  await new Promise(resolve => {
+    addEventListener("load", resolve, {once: true});
+  });
+});
+
+function addPromiseTest(desc, initFunc, expectedResults) {
+  promise_test(async () => {
+    initFunc();
+    document.execCommand(command, false, insertText);
+    if (Array.isArray(expectedResults)) {
+      const uniqueArray = [...new Set(expectedResults)];
+      if (uniqueArray.length > 1) {
+        assert_in_array(document.body.innerHTML.replace(/(=""|<br>)/g, ""), expectedResults);
+      } else {
+        assert_equals(document.body.innerHTML.replace(/(=""|<br>)/g, ""), expectedResults[0]);
+      }
+    } else {
+      assert_equals(document.body.innerHTML.replace(/(=""|<br>)/g, ""), expectedResults);
+    }
+  }, `execCommand(${command}, false, "${insertText}") in ${desc}`);
+}
+
+for (const multiple of ["", " multiple"]) {
+  addPromiseTest(
+    `<div contenteditable><p>ab[c</p><select${multiple}><option>d]ef</option></select></div>: shouldn't modify in <option>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select></div>`;
+      getSelection().setBaseAndExtent(
+        document.querySelector("p").firstChild,
+        2,
+        document.querySelector("option").firstChild,
+        1
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select></div>`,
+      `<div contenteditable><p>ab${insertText}</p><select${multiple}><option>def</option></select></div>`,
+      // </p> is in the range so that <select> may be moved into the <p>.
+      `<div contenteditable><p>ab${insertText}<select${multiple}><option>def</option></select></p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p><select${multiple}><option>d[]ef</option></select></div>: shouldn't modify in <option>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select></div>`;
+      getSelection().collapse(
+        document.querySelector("option").firstChild,
+        1
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select></div>`,
+      // If selection is treated as collapsed before <selection>, it's fine to insert text before <select>.
+      `<div contenteditable><p>abc</p>${insertText}<select${multiple}><option>def</option></select></div>`,
+      // If selection is treated as collapsed after <selection>, it's fine to insert text after <select>.
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select>${insertText}</div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><select${multiple}><option>ab[c</option></select><p>d]ef</p></div>: shouldn't modify in <option>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><select${multiple}><option>abc</option></select><p>def</p></div>`;
+      getSelection().setBaseAndExtent(
+        document.querySelector("option").firstChild,
+        2,
+        document.querySelector("p").firstChild,
+        1
+      );
+    },
+    [
+      `<div contenteditable><select${multiple}><option>abc</option></select><p>def</p></div>`,
+      `<div contenteditable><select${multiple}><option>abc</option></select><p>${insertText}ef</p></div>`,
+      // <p> is in the range so that it's fine to move <select> into the <p>.
+      `<div contenteditable><select${multiple}><option>abc</option></select>${insertText}ef</div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p><select${multiple}><option>{}def</option></select><p>ghi</p></div>: shouldn't modify in <option>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select><p>ghi</p></div>`;
+      getSelection().collapse(
+        document.querySelector("option"),
+        0
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select><p>ghi</p></div>`,
+      // If selection is treated as collapsed before <selection>, it's fine to insert text before <select>.
+      `<div contenteditable><p>abc</p>${insertText}<select${multiple}><option>def</option></select><p>ghi</p></div>`,
+      // If selection is treated as collapsed after <selection>, it's fine to insert text after <select>.
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select>${insertText}<p>ghi</p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p><select${multiple}><option>def{}</option></select><p>ghi</p></div>: shouldn't modify in <option>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select><p>ghi</p></div>`;
+      getSelection().collapse(
+        document.querySelector("option"),
+        1
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select><p>ghi</p></div>`,
+      // If selection is treated as collapsed before <selection>, it's fine to insert text before <select>.
+      `<div contenteditable><p>abc</p>${insertText}<select${multiple}><option>def</option></select><p>ghi</p></div>`,
+      // If selection is treated as collapsed after <selection>, it's fine to insert text after <select>.
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select>${insertText}<p>ghi</p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p><select${multiple}><option>{def}</option></select><p>ghi</p></div>: shouldn't modify in <option>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select><p>ghi</p></div>`;
+      getSelection().selectAllChildren(
+        document.querySelector("option")
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select><p>ghi</p></div>`,
+      // If selection is treated as collapsed before <selection>, it's fine to insert text before <select>.
+      `<div contenteditable><p>abc</p>${insertText}<select${multiple}><option>def</option></select><p>ghi</p></div>`,
+      // If selection is treated as collapsed after <selection>, it's fine to insert text after <select>.
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option></select>${insertText}<p>ghi</p></div>`,
+    ],
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p><select${multiple}><option>{def</option><option>ghi}</option></select><p>jkl</p></div>: shouldn't join <option>s`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`;
+      getSelection().setBaseAndExtent(
+        document.querySelector("option"),
+        0,
+        document.querySelector("option + option"),
+        1,
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed before <selection>, it's fine to insert text before <select>.
+      `<div contenteditable><p>abc</p>${insertText}<select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed after <selection>, it's fine to insert text after <select>.
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select>${insertText}<p>jkl</p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p><select${multiple}>{<option>def</option>}<option>ghi</option></select><p>jkl</p></div>: shouldn't delete <option>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`;
+      getSelection().setBaseAndExtent(
+        document.querySelector("select"),
+        0,
+        document.querySelector("select"),
+        1,
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed before <selection>, it's fine to insert text before <select>.
+      `<div contenteditable><p>abc</p>${insertText}<select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed after <selection>, it's fine to insert text after <select>.
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select>${insertText}<p>jkl</p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p><select${multiple}><option>def</option>{<option>ghi</option>}</select><p>jkl</p></div>: shouldn't delete <option>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`;
+      getSelection().setBaseAndExtent(
+        document.querySelector("select"),
+        1,
+        document.querySelector("select"),
+        2,
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed before <selection>, it's fine to insert text before <select>.
+      `<div contenteditable><p>abc</p>${insertText}<select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed after <selection>, it's fine to insert text after <select>.
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select>${insertText}<p>jkl</p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p><select${multiple}>{<option>def</option><option>ghi</option>}</select><p>jkl</p></div>: shouldn't delete <option>s nor <select${multiple}>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`;
+      getSelection().selectAllChildren(
+        document.querySelector("select")
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed before <selection>, it's fine to insert text before <select>.
+      `<div contenteditable><p>abc</p>${insertText}<select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed after <selection>, it's fine to insert text after <select>.
+      `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select>${insertText}<p>jkl</p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p><select${multiple}><optgroup>{<option>def</option><option>ghi</option>}</optgroup></select><p>jkl</p></div>: shouldn't delete <option>, <optgroup> nor <select${multiple}>`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><optgroup><option>def</option><option>ghi</option></optgroup></select><p>jkl</p></div>`;
+      getSelection().selectAllChildren(
+        document.querySelector("optgroup")
+      );
+    },
+    [
+      `<div contenteditable><p>abc</p><select${multiple}><optgroup><option>def</option><option>ghi</option></optgroup></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed before <selection>, it's fine to insert text before <select>.
+      `<div contenteditable><p>abc</p>${insertText}<select${multiple}><optgroup><option>def</option><option>ghi</option></optgroup></select><p>jkl</p></div>`,
+      // If selection is treated as collapsed after <selection>, it's fine to insert text after <select>.
+      `<div contenteditable><p>abc</p><select${multiple}><optgroup><option>def</option><option>ghi</option></optgroup></select>${insertText}<p>jkl</p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p>{<select${multiple}><option>def</option><option>ghi</option></select>}<p>jkl</p></div>: <select${multiple}> element itself should be removable`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`;
+      getSelection().setBaseAndExtent(
+        document.querySelector("div"),
+        1,
+        document.querySelector("div"),
+        2,
+      );
+    },
+    [
+      // XXX I think the first should be the best because <select> was between the <p>.
+      `<div contenteditable><p>abc</p>${insertText}<p>jkl</p></div>`,
+      // XXX However, some browsers may want to normalize selection into the previous or next <p>.
+      `<div contenteditable><p>abc${insertText}</p><p>jkl</p></div>`,
+      `<div contenteditable><p>abc</p><p>${insertText}jkl</p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<div contenteditable><p>abc</p>{<select${multiple}><optgroup><option>def</option><option>ghi</option></optgroup></select>}<p>jkl</p></div>: <select${multiple}> element itself should be removable`,
+    () => {
+      document.body.innerHTML =
+        `<div contenteditable><p>abc</p><select${multiple}><option>def</option><option>ghi</option></select><p>jkl</p></div>`;
+      getSelection().setBaseAndExtent(
+        document.querySelector("div"),
+        1,
+        document.querySelector("div"),
+        2,
+      );
+    },
+    [
+      // XXX I think the first should be the best because <select> was between the <p>.
+      `<div contenteditable><p>abc</p>${insertText}<p>jkl</p></div>`,
+      // XXX However, some browsers may want to normalize selection into the previous or next <p>.
+      `<div contenteditable><p>abc${insertText}</p><p>jkl</p></div>`,
+      `<div contenteditable><p>abc</p><p>${insertText}jkl</p></div>`,
+    ]
+  );
+
+  addPromiseTest(
+    `<select${multiple} contenteditable>{<option>abc</option><option>def</option>}</select>: shouldn't delete <option>s`,
+    () => {
+      document.body.innerHTML =
+        `<select${multiple} contenteditable><option>abc</option><option>def</option></select>`;
+      getSelection().selectAllChildren(
+        document.querySelector("select")
+      );
+    },
+    `<select${multiple} contenteditable><option>abc</option><option>def</option></select>`,
+  );
+
+  addPromiseTest(
+    `<select${multiple}><option contenteditable>{abc}</option><option>def</option></select>: shouldn't modify <option>`,
+    () => {
+      document.body.innerHTML =
+        `<select${multiple}><option contenteditable>abc</option><option>def</option></select>`;
+      getSelection().selectAllChildren(
+        document.querySelector("option")
+      );
+    },
+    `<select${multiple}><option contenteditable>abc</option><option>def</option></select>`
+  );
+
+  addPromiseTest(
+    `<select${multiple}><optgroup contenteditable>{<option>abc</option><option>def</option>}</optgroup></select>: shouldn't delete <option>s`,
+    () => {
+      document.body.innerHTML =
+        `<select${multiple}><optgroup contenteditable><option>abc</option><option>def</option></optgroup></select>`;
+      getSelection().selectAllChildren(
+        document.querySelector("optgroup")
+      );
+    },
+    `<select${multiple}><optgroup contenteditable><option>abc</option><option>def</option></optgroup></select>`
+  );
+
+  addPromiseTest(
+    `<select${multiple}><optgroup contenteditable><option>{abc}</option><option>def</option></optgroup></select>: shouldn't delete <option>s nor optgroup`,
+    () => {
+      document.body.innerHTML =
+        `<select${multiple}><optgroup contenteditable><option>abc</option><option>def</option></optgroup></select>`;
+      getSelection().selectAllChildren(
+        document.querySelector("option")
+      );
+    },
+    `<select${multiple}><optgroup contenteditable><option>abc</option><option>def</option></optgroup></select>`
+  );
+}
+
+addPromiseTest(
+  "<optgroup contenteditable><option>{abc}</option><option>def</option></optgroup>: shouldn't delete <option>s nor optgroup",
+  () => {
+    document.body.innerHTML =
+      "<optgroup contenteditable><option>abc</option><option>def</option></optgroup>";
+    getSelection().selectAllChildren(
+      document.querySelector("option")
+    );
+  },
+  // XXX It might be fine to modify <optgroup>/<option> not in <select> nor <datalist> if the browser does not replace its content.
+  `<optgroup contenteditable><option>abc</option><option>def</option></optgroup>`
+);
+
+addPromiseTest(
+  "<option contenteditable>{abc}</option>: shouldn't modify <option>",
+  () => {
+    document.body.innerHTML =
+      "<option contenteditable>abc</option>";
+    getSelection().selectAllChildren(
+      document.querySelector("option")
+    );
+  },
+  // XXX It might be fine to modify <option> not in <select> nor <datalist> if the browser does not replace its content.
+  `<option contenteditable>abc</option>`
+);
+</script>
+<body></body>

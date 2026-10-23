@@ -1,0 +1,1020 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<meta name="variant" content="?method=BackspaceKey&lineBreak=br">
+<meta name="variant" content="?method=DeleteKey&lineBreak=br">
+<meta name="variant" content="?method=deleteCommand&lineBreak=br">
+<meta name="variant" content="?method=forwardDeleteCommand&lineBreak=br">
+<meta name="variant" content="?method=BackspaceKey&lineBreak=preformat">
+<meta name="variant" content="?method=DeleteKey&lineBreak=preformat">
+<meta name="variant" content="?method=deleteCommand&lineBreak=preformat">
+<meta name="variant" content="?method=forwardDeleteCommand&lineBreak=preformat">
+<title>Tests for deleting preceding lines of right child block if range ends at start of the right child</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+<script>
+"use strict";
+
+/**
+ * Browsers delete only preceding lines (and selected content in the child
+ * block) when the deleting range starts from a line and ends in a child block
+ * without unwrapping the (new) first line of the child block at end.  Note that
+ * this is a special handling for the above case, i.e., if the range starts from
+ * a middle of a preceding line of the child block, the first line of the child
+ * block should be unwrapped and merged into the preceding line.  This is also
+ * applied when the range is directly replaced with new content like typing a
+ * character.  Finally, selection should be collapsed at start of the child
+ * block and new content should be inserted at start of the child block.
+ *
+ * This file also tests getTargetRanges() of `beforeinput` of at deletion and
+ * replacing the selection directly.  In the former case, if the range ends at
+ * start of the child block, browsers do not touch the child block.  Therefore,
+ * the target ranges should the a range deleting the preceding lines, i.e.,
+ * should be end at the child block.  When the range is replaced directly, the
+ * content will be inserted at start of the child block, and also when the range
+ * selects some content in the child block, browsers touch the child block.
+ * Therefore, the target range should end at the next insertion point.
+ */
+
+const searchParams = new URLSearchParams(document.location.search);
+const testUserInput = searchParams.get("method") == "BackspaceKey" || searchParams.get("method") == "DeleteKey";
+const testBackward = searchParams.get("method") == "BackspaceKey" || searchParams.get("method") == "deleteCommand";
+const deleteMethod =
+  testUserInput
+    ? testBackward ? "Backspace" : "Delete"
+    : `document.execCommand("${testBackward ? "delete" : "forwarddelete"}")`;
+const insertTextMethod = testUserInput ? "Typing \"X\"" : "document.execCommand(\"insertText\", false, \"X\")";
+const lineBreak = searchParams.get("lineBreak") == "br" ? "<br>" : "\n";
+const lineBreakIsBR = lineBreak == "<br>";
+
+function run(editorUtils) {
+  if (testUserInput) {
+    return testBackward ? editorUtils.sendBackspaceKey() : editorUtils.sendDeleteKey();
+  }
+  editorUtils.document.execCommand(testBackward ? "delete" : "forwardDelete");
+}
+
+function typeCharacter(editorUtils, ch) {
+  if (testUserInput) {
+    return editorUtils.sendKey(ch);
+  }
+  document.execCommand("insertText", false, ch);
+}
+
+async function runDeleteTest(
+  runningTest,
+  testUtils,
+  initialInnerHTML,
+  expectedAfterDeletion,
+  whatShouldHappenAfterDeletion,
+  expectedAfterDeletionAndInsertion,
+  whatShouldHappenAfterDeletionAndInsertion,
+  expectedTargetRangesAtDeletion,
+  whatGetTargetRangesShouldReturn
+) {
+  let targetRanges = [];
+  if (testUserInput) {
+    testUtils.editingHost.addEventListener(
+      "beforeinput",
+      event => targetRanges = event.getTargetRanges(),
+      {once: true}
+    );
+  }
+  await run(testUtils);
+  (Array.isArray(expectedAfterDeletion) ? assert_in_array : assert_equals)(
+    testUtils.editingHost.innerHTML,
+    expectedAfterDeletion,
+    `${runningTest.name} ${whatShouldHappenAfterDeletion}`
+  );
+  if (testUserInput) {
+    test(() => {
+      const arrayOfStringifiedExpectedTargetRanges = (() => {
+        let arrayOfTargetRanges = [];
+        for (const expectedTargetRanges of expectedTargetRangesAtDeletion) {
+          arrayOfTargetRanges.push(
+            EditorTestUtils.getRangeArrayDescription(expectedTargetRanges)
+          );
+        }
+        return arrayOfTargetRanges;
+      })();
+      assert_in_array(
+        EditorTestUtils.getRangeArrayDescription(targetRanges),
+        arrayOfStringifiedExpectedTargetRanges
+      );
+    }, `getTargetRanges() for ${runningTest.name} ${whatGetTargetRangesShouldReturn}`);
+  }
+  await typeCharacter(testUtils, "X");
+  (Array.isArray(expectedAfterDeletionAndInsertion) ? assert_in_array : assert_equals)(
+    testUtils.editingHost.innerHTML,
+    expectedAfterDeletionAndInsertion,
+    `${insertTextMethod} after ${runningTest.name} ${whatShouldHappenAfterDeletionAndInsertion}`
+  );
+}
+
+async function runReplacingTest(
+  runningTest,
+  testUtils,
+  initialInnerHTML,
+  expectedAfterReplacing,
+  whatShouldHappenAfterReplacing,
+  expectedTargetRangesAtReplace,
+  whatGetTargetRangesShouldReturn
+) {
+  let targetRanges = [];
+  if (testUserInput) {
+    testUtils.editingHost.addEventListener(
+      "beforeinput",
+      event => targetRanges = event.getTargetRanges(),
+      {once: true}
+    );
+  }
+  await typeCharacter(testUtils, "X");
+  (Array.isArray(expectedAfterReplacing) ? assert_in_array : assert_equals)(
+    testUtils.editingHost.innerHTML,
+    expectedAfterReplacing,
+    `${runningTest.name} ${whatShouldHappenAfterReplacing}`
+  );
+  if (testUserInput) {
+    test(() => {
+      const arrayOfStringifiedExpectedTargetRanges = (() => {
+        let arrayOfTargetRanges = [];
+        for (const expectedTargetRanges of expectedTargetRangesAtReplace) {
+          arrayOfTargetRanges.push(
+            EditorTestUtils.getRangeArrayDescription(expectedTargetRanges)
+          );
+        }
+        return arrayOfTargetRanges;
+      })();
+      assert_in_array(
+        EditorTestUtils.getRangeArrayDescription(targetRanges),
+        arrayOfStringifiedExpectedTargetRanges
+      );
+    }, `getTargetRanges() for ${runningTest.name} ${whatGetTargetRangesShouldReturn}`);
+  }
+}
+
+addEventListener("load", () => {
+  const editingHost = document.querySelector("div[contenteditable]");
+  const selStart = lineBreakIsBR ? "{" : "[";
+  const selCollapsed = lineBreakIsBR ? "{}" : "[]";
+  editingHost.style.whiteSpace = lineBreakIsBR ? "normal" : "pre";
+  const testUtils = new EditorTestUtils(editingHost);
+  (() => {
+    const initialInnerHTML =
+      `abc${lineBreak}${selStart}${lineBreak}<div id="child">]def<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        [
+          `abc${lineBreak}<div id="child">def<br>ghi</div>`,
+          `abc<div id="child">def<br>ghi</div>`,
+        ],
+        "should delete only the preceding empty line of the child <div>",
+        [
+          `abc${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+          `abc<div id="child">Xdef<br>ghi</div>`,
+        ],
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // abc<br>{<br>}<div>
+              [{ startContainer: editingHost, startOffset: 2, endContainer: editingHost, endOffset: 3 }],
+              // abc{<br><br>}<div>
+              [{ startContainer: editingHost, startOffset: 1, endContainer: editingHost, endOffset: 3 }],
+              // abc[<br><br>}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: editingHost, endOffset: 3 }],
+            ]
+          : [
+              // abc\n[\n}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: "abc\n".length, endContainer: editingHost, endOffset: 1 }],
+              // abc[\n\n}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: editingHost, endOffset: 1 }],
+              // abc\n[\n]<div>
+              [{ startContainer: editingHost.firstChild, startOffset: "abc\n".length, endContainer: editingHost.firstChild, endOffset: "abc\n\n".length }],
+              // abc[\n\n]<div>
+              [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: editingHost.firstChild, endOffset: "abc\n\n".length }],
+            ],
+        "should return a range before the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        [
+          `abc${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+          `abc<div id="child">Xdef<br>ghi</div>`,
+        ],
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // abc<br>{<br><div>]def
+              [{ startContainer: editingHost, startOffset: 2, endContainer: firstTextInChildDiv, endOffset: 0 }],
+              // abc{<br><br><div>]def
+              [{ startContainer: editingHost, startOffset: 1, endContainer: firstTextInChildDiv, endOffset: 0 }],
+              // abc[<br><br><div>]def
+              [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ]
+          : [
+              // abc\n[\n<div>]def
+              [{ startContainer: editingHost.firstChild, startOffset: "abc\n".length, endContainer: firstTextInChildDiv, endOffset: 0 }],
+              // abc[\n\n<div>]def
+              [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ],
+        "should return a range ending in the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (() => {
+    const initialInnerHTML =
+      `${lineBreak}[abc${lineBreak}<div id="child">]def<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        `${lineBreak}<div id="child">def<br>ghi</div>`,
+        "should delete only the preceding empty line of the child <div>",
+        `${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // <br>[abc<br>}<div>
+              [{ startContainer: editingHost.firstChild.nextSibling, startOffset: 0, endContainer: editingHost, endOffset: 3 }],
+            ]
+          : [
+              // \n[abc\n}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: editingHost, endOffset: 1 }],
+              // \n[abc\n]<div>
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: editingHost.firstChild, endOffset: "\nabc\n".length }],
+            ],
+        "should return a range before the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        `${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // <br>[abc<br><div>]def
+              [{ startContainer: editingHost.firstChild.nextSibling, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ]
+          : [
+              // \n[abc\n<div>]def
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ],
+        "should return a range ending in the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (() => {
+    const initialInnerHTML =
+      `${lineBreak}${selStart}${lineBreak}<div id="child">]def<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        `${lineBreak}<div id="child">def<br>ghi</div>`,
+        "should delete only the preceding empty line of the child <div>",
+        `${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // <br>{<br>}<div>
+              [{ startContainer: editingHost, startOffset: 1, endContainer: editingHost, endOffset: 2 }],
+            ]
+          : [
+              // \n[\n}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: editingHost, endOffset: 1 }],
+              // \n[\n]<div>
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: editingHost.firstChild, endOffset: "\n\n".length }],
+            ],
+        "should return a range before the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        `${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // <br>{<br><div>]def
+              [{ startContainer: editingHost, startOffset: 1, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ]
+          : [
+              // \n[\n<div>]def
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ],
+        "should return a range ending in the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (() => {
+    const initialInnerHTML =
+      `${selStart}${lineBreak}${lineBreak}<div id="child">]def<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        `<div id="child">def<br>ghi</div>`,
+        "should delete only the preceding empty line of the child <div>",
+        `<div id="child">Xdef<br>ghi</div>`,
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // {<br><br>}<div>
+              [{ startContainer: editingHost, startOffset: 0, endContainer: editingHost, endOffset: 2 }],
+            ]
+          : [
+              // [\n\n}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+              // [\n\n}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: editingHost.firstChild, endOffset: "\n\n".length }],
+            ],
+        "should return a range before the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        `<div id="child">Xdef<br>ghi</div>`,
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // {<br><br><div>]def
+              [{ startContainer: editingHost, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ]
+          : [
+              // [\n\n<div>]def
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ],
+        "should return a range ending in the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (() => {
+    const initialInnerHTML =
+      `[abc${lineBreak}${lineBreak}<div id="child">]def<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        `<div id="child">def<br>ghi</div>`,
+        "should delete only the preceding empty line of the child <div>",
+        `<div id="child">Xdef<br>ghi</div>`,
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // [abc<br><br>}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: editingHost, endOffset: 3 }],
+            ]
+          : [
+              // {abc\n\n}<div>
+              [{ startContainer: editingHost, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+              // [abc\n\n}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+              // [abc\n\n}<div>
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: editingHost.firstChild, endOffset: "abc\n\n".length }],
+            ],
+        "should return a range before the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        `<div id="child">Xdef<br>ghi</div>`,
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // [abc<br><div>]def
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ]
+          : [
+              // [abc\n<div>]def
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 0 }],
+            ],
+        "should return a range ending in the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (() => {
+    const initialInnerHTML =
+      `abc${lineBreak}${selStart}${lineBreak}<div id="child">d]ef<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        [
+          `abc${lineBreak}<div id="child">ef<br>ghi</div>`,
+          `abc<div id="child">ef<br>ghi</div>`,
+        ],
+        "should delete only the preceding empty line of the child <div> and selected text in the <div>",
+        [
+          `abc${lineBreak}<div id="child">Xef<br>ghi</div>`,
+          `abc<div id="child">Xef<br>ghi</div>`,
+        ],
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // abc<br>{<br><div>d]ef
+              [{ startContainer: editingHost, startOffset: 2, endContainer: firstTextInChildDiv, endOffset: 1 }],
+              // abc{<br><br><div>d]ef
+              [{ startContainer: editingHost, startOffset: 1, endContainer: firstTextInChildDiv, endOffset: 1 }],
+              // abc[<br><br><div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // abc\n[\n}<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "abc\n".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+              // abc[\n\n}<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        [
+          `abc${lineBreak}<div id="child">Xef<br>ghi</div>`,
+          `abc<div id="child">Xef<br>ghi</div>`,
+        ],
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // abc<br>{<br><div>d]ef
+              [{ startContainer: editingHost, startOffset: 2, endContainer: firstTextInChildDiv, endOffset: 1 }],
+              // abc{<br><br><div>d]ef
+              [{ startContainer: editingHost, startOffset: 1, endContainer: firstTextInChildDiv, endOffset: 1 }],
+              // abc[<br><br><div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // abc\n[\n<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "abc\n".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+              // abc[\n\n<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (() => {
+    const initialInnerHTML =
+      `${lineBreak}[abc${lineBreak}<div id="child">d]ef<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        `${lineBreak}<div id="child">ef<br>ghi</div>`,
+        "should delete only the preceding empty line of the child <div> and the selected content in the <div>",
+        `${lineBreak}<div id="child">Xef<br>ghi</div>`,
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // <br>[abc<br><div>d]ef
+              [{ startContainer: editingHost.firstChild.nextSibling, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // \n[abc\n<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        `${lineBreak}<div id="child">Xef<br>ghi</div>`,
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // <br>[abc<br><div>d]ef
+              [{ startContainer: editingHost.firstChild.nextSibling, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // \n[abc\n<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (() => {
+    const initialInnerHTML =
+      `${lineBreak}${selStart}${lineBreak}<div id="child">d]ef<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        `${lineBreak}<div id="child">ef<br>ghi</div>`,
+        "should delete only the preceding empty line of the child <div> and selected content in the <div>",
+        `${lineBreak}<div id="child">Xef<br>ghi</div>`,
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // <br>{<br><div>d]ef
+              [{ startContainer: editingHost, startOffset: 1, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // \n[\n<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        `${lineBreak}<div id="child">Xef<br>ghi</div>`,
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // <br>{<br><div>d]ef
+              [{ startContainer: editingHost, startOffset: 1, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // \n[\n<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (() => {
+    const initialInnerHTML =
+      `${selStart}${lineBreak}${lineBreak}<div id="child">d]ef<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        `<div id="child">ef<br>ghi</div>`,
+        "should delete only the preceding empty line of the child <div> and selected content in the <div>",
+        `<div id="child">Xef<br>ghi</div>`,
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // {<br><br><div>d]ef
+              [{ startContainer: editingHost, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // [\n\n<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        `<div id="child">Xef<br>ghi</div>`,
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // {<br><br><div>d]ef
+              [{ startContainer: editingHost, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // [\n\n<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (() => {
+    const initialInnerHTML =
+      `[abc${lineBreak}${lineBreak}<div id="child">d]ef<br>ghi</div>`;
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runDeleteTest(
+        t, testUtils, initialInnerHTML,
+        `<div id="child">ef<br>ghi</div>`,
+        "should delete only the preceding empty line of the child <div> and selected content in the <div>",
+        `<div id="child">Xef<br>ghi</div>`,
+        "should insert text into the child <div>",
+        lineBreakIsBR
+          ? [
+              // [abc<br><br><div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // [abc\n\n}<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+
+    promise_test(async t => {
+      testUtils.setupEditingHost(initialInnerHTML);
+      const firstTextInChildDiv = editingHost.querySelector("div").firstChild;
+      await runReplacingTest(
+        t, testUtils, initialInnerHTML,
+        `<div id="child">Xef<br>ghi</div>`,
+        "should not unwrap the first line of the child <div>",
+        lineBreakIsBR
+          ? [
+              // [abc<br><div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ]
+          : [
+              // [abc\n<div>d]ef
+              [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: firstTextInChildDiv, endOffset: 1 }],
+            ],
+        "should return a range ends at start of the child <div>"
+      );
+    }, `${insertTextMethod} at ${initialInnerHTML.replaceAll("\n", "\\n")}`);
+  })();
+
+  (function test_BackspaceForCollapsedSelection() {
+    if (!testBackward) {
+      return;
+    }
+    (() => {
+      const initialInnerHTML =
+        `abc${lineBreak}${lineBreak}<div id="child">[]def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          [
+            `abc${lineBreak}<div id="child">def<br>ghi</div>`,
+            `abc<div id="child">def<br>ghi</div>`,
+          ],
+          "should delete only the preceding empty line of the child <div>",
+          [
+            `abc${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+            `abc<div id="child">Xdef<br>ghi</div>`,
+          ],
+          "should insert text into the child <div>",
+          lineBreakIsBR
+            ? [
+                // abc<br>{<br>}<div>
+                [{ startContainer: editingHost, startOffset: 2, endContainer: editingHost, endOffset: 3 }],
+                // abc{<br><br>}<div>
+                [{ startContainer: editingHost, startOffset: 1, endContainer: editingHost, endOffset: 3 }],
+                // abc[<br><br>}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: editingHost, endOffset: 3 }],
+              ]
+            : [
+                // abc\n[\n}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc\n".length, endContainer: editingHost, endOffset: 1 }],
+                // abc[\n\n}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: editingHost, endOffset: 1 }],
+                // abc\n[\n]<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc\n".length, endContainer: editingHost.firstChild, endOffset: "abc\n\n".length }],
+                // abc[\n\n]<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: editingHost.firstChild, endOffset: "abc\n\n".length }],
+              ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+
+    (() => {
+      const initialInnerHTML =
+        `${lineBreak}${lineBreak}<div id="child">[]def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          `${lineBreak}<div id="child">def<br>ghi</div>`,
+          "should delete only the preceding empty line of the child <div>",
+          `${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+          "should insert text into the child <div>",
+          lineBreakIsBR
+            ? [
+                // <br>{<br>}<div>
+                [{ startContainer: editingHost, startOffset: 1, endContainer: editingHost, endOffset: 2 }],
+              ]
+            : [
+                // \n[\n}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: editingHost, endOffset: 1 }],
+                // \n[\n]<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: editingHost.firstChild, endOffset: "\n\n".length }],
+              ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+
+    (() => {
+      const initialInnerHTML =
+        `${lineBreak}<div id="child">[]def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          `<div id="child">def<br>ghi</div>`,
+          "should delete only the preceding empty line of the child <div>",
+          `<div id="child">Xdef<br>ghi</div>`,
+          "should insert text into the child <div>",
+          lineBreakIsBR
+            ? [
+                // {<br>}<div>
+                [{ startContainer: editingHost, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+              ]
+            : [
+                // {\n}<div>
+                [{ startContainer: editingHost, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+                // [\n}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+                // [\n]<div>
+                [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: editingHost.firstChild, endOffset: "\n".length }],
+              ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+
+    (() => {
+      const initialInnerHTML =
+        `<b>abc${lineBreak}${lineBreak}</b></b><div id="child">[]def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        const b = editingHost.querySelector("b");
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          [
+            `<b>abc${lineBreak}</b><div id="child">def<br>ghi</div>`,
+            `<b>abc</b><div id="child">def<br>ghi</div>`,
+          ],
+          "should delete only the preceding empty line of the child <div> (<b> should stay)",
+          [
+            `<b>abc${lineBreak}</b><div id="child">Xdef<br>ghi</div>`,
+            `<b>abc</b><div id="child">Xdef<br>ghi</div>`,
+            `<b>abc${lineBreak}</b><div id="child"><b>X</b>def<br>ghi</div>`,
+            `<b>abc</b><div id="child"><b>X</b>def<br>ghi</div>`,
+          ],
+          "should insert text into the child <div> with or without <b>",
+          lineBreakIsBR
+            ? [
+                // <b>abc<br>{<br>}</b><div>
+                [{ startContainer: b, startOffset: 2, endContainer: b, endOffset: 3 }],
+                // <b>abc{<br><br>}</b><div>
+                [{ startContainer: b, startOffset: 1, endContainer: b, endOffset: 3 }],
+                // <b>abc[<br><br>}</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc".length, endContainer: b, endOffset: 3 }],
+              ]
+            : [
+                // <b>abc\n[\n}</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc\n".length, endContainer: b, endOffset: 1 }],
+                // <b>abc[\n\n}</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc".length, endContainer: b, endOffset: 1 }],
+                // <b>abc\n[\n]</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc\n".length, endContainer: b.firstChild, endOffset: "abc\n\n".length }],
+                // <b>abc[\n\n]</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc".length, endContainer: b.firstChild, endOffset: "abc\n\n".length }],
+              ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+
+    (() => {
+      const initialInnerHTML =
+        `<b>${lineBreak}</b><div id="child">[]def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          `<div id="child">def<br>ghi</div>`,
+          "should delete only the preceding empty line (including the <b>) of the child <div>",
+          [
+            `<div id="child">Xdef<br>ghi</div>`,
+            `<div id="child"><b>X</b>def<br>ghi</div>`,
+          ],
+          "should insert text into the child <div> with or without <b>",
+          [
+                // {<b><br></b>}<div> or {<b>\n</b>}<div>
+                [{ startContainer: editingHost, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+          ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+  })();
+
+  (function test_ForwardDeleteForCollapsedSelection() {
+    if (testBackward) {
+      return;
+    }
+    (() => {
+      const initialInnerHTML =
+        `abc${lineBreak}${selCollapsed}${lineBreak}<div id="child">def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          [
+            `abc${lineBreak}<div id="child">def<br>ghi</div>`,
+            `abc<div id="child">def<br>ghi</div>`,
+          ],
+          "should delete only the preceding empty line of the child <div>",
+          [
+            `abc${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+            `abc<div id="child">Xdef<br>ghi</div>`,
+          ],
+          "should insert text into the child <div>",
+          lineBreakIsBR
+            ? [
+                // abc<br>{<br>}<div>
+                [{ startContainer: editingHost, startOffset: 2, endContainer: editingHost, endOffset: 3 }],
+                // abc{<br><br>}<div>
+                [{ startContainer: editingHost, startOffset: 1, endContainer: editingHost, endOffset: 3 }],
+                // abc[<br><br>}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: editingHost, endOffset: 3 }],
+              ]
+            : [
+                // abc\n[\n}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc\n".length, endContainer: editingHost, endOffset: 1 }],
+                // abc[\n\n}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: editingHost, endOffset: 1 }],
+                // abc\n[\n]<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc\n".length, endContainer: editingHost.firstChild, endOffset: "abc\n\n".length }],
+                // abc[\n\n]<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "abc".length, endContainer: editingHost.firstChild, endOffset: "abc\n\n".length }],
+              ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+
+    (() => {
+      const initialInnerHTML =
+        `${lineBreak}${selCollapsed}${lineBreak}<div id="child">def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          `${lineBreak}<div id="child">def<br>ghi</div>`,
+          "should delete only the preceding empty line of the child <div>",
+          `${lineBreak}<div id="child">Xdef<br>ghi</div>`,
+          "should insert text into the child <div>",
+          lineBreakIsBR
+            ? [
+                // <br>{<br>}<div>
+                [{ startContainer: editingHost, startOffset: 1, endContainer: editingHost, endOffset: 2 }],
+              ]
+            : [
+                // \n[\n}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: editingHost, endOffset: 1 }],
+                // \n[\n]<div>
+                [{ startContainer: editingHost.firstChild, startOffset: "\n".length, endContainer: editingHost.firstChild, endOffset: "\n\n".length }],
+              ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+
+    (() => {
+      const initialInnerHTML =
+        `${selCollapsed}${lineBreak}<div id="child">def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          `<div id="child">def<br>ghi</div>`,
+          "should delete only the preceding empty line of the child <div>",
+          `<div id="child">Xdef<br>ghi</div>`,
+          "should insert text into the child <div>",
+          lineBreakIsBR
+            ? [
+                // {<br>}<div>
+                [{ startContainer: editingHost, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+              ]
+            : [
+                // {\n}<div>
+                [{ startContainer: editingHost, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+                // [\n}<div>
+                [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+                // [\n]<div>
+                [{ startContainer: editingHost.firstChild, startOffset: 0, endContainer: editingHost.firstChild, endOffset: "\n".length }],
+              ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+
+    (() => {
+      const initialInnerHTML =
+        `<b>abc${lineBreak}${selCollapsed}${lineBreak}</b></b><div id="child">def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        const b = editingHost.querySelector("b");
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          [
+            `<b>abc${lineBreak}</b><div id="child">def<br>ghi</div>`,
+            `<b>abc</b><div id="child">def<br>ghi</div>`,
+          ],
+          "should delete only the preceding empty line of the child <div> (<b> should stay)",
+          [
+            `<b>abc${lineBreak}</b><div id="child">Xdef<br>ghi</div>`,
+            `<b>abc</b><div id="child">Xdef<br>ghi</div>`,
+            `<b>abc${lineBreak}</b><div id="child"><b>X</b>def<br>ghi</div>`,
+            `<b>abc</b><div id="child"><b>X</b>def<br>ghi</div>`,
+          ],
+          "should insert text into the child <div> with or without <b>",
+          lineBreakIsBR
+            ? [
+                // <b>abc<br>{<br>}</b><div>
+                [{ startContainer: b, startOffset: 2, endContainer: b, endOffset: 3 }],
+                // <b>abc{<br><br>}</b><div>
+                [{ startContainer: b, startOffset: 1, endContainer: b, endOffset: 3 }],
+                // <b>abc[<br><br>}</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc".length, endContainer: b, endOffset: 3 }],
+              ]
+            : [
+                // <b>abc\n[\n}</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc\n".length, endContainer: b, endOffset: 1 }],
+                // <b>abc[\n\n}</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc".length, endContainer: b, endOffset: 1 }],
+                // <b>abc\n[\n]</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc\n".length, endContainer: b.firstChild, endOffset: "abc\n\n".length }],
+                // <b>abc[\n\n]</b><div>
+                [{ startContainer: b.firstChild, startOffset: "abc".length, endContainer: b.firstChild, endOffset: "abc\n\n".length }],
+              ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+
+    (() => {
+      const initialInnerHTML =
+        `<b>${selCollapsed}${lineBreak}</b><div id="child">def<br>ghi</div>`;
+      promise_test(async t => {
+        testUtils.setupEditingHost(initialInnerHTML);
+        await runDeleteTest(
+          t, testUtils, initialInnerHTML,
+          `<div id="child">def<br>ghi</div>`,
+          "should delete only the preceding empty line (including the <b>) of the child <div>",
+          [
+            `<div id="child">Xdef<br>ghi</div>`,
+            `<div id="child"><b>X</b>def<br>ghi</div>`,
+          ],
+          "should insert text into the child <div> with or without <b>",
+          [
+                // {<b><br></b>}<div> or {<b>\n</b>}<div>
+                [{ startContainer: editingHost, startOffset: 0, endContainer: editingHost, endOffset: 1 }],
+          ],
+          "should return a range before the child <div>"
+        );
+      }, `${deleteMethod} at ${initialInnerHTML.replaceAll("\n", "\\\\n")}`);
+    })();
+  })();
+}, {once: true});
+</script>
+</head>
+<body><div contenteditable></div></body>
+</html>
