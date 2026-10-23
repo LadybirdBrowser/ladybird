@@ -182,6 +182,7 @@ interface Internals {
     DOMString getComputedAriaLevel(Element element);
     undefined setAccessibilityFocusTarget(Element element);
     unsigned short getEchoServerPort();
+    unsigned short getHttpsEchoServerPort();
 
     undefined setHSTSPolicy(DOMString domain, unsigned long long maxAge, boolean includeSubDomains);
     undefined ingestHSTSHeader(USVString url, DOMString headerValue);

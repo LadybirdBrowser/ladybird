@@ -95,10 +95,19 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
     }
     auto const raw_output = first_line.to_byte_string();
 
-    if (auto const maybe_port = raw_output.trim_whitespace().to_number<u16>(); maybe_port.has_value())
+    // The first line holds the HTTP port, followed by the HTTPS port if the server could set one up.
+    auto const ports = raw_output.split_view(' ');
+    if (auto const maybe_port = ports.is_empty() ? Optional<u16> {} : ports[0].to_number<u16>(); maybe_port.has_value())
         web_content_options.echo_server_port = maybe_port.value();
     else
         warnln("Failed to read echo server port from buffer: '{}'", raw_output);
+
+    if (ports.size() > 1) {
+        if (auto const maybe_port = ports[1].to_number<u16>(); maybe_port.has_value())
+            web_content_options.https_echo_server_port = maybe_port.value();
+        else
+            warnln("Failed to read HTTPS echo server port from buffer: '{}'", raw_output);
+    }
 
     return {};
 }

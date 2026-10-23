@@ -192,6 +192,7 @@ struct WebContentOptions {
     EnableAutoplay enable_autoplay { EnableAutoplay::No };
     CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
     Optional<u16> echo_server_port {};
+    Optional<u16> https_echo_server_port {};
     PaintViewportScrollbars paint_viewport_scrollbars { PaintViewportScrollbars::Yes };
     FileSchemeUrlsHaveTupleOrigins file_scheme_urls_have_tuple_origins { FileSchemeUrlsHaveTupleOrigins::No };
     Optional<StringView> default_time_zone {};
