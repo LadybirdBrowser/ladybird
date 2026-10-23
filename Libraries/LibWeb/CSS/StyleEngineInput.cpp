@@ -613,17 +613,17 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
         GC::Ref<DOM::Node> node;
         TreeScopeID tree_scope;
     };
-    Vector<Arrival, 64> arrivals;
-    Vector<GC::Ref<DOM::Text>, 64> text_arrivals;
+    GC::ConservativeVector<Arrival, 64> arrivals;
+    GC::RootVector<GC::Ref<DOM::Text>, 64> text_arrivals;
     // Elements and text nodes in tree order, which is the order their places in the DOM child sequence can be taken
     // in: each node's previous sibling has taken its place first.
-    Vector<GC::Ref<DOM::Node>, 64> dom_order_arrivals;
+    GC::RootVector<GC::Ref<DOM::Node>, 64> dom_order_arrivals;
     // A slot can take its identity after the elements assigned to it took theirs - a shadow tree built from markup
     // assigns before the slot connects - and a slottable's assignment is published as the slot's identity, so it was
     // published as no slot at all. Publishing it again once the slot has arrived is what lets `::slotted()` be
     // answered. An element taken in with the slot names the slot in its own arrival instead, so only the elements
     // that had an identity before this take-in are collected.
-    Vector<GC::Ref<DOM::Element>> slottables_identified_earlier;
+    GC::RootVector<GC::Ref<DOM::Element>> slottables_identified_earlier;
     size_t element_count = 0;
     auto collect = [&](DOM::Node& node, TreeScopeID tree_scope) {
         node.set_style_arrival_pending(false);
@@ -879,7 +879,7 @@ void take_in_pending_style_arrivals(DOM::Document& document, HiddenChildArrivals
     if (!document.style_engine_tracks_tree())
         hidden_child_arrivals = HiddenChildArrivals::TakeIn;
     TemporaryChange taking_in { s_taking_in_pending_style_arrivals, true };
-    Vector<PendingArrivalRoot, 16> roots;
+    GC::ConservativeVector<PendingArrivalRoot, 16> roots;
     {
         HiddenChildArrivalDecision decision { document, hidden_child_arrivals };
         style_engine.set_may_have_waiting_children(collect_pending_style_arrival_roots(document, roots, decision));
@@ -1615,8 +1615,8 @@ void record_top_layer_changed(DOM::Document& document)
 // republish on arrival: a slottable the list it has just become a member of, and a slot the list it arrived owning.
 static void republish_assigned_slots_of(ReadonlySpan<GC::Ref<DOM::Node>> nodes)
 {
-    Vector<GC::Ref<HTML::HTMLSlotElement>> slots;
-    HashTable<HTML::HTMLSlotElement const*> seen_slots;
+    GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> slots;
+    GC::RootHashTable<HTML::HTMLSlotElement const*> seen_slots;
     auto add_slot = [&](HTML::HTMLSlotElement& slot) {
         if (seen_slots.set(&slot) == HashSetResult::InsertedNewEntry)
             slots.append(slot);
@@ -2156,7 +2156,7 @@ void record_subtree_disconnecting(DOM::Node& root)
     if (auto identity = dom_order_identity_of(root); style_engine && identity != no_style_node)
         StyleEngineFFI::style_engine_unlink_style_node_from_dom_order(style_engine->host(), identity, dom_order_parent_of(root.parent()));
     auto root_tree_scope = tree_scope_of(root.root());
-    Vector<GC::Ref<DOM::ShadowRoot>> shadow_roots;
+    GC::RootVector<GC::Ref<DOM::ShadowRoot>> shadow_roots;
     Vector<StyleNodeID, 64> departing_texts;
     auto disconnect_element = [&](DOM::Node& node, TreeScopeID tree_scope) {
         if (auto* element = as_if<DOM::Element>(node)) {
@@ -2342,7 +2342,7 @@ static StyleSheetState* owning_compiled_sheet(CSSRule& rule)
 static void for_each_document_with_engine_copy(StyleSheetState& sheet, auto const& callback)
 {
     if (sheet.constructed()) {
-        HashTable<DOM::Document*> documents;
+        GC::RootHashTable<DOM::Document*> documents;
         for (auto owner : sheet.owning_documents_or_shadow_roots())
             documents.set(&owner->document());
         for (auto* document : documents)
@@ -2463,7 +2463,7 @@ bool stop_sharing_compiled_style_sheet(StyleSheetState& sheet)
         return false;
     flush_deferred_style_change_events_for_sheet(sheet);
     sheet.mark_compiled_style_sheet_unshareable();
-    Vector<GC::Ref<DOM::Node>> owners;
+    GC::RootVector<GC::Ref<DOM::Node>> owners;
     for (auto const& owner : sheet.owning_documents_or_shadow_roots())
         owners.append(*owner);
     for (auto const& owner : owners) {
