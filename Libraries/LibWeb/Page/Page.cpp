@@ -728,9 +728,9 @@ GC::Ref<HTML::LocalNavigable> Page::local_traversable() const
     return as<HTML::LocalNavigable>(*m_top_level_traversable);
 }
 
-Vector<GC::Ref<HTML::LocalNavigable>> Page::local_roots() const
+GC::RootVector<GC::Ref<HTML::LocalNavigable>> Page::local_roots() const
 {
-    Vector<GC::Ref<HTML::LocalNavigable>> roots;
+    GC::RootVector<GC::Ref<HTML::LocalNavigable>> roots;
     if (!m_top_level_traversable)
         return roots;
     Function<void(HTML::Navigable&)> collect = [&](HTML::Navigable& navigable) {
@@ -1056,7 +1056,7 @@ void Page::discard()
 
     // The navigables of other processes this page held no longer stand for anything here, and a WindowProxy a script
     // of another page holds for one of them is closed.
-    Vector<GC::Ref<HTML::RemoteNavigable>> remote_navigables;
+    GC::RootVector<GC::Ref<HTML::RemoteNavigable>> remote_navigables;
     for (auto& remote_navigable : HTML::all_remote_navigables()) {
         if (&remote_navigable->page() == this)
             remote_navigables.append(remote_navigable);
@@ -1523,7 +1523,7 @@ void Page::receive_geolocation_position(u64 request_id, GeolocationPositionResul
 
     m_active_geolocation_request_id = {};
 
-    Vector<GeolocationPositionCallback> callbacks;
+    GC::RootVector<GeolocationPositionCallback> callbacks;
     Vector<u64> completed_request_ids;
     for (auto const& entry : m_pending_geolocation_requests) {
         if (entry.value.type != GeolocationRequestType::OneShot)
@@ -2077,7 +2077,7 @@ void Page::update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> const& 
 
 void Page::update_find_in_page_highlighted_matches(Vector<GC::Root<DOM::Range>> const& matches, bool highlight_all_matches)
 {
-    HashMap<DOM::Document*, Vector<GC::Ref<DOM::Range>>> matches_by_document;
+    GC::RootHashMap<DOM::Document*, GC::RootVector<GC::Ref<DOM::Range>>> matches_by_document;
     if (highlight_all_matches) {
         for (auto const& match : matches)
             matches_by_document.ensure(&match->start_container()->document()).append(*match);
