@@ -234,50 +234,6 @@ public:
         return rect;
     }
 
-    Rect<T> take_from_right(T w)
-    {
-        if (w > width())
-            w = width();
-        Rect<T> rect = *this;
-        set_width(width() - w);
-        rect.set_x(x() + width());
-        rect.set_width(w);
-        return rect;
-    }
-
-    Rect<T> take_from_left(T w)
-    {
-        if (w > width())
-            w = width();
-        Rect<T> rect = *this;
-        set_x(x() + w);
-        set_width(width() - w);
-        rect.set_width(w);
-        return rect;
-    }
-
-    Rect<T> take_from_top(T h)
-    {
-        if (h > height())
-            h = height();
-        Rect<T> rect = *this;
-        set_y(y() + h);
-        set_height(height() - h);
-        rect.set_height(h);
-        return rect;
-    }
-
-    Rect<T> take_from_bottom(T h)
-    {
-        if (h > height())
-            h = height();
-        Rect<T> rect = *this;
-        set_height(height() - h);
-        rect.set_y(y() + height());
-        rect.set_height(h);
-        return rect;
-    }
-
     [[nodiscard]] bool contains_vertically(T y) const
     {
         return y >= top() && y < bottom();
@@ -323,42 +279,11 @@ public:
     [[nodiscard]] ALWAYS_INLINE T secondary_offset_for_orientation(Orientation orientation) const { return m_location.secondary_offset_for_orientation(orientation); }
     ALWAYS_INLINE void set_secondary_offset_for_orientation(Orientation orientation, T value) { m_location.set_secondary_offset_for_orientation(orientation, value); }
     ALWAYS_INLINE void translate_primary_offset_for_orientation(Orientation orientation, T delta) { m_location.set_primary_offset_for_orientation(orientation, m_location.primary_offset_for_orientation(orientation) + delta); }
-    ALWAYS_INLINE void translate_secondary_offset_for_orientation(Orientation orientation, T delta) { m_location.set_secondary_offset_for_orientation(orientation, m_location.secondary_offset_for_orientation(orientation) + delta); }
 
     [[nodiscard]] ALWAYS_INLINE T primary_size_for_orientation(Orientation orientation) const { return m_size.primary_size_for_orientation(orientation); }
     [[nodiscard]] ALWAYS_INLINE T secondary_size_for_orientation(Orientation orientation) const { return m_size.secondary_size_for_orientation(orientation); }
     ALWAYS_INLINE void set_primary_size_for_orientation(Orientation orientation, T value) { m_size.set_primary_size_for_orientation(orientation, value); }
     ALWAYS_INLINE void set_secondary_size_for_orientation(Orientation orientation, T value) { m_size.set_secondary_size_for_orientation(orientation, value); }
-
-    void inflate_primary_for_orientation(Orientation orientation, T before, T after)
-    {
-        if (orientation == Orientation::Horizontal)
-            inflate(0, after, 0, before);
-        else
-            inflate(before, 0, after, 0);
-    }
-
-    void inflate_secondary_for_orientation(Orientation orientation, T before, T after)
-    {
-        if (orientation == Orientation::Horizontal)
-            inflate(before, 0, after, 0);
-        else
-            inflate(0, after, 0, before);
-    }
-
-    [[nodiscard]] T first_edge_for_orientation(Orientation orientation) const
-    {
-        if (orientation == Orientation::Vertical)
-            return top();
-        return left();
-    }
-
-    [[nodiscard]] T last_edge_for_orientation(Orientation orientation) const
-    {
-        if (orientation == Orientation::Vertical)
-            return bottom();
-        return right();
-    }
 
     [[nodiscard]] ALWAYS_INLINE T left() const { return x(); }
     [[nodiscard]] ALWAYS_INLINE T right() const { return x() + width(); }
@@ -369,28 +294,6 @@ public:
     ALWAYS_INLINE void set_top(T top) { set_y(top); }
     ALWAYS_INLINE void set_right(T right) { set_width(right - x()); }
     ALWAYS_INLINE void set_bottom(T bottom) { set_height(bottom - y()); }
-
-    void set_right_without_resize(T new_right)
-    {
-        auto delta = new_right - right();
-        translate_by(delta, 0);
-    }
-
-    void set_bottom_without_resize(T new_bottom)
-    {
-        auto delta = new_bottom - bottom();
-        translate_by(0, delta);
-    }
-
-    [[nodiscard]] bool intersects_vertically(Rect<T> const& other) const
-    {
-        return top() < other.bottom() && other.top() < bottom();
-    }
-
-    [[nodiscard]] bool intersects_horizontally(Rect<T> const& other) const
-    {
-        return left() < other.right() && other.left() < right();
-    }
 
     [[nodiscard]] bool intersects(Rect<T> const& other) const
     {
