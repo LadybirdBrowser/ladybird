@@ -4521,6 +4521,38 @@ fn parse_container_shorthand(context: &ParseContext, values: &[ComponentValue]) 
     )))
 }
 
+// https://drafts.csswg.org/css-anchor-position-1/#position-try-prop
+// <'position-try-order'>? <'position-try-fallbacks'>
+fn parse_position_try_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+    let first = values.iter().position(|value| !value.is_whitespace());
+    let order_and_fallbacks = first.and_then(|first| {
+        let ParseOutcome::Parsed(order) =
+            parse_css_value(context, property_id::POSITION_TRY_ORDER, &values[first..=first])
+        else {
+            return None;
+        };
+        Some(((*order).clone(), &values[first + 1..]))
+    });
+    // If <'position-try-order'> is omitted, it's set to the property's initial value.
+    let (order, fallback_values) = match order_and_fallbacks {
+        Some(parsed) => parsed,
+        None => match parse_initial_longhand(context, property_id::POSITION_TRY_ORDER) {
+            Some(order) => (order, values),
+            None => return ParseOutcome::Invalid,
+        },
+    };
+    let ParseOutcome::Parsed(fallbacks) =
+        parse_css_value(context, property_id::POSITION_TRY_FALLBACKS, fallback_values)
+    else {
+        return ParseOutcome::Invalid;
+    };
+    ParseOutcome::Parsed(shared_style_value(shorthand_value(
+        property_id::POSITION_TRY,
+        longhands_for_shorthand(property_id::POSITION_TRY).to_vec(),
+        vec![order, (*fallbacks).clone()],
+    )))
+}
+
 fn parse_place_shorthand(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
     let (align, justify) = match property {
         property_id::PLACE_CONTENT => (property_id::ALIGN_CONTENT, property_id::JUSTIFY_CONTENT),
@@ -5930,6 +5962,9 @@ fn parse_css_value_after_substitution_scan(
         }
         if property_id == property_id::CONTAINER {
             return parse_container_shorthand(context, values);
+        }
+        if property_id == property_id::POSITION_TRY {
+            return parse_position_try_shorthand(context, values);
         }
         let outcome = parse_place_shorthand(context, property_id, values);
         if !matches!(outcome, ParseOutcome::NotHandled) {
