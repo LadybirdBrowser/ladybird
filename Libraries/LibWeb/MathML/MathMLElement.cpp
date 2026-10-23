@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/MathML/AttributeNames.h>
@@ -30,6 +31,18 @@ void MathMLElement::attribute_changed(Utf16FlyString const& local_name, Optional
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
     HTMLOrSVGOrMathMLElement::attribute_changed(local_name, old_value, value, namespace_);
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:concept-element-attributes-change-ext
+    // 1. If namespace is not null, or localName is not the name of an event handler content attribute on element, then return.
+    if (!namespace_.has_value() && local_name.view().starts_with(u"on"sv)) {
+#undef __ENUMERATE
+#define __ENUMERATE(attribute_name, event_name)                     \
+    if (local_name == HTML::AttributeNames::attribute_name) {       \
+        element_event_handler_attribute_changed(local_name, value); \
+    }
+        ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
+#undef __ENUMERATE
+    }
 
     // NB: These attributes are read by the layout of the element's box.
     if (old_value != value && !namespace_.has_value()
