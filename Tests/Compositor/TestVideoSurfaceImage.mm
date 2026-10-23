@@ -6,12 +6,12 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Math.h>
+#include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VideoFrameSkia.h>
 #include <LibCore/IOSurface.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/MetalContext.h>
-#include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/VideoSurfaceImage.h>
 #include <LibMediaCodecs/VideoSurface.h>
 #include <LibTest/TestCase.h>

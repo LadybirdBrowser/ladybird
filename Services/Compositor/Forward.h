@@ -6,6 +6,14 @@
 
 #pragma once
 
+namespace Gfx {
+
+class PainterSkia;
+class PaintingSurface;
+class SkiaBackendContext;
+
+}
+
 namespace Compositor {
 
 class CanvasSurfaceRegistry;

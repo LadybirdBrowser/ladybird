@@ -1,9 +1,11 @@
 set(SOURCES
     AsyncScrollUpdateOutbox.cpp
     BackingStoreManager.cpp
+    BitmapExport.cpp
     Canvas2DCommandPlayer.cpp
     CanvasHost.cpp
     CaretBlinkTimer.cpp
+    ColorSpaceSkia.cpp
     CompositorState.cpp
     ContextPresenter.cpp
     ContextScene.cpp
@@ -20,6 +22,8 @@ set(SOURCES
     HostWebGLContext.cpp
     KeyboardScrollController.cpp
     OpenGLContext.cpp
+    PainterSkia.cpp
+    PaintingSurface.cpp
     PausedDebuggerOverlay.cpp
     PictureInPictureControls.cpp
     RasterizeDisplayList.cpp
@@ -27,6 +31,8 @@ set(SOURCES
     ScrollFlingController.cpp
     ScrollSnapController.cpp
     ScrollbarController.cpp
+    SkiaBackendContext.cpp
+    SkiaUtils.cpp
     VideoFrameHolds.cpp
     VideoFrameSkia.cpp
     VSyncScheduler.cpp
@@ -77,6 +83,11 @@ target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSa
 # ANGLE must precede Skia so macOS GLES symbols bind to ANGLE rather than the
 # OpenGL framework pulled in by Skia.
 target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibIPC LibMedia LibCompositing ${ANGLE_TARGETS} skia)
+
+if (HAS_VULKAN)
+    target_sources(compositorservice PRIVATE SkiaVulkanMemoryAllocator.cpp)
+    target_link_libraries(compositorservice PRIVATE Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator)
+endif()
 
 if (USE_VULKAN_DMABUF_IMAGES)
     target_sources(compositorservice PRIVATE VideoFrameSkiaVulkan.cpp)

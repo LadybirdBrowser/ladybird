@@ -5,17 +5,17 @@
  */
 
 #include <AK/Vector.h>
+#include <Compositor/BitmapExport.h>
 #include <Compositor/HostWebGLContext.h>
+#include <Compositor/PaintingSurface.h>
+#include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VideoFrameSkia.h>
 #include <Compositor/WebGLCommandReplayer.h>
 #include <LibCompositing/WebGL/TextureUpload.h>
 #include <LibCompositing/WebGL/WebGLCommandList.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/BitmapExport.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibGfx/SkiaBackendContext.h>
 #include <LibMediaCodecs/VideoFrame.h>
 
 #include <core/SkImage.h>

@@ -11,10 +11,10 @@
 #include <Compositor/PausedDebuggerOverlay.h>
 #include <Compositor/PictureInPictureControls.h>
 #include <Compositor/ScrollbarController.h>
+#include <Compositor/SkiaUtils.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/SkiaUtils.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <core/SkCanvas.h>

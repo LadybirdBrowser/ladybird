@@ -5,8 +5,8 @@
  */
 
 #include <AK/Try.h>
+#include <Compositor/BitmapExport.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/BitmapExport.h>
 #include <LibGfx/Color.h>
 #include <LibTest/TestCase.h>
 

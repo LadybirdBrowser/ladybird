@@ -12,6 +12,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Variant.h>
+#include <Compositor/Forward.h>
 #include <Compositor/OpenGLContext.h>
 #include <Compositor/WebGLObjectMap.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>

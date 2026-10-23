@@ -5,10 +5,10 @@
  */
 
 #include <AK/Span.h>
+#include <Compositor/PaintingSurface.h>
 #include <Compositor/PictureInPictureControls.h>
+#include <Compositor/SkiaUtils.h>
 #include <LibCompositing/UIOverlays.h>
-#include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SkiaUtils.h>
 #include <core/SkCanvas.h>
 #include <core/SkPaint.h>
 #include <core/SkPathBuilder.h>

@@ -17,6 +17,7 @@
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/CompositedContext.h>
 #include <Compositor/Forward.h>
+#include <Compositor/PaintingSurface.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/Forward.h>
@@ -25,7 +26,6 @@
 #include <LibCompositing/Types.h>
 #include <LibCompositing/UIOverlays.h>
 #include <LibCore/Forward.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>

@@ -6,10 +6,10 @@
 
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/DisplayListRasterCache.h>
+#include <Compositor/PaintingSurface.h>
 #include <Compositor/RasterizeDisplayList.h>
+#include <Compositor/SkiaBackendContext.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SkiaBackendContext.h>
 
 namespace Compositor {
 

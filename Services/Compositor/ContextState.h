@@ -23,6 +23,7 @@
 #include <Compositor/Forward.h>
 #include <Compositor/FramePacer.h>
 #include <Compositor/KeyboardScrollController.h>
+#include <Compositor/PaintingSurface.h>
 #include <Compositor/ScrollFlingController.h>
 #include <Compositor/ScrollSnapController.h>
 #include <Compositor/ScrollbarController.h>
@@ -37,7 +38,6 @@
 #include <LibCompositing/Scrolling/SmoothScrollAnimation.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
-#include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>

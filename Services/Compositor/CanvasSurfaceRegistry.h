@@ -9,8 +9,8 @@
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
+#include <Compositor/PaintingSurface.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
-#include <LibGfx/PaintingSurface.h>
 
 namespace Compositor {
 

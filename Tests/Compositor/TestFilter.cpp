@@ -5,10 +5,10 @@
  */
 
 #include <AK/Hex.h>
+#include <Compositor/SkiaUtils.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
-#include <LibGfx/SkiaUtils.h>
 #include <LibTest/TestCase.h>
 
 // A graph with every filter operation once, drawing an image frame under id 42, as the Rust codec in

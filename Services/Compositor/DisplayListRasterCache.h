@@ -13,6 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Span.h>
 #include <AK/Time.h>
+#include <Compositor/Forward.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Forward.h>
 #include <LibGfx/Forward.h>

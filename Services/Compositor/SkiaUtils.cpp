@@ -7,13 +7,13 @@
 #include <AK/Assertions.h>
 #include <AK/Math.h>
 #include <AK/MemoryStream.h>
+#include <Compositor/SkiaUtils.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/InterpolationColorSpace.h>
-#include <LibGfx/SkiaUtils.h>
-#include <RustFFI.h>
+#include <LibGfx/RustFFI.h>
 #include <core/SkBitmap.h>
 #include <core/SkBlender.h>
 #include <core/SkColorFilter.h>

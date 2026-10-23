@@ -15,7 +15,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/SkiaUtils.h>
 #include <LibGfx/TextLayout.h>
 #include <core/SkPath.h>
 #include <core/SkPathBuilder.h>
@@ -42,6 +41,17 @@ namespace Gfx {
 static FloatPoint to_gfx_point(SkPoint const& point)
 {
     return { point.x(), point.y() };
+}
+
+static SkPathFillType to_skia_path_fill_type(WindingRule winding_rule)
+{
+    switch (winding_rule) {
+    case WindingRule::Nonzero:
+        return SkPathFillType::kWinding;
+    case WindingRule::EvenOdd:
+        return SkPathFillType::kEvenOdd;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 namespace {
