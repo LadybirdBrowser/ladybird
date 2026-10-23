@@ -1044,9 +1044,9 @@ struct HighlightStyleInput {
     GC::Ptr<Range> range;
 };
 
-static Vector<HighlightStyleInput, 2> selection_style_inputs(Document& document)
+static GC::ConservativeVector<HighlightStyleInput, 2> selection_style_inputs(Document& document)
 {
-    Vector<HighlightStyleInput, 2> inputs;
+    GC::ConservativeVector<HighlightStyleInput, 2> inputs;
     if (auto selection = document.get_selection(); selection && !selection->is_collapsed()) {
         auto range = selection->range();
         inputs.append({ range->common_ancestor_container(), range });
@@ -1056,12 +1056,12 @@ static Vector<HighlightStyleInput, 2> selection_style_inputs(Document& document)
     return inputs;
 }
 
-static Vector<HighlightStyleInput, 2> search_text_style_inputs(Document& document)
+static GC::ConservativeVector<HighlightStyleInput, 2> search_text_style_inputs(Document& document)
 {
-    Vector<HighlightStyleInput, 2> inputs;
+    GC::ConservativeVector<HighlightStyleInput, 2> inputs;
     if (auto active_match = document.find_in_page_active_match(); active_match && !active_match->collapsed())
         inputs.append({ active_match->common_ancestor_container(), active_match });
-    HashTable<Node*> highlighted_roots;
+    GC::RootHashTable<Node*> highlighted_roots;
     for (auto const& match : document.find_in_page_highlighted_matches()) {
         if (match->collapsed())
             continue;
@@ -1072,12 +1072,12 @@ static Vector<HighlightStyleInput, 2> search_text_style_inputs(Document& documen
     return inputs;
 }
 
-static Vector<HighlightStyleInput, 2> spelling_error_style_inputs(Document& document)
+static GC::ConservativeVector<HighlightStyleInput, 2> spelling_error_style_inputs(Document& document)
 {
-    Vector<HighlightStyleInput, 2> inputs;
+    GC::ConservativeVector<HighlightStyleInput, 2> inputs;
     if (!document.has_spelling_markers())
         return inputs;
-    HashTable<Node*> roots;
+    GC::RootHashTable<Node*> roots;
     document.spelling_markers().for_each_marked_text([&](Text& text, auto) {
         auto* parent = text.parent();
         if (parent && roots.set(parent) == HashSetResult::InsertedNewEntry)
