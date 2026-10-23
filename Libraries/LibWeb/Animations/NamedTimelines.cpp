@@ -223,7 +223,7 @@ bool NamedTimelines::update_tracked_animations()
     if (!m_tracked_animations_need_update)
         return false;
     m_tracked_animations_need_update = false;
-    Vector<GC::Ref<CSS::CSSAnimation>> animations;
+    GC::RootVector<GC::Ref<CSS::CSSAnimation>> animations;
     for (auto& animation : m_tracked_animations)
         animations.append(animation);
     bool any_timeline_changed = false;
