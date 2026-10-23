@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const sampleRate = 44100;
+    const bufferLength = 32768;
+    const bufferCount = 12;
+
+    promiseTest(async () => {
+        const context = new OfflineAudioContext(1, sampleRate + bufferLength * bufferCount, sampleRate);
+
+        // Streaming players schedule each buffer at the previous start plus its duration. The sum misses frame
+        // boundaries by rounding error, which must not open gaps between the buffers.
+        let when = 1;
+        for (let i = 0; i < bufferCount; i++) {
+            const buffer = context.createBuffer(1, bufferLength, sampleRate);
+            buffer.getChannelData(0).fill(0.5);
+            const source = new AudioBufferSourceNode(context, { buffer });
+            source.connect(context.destination);
+            source.start(when);
+            when += buffer.duration;
+        }
+
+        const samples = (await context.startRendering()).getChannelData(0);
+        const gapFrames = [];
+        for (let frame = sampleRate; frame < samples.length; frame++) {
+            if (samples[frame] !== 0.5)
+                gapFrames.push(frame);
+        }
+        println(`Frames that are not 0.5: ${gapFrames.length === 0 ? "none" : gapFrames.join(", ")}`);
+    });
+</script>

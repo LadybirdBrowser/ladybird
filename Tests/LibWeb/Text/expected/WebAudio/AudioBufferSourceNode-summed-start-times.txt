@@ -1,0 +1,1 @@
+Frames that are not 0.5: none
