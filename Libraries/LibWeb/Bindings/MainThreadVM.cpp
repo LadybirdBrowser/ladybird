@@ -464,7 +464,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
         auto resolve_function = JS::NativeFunction::create(realm, move(steps), 1, vm.names.resolve);
 
         // 5. Return « Record { [[Key]]: "url", [[Value]]: urlString }, Record { [[Key]]: "resolve", [[Value]]: resolveFunction } ».
-        HashMap<JS::PropertyKey, JS::Value> meta;
+        GC::RootHashMap<JS::PropertyKey, JS::Value> meta;
         meta.set("url"_utf16_fly_string, JS::PrimitiveString::create(vm, Utf16String::from_utf8(url_string)));
         meta.set("resolve"_utf16_fly_string, resolve_function);
 
