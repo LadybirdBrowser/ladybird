@@ -40,7 +40,7 @@ void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_cl
     auto traversal = ancestor_traversal_for_pseudo_class(pseudo_class);
 
     auto build_chain = [&](GC::Ptr<DOM::Node> start) {
-        HashTable<DOM::Element const*> chain;
+        GC::RootHashTable<DOM::Element const*> chain;
         if (!start)
             return chain;
         if (propagates) {
