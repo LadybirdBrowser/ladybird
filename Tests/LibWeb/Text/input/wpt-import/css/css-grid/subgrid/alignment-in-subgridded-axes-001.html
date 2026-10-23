@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Test: Specified alignment properties in subgridded axes</title>
+<link rel="author" title="Ethan Jimenez" href="mailto:ethavar@microsoft.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-box-alignment">
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  font-size: 0;
+}
+
+.grid {
+  background: gray;
+  display: inline-grid;
+  grid-auto-rows: 100px;
+  grid-template-columns: 100px;
+}
+
+.subgrid {
+  margin: 10px;
+  padding: 10px;
+  display: grid;
+  background: orangered;
+  border: blue solid 10px;
+  grid-template: subgrid / subgrid;
+}
+
+.as { align-self: start; }
+.ae { align-self: end; }
+.ac { align-self: center; }
+.ab { align-self: baseline; }
+
+.js { justify-self: start; }
+.je { justify-self: end; }
+.jc { justify-self: center; }
+.jb { justify-self: baseline; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.item')">
+<div class="grid">
+  <div class="subgrid as js">
+    <div class="item" data-offset-x="30" data-expected-width="40" data-offset-y="30" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid as je">
+    <div class="item" data-offset-x="30" data-expected-width="40" data-offset-y="130" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid as jc">
+    <div class="item" data-offset-x="30" data-expected-width="40" data-offset-y="230" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid as jb">
+    <div class="item" data-offset-x="30" data-expected-width="40" data-offset-y="330" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid ae js">
+    <div class="item" data-offset-x="130" data-expected-width="40" data-offset-y="30" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid ae je">
+    <div class="item" data-offset-x="130" data-expected-width="40" data-offset-y="130" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid ae jc">
+    <div class="item" data-offset-x="130" data-expected-width="40" data-offset-y="230" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid ae jb">
+    <div class="item" data-offset-x="130" data-expected-width="40" data-offset-y="330" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid ac js">
+    <div class="item" data-offset-x="230" data-expected-width="40" data-offset-y="30" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid ac je">
+    <div class="item" data-offset-x="230" data-expected-width="40" data-offset-y="130" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid ac jc">
+    <div class="item" data-offset-x="230" data-expected-width="40" data-offset-y="230" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid ac jb">
+    <div class="item" data-offset-x="230" data-expected-width="40" data-offset-y="330" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="subgrid ab js">
+    <div class="item" data-offset-x="330" data-expected-width="40" data-offset-y="30" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid ab je">
+    <div class="item" data-offset-x="330" data-expected-width="40" data-offset-y="130" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid ab jc">
+    <div class="item" data-offset-x="330" data-expected-width="40" data-offset-y="230" data-expected-height="40"></div>
+  </div>
+  <div class="subgrid ab jb">
+    <div class="item" data-offset-x="330" data-expected-width="40" data-offset-y="330" data-expected-height="40"></div>
+  </div>
+</div>
+</body>

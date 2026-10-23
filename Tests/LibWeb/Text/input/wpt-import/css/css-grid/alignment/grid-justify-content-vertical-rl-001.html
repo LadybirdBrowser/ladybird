@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#positional-values">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-justify-content">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-align">
+<meta name="assert" content="justify-content positional values position the column tracks of a vertical-rl grid along its inline axis, with 'left' and 'right' mapping to line-left and line-right, in LTR and RTL.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.grid {
+    grid: 100px 100px / 50px 50px;
+    position: relative;
+    width: 300px;
+    height: 200px;
+}
+
+.cell {
+    width: 20px;
+    height: 40px;
+}
+</style>
+<body onload="checkLayout('.grid')">
+
+<p>This test checks that the justify-content property is applied correctly in vertical-RL grids.</p>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'center'</p>
+    <div class="grid verticalRL justifyContentCenter" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="50" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="100" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'left'</p>
+    <div class="grid verticalRL justifyContentLeft" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="0" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="50" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'right'</p>
+    <div class="grid verticalRL justifyContentRight" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="100" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="150" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'start'</p>
+    <div class="grid verticalRL justifyContentStart" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="0" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="50" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: LTR | justify-content: 'end'</p>
+    <div class="grid verticalRL justifyContentEnd" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="100" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="150" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<!-- RTL direction. -->
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'center'</p>
+    <div class="grid verticalRL directionRTL justifyContentCenter" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="110" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="60" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'left'</p>
+    <div class="grid verticalRL directionRTL justifyContentLeft" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="60" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="0" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="10" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'right'</p>
+    <div class="grid verticalRL directionRTL justifyContentRight" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="110" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'start'</p>
+    <div class="grid verticalRL directionRTL justifyContentStart" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="110" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <p>direction: RTL | justify-content: 'end'</p>
+    <div class="grid verticalRL directionRTL justifyContentEnd" data-expected-width="300" data-expected-height="200">
+        <div class="cell firstRowFirstColumn" data-offset-x="280" data-offset-y="60" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="200" data-offset-y="0" data-expected-width="100" data-expected-height="50"></div>
+        <div class="secondRowFirstColumn" data-offset-x="100" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="180" data-offset-y="10" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+</body>

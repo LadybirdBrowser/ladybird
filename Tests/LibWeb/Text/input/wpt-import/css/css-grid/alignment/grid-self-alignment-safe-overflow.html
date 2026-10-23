@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#overflow-values">
+<link rel="help" href="https://www.w3.org/TR/css-grid-1/#alignment">
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  /* Every item uses explicit grid-area placement (with explicit end lines). */
+  .grid { display: grid; }
+  .single        { grid-template: 50px / 50px; }
+  .three-columns { grid-template: 50px / 50px 50px 50px; }
+  .three-rows    { grid-template: 50px 50px 50px / 50px; }
+
+  .item { background: green; }
+  .wide { width: 100px; height: 50px; }
+  .tall { width: 50px; height: 100px; }
+
+  .cell   { grid-area: 1 / 1 / 2 / 2; }
+  .column2 { grid-area: 1 / 2 / 2 / 3; }
+  .row2    { grid-area: 2 / 1 / 3 / 2; }
+</style>
+<body>
+<div id="log"></div>
+
+<!-- An item larger than a single grid area: safe alignment must clamp it to the
+     area's start edge (offset 0) instead of overflowing past the start edge. -->
+<div class="grid single"><div class="item wide cell" id="justify-safe-end"    style="justify-self: safe end"></div></div>
+<div class="grid single"><div class="item tall cell" id="align-safe-end"      style="align-self: safe end"></div></div>
+<div class="grid single"><div class="item wide cell" id="justify-safe-center" style="justify-self: safe center"></div></div>
+<div class="grid single"><div class="item tall cell" id="align-safe-center"   style="align-self: safe center"></div></div>
+
+<!-- An item placed in the second track, larger than that track: safe alignment
+     must clamp it to that track's start edge (offset 50), not overflow toward
+     the first track. -->
+<div class="grid three-columns"><div class="item wide column2" id="justify-safe-end-second-column" style="justify-self: safe end"></div></div>
+<div class="grid three-rows"><div class="item tall row2" id="align-safe-end-second-row" style="align-self: safe end"></div></div>
+
+<script>
+function startEdgeOffset(id) {
+    const item = document.getElementById(id);
+    const gridRect = item.parentElement.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    return { left: itemRect.left - gridRect.left, top: itemRect.top - gridRect.top };
+}
+
+test(() => {
+    assert_equals(startEdgeOffset("justify-safe-end").left, 0);
+}, "justify-self: safe end on an item wider than its grid area clamps to the start edge");
+
+test(() => {
+    assert_equals(startEdgeOffset("align-safe-end").top, 0);
+}, "align-self: safe end on an item taller than its grid area clamps to the start edge");
+
+test(() => {
+    assert_equals(startEdgeOffset("justify-safe-center").left, 0);
+}, "justify-self: safe center on an item wider than its grid area clamps to the start edge");
+
+test(() => {
+    assert_equals(startEdgeOffset("align-safe-center").top, 0);
+}, "align-self: safe center on an item taller than its grid area clamps to the start edge");
+
+test(() => {
+    assert_equals(startEdgeOffset("justify-safe-end-second-column").left, 50);
+}, "justify-self: safe end on an item overflowing the second column clamps to that column's start edge");
+
+test(() => {
+    assert_equals(startEdgeOffset("align-safe-end-second-row").top, 50);
+}, "align-self: safe end on an item overflowing the second row clamps to that row's start edge");
+</script>
+</body>

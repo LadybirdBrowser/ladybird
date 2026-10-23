@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: grid align baseline vertical</title>
+<link rel="author" title="Rossana Monteriso" href="mailto:rmonteriso@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-writing-modes-4/#intro-baselines">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-rules">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-align-self">
+<meta name="assert" content="This test checks that baseline alignment works correctly for align-self properties in vertical-rl and -lr writing modes">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+
+<style>
+
+.grid {
+    height: 600px;
+    grid-auto-columns: 1fr;
+    margin-bottom: 20px;
+    position: relative;
+    text-orientation: sideways;
+    font: 20px/1 Ahem;
+}
+
+.grid :nth-child(1) { background-color: brown; }
+.grid :nth-child(2) { background-color: green; }
+.grid :nth-child(3) { background-color: red; }
+.grid :nth-child(4) { background-color: yellow; }
+.grid :nth-child(5) { background-color: purple; }
+.grid :nth-child(6) { background-color: orange; }
+.grid :nth-child(7) { background-color: lime; }
+.grid :nth-child(8) { background-color: lightblue; }
+.grid :nth-child(9) { background-color: darkred; }
+.grid :nth-child(10) { background-color: gold; }
+.grid :nth-child(11) { background-color: salmon; }
+
+.firstRowThirdColumn {
+    grid-row: 1;
+    grid-column: 3;
+}
+.firstRowFourthColumn {
+    grid-row: 1;
+    grid-column: 4;
+}
+.firstRowFifthColumn {
+    grid-row: 1;
+    grid-column: 5;
+}
+.grid > div {
+    min-width: 0px;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript"> setup({ explicit_done: true }); </script>
+
+<body onload="document.fonts.ready.then(() => { runTests(); })">
+
+<div class="grid" style="writing-mode: vertical-rl">
+    <div data-expected-width="20" data-offset-x="70" class="firstRowFirstColumn alignSelfBaseline" style="width: 20px;"></div>
+    <div data-expected-width="10" data-offset-x="70" class="firstRowSecondColumn alignSelfBaseline" style="width: 10px; margin: 0 20px 0 10px;"></div>
+    <div data-expected-width="10" data-offset-x="70" class="firstRowThirdColumn alignSelfBaseline" style="width: 10px; margin: 0 20px 0 0;"></div>
+    <div data-expected-width="100" data-offset-x="0" class="firstRowFourthColumn" style="width: 100px;"></div>
+</div>
+
+<div class="grid" style="writing-mode: vertical-rl">
+  <div id="baseline1" class="firstRowFirstColumn alignSelfBaseline">ahem</div>
+  <div id="baseline2" class="firstRowSecondColumn alignSelfBaseline"><img src="../../../css/support/1x1-lime.png" style="width: 50px;"></div>
+  <div data-expected-width="50" data-offset-x="25" class="firstRowThirdColumn alignSelfCenter"><img src="../../../css/support/1x1-lime.png" style="width: 50px; vertical-align: middle;"></div>
+  <div id="baseline3" data-expected-width="50" class="firstRowFourthColumn alignSelfBaseline"><img src="../../../css/support/1x1-lime.png" style="width: 50px; vertical-align: middle;"></div>
+  <div data-expected-width="100" data-offset-x="0" class="firstRowFifthColumn" style="width: 100px;"></div>
+</div>
+
+<div class="grid" style="writing-mode: vertical-rl">
+  <div id="baseline4" class="firstRowFirstColumn alignSelfBaseline">ahem</div>
+  <div id="baseline5" class="firstRowSecondColumn alignSelfBaseline"><br><img src="../../../css/support/1x1-lime.png" style="width: 50px;"></div>
+  <div data-expected-width="50" data-offset-x="50" class="firstRowThirdColumn alignSelfBaseline"><img src="../../../css/support/1x1-lime.png" style="width: 50px; vertical-align: middle;"></div>
+  <div data-expected-width="100" data-offset-x="0" class="firstRowFourthColumn" style="width: 100px;"></div>
+</div>
+
+<div class="grid" style="writing-mode: vertical-lr">
+  <div id="baseline6" data-offset-x="13" class="firstRowFirstColumn alignSelfBaseline">ahem</div>
+  <div id="baseline7" data-offset-x="13" class="firstRowSecondColumn alignSelfBaseline"><img src="../../../css/support/1x1-lime.png" style="width: 50px;"></div>
+  <div data-expected-width="50" data-offset-x="25" class="firstRowThirdColumn alignSelfCenter"><img src="../../../css/support/1x1-lime.png" style="width: 50px; vertical-align: middle;"></div>
+  <div data-expected-width="50" data-offset-x="0" class="firstRowFourthColumn alignSelfBaseline"><img src="../../../css/support/1x1-lime.png" style="width: 50px; vertical-align: middle;"></div>
+  <div data-expected-width="100" data-offset-x="0" class="firstRowFifthColumn" style="width: 100px;"></div>
+</div>
+
+<div class="grid" style="writing-mode: vertical-lr">
+  <div id="baseline8" class="firstRowFirstColumn alignSelfBaseline">ahem</div>
+  <div id="baseline9" class="firstRowSecondColumn alignSelfBaseline"><br><img src="../../../css/support/1x1-lime.png" style="width: 50px;"></div>
+  <div data-expected-width="50" data-offset-x="0" class="firstRowThirdColumn alignSelfBaseline"><img src="../../../css/support/1x1-lime.png" style="width: 50px; vertical-align: middle;"></div>
+  <div data-expected-width="100" data-offset-x="0" class="firstRowFourthColumn" style="width: 100px;"></div>
+</div>
+
+<div id="log"></div>
+
+</body>
+
+<script>
+
+  function runTests() {
+    var baseline1 = document.getElementById("baseline1");
+    var baseline2 = document.getElementById("baseline2");
+    var baseline3 = document.getElementById("baseline3");
+    var baseline4 = document.getElementById("baseline4");
+    var baseline5 = document.getElementById("baseline5");
+    var baseline6 = document.getElementById("baseline6");
+    var baseline7 = document.getElementById("baseline7");
+    var baseline8 = document.getElementById("baseline8");
+    var baseline9 = document.getElementById("baseline9");
+
+    checkLayout('.grid', false);
+
+    test(() => {assert_equals(baseline1.offsetLeft, baseline2.offsetLeft, "baseline1 and baseline2 should have the same baseline;")}, "Additional Check 1");
+    test(() => {assert_greater_than(baseline3.offsetLeft + baseline3.offsetWidth, 75, "baseline3 should be above the center align-itemsed item;")}, "Additional Check 2");
+    test(() => {assert_equals(baseline4.offsetLeft + baseline4.offsetWidth, baseline5.offsetLeft + baseline5.offsetWidth, "baseline4 and baseline5 should be right aligned with each other;")}, "Additional Check 3");
+    test(() => {assert_less_than(baseline4.offsetLeft + baseline4.offsetWidth, 100, "baseline4 and baseline5 should be below the dominant baseline;")}, "Additional Check 4");
+    test(() => {assert_equals(baseline6.offsetLeft, baseline7.offsetLeft, "baseline6 and baseline7 should have the same baseline;")}, "Additional Check 5");
+    test(() => {assert_equals(baseline8.offsetLeft, baseline9.offsetLeft, "baseline8 and baseline9 should be left aligned with each other;")}, "Additional Check 6");
+
+    done();
+  };
+
+</script>
+
+</body>

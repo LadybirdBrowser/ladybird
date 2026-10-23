@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Test: content distribution is inherited by a subgrid in the subgridded axis</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#subgrid-grid-alignment">
+<link rel="author" title="Karl Dubost" href="mailto:karlcow@apple.com">
+<!--
+  "Layoutwise, the subgrid's grid is always aligned with the corresponding section of the
+  parent grid; the 'align-content'/'justify-content' properties on it are also ignored in
+  the subgridded dimension."
+
+  Two requirements. When the parent distributes its leftover space between its tracks, the
+  subgrid's tracks have to move with them; and the subgrid's own content distribution never
+  applies. Every grid here is 3 tracks of 100px with a 10px gap, so tracks plus gaps come to
+  320px, and the container width sets how much is left to distribute.
+-->
+<style>
+.grid {
+  position: relative; /* Makes every offset below relative to this box. */
+  display: grid;
+  grid-template-columns: 100px 100px 100px;
+  grid-auto-rows: 20px;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+/* A subgrid does not set a gap of its own: it inherits the parent's. */
+.subgrid {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+}
+
+.item { background: teal; }
+.subitem { background: orange; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.grid')">
+
+<!-- 400 - 320 = 80 left over, shared between 2 gaps: 40 each. -->
+<div class="grid" style="width: 400px; justify-content: space-between"
+     title="columns, parent space-between, subgrid sets nothing">
+  <div class="item" data-offset-x="0" data-expected-width="100"></div>
+  <div class="item" data-offset-x="150" data-expected-width="100"></div>
+  <div class="item" data-offset-x="300" data-expected-width="100"></div>
+  <div class="subgrid" data-offset-x="0" data-expected-width="400">
+    <div class="subitem" data-offset-x="0" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="150" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="300" data-expected-width="100"></div>
+  </div>
+</div>
+
+<!-- 410 - 320 = 90 over 3 tracks: 30 between tracks, 15 at each edge. -->
+<div class="grid" style="width: 410px; justify-content: space-around"
+     title="columns, parent space-around">
+  <div class="item" data-offset-x="15" data-expected-width="100"></div>
+  <div class="item" data-offset-x="155" data-expected-width="100"></div>
+  <div class="item" data-offset-x="295" data-expected-width="100"></div>
+  <div class="subgrid" data-offset-x="15" data-expected-width="380">
+    <div class="subitem" data-offset-x="15" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="155" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="295" data-expected-width="100"></div>
+  </div>
+</div>
+
+<!-- 400 - 320 = 80 over 4 equal spaces: 20 each. -->
+<div class="grid" style="width: 400px; justify-content: space-evenly"
+     title="columns, parent space-evenly">
+  <div class="item" data-offset-x="20" data-expected-width="100"></div>
+  <div class="item" data-offset-x="150" data-expected-width="100"></div>
+  <div class="item" data-offset-x="280" data-expected-width="100"></div>
+  <div class="subgrid" data-offset-x="20" data-expected-width="360">
+    <div class="subitem" data-offset-x="20" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="150" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="280" data-expected-width="100"></div>
+  </div>
+</div>
+
+<!--
+  'center' shifts the whole grid and adds nothing between the tracks. The subgrid's box is
+  already placed at the parent's first grid line, so that shift must not be applied a second
+  time inside the subgrid: 40 / 150 / 260, not 80 / 190 / 300.
+-->
+<div class="grid" style="width: 400px; justify-content: center"
+     title="columns, parent center, shift must not be applied twice">
+  <div class="item" data-offset-x="40" data-expected-width="100"></div>
+  <div class="item" data-offset-x="150" data-expected-width="100"></div>
+  <div class="item" data-offset-x="260" data-expected-width="100"></div>
+  <div class="subgrid" data-offset-x="40" data-expected-width="320">
+    <div class="subitem" data-offset-x="40" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="150" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="260" data-expected-width="100"></div>
+  </div>
+</div>
+
+<!-- A subgrid over only part of the parent's tracks still lines up with them. -->
+<div class="grid" style="width: 400px; justify-content: space-between"
+     title="columns, parent space-between, subgrid spans 2 / -1">
+  <div class="item" data-offset-x="0" data-expected-width="100"></div>
+  <div class="item" data-offset-x="150" data-expected-width="100"></div>
+  <div class="item" data-offset-x="300" data-expected-width="100"></div>
+  <div class="subgrid" style="grid-column: 2 / -1" data-offset-x="150" data-expected-width="250">
+    <div class="subitem" data-offset-x="150" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="300" data-expected-width="100"></div>
+  </div>
+</div>
+
+<!-- The block axis works the same way, through align-content. -->
+<div class="grid" style="width: 210px; height: 400px; grid-template-columns: 100px 100px;
+                         grid-template-rows: 100px 100px 100px; align-content: space-between"
+     title="rows, parent align-content space-between">
+  <div class="item" style="grid-column: 1" data-offset-y="0" data-expected-height="100"></div>
+  <div class="item" style="grid-column: 1" data-offset-y="150" data-expected-height="100"></div>
+  <div class="item" style="grid-column: 1" data-offset-y="300" data-expected-height="100"></div>
+  <div style="display: grid; grid-template-rows: subgrid; grid-column: 2; grid-row: 1 / -1"
+       data-offset-y="0" data-expected-height="400">
+    <div class="subitem" data-offset-y="0" data-expected-height="100"></div>
+    <div class="subitem" data-offset-y="150" data-expected-height="100"></div>
+    <div class="subitem" data-offset-y="300" data-expected-height="100"></div>
+  </div>
+</div>
+
+<!-- A subgrid of a subgrid reaches all the way back to the outermost grid's tracks. -->
+<div class="grid" style="width: 400px; justify-content: space-between"
+     title="columns, nested subgrid inside a subgrid">
+  <div class="item" data-offset-x="0" data-expected-width="100"></div>
+  <div class="item" data-offset-x="150" data-expected-width="100"></div>
+  <div class="item" data-offset-x="300" data-expected-width="100"></div>
+  <div class="subgrid" data-offset-x="0" data-expected-width="400">
+    <div class="subgrid" data-offset-x="0" data-expected-width="400">
+      <div class="subitem" data-offset-x="0" data-expected-width="100"></div>
+      <div class="subitem" data-offset-x="150" data-expected-width="100"></div>
+      <div class="subitem" data-offset-x="300" data-expected-width="100"></div>
+    </div>
+  </div>
+</div>
+
+<!--
+  The subgrid asks for something different from its parent. It is ignored, so this has to
+  match the first case exactly. If it were honoured the items would sit at 40 / 190 / 340.
+-->
+<div class="grid" style="width: 400px; justify-content: space-between"
+     title="columns, subgrid's own justify-content is ignored">
+  <div class="item" data-offset-x="0" data-expected-width="100"></div>
+  <div class="item" data-offset-x="150" data-expected-width="100"></div>
+  <div class="item" data-offset-x="300" data-expected-width="100"></div>
+  <div class="subgrid" style="justify-content: center" data-offset-x="0" data-expected-width="400">
+    <div class="subitem" data-offset-x="0" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="150" data-expected-width="100"></div>
+    <div class="subitem" data-offset-x="300" data-expected-width="100"></div>
+  </div>
+</div>
+
+</body>

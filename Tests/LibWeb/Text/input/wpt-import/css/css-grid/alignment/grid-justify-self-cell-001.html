@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#justify-self-property">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#justify-grid">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#column-align">
+<meta name="assert" content="justify-self aligns a grid item in the inline axis of its grid area, resolving 'start', 'end', 'left', 'right', 'flex-*' and 'self-*' against the grid's or the item's writing mode and direction as appropriate, in horizontal and vertical grids and when the item's direction differs from the grid's.">
+<link rel="stylesheet" href="../../../css/support/width-keyword-classes.css">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<style>
+.grid {
+    grid-template-columns: 100px 100px;
+    grid-template-rows: 200px 200px;
+}
+
+.cell {
+    width: 10px;
+    height: 20px;
+}
+</style>
+<body onload="checkLayout('.grid')">
+
+<p>This test checks that the justify-self property is applied correctly.</p>
+
+<div style="position: relative" class="constrainedContainer">
+<div class="grid fit-content" data-expected-width="200" data-expected-height="400">
+    <div class="justifySelfStretch firstRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+    <div class="cell justifySelfStart firstRowSecondColumn" data-offset-x="100" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfEnd firstRowSecondColumn" data-offset-x="190" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfCenter secondRowFirstColumn" data-offset-x="45" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfRight secondRowSecondColumn" data-offset-x="190" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfLeft secondRowSecondColumn" data-offset-x="100" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+</div>
+</div>
+
+<div style="position: relative" class="constrainedContainer">
+<div class="grid fit-content" data-expected-width="200" data-expected-height="400">
+    <div class="cell justifySelfFlexEnd firstRowFirstColumn" data-offset-x="90" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfFlexStart firstRowSecondColumn" data-offset-x="100" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfSelfStart secondRowFirstColumn" data-offset-x="0" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfSelfEnd secondRowSecondColumn" data-offset-x="190" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+</div>
+</div>
+
+<!-- Default justification and initial values. -->
+<div style="position: relative">
+    <div class="grid fit-content justifyItemsCenter" data-expected-width="200" data-expected-height="400">
+        <div class="cell justifySelfAuto firstRowFirstColumn" data-offset-x="45" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+        <div class="cell firstRowSecondColumn" data-offset-x="145" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+        <div class="cell justifySelfSelfStart secondRowFirstColumn" data-offset-x="0" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+        <div class="cell justifySelfSelfEnd secondRowSecondColumn" data-offset-x="190" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid fit-content" data-expected-width="200" data-expected-height="400">
+        <div class="justifySelfAuto firstRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell firstRowSecondColumn" data-offset-x="100" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+        <div class="cell justifySelfStart secondRowFirstColumn" data-offset-x="0" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+        <div class="cell justifySelfEnd secondRowSecondColumn" data-offset-x="190" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    </div>
+</div>
+
+<!-- Vertical writing mode. -->
+<div style="position: relative" class="constrainedContainer">
+<div class="grid fit-content verticalRL" data-expected-width="400" data-expected-height="200">
+    <div class="justifySelfStretch firstRowFirstColumn" data-offset-x="200" data-offset-y="0" data-expected-width="200" data-expected-height="100"></div>
+    <div class="cell justifySelfStart firstRowSecondColumn" data-offset-x="390" data-offset-y="100" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfEnd firstRowSecondColumn" data-offset-x="390" data-offset-y="180" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfCenter secondRowFirstColumn" data-offset-x="190" data-offset-y="40" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfRight secondRowSecondColumn" data-offset-x="190" data-offset-y="180" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfLeft secondRowSecondColumn" data-offset-x="190" data-offset-y="100" data-expected-width="10" data-expected-height="20"></div>
+</div>
+</div>
+
+<div style="position: relative" class="constrainedContainer">
+<div class="grid fit-content verticalLR" data-expected-width="400" data-expected-height="200">
+    <div class="cell justifySelfFlexEnd firstRowFirstColumn" data-offset-x="0" data-offset-y="80" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfFlexStart firstRowSecondColumn" data-offset-x="0" data-offset-y="100" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfSelfStart secondRowFirstColumn" data-offset-x="200" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfSelfEnd secondRowSecondColumn" data-offset-x="200" data-offset-y="180" data-expected-width="10" data-expected-height="20"></div>
+</div>
+</div>
+
+<!-- RTL direction. -->
+<div style="position: relative" class="constrainedContainer">
+<div class="grid fit-content directionRTL" data-expected-width="200" data-expected-height="400">
+    <div class="justifySelfStretch firstRowFirstColumn" data-offset-x="100" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+    <div class="cell justifySelfStart firstRowSecondColumn" data-offset-x="90" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfEnd firstRowSecondColumn" data-offset-x="0" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfCenter secondRowFirstColumn" data-offset-x="145" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfRight secondRowSecondColumn" data-offset-x="90" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfLeft secondRowSecondColumn" data-offset-x="0" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+</div>
+</div>
+
+<div style="position: relative" class="constrainedContainer">
+<div class="grid fit-content directionRTL" data-expected-width="200" data-expected-height="400">
+    <div class="cell justifySelfFlexEnd firstRowFirstColumn" data-offset-x="100" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfFlexStart firstRowSecondColumn" data-offset-x="90" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfSelfStart secondRowFirstColumn" data-offset-x="190" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfSelfEnd secondRowSecondColumn" data-offset-x="0" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+</div>
+</div>
+
+<!-- RTL direction with opposite directions grid container vs grid item. -->
+<div style="position: relative" class="constrainedContainer">
+<div class="grid fit-content" data-expected-width="200" data-expected-height="400">
+    <div class="justifySelfStretch firstRowFirstColumn directionRTL" data-offset-x="0" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+    <div class="cell justifySelfStart firstRowSecondColumn directionRTL" data-offset-x="100" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfEnd firstRowSecondColumn directionRTL" data-offset-x="190" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfCenter secondRowFirstColumn directionRTL" data-offset-x="45" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfRight secondRowSecondColumn directionRTL" data-offset-x="190" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfLeft secondRowSecondColumn directionRTL" data-offset-x="100" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+</div>
+</div>
+
+<div style="position: relative" class="constrainedContainer">
+<div class="grid fit-content" data-expected-width="200" data-expected-height="400">
+    <div class="cell justifySelfFlexEnd firstRowFirstColumn directionRTL" data-offset-x="90" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfFlexStart firstRowSecondColumn directionRTL" data-offset-x="100" data-offset-y="0" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfSelfStart secondRowFirstColumn directionRTL" data-offset-x="90" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+    <div class="cell justifySelfSelfEnd secondRowSecondColumn directionRTL" data-offset-x="100" data-offset-y="200" data-expected-width="10" data-expected-height="20"></div>
+</div>
+</div>
+
+</body>

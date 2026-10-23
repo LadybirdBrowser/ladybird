@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/">
+<style>
+.item {
+  inline-size: 40px;
+  box-sizing: border-box;
+  border: solid 5px hotpink;
+  line-height: 0;
+  margin-block-start: 3px;
+  margin-block-end: 5px;
+}
+.small {
+  width: 30px;
+  height: 30px;
+  border: solid 5px cyan;
+}
+.first {
+  align-self: baseline;
+}
+.last {
+  align-self: last baseline;
+}
+span {
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: solid 5px orange;
+  display: inline-block;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.item')">
+
+<div style="writing-mode: vertical-rl; width: 600px; position: relative; display: grid; grid-template: 150px 150px 150px / 100px 100px 100px 100px;">
+  <div style="display: grid;
+              gap: 10px;
+              grid-column: 1 / span 2;
+              grid-row: 1 / span 3;
+              grid-template: subgrid / subgrid;
+              margin-block-start: 5px; margin-block-end: 10px;
+              border: solid black 5px;
+              padding-block-start: 10px; padding-block-end: 20px;">
+    <div style="display: grid;
+                gap: 20px;
+                grid-column: 1 / span 2;
+                grid-row: 1 / span 2;
+                grid-template: subgrid / subgrid;
+                margin-block-start: 3px; margin-block-end: 7px;
+                border: solid black 5px;
+                padding-block-start: 5px; padding-block-end: 10px;">
+      <div data-offset-x="514" class="item first">
+        <span></span><br><span></span>
+      </div>
+      <div data-offset-x="465" class="item last">
+        <span></span><br><span></span>
+      </div>
+      <div data-offset-x="387" class="item first">
+        <span></span><br><span></span>
+      </div>
+      <div data-offset-x="332" class="item last">
+        <span></span><br><span></span>
+      </div>
+    </div>
+    <div data-offset-x="242" class="item first">
+      <span></span><br><span></span>
+    </div>
+    <div data-offset-x="190" class="item last">
+      <span></span><br><span></span>
+    </div>
+  </div>
+  <div data-offset-x="534" class="item small first"></div>
+  <div data-offset-x="465" class="item small last"></div>
+  <div data-offset-x="407" class="item small first"></div>
+  <div data-offset-x="332" class="item small last"></div>
+  <div data-offset-x="262" class="item small first"></div>
+  <div data-offset-x="190" class="item small last"></div>
+</div>

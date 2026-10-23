@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: evaluate how the baseline affects the grid intrinsic size</title>
+<link rel="author" title="Javier Fernandez" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-align-self">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-by-baseline">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<meta name="assert" content="The grid intrinsic size is comptuted correctly, considering the effect of baseline alignment in the size of the column tracks"/>
+<style>
+.grid {
+   position: relative;
+   background: grey;
+   float: left;
+   margin: 5px;
+   text-orientation: sideways;
+   height: 350px;
+   font-family: Ahem;
+   line-height: 1;
+   grid-auto-flow: row;
+}
+.grid > :nth-child(1) { font-size:20px; }
+.grid > :nth-child(2) { font-size:30px; }
+.grid > :nth-child(3) { font-size:50px; }
+.grid > :nth-child(4) { font-size:60px; }
+.item {
+   border-width: 2px 5px 3px 4px;
+   border-style: solid;
+   padding: 6px 3px 7px 8px;
+   margin: 10px 6px 4px 12px;
+}
+.extraLeftPadding { padding-left: 50px; }
+.extraRightPadding { padding-right: 50px; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { runTests(); })">
+
+<p>Horizontal 4x1 grid with parallel and orthogonal items.</p>
+<div id="grid1" class="grid contentStart itemsBaseline" data-expected-width="112">
+    <div class="item"                             data-offset-x="36" data-offset-y="10"  data-expected-width="40" data-expected-height="38">É</div>
+    <div class="item verticalLR"                  data-offset-x="18" data-offset-y="62"  data-expected-width="50" data-expected-height="48">É</div>
+    <div class="item"                             data-offset-x="36" data-offset-y="124" data-expected-width="70" data-expected-height="68">É</div>
+    <div class="item verticalLR"                  data-offset-x="12" data-offset-y="206" data-expected-width="80" data-expected-height="78">É</div>
+</div>
+<div id="grid2" class="grid contentStart itemsBaseline" data-expected-width="165">
+    <div class="item extraRightPadding"           data-offset-x="72" data-offset-y="10"  data-expected-width="87" data-expected-height="38">É</div>
+    <div class="item verticalLR extraLeftPadding" data-offset-x="12" data-offset-y="62"  data-expected-width="92" data-expected-height="48">É</div>
+    <div class="item"                             data-offset-x="72" data-offset-y="124" data-expected-width="70" data-expected-height="68">É</div>
+    <div class="item verticalLR"                  data-offset-x="48" data-offset-y="206" data-expected-width="80" data-expected-height="78">É</div>
+</div>
+<div id="grid3" class="grid contentStart itemsBaseline" data-expected-width="98">
+    <div class="item"                             data-offset-x="12" data-offset-y="10"  data-expected-width="40" data-expected-height="38">É</div>
+    <div class="item verticalRL"                  data-offset-x="18" data-offset-y="62"  data-expected-width="50" data-expected-height="48">É</div>
+    <div class="item"                             data-offset-x="12" data-offset-y="124" data-expected-width="70" data-expected-height="68">É</div>
+    <div class="item verticalRL"                  data-offset-x="12" data-offset-y="206" data-expected-width="80" data-expected-height="78">É</div>
+</div>
+<div id="grid4" class="grid contentStart itemsBaseline" data-expected-width="134">
+    <div class="item extraRightPadding"           data-offset-x="12" data-offset-y="10"  data-expected-width="87" data-expected-height="38">É</div>
+    <div class="item verticalRL extraLeftPadding" data-offset-x="12" data-offset-y="62"  data-expected-width="92" data-expected-height="48">É</div>
+    <div class="item"                             data-offset-x="12" data-offset-y="124" data-expected-width="70" data-expected-height="68">É</div>
+    <div class="item verticalRL"                  data-offset-x="48" data-offset-y="206" data-expected-width="80" data-expected-height="78">É</div>
+</div>
+
+<br clear="all">
+
+<script>
+    "use strict";
+    function runTests() {
+
+        let values = [ "auto", "min-content", "max-content" ];
+        let minValues = values.concat([ "0px" ]);
+
+        var grid1 = document.getElementById("grid1");
+        var grid2 = document.getElementById("grid2");
+        var grid3 = document.getElementById("grid3");
+        var grid4 = document.getElementById("grid4");
+
+        minValues.forEach(function (minValue) {
+            values.forEach(function (maxValue) {
+
+                grid1.id = "grid1-" + minValue + "-" + maxValue
+                grid2.id = "grid2-" + minValue + "-" + maxValue
+                grid3.id = "grid3-" + minValue + "-" + maxValue
+                grid4.id = "grid4-" + minValue + "-" + maxValue
+
+                grid1.style.gridTemplateColumns = "minmax(" + minValue + ", " + maxValue + ")";
+                grid2.style.gridTemplateColumns = "minmax(" + minValue + ", " + maxValue + ")";
+                grid3.style.gridTemplateColumns = "minmax(" + minValue + ", " + maxValue + ")";
+                grid4.style.gridTemplateColumns = "minmax(" + minValue + ", " + maxValue + ")";
+
+                checkLayout("#" + grid1.id, false);
+                checkLayout("#" + grid2.id, false);
+                checkLayout("#" + grid3.id, false);
+                checkLayout("#" + grid4.id, false);
+            });
+        });
+
+        done();
+    }
+</script>
+
+</body>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-align">
+<meta name="assert" content="This test checks that the self-start/self-end alignment values are applied correctly in all writing-modes for inflow content.">
+<style>
+body {
+  line-height: 30px;
+}
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 20px;
+  grid-template-rows: 20px;
+  width: 20px;
+  height: 20px;
+  border: solid;
+  vertical-align: bottom;
+}
+.child {
+  background: green;
+  width: 10px;
+  height: 10px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.child')">
+
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<br>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: horizontal-tb; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<br>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<br>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-lr; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<br>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: ltr;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<br>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: horizontal-tb; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-lr; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=0></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: ltr; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-start; justify-self: self-start;" data-offset-x=10 data-offset-y=10></div>
+</div>
+<div class="grid" style="writing-mode: vertical-rl; direction: rtl;">
+  <div class="child" style="writing-mode: vertical-rl; direction: rtl; align-self: self-end; justify-self: self-end;" data-offset-x=0 data-offset-y=0></div>
+</div>

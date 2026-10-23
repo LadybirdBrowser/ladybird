@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Grid positioned items within grid implicit track</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#abspos" title="9. Absolute Positioning">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#implicit-grids" title="7.5. The Implicit Grid">
+<meta name="assert" content="This test checks that positioned grid items are placed properly (including implicit tracks) even if the grid has implicit tracks.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<style>
+
+.grid {
+  grid-template-columns: 200px 300px;
+  grid-template-rows: 150px 250px;
+  grid-auto-columns: 100px;
+  grid-auto-rows: 50px;
+  width: 800px;
+  height: 600px;
+  border: 5px solid black;
+  margin: 30px;
+  padding: 15px;
+  /* Ensures that the grid container is the containing block of the absolutely positioned grid children. */
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: cyan;
+}
+
+.sixRowsAndSixColumns {
+  background: magenta;
+  grid-row: -5 / 5;
+  grid-column: -5 / 5;
+}
+
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.grid')">
+
+<div id="log"></div>
+
+<div class="grid">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="15" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: auto / 1; grid-row: auto / 1;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="215" data-expected-height="115">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="15" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="0" data-offset-y="0" data-expected-width="415" data-expected-height="265">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="15" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: 3 / auto; grid-row: 3 / auto;"
+    data-offset-x="715" data-offset-y="515" data-expected-width="115" data-expected-height="115">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="15" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="415" data-offset-y="265" data-expected-width="415" data-expected-height="365">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="15" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: -4 / 1; grid-row: -4 / 1;"
+    data-offset-x="115" data-offset-y="65" data-expected-width="100" data-expected-height="50">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="15" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: -4 / 2; grid-row: -4 / 2;"
+    data-offset-x="115" data-offset-y="65" data-expected-width="300" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="15" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: 3 / 4; grid-row: 3 / 4;"
+    data-offset-x="715" data-offset-y="515" data-expected-width="100" data-expected-height="50">
+  </div>
+</div>
+
+<div class="grid">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="15" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: 2 / 4; grid-row: 2 / 4;"
+    data-offset-x="415" data-offset-y="265" data-expected-width="400" data-expected-height="300">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="-85" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: auto / 1; grid-row: auto / 1;"
+    data-offset-x="615" data-offset-y="0" data-expected-width="215" data-expected-height="115">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="-85" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: auto / 2; grid-row: auto / 2;"
+    data-offset-x="415" data-offset-y="0" data-expected-width="415" data-expected-height="265">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="-85" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: 3 / auto; grid-row: 3 / auto;"
+    data-offset-x="0" data-offset-y="515" data-expected-width="115" data-expected-height="115">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="-85" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: 2 / auto; grid-row: 2 / auto;"
+    data-offset-x="0" data-offset-y="265" data-expected-width="415" data-expected-height="365">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="-85" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: -4 / 1; grid-row: -4 / 1;"
+    data-offset-x="615" data-offset-y="65" data-expected-width="100" data-expected-height="50">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="-85" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: -4 / 2; grid-row: -4 / 2;"
+    data-offset-x="415" data-offset-y="65" data-expected-width="300" data-expected-height="200">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="-85" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: 3 / 4; grid-row: 3 / 4;"
+    data-offset-x="15" data-offset-y="515" data-expected-width="100" data-expected-height="50">
+  </div>
+</div>
+
+<div class="grid directionRTL">
+  <div class="sixRowsAndSixColumns"
+    data-offset-x="-85" data-offset-y="15" data-expected-width="900" data-expected-height="600">
+  </div>
+  <div class="absolute" style="grid-column: 2 / 4; grid-row: 2 / 4;"
+    data-offset-x="15" data-offset-y="265" data-expected-width="400" data-expected-height="300">
+  </div>
+</div>
+
+</body>

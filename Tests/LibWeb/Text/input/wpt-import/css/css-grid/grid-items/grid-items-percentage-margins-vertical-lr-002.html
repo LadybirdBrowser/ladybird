@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Grid items with percentage margins vertical-lr</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#item-margins">
+<meta name="assert" content="Checks grid items percentage margins are resolved against the inline size of their grid area (in a track with fixed max sizing function and intrinsic min) in a vertical-lr grid container.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  font: 10px/1 Ahem;
+  grid-template-columns: minmax(auto, 100px);
+  height: 500px;
+  justify-items: start;
+  position: relative;
+  writing-mode: vertical-lr;
+}
+
+.grid > div:nth-child(1) { background: cyan; }
+.grid > div:nth-child(2) {
+  background: magenta;
+  width: 10px;
+  height: 100%;
+}
+
+.marginLeft50Percent { margin-left: 50%; }
+.marginRight50Percent { margin-right: 50%; }
+.marginTop50Percent { margin-top: 50%; }
+.marginBottom50Percent { margin-bottom: 50%; }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<div id="log"></div>
+
+<h3>Direction LTR</h3>
+
+<pre>Item margin-left: 50%;</pre>
+
+<div class="grid">
+  <div class="marginLeft50Percent" data-expected-margin-left="50" data-offset-x="50" data-expected-width="10" data-expected-height="10">X</div>
+  <div data-offset-x="60" data-offset-y="0" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item margin-right: 50%;</pre>
+
+<div class="grid">
+  <div class="marginRight50Percent" data-expected-margin-right="50" data-offset-x="0" data-expected-width="10" data-expected-height="10">X</div>
+  <div data-offset-x="60" data-offset-y="0" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item margin-top: 50%;</pre>
+
+<div class="grid">
+  <div class="marginTop50Percent" data-expected-margin-top="50" data-offset-y="50" data-expected-width="10" data-expected-height="10">X</div>
+  <div data-offset-x="10" data-offset-y="0" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item margin-bottom: 50%;</pre>
+
+<div class="grid">
+  <div class="marginBottom50Percent" data-expected-margin-bottom="50" data-offset-y="0" data-expected-width="10" data-expected-height="10">X</div>
+  <div data-offset-x="10" data-offset-y="0" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<h3>Direction RTL</h3>
+
+<pre>Item margin-left: 50%;</pre>
+
+<div class="grid directionRTL">
+  <div class="marginLeft50Percent" data-expected-margin-left="50" data-offset-x="50" data-expected-width="10" data-expected-height="10">X</div>
+  <div data-offset-x="60" data-offset-y="400" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item margin-right: 50%;</pre>
+
+<div class="grid directionRTL">
+  <div class="marginRight50Percent" data-expected-margin-right="50" data-offset-x="0" data-expected-width="10" data-expected-height="10">X</div>
+  <div data-offset-x="60" data-offset-y="400" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item margin-top: 50%;</pre>
+
+<div class="grid directionRTL">
+  <div class="marginTop50Percent" data-expected-margin-top="50" data-offset-y="490" data-expected-width="10" data-expected-height="10">X</div>
+  <div data-offset-x="10" data-offset-y="400" data-expected-width="10" data-expected-height="100"></div>
+</div>
+
+<pre>Item margin-bottom: 50%;</pre>
+
+<div class="grid directionRTL">
+  <div class="marginBottom50Percent" data-expected-margin-bottom="50" data-offset-y="440" data-expected-width="10" data-expected-height="10">X</div>
+  <div data-offset-x="10" data-offset-y="400" data-expected-width="10" data-expected-height="100"></div>
+</div>

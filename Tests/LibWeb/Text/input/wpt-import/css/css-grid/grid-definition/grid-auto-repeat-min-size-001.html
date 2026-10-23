@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Auto repeat tracks and min sizes</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#auto-repeat">
+<meta name="assert" content="This test checks that auto repeat tracks use min size when available to compute the number of tracks.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<style>
+.grid {
+  position: relative;
+  display: grid;
+  grid: repeat(auto-fill, 50px) / repeat(auto-fill, 100px);
+  min-width: 300px;
+  min-height: 200px;
+  float: left;
+}
+.border {
+  border: 10px solid;
+}
+.border-box {
+  box-sizing: border-box;
+}
+.item {
+  background: lime;
+  /* Place item on the last cell. */
+  grid-column: -2;
+  grid-row: -2;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.grid');">
+
+<div id="log"></div>
+
+<div class="grid" data-expected-width="300" data-expected-height="200">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid" style="width: 200px; height: 100px;" data-expected-width="300" data-expected-height="200">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid" style="width: min-content; height: min-content;" data-expected-width="300" data-expected-height="200">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid" style="width: max-content; height: max-content;" data-expected-width="300" data-expected-height="200">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border" style="width: 200px; height: 100px;" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border" style="width: min-content; height: min-content;" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border" style="width: max-content; height: max-content;" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border border-box" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border border-box" style="width: 200px; height: 100px;" data-expected-width="300" data-expected-height="200">
+  <div class="item" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border border-box" style="width: min-content; height: min-content;" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+<div class="grid border border-box" style="width: max-content; height: max-content;" data-expected-width="320" data-expected-height="220">
+  <div class="item" data-offset-x="200" data-offset-y="150" data-expected-width="100" data-expected-height="50"></div>
+</div>
+
+</body>

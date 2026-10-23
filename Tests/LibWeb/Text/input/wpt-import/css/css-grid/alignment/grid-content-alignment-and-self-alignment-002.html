@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Grid Layout Test: content distribution alignment and self alignment.</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#alignment">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#auto-tracks">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#distribution-values">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#content-distribution">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#align-self-property">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=602670">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<meta name="assert" content="Test that content distribution alignment works fine in combination with self alignment and items spanning more than one track." />
+
+<style>
+body {
+  margin: 0px;
+}
+
+.grid {
+  position: relative;
+}
+.spanningTwo {
+  grid-auto-columns: 20px;
+  grid-auto-rows: 40px;
+  grid-template-areas: "a a b"
+                       "c d b";
+  width: 300px;
+  height: 200px;
+}
+.spanningThree {
+  grid-auto-columns: 50px;
+  grid-auto-rows: 50px;
+  grid-template-areas: ". . . . . ."
+                       ". b b b c ."
+                       ". . . . c ."
+                       ". . . . c ."
+                       ". . . . . .";
+  width: 550px;
+  height: 450px;
+}
+
+.gridRowColumnGaps {
+  grid-row-gap: 20px;
+  grid-column-gap: 10px;
+}
+
+.i1 { grid-row: 1; }
+.i2 { grid-row: 2; }
+.i3 { grid-row: 3; grid-column: 6; }
+.i4 { grid-row: 4; grid-column: 6; }
+.i5 { grid-row: 5; grid-column: 6; }
+
+.a {
+  grid-area: a;
+  background-color: blue;
+}
+.b {
+  grid-area: b;
+  background-color: lime;
+}
+.c {
+  grid-area: c;
+  background-color: purple;
+}
+.d {
+  grid-area: d;
+  background-color: orange;
+}
+.stretchedGrid {
+  grid-auto-columns: minmax(20px, auto);
+  grid-auto-rows: minmax(40px, auto);
+}
+
+.cell {
+  width: 20px;
+  height: 40px;
+}
+.cell1 {
+  width: 20px;
+  height: 20px;
+}
+</style>
+</head>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.grid')">
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-between' | self-alignment: center</p>
+  <div class="grid spanningTwo contentSpaceBetween" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfCenter" data-offset-x="70" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfCenter" data-offset-x="280" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="0" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-between' | self-alignment: end</p>
+  <div class="grid spanningTwo contentSpaceBetween" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfEnd" data-offset-x="140" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfEnd" data-offset-x="280" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="0" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-around' | self-alignment: center</p>
+  <div class="grid spanningTwo contentSpaceAround" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfCenter" data-offset-x="90" data-offset-y="30" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfCenter" data-offset-x="240" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="40" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-around' | self-alignment: end</p>
+  <div class="grid spanningTwo contentSpaceAround" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfEnd" data-offset-x="140" data-offset-y="30" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfEnd" data-offset-x="240" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="40" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-evenly' | self-alignment: center</p>
+  <div class="grid spanningTwo contentSpaceEvenly" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfCenter" data-offset-x="100" data-offset-y="40" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfCenter" data-offset-x="220" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="60" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-evenly' | self-alignment: end</p>
+  <div class="grid spanningTwo contentSpaceEvenly" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfEnd" data-offset-x="140" data-offset-y="40" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfEnd" data-offset-x="220" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="60" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'stretch' | self-alignment: center</p>
+  <div class="grid spanningTwo stretchedGrid contentStretch" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfCenter alignSelfCenter" data-offset-x="90" data-offset-y="30" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell justifySelfCenter alignSelfCenter" data-offset-x="240" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="0" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+    <div class="d" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'stretch' | self-alignment: end</p>
+  <div class="grid spanningTwo stretchedGrid contentStretch" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfEnd alignSelfEnd" data-offset-x="180" data-offset-y="60" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell justifySelfEnd alignSelfEnd" data-offset-x="280" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="0" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+    <div class="d" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'default' | self-alignment: center</p>
+  <div class="grid spanningThree">
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfCenter" data-offset-x="115" data-offset-y="50" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfCenter" data-offset-x="200" data-offset-y="115" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'default' | self-alignment: end</p>
+  <div class="grid spanningThree">
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfEnd" data-offset-x="180" data-offset-y="50" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfEnd" data-offset-x="200" data-offset-y="180" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-between' | self-alignment: center</p>
+  <div class="grid spanningThree contentSpaceBetween">
+    <div class="i1" style="background: blue;"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfCenter" data-offset-x="215" data-offset-y="100" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfCenter" data-offset-x="400" data-offset-y="215" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | distribution: 'space-between' | self-alignment: end</p>
+  <div class="grid spanningThree contentSpaceBetween">
+    <div class="i1" style="background: blue;"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfEnd" data-offset-x="330" data-offset-y="100" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfEnd" data-offset-x="400" data-offset-y="330" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | rows/columns gap: 20px/40px | distribution: 'default' | self-alignment: center</p>
+  <div class="grid spanningThree gridRowColumnGaps">
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfCenter" data-offset-x="135" data-offset-y="70" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfCenter" data-offset-x="240" data-offset-y="155" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: LTR | rows/columns gap: 20px/40px | distribution: 'default' | self-alignment: end</p>
+  <div class="grid spanningThree gridRowColumnGaps">
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfEnd" data-offset-x="210" data-offset-y="70" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfEnd" data-offset-x="240" data-offset-y="240" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<!-- Same expected result than without gaps because space-between just use the remaining available space. -->
+<div style="position: relative">
+  <p>direction: LTR | rows/columns gap: 20px/40px | distribution: 'space-between' | self-alignment: center</p>
+  <div class="grid spanningThree contentSpaceBetween gridRowColumnGaps">
+    <div class="i1" style="background: blue;"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfCenter" data-offset-x="215" data-offset-y="100" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfCenter" data-offset-x="400" data-offset-y="215" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<!-- Same expected result than without gaps because space-between just use the remaining available space. -->
+<div style="position: relative">
+  <p>direction: LTR | rows/columns gap: 20px/40px | distribution: 'space-between' | self-alignment: end</p>
+  <div class="grid spanningThree contentSpaceBetween gridRowColumnGaps">
+    <div class="i1" style="background: blue;"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfEnd" data-offset-x="330" data-offset-y="100" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfEnd" data-offset-x="400" data-offset-y="330" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<!-- RTL direction. -->
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-between' | self-alignment: center</p>
+  <div class="grid spanningTwo contentSpaceBetween directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfCenter" data-offset-x="210" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfCenter" data-offset-x="0" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="280" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-between' | self-alignment: end</p>
+  <div class="grid spanningTwo contentSpaceBetween directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfEnd" data-offset-x="140" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfEnd" data-offset-x="0" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="280" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-around' | self-alignment: center</p>
+  <div class="grid spanningTwo contentSpaceAround directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfCenter" data-offset-x="190" data-offset-y="30" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfCenter" data-offset-x="40" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="240" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-around' | self-alignment: end</p>
+  <div class="grid spanningTwo contentSpaceAround directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfEnd" data-offset-x="140" data-offset-y="30" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfEnd" data-offset-x="40" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="240" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="130" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-evenly' | self-alignment: center</p>
+  <div class="grid spanningTwo contentSpaceEvenly directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfCenter" data-offset-x="180" data-offset-y="40" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfCenter" data-offset-x="60" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="220" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-evenly' | self-alignment: end</p>
+  <div class="grid spanningTwo contentSpaceEvenly directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfEnd" data-offset-x="140" data-offset-y="40" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell alignSelfEnd" data-offset-x="60" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="220" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+    <div class="d" data-offset-x="140" data-offset-y="120" data-expected-width="20" data-expected-height="40"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'stretch' | self-alignment: center</p>
+  <div class="grid spanningTwo stretchedGrid contentStretch directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfCenter alignSelfCenter" data-offset-x="190" data-offset-y="30" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell justifySelfCenter alignSelfCenter" data-offset-x="40" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="200" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+    <div class="d" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'stretch' | self-alignment: end</p>
+  <div class="grid spanningTwo stretchedGrid contentStretch directionRTL" data-expected-width="300" data-expected-height="200">
+    <div class="a cell justifySelfEnd alignSelfEnd" data-offset-x="100" data-offset-y="60" data-expected-width="20" data-expected-height="40"></div>
+    <div class="b cell justifySelfEnd alignSelfEnd" data-offset-x="0" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+    <div class="c" data-offset-x="200" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+    <div class="d" data-offset-x="100" data-offset-y="100" data-expected-width="100" data-expected-height="100"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'default' | self-alignment: center</p>
+  <div class="grid spanningThree directionRTL">
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfCenter" data-offset-x="415" data-offset-y="50" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfCenter" data-offset-x="330" data-offset-y="115" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'default' | self-alignment: end</p>
+  <div class="grid spanningThree directionRTL">
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfEnd" data-offset-x="350" data-offset-y="50" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfEnd" data-offset-x="330" data-offset-y="180" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-between' | self-alignment: center</p>
+  <div class="grid spanningThree contentSpaceBetween directionRTL">
+    <div class="i1" style="background: blue;"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfCenter" data-offset-x="315" data-offset-y="100" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfCenter" data-offset-x="130" data-offset-y="215" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | distribution: 'space-between' | self-alignment: end</p>
+  <div class="grid spanningThree contentSpaceBetween directionRTL">
+    <div class="i1" style="background: blue;"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfEnd" data-offset-x="200" data-offset-y="100" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfEnd" data-offset-x="130" data-offset-y="330" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | rows/columns gap: 20px/40px | distribution: 'default' | self-alignment: center</p>
+  <div class="grid spanningThree gridRowColumnGaps directionRTL">
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfCenter" data-offset-x="395" data-offset-y="70" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfCenter" data-offset-x="290" data-offset-y="155" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | rows/columns gap: 20px/40px | distribution: 'default' | self-alignment: end</p>
+  <div class="grid spanningThree gridRowColumnGaps directionRTL">
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfEnd" data-offset-x="320" data-offset-y="70" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfEnd" data-offset-x="290" data-offset-y="240" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | rows/columns gap: 20px/40px | distribution: 'space-between' | self-alignment: center</p>
+  <div class="grid spanningThree contentSpaceBetween gridRowColumnGaps directionRTL">
+    <div class="i1" style="background: blue;"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfCenter" data-offset-x="315" data-offset-y="100" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfCenter" data-offset-x="130" data-offset-y="215" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+<div style="position: relative">
+  <p>direction: RTL | rows/columns gap: 20px/40px | distribution: 'space-between' | self-alignment: end</p>
+  <div class="grid spanningThree contentSpaceBetween gridRowColumnGaps directionRTL">
+    <div class="i1" style="background: blue;"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i1" style="background: blue"></div>
+    <div class="i1" style="background: red"></div>
+    <div class="i2" style="background: red"></div>
+    <div class="i2" style="background: blue"></div>
+    <div class="b cell1 justifySelfEnd" data-offset-x="200" data-offset-y="100" data-expected-width="20" data-expected-height="20"></div>
+    <div class="c cell1 alignSelfEnd" data-offset-x="130" data-offset-y="330" data-expected-width="20" data-expected-height="20"></div>
+    <div class="i3" style="background: red"></div>
+    <div class="i4" style="background: blue"></div>
+    <div class="i5" style="background: red"></div>
+  </div>
+</div>
+
+</body>
+</html>

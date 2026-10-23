@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout test:gutters with align and justify properties</title>
+<link rel="author" title="Rossana Monteriso" href="mailto:rmonteriso@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#gaps">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#column-row-gap">
+<meta name="assert" content="This test checks that gutters do not interfere with align and justify computation, with or without borders, paddings, margins and negative space.">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../css/support/alignment.css">
+<link rel="stylesheet" href="../../../css/support/width-keyword-classes.css">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+
+<style>
+.grid100And200 {
+    grid-template-columns: 100px 100px;
+    grid-template-rows: 200px 200px;
+    position: relative; /* For the <p> comments */
+}
+
+.grid50And100 {
+    grid: 100px 100px / 50px 50px;
+    width: 200px;
+    height: 300px;
+    position: relative; /* For the <p> comments */
+}
+
+.gridAuto20And40 {
+    grid-auto-columns: 20px;
+    grid-auto-rows: 40px;
+    width: 400px;
+    height: 300px;
+    position: relative; /* For the <p> comments */
+}
+
+.gridWithPaddingBorder {
+    grid-template-columns: 100px 200px;
+    grid-template-rows: 200px 200px;
+    padding: 10px 15px 20px 30px;
+    border-width: 5px 10px 15px 20px;
+    border-style: dotted;
+    border-color: blue;
+    position: relative; /* For the <p> comments */
+}
+
+.gridWithAutoColumns {
+    grid-auto-columns: 20px;
+    border: 2px solid black;
+    width: 10px;
+    margin-left: 200px;
+    position: relative;
+}
+
+.gridWithAutoRows {
+    grid-auto-rows: 40px;
+    border: 2px solid black;
+    height: 50px;
+    width: 20px;
+    position: relative;
+}
+
+.stretchedGrid { grid-auto-columns: auto; }
+
+.gridRowColumnGaps {
+    grid-row-gap: 15px;
+    grid-column-gap: 20px;
+}
+
+div.grid > div { font: 10px/1 Ahem; }
+
+.cell {
+    width: 20px;
+    height: 40px;
+}
+
+div.gridWithPaddingBorder > div.cell {
+    margin: 4px 8px 12px 16px;
+}
+
+.container {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<!-- Check that gutters do not interfere with self alignment computation. -->
+<div class="container">
+    <div class="grid grid100And200 fit-content alignItemsCenter gridRowColumnGaps" data-expected-width="220" data-expected-height="415">
+        <div class="cell alignSelfAuto firstRowFirstColumn" data-offset-x="0" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell firstRowSecondColumn" data-offset-x="120" data-offset-y="80" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell alignSelfSelfStart secondRowFirstColumn" data-offset-x="0" data-offset-y="215" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell alignSelfSelfEnd secondRowSecondColumn" data-offset-x="120" data-offset-y="375" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="grid grid100And200 fit-content verticalLR gridRowColumnGaps" data-expected-width="415" data-expected-height="220">
+        <div class="alignSelfStretch firstRowFirstColumn verticalRL" data-offset-x="0" data-offset-y="0" data-expected-width="200" data-expected-height="100">
+        </div>
+        <div class="cell alignSelfStart firstRowSecondColumn verticalRL" data-offset-x="0" data-offset-y="120" data-expected-width="20" data-expected-height="40">
+            <div class="item"></div>
+        </div>
+        <div class="cell alignSelfEnd firstRowSecondColumn verticalRL" data-offset-x="180" data-offset-y="120" data-expected-width="20" data-expected-height="40">
+            <div class="item"></div>
+        </div>
+        <div class="cell alignSelfCenter secondRowFirstColumn verticalRL" data-offset-x="305" data-offset-y="0" data-expected-width="20" data-expected-height="40">
+            <div class="item"></div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+     <div class="grid grid100And200 fit-content directionRTL gridRowColumnGaps" data-expected-width="220" data-expected-height="415">
+         <div class="alignSelfStretch firstRowFirstColumn" data-offset-x="120" data-offset-y="0" data-expected-width="100" data-expected-height="200"></div>
+         <div class="cell alignSelfStart firstRowSecondColumn" data-offset-x="80" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+         <div class="cell alignSelfEnd firstRowSecondColumn" data-offset-x="80" data-offset-y="160" data-expected-width="20" data-expected-height="40"></div>
+         <div class="cell alignSelfCenter secondRowFirstColumn" data-offset-x="200" data-offset-y="295" data-expected-width="20" data-expected-height="40"></div>
+     </div>
+</div>
+
+<!-- Check that gutters do not interfere with align-content computation. -->
+<div class="container">
+    <p>direction: LTR | align-content: 'center'</p>
+    <div class="grid grid50And100 alignContentCenter gridRowColumnGaps" data-expected-width="200" data-expected-height="300">
+        <div class="cell firstRowFirstColumn" data-offset-x="0" data-offset-y="43" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="70" data-offset-y="43" data-expected-width="50" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="0" data-offset-y="158" data-expected-width="50" data-expected-height="100"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="70" data-offset-y="158" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>direction: LTR | align-content: 'right'</p>
+    <div class="grid grid50And100 alignContentRight gridRowColumnGaps" data-expected-width="200" data-expected-height="300">
+        <div class="cell firstRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="70" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="0" data-offset-y="115" data-expected-width="50" data-expected-height="100"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="70" data-offset-y="115" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>direction: RTL | align-content: 'right'</p>
+    <div class="grid grid50And100 directionRTL alignContentRight gridRowColumnGaps" data-expected-width="200" data-expected-height="300">
+        <div class="cell firstRowFirstColumn" data-offset-x="180" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="80" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="150" data-offset-y="115" data-expected-width="50" data-expected-height="100"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="110" data-offset-y="115" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>direction: RTL | align-content: 'start'</p>
+    <div class="grid grid50And100 directionRTL alignContentStart gridRowColumnGaps" data-expected-width="200" data-expected-height="300">
+        <div class="cell firstRowFirstColumn" data-offset-x="180" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="80" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="150" data-offset-y="115" data-expected-width="50" data-expected-height="100"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="110" data-offset-y="115" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<!-- Check that gutters do not interfere with justify-content computation. -->
+<div class="container">
+    <p>direction: LTR | justify-content: 'center'</p>
+    <div class="grid grid50And100 justifyContentCenter gridRowColumnGaps" data-expected-width="200" data-expected-height="300">
+        <div class="cell firstRowFirstColumn" data-offset-x="40" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="110" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="40" data-offset-y="115" data-expected-width="50" data-expected-height="100"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="110" data-offset-y="115" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>direction: LTR | justify-content: 'end'</p>
+    <div class="grid grid50And100 justifyContentEnd gridRowColumnGaps" data-expected-width="200" data-expected-height="300">
+        <div class="cell firstRowFirstColumn" data-offset-x="80" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="150" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="80" data-offset-y="115" data-expected-width="50" data-expected-height="100"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="150" data-offset-y="115" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>direction: RTL | justify-content: 'end'</p>
+    <div class="grid grid50And100 directionRTL justifyContentRight gridRowColumnGaps" data-expected-width="200" data-expected-height="300">
+        <div class="cell firstRowFirstColumn" data-offset-x="180" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="80" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="150" data-offset-y="115" data-expected-width="50" data-expected-height="100"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="110" data-offset-y="115" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>direction: RTL | justify-content: 'start'</p>
+    <div class="grid grid50And100 directionRTL justifyContentStart gridRowColumnGaps" data-expected-width="200" data-expected-height="300">
+        <div class="cell firstRowFirstColumn" data-offset-x="180" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="firstRowSecondColumn" data-offset-x="80" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="secondRowFirstColumn" data-offset-x="150" data-offset-y="115" data-expected-width="50" data-expected-height="100"></div>
+        <div class="cell secondRowSecondColumn" data-offset-x="110" data-offset-y="115" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<!-- Check that gutters do not interfere with vertical justify-content computation. -->
+
+<div class="container">
+    <p>direction: RTL | justify-content: 'stretch'</p>
+    <div class="grid gridAuto20And40 stretchedGrid justifyContentStretch verticalLR directionRTL gridRowColumnGaps" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="0" data-offset-y="240" data-expected-width="40" data-expected-height="60"></div>
+        <div class="firstRowSecondColumn" data-offset-x="0" data-offset-y="160" data-expected-width="40" data-expected-height="60"></div>
+        <div class="firstRowThirdColumn" data-offset-x="0" data-offset-y="80" data-expected-width="40" data-expected-height="60"></div>
+        <div class="firstRowFourthColumn" data-offset-x="0" data-offset-y="0" data-expected-width="40" data-expected-height="60"></div>
+        <div class="secondRowFirstColumn" data-offset-x="55" data-offset-y="240" data-expected-width="40" data-expected-height="60"></div>
+        <div class="secondRowSecondColumn" data-offset-x="55" data-offset-y="160" data-expected-width="40" data-expected-height="60"></div>
+        <div class="secondRowThirdColumn" data-offset-x="55" data-offset-y="80" data-expected-width="40" data-expected-height="60"></div>
+        <div class="secondRowFourthColumn" data-offset-x="55" data-offset-y="0" data-expected-width="40" data-expected-height="60"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>direction: LTR | justify-content: 'space-evenly'</p>
+    <div class="grid gridAuto20And40 justifyContentSpaceEvenly verticalLR directionRTL gridRowColumnGaps" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="0" data-offset-y="230" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="0" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="0" data-offset-y="50" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="55" data-offset-y="230" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="55" data-offset-y="140" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="55" data-offset-y="50" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>direction: LTR | justify-content: 'space-between'</p>
+    <div class="grid gridAuto20And40 justifyContentSpaceBetween verticalRL directionRTL gridRowColumnGaps" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="187" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowThirdColumn" data-offset-x="360" data-offset-y="93" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowFourthColumn" data-offset-x="360" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="305" data-offset-y="280" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="305" data-offset-y="187" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowThirdColumn" data-offset-x="305" data-offset-y="93" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFourthColumn" data-offset-x="305" data-offset-y="0" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>direction: LTR | justify-content: 'space-around'</p>
+    <div class="grid gridAuto20And40 justifyContentSpaceAround verticalRL directionRTL gridRowColumnGaps" data-expected-width="400" data-expected-height="300">
+        <div class="firstRowFirstColumn" data-offset-x="360" data-offset-y="220" data-expected-width="40" data-expected-height="20"></div>
+        <div class="firstRowSecondColumn" data-offset-x="360" data-offset-y="60" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowFirstColumn" data-offset-x="305" data-offset-y="220" data-expected-width="40" data-expected-height="20"></div>
+        <div class="secondRowSecondColumn" data-offset-x="305" data-offset-y="60" data-expected-width="40" data-expected-height="20"></div>
+    </div>
+</div>
+
+<!-- Check that gutters do not interfere with align&justify computation when having border, padding and margins. -->
+<div class="container">
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR (parall) | align-items: 'self-start' | justify-items: 'self-start'</p>
+    <div class="grid gridWithPaddingBorder fit-content directionLTR itemsSelfStart gridRowColumnGaps" data-expected-width="395" data-expected-height="465">
+        <div class="directionLTR cell firstRowFirstColumn"     data-offset-x="46" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionLTR selfStretch firstRowSecondColumn" data-offset-x="150" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionLTR selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="225" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionLTR cell secondRowSecondColumn"   data-offset-x="166" data-offset-y="229" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: LTR (ortho) | align-items: 'self-end' | justify-items: 'self-end'</p>
+    <div class="grid gridWithPaddingBorder fit-content directionLTR itemsSelfEnd gridRowColumnGaps" data-expected-width="395" data-expected-height="465">
+        <div class="directionRTL cell firstRowFirstColumn"     data-offset-x="46"  data-offset-y="158" data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionRTL selfStretch firstRowSecondColumn" data-offset-x="150" data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionRTL selfStretch secondRowFirstColumn" data-offset-x="30"  data-offset-y="225" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionRTL cell secondRowSecondColumn"   data-offset-x="166" data-offset-y="373" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL | align-items: 'right' | justify-items: 'right'</p>
+    <div class="grid gridWithPaddingBorder fit-content directionRTL itemsRight gridRowColumnGaps"     data-expected-width="395" data-expected-height="465">
+        <div class="cell firstRowFirstColumn"     data-offset-x="322" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="selfStretch secondRowFirstColumn" data-offset-x="250" data-offset-y="225" data-expected-width="100" data-expected-height="200"></div>
+        <div class="cell secondRowSecondColumn"   data-offset-x="202" data-offset-y="229" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>border: 5px 10px 15px 20px | padding: 10px 15px 20px 30px | margin: 4px 8px 12px 16px<br>
+        direction: RTL (parall) | align-items: 'self-start' | justify-items: 'self-start'</p>
+    <div class="grid gridWithPaddingBorder fit-content directionRTL itemsSelfStart gridRowColumnGaps" data-expected-width="395" data-expected-height="465">
+        <div class="directionRTL cell firstRowFirstColumn"     data-offset-x="322" data-offset-y="14"  data-expected-width="20"  data-expected-height="40"></div>
+        <div class="directionRTL selfStretch firstRowSecondColumn" data-offset-x="30"  data-offset-y="10"  data-expected-width="200" data-expected-height="200"></div>
+        <div class="directionRTL selfStretch secondRowFirstColumn" data-offset-x="250" data-offset-y="225" data-expected-width="100" data-expected-height="200"></div>
+        <div class="directionRTL cell secondRowSecondColumn"   data-offset-x="202"  data-offset-y="229" data-expected-width="20"  data-expected-height="40"></div>
+    </div>
+</div>
+
+<!-- Check behavior with negative free space -->
+<div class="container">
+    <p>Negative free space. justify-content: start</p>
+    <div class="grid gridWithAutoColumns justifyContentStart gridRowColumnGaps" data-expected-width="14" data-expected-height="44">
+        <div class="cell firstRowFirstColumn"  data-offset-x="0" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell firstRowSecondColumn"  data-offset-x="40" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell firstRowThirdColumn"  data-offset-x="80" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>Negative free space. justify-content: center</p>
+    <div class="grid gridWithAutoColumns justifyContentCenter gridRowColumnGaps" data-expected-width="14" data-expected-height="44">
+        <div class="cell firstRowFirstColumn"  data-offset-x="-45" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell firstRowSecondColumn"  data-offset-x="-5" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell firstRowThirdColumn"  data-offset-x="35" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container">
+    <p>Negative free space. justify-content: end</p>
+    <div class="grid gridWithAutoColumns justifyContentEnd gridRowColumnGaps" data-expected-width="14" data-expected-height="44">
+        <div class="cell firstRowFirstColumn"  data-offset-x="-90" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell firstRowSecondColumn"  data-offset-x="-50" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell firstRowThirdColumn"  data-offset-x="-10" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<!-- NOTE: for the following 3 test cases we use margins just for enhancing the visual output (otherwise grids would overlap) -->
+<div class="container" style="margin-bottom: 125px;">
+    <p>Negative free space. align-content: start</p>
+    <div class="grid gridWithAutoRows alignContentStart gridRowColumnGaps" data-expected-width="24" data-expected-height="54">
+        <div class="cell firstRowFirstColumn"  data-offset-x="0" data-offset-y="0" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell secondRowFirstColumn"  data-offset-x="0" data-offset-y="55" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell thirdRowFirstColumn"  data-offset-x="0" data-offset-y="110" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container" style="margin-bottom: 75px;">
+    <p>Negative free space. align-content: center</p>
+    <div class="grid gridWithAutoRows alignContentCenter gridRowColumnGaps" style="margin-top: 75px" data-expected-width="24" data-expected-height="54">
+        <div class="cell firstRowFirstColumn"  data-offset-x="0" data-offset-y="-50" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell secondRowFirstColumn"  data-offset-x="0" data-offset-y="5" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell thirdRowFirstColumn"  data-offset-x="0" data-offset-y="60" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+<div class="container" style="margin-bottom: 25px;">
+    <p>Negative free space. align-content: end</p>
+    <div class="grid gridWithAutoRows alignContentEnd gridRowColumnGaps" style="margin-top: 125px" data-expected-width="24" data-expected-height="54">
+        <div class="cell firstRowFirstColumn"  data-offset-x="0" data-offset-y="-100" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell secondRowFirstColumn"  data-offset-x="0" data-offset-y="-45" data-expected-width="20" data-expected-height="40"></div>
+        <div class="cell thirdRowFirstColumn"  data-offset-x="0" data-offset-y="10" data-expected-width="20" data-expected-height="40"></div>
+    </div>
+</div>
+
+</body>

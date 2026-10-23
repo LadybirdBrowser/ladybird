@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#auto-placement-algo">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-auto-flow-property">
+<meta name="assert" content="Items with a definite row (or column) and an automatic position in the other axis are auto-placed honoring sparse and dense packing, including spanning items.">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<style>
+.grid {
+    grid-auto-columns: 50px;
+    grid-auto-rows: 50px;
+}
+
+.firstRowAutoColumnSpanning2 {
+    background-color: maroon;
+    grid-column: span 2;
+    grid-row: 1;
+}
+
+.autoRowSpanning2FirstColumn {
+    background-color: aqua;
+    grid-column: 1;
+    grid-row: span 2;
+}
+
+.firstRowFourthColumn {
+    background-color: salmon;
+    grid-column: 4;
+    grid-row: 1;
+}
+
+.fourthRowFirstColumn {
+    background-color: salmon;
+    grid-column: 1;
+    grid-row: 4;
+}
+
+.secondRowThirdColumn {
+    background-color: red;
+    grid-column: 3;
+    grid-row: 2;
+}
+
+.thirdRowSecondColumn {
+    background-color: red;
+    grid-column: 2;
+    grid-row: 3;
+}
+</style>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<p>This test checks that sparse and dense packing modes are supported in auto-placement for fixed rows/columns.</p>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowRowSparse">
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumnSpanning2" data-offset-x="100" data-offset-y="0" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="200" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowRowSparse">
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowFourthColumn" data-offset-x="150" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumnSpanning2" data-offset-x="200" data-offset-y="0" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="300" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="350" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowRowSparse">
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowSpanning2AutoColumn" data-offset-x="100" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="150" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea secondRowAutoColumn" data-offset-x="50" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowRowSparse">
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea thirdRowSecondColumn" data-offset-x="50" data-offset-y="100" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea secondRowSpanning2AutoColumn" data-offset-x="100" data-offset-y="50" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea firstRowSpanning2AutoColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="100" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea thirdRowAutoColumn" data-offset-x="0" data-offset-y="100" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowRowDense">
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumnSpanning2" data-offset-x="100" data-offset-y="0" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowRowDense">
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowFourthColumn" data-offset-x="150" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumnSpanning2" data-offset-x="200" data-offset-y="0" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="100" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowRowDense">
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowSpanning2AutoColumn" data-offset-x="100" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea secondRowAutoColumn" data-offset-x="50" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="100" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowRowDense">
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea thirdRowSecondColumn" data-offset-x="50" data-offset-y="100" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea secondRowSpanning2AutoColumn" data-offset-x="100" data-offset-y="50" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea firstRowSpanning2AutoColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea firstRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea thirdRowAutoColumn" data-offset-x="0" data-offset-y="100" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="100" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowColumnSparse">
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowSpanning2FirstColumn" data-offset-x="0" data-offset-y="100" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="200" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowColumnSparse">
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea fourthRowFirstColumn" data-offset-x="0" data-offset-y="150" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowSpanning2FirstColumn" data-offset-x="0" data-offset-y="200" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="300" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="350" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowColumnSparse">
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumnSpanning2" data-offset-x="0" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="150" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowSecondColumn" data-offset-x="50" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowColumnSparse">
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea secondRowThirdColumn" data-offset-x="100" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowSecondColumnSpanning2" data-offset-x="50" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumnSpanning2" data-offset-x="0" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="100" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowThirdColumn" data-offset-x="100" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowColumnDense">
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowSpanning2FirstColumn" data-offset-x="0" data-offset-y="100" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowColumnDense">
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea fourthRowFirstColumn" data-offset-x="0" data-offset-y="150" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowSpanning2FirstColumn" data-offset-x="0" data-offset-y="200" data-expected-width="50" data-expected-height="100"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="100" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowColumnDense">
+        <div class="sizedToGridArea secondRowFirstColumn" data-offset-x="0" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumnSpanning2" data-offset-x="0" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowSecondColumn" data-offset-x="50" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="100" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+<div style="position: relative">
+    <div class="grid gridAutoFlowColumnDense">
+        <div class="sizedToGridArea firstRowSecondColumn" data-offset-x="50" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea secondRowThirdColumn" data-offset-x="100" data-offset-y="50" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowSecondColumnSpanning2" data-offset-x="50" data-offset-y="100" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumnSpanning2" data-offset-x="0" data-offset-y="50" data-expected-width="100" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowFirstColumn" data-offset-x="0" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowThirdColumn" data-offset-x="100" data-offset-y="0" data-expected-width="50" data-expected-height="50"></div>
+        <div class="sizedToGridArea autoRowAutoColumn" data-offset-x="0" data-offset-y="100" data-expected-width="50" data-expected-height="50"></div>
+    </div>
+</div>
+
+</body>
