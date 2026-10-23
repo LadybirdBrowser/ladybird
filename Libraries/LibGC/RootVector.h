@@ -18,6 +18,8 @@
 namespace GC {
 
 class GC_API RootVectorBase {
+    AK_MAKE_NONCOPYABLE(RootVectorBase);
+
 public:
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>&) const = 0;
 
