@@ -43,6 +43,11 @@ enum class WebContentProcessLost : bool {
     Yes,
 };
 
+enum class BypassCache : bool {
+    No,
+    Yes,
+};
+
 class WEBVIEW_API CanonicalTraversable final : public CanonicalNavigable {
     friend class ApplyHistoryStep;
 
@@ -158,7 +163,7 @@ public:
     Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> queued_same_document_session_history_entries(CanonicalNavigable const&) const;
     ByteString queued_same_document_session_history_entries_for_debug() const;
 
-    void reload();
+    void reload(BypassCache);
     void stop_loading();
     static CanonicalTraversable& create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::CrossProcessId document_id);
     static bool is_origin_held_by_a_document(URL::Origin const&);

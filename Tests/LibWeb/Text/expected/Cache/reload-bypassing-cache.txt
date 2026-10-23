@@ -1,0 +1,18 @@
+reload bypassing the cache: document: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache: script: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache: iframe: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache: cross-site iframe: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache: script in the cross-site iframe: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache: cross-site iframe hosted in another process: true
+reload: document: cache-control: max-age=0, if-modified-since
+reload: script: no cache headers
+reload: iframe: no cache headers
+reload: cross-site iframe: no cache headers
+reload: script in the cross-site iframe: no cache headers
+reload bypassing the cache, with the document cached: document: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache, with the document cached: script: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache, with the document cached: iframe: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache, with the document cached: cross-site iframe: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache, with the document cached: script in the cross-site iframe: pragma: no-cache, cache-control: no-cache
+reload bypassing the cache, with the document cached: fetch() with cache "force-cache": no cache headers
+reload bypassing the cache, with the document cached: fetch() after the load event: no cache headers

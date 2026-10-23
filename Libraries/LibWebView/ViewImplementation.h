@@ -161,7 +161,7 @@ public:
     void load_html(StringView);
     void load_navigation_error_page(StringView);
 
-    void reload();
+    void reload(BypassCache = BypassCache::No);
     void stop_loading();
     bool is_loading() const { return m_is_loading; }
     // Whether the most recent load ran to completion, rather than being stopped or canceled.

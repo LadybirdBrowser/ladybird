@@ -68,6 +68,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationRequestDescriptor co
     TRY(encoder.encode(request.redirect_count));
     TRY(encoder.encode(request.text_directive_user_activation));
     TRY(encoder.encode(request.browsing_context_group_has_multiple_contexts));
+    TRY(encoder.encode(request.cache_mode));
     return {};
 }
 
@@ -84,6 +85,7 @@ ErrorOr<Web::HTML::NavigationRequestDescriptor> decode(Decoder& decoder)
         .redirect_count = TRY(decoder.decode<u8>()),
         .text_directive_user_activation = TRY(decoder.decode<bool>()),
         .browsing_context_group_has_multiple_contexts = TRY(decoder.decode<bool>()),
+        .cache_mode = TRY(decoder.decode<HTTP::CacheMode>()),
     };
 }
 

@@ -557,6 +557,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             || navigation_params.request->text_directive_user_activation();
         navigation_params.request->set_text_directive_user_activation(false);
         document->m_browsing_context_group_has_remote_contexts = navigation_params.request->browsing_context_group_has_multiple_contexts();
+        document->m_navigation_bypassed_cache = navigation_params.request->cache_mode() == HTTP::CacheMode::Reload;
     }
 
     // NOTE: Step 16 is treated as the else branch of step 15. Otherwise, redirectCount is undefined when the fetch

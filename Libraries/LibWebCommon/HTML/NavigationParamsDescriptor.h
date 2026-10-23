@@ -14,6 +14,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Header.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
@@ -54,6 +55,9 @@ struct NavigationRequestDescriptor {
     u8 redirect_count { 0 };
     bool text_directive_user_activation { false };
     bool browsing_context_group_has_multiple_contexts { false };
+
+    // Whether the navigation bypassed the HTTP cache, which the new Document's own fetches then do while it loads.
+    HTTP::CacheMode cache_mode { HTTP::CacheMode::Default };
 };
 
 struct NavigationResponseBodyHandle {

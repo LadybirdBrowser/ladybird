@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A reload that bypasses the cache fetches the document from the network without consulting the HTTP cache, and
+    // stores what it gets, so a plain reload after it revalidates the stored document. While the document loads, its
+    // subresources and its iframes are fetched the same way — a cross-site iframe that another process hosts, and that
+    // iframe's own subresources, included — unless a fetch asks for a cache mode of its own. Once the document has
+    // loaded, its fetches use the cache again.
+    function pageScript(config) {
+        const LABELS = ["initial load", "reload bypassing the cache", "reload", "reload bypassing the cache, with the document cached"];
+        const STEP_KEY = `step-${config.id}`;
+        const RESULTS_KEY = `results-${config.id}`;
+        const step = Number(sessionStorage.getItem(STEP_KEY) ?? 0);
+        const results = JSON.parse(sessionStorage.getItem(RESULTS_KEY) ?? "[]");
+
+        const explicitFetch = fetch(config.explicitURL, { cache: "force-cache" });
+
+        async function describeRequest(label, url) {
+            const response = await fetch(`/recorded-request-headers${new URL(url).pathname}`, { cache: "no-store" });
+            const headers = Object.fromEntries(Object.entries(await response.json()).map(([name, values]) => [name.toLowerCase(), values]));
+            const cacheHeaders = [];
+            for (const name of ["pragma", "cache-control"]) {
+                if (headers[name])
+                    cacheHeaders.push(`${name}: ${headers[name][0]}`);
+            }
+            if (headers["if-modified-since"])
+                cacheHeaders.push("if-modified-since");
+            results.push(`${LABELS[step]}: ${label}: ${cacheHeaders.length ? cacheHeaders.join(", ") : "no cache headers"}`);
+        }
+
+        onload = () => setTimeout(async () => {
+            // In test mode, the disk cache only stores responses to requests carrying the cache-enablement header, which
+            // a page can't attach to a navigation request. So have every navigation request carry it from here on.
+            if (step === 0) {
+                internals.setDiskCacheEnabledForNavigations(true);
+            } else {
+                await describeRequest("document", location.href);
+                await describeRequest("script", config.scriptURL);
+                await describeRequest("iframe", config.frameURL);
+                await describeRequest("cross-site iframe", config.crossSiteFrameURL);
+                await describeRequest("script in the cross-site iframe", config.crossSiteScriptURL);
+                if (step === 1)
+                    results.push(`${LABELS[step]}: cross-site iframe hosted in another process: ${internals.dumpSiteIsolationProcessTree().includes("remote")}`);
+            }
+
+            // The process serving this page can't navigate back to the test file, so this page reports the results.
+            if (step === 3) {
+                await explicitFetch;
+                await describeRequest('fetch() with cache "force-cache"', config.explicitURL);
+                await fetch(config.lateURL);
+                await describeRequest("fetch() after the load event", config.lateURL);
+                internals.setDiskCacheEnabledForNavigations(false);
+                internals.signalTestIsDone(results.map(line => `${line}\n`).join(""));
+                return;
+            }
+
+            sessionStorage.setItem(STEP_KEY, String(step + 1));
+            sessionStorage.setItem(RESULTS_KEY, JSON.stringify(results));
+            if (step === 1)
+                internals.reloadThroughUIProcess();
+            else
+                internals.reloadBypassingCacheThroughUIProcess();
+        });
+    }
+
+    asyncTest(async () => {
+        const id = crypto.randomUUID();
+        const server = httpTestServer().withEchoScope(id);
+        async function createEcho(name, contentType, body = "") {
+            return server.createEcho("GET", `/reload-bypassing-cache-${name}`, {
+                status: 200,
+                headers: { "Cache-Control": "no-store", "Content-Type": contentType },
+                body,
+            });
+        }
+
+        const endScript = "<" + "/script>";
+        const crossSiteHostname = uniqueLocalhostHostname("reload-bypassing-cache");
+        function onCrossSiteHost(url) {
+            const crossSiteURL = new URL(url);
+            crossSiteURL.hostname = crossSiteHostname;
+            return crossSiteURL.href;
+        }
+        const crossSiteScriptURL = onCrossSiteHost(await createEcho("cross-site-script", "text/javascript"));
+
+        const config = {
+            id,
+            scriptURL: await createEcho("script", "text/javascript"),
+            frameURL: await createEcho("frame", "text/html"),
+            explicitURL: await createEcho("explicit", "text/plain"),
+            lateURL: await createEcho("late", "text/plain"),
+            crossSiteFrameURL: onCrossSiteHost(await createEcho("cross-site-frame", "text/html", `<script src="${crossSiteScriptURL}">${endScript}`)),
+            crossSiteScriptURL,
+        };
+
+        const pageURL = await server.createEcho("GET", "/reload-bypassing-cache-page", {
+            status: 200,
+            headers: {
+                "Cache-Control": "max-age=999",
+                "Content-Type": "text/html",
+                "Last-Modified": "Mon, 01 Jan 2024 00:00:00 GMT",
+            },
+            body: `<!DOCTYPE html>
+<script src="${config.scriptURL}">${endScript}
+<iframe src="${config.frameURL}"></iframe>
+<iframe src="${config.crossSiteFrameURL}"></iframe>
+<script>(${pageScript})(${JSON.stringify(config)});${endScript}`,
+        });
+        internals.loadURL(pageURL);
+    });
+</script>

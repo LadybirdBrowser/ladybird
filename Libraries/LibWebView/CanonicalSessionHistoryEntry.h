@@ -67,6 +67,7 @@ public:
     Optional<URL::URL> about_base_url;
     Web::HTML::DocumentResource resource;
     bool reload_pending { false };
+    bool reload_bypasses_cache { false };
     bool ever_populated { false };
     Web::HTML::UserAgentInitiated user_agent_initiated { Web::HTML::UserAgentInitiated::No };
     Utf16String navigable_target_name;
