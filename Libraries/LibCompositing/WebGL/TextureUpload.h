@@ -9,7 +9,7 @@
 #include <AK/Optional.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/WebGL/Types.h>
-#include <LibGfx/BitmapExport.h>
+#include <LibGfx/ExportFormat.h>
 
 namespace Compositing::WebGL {
 
