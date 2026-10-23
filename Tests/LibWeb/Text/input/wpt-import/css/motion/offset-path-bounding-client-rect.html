@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<title>The bounding client rect of an element should reflect offset-path</title>
+<link rel="help" href="https://drafts.csswg.org/motion/#offset-path-property">
+<link rel="help" href="https://crbug.com/463409688">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  body {
+    margin: 0;
+  }
+  #blue {
+    background: radial-gradient(lightblue, blue);
+    width: 60px;
+    height: 60px;
+    offset-path: circle(100px at 150px 150px);
+    position: relative;
+    left: 100px;
+  }
+  #purple {
+    background: radial-gradient(fuchsia, purple);
+    width: 60px;
+    height: 60px;
+    offset-path: border-box;
+    position: relative;
+    left: 100px;
+  }
+</style>
+<body>
+<div id="blue"></div>
+<div id="purple"></div>
+<div id="log"></div>
+<script>
+  function check_rect(id, expected) {
+    test(() => {
+      const rect = document.getElementById(id).getBoundingClientRect();
+      for (const prop in expected) {
+        assert_equals(rect[prop], expected[prop], `#${id} client rect.${prop}`);
+      }
+    }, `Bounding client rect for #${id}`);
+  }
+
+  check_rect('blue', {
+    x: 220,
+    y: 120,
+    width: 60,
+    height: 60
+  });
+
+  check_rect('purple', {
+    x: -30,
+    y: -30,
+    width: 60,
+    height: 60
+  });
+</script>
+</body>
+</html>

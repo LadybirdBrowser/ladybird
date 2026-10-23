@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>offset-distance basic-shape interpolation</title>
+    <link rel="author" title="Daniil Sakhapov" href="mailto:sakhapov@chromium.org">
+    <link rel="help" href="https://drafts.fxtf.org/motion/#valdef-offset-path-basic-shape">
+    <meta name="assert" content="offset-path basic shape supports animation.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <style>
+    .parent {
+      offset-path: ellipse(10% 10% at 50% 50%);
+    }
+    .target {
+      offset-path: circle(10px);
+    }
+  </style>
+  <body>
+    <script>
+      'use strict';
+
+      test_no_interpolation({
+        property: 'offset-path',
+        from: "circle(10px)",
+        to: "inset(20px)",
+      });
+
+      test_no_interpolation({
+        property: 'offset-path',
+        from: "ellipse(at center)",
+        to: "none",
+      });
+
+      // Neutral keyframes use the inline style.
+      test_interpolation({
+        property: 'offset-path',
+        from: neutralKeyframe,
+        to: 'circle(20px)',
+      }, [
+        {at: -0.3, expect: 'circle(7px)'},
+        {at: 0, expect: 'circle(10px)'},
+        {at: 0.3, expect: 'circle(13px)'},
+        {at: 0.6, expect: 'circle(16px)'},
+        {at: 1, expect: 'circle(20px)'},
+        {at: 1.5, expect: 'circle(25px)'},
+      ]);
+
+      // No interpolation to an ellipse from the initial value 'none'.
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'initial',
+        to: 'ellipse()',
+      });
+
+      // 'inherit' keyframes use the parent style.
+      test_interpolation({
+        property: 'offset-path',
+        from: 'inherit',
+        to: 'ellipse(40% 50% at 25% 25%)',
+      }, [
+        {at: -0.3, expect: 'ellipse(1% 0% at 57.5% 57.5%)'},
+        {at: 0, expect: 'ellipse(10% 10% at 50% 50%)'},
+        {at: 0.3, expect: 'ellipse(19% 22% at 42.5% 42.5%)'},
+        {at: 0.6, expect: 'ellipse(28% 34% at 35% 35%)'},
+        {at: 1, expect: 'ellipse(40% 50% at 25% 25%)'},
+        {at: 1.5, expect: 'ellipse(55% 70% at 12.5% 12.5%)'},
+      ]);
+
+      // No interpolation to an inset from the initial value 'none'.
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'unset',
+        to: 'inset(10%)',
+      });
+
+      // No interpolation to a rect from the initial value 'none'.
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'none',
+        to: 'rect(10px 10px 10px 10px)',
+      });
+
+      // Interpolation between shapes.
+      test_interpolation({
+        property: 'offset-path',
+        from: 'inset(10px)',
+        to: 'inset(20px round 50%)'
+      }, [
+        {at: -1, expect: 'inset(0px round 0%)'},
+        {at: 0, expect: 'inset(10px round 0%)'},
+        {at: 0.125, expect: 'inset(11.25px round 6.25%)'},
+        {at: 0.875, expect: 'inset(18.75px round 43.75%)'},
+        {at: 1, expect: 'inset(20px round 50%)'},
+        {at: 2, expect: 'inset(30px round 100%)'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: 'xywh(5px 5px 150% 150%)',
+        to: 'xywh(10px 10px 100% 100%)'
+      }, [
+        {at: -1, expect: 'xywh(0px 0px 200% 200%)'},
+        {at: 0, expect: 'xywh(5px 5px 150% 150%)'},
+        {at: 0.125, expect: 'xywh(5.63px 5.63px 143.75% 143.75% )'},
+        {at: 0.875, expect: 'xywh(9.38px 9.38px 106.25% 106.25%)'},
+        {at: 1, expect: 'xywh(10px 10px 100% 100%)'},
+        {at: 2, expect: 'xywh(15px 15px 50% 50%)'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: 'rect(10px 100px 50% 10%)',
+        to: 'rect(50px 200px 90% 50%)'
+      }, [
+        {at: -1, expect: 'rect(-30px 0px 10% -30%)'},
+        {at: 0, expect: 'rect(10px 100px 50% 10%)'},
+        {at: 0.125, expect: 'rect(15px 112.5px 55% 15%)'},
+        {at: 0.875, expect: 'rect(45px 187.5px 85% 45%)'},
+        {at: 1, expect: 'rect(50px 200px 90% 50%)'},
+        {at: 2, expect: 'rect(90px 300px 130% 90%)'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: 'rect(auto auto auto auto)',
+        to: 'rect(80% 20% 20% 80%)'
+      }, [
+        {at: -1, expect: 'inset(-80%)'},
+        {at: 0, expect: 'inset(0%)'},
+        {at: 0.125, expect: 'inset(10%)'},
+        {at: 0.875, expect: 'inset(70%)'},
+        {at: 1, expect: 'inset(80%)'},
+        {at: 2, expect: 'inset(160%)'},
+      ]);
+
+      // All <basic-shape-rect>s compute to the equivalent inset() function, so
+      // they are interpolatable.
+      // https://drafts.csswg.org/css-shapes-1/#basic-shape-computed-values
+      // https://github.com/w3c/csswg-drafts/issues/9053
+      test_interpolation({
+        property: 'offset-path',
+        // The equivalent function is
+        // "inset(5px calc(100% - 210px) calc(100% - 105px) 10px)".
+        from: 'xywh(10px 10px 200px 100px)',
+        to: 'inset(50px)'
+      }, [
+        {at: -1, expect: 'inset(-30px calc(200% - 470px) calc(200% - 270px) -30px)'},
+        {at: 0, expect: 'inset(10px calc(100% - 210px) calc(100% - 110px) 10px)'},
+        {at: 0.125, expect: 'inset(15px calc(87.5% - 177.5px) calc(87.5% - 90px) 15px)'},
+        {at: 0.875, expect: 'inset(45px calc(12.5% + 17.5px) calc(12.5% + 30px) 45px)'},
+        {at: 1, expect: 'inset(50px calc(0% + 50px) calc(0% + 50px) 50px)'},
+        {at: 2, expect: 'inset(90px calc(-100% + 310px) calc(-100% + 210px) 90px)'},
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: 'inset(10px)',
+        // inset(50px calc(100% - 70px) 20% 20%).
+        to: 'rect(50px 70px 80% 20%)',
+      }, [
+        {at: -1, expect: 'inset(-30px calc(-100% + 90px) calc(-20% + 20px) calc(-20% + 20px)'},
+        {at: 0, expect: 'inset(10px calc(0% + 10px) calc(0% + 10px))'},
+        {at: 0.125, expect: 'inset(15px 12.5% calc(2.5% + 8.75px) calc(2.5% + 8.75px))'},
+        {at: 0.875, expect: 'inset(45px calc(87.5% - 60px) calc(17.5% + 1.25px) calc(17.5% + 1.25px))'},
+        {at: 1, expect: 'inset(50px calc(100% - 70px) 20% 20%)'},
+        {at: 2, expect: 'inset(90px calc(200% - 150px) calc(40% - 10px) calc(40% - 10px))'},
+      ]);
+
+      test_interpolation({
+        property: 'clip-path',
+        // inset(10% calc(100% - 100px) 50% 0px round 20px).
+        from: 'xywh(0px 10% 100px 40% round 20px)',
+        // inset(20% 50% calc(100% - 200px) 20px).
+        to: 'rect(20% 50% 200px 20px)',
+      }, [
+        {at: -1, expect: 'inset(0% calc(150% - 200px) calc(0% + 200px) -20px round 40px'},
+        {at: 0, expect: 'inset(10% calc(100% - 100px) 50% 0px round 20px)'},
+        {at: 0.125, expect: 'inset(11.25% calc(93.75% - 87.5px) calc(56.25% - 25px) 2.5px round 17.5px)'},
+        {at: 0.875, expect: 'inset(18.75% calc(56.25% - 12.5px) calc(93.75% - 175px) 17.5px round 2.5px)'},
+        {at: 1, expect: 'inset(20% 50% calc(100% - 200px) 20px)'},
+        {at: 2, expect: 'inset(30% calc(0% + 100px) calc(150% - 400px) 40px)'},
+      ]);
+
+      // No interpolation between different radius keywords.
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'circle(farthest-side)',
+        to: 'circle(closest-side)'
+      });
+      test_no_interpolation({
+        property: 'offset-path',
+        from: 'ellipse(closest-side farthest-side)',
+        to: 'ellipse(closest-side closest-side)'
+      });
+    </script>
+  </body>
+</html>

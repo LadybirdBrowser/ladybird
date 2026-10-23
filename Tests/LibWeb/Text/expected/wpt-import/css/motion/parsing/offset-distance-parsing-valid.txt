@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	e.style['offset-distance'] = "10px" should set the property value
+Fail	e.style['offset-distance'] = "20%" should set the property value
+Fail	e.style['offset-distance'] = "calc(40% + 30px)" should set the property value
+Fail	e.style['offset-distance'] = "0" should set the property value

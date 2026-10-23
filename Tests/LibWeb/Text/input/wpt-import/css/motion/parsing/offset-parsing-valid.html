@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: parsing offset with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-shorthand">
+<meta name="assert" content="offset supports the full grammar from the spec.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("offset", "100px none auto 90deg", "100px center none auto 90deg");
+test_valid_value("offset", "100px", "100px center");
+test_valid_value("offset", "normal none reverse", "none reverse");
+test_valid_value("offset", "auto");
+test_valid_value("offset", "center bottom path(\"M 1 2 V 3 Z\")");
+test_valid_value("offset", "center center path(\"M 0 0 L 100 100 M 100 200 L 200 200 Z L 300 300 Z\") 100% 90deg / left bottom");
+test_valid_value("offset", "left bottom ray(0rad closest-corner) 10px auto 30deg / right bottom");
+test_valid_value("offset", "left top");
+test_valid_value("offset", "none 30deg reverse", "none reverse 30deg");
+test_valid_value("offset", "none 50px reverse 30deg");
+test_valid_value("offset", "none calc(20% + 10px) auto", "none calc(20% + 10px)");
+test_valid_value("offset", "none reverse");
+test_valid_value("offset", "path(\"M 0 0 H 1\") -200% auto", "path(\"M 0 0 H 1\") -200%");
+test_valid_value("offset", "path(\"M 0 0 H 1\") -200%");
+test_valid_value("offset", "path('M 0 0 H 1') 50px", "path(\"M 0 0 H 1\") 50px");
+test_valid_value("offset", "path(\"M 0 0 H 1\") auto", "path(\"M 0 0 H 1\")");
+test_valid_value("offset", "path(\"M 0 0 H 1\") auto 0deg", "path(\"M 0 0 H 1\")");
+test_valid_value("offset", "path(\"M 0 0 H 1\") auto 0rad", "path(\"M 0 0 H 1\")");
+test_valid_value("offset", "path(\"M 0 0 H 1\") auto 0.5turn", "path(\"M 0 0 H 1\") auto 0.5turn");
+test_valid_value("offset", "path('M 0 0 H 1') reverse 30deg 50px", "path(\"M 0 0 H 1\") 50px reverse 30deg");
+test_valid_value("offset", "path(\"M 0 0 H 1\")");
+test_valid_value("offset", "path('m 20 0 h 100') -7rad 8px / auto", "path(\"m 20 0 h 100\") 8px -7rad");
+test_valid_value("offset", "path('m 0 30 v 100') -7rad 8px / left top", "path(\"m 0 30 v 100\") 8px -7rad / left top");
+test_valid_value("offset", "path('m 0 0 h 100') -7rad 8px", "path(\"m 0 0 h 100\") 8px -7rad");
+test_valid_value("offset", "path(\"M 0 0 H 100\") 100px 0deg");
+test_valid_value("offset", "path(  'm 1 2   v 3.00 z')", "path(\"m 1 2 v 3 Z\")");
+test_valid_value("offset", "ray(farthest-corner 90deg) 1%", "ray(90deg farthest-corner) 1%");
+test_valid_value("offset", "ray(sides 0deg) 50% 90deg auto", "ray(0deg sides) 50% auto 90deg");
+test_valid_value("offset", "right bottom / left top");
+</script>
+</body>
+</html>

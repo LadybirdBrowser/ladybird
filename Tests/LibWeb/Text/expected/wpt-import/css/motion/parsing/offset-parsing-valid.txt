@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 29 tests
+
+29 Fail
+Fail	e.style['offset'] = "100px none auto 90deg" should set the property value
+Fail	e.style['offset'] = "100px" should set the property value
+Fail	e.style['offset'] = "normal none reverse" should set the property value
+Fail	e.style['offset'] = "auto" should set the property value
+Fail	e.style['offset'] = "center bottom path(\"M 1 2 V 3 Z\")" should set the property value
+Fail	e.style['offset'] = "center center path(\"M 0 0 L 100 100 M 100 200 L 200 200 Z L 300 300 Z\") 100% 90deg / left bottom" should set the property value
+Fail	e.style['offset'] = "left bottom ray(0rad closest-corner) 10px auto 30deg / right bottom" should set the property value
+Fail	e.style['offset'] = "left top" should set the property value
+Fail	e.style['offset'] = "none 30deg reverse" should set the property value
+Fail	e.style['offset'] = "none 50px reverse 30deg" should set the property value
+Fail	e.style['offset'] = "none calc(20% + 10px) auto" should set the property value
+Fail	e.style['offset'] = "none reverse" should set the property value
+Fail	e.style['offset'] = "path(\"M 0 0 H 1\") -200% auto" should set the property value
+Fail	e.style['offset'] = "path(\"M 0 0 H 1\") -200%" should set the property value
+Fail	e.style['offset'] = "path('M 0 0 H 1') 50px" should set the property value
+Fail	e.style['offset'] = "path(\"M 0 0 H 1\") auto" should set the property value
+Fail	e.style['offset'] = "path(\"M 0 0 H 1\") auto 0deg" should set the property value
+Fail	e.style['offset'] = "path(\"M 0 0 H 1\") auto 0rad" should set the property value
+Fail	e.style['offset'] = "path(\"M 0 0 H 1\") auto 0.5turn" should set the property value
+Fail	e.style['offset'] = "path('M 0 0 H 1') reverse 30deg 50px" should set the property value
+Fail	e.style['offset'] = "path(\"M 0 0 H 1\")" should set the property value
+Fail	e.style['offset'] = "path('m 20 0 h 100') -7rad 8px / auto" should set the property value
+Fail	e.style['offset'] = "path('m 0 30 v 100') -7rad 8px / left top" should set the property value
+Fail	e.style['offset'] = "path('m 0 0 h 100') -7rad 8px" should set the property value
+Fail	e.style['offset'] = "path(\"M 0 0 H 100\") 100px 0deg" should set the property value
+Fail	e.style['offset'] = "path(  'm 1 2   v 3.00 z')" should set the property value
+Fail	e.style['offset'] = "ray(farthest-corner 90deg) 1%" should set the property value
+Fail	e.style['offset'] = "ray(sides 0deg) 50% 90deg auto" should set the property value
+Fail	e.style['offset'] = "right bottom / left top" should set the property value

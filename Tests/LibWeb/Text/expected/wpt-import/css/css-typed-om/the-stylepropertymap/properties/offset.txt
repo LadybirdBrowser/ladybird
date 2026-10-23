@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	'offset' does not support 'auto'
+Fail	'offset' does not support '10px 30px'
+Fail	'offset' does not support 'none'
+Fail	'offset' does not support 'ray(45deg closest-side)'
+Fail	'offset' does not support 'path("M 100 100 L 300 100 L 200 300 z")'
+Fail	'offset' does not support 'ray(45deg closest-side) / 40px 20px'

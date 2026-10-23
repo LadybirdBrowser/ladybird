@@ -1,0 +1,29 @@
+Harness status: OK
+
+Found 24 tests
+
+24 Pass
+Pass	e.style['offset-path'] = "path(\"M 20 30 A 60 70 80\")" should not set the property value
+Pass	e.style['offset-path'] = "path(\"\")" should not set the property value
+Pass	e.style['offset-path'] = "path(\" \")" should not set the property value
+Pass	e.style['offset-path'] = "path(nonzero, \"M 0 0 H 100\")" should not set the property value
+Pass	e.style['offset-path'] = "path(evenodd, \"M 0 0 H 100\")" should not set the property value
+Pass	e.style['offset-path'] = "ray(0 sides)" should not set the property value
+Pass	e.style['offset-path'] = "ray(closest-side)" should not set the property value
+Pass	e.style['offset-path'] = "ray(closest-side 0deg closest-side)" should not set the property value
+Pass	e.style['offset-path'] = "ray(0deg closest-side 0deg)" should not set the property value
+Pass	e.style['offset-path'] = "ray(contain 0deg closest-side contain)" should not set the property value
+Pass	e.style['offset-path'] = "xywh(0px)" should not set the property value
+Pass	e.style['offset-path'] = "xywh(0px 1%)" should not set the property value
+Pass	e.style['offset-path'] = "xywh(0px 1% 2em)" should not set the property value
+Pass	e.style['offset-path'] = "rect(0px)" should not set the property value
+Pass	e.style['offset-path'] = "rect(0px 1%)" should not set the property value
+Pass	e.style['offset-path'] = "rect(0px 1% auto)" should not set the property value
+Pass	e.style['offset-path'] = "polygon(round, 1px 2px)" should not set the property value
+Pass	e.style['offset-path'] = "polygon(round -1px, 1px 2px)" should not set the property value
+Pass	e.style['offset-path'] = "polygon(round 1%, 1px 2px)" should not set the property value
+Pass	e.style['offset-path'] = "polygon(round 45deg, 1px 2px)" should not set the property value
+Pass	e.style['offset-path'] = "polygon(round 1px 1px 2px)" should not set the property value
+Pass	e.style['offset-path'] = "polygon(1px 2px, round 1px)" should not set the property value
+Pass	e.style['offset-path'] = "polygon(round 1px round 2px, 1px 2px)" should not set the property value
+Pass	e.style['offset-path'] = "polygon(round 1px nonzero, 1px 2px)" should not set the property value

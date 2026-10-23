@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	e.style['offset-position'] = "none" should not set the property value
+Pass	e.style['offset-position'] = "30deg" should not set the property value
+Pass	e.style['offset-position'] = "left 10% top" should not set the property value

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: getComputedStyle().offsetPosition</title>
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-position-property">
+<meta name="assert" content="offset-position is 'auto', 'normal', or a computed position.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("offset-position", "auto");
+test_computed_value("offset-position", "normal");
+
+test_computed_value("offset-position", "left bottom", "0% 100%");
+test_computed_value("offset-position", "center center", "50% 50%");
+test_computed_value("offset-position", "right center", "100% 50%");
+test_computed_value("offset-position", "center top", "50% 0%");
+test_computed_value("offset-position", "center bottom", "50% 100%");
+test_computed_value("offset-position", "calc(5em + 20%) center", "calc(20% + 200px) 50%");
+test_computed_value("offset-position", "right 3em", "100% 120px");
+test_computed_value("offset-position", "10px 20%");
+test_computed_value("offset-position", "left -10px top -20%", "-10px -20%");
+test_computed_value("offset-position", "right 10% bottom 5em", "90% calc(100% - 200px)");
+test_computed_value("offset-position", "top 10px right -20%", "120% 10px");
+test_computed_value("offset-position", "left 10% bottom 2em", "10% calc(100% - 80px)");
+test_computed_value('offset-position', 'calc(10px - 0.5em) calc(10px + 0.5em)', '-10px 30px');
+</script>
+</body>
+</html>

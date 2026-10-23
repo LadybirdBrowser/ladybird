@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>offset-position interpolation</title>
+    <link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-position-property">
+    <meta name="assert" content="offset-position supports <position> animation.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+    <style>
+      .parent {
+        offset-position: 30px 10px;
+      }
+      .target {
+        offset-position: 10px 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      test_interpolation({
+        property: 'offset-position',
+        from: '220px 240px',
+        to: '300px 400px',
+      }, [
+        {at: -1, expect: '140px 80px'},
+        {at: 0, expect: '220px 240px'},
+        {at: 0.125, expect: '230px 260px'},
+        {at: 0.875, expect: '290px 380px'},
+        {at: 1, expect: '300px 400px'},
+        {at: 2, expect: '380px 560px'}
+      ]);
+
+      test_interpolation({
+        property: 'offset-position',
+        from: 'left 480px top 400px',
+        to: 'right -140% bottom -60%',
+      }, [
+        {at: -1, expect: 'calc(960px - 240%) calc(800px - 160%)'},
+        {at: 0, expect: 'left calc(0% + 480px) top calc(0% + 400px)'},
+        {at: 0.125, expect: 'calc(420px + 30%) calc(350px + 20%)'},
+        {at: 0.875, expect: 'calc(210% + 60px) calc(140% + 50px)'},
+        {at: 1, expect: 'right -140% bottom -60%'},
+        {at: 2, expect: 'calc(480% - 480px) calc(320% - 400px)'}
+      ]);
+
+      test_interpolation({
+        property: 'offset-position',
+        from: 'left top',
+        to: 'left 8px bottom 20%',
+      }, [
+        {at: -1, expect: 'calc(0% - 8px) -80%'},
+        {at: 0, expect: 'left top'},
+        {at: 0.125, expect: 'calc(0% + 1px) 10%'},
+        {at: 0.875, expect: 'calc(0% + 7px) 70%'},
+        {at: 1, expect: 'left calc(0% + 8px) bottom 20%'},
+        {at: 2, expect: 'calc(0% + 16px) 160%'}
+      ]);
+
+      test_no_interpolation({
+        property: 'offset-position',
+        from: 'right 10px top 20%',
+        to: 'auto'
+      });
+
+      test_interpolation({
+        property: 'offset-position',
+        from: neutralKeyframe,
+        to: '20px 20px',
+      }, [
+        {at: -0.3, expect: '7px 33px'},
+        {at: 0, expect: '10px 30px'},
+        {at: 0.3, expect: '13px 27px'},
+        {at: 0.6, expect: '16px 24px'},
+        {at: 1, expect: '20px 20px'},
+        {at: 1.5, expect: '25px 15px'},
+      ]);
+
+      test_no_interpolation({
+        property: 'offset-position',
+        from: 'initial',
+        to: '20px 20px',
+      });
+
+      test_interpolation({
+        property: 'offset-position',
+        from: 'inherit',
+        to: '20px 20px',
+      }, [
+        {at: -0.3, expect: '33px 7px'},
+        {at: 0, expect: '30px 10px'},
+        {at: 0.3, expect: '27px 13px'},
+        {at: 0.6, expect: '24px 16px'},
+        {at: 1, expect: '20px 20px'},
+        {at: 1.5, expect: '15px 25px'},
+      ]);
+
+      test_no_interpolation({
+        property: 'offset-position',
+        from: 'unset',
+        to: '20px 20px',
+      });
+
+      test_interpolation({
+        property: 'offset-position',
+        from: '0% 50%',
+        to: '100% 150%'
+      }, [
+        {at: -0.3, expect: '-30% 20%'},
+        {at: 0, expect: '0% 50%'},
+        {at: 0.3, expect: '30% 80%'},
+        {at: 0.6, expect: '60% 110%'},
+        {at: 1, expect: '100% 150%'},
+        {at: 1.5, expect: '150% 200%'}
+      ]);
+
+      test_no_interpolation({
+        property: 'offset-position',
+        from: 'auto',
+        to: '20px 20px',
+      });
+    </script>
+  </body>
+</html>

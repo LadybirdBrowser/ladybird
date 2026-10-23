@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	e.style['offset-rotate'] = "auto" should set the property value
+Fail	e.style['offset-rotate'] = "reverse" should set the property value
+Fail	e.style['offset-rotate'] = "-400deg" should set the property value
+Fail	e.style['offset-rotate'] = "auto 5turn" should set the property value
+Fail	e.style['offset-rotate'] = "reverse 0rad" should set the property value
+Fail	e.style['offset-rotate'] = "5turn auto" should set the property value
+Fail	e.style['offset-rotate'] = "0rad reverse" should set the property value

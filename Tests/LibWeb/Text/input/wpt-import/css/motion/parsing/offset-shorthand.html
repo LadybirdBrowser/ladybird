@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: offset sets longhands</title>
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-shorthand">
+<meta name="assert" content="offset supports the full grammar from the spec.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('offset', 'left bottom ray(0rad closest-corner) 10px auto 30deg / right bottom', {
+  'offset-position': 'left bottom',
+  'offset-path': 'ray(0rad closest-corner)',
+  'offset-distance': '10px',
+  'offset-rotate': 'auto 30deg',
+  'offset-anchor': 'right bottom',
+});
+
+test_shorthand_value('offset', 'top right / top left', {
+  'offset-position': 'right top',
+  'offset-path': 'none',
+  'offset-distance': '0px',
+  'offset-rotate': 'auto',
+  'offset-anchor': 'left top',
+});
+
+test_shorthand_value('offset', 'path("M 0 0 H 2") reverse 50%', {
+  'offset-position': 'normal',
+  'offset-path': 'path("M 0 0 H 2")',
+  'offset-distance': '50%',
+  'offset-rotate': 'reverse',
+  'offset-anchor': 'auto',
+});
+</script>
+</body>
+</html>

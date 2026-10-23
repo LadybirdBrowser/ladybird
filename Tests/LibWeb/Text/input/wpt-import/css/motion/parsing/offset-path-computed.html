@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: getComputedStyle().offsetPath</title>
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+<meta name="assert" content="offset-path has absolute path commands.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("offset-path", "none");
+
+test_computed_value("offset-path", "ray(0deg)");
+test_computed_value("offset-path", "ray(0rad closest-side)", "ray(0deg)");
+test_computed_value("offset-path", "ray(0.25turn closest-corner contain)", "ray(90deg closest-corner contain)");
+test_computed_value("offset-path", "ray(200grad farthest-side)", "ray(180deg farthest-side)");
+test_computed_value("offset-path", "ray(270deg farthest-corner contain)");
+test_computed_value("offset-path", "ray(-720deg sides)");
+test_computed_value("offset-path", "ray(calc(180deg - 45deg) farthest-side)", "ray(135deg farthest-side)");
+test_computed_value("offset-path", "ray(0deg at 100px 100px)");
+test_computed_value("offset-path", "ray(0deg sides at center center)", "ray(0deg sides at 50% 50%)");
+test_computed_value("offset-path", "ray(0deg at center center sides)", "ray(0deg sides at 50% 50%)");
+test_computed_value("offset-path", "ray(0deg at center center contain)", "ray(0deg contain at 50% 50%)");
+test_computed_value("offset-path", "ray(at 10px 10px 0deg contain)", "ray(0deg contain at 10px 10px)");
+
+// It's unclear about the normalization at computed time, so we accept both
+// cases for now.
+// https://github.com/w3c/svgwg/issues/321
+test_computed_value("offset-path", 'path("m 20 0 h -100")', [
+    'path("M 20 0 H -80")',
+    'path("m 20 0 h -100")'
+]);
+test_computed_value("offset-path", 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 300 300 Z")');
+test_computed_value("offset-path", 'path("m 10 20 q 30 60 40 50 q 100 70 90 80")', [
+    'path("M 10 20 Q 40 80 50 70 Q 150 140 140 150")',
+    'path("m 10 20 q 30 60 40 50 q 100 70 90 80")'
+]);
+test_computed_value("offset-path", 'path("M 0 0 L 100 100 m 0 100 l 100 0 Z l 160 20 Z")', [
+    'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 260 220 Z")',
+    'path("M 0 0 L 100 100 m 0 100 l 100 0 Z l 160 20 Z")'
+]);
+test_computed_value("offset-path", 'path("m 10 20 l 20 30 Z l 50 60 Z m 70 80 l 90 60 Z t 70 120")', [
+    'path("M 10 20 L 30 50 Z L 60 80 Z M 80 100 L 170 160 Z T 150 220")',
+    'path("m 10 20 l 20 30 Z l 50 60 Z m 70 80 l 90 60 Z t 70 120")'
+]);
+test_computed_value("offset-path", 'path("m 10 170 h 90 v 30 m 0 0 s 1 2 3 4 z c 9 8 7 6 5 4")', [
+    'path("M 10 170 H 100 V 200 M 100 200 S 101 202 103 204 Z C 109 208 107 206 105 204")',
+    'path("m 10 170 h 90 v 30 m 0 0 s 1 2 3 4 Z c 9 8 7 6 5 4")'
+]);
+test_computed_value("offset-path", 'path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")', [
+    'path("M 10 20 A 10 20 30 1 0 50 70 A 110 120 30 1 1 190 120")',
+    'path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")',
+]);
+
+test_computed_value("offset-path", "inset(100%)");
+test_computed_value("offset-path", "inset(0 1px)", "inset(0px 1px)");
+test_computed_value("offset-path", "inset(0px 1px 2%)");
+test_computed_value("offset-path", "inset(0px 1px 2% 3em)", "inset(0px 1px 2% 48px)");
+test_computed_value("offset-path", "inset(0px round 100%)");
+test_computed_value("offset-path", "inset(0px round 0 1px)", "inset(0px round 0px 1px)");
+test_computed_value("offset-path", "inset(0px round 0px 1px 2%)");
+test_computed_value("offset-path", "inset(0px round 0px 1px 2% 3em)", "inset(0px round 0px 1px 2% 48px)");
+test_computed_value("offset-path", "inset(10px round 20% / 0px 1px 2% 3px)");
+
+test_computed_value("offset-path", "circle()");
+test_computed_value("offset-path", "circle(100px)");
+test_computed_value("offset-path", "circle(closest-side)", "circle()");
+test_computed_value("offset-path", "circle(at 50% 50%)");
+test_computed_value("offset-path", "circle(100px at 50% 50%)");
+test_computed_value("offset-path", "circle(farthest-side at center top)", "circle(farthest-side at 50% 0%)");
+test_computed_value("offset-path", "circle(4% at top right)", "circle(4% at 100% 0%)");
+
+test_computed_value("offset-path", "ellipse()");
+test_computed_value("offset-path", "ellipse(1px closest-side)");
+test_computed_value("offset-path", "ellipse(at 50% 50%)");
+test_computed_value("offset-path", "ellipse(closest-side closest-side at 10% 20%)", "ellipse(at 10% 20%)");
+test_computed_value("offset-path", "ellipse(farthest-side 4% at bottom left)", "ellipse(farthest-side 4% at 0% 100%)");
+
+test_computed_value("offset-path", "polygon(1% 2%)");
+test_computed_value("offset-path", "polygon(1px 2px, 3% 4%)");
+test_computed_value(
+    "offset-path",
+    "polygon(round 1em, 1px 2px, 3em 4em)",
+    "polygon(round 16px, 1px 2px, 48px 64px)");
+test_computed_value(
+    "offset-path",
+    "polygon(evenodd round 6pt, 1px 2px, 3em 4em, 6pt 6%)",
+    "polygon(evenodd round 8px, 1px 2px, 48px 64px, 8px 6%)");
+test_computed_value(
+    "offset-path",
+    "polygon(round 0px, 1px 2px, 3px 4px)",
+    "polygon(1px 2px, 3px 4px)");
+test_computed_value(
+    "offset-path",
+    "polygon(round calc(1em + 2px), 1px 2px, 3px 4px)",
+    "polygon(round 18px, 1px 2px, 3px 4px)");
+
+// All <basic-shape-rect> functions compute to the equivalent inset() function.
+// Given "xywh(x y w h)", the equivalent function is
+// "inset(y calc(100% - x - w) calc(100% - y - h) x)".
+// https://drafts.csswg.org/css-shapes-1/#basic-shape-computed-values
+// https://github.com/w3c/csswg-drafts/issues/9053
+test_computed_value("offset-path", "xywh(0 1% 2px 3em)", "inset(1% calc(100% - 2px) calc(99% - 48px) 0px)");
+test_computed_value("offset-path", "xywh(0px 1% 2px 3em round 0)", "inset(1% calc(100% - 2px) calc(99% - 48px) 0px)");
+test_computed_value("offset-path", "xywh(0px 1% 2px 3em round 0 1px)", "inset(1% calc(100% - 2px) calc(99% - 48px) 0px round 0px 1px)");
+test_computed_value("offset-path", "xywh(0px 1% 2px 3% round 0px 1px 2em)", "inset(1% calc(100% - 2px) 96% 0px round 0px 1px 32px)");
+test_computed_value("offset-path", "xywh(0px 1% 2px 3% round 0px 1px 2% 3px)", "inset(1% calc(100% - 2px) 96% 0px round 0px 1px 2% 3px)");
+// Given "rect(t r b l)", the equivalent function is
+// "inset(t calc(100% - r) calc(100% - b) l)".
+test_computed_value("offset-path", "rect(auto auto auto auto)", "inset(0%)");
+test_computed_value("offset-path", "rect(0 1% 2px 3em)", "inset(0px 99% calc(100% - 2px) 48px)");
+test_computed_value("offset-path", "rect(0px 1% auto 3em round 0)", "inset(0px 99% 0% 48px)");
+test_computed_value("offset-path", "rect(0px 1% auto 3% round 0 1px)", "inset(0px 99% 0% 3% round 0px 1px)");
+test_computed_value("offset-path", "rect(0px 1% auto 3% round 0px 1px 2em)", "inset(0px 99% 0% 3% round 0px 1px 32px)");
+test_computed_value("offset-path", "rect(0px 1% auto 3% round 0px 1px 2% 3px)", "inset(0px 99% 0% 3% round 0px 1px 2% 3px)");
+
+test_computed_value("offset-path", "content-box");
+test_computed_value("offset-path", "border-box");
+test_computed_value("offset-path", "view-box");
+
+test_computed_value("offset-path", "inset(10% 20% 30% 40%) border-box", "inset(10% 20% 30% 40%)");
+test_computed_value("offset-path", "fill-box ellipse(at 50% 60%)", "ellipse(at 50% 60%) fill-box");
+test_computed_value("offset-path", "ray(0deg) stroke-box");
+// Mentionted above above.
+test_computed_value("offset-path", 'path("m 20 0 h -100") view-box', [
+    'path("M 20 0 H -80") view-box',
+    'path("m 20 0 h -100") view-box'
+]);
+</script>
+</body>
+</html>

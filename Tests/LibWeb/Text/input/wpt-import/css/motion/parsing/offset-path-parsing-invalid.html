@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: parsing offset-path with invalid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+<meta name="assert" content="offset-path supports only the grammar from the spec.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// arc path segments must have at least 7 arguments.
+// https://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands
+test_invalid_value("offset-path", 'path("M 20 30 A 60 70 80")');
+test_invalid_value("offset-path", 'path("")');
+test_invalid_value("offset-path", 'path(" ")');
+
+// We ignore `<fill-rule>` from offset-path: path().
+// https://github.com/w3c/fxtf-drafts/issues/512
+// https://github.com/w3c/csswg-drafts/issues/7390
+test_invalid_value("offset-path", 'path(nonzero, "M 0 0 H 100")');
+test_invalid_value("offset-path", 'path(evenodd, "M 0 0 H 100")');
+
+test_invalid_value("offset-path", "ray(0 sides)");
+test_invalid_value("offset-path", "ray(closest-side)");
+test_invalid_value("offset-path", "ray(closest-side 0deg closest-side)");
+test_invalid_value("offset-path", "ray(0deg closest-side 0deg)");
+test_invalid_value("offset-path", "ray(contain 0deg closest-side contain)");
+
+test_invalid_value("offset-path", "xywh(0px)");
+test_invalid_value("offset-path", "xywh(0px 1%)");
+test_invalid_value("offset-path", "xywh(0px 1% 2em)");
+
+test_invalid_value("offset-path", "rect(0px)");
+test_invalid_value("offset-path", "rect(0px 1%)");
+test_invalid_value("offset-path", "rect(0px 1% auto)");
+
+test_invalid_value("offset-path", "polygon(round, 1px 2px)");
+test_invalid_value("offset-path", "polygon(round -1px, 1px 2px)");
+test_invalid_value("offset-path", "polygon(round 1%, 1px 2px)");
+test_invalid_value("offset-path", "polygon(round 45deg, 1px 2px)");
+test_invalid_value("offset-path", "polygon(round 1px 1px 2px)");
+test_invalid_value("offset-path", "polygon(1px 2px, round 1px)");
+test_invalid_value("offset-path", "polygon(round 1px round 2px, 1px 2px)");
+test_invalid_value("offset-path", "polygon(round 1px nonzero, 1px 2px)");
+
+</script>
+</body>
+</html>

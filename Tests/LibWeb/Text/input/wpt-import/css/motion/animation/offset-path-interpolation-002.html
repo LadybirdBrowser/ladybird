@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>offset-distance interpolation</title>
+    <link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-distance-property">
+    <meta name="assert" content="offset-distance supports animation.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('M 20 10 C 32 42 52 62 120 2200')",
+        to: "path('M 20 10 C 40 50 60 70 200 3000')",
+      }, [
+        {at: -1, expect: "path('M 20 10 C 24 34 44 54 40 1400')"},
+        {at: 0, expect: "path('M 20 10 C 32 42 52 62 120 2200')"},
+        {at: 0.125, expect: "path('M 20 10 C 33 43 53 63 130 2300')"},
+        {at: 0.875, expect: "path('M 20 10 C 39 49 59 69 190 2900')"},
+        {at: 1, expect: "path('M 20 10 C 40 50 60 70 200 3000')"},
+        {at: 2, expect: "path('M 20 10 C 48 58 68 78 280 3800')"}
+      ]);
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('m 20 10 c 12 32 32 52 100 2190')",
+        to: "path('m 20 10 c 20 40 40 60 180 2990')"
+      }, [
+        {at: -1, expect: "path('M 20 10 C 24 34 44 54 40 1400')"},
+        {at: 0, expect: "path('M 20 10 C 32 42 52 62 120 2200')"},
+        {at: 0.125, expect: "path('M 20 10 C 33 43 53 63 130 2300')"},
+        {at: 0.875, expect: "path('M 20 10 C 39 49 59 69 190 2900')"},
+        {at: 1, expect: "path('M 20 10 C 40 50 60 70 200 3000')"},
+        {at: 2, expect: "path('M 20 10 C 48 58 68 78 280 3800')"}
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('M 20 10 Q 32 42 120 2200')",
+        to: "path('M 20 10 Q 40 50 200 3000')"
+      }, [
+        {at: -1, expect: "path('M 20 10 Q 24 34 40 1400')"},
+        {at: 0, expect: "path('M 20 10 Q 32 42 120 2200')"},
+        {at: 0.125, expect: "path('M 20 10 Q 33 43 130 2300')"},
+        {at: 0.875, expect: "path('M 20 10 Q 39 49 190 2900')"},
+        {at: 1, expect: "path('M 20 10 Q 40 50 200 3000')"},
+        {at: 2, expect: "path('M 20 10 Q 48 58 280 3800')"}
+      ]);
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('m 20 10 q 12 32 100 2190')",
+        to: "path('m 20 10 q 20 40 180 2990')"
+      }, [
+        {at: -1, expect: "path('M 20 10 Q 24 34 40 1400')"},
+        {at: 0, expect: "path('M 20 10 Q 32 42 120 2200')"},
+        {at: 0.125, expect: "path('M 20 10 Q 33 43 130 2300')"},
+        {at: 0.875, expect: "path('M 20 10 Q 39 49 190 2900')"},
+        {at: 1, expect: "path('M 20 10 Q 40 50 200 3000')"},
+        {at: 2, expect: "path('M 20 10 Q 48 58 280 3800')"}
+      ]);
+
+      // At progress 0.125/0.875, arc flags in path() should consider
+      // non-zero interpolated values as one to match <path> behaviour.
+      // https://w3c.github.io/svgwg/specs/paths/#PathElement
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('M 100 400 A 10 20 30 1 0 140 450')",
+        to: "path('M 300 200 A 50 60 70 0 1 380 290')"
+      }, [
+        {at: -1, expect: "path('M -100 600 A -30 -20 -10 1 0 -100 610')"},
+        {at: 0, expect: "path('M 100 400 A 10 20 30 1 0 140 450')"},
+        {at: 0.125, expect: "path('M 125 375 A 15 25 35 1 1 170 430')"},
+        {at: 0.875, expect: "path('M 275 225 A 45 55 65 1 1 350 310')"},
+        {at: 1, expect: "path('M 300 200 A 50 60 70 0 1 380 290')"},
+        {at: 2, expect: "path('M 500 0 A 90 100 110 0 1 620 130')"}
+      ]);
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('m 100 400 a 10 20 30 1 0 40 50')",
+        to: "path('m 300 200 a 50 60 70 0 1 80 90')"
+      }, [
+        {at: -1, expect: "path('M -100 600 A -30 -20 -10 1 0 -100 610')"},
+        {at: 0, expect: "path('M 100 400 A 10 20 30 1 0 140 450')"},
+        {at: 0.125, expect: "path('M 125 375 A 15 25 35 1 1 170 430')"},
+        {at: 0.875, expect: "path('M 275 225 A 45 55 65 1 1 350 310')"},
+        {at: 1, expect: "path('M 300 200 A 50 60 70 0 1 380 290')"},
+        {at: 2, expect: "path('M 500 0 A 90 100 110 0 1 620 130')"}
+      ]);
+    </script>
+  </body>
+</html>

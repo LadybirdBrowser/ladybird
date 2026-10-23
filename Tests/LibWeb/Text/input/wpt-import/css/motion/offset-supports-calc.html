@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: calc values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/">
+<link rel="help" href="https://drafts.csswg.org/css-values-3/#calc-notation">
+<meta name="assert" content="calc values are supported in offset properties.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #target {
+    font-size: 20px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+'use strict';
+
+test(function(){
+  target.style = 'offset-position: calc(30px + 20%) calc(-200px + 8em + 100%);';
+  assert_equals(getComputedStyle(target).offsetPosition, 'calc(20% + 30px) calc(100% - 40px)');
+}, 'offset-position supports calc');
+
+test(function(){
+  target.style = 'offset-path: ray(calc(1turn - 100grad) closest-side);';
+  assert_equals(getComputedStyle(target).offsetPath, 'ray(270deg)');
+}, 'offset-path supports calc');
+
+test(function(){
+  target.style = 'offset-distance: calc(-100px + 50%);';
+  assert_equals(getComputedStyle(target).offsetDistance, 'calc(50% - 100px)');
+}, 'offset-distance supports calc');
+
+test(function(){
+  target.style = 'offset-rotate: auto calc(1turn - 100grad);';
+  assert_equals(getComputedStyle(target).offsetRotate, 'auto 270deg');
+}, 'offset-rotate supports calc');
+
+test(function(){
+  target.style = 'offset-anchor: calc(30px + 20%) calc(-200px + 8em + 100%);';
+  assert_equals(getComputedStyle(target).offsetAnchor, 'calc(20% + 30px) calc(100% - 40px)');
+}, 'offset-anchor supports calc');
+
+</script>
+</body>
+</html>

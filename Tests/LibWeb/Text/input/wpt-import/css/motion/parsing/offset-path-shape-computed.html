@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: getComputedStyle for offset-path with shape()</title>
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-path-property">
+<link rel="help" href="https://drafts.csswg.org/css-shapes-2/#shape-function">
+<meta name="assert" content="offset-path has absolute shape commands.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+html {
+  font-size: 16px;
+}
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("offset-path", "shape(from 0px 0px, line to 10px 10px)");
+test_computed_value("offset-path", "shape(from 1em 50px, line to 10rem 10%)", "shape(from 16px 50px, line to 160px 10%)");
+test_computed_value("offset-path", "shape(from 10px 10px, move by 10px 5px, line by 20px 40%, close)");
+test_computed_value("offset-path", "shape(from 10px 10px, hline by 10px, vline to 5rem)", "shape(from 10px 10px, hline by 10px, vline to 80px)");
+test_computed_value("offset-path", "shape(from 10px 10px, vline by 5%, hline to 1px)");
+test_computed_value("offset-path", "shape(from 10px 10px, curve to 50px 20px with 10rem 1%)", "shape(from 10px 10px, curve to 50px 20px with 160px 1%)");
+test_computed_value("offset-path", "shape(from 10px 10px, curve to 50px 20px with 10rem 1px / 20% 1em)", "shape(from 10px 10px, curve to 50px 20px with 160px 1px / 20% 16px)");
+test_computed_value("offset-path", "shape(from 10px 10px, smooth to 50px 20px with 10rem 1%)", "shape(from 10px 10px, smooth to 50px 20px with 160px 1%)");
+test_computed_value("offset-path", "shape(from 10px 10px, smooth to 50px 3pt)", "shape(from 10px 10px, smooth to 50px 4px)");
+test_computed_value("offset-path", "shape(from 10px 10px, arc to 50px 3pt of 10px 10px)", "shape(from 10px 10px, arc to 50px 4px of 10px 10px)");
+test_computed_value("offset-path", "shape(from 10px 10px, arc to 50px 3pt of 10px small rotate 0deg)", "shape(from 10px 10px, arc to 50px 4px of 10px)");
+test_computed_value("offset-path", "shape(from 10% 1rem, arc to 50px 3pt of 20% cw large rotate 25deg)", "shape(from 10% 16px, arc to 50px 4px of 20% cw large rotate 25deg)");
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Fail
+Fail	offset-path: border-box follows beveled corners
+Fail	offset-path: border-box follows square corners
+Fail	offset-path: border-box follows one beveled corner
+Fail	offset-path: border-box follows scooped corners

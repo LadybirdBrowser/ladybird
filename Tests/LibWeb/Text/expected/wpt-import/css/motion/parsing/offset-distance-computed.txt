@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Property offset-distance value '10px'
+Fail	Property offset-distance value '20%'
+Fail	Property offset-distance value 'calc(40% - 30px)'
+Fail	Property offset-distance value '0'
+Fail	Property offset-distance value 'calc(10px - 0.5em)'
+Fail	Property offset-distance value 'calc(10px + 0.5em)'

@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 13 tests
+
+13 Pass
+Pass	e.style['offset'] = "100px 0deg path('m 0 0 h 100')" should not set the property value
+Pass	e.style['offset'] = "30deg path('M 20 30 A 60 70 80')" should not set the property value
+Pass	e.style['offset'] = "30deg" should not set the property value
+Pass	e.style['offset'] = "auto 30deg 90px" should not set the property value
+Pass	e.style['offset'] = "none / 10px 20px 30deg" should not set the property value
+Pass	e.style['offset'] = "none /" should not set the property value
+Pass	e.style['offset'] = "path('M 20 30 A 60 70 80') bottom" should not set the property value
+Pass	e.style['offset'] = "path('m 0 0 h 100') 100px 0" should not set the property value
+Pass	e.style['offset'] = "path('m 0 0 h 100') 100px 200px" should not set the property value
+Pass	e.style['offset'] = "path('m 0 0 h 100') 200% auto 100px" should not set the property value
+Pass	e.style['offset'] = "path('m 0 0 h 100') auto reverse" should not set the property value
+Pass	e.style['offset'] = "path('m 0 0 h 100') reverse 100px 30deg" should not set the property value
+Pass	e.style['offset'] = "ray(sides 0) 50% 90deg auto" should not set the property value

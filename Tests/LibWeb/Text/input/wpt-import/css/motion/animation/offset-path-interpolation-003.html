@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>offset-distance interpolation</title>
+    <link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+    <link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-distance-property">
+    <meta name="assert" content="offset-distance supports animation.">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('M 50 60 H 70')",
+        to: "path('M 10 140 H 270')"
+      }, [
+        {at: -1, expect: "path('M 90 -20 H -130')"},
+        {at: 0, expect: "path('M 50 60 H 70')"},
+        {at: 0.125, expect: "path('M 45 70 H 95')"},
+        {at: 0.875, expect: "path('M 15 130 H 245')"},
+        {at: 1, expect: "path('M 10 140 H 270')"},
+        {at: 2, expect: "path('M -30 220 H 470')"}
+      ]);
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('m 50 60 h 20')",
+        to: "path('m 10 140 h 260')"
+      }, [
+        {at: -1, expect: "path('M 90 -20 H -130')"},
+        {at: 0, expect: "path('M 50 60 H 70')"},
+        {at: 0.125, expect: "path('M 45 70 H 95')"},
+        {at: 0.875, expect: "path('M 15 130 H 245')"},
+        {at: 1, expect: "path('M 10 140 H 270')"},
+        {at: 2, expect: "path('M -30 220 H 470')"}
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('M 50 60 V 70')",
+        to: "path('M 10 140 V 270')"
+      }, [
+        {at: -1, expect: "path('M 90 -20 V -130')"},
+        {at: 0, expect: "path('M 50 60 V 70')"},
+        {at: 0.125, expect: "path('M 45 70 V 95')"},
+        {at: 0.875, expect: "path('M 15 130 V 245')"},
+        {at: 1, expect: "path('M 10 140 V 270')"},
+        {at: 2, expect: "path('M -30 220 V 470')"}
+      ]);
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('m 50 60 v 10')",
+        to: "path('m 10 140 v 130')"
+      }, [
+        {at: -1, expect: "path('M 90 -20 V -130')"},
+        {at: 0, expect: "path('M 50 60 V 70')"},
+        {at: 0.125, expect: "path('M 45 70 V 95')"},
+        {at: 0.875, expect: "path('M 15 130 V 245')"},
+        {at: 1, expect: "path('M 10 140 V 270')"},
+        {at: 2, expect: "path('M -30 220 V 470')"}
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('M 12 34 S 45 67 89 123')",
+        to: "path('M 20 26 S 61 51 113 99')"
+      }, [
+        {at: -1, expect: "path('M 4 42 S 29 83 65 147')"},
+        {at: 0, expect: "path('M 12 34 S 45 67 89 123')"},
+        {at: 0.125, expect: "path('M 13 33 S 47 65 92 120')"},
+        {at: 0.875, expect: "path('M 19 27 S 59 53 110 102')"},
+        {at: 1, expect: "path('M 20 26 S 61 51 113 99')"},
+        {at: 2, expect: "path('M 28 18 S 77 35 137 75')"},
+      ]);
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('m 12 34 s 33 33 77 89')",
+        to: "path('m 20 26 s 41 25 93 73')"
+      }, [
+        {at: -1, expect: "path('M 4 42 S 29 83 65 147')"},
+        {at: 0, expect: "path('M 12 34 S 45 67 89 123')"},
+        {at: 0.125, expect: "path('M 13 33 S 47 65 92 120')"},
+        {at: 0.875, expect: "path('M 19 27 S 59 53 110 102')"},
+        {at: 1, expect: "path('M 20 26 S 61 51 113 99')"},
+        {at: 2, expect: "path('M 28 18 S 77 35 137 75')"},
+      ]);
+
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('M 12 34 T 45 67')",
+        to: "path('M 20 26 T 61 51')"
+      }, [
+        {at: -1, expect: "path('M 4 42 T 29 83')"},
+        {at: 0, expect: "path('M 12 34 T 45 67')"},
+        {at: 0.125, expect: "path('M 13 33 T 47 65')"},
+        {at: 0.875, expect: "path('M 19 27 T 59 53')"},
+        {at: 1, expect: "path('M 20 26 T 61 51')"},
+        {at: 2, expect: "path('M 28 18 T 77 35')"},
+      ]);
+      test_interpolation({
+        property: 'offset-path',
+        from: "path('m 12 34 t 33 33')",
+        to: "path('m 20 26 t 41 25')"
+      }, [
+        {at: -1, expect: "path('M 4 42 T 29 83')"},
+        {at: 0, expect: "path('M 12 34 T 45 67')"},
+        {at: 0.125, expect: "path('M 13 33 T 47 65')"},
+        {at: 0.875, expect: "path('M 19 27 T 59 53')"},
+        {at: 1, expect: "path('M 20 26 T 61 51')"},
+        {at: 2, expect: "path('M 28 18 T 77 35')"},
+      ]);
+    </script>
+  </body>
+</html>

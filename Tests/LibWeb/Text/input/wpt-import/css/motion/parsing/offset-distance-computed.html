@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Motion Path Module Level 1: getComputedStyle().offsetDistance</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/motion-1/#offset-distance-property">
+<meta name="assert" content="offset-distance is a computed '<length-percentage>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("offset-distance", "10px");
+test_computed_value("offset-distance", "20%");
+test_computed_value("offset-distance", "calc(40% - 30px)");
+test_computed_value("offset-distance", "0", "0px");
+test_computed_value('offset-distance', 'calc(10px - 0.5em)', '-10px');
+test_computed_value('offset-distance', 'calc(10px + 0.5em)', '30px');
+</script>
+</body>
+</html>
