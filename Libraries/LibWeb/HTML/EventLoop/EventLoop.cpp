@@ -185,7 +185,7 @@ void EventLoop::process()
 
     // Some algorithms request that steps or states only occur once the event loop has reached step 1.
     // Invoke a set of tasks that these algorithms request us to in order to achieve this.
-    auto reached_step_1_tasks = move(m_reached_step_1_tasks);
+    GC::RootVector reached_step_1_tasks { move(m_reached_step_1_tasks) };
     for (auto& reached_step_1_task : reached_step_1_tasks)
         reached_step_1_task->function()();
 
@@ -523,7 +523,7 @@ void EventLoop::process_input_events() const
     };
 
     // Every page hosting a document takes the input events queued for it, once.
-    Vector<GC::Ref<Page>> pages;
+    GC::RootVector<GC::Ref<Page>> pages;
     for (auto& navigable : all_local_navigables()) {
         if (!navigable->is_local_root() || navigable->has_been_destroyed())
             continue;
@@ -1160,7 +1160,7 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         // NB: A play task resolves the animation's ready promise.
         TemporaryExecutionContext execution_context { document->relevant_settings_object() };
         for (auto const& timeline : document->associated_animation_timelines()) {
-            Vector<GC::Ref<Animations::Animation>> pending_css_animations;
+            GC::RootVector<GC::Ref<Animations::Animation>> pending_css_animations;
             for (auto& animation : timeline->associated_animations()) {
                 if (rendering_update_makes_ready(animation))
                     pending_css_animations.append(animation);
@@ -1203,7 +1203,7 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
     //         layout is settled, so it is decided here rather than at the points that invalidate it. A page's media
     //         elements live in any of its documents, so this waits until step 19 has laid out every one of them: a task
     //         that ran beside a later document's frame in flight may have left an earlier document's layout stale.
-    Vector<GC::Ref<Page>, 1> synced_pages;
+    GC::RootVector<GC::Ref<Page>, 1> synced_pages;
     for (auto& document : docs) {
         if (!document->navigable() || document->navigable()->active_document().ptr() != document.ptr())
             continue;
@@ -1678,7 +1678,7 @@ void EventLoop::ensure_documents_sorted() const
         return;
     m_documents_sort_dirty = false;
 
-    HashMap<DOM::Document*, size_t> doc_to_index;
+    GC::RootHashMap<DOM::Document*, size_t> doc_to_index;
     doc_to_index.ensure_capacity(m_documents.size());
     for (size_t i = 0; i < m_documents.size(); ++i)
         doc_to_index.set(m_documents[i].ptr().ptr(), i);
