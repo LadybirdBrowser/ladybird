@@ -5756,29 +5756,41 @@ fn interpolate_transform_matrix_suffix(
     to: &[RetainedStyleValueData],
     delta: f32,
 ) -> Result<RetainedStyleValueData, TransformMatrixInterpolationError> {
-    let post_multiply = |transformations: &[RetainedStyleValueData]| {
-        let mut result = identity_matrix();
-        for transformation in transformations {
+    let from = post_multiply_transformations(context, from).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
+    let to = post_multiply_transformations(context, to).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
+    let matrix = interpolate_matrices(from, to, delta).ok_or(TransformMatrixInterpolationError::NonInvertible)?;
+    let transformation = RetainedStyleValueData::from_arc(Arc::new(matrix_transformation(property, matrix)));
+    Ok(transformation)
+}
+
+fn pad_transform_lists(
+    from_values: &mut Vec<RetainedStyleValueData>,
+    to_values: &mut Vec<RetainedStyleValueData>,
+) -> Option<()> {
+    // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
+    // * Treating none as a list of zero length, if Va or Vb differ in length:
+    //   * extend the shorter list to the length of the longer list, setting the function at each additional
+    //     position to the identity transform function matching the function at the corresponding position in the
+    //     longer list. Both transform function lists are then interpolated following the next rule.
+    if from_values.len() != to_values.len() {
+        let (shorter, longer) = if from_values.len() < to_values.len() {
+            (from_values, &*to_values)
+        } else {
+            (to_values, &*from_values)
+        };
+        for transformation in &longer[shorter.len()..] {
             let StyleValueData::Transformation {
+                property,
                 transform_function,
-                values,
                 ..
             } = transformation.data()
             else {
                 return None;
             };
-            result = multiply_matrices(
-                result,
-                transformation_to_matrix(context, *transform_function, values.as_slice())?,
-            );
+            shorter.push(identity_transformation(*property, *transform_function)?);
         }
-        Some(result)
-    };
-    let from = post_multiply(from).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
-    let to = post_multiply(to).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
-    let matrix = interpolate_matrices(from, to, delta).ok_or(TransformMatrixInterpolationError::NonInvertible)?;
-    let transformation = RetainedStyleValueData::from_arc(Arc::new(matrix_transformation(property, matrix)));
-    Ok(transformation)
+    }
+    Some(())
 }
 
 fn interpolate_transform_list(
@@ -5799,27 +5811,8 @@ fn interpolate_transform_list(
         }));
     }
 
-    let decode_transform_list = |value: &StyleValueData| match value {
-        StyleValueData::ValueList {
-            values,
-            separator,
-            collapsible,
-        } => Some((
-            values
-                .as_slice()
-                .iter()
-                .map(RetainedStyleValueData::clone_retained)
-                .collect::<Vec<_>>(),
-            *separator,
-            *collapsible,
-        )),
-        StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
-            Some((Vec::new(), 0, false))
-        }
-        _ => None,
-    };
-    let (mut from_values, from_separator, from_collapsible) = decode_transform_list(from)?;
-    let (mut to_values, to_separator, to_collapsible) = decode_transform_list(to)?;
+    let (from_values, from_separator, from_collapsible) = transform_list_values(from)?;
+    let (to_values, to_separator, to_collapsible) = transform_list_values(to)?;
     let (separator, collapsible) = if from_values.is_empty() {
         (to_separator, to_collapsible)
     } else {
@@ -5831,29 +5824,9 @@ fn interpolate_transform_list(
     {
         return None;
     }
-    // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
-    // * Treating none as a list of zero length, if Va or Vb differ in length:
-    //   * extend the shorter list to the length of the longer list, setting the function at each additional
-    //     position to the identity transform function matching the function at the corresponding position in the
-    //     longer list. Both transform function lists are then interpolated following the next rule.
-    if from_values.len() != to_values.len() {
-        let (shorter, longer) = if from_values.len() < to_values.len() {
-            (&mut from_values, &to_values)
-        } else {
-            (&mut to_values, &from_values)
-        };
-        for transformation in &longer[shorter.len()..] {
-            let StyleValueData::Transformation {
-                property,
-                transform_function,
-                ..
-            } = transformation.data()
-            else {
-                return None;
-            };
-            shorter.push(identity_transformation(*property, *transform_function)?);
-        }
-    }
+    let mut from_values: Vec<_> = from_values.iter().map(RetainedStyleValueData::clone_retained).collect();
+    let mut to_values: Vec<_> = to_values.iter().map(RetainedStyleValueData::clone_retained).collect();
+    pad_transform_lists(&mut from_values, &mut to_values)?;
 
     // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
     // *  Let Vresult be an empty list. Beginning at the start of Va and Vb, compare the corresponding functions at each
@@ -6017,6 +5990,373 @@ fn interpolate_transform_list(
         separator,
         collapsible,
     }))
+}
+
+fn transform_list_values(value: &StyleValueData) -> Option<(&[RetainedStyleValueData], u8, bool)> {
+    match value {
+        StyleValueData::ValueList {
+            values,
+            separator,
+            collapsible,
+        } => Some((values.as_slice(), *separator, *collapsible)),
+        StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
+            Some((&[], 0, false))
+        }
+        _ => None,
+    }
+}
+
+fn transform_list_from_values(values: Vec<RetainedStyleValueData>, separator: u8, collapsible: bool) -> StyleValueData {
+    if values.is_empty() {
+        return StyleValueData::Keyword {
+            keyword: crate::css::style_compute::none_keyword(),
+        };
+    }
+    StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(values),
+        separator,
+        collapsible,
+    }
+}
+
+fn post_multiply_transformations(
+    context: Option<&FfiAnimationContext>,
+    transformations: &[RetainedStyleValueData],
+) -> Option<Matrix4> {
+    let mut result = identity_matrix();
+    for transformation in transformations {
+        let StyleValueData::Transformation {
+            transform_function,
+            values,
+            ..
+        } = transformation.data()
+        else {
+            return None;
+        };
+        result = multiply_matrices(
+            result,
+            transformation_to_matrix(context, *transform_function, values.as_slice())?,
+        );
+    }
+    Some(result)
+}
+
+// https://drafts.csswg.org/css-transforms-2/#combining-transform-lists
+// Instead of interpolating the individual parameters, they are combined using arithmetic addition-- except in the
+// case of parameters whose value is one in the identity transform function (e.g. scale parameters and matrix elements
+// m11, m22, m33, and m44), which combine using accumulation for one-based values as follows:
+//     Vresult = Va + Vb - 1
+fn accumulate_decomposed_matrices(
+    underlying: DecomposedMatrix,
+    animated: DecomposedMatrix,
+) -> Option<DecomposedMatrix> {
+    let add =
+        |underlying: [f64; 3], animated: [f64; 3]| std::array::from_fn(|index| underlying[index] + animated[index]);
+    let mut perspective: [f64; 4] =
+        std::array::from_fn(|index| underlying.perspective[index] + animated.perspective[index]);
+    perspective[3] -= 1.0;
+
+    // INTEROP: A quaternion has no meaningful per-component addition, so the rotations accumulate by composing them,
+    //          which is what the rotations of an accumulated transform list do.
+    let rotation_matrix = |rotation: [f64; 4]| {
+        recompose_matrix(DecomposedMatrix {
+            translation: [0.0; 3],
+            scale: [1.0; 3],
+            skew: [0.0; 3],
+            rotation,
+            perspective: [0.0, 0.0, 0.0, 1.0],
+        })
+    };
+    let rotation = decompose_matrix(multiply_matrices(
+        rotation_matrix(underlying.rotation),
+        rotation_matrix(animated.rotation),
+    ))?
+    .rotation;
+
+    Some(DecomposedMatrix {
+        translation: add(underlying.translation, animated.translation),
+        scale: std::array::from_fn(|index| underlying.scale[index] + animated.scale[index] - 1.0),
+        skew: add(underlying.skew, animated.skew),
+        rotation,
+        perspective,
+    })
+}
+
+fn accumulate_matrices(underlying: Matrix4, animated: Matrix4) -> Option<Matrix4> {
+    let underlying = decompose_matrix(underlying)?;
+    let animated = decompose_matrix(animated)?;
+    Some(recompose_matrix(accumulate_decomposed_matrices(underlying, animated)?))
+}
+
+fn rotation_quaternion(axis: [f64; 3], angle: f64) -> Option<[f64; 4]> {
+    let length = vector_length(axis);
+    if length < 1e-5 {
+        return (angle == 0.0).then_some([0.0, 0.0, 0.0, 1.0]);
+    }
+    let sin_half_angle = (angle / 2.0).sin();
+    Some([
+        axis[0] / length * sin_half_angle,
+        axis[1] / length * sin_half_angle,
+        axis[2] / length * sin_half_angle,
+        (angle / 2.0).cos(),
+    ])
+}
+
+fn accumulate_rotate_3d(
+    context: Option<&FfiAnimationContext>,
+    underlying: &[RetainedStyleValueData],
+    animated: &[RetainedStyleValueData],
+) -> Option<Vec<RetainedStyleValueData>> {
+    let decode = |arguments: &[RetainedStyleValueData]| {
+        let [x, y, z, angle] = arguments else {
+            return None;
+        };
+        Some((
+            [
+                resolve_animation_number(context, x.data())?,
+                resolve_animation_number(context, y.data())?,
+                resolve_animation_number(context, z.data())?,
+            ],
+            resolve_animation_angle(context, angle.data())?,
+        ))
+    };
+    let (underlying_axis, underlying_angle) = decode(underlying)?;
+    let (animated_axis, animated_angle) = decode(animated)?;
+    let rotation = |axis: [f64; 3], angle: f64| {
+        let mut arguments: Vec<_> = axis.into_iter().map(retained_number).collect();
+        arguments.push(RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
+            value: angle,
+            unit: 0,
+        })));
+        arguments
+    };
+
+    let normalize = |axis: [f64; 3]| {
+        let length = vector_length(axis);
+        (length >= 1e-5).then(|| axis.map(|component| component / length))
+    };
+    let (underlying_normalized, animated_normalized) = (normalize(underlying_axis), normalize(animated_axis));
+    if underlying_angle == 0.0 {
+        return Some(rotation(animated_axis, animated_angle));
+    }
+    if animated_angle == 0.0 {
+        return Some(rotation(underlying_axis, underlying_angle));
+    }
+    if let (Some(underlying_normalized), Some(animated_normalized)) = (underlying_normalized, animated_normalized)
+        && vector_length(combine_vectors(underlying_normalized, animated_normalized, 1.0, -1.0)) < 1e-5
+    {
+        return Some(rotation(underlying_axis, underlying_angle + animated_angle));
+    }
+
+    // NB: Rotations about different axes accumulate by composing them, which multiplying their quaternions does.
+    let [ax, ay, az, aw] = rotation_quaternion(underlying_axis, underlying_angle.to_radians())?;
+    let [bx, by, bz, bw] = rotation_quaternion(animated_axis, animated_angle.to_radians())?;
+    let quaternion = [
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw,
+        aw * bw - ax * bx - ay * by - az * bz,
+    ];
+    let axis = [quaternion[0], quaternion[1], quaternion[2]];
+    let sin_half_angle = vector_length(axis);
+    if sin_half_angle < 1e-9 {
+        return Some(rotation([0.0, 0.0, 1.0], 0.0));
+    }
+    let angle = 2.0 * sin_half_angle.atan2(quaternion[3]);
+    Some(rotation(
+        axis.map(|component| component / sin_half_angle),
+        angle.to_degrees(),
+    ))
+}
+
+fn reciprocal_perspective_depth(argument: &RetainedStyleValueData) -> Option<(f64, Option<u8>)> {
+    match argument.data() {
+        StyleValueData::Length { value, unit } => Some((1.0 / value.max(1.0), Some(*unit))),
+        StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
+            Some((0.0, None))
+        }
+        _ => None,
+    }
+}
+
+fn perspective_from_reciprocal_depth(reciprocal_depth: f64, unit: Option<u8>) -> RetainedStyleValueData {
+    // NB: A depth that is not positive has no perspective effect, which perspective(none) expresses.
+    if reciprocal_depth <= 0.0 {
+        return retained_none_keyword();
+    }
+    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length {
+        value: 1.0 / reciprocal_depth,
+        unit: unit.unwrap_or_else(crate::css::style_compute::px_length_unit),
+    }))
+}
+
+// Accumulates a pair of transform functions that share a name or primitive, or returns None where only their
+// matrices can be accumulated.
+fn accumulate_transform_functions(
+    context: Option<&FfiAnimationContext>,
+    property: u16,
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+) -> Option<RetainedStyleValueData> {
+    let (
+        StyleValueData::Transformation {
+            transform_function: underlying_function,
+            values: underlying_arguments,
+            ..
+        },
+        StyleValueData::Transformation {
+            transform_function: animated_function,
+            values: animated_arguments,
+            ..
+        },
+    ) = (underlying, animated)
+    else {
+        return None;
+    };
+    let transformation = |transform_function: u8, arguments: Vec<RetainedStyleValueData>| {
+        RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Transformation {
+            property,
+            transform_function,
+            values: RetainedStyleValueDataList::from_retained_values(arguments),
+        }))
+    };
+
+    if underlying_function == animated_function && *underlying_function == TRANSFORM_FUNCTION_PERSPECTIVE {
+        let ([underlying_argument], [animated_argument]) =
+            (underlying_arguments.as_slice(), animated_arguments.as_slice())
+        else {
+            return None;
+        };
+        let (underlying_reciprocal_depth, underlying_unit) = reciprocal_perspective_depth(underlying_argument)?;
+        let (animated_reciprocal_depth, animated_unit) = reciprocal_perspective_depth(animated_argument)?;
+        if underlying_unit.is_some() && animated_unit.is_some() && underlying_unit != animated_unit {
+            return None;
+        }
+        // NB: The varying component of a perspective matrix is the negative reciprocal of its depth, which is zero in
+        //     the identity transform function, so accumulating it adds the reciprocals.
+        let argument = perspective_from_reciprocal_depth(
+            underlying_reciprocal_depth + animated_reciprocal_depth,
+            underlying_unit.or(animated_unit),
+        );
+        return Some(transformation(TRANSFORM_FUNCTION_PERSPECTIVE, vec![argument]));
+    }
+
+    let (transform_function, underlying_arguments, animated_arguments) = convert_transform_pair_to_common_primitive(
+        *underlying_function,
+        underlying_arguments,
+        *animated_function,
+        animated_arguments,
+    )?;
+    let arguments = match transform_function {
+        TRANSFORM_FUNCTION_ROTATE_3D => accumulate_rotate_3d(context, &underlying_arguments, &animated_arguments)?,
+        TRANSFORM_FUNCTION_SCALE | TRANSFORM_FUNCTION_SCALE_3D => underlying_arguments
+            .iter()
+            .zip(&animated_arguments)
+            .map(|(underlying, animated)| {
+                Some(retained_number(
+                    resolve_animation_number(context, underlying.data())?
+                        + resolve_animation_number(context, animated.data())?
+                        - 1.0,
+                ))
+            })
+            .collect::<Option<Vec<_>>>()?,
+        TRANSFORM_FUNCTION_ROTATE
+        | TRANSFORM_FUNCTION_ROTATE_X
+        | TRANSFORM_FUNCTION_ROTATE_Y
+        | TRANSFORM_FUNCTION_ROTATE_Z
+        | TRANSFORM_FUNCTION_SKEW
+        | TRANSFORM_FUNCTION_SKEW_X
+        | TRANSFORM_FUNCTION_SKEW_Y
+        | TRANSFORM_FUNCTION_TRANSLATE
+        | TRANSFORM_FUNCTION_TRANSLATE_3D
+        | TRANSFORM_FUNCTION_TRANSLATE_X
+        | TRANSFORM_FUNCTION_TRANSLATE_Y
+        | TRANSFORM_FUNCTION_TRANSLATE_Z => underlying_arguments
+            .iter()
+            .zip(&animated_arguments)
+            .map(|(underlying, animated)| {
+                composite_scalar_value(underlying.data(), animated.data(), FfiCompositeOperation::Add).into_value()
+            })
+            .collect::<Option<Vec<_>>>()?,
+        _ => return None,
+    };
+    Some(transformation(transform_function, arguments))
+}
+
+// https://drafts.csswg.org/css-transforms-2/#combining-transform-lists
+// Returns None where the lists do not combine and the animated value replaces the underlying one.
+fn composite_transform_list(
+    context: &FfiAnimationContext,
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+    operation: FfiCompositeOperation,
+) -> Option<StyleValueData> {
+    if matches!(operation, FfiCompositeOperation::Replace) {
+        return None;
+    }
+    let (underlying_values, underlying_separator, underlying_collapsible) = transform_list_values(underlying)?;
+    let (animated_values, animated_separator, animated_collapsible) = transform_list_values(animated)?;
+    let (separator, collapsible) = if underlying_values.is_empty() {
+        (animated_separator, animated_collapsible)
+    } else {
+        (underlying_separator, underlying_collapsible)
+    };
+
+    match operation {
+        FfiCompositeOperation::Replace => unreachable!(),
+        FfiCompositeOperation::Add => {
+            // Addition of two transform lists Va and Vb is defined as list concatenation such that Vresult is equal to
+            // Vb appended to Va.
+            let values = underlying_values
+                .iter()
+                .chain(animated_values)
+                .map(RetainedStyleValueData::clone_retained)
+                .collect();
+            Some(transform_list_from_values(values, separator, collapsible))
+        }
+        FfiCompositeOperation::Accumulate => {
+            // Accumulation of two transform lists Va and Vb follows the same steps as interpolation with regards to
+            // matching transform functions including padding lists with identity transform functions, converting
+            // none to an identity transform function, and converting both arguments to matrices as necessary (see
+            // CSS Transforms 1 § 9 Interpolation of Transforms).
+            let mut underlying_values: Vec<_> = underlying_values
+                .iter()
+                .map(RetainedStyleValueData::clone_retained)
+                .collect();
+            let mut animated_values: Vec<_> = animated_values
+                .iter()
+                .map(RetainedStyleValueData::clone_retained)
+                .collect();
+            pad_transform_lists(&mut underlying_values, &mut animated_values)?;
+
+            let mut values = Vec::with_capacity(underlying_values.len());
+            for (index, (underlying_value, animated_value)) in
+                underlying_values.iter().zip(&animated_values).enumerate()
+            {
+                let StyleValueData::Transformation { property, .. } = underlying_value.data() else {
+                    return None;
+                };
+                if let Some(value) = accumulate_transform_functions(
+                    Some(context),
+                    *property,
+                    underlying_value.data(),
+                    animated_value.data(),
+                ) {
+                    values.push(value);
+                    continue;
+                }
+                let underlying_matrix = post_multiply_transformations(Some(context), &underlying_values[index..])?;
+                let animated_matrix = post_multiply_transformations(Some(context), &animated_values[index..])?;
+                // NB: Accumulating a non-invertible matrix falls back to replacing the underlying value.
+                let matrix = accumulate_matrices(underlying_matrix, animated_matrix)?;
+                values.push(RetainedStyleValueData::from_arc(Arc::new(matrix_transformation(
+                    *property, matrix,
+                ))));
+                break;
+            }
+            Some(transform_list_from_values(values, separator, collapsible))
+        }
+    }
 }
 
 fn retained_legacy_color(red: u8, green: u8, blue: u8, alpha: u8) -> RetainedStyleValueData {
@@ -7225,6 +7565,8 @@ fn composite_batch_value<'a>(
         composite_offset_path(underlying, animated, operation).map_or_else(handled_without_value, owned)
     } else if property_id == crate::css::property_metadata::property_id::OFFSET_ROTATE {
         composite_offset_rotate(underlying, animated).map_or_else(handled_without_value, owned)
+    } else if property_id == crate::css::property_metadata::property_id::TRANSFORM {
+        composite_transform_list(context, underlying, animated, operation).map_or_else(handled_without_value, owned)
     } else {
         composite_scalar_value(underlying, animated, operation)
     };
