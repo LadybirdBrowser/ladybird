@@ -818,6 +818,7 @@ dependencies = [
  "ak",
  "cbindgen",
  "encoding_rs",
+ "getrandom",
  "ladybird_allocator",
  "libregex_rust",
  "libunicode_rust",
