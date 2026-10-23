@@ -391,6 +391,9 @@ pub struct FeedbackSnapshot {
     pub value: Vec<u16>,
     pub call: Vec<CallFeedbackSnapshot>,
     pub keyed: Vec<KeyedFeedbackSnapshot>,
+    /// The bound arguments of the bound functions that call sites forwarded
+    /// to, as NaN-boxed values (see `ForwardedCallSnapshot::bound_arguments_start`).
+    pub bound_arguments: Vec<u64>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -463,11 +466,18 @@ pub struct ForwardedCallSnapshot {
     /// The index in `Snapshot::executables` of `target`'s executable, if it
     /// is an inlining candidate.
     pub inline_executable: Option<u32>,
-    /// For bound functions: the bound `this` and the first
-    /// `bound_argument_count` bound arguments, as NaN-boxed values.
+    /// For bound functions that are inlining candidates: the bound `this`, as
+    /// a NaN-boxed value, and where the bound arguments start in
+    /// `FeedbackSnapshot::bound_arguments`, and how many there are.
     pub bound_this: u64,
-    pub bound_arguments: [u64; 4],
-    pub bound_argument_count: u8,
+    pub bound_arguments_start: u32,
+    pub bound_argument_count: u32,
+}
+
+impl ForwardedCallSnapshot {
+    /// The most bound arguments a bound function can have for its calls to be
+    /// inlined, as each one becomes a constant of the inlined call.
+    pub const MAX_INLINED_BOUND_ARGUMENTS: usize = 64;
 }
 
 /// A call target JIT code can call directly, building its frame like the

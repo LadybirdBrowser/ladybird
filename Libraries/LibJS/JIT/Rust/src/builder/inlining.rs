@@ -777,7 +777,16 @@ impl GraphBuilder<'_> {
                 let Some(bound_function) = feedback.target else {
                     return Ok(None);
                 };
-                let bound_arguments = &forwarded.bound_arguments[..usize::from(forwarded.bound_argument_count)];
+                let start = forwarded.bound_arguments_start as usize;
+                let Some(bound_arguments) = self
+                    .function
+                    .executable
+                    .feedback
+                    .bound_arguments
+                    .get(start..start + forwarded.bound_argument_count as usize)
+                else {
+                    return Ok(None);
+                };
                 InlinedCallSite {
                     callee: Some(*callee),
                     expected_callee: Some(bound_function),
@@ -791,7 +800,7 @@ impl GraphBuilder<'_> {
                             .map(InlineValue::Constant)
                             .chain(arguments.iter().copied().map(InlineValue::Operand))
                             .collect(),
-                        u32::from(forwarded.bound_argument_count) + argument_count,
+                        forwarded.bound_argument_count + argument_count,
                         *dst,
                     )
                 }
