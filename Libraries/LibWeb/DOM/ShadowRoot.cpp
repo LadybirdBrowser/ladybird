@@ -329,7 +329,7 @@ void ShadowRoot::set_needs_slot_assignment(HTML::HTMLSlotElement& slot)
 void ShadowRoot::assign_slottables_if_needed()
 {
     document().remove_shadow_root_needing_slot_assignment({}, *this);
-    auto slots = move(m_slots_needing_assignment);
+    GC::RootVector slots { move(m_slots_needing_assignment) };
     for (auto slot : slots)
         assign_slottables(slot, SignalSlotChange::No);
 }
