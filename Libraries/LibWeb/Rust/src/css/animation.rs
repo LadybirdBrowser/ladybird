@@ -5880,16 +5880,22 @@ fn interpolate_transform_list(
         let Some((transform_function, from_arguments, to_arguments)) =
             convert_transform_pair_to_common_primitive(*from_function, from_arguments, *to_function, to_arguments)
         else {
+            // https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
+            // The transform functions <matrix()>, matrix3d() and perspective() get converted into 4x4 matrices first and
+            // interpolated as defined in section Interpolation of Matrices afterwards.
+            let is_matrix_pair = from_function == to_function
+                && matches!(*from_function, TRANSFORM_FUNCTION_MATRIX | TRANSFORM_FUNCTION_MATRIX_3D);
             // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
             //   * If the pair do not have a common name or primitive transform function, post-multiply the remaining
             //     transform functions in each of Va and Vb respectively to produce two 4x4 matrices. Interpolate these two
             //     matrices as described in § 11 Interpolation of Matrices, append the result to Vresult, and cease
             //     iterating over Va and Vb.
+            let end = if is_matrix_pair { index + 1 } else { from_values.len() };
             let transformation = interpolate_transform_matrix_suffix(
                 context,
                 *from_property,
-                &from_values[index..],
-                &to_values[index..],
+                &from_values[index..end],
+                &to_values[index..end],
                 delta,
             );
             match transformation {
@@ -5904,6 +5910,9 @@ fn interpolate_transform_list(
                     // fall-back to a discrete animation according to the rules of the respective animation specification.
                     return Some(None);
                 }
+            }
+            if is_matrix_pair {
+                continue;
             }
             break;
         };
@@ -6323,14 +6332,29 @@ fn composite_transform_list(
                     values.push(value);
                     continue;
                 }
-                let underlying_matrix = post_multiply_transformations(Some(context), &underlying_values[index..])?;
-                let animated_matrix = post_multiply_transformations(Some(context), &animated_values[index..])?;
+                let is_matrix_pair = matches!(
+                    (underlying_value.data(), animated_value.data()),
+                    (
+                        StyleValueData::Transformation { transform_function: underlying_function, .. },
+                        StyleValueData::Transformation { transform_function: animated_function, .. },
+                    ) if underlying_function == animated_function
+                        && matches!(*underlying_function, TRANSFORM_FUNCTION_MATRIX | TRANSFORM_FUNCTION_MATRIX_3D)
+                );
+                let end = if is_matrix_pair {
+                    index + 1
+                } else {
+                    underlying_values.len()
+                };
+                let underlying_matrix = post_multiply_transformations(Some(context), &underlying_values[index..end])?;
+                let animated_matrix = post_multiply_transformations(Some(context), &animated_values[index..end])?;
                 // NB: Accumulating a non-invertible matrix falls back to replacing the underlying value.
                 let matrix = accumulate_matrices(underlying_matrix, animated_matrix)?;
                 values.push(RetainedStyleValueData::from_arc(Arc::new(matrix_transformation(
                     *property, matrix,
                 ))));
-                break;
+                if !is_matrix_pair {
+                    break;
+                }
             }
             Some(transform_list_from_values(values, separator, collapsible))
         }

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 176 tests
 
-172 Pass
-4 Fail
+176 Pass
 Pass	CSS Transitions: property <transform> from [translateX(0px)] to [translateX(50px)] at (0.5) should be [translateX(25px)]
 Pass	CSS Transitions with transition: all: property <transform> from [translateX(0px)] to [translateX(50px)] at (0.5) should be [translateX(25px)]
 Pass	CSS Animations: property <transform> from [translateX(0px)] to [translateX(50px)] at (0.5) should be [translateX(25px)]
@@ -140,10 +139,10 @@ Pass	CSS Transitions: property <transform> from [skewX(0deg) rotate(0deg)] to [s
 Pass	CSS Transitions with transition: all: property <transform> from [skewX(0deg) rotate(0deg)] to [skewY(0deg) rotate(360deg)] at (0.5) should be [matrix(1, 0, 0, 1, 0, 0)]
 Pass	CSS Animations: property <transform> from [skewX(0deg) rotate(0deg)] to [skewY(0deg) rotate(360deg)] at (0.5) should be [matrix(1, 0, 0, 1, 0, 0)]
 Pass	Web Animations: property <transform> from [skewX(0deg) rotate(0deg)] to [skewY(0deg) rotate(360deg)] at (0.5) should be [matrix(1, 0, 0, 1, 0, 0)]
-Fail	CSS Transitions: property <transform> from [matrix(1,0,0,1,0,0) rotate(0deg)] to [matrix(2,0,0,2,0,0) rotate(360deg)] at (0.5) should be [matrix(1.5,0,0,1.5,0,0) rotate(180deg)]
-Fail	CSS Transitions with transition: all: property <transform> from [matrix(1,0,0,1,0,0) rotate(0deg)] to [matrix(2,0,0,2,0,0) rotate(360deg)] at (0.5) should be [matrix(1.5,0,0,1.5,0,0) rotate(180deg)]
-Fail	CSS Animations: property <transform> from [matrix(1,0,0,1,0,0) rotate(0deg)] to [matrix(2,0,0,2,0,0) rotate(360deg)] at (0.5) should be [matrix(1.5,0,0,1.5,0,0) rotate(180deg)]
-Fail	Web Animations: property <transform> from [matrix(1,0,0,1,0,0) rotate(0deg)] to [matrix(2,0,0,2,0,0) rotate(360deg)] at (0.5) should be [matrix(1.5,0,0,1.5,0,0) rotate(180deg)]
+Pass	CSS Transitions: property <transform> from [matrix(1,0,0,1,0,0) rotate(0deg)] to [matrix(2,0,0,2,0,0) rotate(360deg)] at (0.5) should be [matrix(1.5,0,0,1.5,0,0) rotate(180deg)]
+Pass	CSS Transitions with transition: all: property <transform> from [matrix(1,0,0,1,0,0) rotate(0deg)] to [matrix(2,0,0,2,0,0) rotate(360deg)] at (0.5) should be [matrix(1.5,0,0,1.5,0,0) rotate(180deg)]
+Pass	CSS Animations: property <transform> from [matrix(1,0,0,1,0,0) rotate(0deg)] to [matrix(2,0,0,2,0,0) rotate(360deg)] at (0.5) should be [matrix(1.5,0,0,1.5,0,0) rotate(180deg)]
+Pass	Web Animations: property <transform> from [matrix(1,0,0,1,0,0) rotate(0deg)] to [matrix(2,0,0,2,0,0) rotate(360deg)] at (0.5) should be [matrix(1.5,0,0,1.5,0,0) rotate(180deg)]
 Pass	CSS Transitions: property <transform> from [perspective(none) translateZ(15px)] to [perspective(none) translateZ(15px)] at (0.5) should be [perspective(none) translateZ(15px)]
 Pass	CSS Transitions with transition: all: property <transform> from [perspective(none) translateZ(15px)] to [perspective(none) translateZ(15px)] at (0.5) should be [perspective(none) translateZ(15px)]
 Pass	CSS Animations: property <transform> from [perspective(none) translateZ(15px)] to [perspective(none) translateZ(15px)] at (0.5) should be [perspective(none) translateZ(15px)]
