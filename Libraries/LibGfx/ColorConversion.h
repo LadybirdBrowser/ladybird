@@ -239,13 +239,7 @@ ColorComponents xyz50_to_xyz65(ColorComponents const&);
 ColorComponents xyz65_to_oklab(ColorComponents const&);
 ColorComponents oklab_to_xyz65(ColorComponents const&);
 
-ColorComponents oklab_to_oklch(ColorComponents const&);
-ColorComponents oklch_to_oklab(ColorComponents const&);
-
 ColorComponents xyz50_to_lab(ColorComponents const&);
-
-ColorComponents lab_to_lch(ColorComponents const&);
-ColorComponents lch_to_lab(ColorComponents const&);
 
 ColorComponents srgb_to_hsl(ColorComponents const&);
 

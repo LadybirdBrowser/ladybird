@@ -305,38 +305,6 @@ ColorComponents oklab_to_xyz65(ColorComponents const& components)
     };
 }
 
-static ColorComponents rectangular_to_polar(ColorComponents const& components)
-{
-    float a = components[1];
-    float b = components[2];
-
-    float chroma = sqrtf(a * a + b * b);
-    float hue = atan2f(b, a) * 180.0f / AK::Pi<float>;
-    if (hue < 0.0f)
-        hue += 360.0f;
-
-    return { components[0], chroma, hue, components.alpha() };
-}
-
-static ColorComponents polar_to_rectangular(ColorComponents const& components)
-{
-    float chroma = components[1];
-    float hue_radians = components[2] * AK::Pi<float> / 180.0f;
-
-    return {
-        components[0],
-        chroma * cosf(hue_radians),
-        chroma * sinf(hue_radians),
-        components.alpha(),
-    };
-}
-
-// https://drafts.csswg.org/css-color-4/#lab-to-lch
-ColorComponents oklab_to_oklch(ColorComponents const& components) { return rectangular_to_polar(components); }
-
-// https://drafts.csswg.org/css-color-4/#lch-to-lab
-ColorComponents oklch_to_oklab(ColorComponents const& components) { return polar_to_rectangular(components); }
-
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
 ColorComponents xyz50_to_lab(ColorComponents const& components)
 {
@@ -365,12 +333,6 @@ ColorComponents xyz50_to_lab(ColorComponents const& components)
         components.alpha(),
     };
 }
-
-// https://drafts.csswg.org/css-color-4/#lab-to-lch
-ColorComponents lab_to_lch(ColorComponents const& components) { return rectangular_to_polar(components); }
-
-// https://drafts.csswg.org/css-color-4/#lch-to-lab
-ColorComponents lch_to_lab(ColorComponents const& components) { return polar_to_rectangular(components); }
 
 // https://drafts.csswg.org/css-color-4/#rgb-to-hsl
 ColorComponents srgb_to_hsl(ColorComponents const& components)
