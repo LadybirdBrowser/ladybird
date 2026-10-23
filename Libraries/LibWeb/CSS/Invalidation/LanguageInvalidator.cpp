@@ -70,7 +70,7 @@ static void publish_directionality_dependent_ancestors(DOM::Element& element, Ha
 void invalidate_style_after_directionality_change(DOM::Element& element)
 {
     publish_language_and_directionality(element, true);
-    HashTable<DOM::Element*> visited;
+    GC::RootHashTable<DOM::Element*> visited;
     visited.set(&element);
     if (auto parent = element.parent_element())
         publish_directionality_dependent_ancestors(*parent, visited);
@@ -80,7 +80,7 @@ void invalidate_style_after_directionality_change(DOM::Element& element)
 
 void invalidate_style_after_slot_assignment_change(HTML::HTMLSlotElement& slot)
 {
-    HashTable<DOM::Element*> visited;
+    GC::RootHashTable<DOM::Element*> visited;
     publish_directionality_dependent_ancestors(slot, visited);
 }
 
@@ -108,7 +108,7 @@ void invalidate_style_after_text_change_under(DOM::Element& parent_of_text)
         return;
     }
 
-    HashTable<DOM::Element*> visited;
+    GC::RootHashTable<DOM::Element*> visited;
     publish_directionality_dependent_ancestors(parent_of_text, visited);
 }
 
