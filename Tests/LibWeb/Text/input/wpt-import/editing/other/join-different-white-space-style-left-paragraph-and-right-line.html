@@ -1,0 +1,493 @@
+<!doctype html>
+<head>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<meta name="variant" content="?method=backspace&left-white-space=normal&right-white-space=pre">
+<meta name="variant" content="?method=backspace&left-white-space=normal&right-white-space=pre-wrap">
+<meta name="variant" content="?method=backspace&left-white-space=normal&right-white-space=pre-line">
+<meta name="variant" content="?method=backspace&left-white-space=normal&right-white-space=nowrap">
+<meta name="variant" content="?method=backspace&left-white-space=pre&right-white-space=normal">
+<meta name="variant" content="?method=backspace&left-white-space=pre&right-white-space=pre-wrap">
+<meta name="variant" content="?method=backspace&left-white-space=pre&right-white-space=pre-line">
+<meta name="variant" content="?method=backspace&left-white-space=pre&right-white-space=nowrap">
+<meta name="variant" content="?method=backspace&left-white-space=pre-wrap&right-white-space=normal">
+<meta name="variant" content="?method=backspace&left-white-space=pre-wrap&right-white-space=pre">
+<meta name="variant" content="?method=backspace&left-white-space=pre-wrap&right-white-space=pre-line">
+<meta name="variant" content="?method=backspace&left-white-space=pre-wrap&right-white-space=nowrap">
+<meta name="variant" content="?method=backspace&left-white-space=pre-line&right-white-space=normal">
+<meta name="variant" content="?method=backspace&left-white-space=pre-line&right-white-space=pre">
+<meta name="variant" content="?method=backspace&left-white-space=pre-line&right-white-space=pre-wrap">
+<meta name="variant" content="?method=backspace&left-white-space=pre-line&right-white-space=nowrap">
+<meta name="variant" content="?method=backspace&left-white-space=nowrap&right-white-space=normal">
+<meta name="variant" content="?method=backspace&left-white-space=nowrap&right-white-space=pre">
+<meta name="variant" content="?method=backspace&left-white-space=nowrap&right-white-space=pre-wrap">
+<meta name="variant" content="?method=backspace&left-white-space=nowrap&right-white-space=pre-line">
+
+<meta name="variant" content="?method=forwarddelete&left-white-space=normal&right-white-space=pre">
+<meta name="variant" content="?method=forwarddelete&left-white-space=normal&right-white-space=pre-wrap">
+<meta name="variant" content="?method=forwarddelete&left-white-space=normal&right-white-space=pre-line">
+<meta name="variant" content="?method=forwarddelete&left-white-space=normal&right-white-space=nowrap">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre&right-white-space=normal">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre&right-white-space=pre-wrap">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre&right-white-space=pre-line">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre&right-white-space=nowrap">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre-wrap&right-white-space=normal">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre-wrap&right-white-space=pre">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre-wrap&right-white-space=pre-line">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre-wrap&right-white-space=nowrap">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre-line&right-white-space=normal">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre-line&right-white-space=pre">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre-line&right-white-space=pre-wrap">
+<meta name="variant" content="?method=forwarddelete&left-white-space=pre-line&right-white-space=nowrap">
+<meta name="variant" content="?method=forwarddelete&left-white-space=nowrap&right-white-space=normal">
+<meta name="variant" content="?method=forwarddelete&left-white-space=nowrap&right-white-space=pre">
+<meta name="variant" content="?method=forwarddelete&left-white-space=nowrap&right-white-space=pre-wrap">
+<meta name="variant" content="?method=forwarddelete&left-white-space=nowrap&right-white-space=pre-line">
+
+<meta name="variant" content="?method=select-boundary&left-white-space=normal&right-white-space=pre">
+<meta name="variant" content="?method=select-boundary&left-white-space=normal&right-white-space=pre-wrap">
+<meta name="variant" content="?method=select-boundary&left-white-space=normal&right-white-space=pre-line">
+<meta name="variant" content="?method=select-boundary&left-white-space=normal&right-white-space=nowrap">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre&right-white-space=normal">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre&right-white-space=pre-wrap">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre&right-white-space=pre-line">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre&right-white-space=nowrap">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre-wrap&right-white-space=normal">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre-wrap&right-white-space=pre">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre-wrap&right-white-space=pre-line">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre-wrap&right-white-space=nowrap">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre-line&right-white-space=normal">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre-line&right-white-space=pre">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre-line&right-white-space=pre-wrap">
+<meta name="variant" content="?method=select-boundary&left-white-space=pre-line&right-white-space=nowrap">
+<meta name="variant" content="?method=select-boundary&left-white-space=nowrap&right-white-space=normal">
+<meta name="variant" content="?method=select-boundary&left-white-space=nowrap&right-white-space=pre">
+<meta name="variant" content="?method=select-boundary&left-white-space=nowrap&right-white-space=pre-wrap">
+<meta name="variant" content="?method=select-boundary&left-white-space=nowrap&right-white-space=pre-line">
+<title>Tests for joining left paragraph and its following line</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../include/editor-test-utils.js"></script>
+<style>
+.pre {
+  white-space: pre;
+}
+.preWrap {
+  white-space: pre-wrap;
+}
+.preLine {
+  white-space: pre-line;
+}
+.nowrap {
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<div contenteditable></div>
+<script>
+"use strict";
+
+const searchParams = new URLSearchParams(document.location.search);
+const testingBackspace = searchParams.get("method") == "backspace";
+const testingSelectBoundary = searchParams.get("method") == "select-boundary";
+const commandName =
+  testingBackspace || testingSelectBoundary ? "delete" : "forwarddelete";
+const editingHost = document.querySelector("div[contenteditable]");
+const caretInLeft = (() => {
+  if (testingSelectBoundary) {
+    return "[";
+  }
+  return testingBackspace ? "" : "[]";
+})();
+const caretInRight = (() => {
+  if (testingSelectBoundary) {
+    return "]";
+  }
+  return testingBackspace ? "[]" : "";
+})();
+const leftWhiteSpace = `white-space:${searchParams.get("left-white-space")}`;
+const rightWhiteSpace = `white-space:${searchParams.get("right-white-space")}`;
+const leftWhiteSpacePreserveLineBreaks =
+  searchParams.get("left-white-space") == "pre" ||
+  searchParams.get("left-white-space") == "pre-wrap" ||
+  searchParams.get("left-white-space") == "pre-line";
+const rightWhiteSpacePreserveLineBreaks =
+  searchParams.get("right-white-space") == "pre" ||
+  searchParams.get("right-white-space") == "pre-wrap" ||
+  searchParams.get("right-white-space") == "pre-line";
+const leftWhiteSpaceIsNormal =
+  searchParams.get("left-white-space") == "normal";
+const rightWhiteSpaceIsNormal =
+  searchParams.get("right-white-space") == "normal";
+const leftWhiteSpaceClass = (() => {
+  switch (searchParams.get("left-white-space")) {
+    case "pre":
+      return "pre";
+    case "pre-wrap":
+      return "preWrap";
+    case "pre-line":
+      return "preLine";
+    case "nowrap":
+      return "nowrap";
+    default:
+      return null;
+  }
+})();
+const rightWhiteSpaceClass = (() => {
+  switch (searchParams.get("right-white-space")) {
+    case "pre":
+      return "pre";
+    case "pre-wrap":
+      return "preWrap";
+    case "pre-line":
+      return "preLine";
+    case "nowrap":
+      return "nowrap";
+    default:
+      return null;
+  }
+})();
+const utils = new EditorTestUtils(editingHost);
+
+const tests = [
+  // The cases that the following line is a child of parent block whose
+  // white-space is normal.
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `${caretInRight}def`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}>def</span></div>`,
+      ];
+    },
+    skip: !rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `${caretInRight}def<br>ghi`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}>def</span></div>` +
+          "ghi",
+      ];
+    },
+    skip: !rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `${caretInRight}def<div>ghi</div>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}>def</span></div>` +
+          "<div>ghi</div>",
+      ];
+    },
+    skip: !rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<b>${caretInRight}def</b>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>`,
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>`,
+      ];
+    },
+    skip: !rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<b>${caretInRight}def<br>ghi</b>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          "<b>ghi</b>",
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          "<b>ghi</b>",
+      ];
+    },
+    skip: !rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<b>${caretInRight}def</b><br>ghi`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          "ghi",
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          "ghi",
+      ];
+    },
+    skip: !rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<b>${caretInRight}def<br></b>ghi`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          "ghi",
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          "ghi",
+      ];
+    },
+    skip: !rightWhiteSpaceIsNormal,
+  },
+
+  // The cases that the following line is a child of block element and has
+  // different white-space with <span>.
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}">${caretInRight}def</span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}>def</span></div>`,
+      ];
+    },
+    skip: rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}">${caretInRight}def\nghi</span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}>def</span></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+      ];
+    },
+    skip: !rightWhiteSpacePreserveLineBreaks || rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}">${caretInRight}def<br>ghi</span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}>def</span></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+      ];
+    },
+    skip: rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}"><b>${caretInRight}def\nghi</b></span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          `<span style="${rightWhiteSpace}"><b>ghi</b></span>`,
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          `<span style="${rightWhiteSpace}"><b>ghi</b></span>`,
+      ];
+    },
+    skip: !rightWhiteSpacePreserveLineBreaks || rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}"><b>${caretInRight}def<br>ghi</b></span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          `<span style="${rightWhiteSpace}"><b>ghi</b></span>`,
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          `<span style="${rightWhiteSpace}"><b>ghi</b></span>`,
+      ];
+    },
+    skip: rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}"><b>${caretInRight}def</b>\nghi</span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+      ];
+    },
+    skip: !rightWhiteSpacePreserveLineBreaks || rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}"><b>${caretInRight}def</b><br>ghi</span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+      ];
+    },
+    skip: rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}"><b>${caretInRight}def\n</b>ghi</span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+      ];
+    },
+    skip: !rightWhiteSpacePreserveLineBreaks || rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}"><b>${caretInRight}def<br></b>ghi</span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          `<span style="${rightWhiteSpace}">ghi</span>`,
+      ];
+    },
+    skip: rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}"><b>${caretInRight}def\nghi</b>jkl</span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          `<span style="${rightWhiteSpace}"><b>ghi</b>jkl</span>`,
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          `<span style="${rightWhiteSpace}"><b>ghi</b>jkl</span>`,
+      ];
+    },
+    skip: !rightWhiteSpacePreserveLineBreaks || rightWhiteSpaceIsNormal,
+  },
+  {
+    initialHTML:
+      `<div style="${leftWhiteSpace}">abc${caretInLeft}</div>` +
+        `<span style="${rightWhiteSpace}"><b>${caretInRight}def<br>ghi</b>jkl</span>`,
+    expectedHTML: aAttrsInLeftBlock => {
+      return [
+        `<div style="${leftWhiteSpace}">abc<b ${aAttrsInLeftBlock}>def</b></div>` +
+          `<span style="${rightWhiteSpace}"><b>ghi</b>jkl</span>`,
+        `<div style="${leftWhiteSpace}">abc<span ${aAttrsInLeftBlock}><b>def</b></span></div>` +
+          `<span style="${rightWhiteSpace}"><b>ghi</b>jkl</span>`,
+      ];
+    },
+    skip: rightWhiteSpaceIsNormal,
+  },
+];
+
+const rightStyleAttr = new RegExp(`style="${rightWhiteSpace}"`, "g");
+const leftStyleAttr = new RegExp(`style="${leftWhiteSpace}"`, "g");
+const rightStyledSpan = new RegExp(`</div><span style="${rightWhiteSpace}">`, "g");
+for (const t of tests) {
+  if (t.skip) {
+    continue;
+  }
+  promise_test(async () => {
+    utils.setupEditingHost(t.initialHTML);
+    await (testingBackspace ? utils.sendBackspaceKey() : utils.sendDeleteKey());
+    utils.normalizeStyleAttributeValues();
+    assert_in_array(
+      editingHost.innerHTML,
+      t.expectedHTML(`style="${rightWhiteSpace}"`),
+      "white-space should be preserved by <span> elements"
+    );
+  }, `${commandName} at ${t.initialHTML.replace(/\n/g, "\\n")}`);
+
+  if (rightWhiteSpaceClass !== null) {
+    // Replace style attribute with class attribute.
+    const initialHTMLWithClass =
+      t.initialHTML.replace(
+        rightStyleAttr,
+        `class="${rightWhiteSpaceClass}"`
+      );
+    if (initialHTMLWithClass != t.initialHTML) {
+      promise_test(async () => {
+        utils.setupEditingHost(initialHTMLWithClass);
+        await (testingBackspace ? utils.sendBackspaceKey() : utils.sendDeleteKey());
+        utils.normalizeStyleAttributeValues();
+        const expectedHTMLs = [];
+        for (const styleAndOrClassAttr of [
+          `style="${rightWhiteSpace}"`,
+          `class="${rightWhiteSpaceClass}" style="${rightWhiteSpace}"`,
+          `style="${rightWhiteSpace}" class="${rightWhiteSpaceClass}"`,
+        ]) {
+          for (const origExpectedHTML of t.expectedHTML(styleAndOrClassAttr)) {
+            expectedHTMLs.push(
+              origExpectedHTML.replace(
+                rightStyledSpan,
+                `</div><span class="${rightWhiteSpaceClass}">`
+              )
+            );
+          }
+        }
+        assert_in_array(
+          editingHost.innerHTML,
+          expectedHTMLs,
+          "white-space should be preserved by <span> elements with class or style attribute"
+        );
+      }, `${commandName} at ${initialHTMLWithClass.replace(/\n/g, "\\n")}`);
+    }
+  }
+
+  if (leftWhiteSpaceClass !== null) {
+    // Replace style attribute with class attribute.
+    const initialHTMLWithClass =
+      t.initialHTML.replace(
+        leftStyleAttr,
+        `class="${leftWhiteSpaceClass}"`
+      );
+    if (initialHTMLWithClass != t.initialHTML) {
+      promise_test(async () => {
+        utils.setupEditingHost(initialHTMLWithClass);
+        await (testingBackspace ? utils.sendBackspaceKey() : utils.sendDeleteKey());
+        utils.normalizeStyleAttributeValues();
+        const expectedHTMLs = [];
+        for (const styleAndOrClassAttr of [
+          `style="${rightWhiteSpace}"`,
+          `class="${rightWhiteSpaceClass}" style="${rightWhiteSpace}"`,
+          `style="${rightWhiteSpace}" class="${rightWhiteSpaceClass}"`,
+        ]) {
+          for (const origExpectedHTML of t.expectedHTML(styleAndOrClassAttr)) {
+            expectedHTMLs.push(
+              origExpectedHTML.replace(
+                leftStyleAttr,
+                `class="${leftWhiteSpaceClass}"`
+              )
+            );
+          }
+        }
+        assert_in_array(
+          editingHost.innerHTML,
+          expectedHTMLs,
+          "white-space should be preserved by <span> elements with class or style attribute"
+        );
+      }, `${commandName} at ${initialHTMLWithClass.replace(/\n/g, "\\n")}`);
+    }
+  }
+}
+
+</script>
+</body>
+</html>

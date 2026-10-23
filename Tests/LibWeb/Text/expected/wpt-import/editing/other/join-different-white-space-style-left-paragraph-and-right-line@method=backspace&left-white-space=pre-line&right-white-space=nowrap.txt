@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+2 Pass
+16 Fail
+Pass	delete at <div style="white-space:pre-line">abc</div><span style="white-space:nowrap">[]def</span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span class="nowrap">[]def</span>
+Pass	delete at <div class="preLine">abc</div><span style="white-space:nowrap">[]def</span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span style="white-space:nowrap">[]def<br>ghi</span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span class="nowrap">[]def<br>ghi</span>
+Fail	delete at <div class="preLine">abc</div><span style="white-space:nowrap">[]def<br>ghi</span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span style="white-space:nowrap"><b>[]def<br>ghi</b></span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span class="nowrap"><b>[]def<br>ghi</b></span>
+Fail	delete at <div class="preLine">abc</div><span style="white-space:nowrap"><b>[]def<br>ghi</b></span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span style="white-space:nowrap"><b>[]def</b><br>ghi</span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span class="nowrap"><b>[]def</b><br>ghi</span>
+Fail	delete at <div class="preLine">abc</div><span style="white-space:nowrap"><b>[]def</b><br>ghi</span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span style="white-space:nowrap"><b>[]def<br></b>ghi</span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span class="nowrap"><b>[]def<br></b>ghi</span>
+Fail	delete at <div class="preLine">abc</div><span style="white-space:nowrap"><b>[]def<br></b>ghi</span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span style="white-space:nowrap"><b>[]def<br>ghi</b>jkl</span>
+Fail	delete at <div style="white-space:pre-line">abc</div><span class="nowrap"><b>[]def<br>ghi</b>jkl</span>
+Fail	delete at <div class="preLine">abc</div><span style="white-space:nowrap"><b>[]def<br>ghi</b>jkl</span>

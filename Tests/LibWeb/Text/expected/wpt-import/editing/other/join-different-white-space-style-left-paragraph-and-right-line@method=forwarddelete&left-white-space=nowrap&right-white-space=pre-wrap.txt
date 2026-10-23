@@ -1,0 +1,39 @@
+Harness status: OK
+
+Found 33 tests
+
+2 Pass
+31 Fail
+Pass	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap">def</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap">def</span>
+Pass	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap">def</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap">def\nghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap">def\nghi</span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap">def\nghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap">def<br>ghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap">def<br>ghi</span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap">def<br>ghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def\nghi</b></span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap"><b>def\nghi</b></span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def\nghi</b></span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def<br>ghi</b></span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap"><b>def<br>ghi</b></span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def<br>ghi</b></span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def</b>\nghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap"><b>def</b>\nghi</span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def</b>\nghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def</b><br>ghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap"><b>def</b><br>ghi</span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def</b><br>ghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def\n</b>ghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap"><b>def\n</b>ghi</span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def\n</b>ghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def<br></b>ghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap"><b>def<br></b>ghi</span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def<br></b>ghi</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def\nghi</b>jkl</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap"><b>def\nghi</b>jkl</span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def\nghi</b>jkl</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def<br>ghi</b>jkl</span>
+Fail	forwarddelete at <div style="white-space:nowrap">abc[]</div><span class="preWrap"><b>def<br>ghi</b>jkl</span>
+Fail	forwarddelete at <div class="nowrap">abc[]</div><span style="white-space:pre-wrap"><b>def<br>ghi</b>jkl</span>
