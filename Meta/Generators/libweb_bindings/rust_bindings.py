@@ -52,7 +52,6 @@ from Generators.libweb_bindings.rust_types import CPP_PARENT_INTERFACES
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import cpp_ancestor
 from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
-from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_promise_type
@@ -644,12 +643,7 @@ def pair_iterator_types(
     context: GenerationContext, interface: Interface, pair_iterator: RustPairIterator
 ) -> Tuple[str, str]:
     what = f"the pair iterator of {interface.name}"
-    for idl_type in (pair_iterator.key_type, pair_iterator.value_type):
-        if holds_cells(idl_type, context):
-            raise UnsupportedByRustBindings(
-                f"{interface.path}: {what} iterates over {idl_type}, a type whose values are or can hold cells, which "
-                "the Rust bindings do not handle yet"
-            )
+    # NB: The iteration steps convert a copy of a pair, which is on the stack where the collector finds its cells.
     return (
         rust_type(pair_iterator.key_type, context, what, is_result=True),
         rust_type(pair_iterator.value_type, context, what, is_result=True),

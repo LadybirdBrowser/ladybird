@@ -300,6 +300,8 @@ def rust_default_value(
     """An expression of the default value of the parameter or of the dictionary member."""
     name = member.type.name
     default_value = member.default_value
+    if member.type.nullable and default_value == "null":
+        return "None"
     string_literal = rust_string_literal(default_value, name, what)
     if string_literal is not None:
         return string_literal
