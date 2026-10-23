@@ -385,7 +385,6 @@ bool DecodedAudioProducer::ThreadData::handle_auto_suspension()
 
     m_queue.clear();
     m_decoder.clear();
-    m_decoder_needs_keyframe_next_seek = true;
     m_decoder_needs_codec_configuration_next_seek = true;
     m_auto_suspend_requested = false;
     m_current_halting_status = PipelineStatus::Suspended;
@@ -497,7 +496,6 @@ bool DecodedAudioProducer::ThreadData::seek_to_replace_decoder_if_it_cannot_deco
 
 void DecodedAudioProducer::ThreadData::seek_to_resubmit_while_locked()
 {
-    m_decoder_needs_keyframe_next_seek = true;
     m_decoder_needs_codec_configuration_next_seek = true;
     if (m_last_processed_seek_id == m_seek_id)
         m_seek_timestamp = m_earliest_available_timestamp;
@@ -534,11 +532,10 @@ void DecodedAudioProducer::ThreadData::handle_seek()
             m_frame_awaiting_decoder_replacement.clear();
         }
 
-        auto seek_options = DemuxerSeekOptions::None;
+        // All of our audio codecs have independently decodable frames, so always moving the demuxer is cheap.
+        auto seek_options = DemuxerSeekOptions::Force;
         if (m_decoder_needs_codec_configuration_next_seek)
             seek_options |= DemuxerSeekOptions::NeedCodecConfiguration;
-        if (m_decoder_needs_keyframe_next_seek)
-            seek_options |= DemuxerSeekOptions::Force;
         auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp, seek_options);
         if (demuxer_seek_result_or_error.is_error() && demuxer_seek_result_or_error.error().category() != DecoderErrorCategory::EndOfStream) {
             if (demuxer_seek_result_or_error.error().category() == DecoderErrorCategory::Aborted)
@@ -548,14 +545,9 @@ void DecodedAudioProducer::ThreadData::handle_seek()
         }
 
         m_decoder_needs_codec_configuration_next_seek = false;
-        m_decoder_needs_keyframe_next_seek = false;
 
-        auto demuxer_seek_result = demuxer_seek_result_or_error.value_or(DemuxerSeekResult::MovedPosition);
-
-        if (demuxer_seek_result == DemuxerSeekResult::MovedPosition) {
-            flush_decoder();
-            last_block.clear();
-        }
+        flush_decoder();
+        last_block.clear();
 
         auto new_seek_id = m_seek_id.load();
 

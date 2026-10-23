@@ -569,6 +569,10 @@ void DecodedVideoProducer::ThreadData::handle_seek()
                 return;
             }
 
+            // If the demuxer keeps its position, the decoder won't output this frame again.
+            if (!m_held_frames_are_invalid && m_last_queued_frame != nullptr && m_last_queued_frame->timestamp() <= timestamp)
+                last_frame = m_last_queued_frame;
+
             m_queue.clear();
             m_held_frames_are_invalid = false;
             m_last_queued_frame = nullptr;
