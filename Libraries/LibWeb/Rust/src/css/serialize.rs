@@ -10,6 +10,8 @@
 //! The output stays ASCII until the first non-ASCII code unit forces UTF-16 storage, matching
 //! AK::Utf16String's ASCII-or-UTF16 representation, then moves a native string owner to C++.
 
+use std::fmt::Write;
+
 mod shorthand;
 
 use crate::css::css_enums::keyword;
@@ -210,6 +212,18 @@ impl TextSink {
         } else {
             String::from_utf16_lossy(&self.utf16)
         }
+    }
+}
+
+impl Write for TextSink {
+    fn write_str(&mut self, text: &str) -> std::fmt::Result {
+        if text.is_ascii() {
+            self.push_ascii(text);
+        } else {
+            text.chars()
+                .for_each(|character| self.push_code_point(u32::from(character)));
+        }
+        Ok(())
     }
 }
 
@@ -508,7 +522,7 @@ fn format_double_with_precision(sink: &mut TextSink, mut value: f64, precision: 
     } else if sign_always {
         sink.push_ascii("+");
     }
-    sink.push_ascii(&format!("{integer_part:.0}"));
+    write!(sink, "{integer_part:.0}").unwrap();
     if fraction_length > 0 {
         sink.push_ascii(".");
         for &digit in &fraction_digits[..fraction_length] {
@@ -528,7 +542,7 @@ pub(crate) fn serialize_a_number(sink: &mut TextSink, value: f64, mode: Serializ
         } else if value.is_nan() {
             sink.push_ascii("NaN");
         } else {
-            sink.push_ascii(&value.to_string());
+            write!(sink, "{value}").unwrap();
         }
         return;
     }
@@ -585,7 +599,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             serialize_a_number(sink, *value, mode);
         }
         StyleValueData::Integer { value } => {
-            sink.push_ascii(&value.to_string());
+            write!(sink, "{value}").unwrap();
         }
         StyleValueData::Percentage { value } => {
             serialize_a_number(sink, *value, mode);
@@ -1943,7 +1957,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         }
                         sink.push_ascii(exponent);
                     } else {
-                        sink.push_ascii(&number.to_string());
+                        write!(sink, "{number}").unwrap();
                     }
                     continue;
                 }
