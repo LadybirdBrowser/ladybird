@@ -17,6 +17,8 @@
 namespace GC {
 
 class GC_API RootHashTableBase {
+    AK_MAKE_NONCOPYABLE(RootHashTableBase);
+
 public:
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>&) const = 0;
 
@@ -24,6 +26,8 @@ protected:
     RootHashTableBase();
     explicit RootHashTableBase(Heap&);
     ~RootHashTableBase();
+
+    void assign_heap(Heap*);
 
     Heap* m_heap { nullptr };
     IntrusiveListNode<RootHashTableBase> m_list_node;
@@ -46,6 +50,35 @@ public:
     }
 
     ~RootHashTable() = default;
+
+    RootHashTable(RootHashTable const& other)
+        : RootHashTableBase(*other.m_heap)
+        , HashTableBase(static_cast<HashTableBase const&>(other))
+    {
+    }
+
+    RootHashTable(RootHashTable&& other)
+        : RootHashTableBase(*other.m_heap)
+        , HashTableBase(move(static_cast<HashTableBase&>(other)))
+    {
+    }
+
+    RootHashTable& operator=(RootHashTable const& other)
+    {
+        if (&other == this)
+            return *this;
+
+        assign_heap(other.m_heap);
+        HashTableBase::operator=(static_cast<HashTableBase const&>(other));
+        return *this;
+    }
+
+    RootHashTable& operator=(RootHashTable&& other)
+    {
+        assign_heap(other.m_heap);
+        HashTableBase::operator=(move(static_cast<HashTableBase&>(other)));
+        return *this;
+    }
 
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>& roots) const override
     {

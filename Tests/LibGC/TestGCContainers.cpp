@@ -297,6 +297,58 @@ TEST_CASE(root_hash_table_reports_roots)
     EXPECT_EQ(roots.size(), 1u);
 }
 
+template<typename Container, typename AddCell, typename Transfer>
+static void expect_transferred_container_keeps_cell_alive(AddCell add_cell, Transfer transfer)
+{
+    auto& heap = test_heap();
+    GC::Weak<TestCell> weak_cell;
+    Optional<Container> destination;
+
+    {
+        Container source;
+        auto cell = heap.allocate<TestCell>();
+        weak_cell = cell.ptr();
+        add_cell(source, cell);
+        transfer(destination, source);
+    }
+
+    scrub_stack();
+    heap.collect_garbage();
+    EXPECT(weak_cell);
+}
+
+TEST_CASE(copied_and_moved_root_hash_maps_keep_cells_alive)
+{
+    using Map = GC::RootHashMap<int, GC::Ref<TestCell>>;
+    auto add_cell = [](Map& map, GC::Ref<TestCell> cell) { map.set(42, cell); };
+    expect_transferred_container_keeps_cell_alive<Map>(add_cell, [](Optional<Map>& destination, Map& source) { destination = source; });
+    expect_transferred_container_keeps_cell_alive<Map>(add_cell, [](Optional<Map>& destination, Map& source) { destination = move(source); });
+    expect_transferred_container_keeps_cell_alive<Map>(add_cell, [](Optional<Map>& destination, Map& source) {
+        destination.emplace();
+        *destination = source;
+    });
+    expect_transferred_container_keeps_cell_alive<Map>(add_cell, [](Optional<Map>& destination, Map& source) {
+        destination.emplace();
+        *destination = move(source);
+    });
+}
+
+TEST_CASE(copied_and_moved_root_hash_tables_keep_cells_alive)
+{
+    using Table = GC::RootHashTable<GC::Ref<TestCell>>;
+    auto add_cell = [](Table& table, GC::Ref<TestCell> cell) { table.set(cell); };
+    expect_transferred_container_keeps_cell_alive<Table>(add_cell, [](Optional<Table>& destination, Table& source) { destination = source; });
+    expect_transferred_container_keeps_cell_alive<Table>(add_cell, [](Optional<Table>& destination, Table& source) { destination = move(source); });
+    expect_transferred_container_keeps_cell_alive<Table>(add_cell, [](Optional<Table>& destination, Table& source) {
+        destination.emplace();
+        *destination = source;
+    });
+    expect_transferred_container_keeps_cell_alive<Table>(add_cell, [](Optional<Table>& destination, Table& source) {
+        destination.emplace();
+        *destination = move(source);
+    });
+}
+
 TEST_CASE(empty_containers_report_no_roots)
 {
     GC::RootVector<GC::Ref<TestCell>> vector;
