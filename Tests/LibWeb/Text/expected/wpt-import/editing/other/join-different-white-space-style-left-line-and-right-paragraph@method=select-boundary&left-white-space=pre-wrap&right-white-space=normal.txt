@@ -2,18 +2,17 @@ Harness status: OK
 
 Found 22 tests
 
-18 Pass
-4 Fail
+22 Pass
 Pass	delete at <span style="white-space:pre-wrap">abc[</span><div style="white-space:normal">]def<br>ghi</div>
 Pass	delete at <span class="preWrap">abc[</span><div style="white-space:normal">]def<br>ghi</div>
-Fail	delete at <span style="white-space:pre-wrap">abc[</span><div style="white-space:normal"><b>]def<br>ghi</b></div>
-Fail	delete at <span class="preWrap">abc[</span><div style="white-space:normal"><b>]def<br>ghi</b></div>
+Pass	delete at <span style="white-space:pre-wrap">abc[</span><div style="white-space:normal"><b>]def<br>ghi</b></div>
+Pass	delete at <span class="preWrap">abc[</span><div style="white-space:normal"><b>]def<br>ghi</b></div>
 Pass	delete at <span style="white-space:pre-wrap">abc[</span><div style="white-space:normal"><b>]def</b>ghi<br>jkl</div>
 Pass	delete at <span class="preWrap">abc[</span><div style="white-space:normal"><b>]def</b>ghi<br>jkl</div>
 Pass	delete at <span style="white-space:pre-wrap">abc[</span><div style="white-space:normal"><b>]def</b><br>ghi</div>
 Pass	delete at <span class="preWrap">abc[</span><div style="white-space:normal"><b>]def</b><br>ghi</div>
-Fail	delete at <span style="white-space:pre-wrap">abc[</span><div style="white-space:normal"><b>]def<br></b>ghi</div>
-Fail	delete at <span class="preWrap">abc[</span><div style="white-space:normal"><b>]def<br></b>ghi</div>
+Pass	delete at <span style="white-space:pre-wrap">abc[</span><div style="white-space:normal"><b>]def<br></b>ghi</div>
+Pass	delete at <span class="preWrap">abc[</span><div style="white-space:normal"><b>]def<br></b>ghi</div>
 Pass	delete at <span style="white-space:pre-wrap">abc[</span><div style="white-space:normal"><div>]def</div>ghi</div>
 Pass	delete at <span class="preWrap">abc[</span><div style="white-space:normal"><div>]def</div>ghi</div>
 Pass	delete at <span style="white-space:pre-wrap">abc[</span><div style="white-space:normal">]def<div>ghi</div></div>

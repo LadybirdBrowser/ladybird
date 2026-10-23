@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div class="editor" contenteditable><div>abc</div><div style="white-space: pre"><span contenteditable="false">x<br>y</span>z</div></div>
+<div class="editor" contenteditable><div>abc</div><div style="white-space: pre"><span contenteditable="false">x<br>y</span>z<br>w</div></div>
+<script>
+    test(() => {
+        for (const editingHost of document.querySelectorAll(".editor")) {
+            println(`Before: ${editingHost.innerHTML}`);
+
+            // Put the cursor at the start of the second line, and press backspace.
+            getSelection().collapse(editingHost.lastChild, 0);
+            document.execCommand("delete");
+
+            println(`After: ${editingHost.innerHTML}`);
+        }
+    });
+</script>
