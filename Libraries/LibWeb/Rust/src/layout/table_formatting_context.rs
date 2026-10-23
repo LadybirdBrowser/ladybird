@@ -864,17 +864,6 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
     }
 }
 
-/// The size a calc-size() with a sizing keyword basis resolves to, given the size of that keyword, or that size for
-/// a plain keyword.
-/// https://drafts.csswg.org/css-values-5/#resolving-calc-size
-fn resolve_calc_size_of_keyword(size: &ComputedSize, keyword_size: CssPixels, basis: CssPixels) -> CssPixels {
-    size.calc_size()
-        .and_then(|calc_size| {
-            crate::css::calc_size::resolve_calc_size(calc_size, Some(basis.to_double()), &|_| keyword_size.to_double())
-        })
-        .map_or(keyword_size, CssPixels::nearest_value_for)
-}
-
 const BORDER_COLLAPSE_SEPARATE: u8 = 0;
 const TABLE_LAYOUT_FIXED: u8 = 1;
 
@@ -2135,6 +2124,34 @@ impl<'pass> TableFormattingContext<'pass> {
         capmin
     }
 
+    /// The content inline size a calc-size() with a sizing keyword basis resolves to, given the content size of that
+    /// keyword, or that size for a plain keyword. As for other boxes, the size is that of the box the box-sizing
+    /// property names.
+    /// https://drafts.csswg.org/css-values-5/#resolving-calc-size
+    fn resolve_calc_size_of_keyword(
+        &self,
+        size: &ComputedSize,
+        keyword_size: CssPixels,
+        basis: CssPixels,
+    ) -> CssPixels {
+        let Some(calc_size) = size.calc_size() else {
+            return keyword_size;
+        };
+        let edges = if self.style(self.run.box_).box_sizing() == box_sizing::BORDER_BOX {
+            let used = self.used_values(self.run.box_);
+            let collapsed = used.uses_collapsing_borders_model.get();
+            used.border_box_left(collapsed) + used.border_box_right(collapsed)
+        } else {
+            CssPixels::default()
+        };
+        let resolved = crate::css::calc_size::resolve_calc_size(calc_size, Some(basis.to_double()), &|_| {
+            (keyword_size + edges).to_double()
+        });
+        resolved.map_or(keyword_size, |resolved| {
+            (CssPixels::nearest_value_for(resolved) - edges).max(CssPixels::default())
+        })
+    }
+
     fn resolve_inline_constraint(
         &mut self,
         constraint: &ComputedSize,
@@ -2143,10 +2160,10 @@ impl<'pass> TableFormattingContext<'pass> {
         basis: CssPixels,
     ) -> CssPixels {
         if constraint.is_min_content() {
-            return resolve_calc_size_of_keyword(constraint, grid_min, basis);
+            return self.resolve_calc_size_of_keyword(constraint, grid_min, basis);
         }
         if constraint.is_max_content() {
-            return resolve_calc_size_of_keyword(constraint, grid_max, basis);
+            return self.resolve_calc_size_of_keyword(constraint, grid_max, basis);
         }
         if constraint.is_fit_content() {
             let limit = if constraint.fit_content_available_space().is_some() {
@@ -2154,7 +2171,7 @@ impl<'pass> TableFormattingContext<'pass> {
             } else {
                 basis
             };
-            return resolve_calc_size_of_keyword(constraint, grid_max.min(grid_min.max(limit)), basis);
+            return self.resolve_calc_size_of_keyword(constraint, grid_max.min(grid_min.max(limit)), basis);
         }
         // https://drafts.csswg.org/css-sizing-3/#stretch-fit-sizing
         // NB: The table wrapper box carries the margins, so a stretch size fills the basis with the table's border box.
@@ -2163,7 +2180,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let collapsed = used.uses_collapsing_borders_model.get();
             let stretch_fit_size =
                 (basis - used.border_box_left(collapsed) - used.border_box_right(collapsed)).max(CssPixels::default());
-            return resolve_calc_size_of_keyword(constraint, stretch_fit_size, basis);
+            return self.resolve_calc_size_of_keyword(constraint, stretch_fit_size, basis);
         }
         // CSS Sizing says box-sizing:border-box applies length/percentage width/min-width/max-width constraints to
         // the border box. The table inline-size algorithm compares content inline sizes, so convert them before comparing.
@@ -2254,7 +2271,7 @@ impl<'pass> TableFormattingContext<'pass> {
             }
             value
         } else if table_style.width().is_max_content() {
-            resolve_calc_size_of_keyword(table_style.width(), grid_max, basis)
+            self.resolve_calc_size_of_keyword(table_style.width(), grid_max, basis)
         } else {
             // If the table-root’s width property has a computed value (resolving to the table inline size) other than auto,
             // the used inline size is the greater of the resolved table inline size and the used minimum inline size.
