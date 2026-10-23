@@ -810,6 +810,11 @@ impl RetainedState {
         if published.is_some() {
             return published;
         }
+        if let Some((version, matches)) = self.shadow_host_backing_pseudo_matches.get(&host)
+            && *version == self.program.version()
+        {
+            return Some(for_target(matches));
+        }
         match self.retained_match_answer(host) {
             Lookup::Known(answer) => answer
                 .iter()
@@ -826,7 +831,7 @@ impl RetainedState {
     }
 
     /// The matches for element-backed pseudo-elements in the answer a transaction publishes for a
-    /// node, read before that answer is installed. `None` when it has none.
+    /// node, read before that answer is installed. `None` when the answer does not hold its matches.
     pub(in crate::css::style) fn batch_backing_pseudo_matches_of(
         &self,
         node: StyleNodeID,
@@ -856,7 +861,7 @@ impl RetainedState {
                 .map(|entry| entry.materialize(node, &self.programs, 0))
                 .collect::<Option<_>>()?,
         };
-        (!matches.is_empty()).then_some(matches)
+        Some(matches)
     }
 
     /// The record of an element standing for its shadow host's pseudo-element, the way C++

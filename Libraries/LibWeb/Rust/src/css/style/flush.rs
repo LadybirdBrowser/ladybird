@@ -298,7 +298,21 @@ impl RetainedState {
                 None => self.batch_custom_property_answers.remove(&node),
             };
         }
-        if let Some(matches) = self.batch_backing_pseudo_matches_of(node, answers, answer) {
+        let backing_pseudo_matches = self.batch_backing_pseudo_matches_of(node, answers, answer);
+        if self.tree.shadow_root_of(node).is_some() {
+            match &backing_pseudo_matches {
+                Some(matches) => {
+                    self.shadow_host_backing_pseudo_matches
+                        .insert(node, (self.program.version(), matches.clone()));
+                }
+                None => {
+                    self.shadow_host_backing_pseudo_matches.remove(&node);
+                }
+            }
+        }
+        if let Some(matches) = backing_pseudo_matches
+            && !matches.is_empty()
+        {
             self.batch_backing_pseudo_matches.insert(node, matches);
         }
         if let Some(complete) = self.answer_is_complete_but_for_custom_properties(node, answers, answer) {
@@ -534,6 +548,11 @@ impl StyleEngine {
                         | InputKey::CustomPropertyRegistration(_)
                 )
             });
+        // A shadow host's matches may move with any input that reaches a selector, and only the transactions that
+        // publish the host's answer note them again.
+        if !transaction_reaches_no_selector {
+            self.retained.shadow_host_backing_pseudo_matches.clear();
+        }
         let match_identity_is_complete_output = !transaction.has_coarsened_markers()
             && transaction.inputs.iter().all(|input| {
                 !matches!(
