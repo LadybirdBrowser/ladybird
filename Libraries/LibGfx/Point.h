@@ -116,11 +116,6 @@ public:
         return point;
     }
 
-    [[nodiscard]] Point<T> moved_left(T amount) const { return { x() - amount, y() }; }
-    [[nodiscard]] Point<T> moved_right(T amount) const { return { x() + amount, y() }; }
-    [[nodiscard]] Point<T> moved_up(T amount) const { return { x(), y() - amount }; }
-    [[nodiscard]] Point<T> moved_down(T amount) const { return { x(), y() + amount }; }
-
     template<class U>
     [[nodiscard]] bool operator==(Point<U> const& other) const
     {
@@ -193,32 +188,11 @@ public:
         }
     }
 
-    [[nodiscard]] T dx_relative_to(Point<T> const& other) const
-    {
-        return x() - other.x();
-    }
-
-    [[nodiscard]] T dy_relative_to(Point<T> const& other) const
-    {
-        return y() - other.y();
-    }
-
-    // Returns pixels moved from other in either direction
-    [[nodiscard]] T pixels_moved(Point<T> const& other) const
-    {
-        return max(AK::abs(dx_relative_to(other)), AK::abs(dy_relative_to(other)));
-    }
-
     [[nodiscard]] float distance_from(Point<T> const& other) const
     {
         if (*this == other)
             return 0;
         return AK::hypot<float>(m_x - other.m_x, m_y - other.m_y);
-    }
-
-    [[nodiscard]] Point absolute_relative_distance_to(Point const& other) const
-    {
-        return { AK::abs(dx_relative_to(other)), AK::abs(dy_relative_to(other)) };
     }
 
     template<typename U>
@@ -234,20 +208,6 @@ public:
         return Point<U>(roundf(x()), roundf(y()));
     }
 
-    template<typename U>
-    requires FloatingPoint<T>
-    [[nodiscard]] Point<U> to_ceiled() const
-    {
-        return Point<U>(ceil(x()), ceil(y()));
-    }
-
-    template<typename U>
-    requires FloatingPoint<T>
-    [[nodiscard]] Point<U> to_floored() const
-    {
-        return Point<U>(AK::floor(x()), AK::floor(y()));
-    }
-
     [[nodiscard]] ByteString to_byte_string() const;
 
 private:
@@ -256,24 +216,6 @@ private:
 };
 using IntPoint = Point<int>;
 using FloatPoint = Point<float>;
-
-template<typename T>
-inline Point<T> linear_interpolate(Point<T> const& p1, Point<T> const& p2, float t)
-{
-    return Point<T> { p1.x() + t * (p2.x() - p1.x()), p1.y() + t * (p2.y() - p1.y()) };
-}
-
-template<typename T>
-inline Point<T> quadratic_interpolate(Point<T> const& p1, Point<T> const& p2, Point<T> const& c1, float t)
-{
-    return linear_interpolate(linear_interpolate(p1, c1, t), linear_interpolate(c1, p2, t), t);
-}
-
-template<typename T>
-inline Point<T> cubic_interpolate(Point<T> const& p1, Point<T> const& p2, Point<T> const& c1, Point<T> const& c2, float t)
-{
-    return linear_interpolate(quadratic_interpolate(p1, c1, c2, t), quadratic_interpolate(c1, c2, p2, t), t);
-}
 
 }
 
