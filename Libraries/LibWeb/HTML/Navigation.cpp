@@ -1588,7 +1588,7 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
     auto old_current_nhe = current_entry();
 
     // 3. Let disposedNHEs be a new empty list.
-    Vector<GC::Ref<NavigationHistoryEntry>> disposed_nhes;
+    GC::RootVector<GC::Ref<NavigationHistoryEntry>> disposed_nhes;
 
     // 4. If navigationType is "traverse", then:
     if (navigation_type == NavigationType::Traverse) {
