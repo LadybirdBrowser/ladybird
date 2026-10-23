@@ -57,6 +57,8 @@ const BASIC_SHAPE_INSET: u8 = 0;
 const BASIC_SHAPE_CIRCLE: u8 = 3;
 const BASIC_SHAPE_ELLIPSE: u8 = 4;
 const BASIC_SHAPE_POLYGON: u8 = 5;
+const BASIC_SHAPE_PATH: u8 = 6;
+const BASIC_SHAPE_SHAPE: u8 = 7;
 
 #[derive(Clone, Copy)]
 struct NumericRangeOverride {
@@ -78,11 +80,18 @@ const BORDER_RADIUS_RECT_RANGES: &[NumericRangeOverride] = &[
     },
 ];
 
-const RADIAL_SIZE_RANGES: &[NumericRangeOverride] = &[NumericRangeOverride {
-    value_type: VALUE_TYPE_LENGTH,
-    min: 0.0,
-    max: f32::MAX as f64,
-}];
+const RADIAL_SIZE_RANGES: &[NumericRangeOverride] = &[
+    NumericRangeOverride {
+        value_type: VALUE_TYPE_LENGTH,
+        min: 0.0,
+        max: f32::MAX as f64,
+    },
+    NumericRangeOverride {
+        value_type: VALUE_TYPE_PERCENTAGE,
+        min: 0.0,
+        max: f32::MAX as f64,
+    },
+];
 
 const NONNEGATIVE_LENGTH_RANGE: &[NumericRangeOverride] = &[NumericRangeOverride {
     value_type: VALUE_TYPE_LENGTH,
@@ -2517,7 +2526,8 @@ fn interpolate_basic_shape(
             v4: from_v4,
             fill_rule: from_fill_rule,
             points: from_points,
-            ..
+            path: from_path,
+            commands: from_commands,
         }),
         Some(BasicShapeData {
             kind: to_kind,
@@ -2528,12 +2538,44 @@ fn interpolate_basic_shape(
             v4: to_v4,
             fill_rule: to_fill_rule,
             points: to_points,
-            ..
+            path: to_path,
+            commands: to_commands,
         }),
     ) = (from.basic_shape(), to.basic_shape())
     else {
         return None;
     };
+
+    // https://drafts.csswg.org/css-shapes-1/#interpolating-shape
+    // shape() and path() functions can be interpolated with each other if their associated list of path data commands
+    // is the same length and has the same commands, in order, with the first command of the path() function
+    // interpolating with the initial <coordinate-pair> in the shape() function.
+    // If the starting and ending values are both path() functions, the interpolated value is a path() function;
+    // otherwise it's a shape() function.
+    if matches!(
+        (*from_kind, *to_kind),
+        (BASIC_SHAPE_PATH, BASIC_SHAPE_SHAPE) | (BASIC_SHAPE_SHAPE, BASIC_SHAPE_PATH)
+    ) {
+        let from_converted = if *from_kind == BASIC_SHAPE_PATH {
+            Some(from_path.parsed()?.to_shape_commands()?)
+        } else {
+            None
+        };
+        let to_converted = if *to_kind == BASIC_SHAPE_PATH {
+            Some(to_path.parsed()?.to_shape_commands()?)
+        } else {
+            None
+        };
+        let from_parts = from_converted.as_ref().map_or(
+            (*from_fill_rule, from_commands.as_slice(), from_points.as_slice()),
+            |(commands, points)| (*from_fill_rule, commands.as_slice(), points.as_slice()),
+        );
+        let to_parts = to_converted.as_ref().map_or(
+            (*to_fill_rule, to_commands.as_slice(), to_points.as_slice()),
+            |(commands, points)| (*to_fill_rule, commands.as_slice(), points.as_slice()),
+        );
+        return interpolate_shape_commands(property_id, from_parts, to_parts, delta);
+    }
 
     // https://drafts.csswg.org/css-shapes-1/#basic-shape-interpolation
     if from_kind != to_kind {
@@ -2551,7 +2593,10 @@ fn interpolate_basic_shape(
                     v1: interpolate_basic_shape_component(property_id, from_v1, to_v1, delta),
                     v2: interpolate_basic_shape_component(property_id, from_v2, to_v2, delta),
                     v3: interpolate_basic_shape_component(property_id, from_v3, to_v3, delta),
-                    v4: interpolate_basic_shape_component(property_id, from_v4, to_v4, delta),
+                    // NB: The border radii of the inset cannot become negative.
+                    v4: interpolate_scalar_value(property_id, from_v4.data(), to_v4.data(), delta, &[])
+                        .into_value()
+                        .unwrap_or_else(|| interpolate_basic_shape_component(property_id, from_v4, to_v4, delta)),
                     fill_rule: 0,
                     points: empty_shape_points(),
                     path: crate::css::css_path::CssPath::none(),
@@ -2633,8 +2678,122 @@ fn interpolate_basic_shape(
                 }),
             })
         }
+        BASIC_SHAPE_PATH => {
+            // https://drafts.csswg.org/css-shapes-1/#interpolating-shape
+            // If the starting and ending values are both path() functions, the interpolated value is a path() function;
+            if from_fill_rule != to_fill_rule {
+                return None;
+            }
+            // NB: Like other engines, paths interpolate as absolute commands, so that paths with relative and absolute
+            //     commands interpolate with each other.
+            let (from_path, to_path) = (from_path.parsed()?, to_path.parsed()?);
+            let (from_absolute, to_absolute) = (from_path.to_absolute(), to_path.to_absolute());
+            let path = from_absolute
+                .as_ref()
+                .unwrap_or(from_path)
+                .interpolate(to_absolute.as_ref().unwrap_or(to_path), delta)?;
+            Some(StyleValueData::BasicShape {
+                shape: OwnedBasicShapeData::new(BasicShapeData {
+                    kind: *from_kind,
+                    v0: empty(),
+                    v1: empty(),
+                    v2: empty(),
+                    v3: empty(),
+                    v4: empty(),
+                    fill_rule: *from_fill_rule,
+                    points: empty_shape_points(),
+                    path: crate::css::css_path::CssPath::new(path),
+                    commands: crate::css::style_value::ShapeCommands::default(),
+                }),
+            })
+        }
+        BASIC_SHAPE_SHAPE => interpolate_shape_commands(
+            property_id,
+            (*from_fill_rule, from_commands.as_slice(), from_points.as_slice()),
+            (*to_fill_rule, to_commands.as_slice(), to_points.as_slice()),
+            delta,
+        ),
         _ => None,
     }
+}
+
+/// https://drafts.csswg.org/css-shapes-1/#interpolating-shape
+/// Interpolates the commands of two shape() functions, or of a shape() and a path() function, into a shape().
+fn interpolate_shape_commands(
+    property_id: u16,
+    (from_fill_rule, from_commands, from_points): (u8, &[crate::css::style_value::ShapeCommand], &[RetainedShapePoint]),
+    (to_fill_rule, to_commands, to_points): (u8, &[crate::css::style_value::ShapeCommand], &[RetainedShapePoint]),
+    delta: f32,
+) -> Option<StyleValueData> {
+    let empty = empty_retained_style_value;
+    // https://drafts.csswg.org/css-shapes-1/#interpolating-shape
+    // For this purpose, commands are "the same" if they use the same command keyword, and use the same
+    // <by-to> keyword. For curve and smooth, they also must have the same number of control points.
+    if from_fill_rule != to_fill_rule
+        || from_commands.len() != to_commands.len()
+        || from_points.len() != to_points.len()
+    {
+        return None;
+    }
+    // If an arc command has different <arc-sweep> between its starting and ending list, then the
+    // interpolated result uses cw for any progress value between 0 and 1. If it has different <arc-size>
+    // keywords, then the interpolated result uses large for any progress value between 0 and 1.
+    let flag = |from: bool, to: bool| {
+        if from == to || delta <= 0.0 {
+            from
+        } else if delta >= 1.0 {
+            to
+        } else {
+            true
+        }
+    };
+    let mut commands = Vec::with_capacity(from_commands.len());
+    for (from, to) in from_commands.iter().zip(to_commands) {
+        if from.kind != to.kind
+            || from.relative != to.relative
+            || from.control_point_count != to.control_point_count
+            || from.control_points != to.control_points
+        {
+            return None;
+        }
+        let mut command = *from;
+        command.arc_has_one_radius = from.arc_has_one_radius && to.arc_has_one_radius;
+        command.arc_clockwise = flag(from.arc_clockwise, to.arc_clockwise);
+        command.arc_large = flag(from.arc_large, to.arc_large);
+        command.arc_has_rotation = from.arc_has_rotation || to.arc_has_rotation;
+        commands.push(command);
+    }
+    let mut points = Vec::with_capacity(from_points.len());
+    for (from, to) in from_points.iter().zip(to_points) {
+        let [from_x, from_y] = from.values();
+        let [to_x, to_y] = to.values();
+        let interpolate = |from: &RetainedStyleValueData, to: &RetainedStyleValueData| match (
+            from.optional_data(),
+            to.optional_data(),
+        ) {
+            (None, None) => Some(empty()),
+            (Some(from), Some(to)) => interpolate_scalar_value(property_id, from, to, delta, &[]).into_value(),
+            _ => None,
+        };
+        points.push(RetainedShapePoint::from_retained_values(
+            interpolate(from_x, to_x)?,
+            interpolate(from_y, to_y)?,
+        ));
+    }
+    Some(StyleValueData::BasicShape {
+        shape: OwnedBasicShapeData::new(BasicShapeData {
+            kind: BASIC_SHAPE_SHAPE,
+            v0: empty(),
+            v1: empty(),
+            v2: empty(),
+            v3: empty(),
+            v4: empty(),
+            fill_rule: from_fill_rule,
+            points: RetainedShapePointList::from_retained_points(points),
+            path: crate::css::css_path::CssPath::none(),
+            commands: crate::css::style_value::ShapeCommands::new(commands),
+        }),
+    })
 }
 
 fn composite_retained_value(
@@ -2822,6 +2981,218 @@ fn composite_basic_shape(
         }
         _ => None,
     }
+}
+
+/// An offset-path value split into its path and its <coord-box>, which defaults to border-box.
+fn split_offset_path(value: &StyleValueData) -> Option<(Option<&StyleValueData>, u16)> {
+    use crate::css::css_enums::keyword;
+    match value {
+        StyleValueData::Keyword { keyword: keyword::NONE } => None,
+        StyleValueData::Keyword { keyword } => Some((None, *keyword)),
+        StyleValueData::ValueList { values, .. } => match values.as_slice() {
+            [path, box_value] => match box_value.data() {
+                StyleValueData::Keyword { keyword } => Some((Some(path.data()), *keyword)),
+                _ => None,
+            },
+            _ => None,
+        },
+        path => Some((Some(path), keyword::BORDER_BOX)),
+    }
+}
+
+fn join_offset_path(path: StyleValueData, coord_box: u16) -> StyleValueData {
+    if coord_box == crate::css::css_enums::keyword::BORDER_BOX {
+        return path;
+    }
+    StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(vec![
+            RetainedStyleValueData::from_arc(Arc::new(path)),
+            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword { keyword: coord_box })),
+        ]),
+        separator: 0,
+        collapsible: false,
+    }
+}
+
+/// https://drafts.csswg.org/motion-1/#offset-path-property
+/// Animation type: by computed value
+fn interpolate_offset_path(
+    property_id: u16,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> Option<StyleValueData> {
+    let (Some((Some(from_path), from_box)), Some((Some(to_path), to_box))) =
+        (split_offset_path(from), split_offset_path(to))
+    else {
+        return None;
+    };
+    // NB: Paths against different reference boxes do not interpolate, like basic shapes with different reference boxes.
+    if from_box != to_box {
+        return None;
+    }
+    let path = match (from_path, to_path) {
+        (StyleValueData::Ray { .. }, StyleValueData::Ray { .. }) => {
+            interpolate_ray(property_id, from_path, to_path, delta)?
+        }
+        (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
+            interpolate_basic_shape(property_id, from_path, to_path, delta)?
+        }
+        _ => return None,
+    };
+    Some(join_offset_path(path, from_box))
+}
+
+/// https://drafts.csswg.org/motion-1/#ray-function
+/// NB: Rays interpolate their angles and positions when they have the same size and containment.
+fn interpolate_ray(property_id: u16, from: &StyleValueData, to: &StyleValueData, delta: f32) -> Option<StyleValueData> {
+    let (
+        StyleValueData::Ray {
+            size: from_size,
+            contain: from_contain,
+            angle: from_angle,
+            position: from_position,
+        },
+        StyleValueData::Ray {
+            size: to_size,
+            contain: to_contain,
+            angle: to_angle,
+            position: to_position,
+        },
+    ) = (from, to)
+    else {
+        return None;
+    };
+    if from_size != to_size || from_contain != to_contain {
+        return None;
+    }
+    let angle = interpolate_scalar_value(property_id, from_angle.data(), to_angle.data(), delta, &[]).into_value()?;
+    let position = match (from_position.optional_data(), to_position.optional_data()) {
+        (None, None) => empty_retained_style_value(),
+        (Some(from_position), Some(to_position)) => {
+            interpolate_scalar_value(property_id, from_position, to_position, delta, &[]).into_value()?
+        }
+        _ => return None,
+    };
+    Some(StyleValueData::Ray {
+        size: *from_size,
+        contain: *from_contain,
+        angle,
+        position,
+    })
+}
+
+fn composite_offset_path(
+    underlying: &StyleValueData,
+    animated: &StyleValueData,
+    operation: FfiCompositeOperation,
+) -> Option<StyleValueData> {
+    let (Some((Some(underlying_path), underlying_box)), Some((Some(animated_path), animated_box))) =
+        (split_offset_path(underlying), split_offset_path(animated))
+    else {
+        return None;
+    };
+    if underlying_box != animated_box {
+        return None;
+    }
+    let path = match (underlying_path, animated_path) {
+        (
+            StyleValueData::Ray {
+                size: underlying_size,
+                contain: underlying_contain,
+                angle: underlying_angle,
+                position: underlying_position,
+            },
+            StyleValueData::Ray {
+                size,
+                contain,
+                angle,
+                position,
+            },
+        ) => {
+            if underlying_size != size || underlying_contain != contain {
+                return None;
+            }
+            let position = match (underlying_position.optional_data(), position.optional_data()) {
+                (None, None) => empty_retained_style_value(),
+                (Some(_), Some(_)) => composite_retained_value(underlying_position, position, operation)?,
+                _ => return None,
+            };
+            StyleValueData::Ray {
+                size: *size,
+                contain: *contain,
+                angle: composite_retained_value(underlying_angle, angle, operation)?,
+                position,
+            }
+        }
+        (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
+            composite_basic_shape(underlying_path, animated_path, operation)?
+        }
+        _ => return None,
+    };
+    Some(join_offset_path(path, animated_box))
+}
+
+/// An offset-rotate value as whether it has auto, and its angle in degrees.
+fn split_offset_rotate(value: &StyleValueData) -> Option<(bool, f64)> {
+    use crate::css::css_enums::keyword;
+    match value {
+        StyleValueData::Keyword { keyword: keyword::AUTO } => Some((true, 0.0)),
+        StyleValueData::Angle { value, unit } => Some((false, angle_to_degrees(*value, *unit)?)),
+        StyleValueData::ValueList { values, .. } => match values.as_slice() {
+            [first, angle] if matches!(first.data(), StyleValueData::Keyword { keyword: keyword::AUTO }) => {
+                let StyleValueData::Angle { value, unit } = angle.data() else {
+                    return None;
+                };
+                Some((true, angle_to_degrees(*value, *unit)?))
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn join_offset_rotate(auto: bool, degrees: f64) -> StyleValueData {
+    let angle = StyleValueData::Angle {
+        value: degrees,
+        unit: 0,
+    };
+    if !auto {
+        return angle;
+    }
+    StyleValueData::ValueList {
+        values: RetainedStyleValueDataList::from_retained_values(vec![
+            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
+                keyword: crate::css::css_enums::keyword::AUTO,
+            })),
+            RetainedStyleValueData::from_arc(Arc::new(angle)),
+        ]),
+        separator: 0,
+        collapsible: false,
+    }
+}
+
+/// https://drafts.csswg.org/motion-1/#offset-rotate-property
+/// Animation type: by computed value
+/// NB: Values interpolate their angles when both or neither have auto.
+fn interpolate_offset_rotate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> Option<StyleValueData> {
+    let ((from_auto, from_degrees), (to_auto, to_degrees)) = (split_offset_rotate(from)?, split_offset_rotate(to)?);
+    if from_auto != to_auto {
+        return None;
+    }
+    Some(join_offset_rotate(
+        from_auto,
+        interpolate_f64(from_degrees, to_degrees, delta, None),
+    ))
+}
+
+fn composite_offset_rotate(underlying: &StyleValueData, animated: &StyleValueData) -> Option<StyleValueData> {
+    let ((underlying_auto, underlying_degrees), (animated_auto, animated_degrees)) =
+        (split_offset_rotate(underlying)?, split_offset_rotate(animated)?);
+    if underlying_auto != animated_auto {
+        return None;
+    }
+    Some(join_offset_rotate(animated_auto, underlying_degrees + animated_degrees))
 }
 
 fn is_individual_transform_property(property: u16) -> bool {
@@ -3729,7 +4100,10 @@ fn interpolate_scalar_value(
             (StyleValueData::Percentage { value }, StyleValueData::Length { .. }) => *value * (1.0 - delta as f64),
             _ => unreachable!(),
         };
-        return owned(StyleValueData::Percentage { value: percentage });
+        let range = accepted_range(property_id, VALUE_TYPE_PERCENTAGE, range_overrides);
+        return owned(StyleValueData::Percentage {
+            value: clamp_to_range(percentage, range),
+        });
     }
 
     if (matches!(from, StyleValueData::Calculated { .. })
@@ -6660,6 +7034,17 @@ pub(crate) fn interpolate_value(
             return result;
         }
     }
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::css::property_metadata::property_id::OFFSET_PATH
+    {
+        return interpolate_offset_path(property_id, from, to, delta)
+            .map_or_else(|| discrete_value(context, from, to, delta), owned);
+    }
+    if animation_type == ANIMATION_TYPE_CUSTOM
+        && property_id == crate::css::property_metadata::property_id::OFFSET_ROTATE
+    {
+        return interpolate_offset_rotate(from, to, delta)
+            .map_or_else(|| discrete_value(context, from, to, delta), owned);
+    }
     if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::css::property_metadata::property_id::SCALE {
         let result = interpolate_scale(from, to, delta);
         if result.handled {
@@ -6777,6 +7162,12 @@ fn composite_batch_value<'a>(
             | crate::css::property_metadata::property_id::BACKDROP_FILTER
     ) {
         composite_filter_list(context, underlying, animated, operation)
+    } else if matches!(operation, FfiCompositeOperation::Replace) {
+        handled_without_value()
+    } else if property_id == crate::css::property_metadata::property_id::OFFSET_PATH {
+        composite_offset_path(underlying, animated, operation).map_or_else(handled_without_value, owned)
+    } else if property_id == crate::css::property_metadata::property_id::OFFSET_ROTATE {
+        composite_offset_rotate(underlying, animated).map_or_else(handled_without_value, owned)
     } else {
         composite_scalar_value(underlying, animated, operation)
     };

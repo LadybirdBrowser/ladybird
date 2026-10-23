@@ -40,6 +40,10 @@ impl CssPath {
         unsafe { &*(self.raw as *const PathData) }
     }
 
+    pub(crate) fn parsed(&self) -> Option<&crate::svg::ParsedPath> {
+        (self.raw != 0).then(|| &self.data().parsed)
+    }
+
     pub(crate) fn units(&self) -> &[u16] {
         if self.raw == 0 {
             return &[];
