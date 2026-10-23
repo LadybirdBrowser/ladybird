@@ -444,6 +444,9 @@ pub const FLAG_CANNOT_TRAP: u8 = 0x80;
 /// `Node::flags` bit of `GlobalGet` for globals no code can change.
 pub const FLAG_IMMUTABLE: u8 = 0x40;
 
+/// `Node::flags` bit of `CalleeInstance` for a header that is never null, like an imported function's.
+pub const FLAG_NOT_NULL: u8 = 0x40;
+
 /// `Node::flags` bits of `CheckedAddress`, besides log2 of the access size in the low bits: an atomic access, which
 /// must be aligned, and an access of a memory64, whose index and offset may add up past 2^64.
 pub const CHECKED_ATOMIC: u8 = 0x08;
@@ -733,8 +736,10 @@ ops! {
 
     // Calls.
     /// args: callee FunctionHeader, the calling instance. The callee's instance: its function header's, or for a host
-    /// function, which has none, the caller's, through which its stub finds the runtime.
-    CalleeInstance: Fixed(2), Pure, "callee_instance";
+    /// function, which has none, the caller's, through which its stub finds the runtime; flags: FLAG_NOT_NULL. Pure
+    /// only with FLAG_NOT_NULL: a function reference may be null anywhere the null check that guards its call does
+    /// not dominate, and a pure node could be hoisted above that check and fault instead of trapping.
+    CalleeInstance: Fixed(2), Read, "callee_instance";
     /// args: function reference, the type identity it must have; flags: the TRAP_* code for null. Traps unless the
     /// reference is not null and of that type or a subtype.
     CheckFunction: Fixed(2), Write, "check_function";
@@ -817,6 +822,7 @@ impl Node {
     pub fn effect(&self) -> Effect {
         match self.op {
             Op::GlobalGet if self.flags & FLAG_IMMUTABLE != 0 => Effect::Pure,
+            Op::CalleeInstance if self.flags & FLAG_NOT_NULL != 0 => Effect::Pure,
             Op::DivS | Op::DivU | Op::RemS | Op::RemU | Op::TruncS | Op::TruncU
                 if self.flags & FLAG_CANNOT_TRAP != 0 =>
             {
