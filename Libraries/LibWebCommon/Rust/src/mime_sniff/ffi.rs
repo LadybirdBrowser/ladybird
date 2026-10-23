@@ -65,7 +65,7 @@ pub struct FfiMimeType<'a> {
     pub parameters: Span<'a, FfiMimeTypeParameter<'a>>,
 }
 
-type OnMimeType = unsafe extern "C" fn(ctx: *mut c_void, mime_type: *const FfiMimeType<'_>);
+pub(crate) type OnMimeType = unsafe extern "C" fn(ctx: *mut c_void, mime_type: *const FfiMimeType<'_>);
 type OnString = unsafe extern "C" fn(ctx: *mut c_void, string: Span<'_, u8>);
 
 #[repr(u8)]
@@ -109,7 +109,7 @@ impl FfiMimeType<'_> {
 /// # Safety
 ///
 /// `on_mime_type` must be safe to call with `ctx`.
-unsafe fn lend_mime_type(mime_type: &MimeType, ctx: *mut c_void, on_mime_type: OnMimeType) {
+pub(crate) unsafe fn lend_mime_type(mime_type: &MimeType, ctx: *mut c_void, on_mime_type: OnMimeType) {
     let parameters: Vec<_> = mime_type
         .parameters()
         .map(|(name, value)| FfiMimeTypeParameter {

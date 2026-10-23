@@ -10,7 +10,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <LibURL/Forward.h>
-#include <LibWeb/Export.h>
+#include <LibWebCommon/Export.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -21,6 +21,6 @@ struct DataURL {
     ByteBuffer body;
 };
 
-WEB_API ErrorOr<DataURL> process_data_url(URL::URL const&);
+WEBCOMMON_API ErrorOr<DataURL> process_data_url(URL::URL const&);
 
 }

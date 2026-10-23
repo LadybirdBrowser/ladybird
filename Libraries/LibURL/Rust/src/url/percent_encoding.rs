@@ -137,7 +137,7 @@ pub(super) fn percent_decode_input(input: super::UrlInput<'_>) -> Vec<u8> {
 }
 
 // https://url.spec.whatwg.org/#percent-decode
-pub(super) fn percent_decode_bytes(input: &[u8]) -> Vec<u8> {
+pub fn percent_decode_bytes(input: &[u8]) -> Vec<u8> {
     // 1. Let output be an empty byte sequence.
     let mut output = Vec::with_capacity(input.len());
 

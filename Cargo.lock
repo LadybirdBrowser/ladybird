@@ -919,6 +919,7 @@ dependencies = [
  "ak",
  "cbindgen",
  "ladybird_allocator",
+ "liburl_rust",
  "rustc-demangle",
 ]
 

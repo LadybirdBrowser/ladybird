@@ -5,6 +5,7 @@ set(SOURCES
     CSS/PreferredColorScheme.cpp
     CSS/StyleSheetIdentifier.cpp
     CSS/SystemColor.cpp
+    Fetch/Infrastructure/DataURL.cpp
     Fetch/Infrastructure/HTTP/Statuses.cpp
     Fetch/Infrastructure/URL.cpp
     FileAPI/BlobURLStore.cpp
@@ -150,8 +151,9 @@ target_link_libraries(LibWebCommon PRIVATE LibCore LibCrypto LibFileSystem LibGf
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebcommon_rust FEATURES allocator FFI_HEADER RustFFI.h)
 target_link_libraries(LibWebCommon PRIVATE libwebcommon_rust)
+target_link_libraries(libwebcommon_rust INTERFACE LibUnicode LibRegex)
 get_target_property(_libwebcommon_rust_lib libwebcommon_rust IMPORTED_LOCATION)
-set_property(SOURCE MimeSniff/MimeType.cpp MimeSniff/Resource.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libwebcommon_rust_lib})
+set_property(SOURCE Fetch/Infrastructure/DataURL.cpp MimeSniff/MimeType.cpp MimeSniff/Resource.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libwebcommon_rust_lib})
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebcommon_rust)
 
 if (ENABLE_INSTALL_HEADERS)
