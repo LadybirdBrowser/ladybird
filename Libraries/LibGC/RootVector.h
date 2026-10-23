@@ -64,6 +64,14 @@ public:
     {
     }
 
+    // The element type is named through VectorBase so that class template argument deduction never picks this
+    // constructor, which would deduce a RootVector of Vectors from GC::RootVector { move(vector) }.
+    RootVector(std::initializer_list<typename VectorBase::ValueType> list)
+        : RootVectorBase()
+        , VectorBase(list)
+    {
+    }
+
     RootVector(RootVector const& other)
         : RootVectorBase(*other.m_heap)
         , Vector<T, inline_capacity>(other)
