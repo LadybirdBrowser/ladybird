@@ -337,6 +337,16 @@ void ProcessManagerWindow::update_style()
         "QHeaderView::section { background: %1; color: %2; border: none; border-bottom: 1px solid %3;"
         " padding: 5px 8px; }")
             .arg(surface, foreground, border));
+    m_browser_icon = load_icon_from_uri("resource://icons/48x48/app-browser.png"sv);
+    m_web_content_icon = create_chrome_icon(ChromeIcon::Globe, palette());
+    auto muted_palette = palette();
+    auto muted_color = ChromeStyle::chrome_muted_text(palette());
+    muted_palette.setColor(QPalette::Text, muted_color);
+    muted_palette.setColor(QPalette::WindowText, muted_color);
+    muted_palette.setColor(QPalette::ButtonText, muted_color);
+    m_service_icon = create_chrome_icon(ChromeIcon::WindowRestore, muted_palette);
+    m_spare_icon = create_chrome_icon(ChromeIcon::WindowMaximize, muted_palette);
+
     m_is_updating_style = false;
 }
 
@@ -381,15 +391,6 @@ void ProcessManagerWindow::refresh()
     double total_cpu = 0;
     u64 total_memory = 0;
     QLocale locale;
-    auto browser_icon = load_icon_from_uri("resource://icons/48x48/app-browser.png"sv);
-    auto web_content_icon = create_chrome_icon(ChromeIcon::Globe, palette());
-    auto muted_palette = palette();
-    auto muted_color = ChromeStyle::chrome_muted_text(palette());
-    muted_palette.setColor(QPalette::Text, muted_color);
-    muted_palette.setColor(QPalette::WindowText, muted_color);
-    muted_palette.setColor(QPalette::ButtonText, muted_color);
-    auto service_icon = create_chrome_icon(ChromeIcon::WindowRestore, muted_palette);
-    auto spare_icon = create_chrome_icon(ChromeIcon::WindowMaximize, muted_palette);
 
     HashMap<u64, WebView::ProcessSnapshot const*> processes_by_child_id;
     for (auto const& process : processes)
@@ -414,17 +415,17 @@ void ProcessManagerWindow::refresh()
                 name += QStringLiteral(" — ") + qstring_from_utf16_string(*label_process->title);
             }
             if (process.type == WebView::ProcessType::WebContent)
-                item->update_page_icon(page.has_value() && page->url != URL::about_blank() ? &*page : nullptr, is_spare ? spare_icon : web_content_icon);
+                item->update_page_icon(page.has_value() && page->url != URL::about_blank() ? &*page : nullptr, is_spare ? m_spare_icon : m_web_content_icon);
             else
-                item->setIcon(Name, service_icon);
+                item->setIcon(Name, m_service_icon);
         } else {
             if (process.title.has_value())
                 name += QStringLiteral(" — ") + qstring_from_utf16_string(*process.title);
             if (process.type == WebView::ProcessType::Browser) {
                 browser_item = item;
-                item->setIcon(Name, browser_icon);
+                item->setIcon(Name, m_browser_icon);
             } else {
-                item->setIcon(Name, service_icon);
+                item->setIcon(Name, m_service_icon);
             }
         }
         item->setText(Name, name);

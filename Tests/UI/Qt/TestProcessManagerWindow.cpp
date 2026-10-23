@@ -34,6 +34,7 @@
 TEST_CASE(palette_changes_do_not_reenter_style_updates)
 {
     Core::EventLoop event_loop;
+    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(TEST_RESOURCE_ROOT ""sv))));
     WebView::ProcessManager manager;
     Ladybird::ProcessManagerWindow window(manager);
     window.ensurePolished();
@@ -57,6 +58,7 @@ TEST_CASE(palette_changes_do_not_reenter_style_updates)
 TEST_CASE(search_keeps_matching_child_processes_visible)
 {
     Core::EventLoop event_loop;
+    Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_utf8(TEST_RESOURCE_ROOT ""sv))));
     WebView::ProcessManager manager;
     Ladybird::ProcessManagerWindow window(manager);
     auto* processes = window.findChild<QTreeWidget*>();
