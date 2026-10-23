@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 95 tests
 
-89 Pass
-6 Fail
+92 Pass
+3 Fail
 Pass	Can set 'r' to CSS-wide keywords: initial
 Pass	Can set 'r' to CSS-wide keywords: inherit
 Pass	Can set 'r' to CSS-wide keywords: unset
@@ -12,7 +12,7 @@ Pass	Can set 'r' to var() references:  var(--A)
 Pass	Can set 'r' to a percent: 0%
 Fail	Can set 'r' to a percent: -3.14%
 Pass	Can set 'r' to a percent: 3.14%
-Fail	Can set 'r' to a percent: calc(0% + 0%)
+Pass	Can set 'r' to a percent: calc(0% + 0%)
 Pass	Can set 'r' to a length: 0px
 Pass	Can set 'r' to a length: -3.14em
 Pass	Can set 'r' to a length: 3.14cm
@@ -44,7 +44,7 @@ Pass	Can set 'rx' to the 'auto' keyword: auto
 Pass	Can set 'rx' to a percent: 0%
 Fail	Can set 'rx' to a percent: -3.14%
 Pass	Can set 'rx' to a percent: 3.14%
-Fail	Can set 'rx' to a percent: calc(0% + 0%)
+Pass	Can set 'rx' to a percent: calc(0% + 0%)
 Pass	Can set 'rx' to a length: 0px
 Pass	Can set 'rx' to a length: -3.14em
 Pass	Can set 'rx' to a length: 3.14cm
@@ -76,7 +76,7 @@ Pass	Can set 'ry' to the 'auto' keyword: auto
 Pass	Can set 'ry' to a percent: 0%
 Fail	Can set 'ry' to a percent: -3.14%
 Pass	Can set 'ry' to a percent: 3.14%
-Fail	Can set 'ry' to a percent: calc(0% + 0%)
+Pass	Can set 'ry' to a percent: calc(0% + 0%)
 Pass	Can set 'ry' to a length: 0px
 Pass	Can set 'ry' to a length: -3.14em
 Pass	Can set 'ry' to a length: 3.14cm

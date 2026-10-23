@@ -311,6 +311,27 @@ static GC::Ptr<CSSNumericValue> reify_rust_calculation(StyleValueFFI::StyleValue
             VERIFY(children[index] < reified_nodes.size());
             return reified_nodes[children[index]];
         };
+
+        // NB: The reified objects get the types that their constructors would give them, computed from their
+        //     reified children. The internal calculation's type may differ, for example by carrying a percent hint
+        //     from the property that it belongs to.
+        auto combined_type_of_children = [&](auto combine) {
+            Optional<NumericType> type;
+            for (auto index : children) {
+                VERIFY(index < reified_nodes.size());
+                auto const& child_type = reified_nodes[index]->type();
+                type = type.has_value() ? combine(*type, child_type) : child_type;
+                if (!type.has_value())
+                    return numeric_type;
+            }
+            return type.value_or(numeric_type);
+        };
+        auto added_types_of_children = [&]() {
+            return combined_type_of_children([](NumericType const& a, NumericType const& b) { return a.added_to(b); });
+        };
+        auto multiplied_types_of_children = [&]() {
+            return combined_type_of_children([](NumericType const& a, NumericType const& b) { return a.multiplied_by(b); });
+        };
         auto reify_children = [&]() {
             GC::RootVector<GC::Ref<CSSNumericValue>> result;
             result.ensure_capacity(children.size());
@@ -353,28 +374,28 @@ static GC::Ptr<CSSNumericValue> reify_rust_calculation(StyleValueFFI::StyleValue
             }
             break;
         case 2:
-            reified_nodes.append(CSSMathSum::create(move(numeric_type), reify_children()));
+            reified_nodes.append(CSSMathSum::create(added_types_of_children(), reify_children()));
             break;
         case 3:
-            reified_nodes.append(CSSMathProduct::create(move(numeric_type), reify_children()));
+            reified_nodes.append(CSSMathProduct::create(multiplied_types_of_children(), reify_children()));
             break;
         case 4:
             VERIFY(children.size() == 1);
-            reified_nodes.append(CSSMathNegate::create(move(numeric_type), child(0)));
+            reified_nodes.append(CSSMathNegate::create(child(0)->type(), child(0)));
             break;
         case 5:
             VERIFY(children.size() == 1);
-            reified_nodes.append(CSSMathInvert::create(move(numeric_type), child(0)));
+            reified_nodes.append(CSSMathInvert::create(child(0)->type().inverted(), child(0)));
             break;
         case 6:
-            reified_nodes.append(CSSMathMin::create(move(numeric_type), reify_children()));
+            reified_nodes.append(CSSMathMin::create(added_types_of_children(), reify_children()));
             break;
         case 7:
-            reified_nodes.append(CSSMathMax::create(move(numeric_type), reify_children()));
+            reified_nodes.append(CSSMathMax::create(added_types_of_children(), reify_children()));
             break;
         case 8:
             VERIFY(children.size() == 3);
-            reified_nodes.append(CSSMathClamp::create(move(numeric_type), child(0), child(1), child(2)));
+            reified_nodes.append(CSSMathClamp::create(added_types_of_children(), child(0), child(1), child(2)));
             break;
         default:
             VERIFY_NOT_REACHED();

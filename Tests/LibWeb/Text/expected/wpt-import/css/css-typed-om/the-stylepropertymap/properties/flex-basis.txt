@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 36 tests
 
-33 Pass
-3 Fail
+34 Pass
+2 Fail
 Pass	Can set 'flex-basis' to CSS-wide keywords: initial
 Pass	Can set 'flex-basis' to CSS-wide keywords: inherit
 Pass	Can set 'flex-basis' to CSS-wide keywords: unset
@@ -21,7 +21,7 @@ Pass	Can set 'flex-basis' to a length: calc(0px + 0em)
 Pass	Can set 'flex-basis' to a percent: 0%
 Fail	Can set 'flex-basis' to a percent: -3.14%
 Pass	Can set 'flex-basis' to a percent: 3.14%
-Fail	Can set 'flex-basis' to a percent: calc(0% + 0%)
+Pass	Can set 'flex-basis' to a percent: calc(0% + 0%)
 Pass	Setting 'flex-basis' to a time: 0s throws TypeError
 Pass	Setting 'flex-basis' to a time: -3.14ms throws TypeError
 Pass	Setting 'flex-basis' to a time: 3.14s throws TypeError

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 41 tests
 
-39 Pass
-2 Fail
+41 Pass
 Pass	Can set 'font-size' to CSS-wide keywords: initial
 Pass	Can set 'font-size' to CSS-wide keywords: inherit
 Pass	Can set 'font-size' to CSS-wide keywords: unset
@@ -24,9 +23,9 @@ Pass	Can set 'font-size' to a length: -3.14em
 Pass	Can set 'font-size' to a length: 3.14cm
 Pass	Can set 'font-size' to a length: calc(0px + 0em)
 Pass	Can set 'font-size' to a percent: 0%
-Fail	Can set 'font-size' to a percent: -3.14%
+Pass	Can set 'font-size' to a percent: -3.14%
 Pass	Can set 'font-size' to a percent: 3.14%
-Fail	Can set 'font-size' to a percent: calc(0% + 0%)
+Pass	Can set 'font-size' to a percent: calc(0% + 0%)
 Pass	Setting 'font-size' to a time: 0s throws TypeError
 Pass	Setting 'font-size' to a time: -3.14ms throws TypeError
 Pass	Setting 'font-size' to a time: 3.14s throws TypeError

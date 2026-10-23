@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 62 tests
 
-60 Pass
-2 Fail
+62 Pass
 Pass	Can set 'cx' to CSS-wide keywords: initial
 Pass	Can set 'cx' to CSS-wide keywords: inherit
 Pass	Can set 'cx' to CSS-wide keywords: unset
@@ -12,7 +11,7 @@ Pass	Can set 'cx' to var() references:  var(--A)
 Pass	Can set 'cx' to a percent: 0%
 Pass	Can set 'cx' to a percent: -3.14%
 Pass	Can set 'cx' to a percent: 3.14%
-Fail	Can set 'cx' to a percent: calc(0% + 0%)
+Pass	Can set 'cx' to a percent: calc(0% + 0%)
 Pass	Can set 'cx' to a length: 0px
 Pass	Can set 'cx' to a length: -3.14em
 Pass	Can set 'cx' to a length: 3.14cm
@@ -43,7 +42,7 @@ Pass	Can set 'cy' to var() references:  var(--A)
 Pass	Can set 'cy' to a percent: 0%
 Pass	Can set 'cy' to a percent: -3.14%
 Pass	Can set 'cy' to a percent: 3.14%
-Fail	Can set 'cy' to a percent: calc(0% + 0%)
+Pass	Can set 'cy' to a percent: calc(0% + 0%)
 Pass	Can set 'cy' to a length: 0px
 Pass	Can set 'cy' to a length: -3.14em
 Pass	Can set 'cy' to a length: 3.14cm
