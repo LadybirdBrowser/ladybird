@@ -175,6 +175,9 @@ public:
     GC::Ptr<UndoStep> next_undo_step();
     GC::Ptr<UndoStep> next_redo_step();
 
+    // Forgets the undo and redo steps of an editing host, e.g. when a script sets the value of a text control.
+    void forget_steps_for(DOM::Node& editing_host);
+
     // Called whenever the document selection changes; ends typing coalescence unless the change
     // came from an editing command or from history application itself.
     void selection_changed();

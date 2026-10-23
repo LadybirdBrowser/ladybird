@@ -19,7 +19,7 @@ interface HTMLTextAreaElement : HTMLElement {
 
     readonly attribute DOMString type;
     [CEReactions] attribute DOMString defaultValue;
-    [LegacyNullToEmptyString] attribute DOMString value;
+    [LegacyNullToEmptyString, ImplementedAs=value_binding] attribute DOMString value;
     readonly attribute unsigned long textLength;
 
     readonly attribute boolean willValidate;

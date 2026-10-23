@@ -85,6 +85,8 @@ public:
     Utf16String value() const;
     virtual Utf16String form_value() const override { return value(); }
     void set_value(Utf16View);
+    Utf16String value_binding() const { return value(); }
+    void set_value_binding(Utf16View);
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
     Utf16String api_value() const;

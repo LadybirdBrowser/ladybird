@@ -39,6 +39,7 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Dates.h>
@@ -740,6 +741,14 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_relevant_value(Utf16View value)
 
     update_placeholder_visibility();
     return {};
+}
+
+WebIDL::ExceptionOr<void> HTMLInputElement::set_value_binding(Utf16View value)
+{
+    // INTEROP: Browsers forget the undo history of a text control when a script sets its value.
+    if (auto history = document().editing_history_if_exists())
+        history->forget_steps_for(*this);
+    return set_value(value);
 }
 
 WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
