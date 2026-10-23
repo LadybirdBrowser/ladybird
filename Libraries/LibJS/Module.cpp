@@ -54,10 +54,8 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> Module::evaluate(VM& vm)
     return completion_from_abi<GC::Ref<PromiseCapability>>(js_module_evaluate(vm_to_abi(vm), module_to_abi(*this)));
 }
 
-ResolvedBinding Module::resolve_export(VM& vm, Utf16FlyString const& export_name, Vector<ResolvedBinding> resolve_set)
+ResolvedBinding Module::resolve_export(VM& vm, Utf16FlyString const& export_name)
 {
-    VERIFY(resolve_set.is_empty());
-
     Utf16FlyString binding_name;
     JSResolvedBinding abi_binding {
         .module = nullptr,
