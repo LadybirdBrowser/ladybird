@@ -866,6 +866,12 @@ impl<'pass> MathFormattingContext<'pass> {
                 self.accents(root),
             ),
             (MathLayoutKind::Mspace, _) => self.layout_space(&root_style),
+            (MathLayoutKind::Mpadded, _) => {
+                // The <mpadded> element generates an anonymous <mrow> box called the mpadded inner box.
+                let add_space = self.core_operator(root).is_none();
+                let inner = self.layout_row_with_operator_spacing(&children, kind, add_space);
+                self.layout_padded(inner, &root_style)
+            }
             (MathLayoutKind::Mmultiscripts, _) if self.is_valid_multiscripts(&children) => {
                 layout_multiscripts(&children, self.prescripts_separator_index(&children), &constants)
             }
@@ -993,6 +999,52 @@ impl<'pass> MathFormattingContext<'pass> {
             attributes.accentunder == math_boolean::TRUE,
             attributes.accent == math_boolean::TRUE,
         )
+    }
+
+    // https://w3c.github.io/mathml-core/#adjust-space-around-content-mpadded
+    fn layout_padded(&self, inner: MathContent, style: &StyleValues<'_>) -> MathContent {
+        let attributes = self.run.callbacks.arena().math_attribute_facts(self.run.box_);
+        let resolve = |length: FfiMathLength| {
+            (!length.is_percentage())
+                .then(|| length.resolve(style, CssPixels::default()))
+                .flatten()
+        };
+        // If the height attribute is absent, invalid or a percentage then the requested height is the inner
+        // line-ascent. Otherwise the requested height is the resolved value of the height attribute, clamping negative
+        // values to 0.
+        let requested_height =
+            resolve(attributes.height).map_or(inner.ascent, |height| height.max(CssPixels::default()));
+        // If the depth attribute is absent, invalid or a percentage then the requested depth is the inner line-ascent.
+        // Otherwise the requested depth is the resolved value of the depth attribute, clamping negative values to 0.
+        // AD-HOC: The inner line-descent is used as the default requested depth, as the depth of the inner box is what
+        //         it stands for. The inner line-ascent would give the content the depth of its height.
+        let requested_depth = resolve(attributes.depth).map_or(inner.descent, |depth| depth.max(CssPixels::default()));
+        // If the lspace attribute is absent, invalid or a percentage then the requested lspace is 0. Otherwise the
+        // requested lspace is the resolved value of the lspace attribute, clamping negative values to 0.
+        let requested_lspace =
+            resolve(attributes.lspace).map_or(CssPixels::default(), |lspace| lspace.max(CssPixels::default()));
+        // If the voffset attribute is absent, invalid or a percentage then the requested voffset is 0. Otherwise the
+        // requested voffset is the resolved value of the voffset attribute.
+        let requested_voffset = resolve(attributes.voffset).unwrap_or_default();
+        // The inline size of the math content is the requested width.
+        // NB: The width attribute is a presentational hint for the width property, which sizes the content box. The
+        //     math content itself is as wide as the inner box.
+        // The line-ascent of the math content is the requested height. The line-descent of the math content is the
+        // requested depth. The mpadded inner box is placed so that its alphabetic baseline is shifted away from the
+        // alphabetic baseline by the requested voffset towards the line-over.
+        MathContent {
+            inline_size: inner.inline_size,
+            ascent: requested_height,
+            descent: requested_depth,
+            positions: inner
+                .positions
+                .into_iter()
+                .map(|position| ChildPosition {
+                    line_left_offset: position.line_left_offset + requested_lspace,
+                    baseline_shift: position.baseline_shift - requested_voffset,
+                })
+                .collect(),
+        }
     }
 
     // https://w3c.github.io/mathml-core/#space-mspace

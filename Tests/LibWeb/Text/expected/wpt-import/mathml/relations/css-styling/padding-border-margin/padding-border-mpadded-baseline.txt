@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	Empty mpadded with padding-top and border-top
-Fail	Empty mpadded with padding and border on all sides
-Fail	Non-empty mpadded with padding-top and border-top
+3 Pass
+Pass	Empty mpadded with padding-top and border-top
+Pass	Empty mpadded with padding and border on all sides
+Pass	Non-empty mpadded with padding-top and border-top

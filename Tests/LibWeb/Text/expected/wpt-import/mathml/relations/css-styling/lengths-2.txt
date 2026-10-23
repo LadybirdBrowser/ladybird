@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-5 Pass
-1 Fail
+6 Pass
 Pass	Units
 Pass	Trimming of space
 Pass	Non-negative numbers
-Fail	Non-positive numbers
+Pass	Non-positive numbers
 Pass	Legacy namedspaces
 Pass	Legacy numbers
