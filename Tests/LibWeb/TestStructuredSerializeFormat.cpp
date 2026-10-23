@@ -622,9 +622,9 @@ static Web::WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> receive_image_bitmap(JS
     return Web::Bindings::create_transferred_platform_object(Web::HTML::TransferType::ImageBitmap, realm, decoder);
 }
 
-static Vector<JS::Value> deserialize_transfer_data_holders(JS::Realm& realm, Web::HTML::SerializedTransferRecord& record)
+static GC::RootVector<JS::Value> deserialize_transfer_data_holders(JS::Realm& realm, Web::HTML::SerializedTransferRecord& record)
 {
-    Vector<JS::Value> values;
+    GC::RootVector<JS::Value> values;
     for (auto& holder : record.transfer_data_holders) {
         Web::HTML::TransferDataDecoder decoder { move(holder) };
         decoder.set_shared_buffers(record.shared_buffers);
