@@ -631,16 +631,12 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files, Multi
         auto contents = selected_file.take_contents();
 
         auto mime_type = MimeSniff::Resource::sniff(contents);
-        auto blob = FileAPI::Blob::create(move(contents), mime_type.essence());
 
         // FIXME: The FileAPI should use ByteString for file names.
         auto file_name = selected_file.name();
 
         // FIXME: Fill in other fields (e.g. last_modified).
-        FileAPI::FilePropertyBag options {};
-        options.type = Utf16String::from_ascii_without_validation(mime_type.essence().bytes());
-
-        auto file = MUST(FileAPI::File::create({ { blob } }, file_name, move(options)));
+        auto file = FileAPI::File::create(contents, file_name, Utf16String::from_ascii_without_validation(mime_type.essence().bytes()));
         files->add_file(file);
     }
 

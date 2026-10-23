@@ -20,14 +20,25 @@ use super::url_search_params::{URLSearchParams, parse_query};
 use crate::bindings::conversions::{CppInterface, UsvString};
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::file_api::blob::AnyBlob;
 
 unsafe extern "C" {
-    /// Adds an entry to the blob URL store for the Blob or MediaSource that the wrapper wraps, and returns the URL as
-    /// a raw AK::Utf16String that the caller owns.
-    fn web_url_create_object_url(object: *mut c_void) -> usize;
+    /// Adds an entry to the blob URL store for the Blob or File whose cell the call borrows, and returns the URL as a
+    /// raw AK::Utf16String that the caller owns.
+    fn web_url_create_object_url_for_blob(blob: *mut c_void) -> usize;
+
+    /// Adds an entry to the blob URL store for the MediaSource that the wrapper wraps, and returns the URL as a raw
+    /// AK::Utf16String that the caller owns.
+    fn web_url_create_object_url_for_media_source(media_source: *mut c_void) -> usize;
 
     /// Runs the revokeObjectURL(url) steps for the URL, a raw AK::Utf16String that the call borrows.
     fn web_url_revoke_object_url(url: usize);
+}
+
+/// The union (Blob or MediaSource) of DOMURL/URL.idl, whose members the bindings convert.
+pub(crate) enum BlobOrMediaSource {
+    Blob(AnyBlob),
+    MediaSource(CppInterface),
 }
 
 #[derive(Trace)]
@@ -129,11 +140,18 @@ impl URL {
     }
 
     // https://w3c.github.io/FileAPI/#dfn-createObjectURL
-    pub(crate) fn create_object_url(_: &mut CallContext, obj: CppInterface) -> WebIdlResult<Utf16String> {
+    pub(crate) fn create_object_url(_: &mut CallContext, obj: BlobOrMediaSource) -> WebIdlResult<Utf16String> {
         // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for
         // obj.
-        // SAFETY: The wrapper is live, and LibWeb returns a string that the caller owns.
-        Ok(unsafe { Utf16String::from_raw_owned(web_url_create_object_url(obj.wrapper().as_ptr().cast())) })
+        // SAFETY: The object is live, and LibWeb returns a string that the caller owns.
+        Ok(unsafe {
+            Utf16String::from_raw_owned(match obj {
+                BlobOrMediaSource::Blob(blob) => web_url_create_object_url_for_blob(blob.cell_into_abi()),
+                BlobOrMediaSource::MediaSource(media_source) => {
+                    web_url_create_object_url_for_media_source(media_source.wrapper().as_ptr().cast())
+                }
+            })
+        })
     }
 
     // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL

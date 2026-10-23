@@ -9,6 +9,7 @@
 
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/FileAPI/File.h>

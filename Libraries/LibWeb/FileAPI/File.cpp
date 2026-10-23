@@ -4,129 +4,34 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Time.h>
-#include <LibGC/Heap.h>
-#include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/Realm.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/FileAPI/File.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWebCommon/Infra/Strings.h>
-#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::FileAPI {
 
-GC_DEFINE_ALLOCATOR(File);
+extern "C" {
 
-File::File(ByteBuffer byte_buffer, Utf16String file_name, Utf16String type, i64 last_modified)
-    : Blob(move(byte_buffer), move(type))
-    , m_name(move(file_name))
-    , m_last_modified(last_modified)
-{
+// Defined in Bindings/Rust/src/file_api/exports.rs.
+void* web_file_create(JSVM*, ReadonlyBytes, FlatPtr file_name, FlatPtr type, bool has_last_modified, i64 last_modified);
+FlatPtr web_file_name(void* file);
+i64 web_file_last_modified(void* file);
 }
 
-File::File()
-    : Blob(ByteBuffer {})
+GC::Ref<File> File::create(ReadonlyBytes bytes, Utf16String file_name, Utf16String type, Optional<i64> last_modified)
 {
+    auto* file = web_file_create(JS::HostABI::vm_to_abi(JS::VM::the()), bytes, move(file_name).into_raw(), move(type).into_raw(), last_modified.has_value(), last_modified.value_or(0));
+    return GC::Ref { *static_cast<File*>(file) };
 }
 
-File::~File() = default;
-
-GC::Ref<File> File::create()
+Utf16String File::name() const
 {
-    return GC::Heap::the().allocate<File>();
+    return Utf16String::from_raw(web_file_name(const_cast<File*>(this)));
 }
 
-// https://w3c.github.io/FileAPI/#ref-for-dom-file-file
-ErrorOr<GC::Ref<File>> File::create(BlobParts const& file_bits, Utf16String const& file_name, Optional<FilePropertyBag> const& options)
+i64 File::last_modified() const
 {
-    // 1. Let bytes be the result of processing blob parts given fileBits and options.
-    Optional<BlobPropertyBag> blob_options;
-    if (options.has_value()) {
-        blob_options = BlobPropertyBag {
-            .endings = options->endings,
-            .type = options->type,
-        };
-    }
-    auto bytes = TRY(process_blob_parts(file_bits, blob_options));
-
-    // 2. Let n be the fileName argument to the constructor.
-    //    NOTE: Underlying OS filesystems use differing conventions for file name; with constructed files, mandating UTF-16 lessens ambiquity when file names are converted to byte sequences.
-    auto name = file_name;
-
-    auto type = Utf16String {};
-    i64 last_modified = 0;
-    // 3. Process FilePropertyBag dictionary argument by running the following substeps:
-    if (options.has_value()) {
-        // FIXME: 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
-        //    If t contains any characters outside the range U+0020 to U+007E, then set t to the empty string and return from these substeps.
-        // FIXME: 2. Convert every character in t to ASCII lowercase.
-
-        // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
-        if (is_basic_latin(options->type.utf16_view())) {
-            auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type.utf16_view());
-
-            if (maybe_parsed_type.has_value())
-                type = maybe_parsed_type->serialized_as_utf16();
-        }
-
-        // 3. If the lastModified member is provided, let d be set to the lastModified dictionary member. If it is not provided, set d to the current date and time represented as the number of milliseconds since the Unix Epoch (which is the equivalent of Date.now() [ECMA-262]).
-        //    Note: Since ECMA-262 Date objects convert to long long values representing the number of milliseconds since the Unix Epoch, the lastModified member could be a Date object [ECMA-262].
-        last_modified = options->last_modified.has_value() ? options->last_modified.value() : UnixDateTime::now().milliseconds_since_epoch();
-    }
-
-    // 4. Return a new File object F such that:
-    //    2. F refers to the bytes byte sequence.
-    //       NOTE: Spec started at 2 therefore keeping the same number sequence here.
-    //    3. F.size is set to the number of total bytes in bytes.
-    //    4. F.name is set to n.
-    //    5. F.type is set to t.
-    //    6. F.lastModified is set to d.
-    return GC::Heap::the().allocate<File>(move(bytes), move(name), move(type), last_modified);
-}
-
-WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(BlobParts const& file_bits, Utf16String const& file_name, Optional<FilePropertyBag> const& options)
-{
-    return TRY_OR_THROW_OOM(JS::VM::the(), create(file_bits, file_name, options));
-}
-
-WebIDL::ExceptionOr<void> File::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
-{
-    // FIXME: 1. Set serialized.[[SnapshotState]] to value’s snapshot state.
-
-    // NON-STANDARD: FileAPI spec doesn't specify that type should be serialized, although
-    //               to be conformant with other browsers this needs to be serialized.
-    serialized.encode(m_type);
-
-    // 2. Set serialized.[[ByteSequence]] to value’s underlying byte sequence.
-    serialized.encode(raw_bytes());
-
-    // 3. Set serialized.[[Name]] to the value of value’s name attribute.
-    serialized.encode(m_name);
-
-    // 4. Set serialized.[[LastModified]] to the value of value’s lastModified attribute.
-    serialized.encode(m_last_modified);
-
-    return {};
-}
-
-WebIDL::ExceptionOr<void> File::deserialization_steps(JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
-{
-    // FIXME: 1. Set value’s snapshot state to serialized.[[SnapshotState]].
-
-    // NON-STANDARD: FileAPI spec doesn't specify that type should be deserialized, although
-    //               to be conformant with other browsers this needs to be deserialized.
-    m_type = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
-
-    // 2. Set value’s underlying byte sequence to serialized.[[ByteSequence]].
-    m_byte_sequence = TRY(HTML::decode_or_throw_data_clone_error<ByteBuffer>(realm, serialized));
-
-    // 3. Initialize the value of value’s name attribute to serialized.[[Name]].
-    m_name = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
-
-    // 4. Initialize the value of value’s lastModified attribute to serialized.[[LastModified]].
-    m_last_modified = TRY(HTML::decode_or_throw_data_clone_error<i64>(realm, serialized));
-
-    return {};
+    return web_file_last_modified(const_cast<File*>(this));
 }
 
 }

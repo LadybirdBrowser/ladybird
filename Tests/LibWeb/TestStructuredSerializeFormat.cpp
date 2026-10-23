@@ -962,7 +962,7 @@ TEST_CASE(file_api_serializables_encode_to_frozen_bytes)
         expect_storage_encoding(blob, serializable_storage_record("Blob"sv, 1, body));
     }
 
-    auto file = MUST(Web::FileAPI::File::create({ { "data"_utf16 } }, "f.txt"_utf16));
+    auto file = Web::FileAPI::File::create("data"sv.bytes(), "f.txt"_utf16, {});
     {
         Vector<u8> body;
         append_storage_string(body, ""sv); // default type

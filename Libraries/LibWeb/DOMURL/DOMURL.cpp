@@ -22,22 +22,27 @@ namespace Web::DOMURL {
 
 // Called by Bindings/Rust/src/domurl/url.rs.
 extern "C" {
-FlatPtr web_url_create_object_url(JSObject* object);
+FlatPtr web_url_create_object_url_for_blob(FileAPI::Blob* blob);
+FlatPtr web_url_create_object_url_for_media_source(JSObject* object);
 void web_url_revoke_object_url(FlatPtr raw_url);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-createObjectURL
-extern "C" FlatPtr web_url_create_object_url(JSObject* object)
+static FlatPtr create_object_url(FileAPI::BlobURLEntry::Object obj)
+{
+    // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for obj.
+    return MUST(FileAPI::add_entry_to_blob_url_store(obj)).into_raw();
+}
+
+extern "C" FlatPtr web_url_create_object_url_for_blob(FileAPI::Blob* blob)
+{
+    return create_object_url(GC::Ref { *blob });
+}
+
+extern "C" FlatPtr web_url_create_object_url_for_media_source(JSObject* object)
 {
     auto* wrappable = Bindings::wrappable_impl_from(JS::HostABI::object_from_abi(object));
-    FileAPI::BlobURLEntry::Object blob_url_entry_object = [&] -> FileAPI::BlobURLEntry::Object {
-        if (auto* blob = as_if<FileAPI::Blob>(wrappable))
-            return GC::Ref { *blob };
-        return GC::Ref { as<MediaSourceExtensions::MediaSource>(*wrappable) };
-    }();
-
-    // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for obj.
-    return MUST(FileAPI::add_entry_to_blob_url_store(blob_url_entry_object)).into_raw();
+    return create_object_url(GC::Ref { as<MediaSourceExtensions::MediaSource>(*wrappable) });
 }
 
 // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL

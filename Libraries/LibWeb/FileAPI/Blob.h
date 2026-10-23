@@ -6,77 +6,49 @@
 
 #pragma once
 
-#include <AK/NonnullRefPtr.h>
+#include <AK/ByteBuffer.h>
 #include <AK/Utf16String.h>
-#include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibWeb/Bindings/Blob.h>
-#include <LibWeb/Bindings/Serializable.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/Buffers.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::FileAPI {
 
-using BlobPart = FlattenVariant<WebIDL::BufferSourceVariant, Variant<GC::Ref<Blob>, Utf16String>>;
-using BlobParts = GC::ConservativeVector<BlobPart>;
-using BlobPartsOrByteBuffer = Variant<BlobParts, ByteBuffer>;
-using EndingType = Bindings::EndingType;
-using BlobPropertyBag = Bindings::BlobPropertyBag;
-
-[[nodiscard]] ErrorOr<Utf16String> convert_line_endings_to_native(Utf16View string);
-[[nodiscard]] ErrorOr<ByteBuffer> process_blob_parts(BlobParts const& blob_parts, Optional<BlobPropertyBag> const& options = {});
-[[nodiscard]] bool is_basic_latin(Utf16View view);
-
-class WEB_API Blob
-    : public Bindings::GCAllocatedWrappable
-    , public Bindings::Serializable {
-    WEB_WRAPPABLE(Blob, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(Blob);
+// https://w3c.github.io/FileAPI/#blob-section
+// The C++ side of a Blob, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src/file_api): what C++ creates
+// and reads. A Blob that C++ holds can be a File.
+class WEB_API Blob : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(Blob, blob)
 
 public:
-    virtual ~Blob() override;
-
     [[nodiscard]] static GC::Ref<Blob> create(ByteBuffer, Utf16String type);
-    [[nodiscard]] static GC::Ref<Blob> create(ByteBuffer bytes, String type) { return create(move(bytes), Utf16String::from_utf8(type)); }
+    [[nodiscard]] static GC::Ref<Blob> create(ByteBuffer bytes, String const& type) { return create(move(bytes), Utf16String::from_utf8(type)); }
     [[nodiscard]] static GC::Ref<Blob> create(Core::AnonymousBuffer, Utf16String type);
-    [[nodiscard]] static GC::Ref<Blob> create(Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer = {}, Optional<BlobPropertyBag> const& options = {});
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Blob>> construct_impl(Optional<BlobParts> const& blob_parts, Optional<BlobPropertyBag> const& options);
 
     // https://w3c.github.io/FileAPI/#dfn-size
     u64 size() const { return raw_bytes().size(); }
     // https://w3c.github.io/FileAPI/#dfn-type
-    Utf16String const& type() const { return m_type; }
+    Utf16String type() const;
 
-    WebIDL::ExceptionOr<GC::Ref<Blob>> slice(Optional<i64> start = {}, Optional<i64> end = {}, Optional<Utf16String> const& content_type = {});
-    ErrorOr<GC::Ref<Blob>> slice_blob(Optional<i64> start = {}, Optional<i64> end = {}, Optional<Utf16String> const& content_type = {});
-
-    GC::Ref<Streams::ReadableStream> stream(JS::Object const& relevant_global_object);
-    GC::Ref<WebIDL::Promise> text(JS::Object const& relevant_global_object);
-    GC::Ref<WebIDL::Promise> array_buffer(JS::Object const& relevant_global_object);
-    GC::Ref<WebIDL::Promise> bytes(JS::Object const& relevant_global_object);
     ReadonlyBytes raw_bytes() const LIFETIME_BOUND;
     ErrorOr<Core::AnonymousBuffer> shared_bytes();
 
-    GC::Ref<Streams::ReadableStream> get_stream(JS::Realm&);
+    // https://w3c.github.io/FileAPI/#slice-blob
+    GC::Ref<Blob> slice_blob(Optional<i64> start, Optional<i64> end, Optional<Utf16String> content_type) const;
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
+    GC::Ref<Streams::ReadableStream> get_stream(JS::Realm&) const;
 
-protected:
-    Blob(ByteBuffer, Utf16String type);
-    Blob(Core::AnonymousBuffer, Utf16String type);
-    Blob(ByteBuffer);
-
-    // https://w3c.github.io/FileAPI/#dfn-byte-sequence
-    // NB: The bytes move to shared memory the first time they are shared, and stay there.
-    Variant<ByteBuffer, Core::AnonymousBuffer> m_byte_sequence { ByteBuffer {} };
-    Utf16String m_type {};
+    template<typename T>
+    bool fast_is() const
+    requires(IsSame<T, File>)
+    {
+        return is_file();
+    }
 
 private:
-    Blob();
+    bool is_file() const;
 };
 
 }

@@ -430,10 +430,7 @@ MultipartParsingErrorOr<GC::ConservativeVector<XHR::FormDataEntry>> parse_multip
 
             // 3. Let value be a new File object with name filename, type contentType, and body body.
             auto content_type = header.content_type.release_value();
-            auto blob = FileAPI::Blob::create(MUST(ByteBuffer::copy(body.bytes())), content_type);
-            FileAPI::FilePropertyBag options {};
-            options.type = Utf16String::from_utf8(content_type);
-            value = MUST(FileAPI::File::create({ { blob } }, header.filename.release_value(), move(options)));
+            value = FileAPI::File::create(body.bytes(), Utf16String::from_utf8(header.filename.release_value()), Utf16String::from_utf8(content_type));
         }
         // 11. Otherwise:
         else {
