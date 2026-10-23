@@ -42,6 +42,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(image, "image")                             \
     __ENUMERATE_SVG_TAG(line, "line")                               \
     __ENUMERATE_SVG_TAG(linearGradient, "linearGradient")           \
+    __ENUMERATE_SVG_TAG(marker, "marker")                           \
     __ENUMERATE_SVG_TAG(mask, "mask")                               \
     __ENUMERATE_SVG_TAG(metadata, "metadata")                       \
     __ENUMERATE_SVG_TAG(mpath, "mpath")                             \

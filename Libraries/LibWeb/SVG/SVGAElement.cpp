@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Invalidation/LinkInvalidator.h>
 #include <LibWeb/DOM/DOMTokenList.h>
+#include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGAElement.h>
 
@@ -48,6 +49,28 @@ i32 SVGAElement::default_tab_index_value() const
 {
     // See the base function for the spec comments.
     return 0;
+}
+
+// https://svgwg.org/svg2-draft/interact.html#Focus
+bool SVGAElement::is_focusable() const
+{
+    // In addition, all ‘a’ elements that are valid links are focusable, and their tabindex focus flag must be set
+    // unless the user agent normally provides an alternative method of keyboard traversal of links.
+    auto forms_link = [](DOM::Element const& element) {
+        if (element.is_svg_a_element())
+            return element.has_attribute(SVG::AttributeNames::href) || element.has_attribute_ns(Namespace::XLink, SVG::AttributeNames::href);
+        return (element.is_html_anchor_element() || element.is_html_area_element()) && element.has_attribute(HTML::AttributeNames::href);
+    };
+
+    // https://svgwg.org/svg2-draft/linking.html#AElement
+    // Links may not be nested; if an ‘a’ element is a descendent of another hyperlink element (whether in the SVG
+    // namespace or another namespace), user agents must ignore its href attribute and treat it as inactive.
+    auto is_valid_link = forms_link(*this);
+    for (auto ancestor = parent_element(); is_valid_link && ancestor; ancestor = ancestor->parent_element()) {
+        if (forms_link(*ancestor))
+            is_valid_link = false;
+    }
+    return Base::is_focusable() || (is_valid_link && !is_in_never_rendered_subtree() && meets_focusable_area_rendering_requirements());
 }
 
 // https://svgwg.org/svg2-draft/linking.html#__svg__SVGAElement__target

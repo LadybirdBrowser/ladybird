@@ -35,6 +35,11 @@ public:
 
     virtual CSS::ElementBoxKind box_kind() const override;
 
+    // ^EventTarget
+    virtual bool is_focusable() const override;
+
+    bool is_in_never_rendered_subtree() const;
+
     GC::Ref<SVGAnimatedString> class_name();
     GC::Ptr<SVGSVGElement> owner_svg_element();
     GC::Ptr<SVGSVGElement> outermost_svg_element();

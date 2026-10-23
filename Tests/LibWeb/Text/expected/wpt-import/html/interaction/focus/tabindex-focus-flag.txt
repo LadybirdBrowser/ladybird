@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 35 tests
 
-34 Pass
-1 Fail
+35 Pass
 Pass	a should not be focusable by default.
 Pass	a[href] should be focusable by default.
 Pass	button should be focusable by default.
@@ -34,7 +33,7 @@ Pass	IMG with tabindex=-1 should be focusable.
 Pass	A with tabindex=invalid should not be focusable.
 Pass	A#with-href with tabindex=invalid should be focusable.
 Pass	a with tabindex=invalid should not be focusable.
-Fail	a#with-href with tabindex=invalid should be focusable.
+Pass	a#with-href with tabindex=invalid should be focusable.
 Pass	text with tabindex=invalid should not be focusable.
 Pass	DIV with tabindex=invalid should not be focusable.
 Pass	SUMMARY#summary-out-tabindex-invalid with tabindex=invalid should not be focusable.

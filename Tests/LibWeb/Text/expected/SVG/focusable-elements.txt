@@ -1,0 +1,7 @@
+outer: true
+inner: false
+inner-html: false
+alone: true
+in-defs: false
+rect-in-defs: false
+filter: false
