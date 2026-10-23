@@ -1889,7 +1889,7 @@ GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> ne
     }
 
     // 3. Let popoverPositions be an empty ordered map.
-    OrderedHashMap<GC::Ref<HTMLElement>, int> popover_positions;
+    GC::OrderedRootHashMap<GC::Ref<HTMLElement>, int> popover_positions;
 
     // 4. Let index be 0.
     int index = 0;
