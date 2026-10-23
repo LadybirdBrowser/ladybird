@@ -11,6 +11,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/IDBDatabase.h>
 #include <LibWeb/Bindings/IDBTransaction.h>
 #include <LibWeb/DOM/Event.h>
@@ -46,7 +47,7 @@ public:
     static constexpr size_t connection_offset() { return offsetof(IDBTransaction, m_connection); }
     virtual ~IDBTransaction() override;
 
-    [[nodiscard]] static GC::Ref<IDBTransaction> create(GC::Ref<IDBDatabase>, TransactionMode, TransactionDurability, Vector<GC::Ref<ObjectStore>>);
+    [[nodiscard]] static GC::Ref<IDBTransaction> create(GC::Ref<IDBDatabase>, TransactionMode, TransactionDurability, GC::RootVector<GC::Ref<ObjectStore>>);
     [[nodiscard]] TransactionMode mode() const { return m_mode; }
     [[nodiscard]] TransactionState state() const { return m_state; }
     [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
