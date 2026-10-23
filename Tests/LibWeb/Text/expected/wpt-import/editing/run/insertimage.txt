@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 962 tests
 
-959 Pass
-3 Fail
+961 Pass
+1 Fail
 Pass	[["insertimage","/img/lion.svg"]] "foo[]bar": execCommand("insertimage", false, "/img/lion.svg") return value
 Pass	[["insertimage","/img/lion.svg"]] "foo[]bar" checks for modifications to non-editable content
 Pass	[["insertimage","/img/lion.svg"]] "foo[]bar" compare innerHTML
@@ -886,7 +886,7 @@ Pass	[["insertimage","/img/lion.svg"]] "<div><p>foo[</p></div>]bar" queryCommand
 Pass	[["defaultparagraphseparator","div"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>": execCommand("insertimage", false, "/img/lion.svg") return value
 Pass	[["defaultparagraphseparator","div"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" queryCommandIndeterm("defaultparagraphseparator") before
 Pass	[["defaultparagraphseparator","div"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" queryCommandState("defaultparagraphseparator") before
 Pass	[["defaultparagraphseparator","div"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" queryCommandValue("defaultparagraphseparator") before
@@ -902,7 +902,7 @@ Pass	[["defaultparagraphseparator","div"],["insertimage","/img/lion.svg"]] "foo[
 Pass	[["defaultparagraphseparator","p"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>": execCommand("defaultparagraphseparator", false, "p") return value
 Pass	[["defaultparagraphseparator","p"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>": execCommand("insertimage", false, "/img/lion.svg") return value
 Pass	[["defaultparagraphseparator","p"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","p"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" compare innerHTML
+Pass	[["defaultparagraphseparator","p"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" compare innerHTML
 Pass	[["defaultparagraphseparator","p"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" queryCommandIndeterm("defaultparagraphseparator") before
 Pass	[["defaultparagraphseparator","p"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" queryCommandState("defaultparagraphseparator") before
 Pass	[["defaultparagraphseparator","p"],["insertimage","/img/lion.svg"]] "foo[<div><p>]bar</p>baz</div>" queryCommandValue("defaultparagraphseparator") before
