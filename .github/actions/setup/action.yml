@@ -112,7 +112,6 @@ runs:
             nasm \
             ninja \
             pkg-config \
-            qt \
             unzip
 
     - name: 'Install Rust toolchain'

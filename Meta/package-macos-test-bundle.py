@@ -6,10 +6,10 @@
 
 """Pack an installed Ladybird.app into a tarball such that it's runnable on a machine other than the one which built it.
 
-Deploy the Qt frameworks and plugins the app uses into the bundle (with Qt's own macdeployqt); give every executable
-bundle-relative rpaths; drop absolute ones; copy in the libraries the bundle actually links (resolving each @rpath
-reference the way dyld does); re-sign the executables with the entitlements the build gave them; check that nothing
-still points outside the bundle; and tar the result.
+Copy the Qt platform plugin the app loads at run time into the bundle; give every executable bundle-relative rpaths;
+drop absolute ones; copy in the libraries the bundle actually links, Qt included (resolving each @rpath reference the
+way dyld does); re-sign the executables with the entitlements the build gave them; check that nothing still points
+outside the bundle; and tar the result.
 
 CI invokes this on the macOS Sanitizer build machine to produce a Ladybird with which we can run the macOS AX tests,
 but on a different machine — without needing to re-build Ladybird on that other machine.
@@ -69,8 +69,8 @@ def linked_libraries(binary: Path) -> list[str]:
         match = re.match(r"\s+(\S+) \(", line)
         if match:
             names.append(match.group(1))
-    # A dylib's own install name leads its list; a library never links itself. Compare the name itself: macdeployqt
-    # copies a library under its real file name but leaves its install name, which can carry a shorter version.
+    # A dylib's own install name leads its list; a library never links itself. Compare the install name itself, not the
+    # file name: a copied library keeps its install name, which can carry a shorter version than its file name.
     return [name for name in names if name != install_name(binary)]
 
 
@@ -145,49 +145,35 @@ def bundle_binaries(app: Path) -> list[Path]:
     return mach_o_files(contents / "MacOS", contents / "lib", contents / "Frameworks", contents / "PlugIns")
 
 
-def find_macdeployqt(explicit: Optional[Path]) -> Path:
-    """The macdeployqt to run: the one given, else the one on PATH, else the one in Homebrew's Qt."""
-    if explicit is not None:
-        if not explicit.is_file():
-            sys.exit(f"error: {explicit} isn't a file")
-        return explicit
-    if found := shutil.which("macdeployqt"):
-        return Path(found)
-    if brew := shutil.which("brew"):
-        prefix = subprocess.run([brew, "--prefix", "qt"], capture_output=True, text=True)
-        candidate = Path(prefix.stdout.strip()) / "bin" / "macdeployqt"
-        if prefix.returncode == 0 and candidate.is_file():
+def find_qt_plugins_directory(search_directories: Iterable[Path]) -> Path:
+    """The plugin directory of the Qt the app was built against.
+
+    vcpkg lays a Qt out as <prefix>/lib for the libraries and <prefix>/Qt6/plugins for the plugins, and the build's
+    absolute rpaths name the former."""
+    for directory in search_directories:
+        candidate = directory.parent / "Qt6" / "plugins"
+        if (candidate / "platforms" / "libqcocoa.dylib").is_file():
             return candidate
-    sys.exit("error: no macdeployqt found; pass --macdeployqt, or put Qt's bin directory on PATH")
+    sys.exit("error: no Qt plugin directory with a Cocoa platform plugin next to the build's library directories")
 
 
-def deploy_qt(app: Path, macdeployqt: Path) -> None:
-    """Copy the Qt frameworks the main executable links, and the Cocoa platform plugin it loads at run time, into the
-    bundle.
+def deploy_qt(app: Path, plugins_directory: Path) -> None:
+    """Copy the Cocoa platform plugin the main executable loads at run time into the bundle, and point Qt at it.
 
-    The main executable links Qt by the absolute install names of the Qt it was built against (Homebrew's, on CI), and
-    loads the Cocoa platform plugin from that Qt's plugin directory at startup — neither of which the machine that
-    unpacks the tarball has. macdeployqt copies the frameworks into Contents/Frameworks, rewrites every reference
-    among them to @rpath and @executable_path, and writes the qt.conf that points Qt at Contents/PlugIns. Left to
-    itself it would also copy every Qt plugin, and with them QtQuick, QtPdf, SDL, and a dozen more libraries none of
-    which the app loads; so it copies none, and this copies the one plugin Qt can't start without, then has macdeployqt
-    point that plugin at the copied frameworks too. macdeployqt would also strip the binaries, which the install
-    already did, and which would invalidate the signatures again; resign() re-signs everything it touched."""
-    run(str(macdeployqt), str(app), "-no-plugins", "-no-strip", "-verbose=1")
-
-    plugins_directory = Path(run(str(macdeployqt.parent / "qtpaths"), "--plugin-dir").strip())
+    The Qt libraries need no deploy step of their own: the executable links them through @rpath, so
+    copy_linked_libraries brings them in with everything else. The plugin is different, because nothing links it. Qt
+    loads it at startup from the plugin directory of the Qt it was built against, which the machine that unpacks the
+    tarball doesn't have. Qt can't start without it, and it needs none of the other plugins, so this copies that one
+    and writes the qt.conf that points Qt at Contents/PlugIns. The plugin's own links to the Qt libraries get resolved
+    by the passes that follow."""
     platform_plugin = plugins_directory / "platforms" / "libqcocoa.dylib"
-    if not platform_plugin.is_file():
-        sys.exit(f"error: no Cocoa platform plugin at {platform_plugin}")
     deployed_plugin = app / "Contents" / "PlugIns" / "platforms" / platform_plugin.name
     deployed_plugin.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(platform_plugin, deployed_plugin)
-    run(str(macdeployqt), str(app), "-no-plugins", "-no-strip", "-verbose=1", f"-executable={deployed_plugin}")
 
     qt_conf = app / "Contents" / "Resources" / "qt.conf"
-    if not qt_conf.is_file():
-        qt_conf.parent.mkdir(parents=True, exist_ok=True)
-        qt_conf.write_text("[Paths]\nPlugins = PlugIns\n")
+    qt_conf.parent.mkdir(parents=True, exist_ok=True)
+    qt_conf.write_text("[Paths]\nPlugins = PlugIns\n")
     rpath_entries.cache_clear()
 
 
@@ -243,10 +229,13 @@ def copy_linked_libraries(app: Path, search_directories: list[Path]) -> list[str
                 if source is None:
                     sys.exit(f"error: {binary.relative_to(app)} links {name}, and no search directory has it")
                 # Contents/lib is on every executable's rpath (fix_rpaths), so a copied library resolves from there.
-                # Dereference vcpkg's version symlinks: the bundle carries the file under the name that is linked.
                 library = library_directory / relative
                 library.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source.resolve(), library)
+                real_library = library.parent / source.resolve().name
+                if not real_library.exists():
+                    shutil.copy2(source.resolve(), real_library)
+                if library != real_library:
+                    library.symlink_to(real_library.name)
                 copied.append(relative)
             if library.resolve() not in seen and is_mach_o(library.resolve()):
                 seen.add(library.resolve())
@@ -255,8 +244,8 @@ def copy_linked_libraries(app: Path, search_directories: list[Path]) -> list[str
 
 
 def resign(app: Path, build_directory: Path) -> list[str]:
-    """Re-sign every library and plugin in the bundle ad hoc (install_name_tool and macdeployqt rewrote most of them,
-    which invalidated their signatures), then the helpers ad hoc with the entitlements the build gave them (see
+    """Re-sign every library and plugin in the bundle ad hoc (install_name_tool rewrote most of them, which invalidated
+    their signatures), then the helpers ad hoc with the entitlements the build gave them (see
     ladybird_helper_process), then the bundle as a whole, which signs the main executable with the entitlements it
     already has and reseals the bundle over everything copied in."""
     executables_directory = app / "Contents" / "MacOS"
@@ -310,9 +299,6 @@ def main() -> int:
         "--install-dir", required=True, type=Path, help="the prefix `cmake --install --strip` installed into"
     )
     parser.add_argument("--output", required=True, type=Path, help="the .tar.gz to write, holding Ladybird.app")
-    parser.add_argument(
-        "--macdeployqt", type=Path, help="the macdeployqt to deploy Qt with (default: PATH, then Homebrew's Qt)"
-    )
     args = parser.parse_args()
 
     app = args.install_dir / "bundle" / "Ladybird.app"
@@ -330,10 +316,10 @@ def main() -> int:
     if not search_directories:
         sys.exit(f"error: {built_app_binary} has no absolute rpath entries to search")
 
-    # Qt first, so that the passes below see its frameworks and plugins as part of the bundle. Then rpaths, so the
-    # libraries the install laid down in Contents/lib count as found and only the vcpkg ones get copied; then rpaths
-    # again for what was copied, since vcpkg's dylibs can carry absolute rpaths of their own.
-    deploy_qt(app, find_macdeployqt(args.macdeployqt))
+    # The Qt plugin first, so that the passes below see it as part of the bundle. Then rpaths, so the libraries the
+    # install laid down in Contents/lib count as found and only the vcpkg ones get copied; then rpaths again for what was
+    # copied, since vcpkg's dylibs can carry absolute rpaths of their own.
+    deploy_qt(app, find_qt_plugins_directory(search_directories))
     rewritten = fix_rpaths(app)
     copied = copy_linked_libraries(app, search_directories)
     rewritten += fix_rpaths(app)

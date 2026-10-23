@@ -15,6 +15,11 @@ if (DEFINED LADYBIRD_VCPKG_TYPE)
 
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
     set(VCPKG_INSTALL_OPTIONS "--no-print-usage" CACHE STRING "" FORCE)
+    if (CMAKE_HOST_APPLE)
+        # Installed files are hard links to their copies in packages/, and macOS can resolve @loader_path through either
+        # name. From packages/, host tools like Qt's moc can't find the libraries they link.
+        set(VCPKG_INSTALL_OPTIONS "${VCPKG_INSTALL_OPTIONS};--clean-packages-after-build" CACHE STRING "" FORCE)
+    endif()
     set(VCPKG_OVERLAY_TRIPLETS "$ENV{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/${LADYBIRD_VCPKG_TYPE}-triplets" CACHE STRING "" FORCE)
 
     set(ENV{VCPKG_BINARY_SOURCES} "clear;files,${LADYBIRD_CACHE_DIR}/vcpkg-binary-cache,readwrite;$ENV{VCPKG_BINARY_SOURCES}")
