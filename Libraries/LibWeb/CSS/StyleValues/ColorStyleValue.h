@@ -43,6 +43,7 @@ public:
         Rec2020,
         XYZD50,
         XYZD65,
+        Alpha, // This is used for alpha(from ...), whose result is in the color space of its origin color.
     };
     // AD-HOC: Every color variant payload starts with the same ColorBase prefix, so the base
     //         class reads it through one arm without knowing which color variant it has. The

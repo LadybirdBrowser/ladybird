@@ -2028,6 +2028,16 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
 
             // https://drafts.csswg.org/css-color-5/#serial-relative-color
             if let Some(origin) = origin_color.optional_data() {
+                if color_base.color_type == crate::css::color_conversion::ALPHA {
+                    sink.push_ascii("alpha(from ");
+                    serialize_style_value(sink, origin, mode);
+                    if let Some(alpha) = alpha.optional_data() {
+                        sink.push_ascii(" / ");
+                        serialize_style_value(sink, alpha, mode);
+                    }
+                    sink.push_ascii(")");
+                    return;
+                }
                 if descriptor.behavior == SerializationBehavior::ColorFunction {
                     sink.push_ascii("color(from ");
                     serialize_style_value(sink, origin, mode);

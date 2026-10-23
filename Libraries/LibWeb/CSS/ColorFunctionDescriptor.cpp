@@ -10,7 +10,7 @@ namespace Web::CSS {
 
 using ColorType = ColorStyleValue::ColorType;
 
-static constexpr size_t color_type_count = to_underlying(ColorType::XYZD65) + 1;
+static constexpr size_t color_type_count = to_underlying(ColorType::Alpha) + 1;
 
 namespace {
 
@@ -131,6 +131,13 @@ Array<ColorFunctionDescriptor, color_type_count> build_color_function_descriptor
     table[to_underlying(ColorType::XYZD65)] = {
         "xyz-d65"sv,
         SerializationBehavior::ColorFunction,
+        { ChannelDescriptor { ChannelKind::Number, 1.0f, {}, {} },
+            ChannelDescriptor { ChannelKind::Number, 1.0f, {}, {} },
+            ChannelDescriptor { ChannelKind::Number, 1.0f, {}, {} } },
+    };
+    table[to_underlying(ColorType::Alpha)] = {
+        "alpha"sv,
+        SerializationBehavior::ModernNamed,
         { ChannelDescriptor { ChannelKind::Number, 1.0f, {}, {} },
             ChannelDescriptor { ChannelKind::Number, 1.0f, {}, {} },
             ChannelDescriptor { ChannelKind::Number, 1.0f, {}, {} } },
