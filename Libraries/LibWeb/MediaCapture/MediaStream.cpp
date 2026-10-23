@@ -51,12 +51,7 @@ GC::Ref<MediaStream> MediaStream::create(ReadonlySpan<GC::Ref<MediaStreamTrack>>
 
 GC::Ref<MediaStream> MediaStream::create(GC::RootVector<GC::Ref<MediaStreamTrack>> const& tracks)
 {
-    Vector<GC::Ref<MediaStreamTrack>> track_refs;
-    track_refs.ensure_capacity(tracks.size());
-    for (auto const& track : tracks)
-        track_refs.unchecked_append(*track);
-
-    return create(track_refs);
+    return create(tracks.span());
 }
 
 void MediaStream::visit_edges(Cell::Visitor& visitor)
@@ -67,10 +62,10 @@ void MediaStream::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastream-getaudiotracks
-Vector<GC::Ref<MediaStreamTrack>> MediaStream::get_audio_tracks() const
+GC::RootVector<GC::Ref<MediaStreamTrack>> MediaStream::get_audio_tracks() const
 {
     // The getAudioTracks method MUST return a sequence that represents a snapshot of all the MediaStreamTrack objects in this stream's track set whose [[Kind]] is equal to "audio".
-    Vector<GC::Ref<MediaStreamTrack>> result;
+    GC::RootVector<GC::Ref<MediaStreamTrack>> result;
     for (auto const& track : m_tracks) {
         if (track->is_audio())
             result.append(track);
@@ -79,10 +74,10 @@ Vector<GC::Ref<MediaStreamTrack>> MediaStream::get_audio_tracks() const
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastream-getvideotracks
-Vector<GC::Ref<MediaStreamTrack>> MediaStream::get_video_tracks() const
+GC::RootVector<GC::Ref<MediaStreamTrack>> MediaStream::get_video_tracks() const
 {
     // The getVideoTracks method MUST return a sequence that represents a snapshot of all the MediaStreamTrack objects in this stream's track set whose [[Kind]] is equal to "video".
-    Vector<GC::Ref<MediaStreamTrack>> result;
+    GC::RootVector<GC::Ref<MediaStreamTrack>> result;
     for (auto const& track : m_tracks) {
         if (track->is_video())
             result.append(track);
@@ -91,10 +86,10 @@ Vector<GC::Ref<MediaStreamTrack>> MediaStream::get_video_tracks() const
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastream-gettracks
-Vector<GC::Ref<MediaStreamTrack>> MediaStream::get_tracks() const
+GC::RootVector<GC::Ref<MediaStreamTrack>> MediaStream::get_tracks() const
 {
     // The getTracks method MUST return a sequence that represents a snapshot of all the MediaStreamTrack objects in this stream's track set, regardless of [[Kind]].
-    return m_tracks;
+    return GC::RootVector { m_tracks.span() };
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediastream-gettrackbyid
