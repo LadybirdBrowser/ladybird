@@ -676,6 +676,9 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_socket
         CASE_SYSCALL_NAME(socket);
 #endif
+#ifdef __NR_socketpair
+        CASE_SYSCALL_NAME(socketpair);
+#endif
 #ifdef __NR_stat
         CASE_SYSCALL_NAME(stat);
 #endif
