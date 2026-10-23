@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1000 tests
 
-949 Pass
-51 Fail
+954 Pass
+46 Fail
 Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div class=a id=x><div class=b id=y>[]foo</div></div>" queryCommandIndeterm("insertparagraph") before
 Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div class=a id=x><div class=b id=y>[]foo</div></div>" queryCommandState("insertparagraph") before
 Pass	[["defaultparagraphseparator","p"],["insertparagraph",""]] "<div class=a id=x><div class=b id=y>[]foo</div></div>" queryCommandValue("insertparagraph") before
@@ -275,7 +275,7 @@ Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div>  []abc<
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1 contenteditable=false><span contenteditable>ab[]cd</span></h1>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1 contenteditable=false><span contenteditable>ab[]cd</span></h1>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1 contenteditable=false><span contenteditable>ab[]cd</span></h1>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1 contenteditable=false><span contenteditable>ab[]cd</span></h1>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1 contenteditable=false><span contenteditable>ab[]cd</span></h1>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1 contenteditable=false><span contenteditable>ab[]cd</span></h1>" queryCommandIndeterm("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1 contenteditable=false><span contenteditable>ab[]cd</span></h1>" queryCommandState("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1 contenteditable=false><span contenteditable>ab[]cd</span></h1>" queryCommandValue("insertparagraph") before
@@ -285,7 +285,7 @@ Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<h1 contented
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol contenteditable=false><li><span contenteditable>ab[]cd</span></li></ol>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol contenteditable=false><li><span contenteditable>ab[]cd</span></li></ol>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol contenteditable=false><li><span contenteditable>ab[]cd</span></li></ol>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol contenteditable=false><li><span contenteditable>ab[]cd</span></li></ol>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol contenteditable=false><li><span contenteditable>ab[]cd</span></li></ol>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol contenteditable=false><li><span contenteditable>ab[]cd</span></li></ol>" queryCommandIndeterm("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol contenteditable=false><li><span contenteditable>ab[]cd</span></li></ol>" queryCommandState("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol contenteditable=false><li><span contenteditable>ab[]cd</span></li></ol>" queryCommandValue("insertparagraph") before
@@ -295,7 +295,7 @@ Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<ol contented
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dt><span contenteditable>ab[]cd</span></dt></dl>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dt><span contenteditable>ab[]cd</span></dt></dl>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dt><span contenteditable>ab[]cd</span></dt></dl>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dt><span contenteditable>ab[]cd</span></dt></dl>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dt><span contenteditable>ab[]cd</span></dt></dl>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dt><span contenteditable>ab[]cd</span></dt></dl>" queryCommandIndeterm("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dt><span contenteditable>ab[]cd</span></dt></dl>" queryCommandState("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dt><span contenteditable>ab[]cd</span></dt></dl>" queryCommandValue("insertparagraph") before
@@ -305,7 +305,7 @@ Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contented
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dd><span contenteditable>ab[]cd</span></dd></dl>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dd><span contenteditable>ab[]cd</span></dd></dl>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dd><span contenteditable>ab[]cd</span></dd></dl>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dd><span contenteditable>ab[]cd</span></dd></dl>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dd><span contenteditable>ab[]cd</span></dd></dl>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dd><span contenteditable>ab[]cd</span></dd></dl>" queryCommandIndeterm("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dd><span contenteditable>ab[]cd</span></dd></dl>" queryCommandState("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contenteditable=false><dd><span contenteditable>ab[]cd</span></dd></dl>" queryCommandValue("insertparagraph") before
@@ -315,7 +315,7 @@ Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<dl contented
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div contenteditable=false><h1 contenteditable>ab[]cd</h1></div>": execCommand("defaultparagraphseparator", false, "div") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div contenteditable=false><h1 contenteditable>ab[]cd</h1></div>": execCommand("insertparagraph", false, "") return value
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div contenteditable=false><h1 contenteditable>ab[]cd</h1></div>" checks for modifications to non-editable content
-Fail	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div contenteditable=false><h1 contenteditable>ab[]cd</h1></div>" compare innerHTML
+Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div contenteditable=false><h1 contenteditable>ab[]cd</h1></div>" compare innerHTML
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div contenteditable=false><h1 contenteditable>ab[]cd</h1></div>" queryCommandIndeterm("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div contenteditable=false><h1 contenteditable>ab[]cd</h1></div>" queryCommandState("insertparagraph") before
 Pass	[["defaultparagraphseparator","div"],["insertparagraph",""]] "<div contenteditable=false><h1 contenteditable>ab[]cd</h1></div>" queryCommandValue("insertparagraph") before

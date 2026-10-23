@@ -1587,6 +1587,15 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
 
     // 11. If container is not editable or not in the same editing host as node or is not a single-line container:
     if (!container->is_editable() || !is_in_same_editing_host(*container, *node) || !is_single_line_container(*container)) {
+        // INTEROP: Browsers do not create a new paragraph in an editing host that is inline-level, or that cannot
+        //          contain the default single-line container, such as a span. They insert a line break instead.
+        if (auto editing_host = node->editing_host()) {
+            auto display = resolved_display(*editing_host);
+            if ((display.has_value() && display->is_inline_outside())
+                || !is_allowed_child_of_node(document.default_single_line_container_name(), GC::Ref { *editing_host }))
+                return command_insert_linebreak_action(document, {});
+        }
+
         // 1. Let tag be the default single-line container name.
         auto tag = document.default_single_line_container_name();
 
