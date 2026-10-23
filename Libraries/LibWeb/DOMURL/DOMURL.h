@@ -10,89 +10,9 @@
 #pragma once
 
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/FileAPI/BlobURLStore.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOMURL {
-
-class DOMURL : public Bindings::GCAllocatedWrappable {
-    // NOTE: This is 'URL' in the IDL, but we call it DOMURL to avoid name conflicts with LibURL.
-    WEB_WRAPPABLE(URL, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(DOMURL);
-
-public:
-    [[nodiscard]] static GC::Ref<DOMURL> create(URL::URL);
-    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> create_from_url(Utf16String const& url, Optional<Utf16String> const& base = {});
-
-    virtual ~DOMURL() override;
-
-    static WebIDL::ExceptionOr<Utf16String> create_object_url(FileAPI::BlobURLEntry::Object object);
-    static void revoke_object_url(Utf16String const& url);
-
-    static GC::Ptr<DOMURL> parse_for_bindings(Utf16String const& url, Optional<Utf16String> const& base = {});
-    static bool can_parse(Utf16String const& url, Optional<Utf16String> const& base = {});
-
-    Utf16String href() const;
-    WebIDL::ExceptionOr<void> set_href(Utf16String const&);
-
-    Utf16String origin() const;
-
-    Utf16String protocol() const;
-    void set_protocol(Utf16String const&);
-
-    Utf16String username() const;
-    void set_username(Utf16String const&);
-
-    Utf16String password() const;
-    void set_password(Utf16String const&);
-
-    Utf16String host() const;
-    void set_host(Utf16String const&);
-
-    Utf16String hostname() const;
-    void set_hostname(Utf16String const&);
-
-    Utf16String port() const;
-    void set_port(Utf16String const&);
-
-    Utf16String pathname() const;
-    void set_pathname(Utf16String const&);
-
-    Optional<StringView> fragment() const { return m_url.fragment(); }
-
-    ByteString path_segment_at_index(size_t index) const { return m_url.path_segment_at_index(index); }
-
-    bool has_an_opaque_path() const { return m_url.has_an_opaque_path(); }
-
-    Utf16String search() const;
-    void set_search(Utf16String const&);
-
-    GC::Ref<URLSearchParams const> search_params();
-
-    Utf16String hash() const;
-    void set_hash(Utf16String const&);
-
-    Utf16String to_json() const;
-
-    Optional<StringView> query() const { return m_url.query(); }
-    void set_query(Badge<URLSearchParams>, Optional<StringView> query) { m_url.set_query(query); }
-
-    virtual Optional<URL::Origin> extract_an_origin() const override;
-
-private:
-    explicit DOMURL(URL::URL);
-
-    static GC::Ref<DOMURL> initialize_a_url(URL::URL const&);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    URL::URL m_url;
-    // Most URL users never access searchParams, so avoid its parsing and allocation until needed.
-    GC::Ptr<URLSearchParams> m_query;
-};
 
 // https://url.spec.whatwg.org/#concept-url-parser
 WEB_API Optional<URL::URL> parse_from_byte_string(StringView input, Optional<URL::URL const&> base_url = {}, Optional<StringView> encoding = {});

@@ -7,107 +7,44 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/IPv4Address.h>
-#include <AK/IPv6Address.h>
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Infra/SerializedURL.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::DOMURL {
 
-GC_DEFINE_ALLOCATOR(DOMURL);
-
-GC::Ref<DOMURL> DOMURL::create(URL::URL url)
-{
-    return GC::Heap::the().allocate<DOMURL>(move(url));
-}
-
-// https://url.spec.whatwg.org/#api-url-parser
-static Optional<URL::URL> parse_api_url(Utf16View url, Optional<Utf16String> const& base)
-{
-    // 1. Let parsedBase be null.
-    Optional<URL::URL> parsed_base;
-
-    // 2. If base is non-null:
-    if (base.has_value()) {
-        // 1. Set parsedBase to the result of running the basic URL parser on base.
-        auto parsed_base_url = URL::Parser::basic_parse(base->utf16_view());
-
-        // 2. If parsedBase is failure, then return failure.
-        if (!parsed_base_url.has_value())
-            return {};
-
-        parsed_base = parsed_base_url;
-    }
-
-    // 3. Return the result of running the basic URL parser on url with parsedBase.
-    return URL::Parser::basic_parse(url, parsed_base);
-}
-
-// https://url.spec.whatwg.org/#url-initialize
-GC::Ref<DOMURL> DOMURL::initialize_a_url(URL::URL const& url_record)
-{
-    // OPTIMIZATION: Defer creating and initializing the query object until searchParams is accessed.
-    return DOMURL::create(url_record);
-}
-
-// https://url.spec.whatwg.org/#dom-url-parse
-GC::Ptr<DOMURL> DOMURL::parse_for_bindings(Utf16String const& url, Optional<Utf16String> const& base)
-{
-    // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
-    auto parsed_url = parse_api_url(url.utf16_view(), base);
-
-    // 2. If parsedURL is failure, then return null.
-    if (!parsed_url.has_value())
-        return nullptr;
-
-    // 3. Let url be a new URL object.
-    // 4. Initialize url with parsedURL.
-    // 5. Return url.
-    return initialize_a_url(parsed_url.value());
-}
-
-// https://url.spec.whatwg.org/#dom-url-url
-WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::create_from_url(Utf16String const& url, Optional<Utf16String> const& base)
-{
-    // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
-    auto parsed_url = parse_api_url(url.utf16_view(), base);
-
-    // 2. If parsedURL is failure, then throw a TypeError.
-    if (!parsed_url.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid URL"_utf16 };
-
-    // 3. Initialize this with parsedURL.
-    return initialize_a_url(parsed_url.value());
-}
-
-DOMURL::DOMURL(URL::URL url)
-    : m_url(move(url))
-{
-}
-
-DOMURL::~DOMURL() = default;
-
-void DOMURL::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_query);
+// Called by Bindings/Rust/src/domurl/url.rs.
+extern "C" {
+FlatPtr web_url_create_object_url(JSObject* object);
+void web_url_revoke_object_url(FlatPtr raw_url);
 }
 
 // https://w3c.github.io/FileAPI/#dfn-createObjectURL
-WebIDL::ExceptionOr<Utf16String> DOMURL::create_object_url(FileAPI::BlobURLEntry::Object object)
+extern "C" FlatPtr web_url_create_object_url(JSObject* object)
 {
+    auto* wrappable = Bindings::wrappable_impl_from(JS::HostABI::object_from_abi(object));
+    FileAPI::BlobURLEntry::Object blob_url_entry_object = [&] -> FileAPI::BlobURLEntry::Object {
+        if (auto* blob = as_if<FileAPI::Blob>(wrappable))
+            return GC::Ref { *blob };
+        return GC::Ref { as<MediaSourceExtensions::MediaSource>(*wrappable) };
+    }();
+
     // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for obj.
-    return TRY_OR_THROW_OOM(JS::VM::the(), FileAPI::add_entry_to_blob_url_store(object));
+    return MUST(FileAPI::add_entry_to_blob_url_store(blob_url_entry_object)).into_raw();
 }
 
 // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL
-void DOMURL::revoke_object_url(Utf16String const& url)
+extern "C" void web_url_revoke_object_url(FlatPtr raw_url)
 {
+    auto url = Utf16String::from_raw(raw_url);
+
     // 1. Let url record be the result of parsing url.
     auto url_record = parse(url.utf16_view());
 
@@ -141,304 +78,6 @@ void DOMURL::revoke_object_url(Utf16String const& url)
     // 7. Remove an entry from the Blob URL Store for url.
     // FIXME: Spec bug: https://github.com/w3c/FileAPI/issues/207, urlRecord should instead be passed through.
     FileAPI::remove_entry_from_blob_url_store(*url_record);
-}
-
-// https://url.spec.whatwg.org/#dom-url-canparse
-bool DOMURL::can_parse(Utf16String const& url, Optional<Utf16String> const& base)
-{
-    // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
-    auto parsed_url = parse_api_url(url.utf16_view(), base);
-
-    // 2. If parsedURL is failure, then return false.
-    if (!parsed_url.has_value())
-        return false;
-
-    // 3. Return true.
-    return true;
-}
-
-// https://url.spec.whatwg.org/#dom-url-href
-Utf16String DOMURL::href() const
-{
-    // The href getter steps and the toJSON() method steps are to return the serialization of this’s URL.
-    return utf16_string_from_url_ascii(m_url.serialize());
-}
-
-// https://url.spec.whatwg.org/#dom-url-tojson
-Utf16String DOMURL::to_json() const
-{
-    // The href getter steps and the toJSON() method steps are to return the serialization of this’s URL.
-    return utf16_string_from_url_ascii(m_url.serialize());
-}
-
-// https://url.spec.whatwg.org/#ref-for-dom-url-href②
-WebIDL::ExceptionOr<void> DOMURL::set_href(Utf16String const& value)
-{
-    // 1. Let parsedURL be the result of running the basic URL parser on the given value.
-    auto parsed_url = URL::Parser::basic_parse(value.utf16_view());
-
-    // 2. If parsedURL is failure, then throw a TypeError.
-    if (!parsed_url.has_value())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid URL"_utf16 };
-
-    // 3. Set this’s URL to parsedURL.
-    m_url = parsed_url.release_value();
-
-    if (m_query) {
-        // 4. Empty this’s query object’s list.
-        m_query->m_list.clear();
-
-        // 5. Let query be this’s URL’s query.
-        auto query = m_url.query();
-
-        // 6. If query is non-null, then set this’s query object’s list to the result of parsing query.
-        if (query.has_value())
-            m_query->m_list = url_decode(*query);
-    }
-    return {};
-}
-
-// https://url.spec.whatwg.org/#dom-url-origin
-Utf16String DOMURL::origin() const
-{
-    // The origin getter steps are to return the serialization of this’s URL’s origin. [HTML]
-    return utf16_string_from_url_ascii(m_url.origin().serialize());
-}
-
-// https://url.spec.whatwg.org/#dom-url-protocol
-Utf16String DOMURL::protocol() const
-{
-    // The protocol getter steps are to return this’s URL’s scheme, followed by U+003A (:).
-    return Utf16String::formatted("{}:", m_url.scheme());
-}
-
-// https://url.spec.whatwg.org/#ref-for-dom-url-protocol%E2%91%A0
-void DOMURL::set_protocol(Utf16String const& protocol)
-{
-    // The protocol setter steps are to basic URL parse the given value, followed by U+003A (:), with this’s URL as
-    // url and scheme start state as state override.
-    auto protocol_with_colon = Utf16String::formatted("{}:", protocol);
-    (void)URL::Parser::basic_parse(protocol_with_colon.utf16_view(), m_url, URL::Parser::State::SchemeStart);
-}
-
-// https://url.spec.whatwg.org/#dom-url-username
-Utf16String DOMURL::username() const
-{
-    // The username getter steps are to return this’s URL’s username.
-    return utf16_string_from_url_ascii(m_url.username());
-}
-
-// https://url.spec.whatwg.org/#ref-for-dom-url-username%E2%91%A0
-void DOMURL::set_username(Utf16String const& username)
-{
-    // 1. If this’s URL cannot have a username/password/port, then return.
-    if (m_url.cannot_have_a_username_or_password_or_port())
-        return;
-
-    // 2. Set the username given this’s URL and the given value.
-    m_url.set_username(username.utf16_view());
-}
-
-// https://url.spec.whatwg.org/#dom-url-password
-Utf16String DOMURL::password() const
-{
-    // The password getter steps are to return this’s URL’s password.
-    return utf16_string_from_url_ascii(m_url.password());
-}
-
-// https://url.spec.whatwg.org/#ref-for-dom-url-password%E2%91%A0
-void DOMURL::set_password(Utf16String const& password)
-{
-    // 1. If this’s URL cannot have a username/password/port, then return.
-    if (m_url.cannot_have_a_username_or_password_or_port())
-        return;
-
-    // 2. Set the password given this’s URL and the given value.
-    m_url.set_password(password.utf16_view());
-}
-
-// https://url.spec.whatwg.org/#dom-url-host
-Utf16String DOMURL::host() const
-{
-    // 1. Let url be this’s URL.
-    auto const& url = m_url;
-
-    // 2. If url’s host is null, then return the empty string.
-    if (!url.host().has_value())
-        return {};
-
-    // 3. If url’s port is null, return url’s host, serialized.
-    if (!url.port().has_value())
-        return utf16_string_from_url_ascii(url.serialized_host());
-
-    // 4. Return url’s host, serialized, followed by U+003A (:) and url’s port, serialized.
-    return utf16_string_from_url_ascii_host_and_port(url.serialized_host(), *url.port());
-}
-
-// https://url.spec.whatwg.org/#dom-url-host
-void DOMURL::set_host(Utf16String const& host)
-{
-    // 1. If this’s URL has an opaque path, then return.
-    if (m_url.has_an_opaque_path())
-        return;
-
-    // 2. Basic URL parse the given value with this’s URL as url and host state as state override.
-    (void)URL::Parser::basic_parse(host.utf16_view(), m_url, URL::Parser::State::Host);
-}
-
-// https://url.spec.whatwg.org/#dom-url-hostname
-Utf16String DOMURL::hostname() const
-{
-    // 1. If this’s URL’s host is null, then return the empty string.
-    if (!m_url.host().has_value())
-        return {};
-
-    // 2. Return this’s URL’s host, serialized.
-    return utf16_string_from_url_ascii(m_url.serialized_host());
-}
-
-// https://url.spec.whatwg.org/#ref-for-dom-url-hostname①
-void DOMURL::set_hostname(Utf16String const& hostname)
-{
-    // 1. If this’s URL has an opaque path, then return.
-    if (m_url.has_an_opaque_path())
-        return;
-
-    // 2. Basic URL parse the given value with this’s URL as url and hostname state as state override.
-    (void)URL::Parser::basic_parse(hostname.utf16_view(), m_url, URL::Parser::State::Hostname);
-}
-
-// https://url.spec.whatwg.org/#dom-url-port
-Utf16String DOMURL::port() const
-{
-    // 1. If this’s URL’s port is null, then return the empty string.
-    if (!m_url.port().has_value())
-        return {};
-
-    // 2. Return this’s URL’s port, serialized.
-    return Utf16String::formatted("{}", *m_url.port());
-}
-
-// https://url.spec.whatwg.org/#ref-for-dom-url-port%E2%91%A0
-void DOMURL::set_port(Utf16String const& port)
-{
-    // 1. If this’s URL cannot have a username/password/port, then return.
-    if (m_url.cannot_have_a_username_or_password_or_port())
-        return;
-
-    // 2. If the given value is the empty string, then set this’s URL’s port to null.
-    if (port.is_empty()) {
-        m_url.set_port({});
-    }
-    // 3. Otherwise, basic URL parse the given value with this’s URL as url and port state as state override.
-    else {
-        (void)URL::Parser::basic_parse(port.utf16_view(), m_url, URL::Parser::State::Port);
-    }
-}
-
-// https://url.spec.whatwg.org/#dom-url-pathname
-Utf16String DOMURL::pathname() const
-{
-    // The pathname getter steps are to return the result of URL path serializing this’s URL.
-    return utf16_string_from_url_ascii(m_url.serialize_path());
-}
-
-// https://url.spec.whatwg.org/#ref-for-dom-url-pathname%E2%91%A0
-void DOMURL::set_pathname(Utf16String const& pathname)
-{
-    // 1. If this’s URL has an opaque path, then return.
-    if (m_url.has_an_opaque_path())
-        return;
-
-    // 2. Empty this’s URL’s path.
-    m_url.set_path({});
-
-    // 3. Basic URL parse the given value with this’s URL as url and path start state as state override.
-    (void)URL::Parser::basic_parse(pathname.utf16_view(), m_url, URL::Parser::State::PathStart);
-}
-
-// https://url.spec.whatwg.org/#dom-url-search
-Utf16String DOMURL::search() const
-{
-    // 1. If this’s URL’s query is either null or the empty string, then return the empty string.
-    if (!m_url.query().has_value() || m_url.query()->is_empty())
-        return {};
-
-    // 2. Return U+003F (?), followed by this’s URL’s query.
-    return Utf16String::formatted("?{}", *m_url.query());
-}
-
-// https://url.spec.whatwg.org/#ref-for-dom-url-search%E2%91%A0
-void DOMURL::set_search(Utf16String const& search)
-{
-    // 1. Let url be this’s URL.
-    auto& url = m_url;
-
-    // 2. If the given value is the empty string, then set url’s query to null, empty this’s query object’s list, and return.
-    if (search.is_empty()) {
-        url.set_query({});
-        if (m_query)
-            m_query->m_list.clear();
-        return;
-    }
-
-    // 3. Let input be the given value with a single leading U+003F (?) removed, if any.
-    auto search_as_utf16_view = search.utf16_view();
-    auto input = search_as_utf16_view.substring_view(search_as_utf16_view.starts_with('?'));
-
-    // 4. Set url’s query to the empty string.
-    url.set_query(""sv);
-
-    // 5. Basic URL parse input with url as url and query state as state override.
-    (void)URL::Parser::basic_parse(input, url, URL::Parser::State::Query);
-
-    // 6. Set this’s query object’s list to the result of parsing url’s query.
-    if (m_query)
-        m_query->m_list = url_decode(*url.query());
-}
-
-// https://url.spec.whatwg.org/#dom-url-searchparams
-GC::Ref<URLSearchParams const> DOMURL::search_params()
-{
-    // The searchParams getter steps are to return this’s query object.
-    if (!m_query) {
-        auto query = m_url.query().value_or(String {});
-        m_query = URLSearchParams::create(query);
-        m_query->m_url = this;
-    }
-
-    return *m_query;
-}
-
-// https://url.spec.whatwg.org/#dom-url-hash
-Utf16String DOMURL::hash() const
-{
-    // 1. If this’s URL’s fragment is either null or the empty string, then return the empty string.
-    if (!m_url.fragment().has_value() || m_url.fragment()->is_empty())
-        return {};
-
-    // 2. Return U+0023 (#), followed by this’s URL’s fragment.
-    return utf16_string_from_url_ascii_with_prefix('#', *m_url.fragment());
-}
-
-// https://url.spec.whatwg.org/#ref-for-dom-url-hash%E2%91%A0
-void DOMURL::set_hash(Utf16String const& hash)
-{
-    // 1. If the given value is the empty string, then set this’s URL’s fragment to null and return.
-    if (hash.is_empty()) {
-        m_url.set_fragment({});
-        return;
-    }
-
-    // 2. Let input be the given value with a single leading U+0023 (#) removed, if any.
-    auto hash_as_utf16_view = hash.utf16_view();
-    auto input = hash_as_utf16_view.substring_view(hash_as_utf16_view.starts_with('#'));
-
-    // 3. Set this’s URL’s fragment to the empty string.
-    m_url.set_fragment(""sv);
-
-    // 4. Basic URL parse input with this’s URL as url and fragment state as state override.
-    (void)URL::Parser::basic_parse(input, m_url, URL::Parser::State::Fragment);
 }
 
 // https://url.spec.whatwg.org/#concept-url-parser
@@ -477,13 +116,6 @@ Optional<URL::URL> parse(Utf16View input, Optional<URL::URL const&> base_url, Op
     }
     // 1. Let url be the result of running the basic URL parser on input with base and encoding.
     return finish_parsing(URL::Parser::basic_parse(input, base_url, encoding_view));
-}
-
-// FIXME: At time of writing, still open spec MR: https://github.com/whatwg/url/pull/892
-Optional<URL::Origin> DOMURL::extract_an_origin() const
-{
-    // Objects implementing the URL interface's extract an origin steps are to return this's URL's origin. [[HTML]]
-    return m_url.origin();
 }
 
 }

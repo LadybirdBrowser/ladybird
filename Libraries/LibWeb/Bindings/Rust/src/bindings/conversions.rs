@@ -70,6 +70,16 @@ impl UsvString {
         }
     }
 
+    /// The string without its first code unit, if that is the ASCII character.
+    pub(crate) fn strip_ascii_prefix(&self, prefix: u8) -> Option<Self> {
+        match self.units() {
+            Utf16StringUnits::Ascii(bytes) => bytes.strip_prefix(&[prefix]).map(Self::from_ascii),
+            Utf16StringUnits::Utf16(code_units) => code_units
+                .strip_prefix(&[u16::from(prefix)])
+                .map(|rest| Self(Utf16String::from_utf16(rest))),
+        }
+    }
+
     pub(crate) fn into_utf16_string(self) -> Utf16String {
         self.0
     }

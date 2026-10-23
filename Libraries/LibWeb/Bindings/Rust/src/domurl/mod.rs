@@ -11,7 +11,13 @@ use ak::Utf16StringUnits;
 use liburl_rust::url::UrlInput;
 
 #[cfg(not(test))]
+pub(crate) mod exports;
+#[cfg(not(test))]
 pub(crate) mod origin;
+#[cfg(not(test))]
+pub(crate) mod url;
+#[cfg(not(test))]
+pub(crate) mod url_search_params;
 
 pub(crate) fn url_input(units: Utf16StringUnits<'_>) -> UrlInput<'_> {
     match units {

@@ -11,6 +11,7 @@ use libjs_rust::api::{Trace, Value, is_host_instance_of};
 use liburl_rust::origin::{OpaqueOriginKind, Origin as OriginValue};
 use liburl_rust::{BasicParseOptions, FfiOrigin, basic_parse};
 
+use super::url::URL;
 use super::url_input;
 use crate::bindings::conversions::to_dom_string;
 use crate::bindings::interface::{Interface, Ref, Wrappable, allocate, implementation_of};
@@ -97,6 +98,9 @@ fn extract_an_origin(value: Value) -> Option<OriginValue> {
     // Objects implementing the Origin interface's extract an origin steps are to return this's origin.
     if is_host_instance_of(&object, Origin::wrapper_class()) {
         return Some(implementation_of::<Origin>(object).origin.clone());
+    }
+    if is_host_instance_of(&object, URL::wrapper_class()) {
+        return Some(implementation_of::<URL>(object).extract_an_origin());
     }
 
     unsafe extern "C" fn on_origin(ctx: *mut core::ffi::c_void, ffi_origin: *const FfiOrigin) {
