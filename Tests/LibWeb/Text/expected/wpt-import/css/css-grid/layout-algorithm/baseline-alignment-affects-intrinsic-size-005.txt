@@ -2,28 +2,29 @@ Harness status: OK
 
 Found 24 tests
 
-24 Fail
-Fail	#grid1-auto-auto 1
+12 Pass
+12 Fail
+Pass	#grid1-auto-auto 1
 Fail	#grid2-auto-auto 2
-Fail	#grid1-auto-min-content 3
+Pass	#grid1-auto-min-content 3
 Fail	#grid2-auto-min-content 4
-Fail	#grid1-auto-max-content 5
+Pass	#grid1-auto-max-content 5
 Fail	#grid2-auto-max-content 6
-Fail	#grid1-min-content-auto 7
+Pass	#grid1-min-content-auto 7
 Fail	#grid2-min-content-auto 8
-Fail	#grid1-min-content-min-content 9
+Pass	#grid1-min-content-min-content 9
 Fail	#grid2-min-content-min-content 10
-Fail	#grid1-min-content-max-content 11
+Pass	#grid1-min-content-max-content 11
 Fail	#grid2-min-content-max-content 12
-Fail	#grid1-max-content-auto 13
+Pass	#grid1-max-content-auto 13
 Fail	#grid2-max-content-auto 14
-Fail	#grid1-max-content-min-content 15
+Pass	#grid1-max-content-min-content 15
 Fail	#grid2-max-content-min-content 16
-Fail	#grid1-max-content-max-content 17
+Pass	#grid1-max-content-max-content 17
 Fail	#grid2-max-content-max-content 18
-Fail	#grid1-0px-auto 19
+Pass	#grid1-0px-auto 19
 Fail	#grid2-0px-auto 20
-Fail	#grid1-0px-min-content 21
+Pass	#grid1-0px-min-content 21
 Fail	#grid2-0px-min-content 22
-Fail	#grid1-0px-max-content 23
+Pass	#grid1-0px-max-content 23
 Fail	#grid2-0px-max-content 24
