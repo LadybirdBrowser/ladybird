@@ -1459,6 +1459,20 @@ bool command_insert_linebreak_action(DOM::Document& document, Utf16View)
             MUST(selection.collapse(text, 1));
             return true;
         }
+
+        // INTEROP: At an element boundary, insert the newline in a new Text node. If nothing follows it in its parent,
+        //          also insert a <br> after it, so that the new line is visible.
+        if (is<DOM::Element>(*start_node)) {
+            auto text = document.create_text_node("\n"_utf16);
+            MUST(insert_node_into_range(range, text));
+            MUST(selection.collapse(text->parent(), text->index() + 1));
+            if (!text->next_sibling()) {
+                auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
+                MUST(insert_node_into_range(*active_range(document), br));
+                MUST(selection.collapse(text->parent(), text->index() + 1));
+            }
+            return true;
+        }
     }
 
     // 7. Let br be the result of calling createElement("br") on the context object.
