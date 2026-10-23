@@ -1748,7 +1748,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     //          clones of the inline ancestors of the caret that change its formatting, with its line break inside
     //          them. They do not do this if the caret is in a link. Collect these ancestors here, before the split
     //          moves the caret.
-    Vector<GC::Ref<DOM::Element>> inline_ancestors_to_clone;
+    GC::RootVector<GC::Ref<DOM::Element>> inline_ancestors_to_clone;
     for (GC::Ptr<DOM::Node> ancestor = active_range->start_container(); ancestor && ancestor != container; ancestor = ancestor->parent()) {
         if (is<HTML::HTMLAnchorElement>(*ancestor)) {
             inline_ancestors_to_clone.clear();
