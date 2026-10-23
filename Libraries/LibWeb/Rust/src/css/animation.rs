@@ -8807,13 +8807,16 @@ pub(crate) fn resolve_published_animation_declarations(
                     })
                 },
             );
+            // SAFETY: The sample keeps the name alive while it is retained for the lookup.
+            let interned_name = unsafe { ak::Utf16FlyString::from_raw_borrowed(custom_properties.name(name_id).raw()) };
+            let custom_is_inherited = registry.name_inherits(&interned_name);
             for (lookup, value) in interval_span.into_iter().zip(interval_values) {
                 let declaration = effect.custom_declaration_at(lookup.declaration_index);
                 declarations.push(AnimationDeclaration {
                     keyframe_index: first_keyframe_index + lookup.keyframe_index,
                     property_id: crate::css::property_metadata::property_id::CUSTOM,
                     custom_name_id: name_id,
-                    custom_is_inherited: registry.name_inherits(name),
+                    custom_is_inherited,
                     custom_is_important: important,
                     value,
                     style_sheet_resource_context,
