@@ -150,11 +150,11 @@ Variant<GC::Ref<FileAPI::File>, Utf16String, Empty> FormData::get(Utf16String co
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-getall
-WebIDL::ExceptionOr<Vector<FormDataEntryValue>> FormData::get_all(Utf16String const& name)
+WebIDL::ExceptionOr<GC::ConservativeVector<FormDataEntryValue>> FormData::get_all(Utf16String const& name)
 {
     // 1. If there is no entry whose name is name in this’s entry list, then return the empty list.
     // 2. Return the values of all entries whose name is name, in order, from this’s entry list.
-    Vector<FormDataEntryValue> values;
+    GC::ConservativeVector<FormDataEntryValue> values;
     for (auto const& entry : m_entry_list) {
         if (entry.name == name)
             TRY_OR_THROW_OOM(JS::VM::the(), values.try_append(form_data_entry_value_for_bindings(entry.value)));
