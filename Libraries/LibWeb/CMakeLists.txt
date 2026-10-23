@@ -137,6 +137,8 @@ set(SOURCES
     CSS/CSSPageRule.cpp
     CSS/CSSPageDescriptors.cpp
     CSS/CSSPerspective.cpp
+    CSS/CSSPositionTryDescriptors.cpp
+    CSS/CSSPositionTryRule.cpp
     CSS/CSSPropertyRule.cpp
     CSS/CSSRotate.cpp
     CSS/CSSRule.cpp

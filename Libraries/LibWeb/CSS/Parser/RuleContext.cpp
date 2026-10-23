@@ -41,6 +41,8 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
         return RuleContext::Style;
     case CSSRule::Type::Page:
         return RuleContext::AtPage;
+    case CSSRule::Type::PositionTry:
+        return RuleContext::AtPositionTry;
     case CSSRule::Type::Property:
         return RuleContext::AtProperty;
         // Other types shouldn't be trying to create a context.

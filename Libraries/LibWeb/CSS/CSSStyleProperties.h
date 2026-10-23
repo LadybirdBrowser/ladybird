@@ -74,9 +74,10 @@ public:
     // Takes `source`'s declarations as they are, sharing them until either side changes.
     void set_declarations_from(CSSStyleProperties const& source);
 
-private:
+protected:
     CSSStyleProperties(Computed, Readonly, RustDeclarationBlock, Optional<DOM::AbstractElement>);
 
+private:
     virtual size_t external_memory_size() const override;
 
     RefPtr<StyleValue const> style_value_for_computed_property(Layout::NodeWithStyle const&, PropertyID) const;

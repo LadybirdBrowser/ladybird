@@ -69,6 +69,7 @@ pub enum NativeRuleType {
     FunctionDeclarations = 105,
     Container = 106,
     Scope = 107,
+    PositionTry = 108,
 }
 
 // Borrowed payload handles used when creating or inspecting a document-local
@@ -115,6 +116,10 @@ pub(crate) enum RulePayload {
     Keyframes(RefCell<CssString>),
     Keyframe(Box<FfiKeyframe>),
     Margin {
+        name: CssString,
+        declarations: Box<DeclarationBlock>,
+    },
+    PositionTry {
         name: CssString,
         declarations: Box<DeclarationBlock>,
     },
@@ -178,7 +183,9 @@ impl NativeRule {
     pub(crate) fn declaration_block(&self) -> Option<&DeclarationBlock> {
         match &self.payload {
             RulePayload::Style(data) => Some(&data.declarations),
-            RulePayload::NestedDeclarations(data) | RulePayload::Margin { declarations: data, .. } => Some(data),
+            RulePayload::NestedDeclarations(data)
+            | RulePayload::Margin { declarations: data, .. }
+            | RulePayload::PositionTry { declarations: data, .. } => Some(data),
             RulePayload::Keyframe(data) => Some(data.declaration_block()),
             _ => None,
         }
@@ -967,7 +974,9 @@ pub extern "C" fn rust_rule_external_memory_size(rule: &NativeRule) -> usize {
             size
         }
         RulePayload::Keyframe(_) => size_of::<FfiKeyframe>(),
-        RulePayload::Margin { name, .. } => size_of::<DeclarationBlock>().saturating_add(size_of_val(name.units())),
+        RulePayload::Margin { name, .. } | RulePayload::PositionTry { name, .. } => {
+            size_of::<DeclarationBlock>().saturating_add(size_of_val(name.units()))
+        }
         RulePayload::CounterStyle(_) => size_of::<FfiCounterStyle>(),
         RulePayload::FontFeatureValues(_) => size_of::<FontFeatureValuesRule>(),
         RulePayload::NestedDeclarations(_) => size_of::<DeclarationBlock>(),
@@ -1006,7 +1015,7 @@ pub unsafe extern "C" fn rust_rule_payload(rule: &NativeRule) -> FfiRulePayload<
             result.name = FfiUtf16View::from_utf16(name.units());
         }
         RulePayload::Keyframe(data) => result.keyframe = &raw const **data,
-        RulePayload::Margin { name, declarations } => {
+        RulePayload::Margin { name, declarations } | RulePayload::PositionTry { name, declarations } => {
             result.name = FfiUtf16View::from_utf16(name.units());
             result.declarations = &raw const **declarations;
         }

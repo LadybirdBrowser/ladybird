@@ -29,6 +29,7 @@ enum class RuleContext : u8 {
     AtProperty,
     AtPage,
     Margin,
+    AtPositionTry,
 };
 RuleContext rule_context_type_for_rule(CSSRule::Type);
 

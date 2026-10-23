@@ -203,6 +203,7 @@ impl ParsedRule {
             ParsedRuleKind::Function => NativeRuleType::Function,
             ParsedRuleKind::Page => NativeRuleType::Page,
             ParsedRuleKind::Margin => NativeRuleType::Margin,
+            ParsedRuleKind::PositionTry => NativeRuleType::PositionTry,
             ParsedRuleKind::FontFace => NativeRuleType::FontFace,
             ParsedRuleKind::FontFeatureValues => NativeRuleType::FontFeatureValues,
             ParsedRuleKind::Keyframes => NativeRuleType::Keyframes,
@@ -354,6 +355,7 @@ impl<'a> SharedRule<'a> {
         match self.rule_type {
             NativeRuleType::Property => Some(rule.property_rule.as_ref().unwrap().name.clone()),
             NativeRuleType::Keyframes => rule.keyframes_name.clone(),
+            NativeRuleType::PositionTry => rule.position_try_name.clone(),
             NativeRuleType::CounterStyle => Some(rule.counter_style.as_ref().unwrap().name.clone()),
             _ => None,
         }

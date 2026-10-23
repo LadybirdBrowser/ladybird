@@ -86,6 +86,7 @@ pub(crate) enum RuleContext {
     AtProperty,
     AtPage,
     Margin,
+    AtPositionTry,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -116,6 +117,7 @@ enum ParsedRuleKind {
     Media,
     Namespace,
     Page,
+    PositionTry,
     Property,
     Scope,
     Supports,
@@ -1091,6 +1093,11 @@ where
                 .map(ParsedRulePrelude::ContainerConditions)
                 .unwrap_or(ParsedRulePrelude::Invalid)
         }
+        // https://drafts.csswg.org/css-anchor-position-1/#fallback-rule
+        // @position-try <dashed-ident> { <declaration-list> }
+        (Rule::At(rule), ParsedRuleKind::PositionTry) => parse_single_name(&rule.prelude, |name| {
+            name.starts_with(&[u16::from(b'-'), u16::from(b'-')]) && name.len() > 2
+        }),
         (Rule::At(rule), ParsedRuleKind::FontFace | ParsedRuleKind::Margin) => {
             if non_whitespace(&rule.prelude).is_empty() {
                 ParsedRulePrelude::Empty
@@ -1204,6 +1211,7 @@ fn context_rule_name(context: RuleContext) -> Option<ParserString> {
         RuleContext::AtProperty => b"@property",
         RuleContext::AtPage => b"@page",
         RuleContext::Margin => b"@margin",
+        RuleContext::AtPositionTry => b"@position-try",
     };
     Some(utf16_from_ascii(name))
 }
@@ -1213,6 +1221,57 @@ fn at_rule_name(name: &[u16]) -> ParserString {
     result.push(u16::from(b'@'));
     result.extend_from_slice(name);
     result.into_boxed_slice().into()
+}
+
+// https://drafts.csswg.org/css-anchor-position-1/#accepted-position-try-properties
+fn is_accepted_position_try_property(property: u16) -> bool {
+    matches!(
+        property,
+        // inset properties
+        property_id::INSET
+            | property_id::INSET_BLOCK
+            | property_id::INSET_BLOCK_START
+            | property_id::INSET_BLOCK_END
+            | property_id::INSET_INLINE
+            | property_id::INSET_INLINE_START
+            | property_id::INSET_INLINE_END
+            | property_id::TOP
+            | property_id::RIGHT
+            | property_id::BOTTOM
+            | property_id::LEFT
+            // margin properties
+            | property_id::MARGIN
+            | property_id::MARGIN_BLOCK
+            | property_id::MARGIN_BLOCK_START
+            | property_id::MARGIN_BLOCK_END
+            | property_id::MARGIN_INLINE
+            | property_id::MARGIN_INLINE_START
+            | property_id::MARGIN_INLINE_END
+            | property_id::MARGIN_TOP
+            | property_id::MARGIN_RIGHT
+            | property_id::MARGIN_BOTTOM
+            | property_id::MARGIN_LEFT
+            // sizing properties
+            | property_id::WIDTH
+            | property_id::HEIGHT
+            | property_id::MIN_WIDTH
+            | property_id::MIN_HEIGHT
+            | property_id::MAX_WIDTH
+            | property_id::MAX_HEIGHT
+            | property_id::BLOCK_SIZE
+            | property_id::INLINE_SIZE
+            | property_id::MIN_BLOCK_SIZE
+            | property_id::MIN_INLINE_SIZE
+            | property_id::MAX_BLOCK_SIZE
+            | property_id::MAX_INLINE_SIZE
+            // self-alignment properties
+            | property_id::ALIGN_SELF
+            | property_id::JUSTIFY_SELF
+            | property_id::PLACE_SELF
+            // position-anchor and position-area
+            | property_id::POSITION_ANCHOR
+            | property_id::POSITION_AREA
+    )
 }
 
 fn is_margin_rule_name(name: &[u16]) -> bool {
@@ -1292,6 +1351,8 @@ fn at_rule_kind(name: &[u16]) -> ParsedRuleKind {
         ParsedRuleKind::Namespace
     } else if equals_ascii_case_insensitive(name, b"page") {
         ParsedRuleKind::Page
+    } else if equals_ascii_case_insensitive(name, b"position-try") {
+        ParsedRuleKind::PositionTry
     } else if equals_ascii_case_insensitive(name, b"property") {
         ParsedRuleKind::Property
     } else if equals_ascii_case_insensitive(name, b"scope") {
@@ -1359,6 +1420,8 @@ fn context_for_at_rule(name: &[u16]) -> RuleContext {
         RuleContext::AtMedia
     } else if equals_ascii_case_insensitive(name, b"page") {
         RuleContext::AtPage
+    } else if equals_ascii_case_insensitive(name, b"position-try") {
+        RuleContext::AtPositionTry
     } else if equals_ascii_case_insensitive(name, b"property") {
         RuleContext::AtProperty
     } else if equals_ascii_case_insensitive(name, b"scope") {
@@ -1825,13 +1888,20 @@ impl Parser {
                 .rule_context
                 .iter()
                 .any(|context| matches!(context, RuleContext::Style | RuleContext::AtFunction)),
+            RuleContext::AtPositionTry => property_id_from_name(name).is_some_and(is_accepted_position_try_property),
             _ => true,
         }
     }
 
     fn declaration_is_property(&self) -> bool {
         match self.rule_context.last() {
-            Some(RuleContext::Style | RuleContext::Keyframe | RuleContext::AtScope | RuleContext::Margin) => true,
+            Some(
+                RuleContext::Style
+                | RuleContext::Keyframe
+                | RuleContext::AtScope
+                | RuleContext::Margin
+                | RuleContext::AtPositionTry,
+            ) => true,
             Some(RuleContext::AtContainer | RuleContext::AtLayer | RuleContext::AtMedia | RuleContext::AtSupports) => {
                 self.rule_context.contains(&RuleContext::Style)
             }
@@ -2047,6 +2117,8 @@ pub enum FfiSyntaxDiagnosticCode {
     PageMustBeBlock,
     MarginMustBeBlock,
     MarginPreludeNotAllowed,
+    PositionTryMustBeBlock,
+    PositionTryInvalidName,
     InvalidRuleLocation,
     ImportInvalid,
     KeyframeSelectorsInvalid,
@@ -2117,6 +2189,7 @@ struct ParsedRule {
     font_feature_values: Option<Arc<FontFeatureValuesData>>,
     keyframe: Option<Arc<KeyframeData>>,
     keyframes_name: Option<CssString>,
+    position_try_name: Option<CssString>,
     scope_selectors: Option<Arc<ScopeSelectors>>,
     media_list: Option<Arc<MediaListData>>,
     counter_style: Option<Arc<CounterStyleData>>,
@@ -2326,6 +2399,10 @@ impl ParsedStyleSheet {
                     declarations: Box::new(DeclarationBlock::new(rule.declaration_block.as_ref().unwrap().clone())),
                 }
             }
+            NativeRuleType::PositionTry => RulePayload::PositionTry {
+                name: rule.position_try_name.as_ref().unwrap().clone(),
+                declarations: Box::new(DeclarationBlock::new(rule.declaration_block.as_ref().unwrap().clone())),
+            },
             NativeRuleType::FontFace => RulePayload::FontFace(Box::new(FfiDescriptorBlock::new(
                 rule.descriptor_block.as_ref().unwrap().clone(),
             ))),
@@ -2672,6 +2749,15 @@ fn structural_validation_code(
                 Some(FfiSyntaxDiagnosticCode::MarginMustBeBlock)
             } else if !matches!(parsed_prelude, ParsedRulePrelude::Empty) {
                 Some(FfiSyntaxDiagnosticCode::MarginPreludeNotAllowed)
+            } else {
+                None
+            }
+        }
+        (Rule::At(rule), ParsedRuleKind::PositionTry) => {
+            if !rule.has_block {
+                Some(FfiSyntaxDiagnosticCode::PositionTryMustBeBlock)
+            } else if !matches!(parsed_prelude, ParsedRulePrelude::Name(_)) {
+                Some(FfiSyntaxDiagnosticCode::PositionTryInvalidName)
             } else {
                 None
             }
@@ -3196,9 +3282,15 @@ impl<'a> SyntaxParseBuilder<'a> {
             &mut block,
             start,
             count,
-            declarations
-                .first()
-                .is_some_and(|declaration| declaration.rule_context == RuleContext::Keyframe),
+            // https://drafts.csswg.org/css-anchor-position-1/#fallback-rule
+            // It is invalid to use !important on the properties in the <declaration-list>. Doing so causes the
+            // property it is used on to become invalid, but does not invalidate the @position-try rule as a whole.
+            declarations.first().is_some_and(|declaration| {
+                matches!(
+                    declaration.rule_context,
+                    RuleContext::Keyframe | RuleContext::AtPositionTry
+                )
+            }),
         );
         let declaration_block = Some(Arc::new(block));
         let local_identity = self.next_identity();
@@ -3532,7 +3624,7 @@ impl<'a> SyntaxParseBuilder<'a> {
                 }
                 Some(block)
             }
-        } else if rule_kind == ParsedRuleKind::Margin {
+        } else if matches!(rule_kind, ParsedRuleKind::Margin | ParsedRuleKind::PositionTry) {
             Some(declaration_block_from_blocks(children.iter().filter_map(
                 |item| match item {
                     ParsedRuleChild::Declarations(item) => item.declaration_block.as_ref(),
@@ -3553,6 +3645,8 @@ impl<'a> SyntaxParseBuilder<'a> {
             None
         };
         let keyframes_name = (rule_kind == ParsedRuleKind::Keyframes)
+            .then(|| CssString::from_utf16(parsed_prelude_name.as_deref().unwrap()));
+        let position_try_name = (rule_kind == ParsedRuleKind::PositionTry)
             .then(|| CssString::from_utf16(parsed_prelude_name.as_deref().unwrap()));
         let counter_style = if rule_kind == ParsedRuleKind::CounterStyle {
             Some(Arc::new(CounterStyleData {
@@ -3590,6 +3684,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             font_feature_values,
             keyframe,
             keyframes_name,
+            position_try_name,
             scope_selectors,
             media_list,
             counter_style,
@@ -3711,7 +3806,7 @@ pub(crate) fn parse_shared_stylesheet(
 }
 
 /// Every rule context, at the index of its discriminant.
-const RULE_CONTEXTS: [RuleContext; RuleContext::Margin as usize + 1] = {
+const RULE_CONTEXTS: [RuleContext; RuleContext::AtPositionTry as usize + 1] = {
     use RuleContext::*;
     let contexts = [
         Unknown,
@@ -3732,6 +3827,7 @@ const RULE_CONTEXTS: [RuleContext; RuleContext::Margin as usize + 1] = {
         AtProperty,
         AtPage,
         Margin,
+        AtPositionTry,
     ];
     let mut index = 0;
     while index < contexts.len() {
@@ -4524,6 +4620,7 @@ mod tests {
             ("media", ParsedRuleKind::Media),
             ("namespace", ParsedRuleKind::Namespace),
             ("page", ParsedRuleKind::Page),
+            ("position-try", ParsedRuleKind::PositionTry),
             ("property", ParsedRuleKind::Property),
             ("scope", ParsedRuleKind::Scope),
             ("supports", ParsedRuleKind::Supports),

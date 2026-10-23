@@ -2,17 +2,16 @@ Harness status: OK
 
 Found 12 tests
 
-4 Pass
-8 Fail
-Fail	@position-try --foo { } should be a valid rule
-Fail	@position-try --foo { top: 1px; } should be a valid rule
+12 Pass
+Pass	@position-try --foo { } should be a valid rule
+Pass	@position-try --foo { top: 1px; } should be a valid rule
 Pass	@position-try { } should be an invalid rule
 Pass	@position-try foo { } should be an invalid rule
 Pass	@position-try --foo --bar { } should be an invalid rule
 Pass	@position-try --foo, --bar { } should be an invalid rule
-Fail	@position-try --foo { backround-color: green; } should be a valid rule
-Fail	@position-try --foo { @keyframes bar {} } should be a valid rule
-Fail	@position-try --foo { @font-face {} } should be a valid rule
-Fail	@position-try --foo { @media print {} } should be a valid rule
-Fail	@position-try --foo { & {} } should be a valid rule
-Fail	@position-try --foo { arbitrary garbage } should be a valid rule
+Pass	@position-try --foo { backround-color: green; } should be a valid rule
+Pass	@position-try --foo { @keyframes bar {} } should be a valid rule
+Pass	@position-try --foo { @font-face {} } should be a valid rule
+Pass	@position-try --foo { @media print {} } should be a valid rule
+Pass	@position-try --foo { & {} } should be a valid rule
+Pass	@position-try --foo { arbitrary garbage } should be a valid rule
