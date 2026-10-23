@@ -19,7 +19,7 @@ use crate::css::calc::{
     resolve_calculated_number_with_channels, resolve_calculated_percentage_with_channels,
 };
 use crate::css::color_conversion::{self, Components};
-use crate::css::color_interpolation::{MixItem, ResolvedColor, mix_colors};
+use crate::css::color_interpolation::{MixItem, ResolvedColor, carry_forward_missing_components, mix_colors};
 use crate::css::computed_value_types::{InheritedTextValues, InheritedUIValues};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::channel_keyword;
@@ -1036,7 +1036,7 @@ fn color_function_to_color(value: &StyleValueData, input: &ColorResolutionInput)
     let mut effective_input = *input;
     let mut alpha_value = alpha.optional_data();
     if let Some(origin) = origin_color.optional_data() {
-        relative_channels = extract_channels_in_color_space(origin, color_type, input)?;
+        relative_channels = extract_channels_in_color_space(origin, color_type, input)?.0;
         effective_input.channels = Some(&relative_channels);
         // https://drafts.csswg.org/css-color-5/#rcs-intro
         // If the alpha value of the relative color is omitted, it defaults to that of the origin
@@ -1173,7 +1173,7 @@ fn set_channels_for_target(
 /// Port of resolve_origin_native_channels() in ColorStyleValue.cpp: resolves an absolute
 /// color-function origin's channels without going through the u8 sRGB representation. The
 /// C++ empty CalculationResolutionContext maps to no channels and no length context.
-fn resolve_origin_native_channels(origin: &StyleValueData) -> Option<(u8, Components)> {
+fn resolve_origin_native_channels(origin: &StyleValueData) -> Option<(u8, Components, [bool; 4])> {
     let StyleValueData::ColorFunction {
         color_base,
         channel_0,
@@ -1218,9 +1218,116 @@ fn resolve_origin_native_channels(origin: &StyleValueData) -> Option<(u8, Compon
     let c1 = channel_value(channel_0, 0)?;
     let c2 = channel_value(channel_1, 1)?;
     let c3 = channel_value(channel_2, 2)?;
-    let alpha = alpha_value()?;
+    let alpha_resolved = alpha_value()?;
+    let missing = [
+        is_none_keyword(channel_0.data()),
+        is_none_keyword(channel_1.data()),
+        is_none_keyword(channel_2.data()),
+        alpha.optional_data().is_some_and(is_none_keyword),
+    ];
 
-    Some((color_base.color_type, [c1 as f32, c2 as f32, c3 as f32, alpha as f32]))
+    Some((
+        color_base.color_type,
+        [c1 as f32, c2 as f32, c3 as f32, alpha_resolved as f32],
+        missing,
+    ))
+}
+
+/// The channel keyword slots of a color type's three components, in order.
+fn channel_slots(color_type: u8) -> Option<[u8; 3]> {
+    use channel_keyword as ck;
+    use color_conversion as ct;
+    Some(match color_type {
+        ct::RGB => [ck::R, ck::G, ck::B],
+        ct::HSL => [ck::H, ck::S, ck::L],
+        ct::HWB => [ck::H, ck::W, ck::B],
+        ct::LAB | ct::OKLAB => [ck::L, ck::A, ck::B],
+        ct::LCH | ct::OKLCH => [ck::L, ck::C, ck::H],
+        ct::SRGB
+        | ct::SRGB_LINEAR
+        | ct::A98_RGB
+        | ct::DISPLAY_P3
+        | ct::DISPLAY_P3_LINEAR
+        | ct::PROPHOTO_RGB
+        | ct::REC2020 => [ck::R, ck::G, ck::B],
+        ct::XYZ_D50 | ct::XYZ_D65 => [ck::X, ck::Y, ck::Z],
+        _ => return None,
+    })
+}
+
+/// Applies the powerless hue rules to a color in its native units (hsl() and hwb() components other than hue in
+/// percent): a powerless hue becomes missing, and the colorfulness is set to zero.
+// https://drafts.csswg.org/css-color-4/#powerless
+pub(crate) fn make_powerless_hue_missing(color_type: u8, components: &mut [f64; 3], missing: &mut [bool; 3]) {
+    use color_conversion as ct;
+    // When performing color space conversion to a cylindrical polar color space, user agents shall treat a
+    // hue component as powerless if the chroma (or other measure of colorfulness, such as saturation in hsl)
+    // is less than or equal to the epsilon (ε) specified for that color space.
+    let (hue_index, colorfulness_index, epsilon) = match color_type {
+        ct::HSL => (0, 1, 0.001),
+        ct::LCH => (2, 1, 0.0015),
+        ct::OKLCH => (2, 1, 0.000004),
+        ct::HWB => {
+            // For hwb follow these steps instead:
+            let sum = components[1] + components[2];
+            if sum >= 99.999 {
+                missing[0] = true;
+                // 1. if W + B is greater than or equal to ε and W + B is less than 100
+                if sum < 100.0 {
+                    // 1.1. if W and B are not missing
+                    if !missing[1] && !missing[2] {
+                        // 1.1.1. set B to 100 - W
+                        components[2] = 100.0 - components[1];
+                    }
+                    // 1.2. else if W is not missing
+                    else if !missing[1] {
+                        // 1.2.1. set W to 100
+                        components[1] = 100.0;
+                    }
+                    // 1.3. else if B is not missing
+                    else if !missing[2] {
+                        // 1.3.1. set B to 100
+                        components[2] = 100.0;
+                    }
+                }
+            }
+            return;
+        }
+        _ => return,
+    };
+    let colorfulness = components[colorfulness_index];
+    if colorfulness <= epsilon {
+        missing[hue_index] = true;
+        // When changing a powerless hue component to a missing component, the chroma (or other measure of
+        // colorfulness, such as saturation in hsl; see analogous components) is set to zero to avoid amplifying
+        // floating-point noise. Negative values are not clamped to zero, this value is only set to zero when it
+        // is larger than zero but smaller or equal to ε.
+        if colorfulness > 0.0 {
+            components[colorfulness_index] = 0.0;
+        }
+    }
+}
+
+/// Applies the powerless hue rules to the converted target channels of a relative color.
+fn make_powerless_target_hue_missing(
+    context: &mut RelativeColorContext,
+    missing_slots: &mut u16,
+    target_color_type: u8,
+) {
+    let Some(slots) = channel_slots(target_color_type) else {
+        return;
+    };
+    let mut components = slots.map(|slot| context[usize::from(slot)].unwrap_or(0.0));
+    let mut missing = slots.map(|slot| *missing_slots & (1 << slot) != 0);
+    make_powerless_hue_missing(target_color_type, &mut components, &mut missing);
+    for (index, slot) in slots.into_iter().enumerate() {
+        if !missing[index] {
+            context[usize::from(slot)] = Some(components[index]);
+        }
+        if missing[index] {
+            *missing_slots |= 1 << slot;
+        }
+    }
 }
 
 /// Port of ColorFunctionStyleValue::resolve_relative_form(): flattens a relative color
@@ -1246,14 +1353,23 @@ pub(crate) fn resolve_relative_form(value: &StyleValueData, input: &ColorResolut
     }
     let target_color_type = color_base.color_type;
 
-    let relative_channels = extract_channels_in_color_space(origin, target_color_type, input)?;
+    let (relative_channels, missing_slots) = extract_channels_in_color_space(origin, target_color_type, input)?;
     let mut channel_input = *input;
     channel_input.channels = Some(&relative_channels);
+
+    // https://drafts.csswg.org/css-color-5/#relative-syntax
+    // The component keywords return a <number>, or none
+    // NB: A component keyword returns none when it refers to a missing component. Calculations treat missing
+    //     components as 0.
+    let refers_to_missing_component = |value: &StyleValueData| {
+        matches!(value, StyleValueData::Keyword { keyword: code }
+            if keyword_to_channel_keyword(*code).is_some_and(|channel| missing_slots & (1 << channel) != 0))
+    };
 
     let descriptor = descriptor_for_color_type(target_color_type);
     let resolve_channel = |channel: &RetainedStyleValueData, index: usize| -> StyleValueData {
         let value = channel.data();
-        if is_none_keyword(value) {
+        if is_none_keyword(value) || refers_to_missing_component(value) {
             return StyleValueData::Keyword { keyword: keyword::NONE };
         }
         let channel_descriptor = &descriptor.channels[index];
@@ -1281,7 +1397,7 @@ pub(crate) fn resolve_relative_form(value: &StyleValueData, input: &ColorResolut
                 &synthesized_alpha
             }
         };
-        if is_none_keyword(effective_alpha) {
+        if is_none_keyword(effective_alpha) || refers_to_missing_component(effective_alpha) {
             StyleValueData::Keyword { keyword: keyword::NONE }
         } else {
             StyleValueData::Number {
@@ -1447,7 +1563,23 @@ fn extract_channels_in_color_space(
     origin_color: &StyleValueData,
     target_color_type: u8,
     input: &ColorResolutionInput,
-) -> Option<RelativeColorContext> {
+) -> Option<(RelativeColorContext, u16)> {
+    let (mut context, missing_slots) = extract_channels_and_missing_slots(origin_color, target_color_type, input)?;
+    // https://drafts.csswg.org/css-color-5/#rcs-intro
+    // However, if calculations are done on missing values, none is treated as 0.
+    for (slot, channel) in context.iter_mut().enumerate() {
+        if missing_slots & (1 << slot) != 0 {
+            *channel = Some(0.0);
+        }
+    }
+    Some((context, missing_slots))
+}
+
+fn extract_channels_and_missing_slots(
+    origin_color: &StyleValueData,
+    target_color_type: u8,
+    input: &ColorResolutionInput,
+) -> Option<(RelativeColorContext, u16)> {
     use channel_keyword as ck;
     use color_conversion as ct;
 
@@ -1473,34 +1605,55 @@ fn extract_channels_in_color_space(
 
     // High-precision path: for color-function origins, resolve channels directly without going
     // through the u8 sRGB representation, which clips wide-gamut colors and loses precision.
-    if let Some((origin_native_type, native_channels)) = resolve_origin_native_channels(effective_origin) {
+    if let Some((origin_native_type, mut native_channels, origin_missing)) =
+        resolve_origin_native_channels(effective_origin)
+    {
         let mut context: RelativeColorContext = [None; 13];
         context[usize::from(ck::ALPHA)] = Some(f64::from(native_channels[3]));
+        // https://drafts.csswg.org/css-color-5/#rcs-intro
+        // Missing components are handled the same way as with [[css-color-4#interpolation-missing]]: the origin
+        // colorspace and the relative function colorspace are checked for analogous components which are then
+        // carried forward as missing.
+        let mut missing_slots: u16 = if origin_missing[3] { 1 << ck::ALPHA } else { 0 };
 
         // If the target matches the origin's native type, use the origin's channel values
         // directly to avoid round-trip losses.
         if origin_native_type == target_color_type {
-            let slots = match target_color_type {
-                ct::RGB => (ck::R, ck::G, ck::B),
-                ct::HSL => (ck::H, ck::S, ck::L),
-                ct::HWB => (ck::H, ck::W, ck::B),
-                ct::LAB | ct::OKLAB => (ck::L, ck::A, ck::B),
-                ct::LCH | ct::OKLCH => (ck::L, ck::C, ck::H),
-                ct::SRGB
-                | ct::SRGB_LINEAR
-                | ct::A98_RGB
-                | ct::DISPLAY_P3
-                | ct::DISPLAY_P3_LINEAR
-                | ct::PROPHOTO_RGB
-                | ct::REC2020 => (ck::R, ck::G, ck::B),
-                ct::XYZ_D50 | ct::XYZ_D65 => (ck::X, ck::Y, ck::Z),
-                // The C++ switch is exhaustive over ColorType.
-                _ => return None,
-            };
-            context[usize::from(slots.0)] = Some(f64::from(native_channels[0]));
-            context[usize::from(slots.1)] = Some(f64::from(native_channels[1]));
-            context[usize::from(slots.2)] = Some(f64::from(native_channels[2]));
-            return Some(context);
+            let slots = channel_slots(target_color_type)?;
+            for (index, slot) in slots.into_iter().enumerate() {
+                context[usize::from(slot)] = Some(f64::from(native_channels[index]));
+                if origin_missing[index] {
+                    missing_slots |= 1 << slot;
+                }
+            }
+            return Some((context, missing_slots));
+        }
+
+        // https://drafts.csswg.org/css-color-4/#color-convert-algorithm
+        // To prepare a color col1 for conversion:
+        // 1. Change any powerless components in src to missing components
+        let mut source_components = [0, 1, 2].map(|index| f64::from(native_channels[index]));
+        let mut source_missing = [origin_missing[0], origin_missing[1], origin_missing[2]];
+        make_powerless_hue_missing(origin_native_type, &mut source_components, &mut source_missing);
+        for index in 0..3 {
+            native_channels[index] = source_components[index] as f32;
+        }
+        let carried_forward = carry_forward_missing_components(
+            [
+                source_missing[0],
+                source_missing[1],
+                source_missing[2],
+                origin_missing[3],
+            ],
+            origin_native_type,
+            target_color_type,
+        );
+        if let Some(slots) = channel_slots(target_color_type) {
+            for (index, slot) in slots.into_iter().enumerate() {
+                if carried_forward[index] {
+                    missing_slots |= 1 << slot;
+                }
+            }
         }
 
         // When both origin and target are in the sRGB gamut family, convert directly to avoid
@@ -1538,7 +1691,8 @@ fn extract_channels_in_color_space(
             let xyz65 =
                 color_conversion::convert(ct::SRGB, ct::XYZ_D65, srgb_fraction).expect("sRGB converts to XYZ-D65");
             set_channels_for_target(&mut context, target_color_type, xyz65, srgb_fraction, linear_srgb);
-            return Some(context);
+            make_powerless_target_hue_missing(&mut context, &mut missing_slots, target_color_type);
+            return Some((context, missing_slots));
         }
 
         let xyz65 = native_channels_to_xyz65(native_channels, origin_native_type);
@@ -1546,8 +1700,9 @@ fn extract_channels_in_color_space(
             color_conversion::convert(ct::XYZ_D65, ct::SRGB_LINEAR, xyz65).expect("XYZ-D65 converts to linear sRGB");
         let srgb_fraction = color_conversion::convert(ct::XYZ_D65, ct::SRGB, xyz65).expect("XYZ-D65 converts to sRGB");
         set_channels_for_target(&mut context, target_color_type, xyz65, srgb_fraction, linear_srgb);
+        make_powerless_target_hue_missing(&mut context, &mut missing_slots, target_color_type);
 
-        return Some(context);
+        return Some((context, missing_slots));
     }
 
     // Low-precision fallback through the resolved 8-bit color.
@@ -1567,8 +1722,10 @@ fn extract_channels_in_color_space(
         color_conversion::convert(ct::SRGB, ct::SRGB_LINEAR, srgb_fraction).expect("sRGB converts to linear sRGB");
     let xyz65 = color_conversion::convert(ct::SRGB, ct::XYZ_D65, srgb_fraction).expect("sRGB converts to XYZ-D65");
     set_channels_for_target(&mut context, target_color_type, xyz65, srgb_fraction, linear_srgb);
+    let mut missing_slots = 0;
+    make_powerless_target_hue_missing(&mut context, &mut missing_slots, target_color_type);
 
-    Some(context)
+    Some((context, missing_slots))
 }
 
 /// Port of Percentage::from_style_value(). The C++ version VERIFYs on the remaining cases;
