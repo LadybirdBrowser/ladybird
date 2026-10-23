@@ -53,7 +53,7 @@ TEST_CASE(full_file_availability_requires_no_gaps)
 
 TEST_CASE(buffered_scan_reports_completeness_even_if_time_ranges_do_not_change)
 {
-    Core::EventLoop loop;
+    auto& loop = never_destroyed_event_loop();
     auto stream = Media::IncrementallyPopulatedStream::create_empty();
     auto data = make_test_data(100);
     stream->add_chunk_at(50, data.bytes().slice(50));
@@ -82,7 +82,7 @@ TEST_CASE(buffered_scan_reports_completeness_even_if_time_ranges_do_not_change)
 
 TEST_CASE(close_during_buffered_scan_requires_another_pass)
 {
-    Core::EventLoop loop;
+    auto& loop = never_destroyed_event_loop();
     auto stream = Media::IncrementallyPopulatedStream::create_empty();
     auto data = make_test_data(100);
     stream->add_chunk_at(0, data.bytes());
@@ -105,7 +105,7 @@ TEST_CASE(close_during_buffered_scan_requires_another_pass)
 
 TEST_CASE(expected_size_changes_request_buffered_scans)
 {
-    Core::EventLoop loop;
+    auto& loop = never_destroyed_event_loop();
     auto data = make_test_data(100);
     auto stream = Media::IncrementallyPopulatedStream::create_from_data(data.bytes());
     auto scan = Media::DemuxerScanThread<int>::start(stream, {}, 0, [](Media::MediaStream::Availability const& availability, auto&) {
@@ -139,7 +139,7 @@ TEST_CASE(expected_size_changes_request_buffered_scans)
 
 TEST_CASE(eviction_during_scan_does_not_change_its_availability_snapshot)
 {
-    Core::EventLoop loop;
+    auto& loop = never_destroyed_event_loop();
     auto data = make_test_data(100);
     auto stream = Media::IncrementallyPopulatedStream::create_from_data(data.bytes());
     auto scan = Media::DemuxerScanThread<int>::start(stream, {}, 0, [stream](Media::MediaStream::Availability const& availability, int& passes) {
