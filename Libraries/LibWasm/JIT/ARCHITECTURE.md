@@ -95,7 +95,7 @@ truncations, unless their flags say they cannot), and are neither removed nor mo
 | VectorUnary, VectorBinary, VectorTernary | SIMD operations, by their sub-opcode: splats, lane-wise arithmetic, comparisons, conversions, shifts by an i32, bitselect and the relaxed multiply-adds, and reductions to an i32. |
 | ExtractLane, ReplaceLane, Shuffle | Lane access, and `i8x16.shuffle`. |
 | VectorLoad | A SIMD load of memory 0, by its sub-opcode (whole, extending, splatting or zero-filling); may trap. |
-| CalleeInstance | The instance a call of a function passes: the header's, or the caller's for host functions. |
+| CalleeInstance | The instance a call of a function passes: the header's, or the caller's for host functions. Pure only for imports, whose header is never null: a function reference may be null where the call's check does not dominate. |
 | CheckFunction, CheckNull | The checks of `call_indirect` (null, then type identity, then the subtype check of GC types) and of references that must not be null. |
 | Call | A call through a `FunctionHeader`, direct or not; its value is the first result. |
 | Helper | A call of a function of the runtime, which takes its operands in the context and may return a trap code. |

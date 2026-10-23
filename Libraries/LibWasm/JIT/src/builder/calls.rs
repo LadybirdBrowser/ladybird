@@ -12,7 +12,7 @@
 //! they get the caller's, through which their stub finds the runtime.
 
 use super::{Builder, instance_offset, ir_type};
-use crate::ir::{Func, NONE, Node, Op, Type, Value};
+use crate::ir::{FLAG_NOT_NULL, Func, NONE, Node, Op, Type, Value};
 use libwasm_module::Module;
 use libwasm_module::abi::{InstanceData, TRAP_NULL_REFERENCE, TRAP_UNDEFINED_ELEMENT, TRAP_UNINITIALIZED_ELEMENT};
 use libwasm_module::types::FuncType;
@@ -73,7 +73,7 @@ impl Builder {
         let ty = module.function_type(function).expect("functions have function types");
         let header = self.instance_pointer(func, offset_of!(InstanceData, functions), function, Type::Pointer);
         let (instance, memory_base) = if function < module.imported_function_count {
-            self.callee_instance(func, header)
+            self.callee_instance(func, header, true)
         } else {
             (self.instance, self.memory_base)
         };
@@ -112,7 +112,7 @@ impl Builder {
                 [element, identity, 0],
             ),
         );
-        let (instance, memory_base) = self.callee_instance(func, element);
+        let (instance, memory_base) = self.callee_instance(func, element, false);
         self.emit_call(func, ty, [element, instance, memory_base], NONE, kind);
     }
 
@@ -125,16 +125,24 @@ impl Builder {
             func,
             Node::new(Op::CheckNull, Type::None, TRAP_NULL_REFERENCE as u8, [reference, 0, 0]),
         );
-        let (instance, memory_base) = self.callee_instance(func, reference);
+        let (instance, memory_base) = self.callee_instance(func, reference, false);
         self.emit_call(func, ty, [reference, instance, memory_base], NONE, kind);
     }
 
-    /// The instance and memory base a call of the function whose header is `header` passes.
-    fn callee_instance(&mut self, func: &mut Func, header: Value) -> (Value, Value) {
-        let instance = self.pure(
-            func,
-            Node::new(Op::CalleeInstance, Type::Pointer, 0, [header, self.instance, 0]),
+    /// The instance and memory base a call of the function whose header is `header` passes. Only a header that is
+    /// never null is value numbered: any other is read where the call's null check guards it.
+    fn callee_instance(&mut self, func: &mut Func, header: Value, not_null: bool) -> (Value, Value) {
+        let node = Node::new(
+            Op::CalleeInstance,
+            Type::Pointer,
+            if not_null { FLAG_NOT_NULL } else { 0 },
+            [header, self.instance, 0],
         );
+        let instance = if not_null {
+            self.pure(func, node)
+        } else {
+            Self::append(func, node)
+        };
         let memory_base = self.pure(
             func,
             Node::new(
