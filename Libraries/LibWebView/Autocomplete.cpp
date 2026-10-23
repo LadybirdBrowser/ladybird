@@ -550,7 +550,7 @@ ErrorOr<Vector<String>> Autocomplete::received_autocomplete_response(SearchSugge
         if (!charset.has_value())
             return {};
 
-        return TextCodec::decoder_for_exact_name(*charset);
+        return TextCodec::decoder_for(*charset);
     }();
 
     if (!decoder.has_value())
