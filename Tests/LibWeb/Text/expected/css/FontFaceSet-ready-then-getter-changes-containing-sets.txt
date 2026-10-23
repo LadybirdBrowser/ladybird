@@ -1,0 +1,4 @@
+then getter ran: true
+face status: error
+added sets containing face: 60
+loadingerror events on deleted sets: 0

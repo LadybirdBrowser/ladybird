@@ -15,6 +15,7 @@
 #include <AK/Utf16View.h>
 #include <AK/Weakable.h>
 #include <LibGC/HeapVector.h>
+#include <LibGC/RootVector.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/FontCascadeList.h>
@@ -122,6 +123,7 @@ private:
     void set_parsed_font(RefPtr<Gfx::Typeface const>);
 
     Optional<FontComputer&> font_computer() const;
+    GC::RootVector<GC::Ref<FontFaceSet>> containing_sets() const;
     void update_font_display_period();
     i64 font_download_elapsed_time() const;
     void invalidate_font_display();
