@@ -9320,7 +9320,7 @@ void Document::remove_replaced_animations()
     }
 }
 
-WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> Document::get_animations()
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animations::Animation>>> Document::get_animations()
 {
     update_style();
     return calculate_get_animations(*this);

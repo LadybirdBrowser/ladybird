@@ -1227,7 +1227,7 @@ public:
     void dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation>);
     void remove_replaced_animations();
 
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
+    WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animations::Animation>>> get_animations();
     HashTable<GC::Ref<Animations::AnimationTimeline>> const& associated_animation_timelines() const { return m_associated_animation_timelines; }
     void begin_smil_time_container_once_loaded(SVG::SMILTimeContainer&);
     void schedule_svg_referenced_motion_path_update(SVG::SVGAnimateMotionElement&);

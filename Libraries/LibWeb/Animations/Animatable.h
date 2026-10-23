@@ -11,6 +11,7 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Utf16FlyString.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Bindings/Animatable.h>
 #include <LibWeb/Export.h>
@@ -45,9 +46,9 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<Animation>> animate(Vector<BaseKeyframe> keyframes, Variant<double, KeyframeAnimationOptions> const& options);
     WebIDL::ExceptionOr<GC::Ref<Animation>> animate(JS::Realm&, GC::Ptr<JS::Object> keyframes, Variant<double, Bindings::KeyframeAnimationOptions> const& options);
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(GetAnimationsOptions const& options);
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(Bindings::GetAnimationsOptions const& options);
-    WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, GetAnimationsOptions const& options);
+    WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animation>>> get_animations(GetAnimationsOptions const& options);
+    WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animation>>> get_animations(Bindings::GetAnimationsOptions const& options);
+    WebIDL::ExceptionOr<GC::RootVector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, GetAnimationsOptions const& options);
     ReadonlySpan<GC::Ref<Animation>> associated_animations_in_composite_order();
     ReadonlySpan<GC::Ref<Animation>> associated_animations_unordered() const { return m_impl ? m_impl->associated_animations.span() : ReadonlySpan<GC::Ref<Animation>> {}; }
     void invalidate_associated_animation_composite_order();
