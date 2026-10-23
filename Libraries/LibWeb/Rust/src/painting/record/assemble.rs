@@ -675,6 +675,8 @@ mod tests {
                     border_radii: BorderRadii::default(),
                     path: None,
                     winding_rule: 0,
+                    svg_hit_areas: 0,
+                    svg_stroke: None,
                     writing_mode: 0,
                     inline_axis_is_reverse: false,
                     block_axis_is_reverse: false,

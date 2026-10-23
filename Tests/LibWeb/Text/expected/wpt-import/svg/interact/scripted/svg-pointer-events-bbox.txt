@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 31 tests
 
-16 Pass
-15 Fail
+22 Pass
+9 Fail
 Pass	circle1 contains point at (36, 60)
 Pass	circle1 contains point at (42, 67)
 Pass	circle1 does not contain point at (50, 50)
@@ -12,11 +12,11 @@ Fail	group1 contains point at (100, 100)
 Fail	group1 contains point at (137, 84)
 Fail	group1 contains point at (51, 156)
 Fail	group1 contains point at (70, 120)
-Fail	circle2 contains point at (400, 150)
-Fail	circle2 contains point at (432, 182)
-Fail	circle2 contains point at (361, 122)
-Fail	bbox of circle2 contains point at (438, 103)
-Fail	bbox of circle2 contains point at (450, 200)
+Pass	circle2 contains point at (400, 150)
+Pass	circle2 contains point at (432, 182)
+Pass	circle2 contains point at (361, 122)
+Pass	bbox of circle2 contains point at (438, 103)
+Pass	bbox of circle2 contains point at (450, 200)
 Pass	text1 contains point at (134, 16)
 Pass	tspan1 contains point at (579, 46)
 Pass	text1 does not contain point at (395, 73)
@@ -30,7 +30,7 @@ Pass	text2 does not contain point at (179, 131)
 Fail	bbox of text2 contains point at (295, 214)
 Pass	bbox of text2 contains point at (444, 222)
 Pass	text3 contains point at (198, 291)
-Fail	text3 contains point at (286, 301)
+Pass	text3 contains point at (286, 301)
 Pass	text3 does not contain point at (302, 337)
 Pass	text3 does not contain point at (348, 335)
 Fail	image1 contains point at (19, 215)
