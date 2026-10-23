@@ -1,0 +1,37 @@
+<!doctype html>
+<style>
+    @property --integer { syntax: "<integer>"; inherits: false; initial-value: 7; }
+    @property --number { syntax: "<number>"; inherits: false; initial-value: 9; }
+    .integer { --raw: var(--missing,1); }
+    .decimal { --raw: var(--missing,1.0); }
+    .dimension { --raw: var(--missing,1\65 0); }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const parent = document.createElement("div");
+        const middle = document.createElement("div");
+        const target = document.createElement("div");
+        parent.className = "integer";
+        target.style.cssText = "--integer: var(--raw); --number: var(--raw)";
+        middle.append(target);
+        parent.append(middle);
+        document.body.append(parent);
+
+        const values = () => {
+            const style = getComputedStyle(target);
+            return `integer ${style.getPropertyValue("--integer")}, number ${style.getPropertyValue("--number")}`;
+        };
+
+        // A child must keep its token kind when its value serializes like its parent's.
+        middle.className = "decimal";
+        println(`first computation: ${values()}`);
+
+        // Changes to token kinds must reach descendants even when serialization is unchanged.
+        middle.className = "";
+        for (const className of ["integer", "decimal", "dimension"]) {
+            parent.className = className;
+            println(`updated ${className}: ${values()}`);
+        }
+    });
+</script>

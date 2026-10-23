@@ -40,7 +40,9 @@ use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, RandomFunctionIndex,
 };
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
-use crate::css::serialize::{normalized_component_values_equal, serialize_component_values_to_utf16};
+use crate::css::serialize::{
+    normalized_component_values_equal, serialize_component_values_to_utf16, serialize_resolved_style_value_to_utf16,
+};
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
 
@@ -414,10 +416,18 @@ impl CustomPropertyRegistry {
         if let Some((_, parsed)) = parses.get(&key) {
             return parsed.clone();
         }
-        let source = crate::css::serialize::serialize_resolved_style_value_to_utf16(value.data());
-        let parsed = parse_substitution_values(&source)
-            .and_then(|values| self.parse_registered_value(registration, &values))
-            .map(RetainedStyleValueData::from_owned);
+
+        let parsed = match value.data() {
+            StyleValueData::Unresolved { components, .. } => {
+                self.parse_registered_value(registration, components.as_slice())
+            }
+            _ => {
+                let source = serialize_resolved_style_value_to_utf16(value.data());
+                parse_substitution_values(&source).and_then(|values| self.parse_registered_value(registration, &values))
+            }
+        };
+        let parsed = parsed.map(RetainedStyleValueData::from_owned);
+
         if parses.len() >= MAX_REGISTERED_VALUE_PARSES {
             parses.clear();
         }
