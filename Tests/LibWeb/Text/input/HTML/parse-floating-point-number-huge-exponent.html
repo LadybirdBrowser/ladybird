@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input type="number">
+<script>
+    test(() => {
+        const input = document.querySelector("input");
+        for (const value of ["1e2147483648", "1e-2147483648", "1e99999", "1e-99999", "1e400", "1e-400", "1.5e3", "2e-3", "0e99999", "0e400", "0e-99999", "-0e99999", "-0e5"]) {
+            input.value = value;
+            println(`${value}: ${input.valueAsNumber}`);
+        }
+    });
+</script>
