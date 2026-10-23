@@ -7,6 +7,7 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/WorkletEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/WorkletGlobalScope.h>

@@ -10,6 +10,7 @@
 
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -55,7 +56,7 @@ public:
     Optional<URL::Origin> top_level_origin;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
-    GC::Ptr<BrowsingContext> target_browsing_context;
+    GC::Weak<BrowsingContext> target_browsing_context;
 
     // FIXME: An active service worker https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
 
@@ -67,15 +68,7 @@ public:
 
 protected:
     Environment() = default;
-    Environment(EnvironmentId id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url, Optional<URL::Origin> top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
-        : id(move(id))
-        , creation_url(move(creation_url))
-        , top_level_creation_url(move(top_level_creation_url))
-        , top_level_origin(move(top_level_origin))
-        , target_browsing_context(move(target_browsing_context))
-    {
-    }
-    virtual void visit_edges(Cell::Visitor&) override;
+    Environment(EnvironmentId id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url, Optional<URL::Origin> top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context);
 };
 
 enum class RunScriptDecision {
