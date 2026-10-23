@@ -29,6 +29,7 @@ public:
 
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create_resolved_style(Optional<DOM::AbstractElement>);
     [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::AbstractElement);
+    [[nodiscard]] static GC::Ref<CSSStyleProperties> create_element_inline_style(DOM::AbstractElement, RustDeclarationBlock);
 
     virtual ~CSSStyleProperties() override = default;
 

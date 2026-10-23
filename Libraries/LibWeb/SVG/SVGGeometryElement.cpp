@@ -57,7 +57,6 @@ static CSS::StyleRecordID declared_only_style_record(Layout::BegunRead const& re
             .name = {},
         });
     }
-    auto inline_style = element.inline_style();
     return CSS::StyleRecordID { CSS::StyleEngineFFI::style_engine_declared_only_record(
         style_computer.style_engine().host(),
         &read, document.style_node_id().value(),
@@ -65,7 +64,7 @@ static CSS::StyleRecordID declared_only_style_record(Layout::BegunRead const& re
         CSS::StyleEngineFFI::FfiElementDeclarationKind::SvgPresentationAttribute,
         declarations.data(),
         declarations.size(),
-        inline_style ? inline_style->declaration_block().handle() : nullptr) };
+        element.inline_style_declarations()) };
 }
 
 // The geometry of the element in user units, which the geometry queries such as getTotalLength() measure. It is empty

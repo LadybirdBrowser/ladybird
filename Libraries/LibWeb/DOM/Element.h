@@ -511,8 +511,12 @@ public:
         }
     }
 
-    GC::Ptr<CSS::CSSStyleProperties> inline_style() { return m_inline_style; }
-    GC::Ptr<CSS::CSSStyleProperties const> inline_style() const { return m_inline_style; }
+    // The CSSOM object of the element's own declarations, made on first use; null if it has none.
+    GC::Ptr<CSS::CSSStyleProperties> inline_style();
+    GC::Ptr<CSS::CSSStyleProperties const> inline_style() const;
+    // The element's own declarations, without making their CSSOM object; null if it has none.
+    CSS::Parser::ValueParserFFI::DeclarationBlock const* inline_style_declarations() const;
+    bool has_inline_style_declarations() const;
     void set_inline_style(GC::Ptr<CSS::CSSStyleProperties>);
     void prepare_for_inline_style_change();
     bool can_defer_inline_style_attribute_update() const;
@@ -957,6 +961,7 @@ protected:
     virtual void prepare_for_style_computation() { }
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
     virtual size_t external_memory_size() const override;
 
     virtual bool id_reference_exists(Utf16View) const override;
@@ -1079,6 +1084,9 @@ private:
     OwnPtr<AttributeList> m_attributes;
     u64 m_subtree_attribute_name_filter { 0 };
     GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
+    // NB: The declarations of a style attribute, until something asks for their CSSOM object, which takes them over.
+    //     At most one of the two is set.
+    CSS::Parser::ValueParserFFI::DeclarationBlock* m_inline_declarations { nullptr };
     GC::Ptr<ShadowRoot> m_shadow_root;
 
     // A consumer handle mirroring StyleEngine's authoritative style-record column. C++ consumers

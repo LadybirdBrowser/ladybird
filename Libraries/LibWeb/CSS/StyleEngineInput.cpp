@@ -1544,8 +1544,7 @@ static void record_element_initial_features(DOM::Element& element)
 
     if (!element.part_names().is_empty())
         record_element_parts_changed(element);
-    // NB: Asking the block itself does not build the views of its declarations.
-    if (auto const inline_style = element.inline_style(); inline_style && !inline_style->declaration_block().is_empty())
+    if (element.has_inline_style_declarations())
         record_element_inline_style_properties(element);
     if (element_has_presentational_hints_to_publish(element))
         StyleComputer::collect_presentational_hint_properties({ element });
@@ -2169,8 +2168,7 @@ static void record_element_inline_style_properties(DOM::Element& element)
     auto* style_engine = style_engine_for_published(element);
     if (!style_engine)
         return;
-    auto const inline_style = element.inline_style();
-    style_engine->set_element_inline_style_properties(element.style_node_id(), inline_style ? &inline_style->declaration_block() : nullptr);
+    style_engine->set_element_inline_style_properties(element.style_node_id(), element.inline_style_declarations());
 }
 
 // The hints an element's attributes map to, published at its arrival, wherever what they are mapped

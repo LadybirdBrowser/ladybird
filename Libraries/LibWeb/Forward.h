@@ -453,6 +453,7 @@ using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
 
 namespace Web::CSS::Parser::ValueParserFFI {
 
+struct DeclarationBlock;
 struct FfiMediaFeatureValue;
 
 }

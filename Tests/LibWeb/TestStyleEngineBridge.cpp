@@ -106,7 +106,7 @@ TEST_CASE(inline_custom_declaration_names_survive_without_computed_environments)
     {
         Web::CSS::RustDeclarationBlock declarations { {}, {} };
         declarations.set_custom(name, { Web::CSS::Important::No, Web::CSS::PropertyID::Custom, Web::CSS::property_initial_value(Web::CSS::PropertyID::Width) });
-        engine.set_element_inline_style_properties(root, &declarations);
+        engine.set_element_inline_style_properties(root, declarations.handle());
     }
 
     for (u32 index = 0; index < 256; ++index) {

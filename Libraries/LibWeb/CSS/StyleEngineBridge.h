@@ -199,7 +199,7 @@ public:
     // Which longhand properties one of an element's own declarations covers, their canonical
     // specified values and their authored aliases, and whether the inventory has complete
     // continuation semantics.
-    void set_element_inline_style_properties(StyleNodeID node, RustDeclarationBlock const*);
+    void set_element_inline_style_properties(StyleNodeID node, Parser::ValueParserFFI::DeclarationBlock const*);
     void set_element_presentational_hint_properties(StyleNodeID node, StyleEngineFFI::FfiElementDeclarationKind, ReadonlySpan<StyleProperty>);
     struct StyleRecordDelta {
         StyleRecordID old_style_record;

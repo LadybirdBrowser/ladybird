@@ -112,9 +112,9 @@ void StyleEngine::finish_sheet_rules_replacement(SheetID sheet)
     StyleEngineFFI::style_engine_finish_sheet_rules_replacement(host(), sheet, StyleEngineFFI::style_engine_next_declaration_block_version(host()));
 }
 
-void StyleEngine::set_element_inline_style_properties(StyleNodeID node, RustDeclarationBlock const* declarations)
+void StyleEngine::set_element_inline_style_properties(StyleNodeID node, Parser::ValueParserFFI::DeclarationBlock const* declarations)
 {
-    if (StyleEngineFFI::style_engine_set_element_inline_style_properties(host(), node.value(), declarations ? declarations->handle() : nullptr))
+    if (StyleEngineFFI::style_engine_set_element_inline_style_properties(host(), node.value(), declarations))
         note_css_transitions_may_observe_style_changes();
 }
 

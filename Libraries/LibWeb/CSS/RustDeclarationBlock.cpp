@@ -96,6 +96,12 @@ RustDeclarationBlock& RustDeclarationBlock::operator=(RustDeclarationBlock&& oth
     return *this;
 }
 
+Parser::ValueParserFFI::DeclarationBlock* RustDeclarationBlock::leak_handle() &&
+{
+    m_views = nullptr;
+    return exchange(m_block, nullptr);
+}
+
 RustDeclarationBlock RustDeclarationBlock::share() const
 {
     return RustDeclarationBlock { rust_declaration_block_share(m_block) };
