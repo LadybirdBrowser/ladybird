@@ -1,0 +1,1 @@
+Server-Timing: metric1;foo=bar;desc=description;foo=bar;dur=123.4;foo=bar,metric2
