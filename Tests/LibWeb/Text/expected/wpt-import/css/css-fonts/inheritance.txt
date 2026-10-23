@@ -1,0 +1,45 @@
+Harness status: OK
+
+Found 39 tests
+
+35 Pass
+4 Fail
+Pass	Property font-family inherits
+Pass	Property font-feature-settings has initial value normal
+Pass	Property font-feature-settings inherits
+Pass	Property font-kerning has initial value auto
+Pass	Property font-kerning inherits
+Pass	Property font-language-override has initial value normal
+Pass	Property font-language-override inherits
+Pass	Property font-optical-sizing has initial value auto
+Pass	Property font-optical-sizing inherits
+Pass	Property font-size has initial value 16px
+Pass	Property font-size inherits
+Fail	Property font-size-adjust has initial value none
+Fail	Property font-size-adjust inherits
+Pass	Property font-stretch has initial value 100%
+Pass	Property font-stretch inherits
+Pass	Property font-style has initial value normal
+Pass	Property font-style inherits
+Fail	Property font-synthesis has initial value weight style small-caps position
+Fail	Property font-synthesis inherits
+Pass	Property font-variant has initial value normal
+Pass	Property font-variant inherits
+Pass	Property font-variant-alternates has initial value normal
+Pass	Property font-variant-alternates inherits
+Pass	Property font-variant-caps has initial value normal
+Pass	Property font-variant-caps inherits
+Pass	Property font-variant-east-asian has initial value normal
+Pass	Property font-variant-east-asian inherits
+Pass	Property font-variant-emoji has initial value normal
+Pass	Property font-variant-emoji inherits
+Pass	Property font-variant-ligatures has initial value normal
+Pass	Property font-variant-ligatures inherits
+Pass	Property font-variant-numeric has initial value normal
+Pass	Property font-variant-numeric inherits
+Pass	Property font-variant-position has initial value normal
+Pass	Property font-variant-position inherits
+Pass	Property font-variation-settings has initial value normal
+Pass	Property font-variation-settings inherits
+Pass	Property font-weight has initial value 400
+Pass	Property font-weight inherits

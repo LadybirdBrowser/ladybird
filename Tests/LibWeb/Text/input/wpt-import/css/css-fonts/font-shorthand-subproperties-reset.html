@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: Resetting font shorthand subproperties</title>
+<link rel="author" title="Munira Tursunova" href="moonira@google.com">
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-prop">
+<meta name="assert" content="All subproperties of the font property are first reset to their initial values.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="test"></div>
+<script>
+
+function set_font_subproperty(property, value) {
+  const element = document.getElementById('test')
+  element.style = ''
+  element.style[property] = value
+}
+
+function test_font_shorthand_resetting_subproperty(property, newValue) {
+  if (!CSS.supports(property, newValue))
+    return
+  test(() => {
+    let testElem = document.getElementById('test');
+    let computed = window.getComputedStyle(testElem);
+    let initialValue = computed[property];
+    set_font_subproperty(property, newValue);
+    document.getElementById('test').style.font = '16px serif';
+    assert_equals(computed[property], initialValue);
+    assert_not_equals(computed.font, "");
+  }, 'Property ' + property + ' should be reset to its initial value.')
+}
+
+test_font_shorthand_resetting_subproperty('font-size-adjust', '0')
+test_font_shorthand_resetting_subproperty('font-kerning', 'normal')
+test_font_shorthand_resetting_subproperty('font-variant-caps', 'all-small-caps')
+test_font_shorthand_resetting_subproperty('font-variant-ligatures', 'none')
+test_font_shorthand_resetting_subproperty('font-variant-position', 'sub')
+test_font_shorthand_resetting_subproperty('font-variant-numeric', 'ordinal')
+test_font_shorthand_resetting_subproperty('font-variant-alternates', 'historical-forms')
+test_font_shorthand_resetting_subproperty('font-variant-east-asian', 'full-width')
+test_font_shorthand_resetting_subproperty('font-variant-emoji', 'text')
+test_font_shorthand_resetting_subproperty('font-feature-settings', '"sinf"')
+test_font_shorthand_resetting_subproperty('font-language-override', '"SRB"')
+test_font_shorthand_resetting_subproperty('font-optical-sizing', 'none')
+test_font_shorthand_resetting_subproperty('font-variation-settings', '"aaaa" 1')
+
+</script>

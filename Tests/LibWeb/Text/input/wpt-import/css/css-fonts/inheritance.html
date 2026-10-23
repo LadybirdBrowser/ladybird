@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSS Fonts Level 3 & 4 properties</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#property-index">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#property-index">
+<meta name="assert" content="Properties inherit according to the spec.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+<style>
+  #box {
+    font-size: medium;
+  }
+</style>
+</head>
+<body>
+<div id="box"></div>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+'use strict';
+const box = document.getElementById('box');
+const mediumFontSize = getComputedStyle(box).fontSize;
+
+assert_inherited('font-family', null, '"Not Initial!"');  // Initial value depends on user agent.
+assert_inherited('font-feature-settings', 'normal', '"smcp", "swsh" 2');
+assert_inherited('font-kerning', 'auto', 'none');
+assert_inherited('font-language-override', 'normal' , '"ksw"');
+assert_inherited('font-optical-sizing', 'auto' , 'none');
+assert_inherited('font-size', mediumFontSize /* medium */, '123px');
+assert_inherited('font-size-adjust', 'none', '1.5');
+assert_inherited('font-stretch', '100%' /* normal */, '75%');
+assert_inherited('font-style', 'normal', 'italic');
+assert_inherited('font-synthesis', 'weight style small-caps position', 'none');
+assert_inherited('font-variant', 'normal', 'none');
+assert_inherited('font-variant-alternates', 'normal', 'historical-forms');
+assert_inherited('font-variant-caps', 'normal', 'small-caps');
+assert_inherited('font-variant-east-asian', 'normal', 'ruby');
+assert_inherited('font-variant-emoji', 'normal', 'text');
+assert_inherited('font-variant-ligatures', 'normal', 'none');
+assert_inherited('font-variant-numeric', 'normal', 'ordinal');
+assert_inherited('font-variant-position', 'normal', 'super');
+assert_inherited('font-variation-settings', 'normal', '"wght" 700');
+assert_inherited('font-weight', '400' /* normal */, '900');
+</script>
+</body>
+</html>
