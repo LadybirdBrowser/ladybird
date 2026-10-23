@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
+#include <LibWeb/ServerTiming/PerformanceServerTiming.h>
 
 namespace Web::ResourceTiming {
 
@@ -346,6 +347,27 @@ Utf16String const& PerformanceResourceTiming::content_type() const
 {
     // The contentType getter steps are to return this's resource info's content type.
     return m_response_body_info.content_type;
+}
+
+// https://w3c.github.io/server-timing/#dom-performanceresourcetiming-servertiming
+Vector<GC::Ref<ServerTiming::PerformanceServerTiming>> PerformanceResourceTiming::server_timing() const
+{
+    // The serverTiming getter steps are the following:
+    // 1. Let entries be a new list.
+    Vector<GC::Ref<ServerTiming::PerformanceServerTiming>> entries;
+
+    // 2. For each field in this’s timing info’s server-timing headers:
+    for (auto const& field : m_timing_info->server_timing_headers()) {
+        // 1. Let metric be the result of parsing field.
+        auto metric = ServerTiming::PerformanceServerTiming::parse_a_server_timing_header_field(field);
+
+        // 2. If metric is not null, append metric to entries.
+        if (metric)
+            entries.append(*metric);
+    }
+
+    // 3. Return entries.
+    return entries;
 }
 
 }

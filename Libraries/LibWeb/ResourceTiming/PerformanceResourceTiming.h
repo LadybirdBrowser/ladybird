@@ -13,6 +13,12 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 
+namespace Web::ServerTiming {
+
+class PerformanceServerTiming;
+
+}
+
 namespace Web::ResourceTiming {
 
 using RenderBlockingStatusType = Bindings::RenderBlockingStatusType;
@@ -73,6 +79,8 @@ public:
     RenderBlockingStatusType render_blocking_status() const;
     bool is_render_blocking() const;
     Utf16String const& content_type() const;
+
+    Vector<GC::Ref<ServerTiming::PerformanceServerTiming>> server_timing() const;
 
 protected:
     PerformanceResourceTiming(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
