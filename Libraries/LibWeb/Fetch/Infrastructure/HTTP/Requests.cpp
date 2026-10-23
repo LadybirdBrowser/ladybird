@@ -17,6 +17,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -132,6 +133,15 @@ bool Request::is_navigation_request() const
     return any_of(navigation_request_destinations, [this](auto destination) {
         return m_destination == destination;
     });
+}
+
+// Mixed Content refers to a request's target browsing context, which Fetch does not define. A navigation request targets
+// its reserved client's target browsing context: the navigable's active browsing context when the client was reserved.
+GC::Ptr<HTML::BrowsingContext> Request::target_browsing_context() const
+{
+    if (!m_reserved_client)
+        return {};
+    return m_reserved_client->target_browsing_context.ptr();
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-tainted-origin

@@ -94,10 +94,10 @@ Optional<NetworkPartitionKey> determine_the_network_partition_key(Infrastructure
         key->frame_site = URL::Site::serialize_for_partitioning(current_url_origin);
         key->is_subframe_document = true;
         key->has_cross_site_ancestor = [&] {
-            auto reserved_client = request.reserved_client();
-            if (!reserved_client || !reserved_client->target_browsing_context)
+            auto target_browsing_context = request.target_browsing_context();
+            if (!target_browsing_context)
                 return false;
-            auto const* document = reserved_client->target_browsing_context->active_document();
+            auto const* document = target_browsing_context->active_document();
             auto navigable = document ? document->navigable() : nullptr;
             auto parent = navigable ? navigable->parent() : nullptr;
             if (!parent)
